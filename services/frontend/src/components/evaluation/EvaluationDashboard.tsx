@@ -243,7 +243,7 @@ export function EvaluationDashboard({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('evaluation.dashboard.title')}
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
@@ -395,22 +395,22 @@ export function EvaluationDashboard({
                     <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                       <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.modelA')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.modelB')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.metric')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.pValue')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.significance')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                          <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('evaluation.dashboard.effectSize')}
                           </th>
                         </tr>

@@ -74,7 +74,7 @@ export function ProjectList() {
   if (loading && projects.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
       </div>
     )
   }
@@ -85,8 +85,10 @@ export function ProjectList() {
       <div className="mb-8 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{t('projects.list.title')}</h1>
-            <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              {t('projects.list.title')}
+            </h1>
+            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
               {t('projects.list.subtitle')}
             </p>
           </div>
@@ -125,7 +127,7 @@ export function ProjectList() {
             <Card className="p-12 text-center">
               <div>
                 <FolderIcon className="mx-auto mb-4 h-12 w-12 text-zinc-500 dark:text-zinc-400" />
-                <h3 className="mb-2 text-lg font-medium">
+                <h3 className="mb-2 text-lg font-semibold">
                   {searchQuery
                     ? t('projects.list.noProjectsFound')
                     : activeTab === 'active'
@@ -250,7 +252,7 @@ export function ProjectList() {
             <Card className="p-12 text-center">
               <div>
                 <ArchiveBoxIcon className="mx-auto mb-4 h-12 w-12 text-zinc-500 dark:text-zinc-400" />
-                <h3 className="mb-2 text-lg font-medium">
+                <h3 className="mb-2 text-lg font-semibold">
                   {t('projects.list.noArchivedProjects')}
                 </h3>
                 <p className="text-zinc-500 dark:text-zinc-400">

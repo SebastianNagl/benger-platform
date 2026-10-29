@@ -373,7 +373,7 @@ describe('Dialog Component', () => {
 
       const heading = screen.getByRole('heading', { level: 3 })
       expect(heading.className).toContain('text-lg')
-      expect(heading.className).toContain('font-medium')
+      expect(heading.className).toContain('font-semibold')
       expect(heading.className).toContain('text-zinc-900')
       expect(heading.className).toContain('dark:text-white')
     })
@@ -685,7 +685,7 @@ describe('Dialog Component', () => {
 
       const heading = screen.getByRole('heading', { level: 3 })
       expect(heading.className).toContain('text-lg')
-      expect(heading.className).toContain('font-medium')
+      expect(heading.className).toContain('font-semibold')
       expect(heading.className).toContain('text-zinc-900')
       expect(heading.className).toContain('dark:text-white')
     })

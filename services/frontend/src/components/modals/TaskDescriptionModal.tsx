@@ -39,11 +39,14 @@ export function TaskDescriptionModal({
   return (
     <Dialog open={isOpen} onClose={handleCancel} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       {/* Full-screen container to center the panel */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-zinc-800">
+        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div>
@@ -118,13 +121,13 @@ export function TaskDescriptionModal({
           <div className="flex items-center justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={handleCancel}
-              className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+              className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
             >
               {t('modals.taskDescription.cancel')}
             </button>
             <button
               onClick={handleSave}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('modals.taskDescription.save')}
             </button>

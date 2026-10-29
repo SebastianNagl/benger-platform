@@ -43,12 +43,12 @@ export function ComingSoon({
         </div>
 
         {/* Title */}
-        <h1 className="mb-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {displayTitle}
         </h1>
 
         {/* Description */}
-        <p className="mb-8 max-w-md text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 mb-8 max-w-md text-zinc-600 dark:text-zinc-400">
           {displayDescription}
         </p>
 

@@ -653,10 +653,10 @@ export default function EmailVerificationManagement() {
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-zinc-900">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('emailVerification.admin.title')}
           </h1>
-          <p className="mt-2 text-zinc-600">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('emailVerification.admin.description')}
           </p>
         </div>
@@ -703,11 +703,11 @@ export default function EmailVerificationManagement() {
             <button
               key={key}
               onClick={() => setActiveTab(key as any)}
-              className={`flex items-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+              className={`flex h-7 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === key
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-              }`}
+              } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             >
               <Icon className="mr-2 h-4 w-4" />
               {label}

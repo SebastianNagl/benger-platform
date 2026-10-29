@@ -41,7 +41,7 @@ export function ConfigCard({
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   return (
-    <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+    <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex w-full items-center">
         <button
           type="button"

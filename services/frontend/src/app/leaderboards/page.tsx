@@ -23,7 +23,7 @@ function LeaderboardsContent() {
   )
 
   const tabClass = (tab: LeaderboardTab) =>
-    `rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+    `rounded-full px-3 h-7 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
       activeTab === tab
         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -47,7 +47,7 @@ function LeaderboardsContent() {
       </div>
 
       <div>
-        <h1 className="mb-6 text-3xl font-bold text-zinc-900 dark:text-white">
+        <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('leaderboards.title') || 'Leaderboards'}
         </h1>
 

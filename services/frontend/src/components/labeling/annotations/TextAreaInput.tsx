@@ -112,7 +112,7 @@ export default function TextAreaInput({
           type="button"
           onClick={handleSubmit}
           disabled={required && !value.trim()}
-          className="rounded-full bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+          className="h-8 rounded-full bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {t('common.submit')}
         </button>

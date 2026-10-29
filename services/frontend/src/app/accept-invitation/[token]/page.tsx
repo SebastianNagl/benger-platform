@@ -134,7 +134,7 @@ export default function AcceptInvitationPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
         <div className="mx-auto w-full max-w-md">
-          <div className="rounded-lg bg-white p-8 text-center shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <ExclamationTriangleIcon className="mx-auto mb-4 h-12 w-12 text-red-500" />
             <h1 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-white">
               {t('invitation.invalidTitle')}
@@ -155,7 +155,7 @@ export default function AcceptInvitationPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
         <div className="mx-auto w-full max-w-md">
-          <div className="rounded-lg bg-white p-8 text-center shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
             <h1 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-white">
               {t('invitation.welcomeTo', {
@@ -179,7 +179,7 @@ export default function AcceptInvitationPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
       <div className="mx-auto w-full max-w-lg">
-        <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
+        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Header */}
           <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4 dark:border-emerald-800 dark:bg-emerald-900/20">
             <div className="flex items-center">

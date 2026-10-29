@@ -177,7 +177,7 @@ export function ModelPermissionsPanel({
               {initialOrgNames.map((name) => (
                 <span
                   key={name}
-                  className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   {name}
                 </span>

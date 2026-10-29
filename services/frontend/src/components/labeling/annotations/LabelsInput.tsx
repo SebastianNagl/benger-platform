@@ -64,7 +64,7 @@ export default function LabelsInput({
             type="button"
             onClick={() => handleLabelToggle(label.value)}
             className={cn(
-              'rounded-full px-3 py-1 text-sm font-medium transition-colors',
+              'h-8 max-w-full truncate rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors',
               selectedLabels.includes(label.value)
                 ? 'bg-emerald-600 text-white'
                 : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600',

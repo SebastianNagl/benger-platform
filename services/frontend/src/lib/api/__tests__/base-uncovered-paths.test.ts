@@ -433,6 +433,21 @@ describe('BaseApiClient - additional uncovered paths', () => {
       ).toBe(true)
     })
 
+    it('invalidates the org group list after a group write', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/organizations/abc/groups', [])
+      client.seedCache('user1-GET-/organizations/xyz/groups', [])
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(delete204())
+
+      await client.testRequest('/organizations/abc/groups/g1/jurisdiction', {
+        method: 'PUT',
+      })
+
+      expect(client.cacheHas('user1-GET-/organizations/abc/groups')).toBe(false)
+      // Another org's list is left alone.
+      expect(client.cacheHas('user1-GET-/organizations/xyz/groups')).toBe(true)
+    })
+
     it('invalidates org api-keys after an org api-key mutation', async () => {
       localStorageMock.getItem.mockReturnValue('user1')
       client.seedCache('user1-GET-/organizations/abc/api-keys', { keys: [] })

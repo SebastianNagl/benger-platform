@@ -917,9 +917,9 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   {t('annotationTab.buttons.orderBy')}
                   <ChevronDownIcon className="h-4 w-4" />
                 </Menu.Button>
-                <Menu.Items className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
-                  <div className="py-1">
-                    <div className="px-4 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                <Menu.Items className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+                  <div>
+                    <div className="px-3 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
                       {t('annotationTab.orderBy.sortBy')}
                     </div>
                     {columns
@@ -934,7 +934,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                                   setSortBy(column.id)
                                   updatePreference('sortBy', column.id)
                                 }}
-                                className={`flex w-full items-center justify-between px-4 py-2 text-sm ${
+                                className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm ${
                                   focused ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                                 } ${
                                   isActive
@@ -960,7 +960,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                               setSortOrder(dir)
                               updatePreference('sortOrder', dir)
                             }}
-                            className={`flex w-full items-center justify-between px-4 py-2 text-sm ${
+                            className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm ${
                               focused ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                             } ${
                               sortOrder === dir
@@ -1123,7 +1123,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         {/* Data Table */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           </div>
         ) : (
           <ProjectDataTable

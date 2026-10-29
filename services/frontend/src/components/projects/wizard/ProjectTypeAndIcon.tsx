@@ -126,7 +126,7 @@ export function ProjectTypeSelector({
       {/* The toggle sits next to the options but outside the radiogroup. */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <div
-          className="flex flex-wrap items-center gap-2"
+          className="flex max-w-full min-w-0 flex-wrap items-center gap-2"
           role="radiogroup"
           aria-label={t('projects.creation.wizard.step1.kind.title')}
         >
@@ -146,7 +146,7 @@ export function ProjectTypeSelector({
                 className="px-4 py-2"
               >
                 <span aria-hidden>{opt.icon}</span>
-                {t(opt.nameKey)}
+                <span className="min-w-0 truncate">{t(opt.nameKey)}</span>
               </Button>
             )
           })}

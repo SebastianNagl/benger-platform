@@ -84,7 +84,7 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+      <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
         {t('reports.title')}
       </h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
@@ -107,7 +107,7 @@ export default function ReportsPage() {
           className="mt-8 flex flex-col items-center justify-center px-6 py-16 text-center"
           data-testid="reports-loading"
         >
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="m-0 text-zinc-600 dark:text-zinc-400">
             {t('reports.loadingReports')}
           </p>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={loadReports}
-            className="mt-6 inline-flex items-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+            className="mt-6 inline-flex h-8 items-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-zinc-900"
           >
             {t('reports.reload')}
           </button>
@@ -159,7 +159,7 @@ export default function ReportsPage() {
               <Link
                 key={report.id}
                 href={`/reports/${report.id}`}
-                className="block rounded-lg border border-zinc-200 bg-white p-6 no-underline shadow transition-shadow hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+                className="block rounded-lg border border-zinc-200 bg-white p-6 no-underline shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
                 data-testid={`report-card-${report.id}`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -185,7 +185,7 @@ export default function ReportsPage() {
                     {report.organizations.map((org) => (
                       <span
                         key={org.id}
-                        className="inline-block rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                        className="inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
                       >
                         {org.name}
                       </span>

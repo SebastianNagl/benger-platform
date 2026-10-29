@@ -97,7 +97,7 @@ export default function DashboardPage() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('common.loading')}
           </p>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('dashboard.title')}
         </h1>
-        <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('dashboard.subtitle')}
         </p>
       </div>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {/* 1. Projects */}
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="p-6">
             <div className="flex items-center">
               <div className="shrink-0">
@@ -191,7 +191,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 2. Issues (Tasks) */}
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="p-6">
             <div className="flex items-center">
               <div className="shrink-0">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Annotations */}
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="p-6">
             <div className="flex items-center">
               <div className="shrink-0">
@@ -261,7 +261,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 4. Generations */}
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="p-6">
             <div className="flex items-center">
               <div className="shrink-0">
@@ -296,7 +296,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 5. Evaluations */}
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="p-6">
             <div className="flex items-center">
               <div className="shrink-0">
@@ -335,7 +335,7 @@ export default function DashboardPage() {
       {canAccessProjects && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Recent Projects */}
-          <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="px-6 py-6">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
@@ -372,7 +372,7 @@ export default function DashboardPage() {
                             t('dashboard.recentProjects.noDescription')}
                         </p>
                         <div className="mt-2 flex items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400">
-                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
                             {project.task_count || 0}{' '}
                             {t('dashboard.recentProjects.tasks')}
                           </span>
@@ -398,7 +398,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="px-6 py-6">
               <h3 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('dashboard.quickActions')}

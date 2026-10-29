@@ -6,6 +6,7 @@
 
 import { ProjectDataTab } from '@/components/projects/tabs/ProjectDataTab'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { parseSubdomain } from '@/lib/utils/subdomain'
@@ -68,7 +69,7 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('project.loading') || 'Loading project...'}
           </p>
@@ -114,7 +115,7 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
               <button
                 type="button"
                 onClick={() => router.push(`/projects/${projectId}`)}
-                className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-zinc-900"
               >
                 {t('projects.data.backToOverview')}
               </button>
@@ -126,37 +127,37 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       {/* Header */}
-      <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="px-6 py-4">
-          {/* Breadcrumb */}
-          <div className="mb-4">
-            <Breadcrumb
-              items={[
-                {
-                  label: t('navigation.dashboard') || 'Dashboard',
-                  href: '/dashboard',
-                },
-                {
-                  label: t('navigation.projects') || 'Projects',
-                  href: '/projects',
-                },
-                { label: currentProject.title, href: `/projects/${projectId}` },
-                {
-                  label: t('navigation.projectData') || 'Data',
-                  href: `/projects/${projectId}/data`,
-                },
-              ]}
-            />
-          </div>
+      <div className="mb-8">
+        <div className="mb-4">
+          <Breadcrumb
+            items={[
+              {
+                label: t('navigation.dashboard') || 'Dashboard',
+                href: '/dashboard',
+              },
+              {
+                label: t('navigation.projects') || 'Projects',
+                href: '/projects',
+              },
+              { label: currentProject.title, href: `/projects/${projectId}` },
+              {
+                label: t('navigation.projectData') || 'Data',
+                href: `/projects/${projectId}/data`,
+              },
+            ]}
+          />
         </div>
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {t('project.quickActions.projectData')}
+        </h1>
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          {currentProject.title}
+        </p>
       </div>
 
-      {/* Content */}
-      <div className="px-6 py-4">
-        <ProjectDataTab projectId={projectId} />
-      </div>
-    </div>
+      <ProjectDataTab projectId={projectId} />
+    </ResponsiveContainer>
   )
 }

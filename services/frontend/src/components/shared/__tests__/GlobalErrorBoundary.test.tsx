@@ -631,8 +631,8 @@ describe('GlobalErrorBoundary', () => {
 
       const reloadButton = screen.getByText('Reload Page')
       expect(reloadButton.className).toContain('focus:outline-none')
-      expect(reloadButton.className).toContain('focus:ring-2')
-      expect(reloadButton.className).toContain('focus:ring-emerald-500')
+      expect(reloadButton.className).toContain('focus-visible:ring-2')
+      expect(reloadButton.className).toContain('focus-visible:ring-emerald-500')
     })
 
     it('error container has proper semantic structure', () => {

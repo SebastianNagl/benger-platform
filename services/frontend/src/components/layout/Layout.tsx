@@ -78,7 +78,7 @@ export function Layout({
           data-testid="ui-shell-skeleton"
           aria-hidden="true"
         >
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
         </div>
       )
     }

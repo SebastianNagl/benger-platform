@@ -188,13 +188,14 @@ export default function ResetPasswordConfirmPage() {
 
                 <div>
                   <Button
+                    variant="filled"
                     type="submit"
                     disabled={isLoading}
-                    className="w-full rounded-full bg-zinc-900 px-4 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+                    className="w-full"
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                         {t('passwordReset.resetting')}
                       </div>
                     ) : (

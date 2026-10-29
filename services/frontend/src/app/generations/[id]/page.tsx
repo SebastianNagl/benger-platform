@@ -164,10 +164,10 @@ export default function GenerationRunDetailPage({
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('generations.detail.title')}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           <span className="font-mono text-xs">{data.id}</span>
           {data.project_title && (
             <>
@@ -281,16 +281,16 @@ export default function GenerationRunDetailPage({
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
               <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
                 <tr>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.runIndex')}
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.status')}
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.completed')}
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.preview')}
                   </th>
                 </tr>
@@ -298,16 +298,16 @@ export default function GenerationRunDetailPage({
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {data.children.map((c) => (
                   <tr key={c.id}>
-                    <td className="px-3 py-2 font-mono text-xs">
+                    <td className="px-4 py-3 font-mono text-xs">
                       {c.run_index}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
                     </td>
-                    <td className="px-3 py-2 text-xs">
+                    <td className="px-4 py-3 text-xs">
                       {fmtDate(c.completed_at, locale)}
                     </td>
-                    <td className="px-3 py-2 text-xs">
+                    <td className="px-4 py-3 text-xs">
                       {c.error_message ? (
                         <span className="text-red-600 dark:text-red-400">
                           {c.error_message}
@@ -353,16 +353,16 @@ export default function GenerationRunDetailPage({
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
               <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
                 <tr>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.metric')}
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.status')}
                   </th>
-                  <th className="px-3 py-2">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.completed')}
                   </th>
-                  <th className="px-3 py-2 text-right">
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('generations.detail.scoredSamples')}
                   </th>
                 </tr>
@@ -376,16 +376,16 @@ export default function GenerationRunDetailPage({
                     }
                     className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                   >
-                    <td className="px-3 py-2 font-mono text-xs">
+                    <td className="px-4 py-3 font-mono text-xs">
                       {ev.metric || <span className="text-zinc-400">—</span>}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-3">
                       <StatusBadge status={ev.status} />
                     </td>
-                    <td className="px-3 py-2 text-xs">
+                    <td className="px-4 py-3 text-xs">
                       {fmtDate(ev.completed_at, locale)}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs">
+                    <td className="px-4 py-3 text-right font-mono text-xs">
                       {ev.samples_evaluated ?? '—'}
                     </td>
                   </tr>

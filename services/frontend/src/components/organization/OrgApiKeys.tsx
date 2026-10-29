@@ -564,10 +564,13 @@ export function OrgApiKeys({
       onClose={() => onOpenChange(false)}
       className="relative z-50"
     >
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-zinc-800">
+        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div>
@@ -722,11 +725,11 @@ export function OrgApiKeys({
                     <button
                       onClick={toggleRequirePrivateKeys}
                       disabled={settingsLoading}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                         !requirePrivateKeys
                           ? 'bg-emerald-600'
                           : 'bg-zinc-200 dark:bg-zinc-600'
-                      } ${settingsLoading ? 'opacity-50' : ''}`}
+                      } ${settingsLoading ? 'opacity-50' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                       role="switch"
                       aria-checked={!requirePrivateKeys}
                       aria-label={t('organization.apiKeys.orgProvidesToggle')}
@@ -1132,7 +1135,7 @@ export function OrgApiKeys({
           <div className="flex items-center justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.done')}
             </button>

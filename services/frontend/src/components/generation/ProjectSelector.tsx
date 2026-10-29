@@ -220,7 +220,7 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:focus-visible:ring-offset-zinc-900"
                           aria-label={t(
                             'generation.projectSelector.openSettings',
                             {
@@ -239,7 +239,7 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70 dark:focus-visible:ring-offset-zinc-900"
                           aria-label={t(
                             'generation.projectSelector.openSettings',
                             {
@@ -255,7 +255,7 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none dark:bg-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-900/70 dark:focus-visible:ring-offset-zinc-900"
                           aria-label={t(
                             'generation.projectSelector.openSettings',
                             {

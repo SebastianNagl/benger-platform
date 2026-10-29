@@ -337,7 +337,7 @@ describe('NotificationDropdown', () => {
       )
 
       const iconContainer = container.querySelector(
-        '.text-blue-600.bg-blue-100.dark\\:text-blue-400.dark\\:bg-blue-900',
+        '.text-zinc-700.bg-zinc-100.dark\\:text-zinc-400.dark\\:bg-zinc-800',
       )
       expect(iconContainer).toBeInTheDocument()
     })

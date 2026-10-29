@@ -453,12 +453,15 @@ export function CustomModelFormModal({
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       {/* Full-screen container to center the panel */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel
-          className="mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-zinc-800"
+          className="mx-auto w-full max-w-2xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800"
           data-testid="custom-model-form-modal"
         >
           {/* Header */}

@@ -287,6 +287,10 @@ def _schema(_eager_celery):
             # reads it for every group-scoped project.
             "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
             "require_private_keys BOOLEAN",
+            # Migration 120: per-group jurisdiction override (the model
+            # carries it, so every group SELECT needs the column).
+            "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
+            "jurisdiction VARCHAR(8)",
         ):
             conn.execute(text(_ddl))
     yield

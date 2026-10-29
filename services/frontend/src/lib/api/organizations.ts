@@ -264,6 +264,18 @@ export class OrganizationsClient extends BaseApiClient {
     return this.post(`/organizations/${organizationId}/groups`, data)
   }
 
+  /** Set a group's jurisdiction; null makes it follow the organization. */
+  async updateGroupJurisdiction(
+    organizationId: string,
+    groupId: string,
+    jurisdiction: string | null,
+  ): Promise<{ id: string; jurisdiction: string | null }> {
+    return this.put(
+      `/organizations/${organizationId}/groups/${groupId}/jurisdiction`,
+      { jurisdiction },
+    )
+  }
+
   /**
    * Update a group's name / description / active flag (org admin only)
    */
@@ -727,6 +739,8 @@ export interface OrganizationGroup {
   member_count: number | null
   is_member: boolean
   my_role: OrganizationRole | null
+  // 'DE' | 'FR', or null when the group follows its organization.
+  jurisdiction?: string | null
 }
 
 export interface OrganizationGroupCreate {

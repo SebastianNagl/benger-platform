@@ -162,8 +162,8 @@ describe('AuthGuard Component', () => {
         'rounded-full',
         'h-8',
         'w-8',
-        'border-b-2',
-        'border-emerald-500',
+        'border-2',
+        'border-t-emerald-500',
       )
     })
   })
@@ -277,7 +277,7 @@ describe('AuthGuard Component', () => {
       expect(dialogPanel).toHaveClass(
         'mx-auto',
         'max-w-md',
-        'rounded-lg',
+        'rounded-2xl',
         'bg-white',
         'dark:bg-zinc-800',
         'p-6',

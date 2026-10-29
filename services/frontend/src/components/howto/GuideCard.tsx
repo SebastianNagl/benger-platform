@@ -108,11 +108,13 @@ export function GuideCard({ guide }: Props) {
         <div className="mt-4 flex flex-wrap gap-2">
           {links.map((link) => {
             const cls =
-              'inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400'
+              'inline-flex h-8 max-w-full items-center gap-1 rounded-full border border-zinc-200 px-3 text-xs font-medium whitespace-nowrap text-zinc-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400'
             const body = (
               <>
-                {link.label}
-                <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                <span className="truncate" title={link.label}>
+                  {link.label}
+                </span>
+                <ArrowTopRightOnSquareIcon className="h-3 w-3 shrink-0" />
               </>
             )
             // Off-site hrefs (e.g. the LTI reference on GitHub) open in a new

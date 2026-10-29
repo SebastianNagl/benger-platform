@@ -69,8 +69,8 @@ function SimpleBarChart({
   const maxValue = Math.max(...data.map((item) => item.value))
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
-      <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+    <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
         {title}
       </h3>
       <div className="space-y-3">
@@ -122,7 +122,7 @@ function StatCard({
   color: string
 }) {
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
+    <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center">
         <div className={`rounded-lg p-2 ${color}`}>
           <Icon className="h-6 w-6 text-white" />
@@ -273,10 +273,10 @@ export default function NotificationAnalyticsPage() {
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('notifications.analyticsTitle')}
           </h1>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('notifications.analytics.subtitle')}
           </p>
         </div>
@@ -402,8 +402,8 @@ export default function NotificationAnalyticsPage() {
           </div>
 
           {/* Recent Activity by Type */}
-          <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
-            <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('notifications.analytics.recentActivityDetails')}
             </h3>
 

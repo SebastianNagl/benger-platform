@@ -80,7 +80,7 @@ export function SiteHeader() {
               href={`/#${id}`}
               onClick={handleSectionClick(id)}
               className={clsx(
-                'rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                'inline-flex h-8 items-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors',
                 isHome && activeSection === id
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
                   : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white',
@@ -99,7 +99,7 @@ export function SiteHeader() {
         </div>
         <Link
           href="/login"
-          className="inline-flex items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+          className="inline-flex h-8 items-center justify-center overflow-hidden rounded-full px-4 text-sm font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           {t('landing.nav.login')}
         </Link>

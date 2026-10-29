@@ -148,7 +148,7 @@ export default function CompleteProfilePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
       <div className="mx-auto w-full max-w-md">
-        <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
+        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Header */}
           <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4 dark:border-emerald-800 dark:bg-emerald-900/20">
             <div className="flex items-center">

@@ -686,7 +686,7 @@ describe('ModelComparisonChart', () => {
       )
 
       const title = screen.getByText('Test Title')
-      expect(title).toHaveClass('text-lg', 'font-medium', 'text-zinc-900')
+      expect(title).toHaveClass('text-lg', 'font-semibold', 'text-zinc-900')
     })
 
     it('should apply table styling for bar chart', () => {

@@ -474,7 +474,7 @@ describe('AlertDialog', () => {
     it('renders button with correct styling classes', () => {
       render(<AlertDialog {...defaultProps} />)
       const button = screen.getByRole('button', { name: 'OK' })
-      expect(button).toHaveClass('min-w-[80px]', 'px-6', 'py-2')
+      expect(button).toHaveClass('min-w-[80px]', 'px-6', 'h-8')
     })
 
     it('button is enabled by default', () => {

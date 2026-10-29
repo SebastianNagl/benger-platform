@@ -146,7 +146,7 @@ export function CustomModelList({
                     {model.is_active === false && (
                       <span
                         title={t('customModels.list.inactiveHint')}
-                        className="inline-flex items-center rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                        className="inline-flex items-center rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                         data-testid="custom-model-inactive-badge"
                       >
                         {t('customModels.list.inactiveBadge')}
@@ -227,8 +227,8 @@ export function CustomModelList({
                       {t('customModels.list.editVisibility')}
                     </Button>
                     <Button
-                      variant="outline"
-                      className="text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                      variant="danger"
+                      className="text-xs"
                       onClick={() => setDeleteTarget(model)}
                       data-testid={`custom-model-delete-${model.id}`}
                     >

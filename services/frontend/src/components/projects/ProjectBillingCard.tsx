@@ -81,7 +81,7 @@ export function ProjectBillingCard({ project }: Props) {
 
   return (
     <div
-      className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10"
+      className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       data-testid="project-billing-card"
     >
       <h3 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">

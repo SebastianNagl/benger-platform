@@ -565,7 +565,7 @@ export function GenerationTaskList({
       <div className="space-y-4">
         {filterToolbar}
         <div className="flex h-64 items-center justify-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
         </div>
       </div>
     )
@@ -619,13 +619,13 @@ export function GenerationTaskList({
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 {t('generation.taskList.task')}
               </th>
               {data.models.map((model) => (
                 <th
                   key={model}
-                  className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   {model}
                 </th>
@@ -647,7 +647,7 @@ export function GenerationTaskList({
                   key={task.id}
                   className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                 >
-                  <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                  <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                     <div className="max-w-xs truncate">
                       {getFirstDataField(task.data)}
                     </div>
@@ -733,7 +733,7 @@ export function GenerationTaskList({
                     return (
                       <td
                         key={model}
-                        className="relative px-6 py-4 text-center whitespace-nowrap"
+                        className="relative px-4 py-3 text-center whitespace-nowrap"
                         onContextMenu={(e) => {
                           if (!canStartGeneration(user)) return
                           e.preventDefault()
@@ -759,13 +759,13 @@ export function GenerationTaskList({
                           title={tooltip}
                         >
                           {isGenerating ? (
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                           ) : (
                             getStatusIcon(status)
                           )}
                         </button>
                         {showMultiRunBadge && (
-                          <span className="ml-1 inline-block rounded bg-zinc-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                          <span className="ml-1 inline-block rounded-full bg-zinc-100 px-2.5 py-0.5 align-middle text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                             {runsCompletedSum}/
                             {runsRequestedMax * Math.max(1, structureCount)}
                             {runsFailedSum > 0 && (

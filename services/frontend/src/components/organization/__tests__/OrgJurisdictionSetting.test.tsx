@@ -32,7 +32,8 @@ describe('OrgJurisdictionSetting', () => {
     render(
       <OrgJurisdictionSetting
         organization={{ id: 'o1' }}
-        canManage
+        open
+        onOpenChange={jest.fn()}
         onSaved={onSaved}
       />,
     )
@@ -52,7 +53,8 @@ describe('OrgJurisdictionSetting', () => {
     render(
       <OrgJurisdictionSetting
         organization={{ id: 'o1', jurisdiction: 'DE' }}
-        canManage
+        open
+        onOpenChange={jest.fn()}
         onSaved={onSaved}
       />,
     )
@@ -65,16 +67,30 @@ describe('OrgJurisdictionSetting', () => {
     expect(onSaved).not.toHaveBeenCalled()
   })
 
-  it('members without management rights only see the value', () => {
+  it('renders nothing while closed', () => {
     render(
       <OrgJurisdictionSetting
         organization={{ id: 'o1', jurisdiction: 'FR' }}
-        canManage={false}
+        open={false}
+        onOpenChange={jest.fn()}
       />,
     )
-    expect(screen.queryByTestId('org-jurisdiction-select')).toBeNull()
-    expect(screen.getByTestId('org-jurisdiction')).toHaveTextContent(
-      'Frankreich',
+    expect(screen.queryByTestId('org-jurisdiction')).toBeNull()
+  })
+
+  it('shows the help text and closes via Fertig', () => {
+    const onOpenChange = jest.fn()
+    render(
+      <OrgJurisdictionSetting
+        organization={{ id: 'o1', jurisdiction: 'FR' }}
+        open
+        onOpenChange={onOpenChange}
+      />,
     )
+    expect(screen.getByTestId('org-jurisdiction')).toHaveTextContent(
+      'Projekt-Assistent',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Fertig' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })

@@ -99,6 +99,14 @@ jest.mock('@/contexts/I18nContext', () => ({
           'Failed to update member',
         'admin.organizations.groups.remove': 'Remove',
         'common.done': 'Done',
+        'admin.organizations.jurisdiction.label': 'Jurisdiction',
+        'admin.organizations.jurisdiction.saved': 'Jurisdiction saved',
+        'admin.organizations.jurisdiction.failed':
+          'The jurisdiction could not be saved',
+        'admin.organizations.jurisdiction.inherit':
+          'Same as organization ({country})',
+        'admin.organizations.jurisdiction.options.DE': 'Germany',
+        'admin.organizations.jurisdiction.options.FR': 'France',
       }
       let result = translations[key] || key
       if (vars) {
@@ -135,6 +143,7 @@ const mockAddGroupMember = jest.fn()
 const mockUpdateGroupMember = jest.fn()
 const mockRemoveGroupMember = jest.fn()
 const mockGetOrganizationMembers = jest.fn()
+const mockUpdateGroupJurisdiction = jest.fn()
 
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
@@ -148,6 +157,8 @@ jest.mock('@/lib/api/organizations', () => ({
     removeGroupMember: (...args: any[]) => mockRemoveGroupMember(...args),
     getOrganizationMembers: (...args: any[]) =>
       mockGetOrganizationMembers(...args),
+    updateGroupJurisdiction: (...args: any[]) =>
+      mockUpdateGroupJurisdiction(...args),
   },
 }))
 
@@ -832,6 +843,91 @@ describe('OrgGroups', () => {
       })
       expect(screen.queryByTestId('group-edit-grp-1')).not.toBeInTheDocument()
       expect(screen.queryByTestId('group-delete-grp-1')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('group jurisdiction', () => {
+    async function openMembers(props = {}) {
+      renderOrgGroups(props)
+      await waitFor(() => {
+        expect(screen.getByTestId('group-members-grp-1')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByTestId('group-members-grp-1'))
+      return (await screen.findByTestId(
+        'group-jurisdiction-select',
+      )) as HTMLSelectElement
+    }
+
+    it('follows the organization by default and sets an override', async () => {
+      mockGetGroups.mockResolvedValue([groupFixture()])
+      mockUpdateGroupJurisdiction.mockResolvedValue({
+        id: 'grp-1',
+        jurisdiction: 'FR',
+      })
+      const onJurisdictionSaved = jest.fn()
+      const select = await openMembers({
+        organizationJurisdiction: 'DE',
+        onJurisdictionSaved,
+      })
+      expect(select.value).toBe('__inherit__')
+      expect(screen.getByTestId('group-jurisdiction')).toHaveTextContent(
+        'Same as organization (Germany)',
+      )
+
+      fireEvent.change(select, { target: { value: 'FR' } })
+      await waitFor(() => expect(onJurisdictionSaved).toHaveBeenCalledTimes(1))
+      expect(mockUpdateGroupJurisdiction).toHaveBeenCalledWith(
+        'org-1',
+        'grp-1',
+        'FR',
+      )
+      expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
+        'Jurisdiction saved',
+      )
+
+      // The overview (refetched) badges the override.
+      mockGetGroups.mockResolvedValue([groupFixture({ jurisdiction: 'FR' })])
+      fireEvent.click(screen.getByTestId('group-members-back'))
+      expect(
+        await screen.findByTestId('group-jurisdiction-badge-grp-1'),
+      ).toHaveTextContent('France')
+    })
+
+    it('clears an override back to the organization', async () => {
+      mockGetGroups.mockResolvedValue([groupFixture({ jurisdiction: 'FR' })])
+      mockUpdateGroupJurisdiction.mockResolvedValue({
+        id: 'grp-1',
+        jurisdiction: null,
+      })
+      const select = await openMembers()
+      expect(select.value).toBe('FR')
+      fireEvent.change(select, { target: { value: '__inherit__' } })
+      await waitFor(() =>
+        expect(mockUpdateGroupJurisdiction).toHaveBeenCalledWith(
+          'org-1',
+          'grp-1',
+          null,
+        ),
+      )
+    })
+
+    it('reports a failed save', async () => {
+      mockGetGroups.mockResolvedValue([groupFixture()])
+      mockUpdateGroupJurisdiction.mockRejectedValue(new Error('403'))
+      const select = await openMembers()
+      fireEvent.change(select, { target: { value: 'FR' } })
+      expect(
+        await screen.findByText('The jurisdiction could not be saved'),
+      ).toBeInTheDocument()
+    })
+
+    it('group admins set it for their own group', async () => {
+      mockGetGroups.mockResolvedValue([groupFixture({ my_role: 'ORG_ADMIN' })])
+      const select = await openMembers({
+        isAdmin: false,
+        canManageGroups: true,
+      })
+      expect(select).toBeInTheDocument()
     })
   })
 })

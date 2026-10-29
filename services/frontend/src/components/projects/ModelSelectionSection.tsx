@@ -212,7 +212,7 @@ export function ModelSelectionSection({
                               </div>
                               <div className="ml-3 flex shrink-0 items-center space-x-2">
                                 {reasoningConfig && (
-                                  <span className="inline-flex items-center rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
                                     {t('project.modelSelection.thinking')}
                                   </span>
                                 )}

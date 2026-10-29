@@ -46,7 +46,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.noApiKeys.title')}
             </h3>
             <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
@@ -60,16 +60,16 @@ export function ErrorState({
             <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
               <p>{t('errors.states.noApiKeys.supportedProviders')}</p>
               <div className="mt-2 flex flex-wrap justify-center gap-2">
-                <span className="inline-flex items-center rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                   OpenAI
                 </span>
-                <span className="inline-flex items-center rounded bg-orange-100 px-2 py-1 text-xs text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                   Anthropic
                 </span>
-                <span className="inline-flex items-center rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   Google
                 </span>
-                <span className="inline-flex items-center rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">
                   DeepInfra
                 </span>
               </div>
@@ -95,7 +95,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.authFailed.title')}
             </h3>
             <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
@@ -130,7 +130,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.serverError.title')}
             </h3>
             <p
@@ -170,7 +170,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.networkError.title')}
             </h3>
             <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
@@ -207,7 +207,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.taskNotFound.title')}
             </h3>
             <p
@@ -242,7 +242,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.accessDenied.title')}
             </h3>
             <p
@@ -277,7 +277,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.configError.title')}
             </h3>
             <p
@@ -319,7 +319,7 @@ export function ErrorState({
                 />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('errors.states.default.title')}
             </h3>
             <p

@@ -34,10 +34,7 @@ export default function ArchivedProjectsPage() {
   }
 
   return (
-    <ResponsiveContainer
-      size="full"
-      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-    >
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb

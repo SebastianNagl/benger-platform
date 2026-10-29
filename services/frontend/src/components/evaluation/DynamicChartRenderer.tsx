@@ -282,13 +282,13 @@ function ScoreHeatmap({
       <table className="min-w-full text-sm">
         <thead>
           <tr>
-            <th className="sticky top-0 left-0 z-20 bg-white px-3 py-2 text-left font-medium text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+            <th className="sticky top-0 left-0 z-20 bg-white px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:bg-zinc-900 dark:text-zinc-400">
               {t('evaluation.charts.model')}
             </th>
             {metrics.map((metric) => (
               <th
                 key={metric}
-                className="sticky top-0 z-10 bg-white px-3 py-2 text-center font-medium whitespace-nowrap text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                className="sticky top-0 z-10 bg-white px-3 py-2 text-center text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:bg-zinc-900 dark:text-zinc-400"
               >
                 {metric.replace(/_/g, ' ')}
               </th>

@@ -142,7 +142,7 @@ export function QuestionEditModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25" />
+          <div className="fixed inset-0 bg-black/30 dark:bg-black/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -157,13 +157,13 @@ export function QuestionEditModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-900"
+                className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800"
                 data-testid="question-edit-modal"
               >
                 <div className="mb-4 flex items-center justify-between">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100"
+                    className="text-lg leading-6 font-semibold text-zinc-900 dark:text-zinc-100"
                   >
                     {t('tasks.questions.editTitle')}{' '}
                     {question?.id !== undefined ? `#${question.id}` : ''}

@@ -472,6 +472,55 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       )
     })
 
+    it('refreshes an expired access token once and retries', async () => {
+      const unauthorized = {
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Headers(),
+        text: async () => '',
+      }
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized) // /auth/me/contexts
+        .mockResolvedValueOnce({ ok: true, status: 200 }) // /auth/refresh
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: async () => JSON.stringify({ user: { id: 'u1' } }),
+          json: async () => ({ user: { id: 'u1' } }),
+        })
+
+      const result = await client.testAuthCheck('/auth/me/contexts')
+
+      expect(result).toEqual({ user: { id: 'u1' } })
+      const urls = (global.fetch as jest.Mock).mock.calls.map((c) => c[0])
+      expect(
+        urls.filter((u: string) => u.endsWith('/auth/refresh')),
+      ).toHaveLength(1)
+      expect(
+        urls.filter((u: string) => u.endsWith('/auth/me/contexts')),
+      ).toHaveLength(2)
+    })
+
+    it('stays unauthenticated when the refresh fails, without looping', async () => {
+      const unauthorized = {
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Headers(),
+        text: async () => '',
+      }
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce(unauthorized) // /auth/me
+        .mockResolvedValueOnce({ ok: false, status: 401 }) // /auth/refresh
+
+      await expect(client.testAuthCheck('/auth/me')).rejects.toThrow(
+        'Unauthenticated',
+      )
+      expect(global.fetch).toHaveBeenCalledTimes(2)
+    })
+
     it('should handle 204 No Content in authCheckRequest', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,

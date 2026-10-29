@@ -873,14 +873,9 @@ describe('OrganizationsTab', () => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
       })
 
-      const editButtons = screen.getAllByRole('button')
-      const editButton = editButtons.find(
-        (btn) =>
-          btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-emerald-600'),
-      )
-      expect(editButton).toBeDefined()
-      await user.click(editButton!)
+      // Editing lives in the "Mehr" menu.
+      await user.click(screen.getByTestId('org-more-button'))
+      await user.click(await screen.findByTestId('org-edit-button'))
 
       await waitFor(() => {
         const nameInputs = screen.queryAllByDisplayValue('Test Organization')
@@ -950,10 +945,9 @@ describe('OrganizationsTab', () => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
       })
 
-      const deleteButtons = screen.getAllByRole('button')
-      const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600'),
-      )
+      // Deleting lives in the "Mehr" menu.
+      fireEvent.click(screen.getByTestId('org-more-button'))
+      const deleteButton = await screen.findByTestId('org-delete-button')
 
       if (deleteButton) {
         fireEvent.click(deleteButton)
@@ -981,10 +975,9 @@ describe('OrganizationsTab', () => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
       })
 
-      const deleteButtons = screen.getAllByRole('button')
-      const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600'),
-      )
+      // Deleting lives in the "Mehr" menu.
+      fireEvent.click(screen.getByTestId('org-more-button'))
+      const deleteButton = await screen.findByTestId('org-delete-button')
 
       if (deleteButton) {
         fireEvent.click(deleteButton)
@@ -1009,10 +1002,9 @@ describe('OrganizationsTab', () => {
         expect(screen.getByText('Test description')).toBeInTheDocument()
       })
 
-      const deleteButtons = screen.getAllByRole('button')
-      const deleteButton = deleteButtons.find((btn) =>
-        btn.className.includes('text-red-600'),
-      )
+      // Deleting lives in the "Mehr" menu.
+      fireEvent.click(screen.getByTestId('org-more-button'))
+      const deleteButton = await screen.findByTestId('org-delete-button')
 
       if (deleteButton) {
         fireEvent.click(deleteButton)
@@ -1055,11 +1047,11 @@ describe('OrganizationsTab', () => {
         btn.className.includes('text-red-600'),
       )
 
-      // We have org delete button, then 2 member delete buttons
-      // deleteButtons[0] = org delete
-      // deleteButtons[1] = first member (Member User - user-2)
-      // deleteButtons[2] = second member (Annotator User - user-3)
-      const memberDeleteButton = deleteButtons[1]
+      // Org deletion moved into the "Mehr" menu, so only the member
+      // remove buttons are red here:
+      // deleteButtons[0] = first member (Member User - user-2)
+      // deleteButtons[1] = second member (Annotator User - user-3)
+      const memberDeleteButton = deleteButtons[0]
 
       expect(memberDeleteButton).toBeDefined()
       fireEvent.click(memberDeleteButton!)

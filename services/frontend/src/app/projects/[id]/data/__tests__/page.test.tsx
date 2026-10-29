@@ -177,7 +177,7 @@ describe('ProjectDataPage', () => {
       await waitFor(() => {
         const spinner = document.querySelector('.animate-spin')
         expect(spinner).toBeInTheDocument()
-        expect(spinner).toHaveClass('border-emerald-500')
+        expect(spinner).toHaveClass('border-t-emerald-500')
       })
     })
   })
@@ -398,20 +398,21 @@ describe('ProjectDataPage', () => {
       const { container } = render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        const layout = container.querySelector('.min-h-screen')
-        expect(layout).toBeInTheDocument()
-        expect(layout).toHaveClass('bg-zinc-50', 'dark:bg-zinc-900')
+        // Standard page layout: breadcrumb, then the page title.
+        expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
       })
     })
 
-    it('should render header with border', async () => {
+    it('should render the page title like every other page', async () => {
       const params = Promise.resolve({ id: 'test-project-id' })
-      const { container } = render(<ProjectDataPage params={params} />)
+      render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        const header = container.querySelector('.border-b')
-        expect(header).toBeInTheDocument()
-        expect(header).toHaveClass('border-zinc-200', 'dark:border-zinc-800')
+        expect(screen.getByRole('heading', { level: 1 })).toHaveClass(
+          'text-3xl',
+          'font-bold',
+          'tracking-tight',
+        )
       })
     })
   })
@@ -603,8 +604,9 @@ describe('ProjectDataPage', () => {
       const { container } = render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        const layout = container.querySelector('.dark\\:bg-zinc-900')
-        expect(layout).toBeInTheDocument()
+        expect(screen.getByRole('heading', { level: 1 })).toHaveClass(
+          'dark:text-white',
+        )
       })
     })
   })
@@ -749,7 +751,7 @@ describe('ProjectDataPage', () => {
       const { container } = render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        const spinner = container.querySelector('.border-emerald-500')
+        const spinner = container.querySelector('.border-t-emerald-500')
         expect(spinner).toBeInTheDocument()
         expect(spinner).toHaveClass('rounded-full')
       })

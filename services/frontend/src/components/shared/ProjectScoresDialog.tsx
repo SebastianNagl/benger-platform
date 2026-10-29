@@ -282,7 +282,8 @@ export function ProjectScoresDialog({
                     <td className="sticky left-0 z-10 max-w-xs bg-white px-4 py-2 dark:bg-zinc-900">
                       <Link
                         href={`/projects/${p.project_id}`}
-                        className="font-medium text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
+                        title={p.project_name}
+                        className="block truncate font-medium text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         {p.project_name}
                       </Link>

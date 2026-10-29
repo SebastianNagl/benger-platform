@@ -322,7 +322,7 @@ export function GenerationResults({
                             {t('generation.results.taskPrefix')} #
                             {result.task_id}
                           </span>
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                             {modelCount}{' '}
                             {modelCount === 1
                               ? t('generation.results.response')

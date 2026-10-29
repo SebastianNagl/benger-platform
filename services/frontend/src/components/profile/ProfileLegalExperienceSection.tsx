@@ -389,7 +389,7 @@ export function ProfileLegalExperienceSection({
                                 grade_zwischenpruefung: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="ui-input"
                           />
                         </div>
                       )}
@@ -415,7 +415,7 @@ export function ProfileLegalExperienceSection({
                                 grade_vorgeruecktenubung: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="ui-input"
                           />
                         </div>
                       )}
@@ -441,7 +441,7 @@ export function ProfileLegalExperienceSection({
                                 grade_first_staatsexamen: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="ui-input"
                           />
                         </div>
                       )}
@@ -467,7 +467,7 @@ export function ProfileLegalExperienceSection({
                                 grade_second_staatsexamen: v,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                            className="ui-input"
                           />
                         </div>
                       )}

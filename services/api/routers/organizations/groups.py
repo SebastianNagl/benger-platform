@@ -81,9 +81,16 @@ class GroupResponse(BaseModel):
     is_member: bool = False
     # The caller's own group role (None when not a member of the group).
     my_role: Optional[OrganizationRole] = None
+    # The group's own jurisdiction override; None = follows the org.
+    jurisdiction: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class GroupJurisdictionUpdate(BaseModel):
+    # None clears the override (the group follows its organization again).
+    jurisdiction: Optional[str] = None
 
 
 class GroupMemberUpsert(BaseModel):
@@ -271,6 +278,7 @@ async def list_organization_groups(
             member_count=counts.get(g.id, 0) if include_counts else None,
             is_member=g.id in own,
             my_role=own.get(g.id),
+            jurisdiction=g.jurisdiction,
         )
         for g in groups
     ]
@@ -380,7 +388,35 @@ async def update_organization_group(
         created_at=group.created_at,
         updated_at=group.updated_at,
         member_count=count,
+        jurisdiction=group.jurisdiction,
     )
+
+
+@router.put("/{organization_id}/groups/{group_id}/jurisdiction")
+async def update_organization_group_jurisdiction(
+    organization_id: str,
+    group_id: str,
+    payload: GroupJurisdictionUpdate,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Set or clear a group's jurisdiction (org admin, that group's admin or
+    superadmin; the ``api-keys/settings`` group-scope precedent). ``None``
+    makes the group follow its organization again."""
+    from org_jurisdiction import JURISDICTIONS, is_valid_jurisdiction
+
+    if payload.jurisdiction is not None and not is_valid_jurisdiction(
+        payload.jurisdiction
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"jurisdiction must be one of {', '.join(JURISDICTIONS)} or null",
+        )
+    await _require_can_manage_group(current_user, organization_id, group_id, db)
+    group = await _load_group_or_404(db, organization_id, group_id)
+    group.jurisdiction = payload.jurisdiction
+    await db.commit()
+    return {"id": group_id, "jurisdiction": payload.jurisdiction}
 
 
 @router.delete("/{organization_id}/groups/{group_id}")

@@ -220,10 +220,10 @@ export default function RunsPage() {
       </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('runs.title')}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('runs.subtitle')}
           </p>
         </div>
@@ -236,11 +236,11 @@ export default function RunsPage() {
             <button
               key={tname}
               onClick={() => handleTabChange(tname)}
-              className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+              className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                 tab === tname
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-              }`}
+              } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             >
               {tname === 'evaluation'
                 ? t('runs.tabs.evaluation')
@@ -324,26 +324,46 @@ export default function RunsPage() {
         <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
           <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
             <tr>
-              <th className="px-3 py-2">{t('runs.col.started')}</th>
-              <th className="px-3 py-2">{t('runs.col.project')}</th>
-              <th className="px-3 py-2">{t('runs.col.status')}</th>
+              <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                {t('runs.col.started')}
+              </th>
+              <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                {t('runs.col.project')}
+              </th>
+              <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                {t('runs.col.status')}
+              </th>
               {tab === 'generation' ? (
                 <>
-                  <th className="px-3 py-2">{t('runs.col.model')}</th>
-                  <th className="px-3 py-2">{t('runs.col.structure')}</th>
-                  <th className="px-3 py-2 text-right">{t('runs.col.runs')}</th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.model')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.structure')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.runs')}
+                  </th>
                 </>
               ) : (
                 <>
-                  <th className="px-3 py-2">{t('runs.col.targetModel')}</th>
-                  <th className="px-3 py-2">{t('runs.col.judges')}</th>
-                  <th className="px-3 py-2">{t('runs.col.metrics')}</th>
-                  <th className="px-3 py-2 text-right">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.targetModel')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.judges')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('runs.col.metrics')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('runs.col.samples')}
                   </th>
                 </>
               )}
-              <th className="px-3 py-2 text-right">{t('runs.col.duration')}</th>
+              <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                {t('runs.col.duration')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
@@ -374,26 +394,26 @@ export default function RunsPage() {
                   onClick={() => navigateToRun(run)}
                   className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                 >
-                  <td className="px-3 py-2 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
+                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
                     {formatDate(run.created_at, locale)}
                   </td>
-                  <td className="max-w-xs truncate px-3 py-2">
+                  <td className="max-w-xs truncate px-4 py-3">
                     {run.project_title || (
                       <span className="text-zinc-400">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-4 py-3">
                     <StatusBadge status={run.status} />
                   </td>
                   {tab === 'generation' ? (
                     <>
-                      <td className="px-3 py-2 font-mono text-xs">
+                      <td className="px-4 py-3 font-mono text-xs">
                         {run.model_id || '—'}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">
+                      <td className="px-4 py-3 font-mono text-xs">
                         {run.structure_key || '—'}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono text-xs">
+                      <td className="px-4 py-3 text-right font-mono text-xs">
                         {run.runs_requested && run.runs_requested > 1
                           ? `${run.runs_completed ?? 0}/${run.runs_requested}${
                               run.runs_failed
@@ -405,28 +425,28 @@ export default function RunsPage() {
                     </>
                   ) : (
                     <>
-                      <td className="px-3 py-2 font-mono text-xs">
+                      <td className="px-4 py-3 font-mono text-xs">
                         {run.model_id || '—'}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">
+                      <td className="px-4 py-3 font-mono text-xs">
                         {run.judge_models && run.judge_models.length > 0
                           ? run.judge_models.join(', ')
                           : '—'}
                       </td>
                       <td
-                        className="max-w-xs truncate px-3 py-2 font-mono text-xs"
+                        className="max-w-xs truncate px-4 py-3 font-mono text-xs"
                         title={run.metrics?.join(', ')}
                       >
                         {run.metrics && run.metrics.length > 0
                           ? run.metrics.join(', ')
                           : '—'}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono text-xs">
+                      <td className="px-4 py-3 text-right font-mono text-xs">
                         {run.samples_evaluated ?? '—'}
                       </td>
                     </>
                   )}
-                  <td className="px-3 py-2 text-right text-xs text-zinc-500">
+                  <td className="px-4 py-3 text-right text-xs text-zinc-500">
                     {formatDuration(run.created_at, run.completed_at)}
                   </td>
                 </tr>

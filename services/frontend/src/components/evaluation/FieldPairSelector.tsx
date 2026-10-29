@@ -111,11 +111,11 @@ export function FieldPairSelector({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`flex w-full items-center justify-between rounded-full bg-white px-4 py-2 text-sm ring-1 ring-zinc-900/10 transition focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:ring-white/10 dark:ring-inset ${
+        className={`flex h-8 w-full items-center justify-between rounded-full bg-white px-4 text-sm ring-1 ring-zinc-900/10 transition dark:bg-white/5 dark:ring-white/10 dark:ring-inset ${
           disabled
             ? 'cursor-not-allowed opacity-50'
             : 'hover:ring-zinc-900/20 dark:hover:ring-white/20'
-        } `}
+        } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
       >
         <span className="truncate text-zinc-900 dark:text-white">
           {getDisplayText()}

@@ -227,7 +227,7 @@ export default function RegisterPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('register.redirecting')}
           </p>
@@ -519,7 +519,7 @@ export default function RegisterPage() {
     <div className="space-y-4" data-testid="register-step-2">
       <OptionalNotice />
       <div>
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
           {t('register.legalExpertiseTitle')}
         </h3>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -655,7 +655,7 @@ export default function RegisterPage() {
     <div className="space-y-4" data-testid="register-step-3">
       <OptionalNotice />
       <div>
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
           {t('register.steps.demographics')}
         </h3>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -749,7 +749,7 @@ export default function RegisterPage() {
     <div className="space-y-6" data-testid="register-step-4">
       <OptionalNotice />
       <div>
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
           {t('register.steps.competenceGrades')}
         </h3>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -893,7 +893,7 @@ export default function RegisterPage() {
     <div className="space-y-6" data-testid="register-step-5">
       <OptionalNotice />
       <div>
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
           {t('register.steps.psychometricScales')}
         </h3>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1208,7 +1208,7 @@ export default function RegisterPage() {
                 <Button
                   type="button"
                   onClick={handleBack}
-                  className="border border-zinc-300 bg-white px-4 py-2 text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  className="border border-zinc-300 bg-white px-4 text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                   data-testid="register-back-button"
                 >
                   {t('register.stepBack')}
@@ -1222,25 +1222,27 @@ export default function RegisterPage() {
                 // flips its type to "submit" while the step-4 click is still
                 // being dispatched, so the browser submits the form at once.
                 <Button
+                  variant="filled"
                   key="next"
                   type="button"
                   onClick={handleNext}
-                  className="rounded-full bg-zinc-900 px-6 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+
                   data-testid="register-next-button"
                 >
                   {t('register.stepNext')}
                 </Button>
               ) : (
                 <Button
+                  variant="filled"
                   key="submit"
                   type="submit"
                   disabled={isLoading}
-                  className="rounded-full bg-zinc-900 px-6 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+
                   data-testid="auth-register-submit-button"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                       {t('register.loading')}
                     </div>
                   ) : (

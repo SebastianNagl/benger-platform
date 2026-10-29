@@ -235,7 +235,7 @@ async def get_user_contexts(
     """
     from sqlalchemy import func
 
-    from org_jurisdiction import org_jurisdiction
+    from org_jurisdiction import is_valid_jurisdiction, org_jurisdiction
 
     from models import (
         Organization,
@@ -395,6 +395,30 @@ async def get_user_contexts(
             }
             for org, role in user_orgs_with_roles
         ]
+
+    # Group jurisdiction overrides per org (only groups that set one): the
+    # wizard offers a group-scoped project its group's project types, also
+    # for groups the caller is not in (org admins may target any group).
+    group_jurisdictions: dict = {}
+    entry_org_ids = [entry["id"] for entry in org_entries]
+    if entry_org_ids:
+        override_rows = (
+            await db.execute(
+                select(
+                    OrganizationGroup.organization_id,
+                    OrganizationGroup.id,
+                    OrganizationGroup.jurisdiction,
+                ).where(
+                    OrganizationGroup.organization_id.in_(entry_org_ids),
+                    OrganizationGroup.jurisdiction.is_not(None),
+                )
+            )
+        ).all()
+        for org_id, gid, value in override_rows:
+            if is_valid_jurisdiction(value):
+                group_jurisdictions.setdefault(org_id, {})[gid] = value
+    for entry in org_entries:
+        entry["group_jurisdictions"] = group_jurisdictions.get(entry["id"], {})
 
     return {
         "user": user_dict,

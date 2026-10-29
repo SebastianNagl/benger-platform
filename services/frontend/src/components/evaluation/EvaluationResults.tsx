@@ -1053,7 +1053,7 @@ export function EvaluationResults({
           <button
             onClick={onRunEvaluation}
             disabled={isRunningEvaluation}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            className="mt-4 inline-flex h-8 items-center gap-2 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {isRunningEvaluation ? (
               <>
@@ -1092,7 +1092,7 @@ export function EvaluationResults({
       {/* Header with metric selector, controls, and action buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
             {t('evaluation.multiFieldResults.title')}
           </h3>
           {/* Metric selector dropdown */}
@@ -1363,7 +1363,7 @@ export function EvaluationResults({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
-                        <th className="sticky left-0 min-w-[200px] bg-zinc-50 px-4 py-2 text-left font-medium text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300">
+                        <th className="sticky left-0 min-w-[200px] bg-zinc-50 px-4 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:bg-zinc-800/50 dark:text-zinc-400">
                           {t('evaluation.multiFieldResults.task')}
                         </th>
                         {displayModels.map((modelId) => {
@@ -1377,13 +1377,13 @@ export function EvaluationResults({
                           return (
                             <th
                               key={modelId}
-                              className="min-w-[100px] px-4 py-2 text-right font-medium text-zinc-600 dark:text-zinc-300"
+                              className="min-w-[100px] px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                             >
                               <div className="flex flex-col items-end">
                                 <span
                                   className={`rounded px-2 py-0.5 text-xs ${
                                     isAnnotator
-                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                                       : 'bg-zinc-200 dark:bg-zinc-700'
                                   }`}
                                 >
@@ -1575,7 +1575,7 @@ export function EvaluationResults({
                     </Badge>
                     {evaluation.model_id &&
                       evaluation.model_id !== 'unknown' && (
-                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
+                        <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
                           {evaluation.model_id}
                         </span>
                       )}

@@ -148,7 +148,7 @@ export default function VerifyEmailPage() {
           {status === 'loading' && (
             <div className="text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600 dark:border-emerald-400"></div>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
               </div>
               <h2 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">
                 {t('emailVerification.verifying')}
@@ -262,8 +262,9 @@ export default function VerifyEmailPage() {
               <div className="mt-6 space-y-4">
                 {email && (
                   <Button
+                    variant="filled"
                     onClick={handleResendVerification}
-                    className="w-full rounded-full bg-zinc-900 px-4 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+                    className="w-full"
                   >
                     {t('emailVerification.resend')}
                   </Button>

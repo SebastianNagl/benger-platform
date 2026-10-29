@@ -132,7 +132,7 @@ export function TaskFieldSelector({
         />
         <button
           onClick={handleManualSubmit}
-          className="rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+          className="h-8 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {t('common.add')}
         </button>
@@ -141,7 +141,7 @@ export function TaskFieldSelector({
             setIsManualMode(false)
             setManualValue('')
           }}
-          className="rounded-full border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="h-8 rounded-full border border-zinc-300 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
           {t('common.cancel')}
         </button>

@@ -6,6 +6,10 @@ templates the project wizard offers to the organization's members, e.g.
 the French exam types (commentaire d'arrêt, dissertation, ...) that the
 extended edition registers for ``"FR"``. Organizations without the key are
 German, the platform's historical default.
+
+Groups can override it (``organization_groups.jurisdiction``, NULL = follow
+the organization): a project created in a group gets the group's
+jurisdiction.
 """
 
 from typing import Any, Mapping, Optional
@@ -27,6 +31,16 @@ def org_jurisdiction(settings: Optional[Mapping[str, Any]]) -> str:
         if is_valid_jurisdiction(value):
             return value
     return DEFAULT_JURISDICTION
+
+
+def group_jurisdiction(
+    org_settings: Optional[Mapping[str, Any]], group_value: Any
+) -> str:
+    """A group's effective jurisdiction: its own override when set and
+    known, else its organization's."""
+    if is_valid_jurisdiction(group_value):
+        return group_value
+    return org_jurisdiction(org_settings)
 
 
 def with_jurisdiction(settings: Optional[Mapping[str, Any]], jurisdiction: str) -> dict:

@@ -52,7 +52,7 @@ export function OperationToast({
         return '▶'
       case 'running':
         return (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
         )
       case 'completed':
         return '✓'

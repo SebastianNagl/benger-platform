@@ -163,7 +163,7 @@ export function HistoricalTrendChart({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           {metric} - {t('evaluation.charts.trend.historicalTrend')}
         </h3>
 
@@ -172,11 +172,11 @@ export function HistoricalTrendChart({
             <button
               key={button.value}
               onClick={() => setSelectedDateRange(button.value)}
-              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+              className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                 selectedDateRange === button.value
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-              }`}
+              } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             >
               {button.label}
             </button>

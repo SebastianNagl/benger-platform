@@ -173,7 +173,7 @@ export function BulkActions({
 
       {/* Metadata Editor Modal */}
       {showMetadataEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
           <BulkMetadataEditor
             taskIds={selectedTaskIds.map((id) => parseInt(id))}
             onClose={() => setShowMetadataEditor(false)}

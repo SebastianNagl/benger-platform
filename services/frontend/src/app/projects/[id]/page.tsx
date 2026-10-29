@@ -1575,7 +1575,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('project.loading')}
           </p>
@@ -1637,7 +1637,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   })()
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 pt-8 pb-10 sm:px-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-start justify-between">
@@ -1690,7 +1690,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </div>
               ) : (
                 <div className="group flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
                     {canEditIcon() ? (
                       <button
                         type="button"
@@ -1725,7 +1725,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   )}
                   {isParticipant && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                      className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                       data-testid="project-participant-badge"
                     >
                       <UserGroupIcon className="h-3.5 w-3.5" />
@@ -1808,8 +1808,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 dark:bg-black/50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.deleteConfirmTitle')}: {currentProject.title}
             </h3>
@@ -1842,7 +1842,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </Button>
               <Button
                 onClick={handleDeleteProject}
-                className="bg-red-600 text-white hover:bg-red-700"
+                variant="dangerFilled"
                 disabled={deleting}
               >
                 {deleting ? t('project.deleting') : t('project.deleteProject')}
@@ -1996,14 +1996,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                             {variant.id}
                                           </span>
                                           {variant.ai_allowed && (
-                                            <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+                                            <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
                                               {t(
                                                 'project.conditionalInstructions.aiAllowed',
                                               )}
                                             </span>
                                           )}
                                         </div>
-                                        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+                                        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
                                           {variant.weight}%
                                         </span>
                                       </div>
@@ -2909,7 +2909,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.quickActions.title')}
             </h2>
@@ -3032,12 +3032,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   onClick={() =>
                     canDeleteProject() && setShowDeleteConfirm(true)
                   }
-                  variant="outline"
-                  className={`w-full border-red-500 text-red-600 dark:border-red-400 dark:text-red-400 ${
-                    canDeleteProject()
-                      ? 'hover:bg-red-50 dark:hover:bg-red-400/10'
-                      : 'cursor-not-allowed opacity-50'
-                  }`}
+                  variant="danger"
+                  className="w-full"
                   disabled={deleting || !canDeleteProject()}
                 >
                   {deleting
@@ -3067,7 +3063,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <ProjectBillingCard project={currentProject} />
 
           {/* Project Statistics */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.statistics.title')}
             </h2>
@@ -3131,7 +3127,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Recent Activity */}
-          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('project.recentActivity.title')}
             </h2>
@@ -3197,7 +3193,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             currentProject?.effective_role === 'ORG_ADMIN' ||
             currentProject?.effective_role === 'CONTRIBUTOR') &&
             reportStatus && (
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
                     {t('project.report.title')}

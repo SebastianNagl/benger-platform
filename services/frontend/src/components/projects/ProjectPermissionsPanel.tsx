@@ -356,7 +356,7 @@ export function ProjectPermissionsPanel({
               {initialOrganizations.map((org) => (
                 <span
                   key={org.id}
-                  className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   {org.name}
                 </span>
@@ -524,7 +524,7 @@ export function ProjectPermissionsPanel({
                         )}
                         {locked && (
                           <span
-                            className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                            className="ml-2 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                             data-testid={`organization-lms-badge-${org.id}`}
                           >
                             {t('project.permissions.lmsBadge')}

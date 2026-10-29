@@ -4556,8 +4556,12 @@
         "options": {
           "DE": "Germany",
           "FR": "France"
-        }
-      }
+        },
+        "inherit": "Same as organization ({country})",
+        "groupHelp": "Projects created in this group get this jurisdiction's project types in the project wizard."
+      },
+      "editOrganization": "Edit organization",
+      "deleteOrganization": "Delete organization"
     },
     "usersPage": {
       "breadcrumb": {

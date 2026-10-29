@@ -62,7 +62,7 @@ export function LanguageSwitcher({
       </MenuButton>
       <MenuItems
         anchor={anchor}
-        className="z-50 mt-1 w-48 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg focus:outline-none dark:border-white/10 dark:bg-zinc-800"
+        className="z-50 mt-1 w-48 rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900 dark:ring-white/10"
         data-testid="language-menu"
       >
         {LOCALES.map((option) => (

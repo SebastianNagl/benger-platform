@@ -31,7 +31,7 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+      <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
         {title}
       </h3>
       <p className="mx-auto mb-6 max-w-md text-sm text-zinc-600 dark:text-zinc-400">

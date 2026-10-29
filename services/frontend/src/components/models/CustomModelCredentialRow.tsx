@@ -257,10 +257,9 @@ export function CustomModelCredentialRow({
                 : t('customModels.credential.testConnection')}
             </Button>
             <Button
-              variant="outline"
+              variant="danger"
               onClick={removeCredential}
               disabled={loading || testLoading}
-              className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
               data-testid="credential-remove-button"
             >
               {loading

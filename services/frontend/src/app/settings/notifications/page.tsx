@@ -373,7 +373,7 @@ function NotificationSettingsContent() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p>{translate('common.loadingTranslations')}</p>
         </div>
       </div>
@@ -397,7 +397,7 @@ function NotificationSettingsContent() {
           <p className="mb-4 text-red-600">{loadingErrorText}</p>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-full bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {reloadPageText}
           </button>
@@ -562,7 +562,7 @@ function NotificationSettingsContent() {
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('settings.notifications.title')}
         </h1>
-        <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('settings.notifications.subtitle')}
         </p>
       </div>
@@ -589,7 +589,7 @@ function NotificationSettingsContent() {
       )}
 
       {loading ? (
-        <div className="rounded-lg bg-white p-8 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center justify-center">
             <ArrowPathIcon className="h-8 w-8 animate-spin text-zinc-400" />
             <span className="ml-2 text-zinc-600 dark:text-zinc-400">
@@ -600,9 +600,9 @@ function NotificationSettingsContent() {
       ) : (
         <div className="space-y-6">
           {/* Notification Preferences Table */}
-          <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-              <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('settings.notifications.title')}
               </h3>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -614,19 +614,19 @@ function NotificationSettingsContent() {
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                 <thead className="bg-zinc-50 dark:bg-zinc-800/30">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('settings.notifications.ui.notificationType')}
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('settings.notifications.ui.enabled')}
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <div className="flex items-center justify-center space-x-1">
                         <BellIcon className="h-3 w-3" />
                         <span>{t('settings.notifications.ui.inApp')}</span>
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <div className="flex items-center justify-center space-x-1">
                         <EnvelopeIcon className="h-3 w-3" />
                         <span>{t('settings.notifications.ui.email')}</span>
@@ -645,7 +645,7 @@ function NotificationSettingsContent() {
                         key={`notification-${notificationType.key}-${index}`}
                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
                           <div className="flex items-center space-x-3">
                             <div className="shrink-0">
                               <IconComponent className="h-5 w-5 text-zinc-400" />
@@ -655,7 +655,7 @@ function NotificationSettingsContent() {
                                 <div className="text-sm font-medium text-zinc-900 dark:text-white">
                                   {notificationType.name}
                                 </div>
-                                <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200">
+                                <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200">
                                   {notificationType.category}
                                 </span>
                               </div>
@@ -665,14 +665,14 @@ function NotificationSettingsContent() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                               pref.enabled
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
-                            }`}
+                            } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                             onClick={() =>
                               handlePreferenceChange(
                                 notificationType.key,
@@ -689,14 +689,14 @@ function NotificationSettingsContent() {
                             />
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                               pref.in_app
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
-                            } ${!pref.enabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                            } ${!pref.enabled ? 'cursor-not-allowed opacity-50' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                             disabled={!pref.enabled}
                             onClick={() =>
                               handlePreferenceChange(
@@ -714,14 +714,14 @@ function NotificationSettingsContent() {
                             />
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-center whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 focus:outline-none ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
                               pref.email && emailStatus?.configured
                                 ? 'bg-emerald-600'
                                 : 'bg-zinc-200 dark:bg-zinc-700'
-                            } ${!pref.enabled || !emailStatus?.configured ? 'cursor-not-allowed opacity-50' : ''}`}
+                            } ${!pref.enabled || !emailStatus?.configured ? 'cursor-not-allowed opacity-50' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                             disabled={!pref.enabled || !emailStatus?.configured}
                             onClick={() =>
                               handlePreferenceChange(
@@ -828,7 +828,7 @@ function NotificationSettingsContent() {
 
           {/* Help Section */}
           <div className="mt-8 rounded-lg bg-zinc-50 p-6 dark:bg-zinc-800/50">
-            <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('settings.notifications.help.title')}
             </h3>
             <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">

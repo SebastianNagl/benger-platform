@@ -598,7 +598,7 @@ export default function AdminUsersPage() {
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('admin.usersPage.title')}
           </h1>
-          <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('admin.usersPage.subtitle')}
           </p>
         </div>
@@ -609,11 +609,11 @@ export default function AdminUsersPage() {
         <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
           <button
             onClick={() => setActiveTab('users')}
-            className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+            className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === 'users'
                 ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                 : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-            }`}
+            } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             data-testid="admin-users-tab"
           >
             <UserGroupIcon className="mr-2 inline h-4 w-4" />
@@ -621,11 +621,11 @@ export default function AdminUsersPage() {
           </button>
           <button
             onClick={() => setActiveTab('organizations')}
-            className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+            className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
               activeTab === 'organizations'
                 ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                 : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-            }`}
+            } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             data-testid="admin-organizations-tab"
           >
             <BuildingOfficeIcon className="mr-2 inline h-4 w-4" />
@@ -642,7 +642,7 @@ export default function AdminUsersPage() {
 
       {/* Users Tab */}
       {activeTab === 'users' && (
-        <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Bulk actions bar */}
           {selectedUsers.length > 0 && (
             <div className="flex items-center justify-between bg-emerald-50 px-6 py-3 dark:bg-emerald-900/20">
@@ -658,13 +658,13 @@ export default function AdminUsersPage() {
               <div className="flex gap-2">
                 <button
                   onClick={handleBulkVerifyEmails}
-                  className="rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                  className="h-8 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 >
                   {t('admin.usersPage.bulkVerifyEmails')}
                 </button>
                 <button
                   onClick={() => setSelectedUsers([])}
-                  className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                  className="h-8 rounded-full border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
                 >
                   {t('admin.usersPage.clearSelection')}
                 </button>
@@ -681,7 +681,7 @@ export default function AdminUsersPage() {
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                 <thead className="bg-zinc-50 dark:bg-zinc-800">
                   <tr>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <input
                         type="checkbox"
                         checked={
@@ -698,19 +698,19 @@ export default function AdminUsersPage() {
                         className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnUser')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnEmail')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnEmailVerification')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnSuperadminStatus')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('admin.usersPage.columnActions')}
                     </th>
                   </tr>
@@ -719,7 +719,7 @@ export default function AdminUsersPage() {
                   {Array.isArray(users) &&
                     users.map((user) => (
                       <tr key={`user-row-${user.id}`}>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
                           <input
                             type="checkbox"
                             checked={selectedUsers.includes(user.id)}
@@ -735,7 +735,7 @@ export default function AdminUsersPage() {
                             className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
                               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
@@ -752,10 +752,10 @@ export default function AdminUsersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                        <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                           {user.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             {user.email_verified ? (
                               <div className="flex items-center gap-1">
@@ -797,7 +797,7 @@ export default function AdminUsersPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {user.id === currentUser?.id ||
                           updatingUser === user.id ? (
                             <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -839,7 +839,7 @@ export default function AdminUsersPage() {
                             </Select>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                        <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                           {user.id !== currentUser?.id && (
                             <div className="flex space-x-2">
                               <button
@@ -873,7 +873,7 @@ export default function AdminUsersPage() {
             <div className="relative">
               <button
                 onClick={() => setShowOrgSwitcher(!showOrgSwitcher)}
-                className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="inline-flex h-8 items-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               >
                 <BuildingOfficeIcon className="mr-2 h-4 w-4" />
                 {selectedOrganization
@@ -914,7 +914,7 @@ export default function AdminUsersPage() {
             {canCreateOrganization && (
               <button
                 onClick={() => setShowCreateOrgModal(true)}
-                className="inline-flex items-center rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                className="inline-flex h-8 items-center rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 <PlusIcon className="mr-2 h-4 w-4" />
                 {t('admin.usersPage.createOrganization')}
@@ -925,7 +925,7 @@ export default function AdminUsersPage() {
           {selectedOrganization ? (
             <div className="space-y-6">
               {/* Organization Info */}
-              <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start">
                     <BuildingOfficeIcon className="mt-1 mr-3 h-8 w-8 text-zinc-400 dark:text-zinc-500" />
@@ -948,7 +948,7 @@ export default function AdminUsersPage() {
                             <button
                               onClick={handleEditOrgSave}
                               disabled={orgUpdateLoading}
-                              className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                              className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                             >
                               <CheckIcon className="mr-1 h-4 w-4" />
                               {t('admin.usersPage.save')}
@@ -956,7 +956,7 @@ export default function AdminUsersPage() {
                             <button
                               onClick={() => setIsEditingOrg(false)}
                               disabled={orgUpdateLoading}
-                              className="inline-flex items-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                              className="inline-flex h-8 items-center rounded-full border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                             >
                               <XMarkIcon className="mr-1 h-4 w-4" />
                               {t('admin.usersPage.cancel')}
@@ -987,7 +987,7 @@ export default function AdminUsersPage() {
                   {!isEditingOrg && (
                     <button
                       onClick={handleEditOrgStart}
-                      className="inline-flex items-center rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                      className="inline-flex h-8 items-center rounded-full border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                     >
                       <PencilIcon className="mr-1 h-4 w-4" />
                       {t('admin.usersPage.edit')}
@@ -998,7 +998,7 @@ export default function AdminUsersPage() {
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Members */}
-                <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+                <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                   <div className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
@@ -1007,14 +1007,14 @@ export default function AdminUsersPage() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => setShowInviteModal(true)}
-                          className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                          className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                         >
                           <EnvelopeIcon className="mr-1 h-4 w-4" />
                           {t('admin.usersPage.invite')}
                         </button>
                         <button
                           onClick={() => setShowAddUserModal(true)}
-                          className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                          className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                         >
                           <PlusIcon className="mr-1 h-4 w-4" />
                           {t('admin.usersPage.addUser')}
@@ -1145,7 +1145,7 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* Invitations */}
-                <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+                <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                   <div className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
                       {t('admin.usersPage.pendingInvitations')}
@@ -1212,9 +1212,9 @@ export default function AdminUsersPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-lg bg-white p-8 text-center shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+            <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <BuildingOfficeIcon className="mx-auto h-12 w-12 text-zinc-400" />
-              <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 {t('admin.usersPage.noOrgSelected')}
               </h3>
               <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
@@ -1227,10 +1227,10 @@ export default function AdminUsersPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3 text-center">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.usersPage.deleteUser')}
               </h3>
               <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">
@@ -1239,13 +1239,13 @@ export default function AdminUsersPage() {
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
-                  className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                  className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
                 >
                   {t('admin.usersPage.cancel')}
                 </button>
                 <button
                   onClick={() => handleDeleteUser(showDeleteConfirm)}
-                  className="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                  className="h-8 rounded-full border border-transparent bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700"
                 >
                   {t('admin.usersPage.delete')}
                 </button>
@@ -1257,10 +1257,10 @@ export default function AdminUsersPage() {
 
       {/* Create Organization Modal */}
       {showCreateOrgModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.usersPage.createNewOrganization')}
               </h3>
               <form onSubmit={handleCreateOrganization}>
@@ -1306,13 +1306,13 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowCreateOrgModal(false)}
-                    className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                    className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                   >
                     {t('admin.usersPage.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                    className="h-8 rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                   >
                     {t('admin.usersPage.create')}
                   </button>
@@ -1325,10 +1325,10 @@ export default function AdminUsersPage() {
 
       {/* Invite User Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.usersPage.inviteNewMember')}
               </h3>
               <form onSubmit={handleInviteUser}>
@@ -1380,13 +1380,13 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowInviteModal(false)}
-                    className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                    className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                   >
                     {t('admin.usersPage.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                    className="h-8 rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                   >
                     {t('admin.usersPage.sendInvitation')}
                   </button>
@@ -1399,10 +1399,10 @@ export default function AdminUsersPage() {
 
       {/* Add User to Organization Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.usersPage.addUserToOrganization')}
               </h3>
               <form onSubmit={handleAddUserToOrganization}>
@@ -1475,13 +1475,13 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddUserModal(false)}
-                    className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                    className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                   >
                     {t('admin.usersPage.cancel')}
                   </button>
                   <button
                     type="submit"
-                    className="rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                    className="h-8 rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                   >
                     {t('admin.usersPage.addUser')}
                   </button>

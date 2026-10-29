@@ -206,6 +206,6 @@ describe('NoTaskSelectedEmptyState', () => {
     const title = screen.getByText('Select a Task')
     expect(title.tagName).toBe('H3')
     expect(title).toHaveClass('text-lg')
-    expect(title).toHaveClass('font-medium')
+    expect(title).toHaveClass('font-semibold')
   })
 })

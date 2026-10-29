@@ -143,7 +143,7 @@ export function QuestionManager({
                 type="button"
                 onClick={handleExpandAll}
                 variant="outline"
-                className="px-3 py-1 text-sm"
+                className="px-3 text-sm"
               >
                 {t('tasks.questionManager.expandAll')}
               </Button>
@@ -151,7 +151,7 @@ export function QuestionManager({
                 type="button"
                 onClick={handleCollapseAll}
                 variant="outline"
-                className="px-3 py-1 text-sm"
+                className="px-3 text-sm"
               >
                 {t('tasks.questionManager.collapseAll')}
               </Button>
@@ -162,7 +162,7 @@ export function QuestionManager({
             type="button"
             onClick={handleAddQuestion}
             variant="filled"
-            className="px-3 py-1 text-sm"
+            className="px-3 text-sm"
           >
             + {t('tasks.questionManager.addQuestion')}
           </Button>
@@ -187,7 +187,7 @@ export function QuestionManager({
               />
             </svg>
           </div>
-          <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+          <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             {t('tasks.questionManager.empty')}
           </h3>
           <p className="mb-4 text-zinc-600 dark:text-zinc-400">

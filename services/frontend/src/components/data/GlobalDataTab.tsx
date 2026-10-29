@@ -322,7 +322,7 @@ export function GlobalDataTab() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('data.management.loadingTasks')}
           </p>
@@ -619,7 +619,7 @@ export function GlobalDataTab() {
         <table className="min-w-[1200px] divide-y divide-zinc-200 dark:divide-zinc-700">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-3 py-3">
+              <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 <input
                   type="checkbox"
                   checked={
@@ -630,42 +630,42 @@ export function GlobalDataTab() {
                 />
               </th>
               {visibleColumns.id && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.columnId')}
                 </th>
               )}
               {visibleColumns.project && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.columnProject')}
                 </th>
               )}
               {visibleColumns.status && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.status')}
                 </th>
               )}
               {visibleColumns.assigned && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.columnAssignedTo')}
                 </th>
               )}
               {visibleColumns.annotations && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.columnAnnotations')}
                 </th>
               )}
               {visibleColumns.created && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.created')}
                 </th>
               )}
               {visibleColumns.actions && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.actions')}
                 </th>
               )}
               {visibleColumns.edit && userCanEdit && (
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('data.management.columnEdit')}
                 </th>
               )}
@@ -677,7 +677,7 @@ export function GlobalDataTab() {
                 key={task.id}
                 className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
-                <td className="px-3 py-4">
+                <td className="px-4 py-3">
                   <input
                     type="checkbox"
                     checked={selectedTasks.has(task.id)}
@@ -686,14 +686,19 @@ export function GlobalDataTab() {
                   />
                 </td>
                 {visibleColumns.id && (
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900 dark:text-white">
+                  <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-white">
                     {task.id}
                   </td>
                 )}
                 {visibleColumns.project && (
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                     <div>
-                      <div className="font-medium">{task.project.title}</div>
+                      <div
+                        className="max-w-xs truncate font-medium"
+                        title={task.project.title}
+                      >
+                        {task.project.title}
+                      </div>
                       {task.project.organization && (
                         <div className="text-xs text-zinc-400">
                           {task.project.organization}
@@ -703,31 +708,31 @@ export function GlobalDataTab() {
                   </td>
                 )}
                 {visibleColumns.status && (
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     {task.is_labeled ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                         <CheckIcon className="mr-1 h-3 w-3" />
                         {t('data.management.complete')}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
                         {t('data.management.incomplete')}
                       </span>
                     )}
                   </td>
                 )}
                 {visibleColumns.assigned && (
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                     {task.assigned_to || '-'}
                   </td>
                 )}
                 {visibleColumns.annotations && (
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                     {task.annotations_count}
                   </td>
                 )}
                 {visibleColumns.created && (
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                     {task.created_at
                       ? formatDistanceToNow(new Date(task.created_at), {
                           addSuffix: true,
@@ -736,7 +741,7 @@ export function GlobalDataTab() {
                   </td>
                 )}
                 {visibleColumns.actions && (
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-4 py-3 text-sm">
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => {
@@ -757,7 +762,7 @@ export function GlobalDataTab() {
                   </td>
                 )}
                 {visibleColumns.edit && userCanEdit && (
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-4 py-3 text-sm">
                     <button
                       onClick={() => {
                         setModalMode('edit')
