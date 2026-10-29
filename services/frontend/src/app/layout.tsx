@@ -87,6 +87,15 @@ export default function RootLayout({
                 (function() {
                   if (sessionStorage.getItem('e2e_test_mode') === 'true') return;
                   if (sessionStorage.getItem('dev_auto_login_done') === 'true') return;
+                  // The app sent us here because the session ended: stay.
+                  if (new URLSearchParams(window.location.search).has('flash_msg')) return;
+                  // Login/logout cleanup clears sessionStorage, so also keep
+                  // a timestamp outside the keys it removes (auth, user,
+                  // session, token): never auto-redirect twice within 10s,
+                  // which would otherwise ping-pong with a failing session.
+                  var last = Number(localStorage.getItem('benger_dev_autologin_at') || 0);
+                  if (Date.now() - last < 10000) return;
+                  localStorage.setItem('benger_dev_autologin_at', String(Date.now()));
                   sessionStorage.setItem('dev_auto_login_done', 'true');
                   // Check if already authenticated
                   fetch('/api/auth/me', { credentials: 'include' }).then(function(r) {

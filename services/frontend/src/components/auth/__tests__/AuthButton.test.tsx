@@ -1005,7 +1005,7 @@ describe('AuthButton', () => {
         'gap-2',
         'rounded-full',
         'px-4',
-        'py-1.5',
+        'h-8',
       )
     })
 

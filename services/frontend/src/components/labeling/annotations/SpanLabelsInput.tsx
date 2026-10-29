@@ -398,7 +398,7 @@ export default function SpanLabelsInput({
                   applyLabelToSelection(label.value)
                 }
               }}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+              className={`h-8 max-w-full truncate rounded-full px-3 text-sm font-medium whitespace-nowrap transition-all ${
                 selectedLabel === label.value
                   ? 'ring-2 ring-emerald-500 ring-offset-2 dark:ring-emerald-400'
                   : 'opacity-70 hover:opacity-100'

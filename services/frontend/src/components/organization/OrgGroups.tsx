@@ -21,6 +21,12 @@ import {
   type OrganizationGroupMember,
 } from '@/lib/api/organizations'
 import type { OrganizationMember, OrganizationRole } from '@/lib/api/types'
+import {
+  isJurisdiction,
+  JURISDICTIONS,
+  orgJurisdiction,
+  type Jurisdiction,
+} from '@/lib/jurisdiction'
 import { Dialog } from '@headlessui/react'
 import {
   PencilIcon,
@@ -41,6 +47,10 @@ interface OrgGroupsProps {
   /** Group admin (group role Admin) of at least one group: member
    *  management for own groups. */
   canManageGroups?: boolean
+  /** The organization's own jurisdiction, which groups follow by default. */
+  organizationJurisdiction?: unknown
+  /** After a group's jurisdiction changed (the wizard reads the contexts). */
+  onJurisdictionSaved?: () => void | Promise<void>
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -49,6 +59,9 @@ interface Message {
   type: 'success' | 'error'
   text: string
 }
+
+// Select value for "no override, follow the organization".
+const INHERIT = '__inherit__'
 
 // Localized labels for the roles (org and group roles share the enum).
 const ROLE_LABEL_KEYS: Record<OrganizationRole, string> = {
@@ -66,6 +79,8 @@ export function OrgGroups({
   organizationId,
   isAdmin,
   canManageGroups = false,
+  organizationJurisdiction,
+  onJurisdictionSaved,
   open,
   onOpenChange,
 }: OrgGroupsProps) {
@@ -104,6 +119,7 @@ export function OrgGroups({
   const [addUserId, setAddUserId] = useState('')
   const [addRole, setAddRole] = useState<OrganizationRole>('ANNOTATOR')
   const [addingMember, setAddingMember] = useState(false)
+  const [savingJurisdiction, setSavingJurisdiction] = useState(false)
   const [memberLoading, setMemberLoading] = useState<Record<string, boolean>>(
     {},
   )
@@ -362,6 +378,48 @@ export function OrgGroups({
     }
   }
 
+  // A group's jurisdiction override (null = follow the organization).
+  // Open to org admins and the group's admins, like its members.
+  const handleSetJurisdiction = async (
+    group: OrganizationGroup,
+    next: Jurisdiction | null,
+  ) => {
+    if ((group.jurisdiction ?? null) === next) return
+    setSavingJurisdiction(true)
+    setMessage(null)
+    try {
+      await organizationsAPI.updateGroupJurisdiction(
+        organizationId,
+        group.id,
+        next,
+      )
+      const updated = { ...group, jurisdiction: next }
+      setSelectedGroup((prev) => (prev?.id === group.id ? updated : prev))
+      setGroups((prev) => prev.map((g) => (g.id === group.id ? updated : g)))
+      await onJurisdictionSaved?.()
+      setMessage({
+        type: 'success',
+        text: t('admin.organizations.jurisdiction.saved'),
+      })
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text:
+          error.response?.data?.detail ||
+          t('admin.organizations.jurisdiction.failed'),
+      })
+    } finally {
+      setSavingJurisdiction(false)
+    }
+  }
+
+  const orgDefault = orgJurisdiction({ jurisdiction: organizationJurisdiction })
+  const jurisdictionLabel = (j: Jurisdiction) =>
+    t(`admin.organizations.jurisdiction.options.${j}`)
+  const inheritLabel = t('admin.organizations.jurisdiction.inherit', {
+    country: jurisdictionLabel(orgDefault),
+  })
+
   // Group admins (group role Admin) without org-admin rights only manage
   // their own groups. Org admins are admin of every group.
   const canManageMembersOf = (group: OrganizationGroup) =>
@@ -376,10 +434,13 @@ export function OrgGroups({
       onClose={() => onOpenChange(false)}
       className="relative z-50"
     >
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-zinc-800">
+        <Dialog.Panel className="mx-auto w-full max-w-2xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div>
@@ -431,6 +492,58 @@ export function OrgGroups({
                   >
                     ← {t('admin.organizations.groups.back')}
                   </button>
+
+                  {canManageMembersOf(selectedGroup) && (
+                    <div className="space-y-2" data-testid="group-jurisdiction">
+                      <label
+                        htmlFor="group-jurisdiction-select"
+                        className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                      >
+                        {t('admin.organizations.jurisdiction.label')}
+                      </label>
+                      <div className="max-w-xs">
+                        <Select
+                          value={
+                            isJurisdiction(selectedGroup.jurisdiction)
+                              ? selectedGroup.jurisdiction
+                              : INHERIT
+                          }
+                          disabled={savingJurisdiction}
+                          onValueChange={(v) =>
+                            void handleSetJurisdiction(
+                              selectedGroup,
+                              isJurisdiction(v) ? v : null,
+                            )
+                          }
+                          displayValue={
+                            isJurisdiction(selectedGroup.jurisdiction)
+                              ? jurisdictionLabel(selectedGroup.jurisdiction)
+                              : inheritLabel
+                          }
+                        >
+                          <SelectTrigger
+                            id="group-jurisdiction-select"
+                            data-testid="group-jurisdiction-select"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={INHERIT}>
+                              {inheritLabel}
+                            </SelectItem>
+                            {JURISDICTIONS.map((j) => (
+                              <SelectItem key={j} value={j}>
+                                {jurisdictionLabel(j)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {t('admin.organizations.jurisdiction.groupHelp')}
+                      </p>
+                    </div>
+                  )}
 
                   {canManageMembersOf(selectedGroup) && (
                     <form
@@ -737,10 +850,18 @@ export function OrgGroups({
                                       {group.name}
                                     </h4>
                                     {!group.is_active && (
-                                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                                      <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                                         {t(
                                           'admin.organizations.groups.inactiveBadge',
                                         )}
+                                      </span>
+                                    )}
+                                    {isJurisdiction(group.jurisdiction) && (
+                                      <span
+                                        data-testid={`group-jurisdiction-badge-${group.id}`}
+                                        className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                                      >
+                                        {jurisdictionLabel(group.jurisdiction)}
                                       </span>
                                     )}
                                     {group.my_role && (
@@ -830,7 +951,7 @@ export function OrgGroups({
           <div className="flex items-center justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.done')}
             </button>

@@ -206,7 +206,7 @@ export function EvaluationResultsTable({
             <tr>
               {/* Rank Column */}
               <th
-                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
                 onClick={() => handleSort('rank')}
               >
                 <div className="flex items-center gap-1">
@@ -217,7 +217,7 @@ export function EvaluationResultsTable({
 
               {/* Model Column */}
               <th
-                className="cursor-pointer px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
                 onClick={() => handleSort('modelId')}
               >
                 <div className="flex items-center gap-1">
@@ -230,7 +230,7 @@ export function EvaluationResultsTable({
               {metricKeys.map((metricKey) => (
                 <th
                   key={metricKey}
-                  className="cursor-pointer px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  className="cursor-pointer px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
                   onClick={() => handleSort(metricKey)}
                   title={metricDescriptions[metricKey] || metricKey}
                 >
@@ -279,7 +279,7 @@ export function EvaluationResultsTable({
                     <div>
                       {result.modelName || result.modelId}
                       {isBaseline && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
                           {t('evaluation.resultsTable.baseline')}
                         </span>
                       )}

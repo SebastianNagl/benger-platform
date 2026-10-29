@@ -166,7 +166,7 @@ export function CustomModelsManager({
       )}
 
       {loading ? (
-        <div className="rounded-lg bg-white p-8 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div className="rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center justify-center">
             <ArrowPathIcon className="h-8 w-8 animate-spin text-zinc-400" />
             <span className="ml-2 text-zinc-600 dark:text-zinc-400">

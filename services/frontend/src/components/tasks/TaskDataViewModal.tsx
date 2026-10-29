@@ -221,11 +221,14 @@ export function TaskDataViewModal({
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       {/* Full-screen container */}
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-4xl rounded-lg bg-white shadow-xl dark:bg-zinc-900">
+        <DialogPanel className="w-full max-w-4xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-700">
             <div>
@@ -249,7 +252,7 @@ export function TaskDataViewModal({
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                    className="flex h-8 items-center gap-2 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                   >
                     {saving
                       ? t('tasks.dataView.saving')
@@ -258,7 +261,7 @@ export function TaskDataViewModal({
                   <button
                     onClick={cancelEdit}
                     disabled={saving}
-                    className="rounded-full bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-60 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    className="h-8 rounded-full bg-zinc-100 px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-60 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                   >
                     {t('tasks.dataView.cancel')}
                   </button>
@@ -269,21 +272,21 @@ export function TaskDataViewModal({
                   <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                     <button
                       onClick={() => setViewMode('formatted')}
-                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                         viewMode === 'formatted'
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                      }`}
+                      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                     >
                       {t('tasks.dataView.viewFormatted')}
                     </button>
                     <button
                       onClick={() => setViewMode('json')}
-                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                         viewMode === 'json'
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                      }`}
+                      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                     >
                       {t('tasks.dataView.viewJson')}
                     </button>
@@ -293,7 +296,7 @@ export function TaskDataViewModal({
                   {canEdit && (
                     <button
                       onClick={enterEditMode}
-                      className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      className="flex h-8 items-center gap-2 rounded-full bg-zinc-100 px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
                       {t('tasks.dataView.edit')}
@@ -303,7 +306,7 @@ export function TaskDataViewModal({
                   {/* Copy button */}
                   <button
                     onClick={handleCopyToClipboard}
-                    className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors ${
                       copySuccess
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                         : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
@@ -414,7 +417,7 @@ function FormattedDataView({ data, searchTerm }: FormattedDataViewProps) {
             <span className="font-medium text-zinc-900 dark:text-white">
               {highlightMatch(key, searchTerm)}
             </span>
-            <span className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               {getValueType(value)}
             </span>
           </div>
@@ -479,7 +482,7 @@ function EditableDataView({
               <span className="font-medium text-zinc-900 dark:text-white">
                 {key}
               </span>
-              <span className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                 {getValueType(value)}
               </span>
             </div>

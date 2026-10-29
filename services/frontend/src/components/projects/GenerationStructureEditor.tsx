@@ -313,7 +313,7 @@ export function GenerationStructureEditor({
                 {usedFields.map((field, i) => (
                   <span
                     key={i}
-                    className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
+                    className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
                   >
                     {field}
                   </span>
@@ -331,7 +331,7 @@ export function GenerationStructureEditor({
                 {previewData.exclude_fields.map((field: string, i: number) => (
                   <span
                     key={i}
-                    className="rounded bg-red-100 px-2 py-1 text-xs dark:bg-red-900"
+                    className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium dark:bg-red-900"
                   >
                     {field}
                   </span>
@@ -361,7 +361,7 @@ export function GenerationStructureEditor({
             <Button
               variant={selectedTemplate === 'simple_qa' ? 'filled' : 'outline'}
               onClick={() => handleTemplateSelect('simple_qa')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>{t('projects.generationStructure.templateSimpleQA')}</div>
@@ -375,7 +375,7 @@ export function GenerationStructureEditor({
                 selectedTemplate === 'template_qa' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('template_qa')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>
@@ -391,7 +391,7 @@ export function GenerationStructureEditor({
                 selectedTemplate === 'legal_analysis' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('legal_analysis')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>
@@ -407,7 +407,7 @@ export function GenerationStructureEditor({
                 selectedTemplate === 'classification' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('classification')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>
@@ -423,7 +423,7 @@ export function GenerationStructureEditor({
                 selectedTemplate === 'nested_data' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('nested_data')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>
@@ -439,7 +439,7 @@ export function GenerationStructureEditor({
                 selectedTemplate === 'multi_field_combo' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('multi_field_combo')}
-              className="justify-start text-left"
+              className="h-auto justify-start py-2 text-left whitespace-normal"
             >
               <div>
                 <div>

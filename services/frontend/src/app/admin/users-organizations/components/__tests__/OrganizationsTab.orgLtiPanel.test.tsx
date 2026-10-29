@@ -260,6 +260,20 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
     )
   })
 
+  it('moves the Rechtsordnung off the card into the "Mehr" menu', async () => {
+    setupMocks({ user: regularUser })
+    render(<OrganizationsTab />)
+
+    await screen.findByTestId('org-lti-panel')
+    expect(screen.queryByTestId('org-jurisdiction')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('org-more-button'))
+    fireEvent.click(await screen.findByTestId('org-jurisdiction-button'))
+    expect(
+      await screen.findByTestId('org-jurisdiction-select'),
+    ).toBeInTheDocument()
+  })
+
   it('renders the slot for group admins with their active admin groups', async () => {
     setupMocks({
       user: regularUser,
@@ -278,10 +292,13 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
     })
 
     // The "Mehr" menu offers the LMS item, but not the org-admin-only
-    // storage connections.
+    // storage connections and Rechtsordnung.
     fireEvent.click(screen.getByTestId('org-more-button'))
     await screen.findByTestId('org-lti-button')
     expect(screen.queryByTestId('org-storage-button')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('org-jurisdiction-button'),
+    ).not.toBeInTheDocument()
   })
 
   it.each(['ANNOTATOR', 'CONTRIBUTOR'])(

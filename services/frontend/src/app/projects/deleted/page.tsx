@@ -95,25 +95,26 @@ export default function DeletedProjectsPage() {
   }
 
   return (
-    <ResponsiveContainer>
-      <div className="mb-6">
+    <ResponsiveContainer size="xl" className="pt-8 pb-10">
+      <div className="mb-4">
         <Breadcrumb
           items={[
+            { label: t('navigation.dashboard'), href: '/dashboard' },
             { label: t('navigation.projects'), href: '/projects' },
             { label: t('projects.deleted.title') },
           ]}
         />
       </div>
-      <h1 className="mb-2 text-3xl font-bold text-zinc-900 dark:text-white">
+      <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
         {t('projects.deleted.title')}
       </h1>
-      <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-2 mb-6 text-zinc-600 dark:text-zinc-400">
         {t('projects.deleted.subtitle')}
       </p>
 
       {loading ? (
         <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
         </div>
       ) : projects.length === 0 ? (
         <p
@@ -127,13 +128,13 @@ export default function DeletedProjectsPage() {
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
             <thead className="bg-zinc-50 dark:bg-zinc-800/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.project')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.deletedAt')}
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('projects.deleted.actions')}
                 </th>
               </tr>
@@ -141,21 +142,25 @@ export default function DeletedProjectsPage() {
             <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
               {projects.map((p) => (
                 <tr key={p.id} data-testid={`deleted-row-${p.id}`}>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    <span className="mr-2" aria-hidden>
-                      {projectIcon(p)}
-                    </span>
-                    {p.title}
-                    <span className="ml-2 inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">
-                      {t('projects.deleted.badge')}
-                    </span>
+                  <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <div className="flex items-center whitespace-nowrap">
+                      <span className="mr-2" aria-hidden>
+                        {projectIcon(p)}
+                      </span>
+                      <span className="max-w-md truncate" title={p.title}>
+                        {p.title}
+                      </span>
+                      <span className="ml-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">
+                        {t('projects.deleted.badge')}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                     {p.deleted_at
                       ? new Date(p.deleted_at).toLocaleString(intlTag(locale))
                       : '—'}
                   </td>
-                  <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
+                  <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
                     <Button
                       variant="outline"
                       className="mr-2 gap-1.5"
@@ -167,8 +172,8 @@ export default function DeletedProjectsPage() {
                       {t('projects.deleted.restore')}
                     </Button>
                     <Button
-                      variant="outline"
-                      className="gap-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      variant="danger"
+                      className="gap-1.5"
                       disabled={busyId === p.id}
                       onClick={() => handlePurge(p)}
                       data-testid={`deleted-purge-${p.id}`}

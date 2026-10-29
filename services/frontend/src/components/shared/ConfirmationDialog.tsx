@@ -82,7 +82,7 @@ export function ConfirmationDialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25 dark:bg-black/40" />
+          <div className="fixed inset-0 bg-black/30 dark:bg-black/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -128,7 +128,7 @@ export function ConfirmationDialog({
                   <Button
                     variant="outline"
                     onClick={onClose}
-                    className="px-4 py-2"
+                    className="px-4"
                     data-testid="confirm-dialog-cancel-button"
                   >
                     {displayCancelText}
@@ -136,7 +136,7 @@ export function ConfirmationDialog({
                   <Button
                     variant={confirmButtonVariant}
                     onClick={handleConfirm}
-                    className="px-4 py-2"
+                    className="px-4"
                     data-testid="confirm-dialog-confirm-button"
                   >
                     {displayConfirmText}

@@ -281,7 +281,7 @@ export default function PreferenceEvaluation() {
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 {t('evaluation.human.preference.title')}
               </h1>
               <div className="mt-1 flex items-center text-sm text-zinc-600 dark:text-zinc-400">

@@ -55,6 +55,7 @@ import {
   KeyIcon,
   PencilIcon,
   PlusIcon,
+  ScaleIcon,
   TrashIcon,
   UserGroupIcon,
   UserPlusIcon,
@@ -141,6 +142,7 @@ export function OrganizationsTab() {
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
   const [showLtiPanel, setShowLtiPanel] = useState(false)
+  const [showJurisdictionModal, setShowJurisdictionModal] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
   // Form states
@@ -858,6 +860,9 @@ export function OrganizationsTab() {
   // the slot the menu item is not offered. Org admins manage all of the
   // org's connections, group admins those of their active groups,
   // superadmins everything. The API enforces the same scope.
+  const canDeleteOrg = UserOrganizationPermissions.canDeleteOrganization(
+    userWithOrganizations,
+  )
   const showLtiMenuItem = Boolean(
     OrgLtiPanel && (canManageOrg || adminGroupIds.length > 0),
   )
@@ -1122,52 +1127,110 @@ export function OrganizationsTab() {
                 {t('admin.organizations.accessKeys')}
               </Button>
             )}
-          {selectedOrganization && (canManageOrg || showLtiMenuItem) && (
-            <Menu as="div" className="relative inline-block text-left">
-              <Menu.Button
-                as={Button}
-                variant="outline"
-                data-testid="org-more-button"
-              >
-                {t('admin.organizations.more')}
-                <ChevronDownIcon className="h-4 w-4" />
-              </Menu.Button>
-              <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
-                {canManageOrg && (
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        className={`${
-                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                        } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                        onClick={() => setShowStorageConnectionsModal(true)}
-                        data-testid="org-storage-button"
-                      >
-                        <CloudIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                        {t('admin.organizations.storageConnections')}
-                      </button>
-                    )}
-                  </Menu.Item>
-                )}
-                {showLtiMenuItem && (
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        className={`${
-                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                        } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                        onClick={() => setShowLtiPanel(true)}
-                        data-testid="org-lti-button"
-                      >
-                        <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                        {t('admin.organizations.lmsIntegration')}
-                      </button>
-                    )}
-                  </Menu.Item>
-                )}
-              </Menu.Items>
-            </Menu>
-          )}
+          {selectedOrganization &&
+            (canManageOrg || showLtiMenuItem || canDeleteOrg) && (
+              <Menu as="div" className="relative inline-block text-left">
+                <Menu.Button
+                  as={Button}
+                  variant="outline"
+                  data-testid="org-more-button"
+                >
+                  {t('admin.organizations.more')}
+                  <ChevronDownIcon className="h-4 w-4" />
+                </Menu.Button>
+                <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
+                  {canManageOrg && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => {
+                            setEditOrgName(selectedOrganization.name)
+                            setEditOrgDescription(
+                              selectedOrganization.description || '',
+                            )
+                            setIsEditingOrg(true)
+                          }}
+                          data-testid="org-edit-button"
+                        >
+                          <PencilIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.editOrganization')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {canManageOrg && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowStorageConnectionsModal(true)}
+                          data-testid="org-storage-button"
+                        >
+                          <CloudIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.storageConnections')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {canManageOrg && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowJurisdictionModal(true)}
+                          data-testid="org-jurisdiction-button"
+                        >
+                          <ScaleIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.jurisdiction.label')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {showLtiMenuItem && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowLtiPanel(true)}
+                          data-testid="org-lti-button"
+                        >
+                          <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.lmsIntegration')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {canDeleteOrg && (
+                    <>
+                      <div className="my-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            className={`${
+                              active ? 'bg-red-50 dark:bg-red-950/40' : ''
+                            } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 dark:text-red-400`}
+                            onClick={handleDeleteOrganization}
+                            data-testid="org-delete-button"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                            {t('admin.organizations.deleteOrganization')}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </>
+                  )}
+                </Menu.Items>
+              </Menu>
+            )}
           {canCreateOrganization && (
             <Button
               onClick={() => setShowCreateOrgModal(true)}
@@ -1241,7 +1304,7 @@ export function OrganizationsTab() {
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                           {selectedOrganization.name}
                         </h3>
                         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -1263,47 +1326,10 @@ export function OrganizationsTab() {
                             </Badge>
                           )}
                         </div>
-                        <OrgJurisdictionSetting
-                          organization={selectedOrganization}
-                          canManage={canManageOrg}
-                          onSaved={async (jurisdiction) => {
-                            setSelectedOrganization((prev) =>
-                              prev ? { ...prev, jurisdiction } : prev,
-                            )
-                            await refreshOrganizations()
-                          }}
-                        />
                       </>
                     )}
                   </div>
                 </div>
-
-                {!isEditingOrg && canManageOrg && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        setEditOrgName(selectedOrganization.name)
-                        setEditOrgDescription(
-                          selectedOrganization.description || '',
-                        )
-                        setIsEditingOrg(true)
-                      }}
-                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    {UserOrganizationPermissions.canDeleteOrganization(
-                      userWithOrganizations,
-                    ) && (
-                      <button
-                        onClick={handleDeleteOrganization}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </Card>
@@ -1311,12 +1337,12 @@ export function OrganizationsTab() {
           {/* Members Section */}
           <Card>
             <div className="border-b border-zinc-200 p-4 dark:border-zinc-700">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold text-zinc-900 dark:text-white">
                   {t('admin.organizations.members')}
                 </h3>
                 {(canManageOrg || isGroupAdminOfSelectedOrg) && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => setShowInviteModal(true)}
                       variant="primary"
@@ -1424,7 +1450,7 @@ export function OrganizationsTab() {
                   {filteredMembers.map((member) => (
                     <div
                       key={member.user_id}
-                      className="flex items-center justify-between p-4"
+                      className="flex flex-wrap items-center justify-between gap-2 p-4"
                     >
                       <div className="flex items-center">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
@@ -1460,7 +1486,7 @@ export function OrganizationsTab() {
                                       role: roleLabel(group.role),
                                     },
                                   )}
-                                  className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
+                                  className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
                                 >
                                   {group.name}
                                   {group.role && (
@@ -1574,7 +1600,7 @@ export function OrganizationsTab() {
                 {invitations.map((invitation) => (
                   <div
                     key={invitation.id}
-                    className="flex items-center justify-between p-4"
+                    className="flex flex-wrap items-center justify-between gap-2 p-4"
                   >
                     <div className="flex items-center">
                       <EnvelopeIcon className="h-5 w-5 text-zinc-400" />
@@ -1662,12 +1688,29 @@ export function OrganizationsTab() {
             />
           )}
 
+          {/* Organization jurisdiction (project types the wizard offers) */}
+          {selectedOrganization && canManageOrg && (
+            <OrgJurisdictionSetting
+              organization={selectedOrganization}
+              open={showJurisdictionModal}
+              onOpenChange={setShowJurisdictionModal}
+              onSaved={async (jurisdiction) => {
+                setSelectedOrganization((prev) =>
+                  prev ? { ...prev, jurisdiction } : prev,
+                )
+                await refreshOrganizations()
+              }}
+            />
+          )}
+
           {/* Organization Groups Modal */}
           {selectedOrganization && (
             <OrgGroups
               organizationId={selectedOrganization.id}
               isAdmin={canManageOrg}
               canManageGroups={isGroupAdminOfSelectedOrg}
+              organizationJurisdiction={selectedOrganization.jurisdiction}
+              onJurisdictionSaved={refreshOrganizations}
               open={showGroupsModal}
               onOpenChange={setShowGroupsModal}
             />
@@ -1685,10 +1728,10 @@ export function OrganizationsTab() {
 
       {/* Create Organization Modal */}
       {showCreateOrgModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.organizations.createNewOrganization')}
               </h3>
               <form onSubmit={handleCreateOrganization}>
@@ -1746,10 +1789,10 @@ export function OrganizationsTab() {
 
       {/* Add Existing User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.organizations.addExistingUserToOrg')}
               </h3>
               <form onSubmit={handleAddExistingUser}>
@@ -1914,10 +1957,10 @@ export function OrganizationsTab() {
 
       {/* Invite Member Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
-          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 h-full w-full overflow-y-auto bg-black/30 dark:bg-black/50">
+          <div className="relative top-20 mx-auto w-96 rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.organizations.inviteMember')}
               </h3>
               <form onSubmit={handleInviteMember}>
@@ -1970,7 +2013,7 @@ export function OrganizationsTab() {
         <div className="fixed inset-0 z-60 h-full w-full overflow-y-auto bg-zinc-600/50 dark:bg-zinc-900/75">
           <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mt-3">
-              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.organizations.bulkInviteTitle')}
               </h3>
               <form onSubmit={handleBulkInvite}>

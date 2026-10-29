@@ -52,11 +52,11 @@ export function CustomBadge({
 }
 
 const visibilityStyles: Record<ModelVisibility, string> = {
-  private: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300',
-  organization:
-    'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  private:
+    'text-zinc-600 ring-1 ring-zinc-200 ring-inset dark:text-zinc-400 dark:ring-zinc-700',
+  organization: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
   public:
-    'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400',
 }
 
 export function VisibilityBadge({

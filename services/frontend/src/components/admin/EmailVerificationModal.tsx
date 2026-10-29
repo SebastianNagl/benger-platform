@@ -51,7 +51,7 @@ export function EmailVerificationModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25" />
+          <div className="fixed inset-0 bg-black/30 dark:bg-black/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -68,7 +68,7 @@ export function EmailVerificationModal({
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800">
                 <Dialog.Title
                   as="h3"
-                  className="flex items-center gap-2 text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100"
+                  className="flex items-center gap-2 text-lg leading-6 font-semibold text-zinc-900 dark:text-zinc-100"
                 >
                   <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
                   {t('admin.emailVerificationModal.title')}
@@ -104,7 +104,7 @@ export function EmailVerificationModal({
                 <div className="mt-6 flex justify-end gap-3">
                   <button
                     type="button"
-                    className="inline-flex justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                    className="inline-flex h-8 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 dark:focus-visible:ring-offset-zinc-900"
                     onClick={onClose}
                     disabled={loading}
                   >
@@ -112,7 +112,7 @@ export function EmailVerificationModal({
                   </button>
                   <button
                     type="button"
-                    className={`inline-flex justify-center rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 ${loading ? 'cursor-not-allowed opacity-50' : ''}`}
+                    className={`inline-flex h-8 items-center justify-center rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400 ${loading ? 'cursor-not-allowed opacity-50' : ''} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                     onClick={handleConfirm}
                     disabled={loading}
                   >

@@ -340,7 +340,7 @@ export function GenerationResultModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-zinc-500/75 transition-opacity dark:bg-zinc-950/80" />
+          <div className="fixed inset-0 bg-black/30 transition-opacity dark:bg-black/50 dark:bg-zinc-950/80" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -354,7 +354,7 @@ export function GenerationResultModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl dark:bg-zinc-900">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl dark:bg-zinc-800">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 dark:bg-zinc-900">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
@@ -393,7 +393,7 @@ export function GenerationResultModal({
 
                   {loading ? (
                     <div className="flex h-64 flex-col items-center justify-center space-y-4">
-                      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+                      <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         {t('generation.resultModal.loading')}
                       </p>
@@ -404,21 +404,21 @@ export function GenerationResultModal({
                       <div className="mb-4 inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                         <button
                           onClick={() => setActiveTab('current')}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                          className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                             activeTab === 'current'
                               ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                               : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                          }`}
+                          } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                         >
                           {t('generation.resultModal.current')}
                         </button>
                         <button
                           onClick={handleHistoryTabClick}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                          className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                             activeTab === 'history'
                               ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                               : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                          }`}
+                          } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                         >
                           {t('generation.resultModal.history')}
                         </button>
@@ -432,11 +432,11 @@ export function GenerationResultModal({
                               <button
                                 key={index}
                                 onClick={() => setSelectedStructureIndex(index)}
-                                className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                   selectedStructureIndex === index
                                     ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                     : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                }`}
+                                } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                               >
                                 {result.structure_key ||
                                   t('generation.resultModal.default')}
@@ -497,21 +497,21 @@ export function GenerationResultModal({
                                 <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                                   <button
                                     onClick={() => setViewMode('formatted')}
-                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                       viewMode === 'formatted'
                                         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                    }`}
+                                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                                   >
                                     {t('generation.resultModal.formatted')}
                                   </button>
                                   <button
                                     onClick={() => setViewMode('raw')}
-                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                       viewMode === 'raw'
                                         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                    }`}
+                                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                                   >
                                     {t('generation.resultModal.rawJson')}
                                   </button>
@@ -563,7 +563,7 @@ export function GenerationResultModal({
                         <div className="space-y-3">
                           {historyLoading ? (
                             <div className="flex h-32 items-center justify-center">
-                              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
+                              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                             </div>
                           ) : filteredHistory.length > 0 ? (
                             <>
@@ -572,21 +572,21 @@ export function GenerationResultModal({
                                 <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                                   <button
                                     onClick={() => setViewMode('formatted')}
-                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                       viewMode === 'formatted'
                                         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                    }`}
+                                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                                   >
                                     {t('generation.resultModal.formatted')}
                                   </button>
                                   <button
                                     onClick={() => setViewMode('raw')}
-                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                    className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                       viewMode === 'raw'
                                         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                    }`}
+                                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                                   >
                                     {t('generation.resultModal.rawJson')}
                                   </button>
@@ -637,7 +637,7 @@ export function GenerationResultModal({
                                               </span>
                                             )}
                                             {index === 0 && (
-                                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                                 {t(
                                                   'generation.resultModal.currentLabel',
                                                 )}

@@ -81,7 +81,12 @@ export function Pagination({
   )
 
   return (
-    <div className={cn('flex items-center justify-between', className)}>
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-2',
+        className,
+      )}
+    >
       {/* Results info */}
       <div className="text-sm text-zinc-600 dark:text-zinc-400">
         {t('common.pagination.showingResults', {
@@ -91,7 +96,7 @@ export function Pagination({
         })}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         {/* Page size selector */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -127,7 +132,7 @@ export function Pagination({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={cn(
-              'inline-flex items-center rounded-full px-2 py-2 text-sm font-medium',
+              'inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-medium',
               currentPage === 1
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
                 : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
@@ -143,7 +148,7 @@ export function Pagination({
               return (
                 <span
                   key={`dots-${index}`}
-                  className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400"
+                  className="px-2 text-sm text-zinc-500 dark:text-zinc-400"
                 >
                   …
                 </span>
@@ -158,7 +163,7 @@ export function Pagination({
                 key={pageNumber}
                 onClick={() => onPageChange(pageNumber)}
                 className={cn(
-                  'inline-flex items-center rounded-full px-3 py-2 text-sm font-medium',
+                  'inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-medium',
                   isActive
                     ? 'bg-zinc-900 text-white dark:bg-emerald-500'
                     : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
@@ -178,7 +183,7 @@ export function Pagination({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className={cn(
-              'inline-flex items-center rounded-full px-2 py-2 text-sm font-medium',
+              'inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm font-medium',
               currentPage === totalPages
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
                 : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',

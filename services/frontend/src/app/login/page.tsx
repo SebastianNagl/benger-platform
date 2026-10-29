@@ -49,7 +49,7 @@ export default function LoginPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('login.redirecting')}
           </p>
@@ -167,14 +167,15 @@ export default function LoginPage() {
 
         <div>
           <Button
+            variant="filled"
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-full bg-zinc-900 px-4 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
+            className="w-full"
             data-testid="auth-login-submit-button"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                 {t('login.loading')}
               </div>
             ) : (

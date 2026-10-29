@@ -576,7 +576,7 @@ describe('SignupModal Component', () => {
       )
 
       const dialogPanel = screen.getByTestId('dialog-panel')
-      expect(dialogPanel).toHaveClass('dark:bg-zinc-900')
+      expect(dialogPanel).toHaveClass('dark:bg-zinc-800')
     })
 
     it('applies dark mode classes to inputs', () => {

@@ -69,7 +69,7 @@ export function PostAnnotationQuestionnaireModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-zinc-500/75 transition-opacity dark:bg-zinc-900/80" />
+          <div className="fixed inset-0 bg-black/30 transition-opacity dark:bg-black/50 dark:bg-zinc-900/80" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -83,7 +83,7 @@ export function PostAnnotationQuestionnaireModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative flex max-h-[90vh] transform flex-col rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl dark:bg-zinc-800">
+              <Dialog.Panel className="relative flex max-h-[90vh] transform flex-col rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl dark:bg-zinc-800">
                 {/* Fixed header */}
                 <div className="shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
                   <div className="mb-4 flex items-center gap-3">
@@ -118,7 +118,7 @@ export function PostAnnotationQuestionnaireModal({
                   {isSubmitting && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-zinc-800/80">
                       <div className="text-center">
-                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
                           {t('annotation.questionnaire.submitting')}
                         </p>

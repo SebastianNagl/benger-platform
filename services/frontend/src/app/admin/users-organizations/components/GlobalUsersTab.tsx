@@ -299,7 +299,7 @@ export function GlobalUsersTab() {
 
   if (!canManageUsers) {
     return (
-      <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-center text-zinc-500 dark:text-zinc-400">
           {t('admin.users.noPermission')}
         </p>
@@ -439,7 +439,7 @@ export function GlobalUsersTab() {
         </FilterToolbar.Field>
       </FilterToolbar>
 
-      <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         {/* Bulk actions bar */}
         {selectedUsers.length > 0 && (
           <div className="flex items-center justify-between bg-emerald-50 px-6 py-3 dark:bg-emerald-900/20">
@@ -455,13 +455,13 @@ export function GlobalUsersTab() {
             <div className="flex gap-2">
               <button
                 onClick={handleBulkVerifyEmails}
-                className="rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                className="h-8 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {t('admin.users.bulkVerifyEmails')}
               </button>
               <button
                 onClick={() => setSelectedUsers([])}
-                className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                className="h-8 rounded-full border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
               >
                 {t('admin.users.clearSelection')}
               </button>
@@ -478,7 +478,7 @@ export function GlobalUsersTab() {
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead className="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
-                  <th className="px-6 py-3 text-left">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     <input
                       type="checkbox"
                       checked={
@@ -495,19 +495,19 @@ export function GlobalUsersTab() {
                       className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnUser')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnEmail')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnEmailVerification')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnSuperadminStatus')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('admin.users.columnActions')}
                   </th>
                 </tr>
@@ -525,7 +525,7 @@ export function GlobalUsersTab() {
                 )}
                 {filteredUsers.map((user) => (
                   <tr key={`user-row-${user.id}`}>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(user.id)}
@@ -541,7 +541,7 @@ export function GlobalUsersTab() {
                         className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-300 dark:bg-zinc-600">
                           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
@@ -558,10 +558,10 @@ export function GlobalUsersTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                    <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {user.email_verified ? (
                           <div className="flex items-center gap-1">
@@ -602,7 +602,7 @@ export function GlobalUsersTab() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {user.id === currentUser?.id ||
                       updatingUser === user.id ? (
                         <span className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -641,7 +641,7 @@ export function GlobalUsersTab() {
                         </Select>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                       {user.id !== currentUser?.id && (
                         <div className="flex space-x-2">
                           <button

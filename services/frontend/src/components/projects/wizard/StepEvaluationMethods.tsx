@@ -299,7 +299,7 @@ export function StepEvaluationMethods({
                                 title={t(
                                   'projects.creation.wizard.step7.batchOnlyHint',
                                 )}
-                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                 data-testid={`metric-batch-only-${metricKey}`}
                               >
                                 {t('projects.creation.wizard.step7.batchOnly')}
@@ -351,7 +351,7 @@ export function StepEvaluationMethods({
                               {config.display_name ||
                                 `${def.display_name} ${configIndex + 1}`}
                               {config.variant && (
-                                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                                   {config.variant}
                                 </span>
                               )}

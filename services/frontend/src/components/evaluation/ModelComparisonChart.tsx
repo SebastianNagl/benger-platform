@@ -144,7 +144,7 @@ export function ModelComparisonChart({
     return (
       <div className="space-y-2">
         {title && (
-          <h3 className="text-lg font-medium text-zinc-900">{title}</h3>
+          <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
         )}
         {/* eslint-disable-next-line react-hooks/static-components */}
         <MissingDataWarning />
@@ -188,7 +188,7 @@ export function ModelComparisonChart({
   return (
     <div className="space-y-2">
       {title && (
-        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           {title}
         </h3>
       )}
@@ -255,18 +255,18 @@ export function ModelComparisonChart({
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-zinc-700 dark:text-zinc-300">
+              <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 {t('evaluation.modelComparison.model')}
               </th>
               {metrics.map((metric) => (
                 <th
                   key={metric}
-                  className="px-4 py-3 text-right font-semibold text-zinc-700 dark:text-zinc-300"
+                  className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   {metric}
                 </th>
               ))}
-              <th className="px-4 py-3 text-right font-semibold text-zinc-700 dark:text-zinc-300">
+              <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 {t('evaluation.modelComparison.average')}
               </th>
             </tr>

@@ -113,7 +113,7 @@ export function AnnotatorBadges({
       <button
         onClick={onAssign}
         disabled={!canAssign || !onAssign}
-        className={`text-xs italic ${
+        className={`text-xs font-medium ${
           canAssign && onAssign
             ? 'cursor-pointer text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300'
             : 'cursor-default text-zinc-400 dark:text-zinc-500'

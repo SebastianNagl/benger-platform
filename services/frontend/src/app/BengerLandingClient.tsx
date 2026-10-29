@@ -51,7 +51,7 @@ export default function BengerLandingClient() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('common.redirectingToDashboard')}
           </p>
@@ -65,7 +65,7 @@ export default function BengerLandingClient() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('common.loading')}
           </p>

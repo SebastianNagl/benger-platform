@@ -29,7 +29,7 @@ export function StatusCard({
   const backLink = (
     <Link
       href="/reports"
-      className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      className="inline-flex h-8 items-center rounded-full border border-zinc-300 px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
       {t('reports.view.backToReports')}
     </Link>
@@ -42,7 +42,7 @@ export function StatusCard({
         data-testid="report-loading"
         aria-busy="true"
       >
-        <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-600 dark:border-zinc-700 dark:border-t-emerald-400" />
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('reports.view.loading')}
         </p>
@@ -62,7 +62,7 @@ export function StatusCard({
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={loginHref}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {t('reports.view.signIn')}
           </Link>
@@ -89,7 +89,7 @@ export function StatusCard({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            className="h-8 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {t('reports.view.reload')}
           </button>

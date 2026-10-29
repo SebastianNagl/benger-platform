@@ -143,7 +143,7 @@ const getEffectSizeColor = (interpretation?: string): string => {
     case 'medium':
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
     case 'small':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+      return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
     default:
       return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300'
   }
@@ -252,25 +252,25 @@ export function StatisticalResultsPanel({
       {/* Per-Model Statistics (for 'model' aggregation) */}
       {hasModelBreakdown && (
         <Card className="p-6">
-          <h3 className="mb-4 text-lg font-medium dark:text-white">
+          <h3 className="mb-4 text-lg font-semibold dark:text-white">
             {t('evaluation.statisticalResults.perModelStatistics')}
           </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.model')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase"
+                      className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
@@ -326,25 +326,25 @@ export function StatisticalResultsPanel({
       {/* Per-Field Statistics (for 'field' aggregation) */}
       {hasFieldBreakdown && (
         <Card className="p-6">
-          <h3 className="mb-4 text-lg font-medium dark:text-white">
+          <h3 className="mb-4 text-lg font-semibold dark:text-white">
             {t('evaluation.statisticalResults.perFieldStatistics')}
           </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.field')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase"
+                      className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
@@ -404,7 +404,7 @@ export function StatisticalResultsPanel({
 
       {/* Overall Metric Statistics */}
       <Card className="p-6">
-        <h3 className="mb-4 text-lg font-medium dark:text-white">
+        <h3 className="mb-4 text-lg font-semibold dark:text-white">
           {hasModelBreakdown || hasFieldBreakdown
             ? t('evaluation.statisticalResults.overallStatistics')
             : t('evaluation.statisticalResults.metricStatistics')}
@@ -413,26 +413,26 @@ export function StatisticalResultsPanel({
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluation.statisticalResults.metric')}
                 </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluation.statisticalResults.mean')}
                 </th>
                 {showStat('ci') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.ci95')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluation.statisticalResults.std')}
                 </th>
                 {showStat('se') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('evaluation.statisticalResults.se')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluation.statisticalResults.n')}
                 </th>
               </tr>
@@ -484,7 +484,7 @@ export function StatisticalResultsPanel({
         data.pairwise_comparisons.length > 0 && (
           <Card className="p-6">
             <div className="mb-4 flex items-start justify-between">
-              <h3 className="text-lg font-medium dark:text-white">
+              <h3 className="text-lg font-semibold dark:text-white">
                 {t('evaluation.statisticalResults.pairwiseComparisons')}
               </h3>
 
@@ -565,24 +565,24 @@ export function StatisticalResultsPanel({
               <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('evaluation.statisticalResults.modelA')}
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('evaluation.statisticalResults.modelB')}
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('evaluation.statisticalResults.metric')}
                     </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
+                    <th className="px-3 py-2 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('evaluation.statisticalResults.pValue')}
                     </th>
                     {showEffectSizes && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
+                      <th className="px-3 py-2 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                         {t('evaluation.statisticalResults.effectSize')}
                       </th>
                     )}
-                    <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
+                    <th className="px-3 py-2 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('evaluation.statisticalResults.significant')}
                     </th>
                   </tr>
@@ -644,18 +644,18 @@ export function StatisticalResultsPanel({
         data.correlations &&
         Object.keys(data.correlations).length > 0 && (
           <Card className="p-6">
-            <h3 className="mb-4 text-lg font-medium dark:text-white">
+            <h3 className="mb-4 text-lg font-semibold dark:text-white">
               {t('evaluation.statisticalResults.correlationMatrix')}
             </h3>
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
                   <tr>
-                    <th className="px-2 py-2 text-xs font-medium text-zinc-500"></th>
+                    <th className="px-2 py-2 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"></th>
                     {metricNames.map((metric) => (
                       <th
                         key={metric}
-                        className="px-2 py-2 text-center text-xs font-medium text-zinc-500"
+                        className="px-2 py-2 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                         style={{
                           writingMode: 'vertical-rl',
                           transform: 'rotate(180deg)',

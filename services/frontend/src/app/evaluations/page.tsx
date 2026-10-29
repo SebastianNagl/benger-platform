@@ -1121,10 +1121,7 @@ export default function EvaluationDashboard() {
   }
 
   return (
-    <ResponsiveContainer
-      size="full"
-      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-    >
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb
@@ -1140,9 +1137,11 @@ export default function EvaluationDashboard() {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">{t('evaluation.viewer.title')}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {t('evaluation.viewer.title')}
+        </h1>
         {!selectedProject && (
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('evaluation.viewer.selectProjectDescription')}
           </p>
         )}
@@ -1518,7 +1517,7 @@ export default function EvaluationDashboard() {
             chartType !== 'data' && (
               <Card className="p-6">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-medium dark:text-white">
+                  <h3 className="text-lg font-semibold dark:text-white">
                     {t('evaluation.viewer.chart.title')}
                   </h3>
                   <ChartTypeSelector
@@ -1544,7 +1543,7 @@ export default function EvaluationDashboard() {
           {/* Results Table */}
           {filteredResults.length > 0 && (
             <Card className="p-6">
-              <h3 className="mb-4 text-lg font-medium dark:text-white">
+              <h3 className="mb-4 text-lg font-semibold dark:text-white">
                 {t('evaluation.viewer.results.title')}
               </h3>
               <EvaluationResultsTable
@@ -1578,7 +1577,7 @@ export default function EvaluationDashboard() {
             selectedConfigIds.length > 0 &&
             chartType !== 'data' && (
               <Card className="p-6">
-                <h3 className="mb-4 text-lg font-medium dark:text-white">
+                <h3 className="mb-4 text-lg font-semibold dark:text-white">
                   {t('evaluation.viewer.results.historicalTrends')}
                 </h3>
                 <div className="space-y-6">
@@ -1605,7 +1604,7 @@ export default function EvaluationDashboard() {
           {/* Significance Heatmap - hidden in data view */}
           {selectedModels.length > 1 && chartType !== 'data' && (
             <Card className="p-6">
-              <h3 className="mb-4 text-lg font-medium dark:text-white">
+              <h3 className="mb-4 text-lg font-semibold dark:text-white">
                 {t('evaluation.viewer.results.statisticalSignificance')}
               </h3>
               {significanceError && (
@@ -1671,7 +1670,7 @@ export default function EvaluationDashboard() {
             !hasAnyConfiguration && (
               <Card className="p-12 text-center">
                 <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
-                <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-white">
+                <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-white">
                   {t('evaluation.viewer.emptyStates.notConfigured.title')}
                 </h3>
                 <p className="mt-2 text-zinc-500 dark:text-zinc-400">
@@ -1695,7 +1694,7 @@ export default function EvaluationDashboard() {
       {!selectedProject && !loading && (
         <Card className="p-12 text-center">
           <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
-          <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-white">
+          <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-white">
             {t('evaluation.viewer.emptyStates.selectProject.title')}
           </h3>
           <p className="mt-2 text-zinc-500 dark:text-zinc-400">

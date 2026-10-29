@@ -478,7 +478,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('project.report.editor.loading')}
           </p>
@@ -520,7 +520,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('project.report.editor.loading')}
           </p>
@@ -578,7 +578,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
 
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {t('project.report.editor.title')}
             </h1>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
@@ -609,7 +609,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               href={`/reports/${report.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="inline-flex h-8 items-center rounded-full border border-zinc-300 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
               {t('reports.editor.preview')}

@@ -178,6 +178,8 @@ export interface Organization {
   groups?: OrganizationGroupMembershipSummary[]
   // 'DE' | 'FR' (from /auth/me/contexts, see '@/lib/jurisdiction').
   jurisdiction?: string
+  // Group id -> 'DE' | 'FR' for the org's groups that override it.
+  group_jurisdictions?: Record<string, string>
 }
 
 export interface OrganizationCreate {

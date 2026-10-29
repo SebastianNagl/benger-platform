@@ -62,7 +62,7 @@ export function Dialog({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/25" />
+          <div className="fixed inset-0 bg-black/30 dark:bg-black/50" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -91,7 +91,7 @@ export function Dialog({
                   <div className="mb-4">
                     <HeadlessDialog.Title
                       as="h3"
-                      className="text-lg leading-6 font-medium text-zinc-900 dark:text-white"
+                      className="text-lg leading-6 font-semibold text-zinc-900 dark:text-white"
                     >
                       {title}
                     </HeadlessDialog.Title>
@@ -135,7 +135,7 @@ export function DialogTitle({ children, className }: DialogTitleProps) {
     <HeadlessDialog.Title
       as="h3"
       className={clsx(
-        'text-lg leading-6 font-medium text-zinc-900 dark:text-white',
+        'text-lg leading-6 font-semibold text-zinc-900 dark:text-white',
         className,
       )}
     >

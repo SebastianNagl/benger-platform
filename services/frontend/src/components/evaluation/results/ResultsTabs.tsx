@@ -197,11 +197,11 @@ export function ResultsTabs({
                     <button
                       key={index}
                       onClick={() => setSelectedStructureIndex(index)}
-                      className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                         selectedStructureIndex === index
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                      }`}
+                      } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                     >
                       {result.structure_key ||
                         t('evaluation.multiFieldResults.default')}

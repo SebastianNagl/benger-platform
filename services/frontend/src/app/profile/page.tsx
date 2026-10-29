@@ -286,7 +286,7 @@ export default function ProfilePage() {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="flex h-64 items-center justify-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
         </div>
       </div>
     )
@@ -308,28 +308,26 @@ export default function ProfilePage() {
           />
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          {/* Header with title and action buttons */}
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
-              {t('profile.title')}
-            </h1>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setPasswordModalOpen(true)}
-              >
-                {t('profile.changePassword')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setApiKeysModalOpen(true)}
-              >
-                {t('profile.apiKeys')}
-              </Button>
-            </div>
+        {/* Header with title and action buttons, above the form card like
+            every other page header */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            {t('profile.title')}
+          </h1>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPasswordModalOpen(true)}
+            >
+              {t('profile.changePassword')}
+            </Button>
+            <Button variant="outline" onClick={() => setApiKeysModalOpen(true)}>
+              {t('profile.apiKeys')}
+            </Button>
           </div>
+        </div>
 
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Profile Form - Single Column Layout */}
           <form onSubmit={handleProfileSubmit} className="space-y-8">
             {/* Personal Information */}
@@ -399,7 +397,7 @@ export default function ProfilePage() {
                 type="submit"
                 variant="filled"
                 disabled={profileLoading}
-                className="w-full px-8 py-2 lg:w-auto"
+                className="w-full px-8 lg:w-auto"
               >
                 {profileLoading
                   ? t('profile.updating')

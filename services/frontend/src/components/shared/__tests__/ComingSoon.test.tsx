@@ -182,11 +182,11 @@ describe('ComingSoon Component', () => {
 
       const heading = screen.getByRole('heading', { level: 1 })
       expect(heading).toHaveClass(
-        'mb-4',
         'text-3xl',
         'font-bold',
+        'tracking-tight',
         'text-zinc-900',
-        'dark:text-zinc-100',
+        'dark:text-white',
       )
     })
 
@@ -198,9 +198,9 @@ describe('ComingSoon Component', () => {
       )
       expect(description.tagName).toBe('P')
       expect(description).toHaveClass(
+        'mt-2',
         'mb-8',
         'max-w-md',
-        'text-lg',
         'text-zinc-600',
         'dark:text-zinc-400',
       )
@@ -397,7 +397,7 @@ describe('ComingSoon Component', () => {
       render(<ComingSoon />)
 
       const heading = screen.getByRole('heading', { level: 1 })
-      expect(heading).toHaveClass('dark:text-zinc-100')
+      expect(heading).toHaveClass('dark:text-white')
     })
 
     it('includes dark mode classes for description', () => {
@@ -503,11 +503,11 @@ describe('ComingSoon Component', () => {
       expect(iconContainer?.querySelector('svg')).toBeInTheDocument()
     })
 
-    it('applies correct margin classes to heading', () => {
+    it('spaces the description from the heading like every page header', () => {
       render(<ComingSoon />)
 
       const heading = screen.getByRole('heading', { level: 1 })
-      expect(heading).toHaveClass('mb-4')
+      expect(heading.nextElementSibling).toHaveClass('mt-2')
     })
 
     it('applies correct margin classes to description', () => {

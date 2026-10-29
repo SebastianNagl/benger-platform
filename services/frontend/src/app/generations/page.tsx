@@ -80,7 +80,7 @@ export default function GenerationPage() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('common.loading')}
           </p>
@@ -110,10 +110,7 @@ export default function GenerationPage() {
   }
 
   return (
-    <ResponsiveContainer
-      size="full"
-      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-    >
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       <div className="mb-4">
         <Breadcrumb
           items={[
@@ -124,7 +121,7 @@ export default function GenerationPage() {
       </div>
 
       <div className="mx-auto max-w-7xl">
-        <div className="mt-8">
+        <div>
           <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('generation.title')}
           </h1>

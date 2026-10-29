@@ -251,7 +251,7 @@ export function CostEstimatePanel({
 
       {loading && (
         <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-          <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent dark:border-emerald-400 dark:border-t-transparent" />
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
           {t('costEstimate.loading')}
         </div>
       )}
@@ -336,16 +336,16 @@ export function CostEstimatePanel({
               <table className="min-w-full divide-y divide-zinc-200 text-xs dark:divide-zinc-700">
                 <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium">
+                    <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('costEstimate.modelCol')}
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('costEstimate.perCallCol')}
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('costEstimate.perRunCol')}
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('costEstimate.totalCol')}
                     </th>
                   </tr>

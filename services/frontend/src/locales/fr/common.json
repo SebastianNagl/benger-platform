@@ -4556,8 +4556,12 @@
         "options": {
           "DE": "Allemagne",
           "FR": "France"
-        }
-      }
+        },
+        "inherit": "Comme l'organisation ({country})",
+        "groupHelp": "Les projets créés dans ce groupe reçoivent les types de projet de ce système juridique dans l'assistant de création."
+      },
+      "editOrganization": "Modifier l'organisation",
+      "deleteOrganization": "Supprimer l'organisation"
     },
     "usersPage": {
       "breadcrumb": {

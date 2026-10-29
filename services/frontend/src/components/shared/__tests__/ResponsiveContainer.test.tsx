@@ -308,12 +308,13 @@ describe('ResponsiveContainer', () => {
       expect(element).toHaveClass('5xl:px-12')
     })
 
-    it('does not apply padding classes for full size', () => {
+    it('applies the same side padding for full size', () => {
       const { container } = render(
         <ResponsiveContainer size="full">Content</ResponsiveContainer>,
       )
       const element = container.firstChild as HTMLElement
-      expect(element.className).not.toContain('px-')
+      expect(element).toHaveClass('px-4', 'sm:px-6')
+      expect(element.className).not.toContain('max-w-')
     })
 
     it('applies consistent padding across all standard sizes', () => {

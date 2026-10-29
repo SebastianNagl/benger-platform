@@ -629,7 +629,7 @@ export function ProjectListTable({
   if (loading && (!projects || projects.length === 0)) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
       </div>
     )
   }
@@ -640,7 +640,7 @@ export function ProjectListTable({
       <div className="mb-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {showArchivedOnly
                 ? t('projects.archivedTitle')
                 : t('projects.title')}
@@ -877,7 +877,7 @@ export function ProjectListTable({
       </div>
 
       {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="overflow-x-auto">
           <table
             className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700"
@@ -886,7 +886,10 @@ export function ProjectListTable({
             <thead className="bg-zinc-50 dark:bg-zinc-800">
               <tr>
                 {userCanCreateProjects && (
-                  <th scope="col" className="w-12 px-6 py-3">
+                  <th
+                    scope="col"
+                    className="w-12 px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  >
                     <TableCheckbox
                       checked={
                         sortedProjects.length > 0 &&
@@ -906,7 +909,7 @@ export function ProjectListTable({
                 )}
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('title')}
@@ -918,7 +921,7 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('organization')}
@@ -930,7 +933,7 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('task_count')}
@@ -942,13 +945,13 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   {t('projects.table.annotations')}
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('progress')}
@@ -960,7 +963,7 @@ export function ProjectListTable({
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                  className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
                     onClick={() => handleSort('created_at')}
@@ -970,7 +973,10 @@ export function ProjectListTable({
                     <SortIcon field="created_at" />
                   </button>
                 </th>
-                <th scope="col" className="relative px-6 py-3">
+                <th
+                  scope="col"
+                  className="relative px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                >
                   <span className="sr-only">{t('projects.list.actions')}</span>
                 </th>
               </tr>
@@ -1023,7 +1029,7 @@ export function ProjectListTable({
                     >
                       {userCanCreateProjects && (
                         <td
-                          className="px-6 py-4"
+                          className="px-4 py-3"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {project.access_tier !== 'participant' &&
@@ -1038,11 +1044,13 @@ export function ProjectListTable({
                         </td>
                       )}
                       <td
-                        className="cursor-pointer px-6 py-4"
+                        className="cursor-pointer px-4 py-3"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         <div>
-                          <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                          {/* One line: a long title ends in "…" at the
+                              description's width, full title on hover. */}
+                          <div className="flex items-center gap-2 text-sm font-medium whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                             <span
                               className="mr-0.5"
                               aria-hidden
@@ -1050,10 +1058,15 @@ export function ProjectListTable({
                             >
                               {projectIcon(project)}
                             </span>
-                            <span>{project.title}</span>
+                            <span
+                              className="max-w-md min-w-0 truncate"
+                              title={project.title}
+                            >
+                              {project.title}
+                            </span>
                             {project.is_public && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
                                 data-testid={`project-public-badge-${project.id}`}
                                 title={t(
                                   project.public_role === 'CONTRIBUTOR'
@@ -1070,7 +1083,7 @@ export function ProjectListTable({
                             {(project.access_tier === 'participant' ||
                               project.access_tier === 'attempted') && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                                 data-testid={`project-participant-badge-${project.id}`}
                                 title={t(
                                   `projects.list.participantVia.${
@@ -1088,7 +1101,7 @@ export function ProjectListTable({
                             )}
                             {project.kind === 'flashcard_collection' && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-400/10 dark:text-purple-400"
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
                                 data-testid={`project-kind-badge-${project.id}`}
                               >
                                 <RectangleStackIcon className="h-3.5 w-3.5" />
@@ -1097,7 +1110,7 @@ export function ProjectListTable({
                             )}
                             {project.kind === 'exam' && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-400"
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
                                 data-testid={`project-kind-badge-${project.id}`}
                               >
                                 <ScaleIcon className="h-3.5 w-3.5" />
@@ -1145,7 +1158,7 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-700 dark:text-zinc-300"
+                        className="cursor-pointer px-4 py-3 text-sm whitespace-nowrap text-zinc-700 dark:text-zinc-300"
                         onClick={() => router.push(`/projects/${project.id}`)}
                         data-testid={`project-organizations-${project.id}`}
                       >
@@ -1157,19 +1170,19 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
+                        className="cursor-pointer px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {project.task_count}
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
+                        className="cursor-pointer px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {project.annotation_count}
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 whitespace-nowrap"
+                        className="cursor-pointer px-4 py-3 whitespace-nowrap"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         <div className="flex items-center">
@@ -1187,7 +1200,7 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+                        className="cursor-pointer px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         {formatDistanceToNow(new Date(project.created_at), {
@@ -1195,7 +1208,7 @@ export function ProjectListTable({
                           locale: dateFnsLocale(locale),
                         })}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+                      <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap">
                         {project.kind === 'flashcard_collection' ? (
                           <button
                             onClick={(e) => {

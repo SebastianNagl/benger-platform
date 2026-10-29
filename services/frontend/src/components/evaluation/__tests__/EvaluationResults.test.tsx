@@ -1347,7 +1347,7 @@ describe('EvaluationResults', () => {
       })
     })
 
-    it('applies blue styling to annotator column header', async () => {
+    it('applies emerald styling to annotator column header', async () => {
       setupCompletedEvaluation(
         {},
         {
@@ -1376,7 +1376,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         const annotatorLabel = screen.getByText('reviewer1')
-        expect(annotatorLabel.className).toContain('bg-blue-100')
+        expect(annotatorLabel.className).toContain('bg-emerald-100')
       })
     })
   })

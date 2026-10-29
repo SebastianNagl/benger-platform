@@ -131,7 +131,7 @@ export function TabsTrigger({
         type="button"
         disabled
         className={clsx(
-          'inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex h-7 items-center justify-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
           'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
           className,
         )}
@@ -150,7 +150,7 @@ export function TabsTrigger({
       type="button"
       onClick={() => setActiveTab(value)}
       className={clsx(
-        'inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex h-7 items-center justify-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
         isActive
           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',

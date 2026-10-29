@@ -36,7 +36,7 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
       <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluationBuilder.parameters.temperature')}
         {constraints.temperature.fixed && (
-          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="ml-2 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
             {t('evaluationBuilder.validation.fixed', {
               value: constraints.temperature.fixedValue,
             })}

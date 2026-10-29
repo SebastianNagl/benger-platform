@@ -219,7 +219,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
             {t('tasks.detail.loading')}
           </p>
@@ -276,7 +276,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
         {/* Task Content */}
         <div className="p-6">
           <div className="mx-auto max-w-4xl">
-            <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-white">
                 {t('tasks.detail.taskHeading', { id: task.id })}
               </h2>
@@ -422,7 +422,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
 
             {/* Annotations Section (if any) */}
             {task.total_annotations > 0 && (
-              <div className="mt-6 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+              <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                   {t('tasks.detail.existingAnnotations')}
                 </h3>

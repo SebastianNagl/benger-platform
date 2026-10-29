@@ -23,6 +23,12 @@ const variantStyles = {
     'rounded-full bg-zinc-900 py-1.5 px-3 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-900 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400 dark:disabled:hover:bg-emerald-500',
   outline:
     'rounded-full py-1.5 px-3 text-zinc-700 ring-1 ring-inset ring-zinc-900/10 hover:bg-zinc-900/2.5 hover:text-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white dark:disabled:hover:bg-transparent dark:disabled:hover:text-zinc-400',
+  // Destructive actions: red outline, and a filled red for the final
+  // confirmation of a delete.
+  danger:
+    'rounded-full py-1.5 px-3 text-red-600 ring-1 ring-inset ring-red-600/30 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:text-red-400 dark:ring-red-400/30 dark:hover:bg-red-400/10 dark:disabled:hover:bg-transparent',
+  dangerFilled:
+    'rounded-full bg-red-600 py-1.5 px-3 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-400 dark:disabled:hover:bg-red-500',
   text: 'text-emerald-500 hover:text-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed dark:text-emerald-400 dark:hover:text-emerald-500',
 }
 
@@ -44,10 +50,18 @@ export function Button({
 }: ButtonProps) {
   // Check if className contains a custom gap class
   const hasCustomGap = className && /gap-\d+/.test(className)
+  // Pill controls (buttons, inputs, select triggers, toolbars) share one
+  // 32px height; only a deliberately sized button (own h-*, or a large CTA
+  // with py-3 and up) and the inline text variant opt out.
+  const hasCustomHeight =
+    className && /(^|\s)(h-|py-([3-9]|1\d))/.test(className)
+  const hasCustomWhitespace = className && /(^|\s)whitespace-/.test(className)
 
   className = clsx(
     'inline-flex items-center justify-center overflow-hidden text-sm font-medium transition leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900',
     !hasCustomGap && 'gap-2', // Only add default gap if no custom gap is provided
+    !hasCustomWhitespace && 'whitespace-nowrap',
+    variant !== 'text' && !hasCustomHeight && 'h-8 max-w-full',
     variantStyles[variant],
     className,
   )

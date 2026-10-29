@@ -292,14 +292,14 @@ export default function TestNotificationsPage() {
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('admin.testNotifications.title')}
         </h1>
-        <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('admin.testNotifications.description')}
         </p>
       </div>
 
       {/* Bulk Actions */}
-      <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+      <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
           {t('admin.testNotifications.bulkActions')}
         </h2>
         <div className="flex flex-wrap gap-4">
@@ -310,7 +310,7 @@ export default function TestNotificationsPage() {
           >
             {loading === 'all' ? (
               <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 {t('admin.testNotifications.generating')}
               </>
             ) : (
@@ -328,7 +328,7 @@ export default function TestNotificationsPage() {
           >
             {loading === 'clear' ? (
               <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                 {t('admin.testNotifications.clearing')}
               </>
             ) : (
@@ -344,9 +344,9 @@ export default function TestNotificationsPage() {
           ([category, notifications]) => (
             <div
               key={category}
-              className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10"
+              className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+              <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                 {t('admin.testNotifications.categoryHeader', { category })}
               </h2>
               <div className="grid grid-cols-1 gap-4">
@@ -387,7 +387,7 @@ export default function TestNotificationsPage() {
                       >
                         {isLoading ? (
                           <>
-                            <div className="mr-1 h-3 w-3 animate-spin rounded-full border border-zinc-400 border-t-transparent" />
+                            <div className="mr-1 h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                             {t('admin.testNotifications.generating')}
                           </>
                         ) : (

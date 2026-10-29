@@ -368,15 +368,18 @@ export function TaskAnnotationComparisonModal({
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       {/* Full-screen container - responsive padding */}
       <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
-        <DialogPanel className="flex max-h-[95vh] w-full max-w-6xl flex-col rounded-lg bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-900">
+        <DialogPanel className="flex max-h-[95vh] w-full max-w-6xl flex-col rounded-2xl bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-800">
           {/* Header - responsive padding and text size */}
           <div className="flex items-start justify-between border-b border-zinc-200 p-4 sm:items-center sm:p-6 dark:border-zinc-700">
             <div className="mr-2 min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-zinc-900 sm:text-lg dark:text-white">
+              <DialogTitle className="truncate text-lg font-semibold text-zinc-900 sm:text-lg dark:text-white">
                 {t('annotation.comparison.modal.title')}
                 <span className="hidden sm:inline">
                   {' '}
@@ -401,7 +404,7 @@ export function TaskAnnotationComparisonModal({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-12">
@@ -409,7 +412,7 @@ export function TaskAnnotationComparisonModal({
                 <p className="text-red-600">{error}</p>
                 <button
                   onClick={fetchAnnotations}
-                  className="mt-4 rounded-full bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                  className="mt-4 h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 >
                   {t('annotation.comparison.modal.retry')}
                 </button>
@@ -466,7 +469,7 @@ export function TaskAnnotationComparisonModal({
               ) : // Show loading state when just created
               justCreated ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
                   <p className="text-zinc-600 dark:text-zinc-400">
                     {t('annotation.comparison.messages.loadingUserAnnotation')}
                   </p>
@@ -560,7 +563,7 @@ export function TaskAnnotationComparisonModal({
                       <Tab
                         key={tab.userId}
                         className={({ selected }) =>
-                          `flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
+                          `flex h-7 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
                             selected
                               ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                               : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -573,7 +576,7 @@ export function TaskAnnotationComparisonModal({
                         </span>
                         {getStatusIcon(tab.status)}
                         {tab.annotations.length > 1 && (
-                          <span className="ml-1 rounded-full bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-700">
+                          <span className="ml-1 rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium dark:bg-zinc-700">
                             {tab.annotations.length}
                           </span>
                         )}
@@ -669,7 +672,7 @@ export function TaskAnnotationComparisonModal({
                             (displayedAnnotations.get(tab.userId) || 5) && (
                             <div className="pt-4 text-center">
                               <button
-                                className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                                className="h-8 rounded-full bg-zinc-900 px-4 text-sm text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                                 onClick={() => {
                                   // Load 5 more annotations for this annotator
                                   setDisplayedAnnotations((prev) => {
@@ -715,7 +718,7 @@ export function TaskAnnotationComparisonModal({
           {/* Footer - responsive layout with enhanced button visibility */}
           {(annotatorTabs.length > 0 ||
             (mode === 'view' && !showAddAnnotation)) && (
-            <div className="border-t border-zinc-200 bg-zinc-50 p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-800">
+            <div className="rounded-b-2xl border-t border-zinc-200 bg-zinc-50 p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-800">
               <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
                 {/* Left side - statistics and primary action button */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
@@ -779,7 +782,7 @@ export function TaskAnnotationComparisonModal({
                               setShowAddAnnotation(true)
                             }
                           }}
-                          className="group relative flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-700 hover:shadow-md dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                          className="group relative flex h-8 items-center gap-2 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-700 hover:shadow-md dark:bg-emerald-500 dark:hover:bg-emerald-400"
                         >
                           <PlusCircleIcon className="h-5 w-5 transition-transform group-hover:scale-110" />
                           {t('annotation.comparison.buttons.addMyAnnotation')}
@@ -797,7 +800,7 @@ export function TaskAnnotationComparisonModal({
                 {/* Right side - close button */}
                 <button
                   onClick={onClose}
-                  className="w-full rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 sm:w-auto dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                  className="h-8 w-full rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 sm:w-auto dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
                 >
                   {t('annotation.comparison.modal.close')}
                 </button>

@@ -312,7 +312,7 @@ export default function LikertEvaluation() {
         {/* Progress Header */}
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {t('evaluation.human.likert.title')}
             </h1>
             <Button

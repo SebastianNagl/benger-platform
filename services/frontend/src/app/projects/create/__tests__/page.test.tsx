@@ -145,7 +145,7 @@ describe('Create Project Page', () => {
 
       const { container } = render(<CreateProjectPage />)
 
-      const spinner = container.querySelector('.border-emerald-500')
+      const spinner = container.querySelector('.border-t-emerald-500')
       expect(spinner).toBeInTheDocument()
     })
   })
@@ -527,7 +527,7 @@ describe('Create Project Page', () => {
       ;(canCreateProjects as jest.Mock).mockReturnValue(false)
 
       const { container } = render(<CreateProjectPage />)
-      const spinner = container.querySelector('.border-emerald-500')
+      const spinner = container.querySelector('.border-t-emerald-500')
       expect(spinner).toBeInTheDocument()
     })
 

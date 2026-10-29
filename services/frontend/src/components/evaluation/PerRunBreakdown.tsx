@@ -106,25 +106,25 @@ export function PerRunBreakdown({
         <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-800/50 dark:text-zinc-400">
           <tr>
             {showTargetModel && (
-              <th className="px-3 py-2 text-left font-medium">
+              <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 {t('eval.perRun.targetModel')}
               </th>
             )}
-            <th className="px-3 py-2 text-left font-medium">
+            <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {t('eval.perRun.judge')}
             </th>
-            <th className="px-3 py-2 text-right font-medium">
+            <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {t('eval.perRun.runIndex')}
             </th>
-            <th className="px-3 py-2 text-right font-medium">
+            <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {t('eval.perRun.samples')}
             </th>
-            <th className="px-3 py-2 text-right font-medium">
+            <th className="px-3 py-2 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {mixedMetrics
                 ? t('eval.perRun.meanScoreMixed')
                 : t('eval.perRun.meanScore', { metric: metricLabel || metric })}
             </th>
-            <th className="px-3 py-2 text-left font-medium">
+            <th className="px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
               {t('eval.perRun.status')}
             </th>
           </tr>

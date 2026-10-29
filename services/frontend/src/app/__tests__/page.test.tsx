@@ -110,8 +110,8 @@ describe('LandingPage', () => {
         'h-8',
         'w-8',
         'rounded-full',
-        'border-b-2',
-        'border-emerald-500',
+        'border-2',
+        'border-t-emerald-500',
       )
     })
   })
@@ -146,7 +146,7 @@ describe('LandingPage', () => {
 
       const spinner = container.querySelector('.animate-spin')
       expect(spinner).toBeInTheDocument()
-      expect(spinner).toHaveClass('border-emerald-500')
+      expect(spinner).toHaveClass('border-t-emerald-500')
     })
 
     it('applies correct redirect loading styles', () => {

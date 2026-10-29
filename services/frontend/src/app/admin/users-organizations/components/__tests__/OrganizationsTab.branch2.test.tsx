@@ -127,6 +127,8 @@ jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
   ChevronDownIcon: () => <span />,
   CloudIcon: () => <span data-testid="cloud-icon" />,
+  ScaleIcon: () => <span data-testid="scale-icon" />,
+  AcademicCapIcon: () => <span data-testid="academic-cap-icon" />,
   CommandLineIcon: () => <span />,
   MagnifyingGlassIcon: () => <span />,
   EnvelopeIcon: () => <span />,
@@ -271,13 +273,12 @@ describe('OrganizationsTab - branch2 coverage', () => {
     expect(screen.getByTestId('api-keys-modal')).toBeInTheDocument()
   })
 
-  it('shows edit form when pencil clicked', async () => {
+  it('shows edit form from the "Mehr" menu', async () => {
     const user = userEvent.setup()
     await renderAndWaitForMembers()
 
-    const pencils = screen.getAllByTestId('pencil-icon')
-    const editBtn = pencils[0].closest('button')!
-    await user.click(editBtn)
+    await user.click(screen.getByTestId('org-more-button'))
+    await user.click(await screen.findByTestId('org-edit-button'))
 
     expect(screen.getByText('admin.organizations.save')).toBeInTheDocument()
     expect(screen.getByText('admin.organizations.cancel')).toBeInTheDocument()

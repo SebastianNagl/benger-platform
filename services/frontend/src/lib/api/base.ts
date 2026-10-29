@@ -216,6 +216,16 @@ export class BaseApiClient {
       patterns.push('/organizations')
     }
 
+    // Group writes (edits, jurisdiction, members) show up in the org's
+    // group list; without this the dialog's refetch served the old list
+    // from the 30s cache.
+    const orgGroupsMatch = mutationEndpoint.match(
+      /^\/organizations\/([^\/]+)\/groups\b/,
+    )
+    if (orgGroupsMatch) {
+      patterns.push(`/organizations/${orgGroupsMatch[1]}/groups`)
+    }
+
     // For user API key operations, invalidate the status endpoint
     if (mutationEndpoint.includes('/users/api-keys/')) {
       patterns.push('/users/api-keys/status')
@@ -370,6 +380,7 @@ export class BaseApiClient {
   protected async authCheckRequest(
     endpoint: string,
     options: RequestInit = {},
+    retriedAfterRefresh = false,
   ): Promise<any> {
     const url = `${getApiBaseUrl()}${endpoint}`
     const isFormData = options.body instanceof FormData
@@ -400,6 +411,21 @@ export class BaseApiClient {
       if (!response.ok) {
         // For auth checks, 401 is an expected response for unauthenticated users
         if (response.status === 401) {
+          // An expired access token with a live refresh token is still a
+          // session: refresh once and retry, like request() does. Without
+          // this a page load after the access token expired sent signed-in
+          // users to /login while the refresh (fired by a parallel
+          // request) was still on its way.
+          if (!retriedAfterRefresh) {
+            if (!this.refreshPromise) {
+              this.refreshPromise = this.refreshAccessToken()
+            }
+            const refreshed = await this.refreshPromise
+            this.refreshPromise = null
+            if (refreshed) {
+              return this.authCheckRequest(endpoint, options, true)
+            }
+          }
           throw new Error('Unauthenticated')
         }
 

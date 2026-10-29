@@ -106,7 +106,7 @@ export function MetadataField({
               {value.slice(0, 2).map((item, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center rounded bg-zinc-100 px-1.5 py-0 text-xs font-medium whitespace-nowrap text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 >
                   {item.length > 10 ? item.substring(0, 10) + '...' : item}
                 </span>
@@ -456,14 +456,14 @@ export function BulkMetadataEditor({
       <div className="flex justify-end gap-2">
         <button
           onClick={onClose}
-          className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="h-8 rounded-full px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
           {t('common.cancel')}
         </button>
         <button
           onClick={handleSubmit}
           disabled={isLoading || Object.keys(metadata).length === 0}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+          className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {isLoading
             ? t('shared.metadata.updating')

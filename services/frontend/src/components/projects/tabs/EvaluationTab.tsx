@@ -459,7 +459,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
         {/* Data Table */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           </div>
         ) : filteredTasks.length > 0 ? (
           <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -468,7 +468,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                 <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
                   <tr>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('id')}
                     >
                       <div className="flex items-center space-x-1">
@@ -480,11 +480,11 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.taskData')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center space-x-1">
@@ -497,7 +497,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                       </div>
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('accuracy')}
                     >
                       <div className="flex items-center space-x-1">
@@ -509,11 +509,11 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.f1Score')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('confidence')}
                     >
                       <div className="flex items-center space-x-1">
@@ -525,11 +525,11 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                         )}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase dark:text-zinc-400">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('projects.evaluationTab.model')}
                     </th>
                     <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-600 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       onClick={() => handleSort('created')}
                     >
                       <div className="flex items-center space-x-1">
@@ -558,15 +558,15 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                           router.push(`/projects/${projectId}/tasks/${task.id}`)
                         }
                       >
-                        <td className="px-4 py-4 font-mono text-sm text-zinc-900 dark:text-white">
+                        <td className="px-4 py-3 font-mono text-sm text-zinc-900 dark:text-white">
                           {task.id}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <p className="line-clamp-2 text-sm text-zinc-900 dark:text-white">
                             {getTaskDisplayValue(task)}
                           </p>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <Badge variant={getStatusVariant(metrics)}>
                             {isEvaluated ? (
                               <div className="flex items-center space-x-1">
@@ -585,7 +585,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                             )}
                           </Badge>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <span
                             className={`text-sm font-medium ${
                               metrics?.accuracy && metrics.accuracy >= 0.8
@@ -600,22 +600,22 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                             {formatScore(metrics?.accuracy)}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <span className="text-sm text-zinc-600 dark:text-zinc-400">
                             {formatScore(metrics?.f1_score)}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <span className="text-sm text-zinc-600 dark:text-zinc-400">
                             {formatScore(metrics?.confidence)}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <span className="text-sm text-zinc-600 dark:text-zinc-400">
                             {metrics?.model || '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-3">
                           <span className="text-sm text-zinc-600 dark:text-zinc-400">
                             {metrics?.evaluated_at
                               ? formatDistanceToNow(

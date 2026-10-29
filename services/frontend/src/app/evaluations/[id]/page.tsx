@@ -578,7 +578,7 @@ export default function EvaluationDashboard({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
                   {t('evaluation.human.results.title')}
                 </h1>
                 <span data-testid="evaluation-detail-status">

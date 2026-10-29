@@ -29,7 +29,7 @@ export default function BillingPage() {
           ]}
         />
       </div>
-      <h1 className="mb-6 text-3xl font-bold text-zinc-900 dark:text-white">
+      <h1 className="mb-6 text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
         {t('navigation.billing')}
       </h1>
       {StudentBilling ? (

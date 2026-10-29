@@ -32,12 +32,13 @@ jest.mock('@/components/layout', () => ({
 }))
 
 jest.mock('@/components/shared/Button', () => ({
-  Button: ({ children, onClick, disabled, type, className }: any) => (
+  Button: ({ children, onClick, disabled, type, className, variant }: any) => (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
       className={className}
+      data-variant={variant}
       data-testid="submit-button"
     >
       {children}
@@ -517,7 +518,8 @@ describe('Reset Password Page', () => {
     it('applies correct button styling', () => {
       render(<ResetPasswordPage />)
       const button = screen.getByTestId('submit-button')
-      expect(button).toHaveClass('bg-zinc-900')
+      // The shared filled style (zinc in light mode, emerald in dark).
+      expect(button).toHaveAttribute('data-variant', 'filled')
     })
 
     it('centers main content', () => {

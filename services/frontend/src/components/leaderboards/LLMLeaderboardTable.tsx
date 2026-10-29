@@ -355,7 +355,7 @@ export function LLMLeaderboardTable() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
       </div>
     )
   }
@@ -385,18 +385,18 @@ export function LLMLeaderboardTable() {
               : t('leaderboards.allProjects')}
           </span>
           {selectedProjectIds.length > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
               {selectedProjectIds.length}
             </span>
           )}
           <ChevronDownIcon className="h-4 w-4" />
         </Menu.Button>
-        <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+        <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
           {projects.map((project) => (
             <Menu.Item key={project.id}>
               {({ active }) => (
                 <button
-                  className={`flex w-full items-center px-4 py-2 text-left text-sm ${
+                  className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                     active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                   }`}
                   onClick={() => toggleProject(project.id)}
@@ -430,18 +430,18 @@ export function LLMLeaderboardTable() {
                 : t('leaderboards.llm.allEvalTypes')}
             </span>
             {selectedEvaluationTypes.length > 0 && (
-              <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+              <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
                 {selectedEvaluationTypes.length}
               </span>
             )}
             <ChevronDownIcon className="h-4 w-4" />
           </Menu.Button>
-          <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+          <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
             {availableEvaluationTypes.map((evalType) => (
               <Menu.Item key={evalType}>
                 {({ active }) => (
                   <button
-                    className={`flex w-full items-center px-4 py-2 text-left text-sm ${
+                    className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                       active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                     }`}
                     onClick={() =>
@@ -675,7 +675,7 @@ export function LLMLeaderboardTable() {
                         : 'cursor-pointer bg-zinc-50/50 dark:bg-zinc-800/30'
                     }
                   >
-                    <td className="px-4 py-4 text-sm font-medium whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                       {hasScore ? (
                         getMedalIcon(entry.rank)
                       ) : (
@@ -684,13 +684,14 @@ export function LLMLeaderboardTable() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
                         <span
+                          title={entry.model_name}
                           className={
                             hasScore
-                              ? 'font-medium text-zinc-900 dark:text-white'
-                              : 'font-medium text-zinc-500 dark:text-zinc-400'
+                              ? 'max-w-xs truncate font-medium text-zinc-900 dark:text-white'
+                              : 'max-w-xs truncate font-medium text-zinc-500 dark:text-zinc-400'
                           }
                         >
                           {entry.model_name}
@@ -705,12 +706,12 @@ export function LLMLeaderboardTable() {
                         </Badge>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-right text-sm whitespace-nowrap text-zinc-500">
+                    <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-zinc-500">
                       {(entry.generation_count ?? 0).toLocaleString(
                         intlTag(locale),
                       )}
                     </td>
-                    <td className="px-4 py-4 text-right text-sm whitespace-nowrap">
+                    <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
                       {hasScore ? (
                         <span className="font-semibold text-zinc-900 dark:text-white">
                           {formatScore(displayScore)}

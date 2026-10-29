@@ -300,25 +300,25 @@ export default function AdminAccessKeysPage() {
               >
                 <thead className="bg-zinc-50 text-left text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                   <tr>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.name')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.owner')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.scopes')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.expires')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.lastUsed')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       {t('accessKeys.columns.status')}
                     </th>
-                    <th className="px-3 py-2">
+                    <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <span className="sr-only">
                         {t('accessKeys.columns.actions')}
                       </span>
@@ -328,7 +328,7 @@ export default function AdminAccessKeysPage() {
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {keys.map((key) => (
                     <tr key={key.id} data-testid={`admin-access-key-${key.id}`}>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         <div className="font-medium text-zinc-900 dark:text-white">
                           {key.name}
                         </div>
@@ -336,28 +336,28 @@ export default function AdminAccessKeysPage() {
                           {key.key_prefix}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      <td className="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400">
                         {key.owner_type === 'org'
                           ? `${t('accessKeys.ownerOrg')}: ${orgName(key.organization_id)}`
                           : `${t('accessKeys.ownerUser')}: ${key.user_id}`}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         <ScopeChips scopes={key.scopes} />
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-4 py-3 text-xs">
                         {key.expires_at
                           ? formatDate(key.expires_at, locale)
                           : t('accessKeys.noExpiry')}
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-4 py-3 text-xs">
                         {key.last_used_at
                           ? formatDate(key.last_used_at, locale)
                           : t('accessKeys.never')}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         <AccessKeyStatusBadge status={key.status} />
                       </td>
-                      <td className="px-3 py-2 text-right">
+                      <td className="px-4 py-3 text-right">
                         {key.status === 'active' && (
                           <Button
                             type="button"

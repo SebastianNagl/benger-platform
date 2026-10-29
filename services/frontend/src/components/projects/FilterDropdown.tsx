@@ -176,7 +176,7 @@ export function FilterDropdown({
           <FunnelIcon className="h-4 w-4" />
           {t('projects.filter.filters')}
           {activeFilterCount > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
               {activeFilterCount}
             </span>
           )}
@@ -316,7 +316,7 @@ export function FilterDropdown({
                             (value, idx) => (
                               <span
                                 key={idx}
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
                               >
                                 {String(value)}
                                 <button
@@ -403,8 +403,8 @@ export function FilterDropdown({
           {/* Clear All Filters */}
           <div className="px-3 py-2">
             <Button
-              variant="outline"
-              className="w-full text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              variant="danger"
+              className="w-full text-xs"
               onClick={() => {
                 setStartDate('')
                 setEndDate('')

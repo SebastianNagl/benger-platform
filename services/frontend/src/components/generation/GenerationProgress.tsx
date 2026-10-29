@@ -504,7 +504,7 @@ export function GenerationProgress({
       <Card>
         <div className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-medium">
+            <h3 className="text-lg font-semibold">
               {t('generation.overallProgress')}
             </h3>
             <span className="text-sm text-zinc-600 dark:text-zinc-400">

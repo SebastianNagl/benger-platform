@@ -1,4 +1,5 @@
 import {
+  groupJurisdiction,
   isJurisdiction,
   offeredFor,
   orgJurisdiction,
@@ -32,6 +33,42 @@ describe('jurisdiction', () => {
     expect(wizardJurisdictions(orgs, [])).toEqual(['DE', 'FR'])
     expect(wizardJurisdictions([], null)).toEqual(['DE'])
     expect(wizardJurisdictions(orgs, ['gone'])).toEqual(['DE'])
+  })
+
+  it('a group override wins over its organization, unknown values do not', () => {
+    const org = {
+      id: 'tum',
+      jurisdiction: 'DE',
+      group_jurisdictions: { droit: 'FR', odd: 'XX' },
+    }
+    expect(groupJurisdiction(org, 'droit')).toBe('FR')
+    expect(groupJurisdiction(org, 'odd')).toBe('DE')
+    expect(groupJurisdiction(org, 'plain')).toBe('DE')
+    expect(groupJurisdiction(org, null)).toBe('DE')
+  })
+
+  it('uses the target group of a target organization', () => {
+    const tum = {
+      id: 'tum',
+      jurisdiction: 'DE',
+      group_jurisdictions: { droit: 'FR' },
+    }
+    expect(wizardJurisdictions([tum], ['tum'], { tum: 'droit' })).toEqual([
+      'FR',
+    ])
+    expect(wizardJurisdictions([tum], ['tum'], { tum: null })).toEqual(['DE'])
+    expect(wizardJurisdictions([tum], ['tum'])).toEqual(['DE'])
+  })
+
+  it("adds the user's own groups for a private project", () => {
+    const tum = {
+      id: 'tum',
+      jurisdiction: 'DE',
+      group_jurisdictions: { droit: 'FR' },
+      groups: [{ id: 'droit' }],
+    }
+    expect(wizardJurisdictions([tum], null)).toEqual(['DE', 'FR'])
+    expect(wizardJurisdictions([{ ...tum, groups: [] }], null)).toEqual(['DE'])
   })
 
   it('offers unrestricted entries everywhere and restricted ones by match', () => {

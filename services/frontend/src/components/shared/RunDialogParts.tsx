@@ -10,7 +10,8 @@ import { Button } from '@/components/shared/Button'
 import { ReactNode } from 'react'
 
 export const RUN_DIALOG = {
-  overlay: 'fixed inset-0 bg-black/30 transition-opacity dark:bg-black/50',
+  overlay:
+    'fixed inset-0 bg-black/30 dark:bg-black/50 transition-opacity dark:bg-black/50',
   panel:
     'relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 dark:bg-zinc-800',
   closeButton:

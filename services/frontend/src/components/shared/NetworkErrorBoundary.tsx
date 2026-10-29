@@ -73,7 +73,7 @@ function NetworkErrorContent({
         <div className="flex gap-3">
           <button
             onClick={onRetry}
-            className="inline-flex flex-1 items-center justify-center rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400"
+            className="inline-flex h-8 flex-1 items-center justify-center rounded-full border border-transparent bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-zinc-900"
           >
             <ArrowPathIcon className="mr-2 h-4 w-4" />
             {t('errors.global.tryAgain')}
@@ -82,7 +82,7 @@ function NetworkErrorContent({
 
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+            className="inline-flex h-8 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600 dark:focus-visible:ring-offset-zinc-900"
           >
             {t('errors.global.reloadPage')}
           </button>

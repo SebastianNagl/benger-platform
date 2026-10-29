@@ -782,7 +782,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   if (loading && !currentTask) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
       </div>
     )
   }
@@ -1333,8 +1333,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
       {/* Skip Comment Modal */}
       {showSkipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
+          <div className="mx-4 max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
               {t('annotation.interface.skipCommentTitle')}
             </h3>
@@ -1383,8 +1383,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           const isAlwaysVisible = currentProject?.instructions_always_visible
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
+              <div className="mx-4 max-w-2xl rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
                   <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
                   {t('annotation.instructions.title')}

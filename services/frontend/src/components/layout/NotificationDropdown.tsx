@@ -64,13 +64,13 @@ const notificationIcons = {
 }
 
 const notificationColors = {
-  task_created: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
+  task_created: 'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   task_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   task_assigned:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   korrektur_assigned:
-    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   annotation_assigned:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   llm_generation_completed:
@@ -80,7 +80,7 @@ const notificationColors = {
   evaluation_failed:
     'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
   evaluation_received_human:
-    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   evaluation_received_immediate:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
@@ -88,13 +88,13 @@ const notificationColors = {
   annotation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   data_upload_completed:
-    'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   organization_invitation_sent:
-    'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   organization_invitation_accepted:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   member_joined:
-    'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',

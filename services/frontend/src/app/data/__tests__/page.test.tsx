@@ -180,7 +180,7 @@ describe('DataManagementPage', () => {
       render(<DataManagementPage />)
 
       const container = screen.getByTestId('responsive-container')
-      expect(container).toHaveClass('px-4', 'pb-10', 'pt-8')
+      expect(container).toHaveClass('pb-10', 'pt-8')
     })
 
     it('renders breadcrumb navigation', () => {
@@ -318,7 +318,9 @@ describe('DataManagementPage', () => {
       render(<DataManagementPage />)
 
       const container = screen.getByTestId('responsive-container')
-      expect(container).toHaveClass('px-4', 'sm:px-6', 'lg:px-8')
+      // Side padding comes from ResponsiveContainer itself, the same for
+      // every page size.
+      expect(container).not.toHaveClass('lg:px-8')
     })
 
     it('applies responsive container size', () => {
@@ -386,7 +388,7 @@ describe('DataManagementPage', () => {
       render(<DataManagementPage />)
 
       const container = screen.getByTestId('responsive-container')
-      expect(container).toHaveClass('px-4', 'pb-10', 'pt-8')
+      expect(container).toHaveClass('pb-10', 'pt-8')
     })
 
     it('passes correct items to Breadcrumb', () => {
@@ -555,7 +557,6 @@ describe('DataManagementPage', () => {
     it('maintains consistent layout structure', () => {
       const { container } = render(<DataManagementPage />)
 
-      expect(container.querySelector('.px-4')).toBeInTheDocument()
       expect(container.querySelector('.pb-10')).toBeInTheDocument()
       expect(container.querySelector('.pt-8')).toBeInTheDocument()
       expect(container.querySelector('.max-w-7xl')).toBeInTheDocument()

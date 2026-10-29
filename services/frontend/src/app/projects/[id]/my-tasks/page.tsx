@@ -204,7 +204,7 @@ export default function MyTasksPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-sm text-zinc-500">{t('common.loadingProject')}</p>
         </div>
       </div>
@@ -231,10 +231,10 @@ export default function MyTasksPage() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold text-zinc-900 dark:text-white">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('tasks.myTasks.title')}
         </h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('tasks.myTasks.description')} {currentProject.title}
         </p>
       </div>
@@ -298,7 +298,7 @@ export default function MyTasksPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
             <p className="text-sm text-zinc-500">
               {t('tasks.myTasks.loadingTasks')}
             </p>

@@ -52,7 +52,7 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
         data-testid="loading-container"
       >
         <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('auth.guard.loading')}
           </p>
@@ -75,10 +75,10 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
           className="relative z-50"
           data-testid="auth-dialog"
         >
-          <DialogBackdrop className="fixed inset-0 bg-black/50" />
+          <DialogBackdrop className="fixed inset-0 bg-black/30 dark:bg-black/50" />
 
           <div className="fixed inset-0 flex items-center justify-center p-4">
-            <DialogPanel className="mx-auto max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
+            <DialogPanel className="mx-auto max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
               <div className="text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/20">
                   <svg

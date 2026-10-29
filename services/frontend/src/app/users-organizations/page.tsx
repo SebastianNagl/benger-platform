@@ -86,20 +86,17 @@ export default function UsersOrganizationsPage() {
   ]
 
   return (
-    <ResponsiveContainer
-      size="full"
-      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-    >
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       <div className="mb-4">
         <Breadcrumb items={breadcrumbItems} />
       </div>
 
       <div className="mx-auto max-w-7xl">
-        <div className="mt-8">
+        <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('admin.usersOrganizations')}
           </h1>
-          <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t('admin.usersOrganizationsDescription')}
           </p>
           {user?.is_superadmin && publicApiEnabled === true && (
@@ -135,7 +132,7 @@ export default function UsersOrganizationsPage() {
                 {canAccessGlobalUsers && (
                   <Tab
                     className={({ selected }) =>
-                      `flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      `flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         selected
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -148,7 +145,7 @@ export default function UsersOrganizationsPage() {
                 )}
                 <Tab
                   className={({ selected }) =>
-                    `flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    `flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                       selected
                         ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                         : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'

@@ -47,10 +47,10 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   return (
     <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
-      <DialogBackdrop className="fixed inset-0 bg-black/50" />
+      <DialogBackdrop className="fixed inset-0 bg-black/30 dark:bg-black/50" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+        <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
               {t('loginModal.title')}
@@ -112,14 +112,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 type="button"
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 rounded-full border border-zinc-300 px-4 py-2 text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="h-8 flex-1 rounded-full border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 {t('loginModal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isLoading || !username || !password}
-                className="flex-1 rounded-full bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                className="h-8 flex-1 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {isLoading ? t('loginModal.signingIn') : t('loginModal.signIn')}
               </button>

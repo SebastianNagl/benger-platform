@@ -169,7 +169,7 @@ export function ChartTypeSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex h-8 items-center justify-between gap-2 rounded-full bg-white whitespace-nowrap ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20`}
+        className={`flex h-8 items-center justify-between gap-2 rounded-full bg-white whitespace-nowrap ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 dark:focus-visible:ring-offset-zinc-900`}
       >
         <span>
           {selectedConfig?.label || t('evaluation.chartType.selectView')}

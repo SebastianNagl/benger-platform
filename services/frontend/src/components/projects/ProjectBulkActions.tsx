@@ -53,7 +53,7 @@ export function ProjectBulkActions({
           <EllipsisHorizontalIcon className="h-4 w-4" />
           {t('projects.projectBulkActions.actions')}
           {selectedCount > 0 && (
-            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs leading-none font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+            <span className="ml-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs leading-none font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
               {selectedCount}
             </span>
           )}
@@ -147,7 +147,7 @@ export function ProjectBulkActions({
                 {({ active }) => (
                   <button
                     className={`${
-                      active ? 'bg-red-50 dark:bg-red-900/20' : ''
+                      active ? 'bg-red-50 dark:bg-red-950/40' : ''
                     } group flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 dark:text-red-400`}
                     onClick={onDelete}
                     data-testid="projects-bulk-delete-option"

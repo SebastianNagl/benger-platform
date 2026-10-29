@@ -59,7 +59,7 @@ export function ConfigSelector({
               onClick={() => onChange(option.id)}
               title={option.name ? `${option.name} (n=${option.n})` : undefined}
               className={clsx(
-                'rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                'h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 active
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',

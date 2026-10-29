@@ -486,6 +486,9 @@ class OrganizationGroup(Base):
     # False = the org provides keys (group key first, then the org-wide key).
     # Read through org_groups.require_private_keys_for, never directly.
     require_private_keys = Column(Boolean, nullable=True)
+    # The group's legal system ('DE' / 'FR'): NULL = follow the org's
+    # settings.jurisdiction. Read through org_jurisdiction.group_jurisdiction.
+    jurisdiction = Column(String(8), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

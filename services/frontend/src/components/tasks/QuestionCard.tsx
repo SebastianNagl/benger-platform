@@ -153,7 +153,7 @@ export function QuestionCard({
                   type="button"
                   onClick={handleCancel}
                   variant="outline"
-                  className="px-3 py-1 text-sm"
+                  className="px-3 text-sm"
                 >
                   {t('tasks.questionCard.cancel')}
                 </Button>
@@ -161,7 +161,7 @@ export function QuestionCard({
                   type="button"
                   onClick={handleSave}
                   variant="filled"
-                  className="px-3 py-1 text-sm"
+                  className="px-3 text-sm"
                 >
                   {t('tasks.questionCard.save')}
                 </Button>
@@ -347,14 +347,14 @@ export function QuestionCard({
                   type="button"
                   onClick={handleCancel}
                   variant="outline"
-                  className="px-3 py-1 text-sm"
+                  className="px-3 text-sm"
                 >
                   {t('tasks.questionCard.cancel')}
                 </Button>
                 <Button
                   type="button"
                   onClick={handleSave}
-                  className="bg-orange-600 px-3 py-1 text-sm text-white hover:bg-orange-700"
+                  className="bg-orange-600 px-3 text-sm text-white hover:bg-orange-700"
                 >
                   {t('tasks.questionCard.save')}
                 </Button>
@@ -445,7 +445,7 @@ export function QuestionCard({
                   type="button"
                   onClick={onToggleExpanded}
                   variant="outline"
-                  className="border-emerald-300 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                  className="border-emerald-300 px-2 text-xs text-emerald-700 hover:bg-emerald-100"
                 >
                   {isExpanded
                     ? t('tasks.questionCard.collapse')
@@ -539,14 +539,15 @@ export function QuestionCard({
                 type="button"
                 onClick={handleCancel}
                 variant="outline"
-                className="border-emerald-300 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-100"
+                className="border-emerald-300 px-3 text-sm text-emerald-700 hover:bg-emerald-100"
               >
                 {t('tasks.questionCard.cancel')}
               </Button>
               <Button
+                variant="filled"
                 type="button"
                 onClick={handleSave}
-                className="rounded-full bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                className="h-8 px-3 text-sm"
               >
                 {t('tasks.questionCard.save')}
               </Button>

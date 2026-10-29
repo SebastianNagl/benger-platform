@@ -296,10 +296,10 @@ export function FeatureFlagsAdmin() {
       </div>
       <div className="space-y-6" data-testid="feature-flags-admin">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('admin.featureFlags')}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
             {t(`${K}.intro`)}
           </p>
         </div>
@@ -412,7 +412,7 @@ function FlagCard({
             </h3>
             {row.is_master && (
               <span
-                className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                 data-testid={`ff-master-${row.name}`}
               >
                 {t(`${K}.masterBadge`)}
@@ -420,7 +420,7 @@ function FlagCard({
             )}
             {unregistered && (
               <span
-                className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
                 data-testid={`ff-unregistered-${row.name}`}
               >
                 {t(`${K}.unregistered`)}
@@ -454,7 +454,7 @@ function FlagCard({
             type="button"
             disabled={busy}
             onClick={onDelete}
-            className="shrink-0 rounded-full border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            className="h-8 shrink-0 rounded-full border border-red-300 px-3 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
             data-testid={`ff-delete-${row.name}`}
           >
             {t('common.delete')}
@@ -476,11 +476,11 @@ function FlagCard({
                   disabled={busy}
                   onClick={() => onState(state)}
                   data-testid={`ff-state-${row.name}-${state}`}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed ${
+                  className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed ${
                     active
                       ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                  }`}
+                  } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                 >
                   {t(`${K}.state.${state}`)}
                 </button>
@@ -678,7 +678,7 @@ function AllowlistEditor({
                 onAdd({ organization_id: orgId })
                 setOrgId('')
               }}
-              className="shrink-0 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              className="h-8 shrink-0 rounded-full bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               data-testid={`ff-org-add-${row.name}`}
             >
               {t('common.add')}

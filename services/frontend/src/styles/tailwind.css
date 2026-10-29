@@ -64,6 +64,14 @@
     color-scheme: dark;
   }
 
+  /* Sortable table headers are buttons, which preflight resets to normal
+     case; let them take the header's uppercase and tracking like every
+     other column header. */
+  th button {
+    text-transform: inherit;
+    letter-spacing: inherit;
+  }
+
   .dark input[type='checkbox'],
   .dark input[type='radio'] {
     accent-color: var(--color-emerald-500);
@@ -74,8 +82,9 @@
    live in the components layer so any utility a caller passes (w-24, px-3,
    text-xs, ring-red-500, ...) overrides them; as utilities they would win
    or lose by Tailwind's sort order instead. Rings, not borders: preflight
-   zeroes border widths. Text fields and the Select trigger share one
-   height (36px at sm and up) so they line up in forms. */
+   zeroes border widths. Text fields and the Select trigger share the
+   32px height of every pill control (Button, toolbars, tab bars) so they
+   line up in forms and toolbars; textareas keep their own height. */
 @layer components {
   .ui-input,
   .ui-textarea {
@@ -85,7 +94,7 @@
   }
 
   .ui-input {
-    @apply rounded-full;
+    @apply h-8 rounded-full py-0;
   }
 
   .ui-textarea {
@@ -93,7 +102,7 @@
   }
 
   .ui-select-trigger {
-    @apply relative h-9 w-full cursor-default rounded-full bg-white pr-8 pl-4 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none;
+    @apply relative h-8 w-full cursor-default rounded-full bg-white pr-8 pl-4 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none;
     @apply dark:bg-white/5 dark:text-zinc-100 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 dark:focus:ring-emerald-400;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }

@@ -63,12 +63,9 @@ export function ResponsiveContainer({
     }
   }
 
-  const getPaddingClasses = () => {
-    if (size === 'full') {
-      return ''
-    }
-    return 'px-4 sm:px-6 3xl:px-8 4xl:px-10 5xl:px-12'
-  }
+  // Every size shares the same side padding, so page content starts at the
+  // same left edge whether the page is width-capped or full-width.
+  const getPaddingClasses = () => 'px-4 sm:px-6 3xl:px-8 4xl:px-10 5xl:px-12'
 
   return (
     <div

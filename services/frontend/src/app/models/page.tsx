@@ -4,8 +4,10 @@ import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { OfficialBadge, VisibilityBadge } from '@/components/models/ModelBadges'
 import { ModelDetailModal } from '@/components/models/ModelDetailModal'
 import { HeroPattern } from '@/components/shared'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
+import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import {
   Select,
   SelectContent,
@@ -175,7 +177,15 @@ export default function ModelsPage() {
     <>
       <HeroPattern />
 
-      <div className="container mx-auto max-w-6xl px-4 pt-16 pb-10">
+      <ResponsiveContainer size="xl" className="relative pt-8 pb-10">
+        <div className="mb-4">
+          <Breadcrumb
+            items={[
+              { label: t('navigation.dashboard'), href: '/dashboard' },
+              { label: t('navigation.models'), href: '/models' },
+            ]}
+          />
+        </div>
         <div className="mb-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -185,7 +195,7 @@ export default function ModelsPage() {
                 </h1>
                 <OfficialBadge />
               </div>
-              <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
                 {t('models.subtitle', { count: models.length })}
               </p>
             </div>
@@ -315,16 +325,16 @@ export default function ModelsPage() {
                     <table className="w-full">
                       <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('models.columns.model')}
                           </th>
-                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 md:table-cell dark:text-zinc-400">
+                          <th className="hidden px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase md:table-cell dark:text-zinc-400">
                             {t('models.columns.description')}
                           </th>
-                          <th className="hidden px-4 py-3 text-left text-sm font-medium text-zinc-600 lg:table-cell dark:text-zinc-400">
+                          <th className="hidden px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase lg:table-cell dark:text-zinc-400">
                             {t('models.columns.capabilities')}
                           </th>
-                          <th className="px-4 py-3 text-right text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                             {t('models.columns.pricing')}
                           </th>
                         </tr>
@@ -384,13 +394,13 @@ export default function ModelsPage() {
                                 {model.capabilities.slice(0, 3).map((cap) => (
                                   <span
                                     key={cap}
-                                    className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                                    className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                                   >
                                     {cap}
                                   </span>
                                 ))}
                                 {model.capabilities.length > 3 && (
-                                  <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                                  <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                                     +{model.capabilities.length - 3}
                                   </span>
                                 )}
@@ -432,7 +442,7 @@ export default function ModelsPage() {
             )}
           </div>
         )}
-      </div>
+      </ResponsiveContainer>
 
       <ModelDetailModal
         model={selectedModel}

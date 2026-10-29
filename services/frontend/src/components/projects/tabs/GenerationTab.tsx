@@ -347,7 +347,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
         {/* Task List */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           </div>
         ) : filteredTasks.length > 0 ? (
           <div className="space-y-4">

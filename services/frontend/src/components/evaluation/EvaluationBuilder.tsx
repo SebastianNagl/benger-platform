@@ -874,7 +874,7 @@ export function EvaluationBuilder({
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.thinkingBudget')}
-                      <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>
@@ -919,7 +919,7 @@ export function EvaluationBuilder({
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.reasoningLevel')}
-                      <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>
@@ -994,10 +994,10 @@ export function EvaluationBuilder({
               // branch above.
               <div className="space-y-6">
                 {/* Custom LLM Judge - Full configuration exposed */}
-                <div className="rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
+                <div className="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
                   <div className="flex items-center gap-2">
-                    <InformationCircleIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    <span className="text-sm text-purple-700 dark:text-purple-300">
+                    <InformationCircleIcon className="h-4 w-4 text-zinc-700 dark:text-zinc-400" />
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
                       {t('evaluation.customLLMJudge.hint')}
                     </span>
                   </div>
@@ -1075,7 +1075,7 @@ export function EvaluationBuilder({
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.thinkingBudget')}
-                      <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>
@@ -1120,7 +1120,7 @@ export function EvaluationBuilder({
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.reasoningLevel')}
-                      <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>

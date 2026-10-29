@@ -411,6 +411,13 @@ def _create_tables():
                     "require_private_keys BOOLEAN"
                 )
             )
+            # Migration 120: per-group jurisdiction override (nullable).
+            conn.execute(
+                text(
+                    "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
+                    "jurisdiction VARCHAR(8)"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

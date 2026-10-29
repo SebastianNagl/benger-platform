@@ -245,8 +245,8 @@ describe('OperationToast', () => {
       expect(spinner).toHaveClass(
         'rounded-full',
         'border-2',
-        'border-white',
-        'border-t-transparent',
+        'border-white/30',
+        'border-t-white',
       )
     })
 

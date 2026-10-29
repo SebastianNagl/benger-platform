@@ -123,11 +123,14 @@ export function ResultDetailsModal({
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       {/* Full-screen container */}
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-4xl rounded-lg bg-white shadow-xl dark:bg-zinc-900">
+        <DialogPanel className="w-full max-w-4xl rounded-2xl bg-white shadow-xl dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-700">
             <div>
@@ -176,7 +179,7 @@ export function ResultDetailsModal({
                       ? !generationData
                       : !evaluationData
                 }
-                className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors ${
                   copySuccess
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                     : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
@@ -207,11 +210,11 @@ export function ResultDetailsModal({
               {isAnnotatorCell && (
                 <button
                   onClick={() => setActiveTab('annotation')}
-                  className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                     activeTab === 'annotation'
                       ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                  }`}
+                  } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                 >
                   {t('evaluation.multiFieldResults.annotationResult')}
                 </button>
@@ -219,22 +222,22 @@ export function ResultDetailsModal({
               {!isAnnotatorCell && (
                 <button
                   onClick={() => setActiveTab('generation')}
-                  className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                     activeTab === 'generation'
                       ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                  }`}
+                  } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                 >
                   {t('evaluation.multiFieldResults.generationResults')}
                 </button>
               )}
               <button
                 onClick={() => setActiveTab('evaluation')}
-                className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === 'evaluation'
                     ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                     : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                }`}
+                } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
               >
                 {t('evaluation.multiFieldResults.evaluationResults')}
               </button>
@@ -318,7 +321,7 @@ export function ResultDetailsModal({
                           onClose()
                         }}
                         disabled={selectedEvalConfigIds.size === 0}
-                        className="flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                        className="flex h-8 items-center gap-2 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                       >
                         <ArrowPathIcon className="h-4 w-4" />
                         {t('evaluation.multiFieldResults.reEvaluate')}
@@ -329,7 +332,7 @@ export function ResultDetailsModal({
             </div>
             <button
               onClick={onClose}
-              className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="h-8 rounded-full bg-zinc-100 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               {t('evaluation.multiFieldResults.close')}
             </button>

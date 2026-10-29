@@ -294,10 +294,10 @@ describe('MetadataField', () => {
 
         const badge = screen.getByText('tag1')
         expect(badge).toHaveClass(
-          'rounded',
+          'rounded-full',
           'bg-zinc-100',
-          'px-1.5',
-          'py-0',
+          'px-2.5',
+          'py-0.5',
           'text-xs',
           'font-medium',
           'text-zinc-700',

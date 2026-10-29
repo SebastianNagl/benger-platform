@@ -162,7 +162,7 @@ export function TaskGenerationComparisonModal({
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         {getStatusBadge(result.status)}
         {result.structure_key && (
-          <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {result.structure_key}
           </span>
         )}
@@ -211,14 +211,17 @@ export function TaskGenerationComparisonModal({
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-black/30 dark:bg-black/50"
+        aria-hidden="true"
+      />
 
       <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
-        <DialogPanel className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-900">
+        <DialogPanel className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-800">
           {/* Header */}
           <div className="flex items-start justify-between border-b border-zinc-200 p-4 sm:items-center sm:p-6 dark:border-zinc-700">
             <div className="mr-2 min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-zinc-900 sm:text-lg dark:text-white">
+              <DialogTitle className="truncate text-lg font-semibold text-zinc-900 sm:text-lg dark:text-white">
                 {t('generation.comparison.modal.title')}
                 <span className="hidden sm:inline">
                   {' '}
@@ -256,7 +259,7 @@ export function TaskGenerationComparisonModal({
                       <Tab
                         key={modelId}
                         className={({ selected }) =>
-                          `flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
+                          `flex h-7 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
                             selected
                               ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                               : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -283,11 +286,11 @@ export function TaskGenerationComparisonModal({
                               <button
                                 key={mode}
                                 onClick={() => setViewMode(mode)}
-                                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                                className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                                   viewMode === mode
                                     ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                                     : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                                }`}
+                                } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
                               >
                                 {mode === 'formatted'
                                   ? t('generation.resultModal.formatted')
@@ -305,7 +308,7 @@ export function TaskGenerationComparisonModal({
                         ) : loadingModel === modelId ||
                           results === undefined ? (
                           <div className="flex items-center justify-center py-12">
-                            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
                           </div>
                         ) : results.length === 0 ? (
                           <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">

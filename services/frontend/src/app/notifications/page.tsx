@@ -54,7 +54,7 @@ const notificationIcons = {
 }
 
 const notificationColors = {
-  task_created: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
+  task_created: 'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   task_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   llm_generation_completed:
@@ -62,9 +62,9 @@ const notificationColors = {
   annotation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   member_joined:
-    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   evaluation_received_human:
-    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   evaluation_received_immediate:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
@@ -424,7 +424,7 @@ function NotificationsPageContent() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl py-8">
+    <div>
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb
@@ -446,7 +446,7 @@ function NotificationsPageContent() {
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
           {t('notifications.title')}
         </h1>
-        <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('notifications.subtitle')}
         </p>
       </div>
@@ -571,11 +571,7 @@ function NotificationsPageContent() {
               <CheckIcon className="mr-1 h-4 w-4" />
               {t('notifications.markRead')}
             </Button>
-            <Button
-              onClick={handleBulkDelete}
-              variant="outline"
-              className="border-red-300 text-sm text-red-600 hover:border-red-400 hover:text-red-700"
-            >
+            <Button onClick={handleBulkDelete} variant="danger">
               <TrashIcon className="mr-1 h-4 w-4" />
               {t('notifications.delete')}
             </Button>
@@ -597,7 +593,7 @@ function NotificationsPageContent() {
       {/* Notifications Display */}
       {hookLoading || loading ? (
         <div className="flex min-h-[200px] items-center justify-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
           <span className="ml-3 text-zinc-600 dark:text-zinc-400">
             {t('notifications.loading')}
           </span>
@@ -626,7 +622,7 @@ function NotificationsPageContent() {
         <div className="rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-700 dark:bg-zinc-900">
           <div className="text-center">
             <InformationCircleIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400" />
-            <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-white">
+            <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
               {t('notifications.noNotifications')}
             </h3>
             <p className="text-zinc-600 dark:text-zinc-400">
@@ -644,13 +640,13 @@ function NotificationsPageContent() {
             <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead className="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('notifications.columnNotification')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('notifications.columnTime')}
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                     {t('notifications.columnStatus')}
                   </th>
                 </tr>
@@ -675,7 +671,7 @@ function NotificationsPageContent() {
                       className={`hover:bg-zinc-50 dark:hover:bg-zinc-800 ${notification.data?.project_id ? 'cursor-pointer' : ''}`}
                       onClick={() => handleNotificationClick(notification)}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-start gap-3">
                           <div
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colorClass}`}
@@ -696,19 +692,19 @@ function NotificationsPageContent() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                         {formatDistanceToNow(
                           new Date(notification.created_at),
                           { addSuffix: true, locale: dfLocale },
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {!notification.is_read ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">
                             {t('notifications.new')}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                          <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                             {t('notifications.read')}
                           </span>
                         )}
@@ -748,10 +744,7 @@ function NotificationsPageContent() {
 
 export default function NotificationsPage() {
   return (
-    <ResponsiveContainer
-      size="full"
-      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-    >
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       <NotificationsPageContent />
     </ResponsiveContainer>
   )

@@ -304,11 +304,11 @@ export function PublicationToggle({
 
       {/* Publish dialog: pick the audience */}
       {dialog === 'publish' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
           <div
             role="dialog"
             aria-labelledby="publish-dialog-title"
-            className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900"
+            className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800"
           >
             <h3
               id="publish-dialog-title"
@@ -371,11 +371,11 @@ export function PublicationToggle({
 
       {/* Unpublish confirmation */}
       {dialog === 'unpublish' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
           <div
             role="dialog"
             aria-labelledby="unpublish-dialog-title"
-            className="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900"
+            className="mx-4 max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-800"
           >
             <h3
               id="unpublish-dialog-title"

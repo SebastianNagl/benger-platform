@@ -28,7 +28,7 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
   const { locale } = useI18n()
   const tag = intlTag(locale)
   return (
-    <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+    <div className="mb-8 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
         {t('project.details.title')}
       </h2>
@@ -114,7 +114,7 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
                   project.organizations.map((org) => (
                     <span
                       key={org.id}
-                      className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
+                      className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
                     >
                       {org.name}
                     </span>

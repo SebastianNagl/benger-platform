@@ -141,7 +141,7 @@ export function ProjectDataTable({
                       return (
                         <th
                           key={column.id}
-                          className={`min-w-[120px] border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-600 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} bg-amber-50/50 dark:bg-amber-900/10`}
+                          className={`min-w-[120px] border-r border-zinc-200 px-4 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} bg-amber-50/50 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:bg-amber-900/10 dark:text-zinc-400`}
                         >
                           {t(column.label)}
                         </th>
@@ -158,7 +158,7 @@ export function ProjectDataTable({
                   return (
                     <th
                       key={column.id}
-                      className={`border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-600 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} ${
+                      className={`border-r border-zinc-200 px-4 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} ${
                         column.sortable
                           ? 'cursor-pointer transition-colors duration-150 select-none hover:text-zinc-900 dark:hover:text-white'
                           : ''
@@ -257,7 +257,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="min-w-[120px] cursor-pointer border-r border-zinc-200 bg-zinc-50/60 px-3 py-2 whitespace-nowrap hover:bg-zinc-100/60 dark:border-zinc-700 dark:bg-zinc-800/20 dark:hover:bg-zinc-800/40"
+                              className="min-w-[120px] cursor-pointer border-r border-zinc-200 bg-zinc-50/60 px-4 py-3 whitespace-nowrap hover:bg-zinc-100/60 dark:border-zinc-700 dark:bg-zinc-800/20 dark:hover:bg-zinc-800/40"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 onViewTaskMetadata(task)
@@ -302,7 +302,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="min-w-[120px] border-r border-zinc-200 bg-amber-50/30 px-3 py-2 whitespace-nowrap dark:border-zinc-700 dark:bg-amber-900/5"
+                              className="min-w-[120px] border-r border-zinc-200 bg-amber-50/30 px-4 py-3 whitespace-nowrap dark:border-zinc-700 dark:bg-amber-900/5"
                             >
                               {formatted.truncated ? (
                                 <span
@@ -327,7 +327,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <TableCheckbox
@@ -340,16 +340,23 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 font-mono text-sm text-zinc-900 dark:border-zinc-700 dark:text-white"
+                              className="border-r border-zinc-200 px-4 py-3 font-mono text-sm text-zinc-900 dark:border-zinc-700 dark:text-white"
                             >
-                              {task.id}
+                              {/* One line; the full id stays selectable and
+                                  shows on hover. */}
+                              <div
+                                className="max-w-[10rem] truncate"
+                                title={String(task.id)}
+                              >
+                                {task.id}
+                              </div>
                             </td>
                           )
                         case 'completed':
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               <div className="flex items-center">
                                 {task.is_labeled ? (
@@ -364,7 +371,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <AnnotatorBadges
@@ -388,7 +395,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               <p className="truncate text-sm text-zinc-900 dark:text-white">
                                 {getTaskDisplayValue(task)}
@@ -399,7 +406,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               <span className="text-sm font-medium text-zinc-900 dark:text-white">
                                 {Math.max(
@@ -414,7 +421,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (task.total_generations > 0) {
@@ -442,7 +449,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               {annotators.length > 0 ? (
                                 <div className="flex -space-x-2">
@@ -469,7 +476,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {graderAssignments.length > 0 ? (
@@ -492,7 +499,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button
@@ -508,7 +515,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {canEditTasks && (
@@ -529,7 +536,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               {reviewers.length > 0 ? (
                                 <div className="flex -space-x-2">
@@ -552,7 +559,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                              className="border-r border-zinc-200 px-4 py-3 dark:border-zinc-700"
                             >
                               <span className="text-sm whitespace-nowrap text-zinc-600 dark:text-zinc-400">
                                 {formatDistanceToNow(

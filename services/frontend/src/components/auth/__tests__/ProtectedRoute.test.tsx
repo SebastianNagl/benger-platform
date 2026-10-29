@@ -275,8 +275,8 @@ describe('ProtectedRoute Component', () => {
       expect(spinner).toHaveClass(
         'animate-spin',
         'rounded-full',
-        'border-b-2',
-        'border-emerald-500',
+        'border-2',
+        'border-t-emerald-500',
       )
     })
 
