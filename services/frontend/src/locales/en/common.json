@@ -8085,7 +8085,8 @@
     "metricTabs": {
       "korrektur_classic": "Comments (Classic)",
       "korrektur_falloesung": "Grades (Falllösung)",
-      "korrektur_custom": "Grades (grading sheet)"
+      "korrektur_custom": "Grades (grading sheet)",
+      "korrektur_feedback": "Grades (barème /20)"
     },
     "itemFilter": {
       "label": "Status",

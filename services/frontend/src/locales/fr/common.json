@@ -8209,7 +8209,8 @@
     "metricTabs": {
       "korrektur_classic": "Commentaires (classique)",
       "korrektur_falloesung": "Notations (résolution de cas)",
-      "korrektur_custom": "Notations (grille d'évaluation)"
+      "korrektur_custom": "Notations (grille d'évaluation)",
+      "korrektur_feedback": "Notations (barème /20)"
     },
     "itemFilter": {
       "label": "Statut",

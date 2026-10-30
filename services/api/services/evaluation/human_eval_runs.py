@@ -1,8 +1,9 @@
 """Singleton EvaluationRun for human-graded evaluation methods.
 
 Some evaluation methods (today: `korrektur_falloesung`, the human-graded
-Standard Falllösung correction, and `korrektur_custom`, its
-custom-annotation-type sibling) are not run by a worker against an LLM —
+Standard Falllösung correction, `korrektur_custom`, its
+custom-annotation-type sibling, and `korrektur_feedback`, the human
+correction of the French exam types on a barème /20) are not run by a worker against an LLM —
 humans submit grades through the Korrektur queue and each submission
 becomes a `TaskEvaluation` row. There is **one persistent EvaluationRun
 per (project, metric)** for all of those rows; correctors append to it
@@ -11,10 +12,11 @@ preserved per-grader history.
 
 This module owns the find-or-create helper that both
 `POST /evaluations/run` (when the configured metric is human-graded) and
-the extended `submit_falloesung_grade` / `submit_custom_grade` endpoints
-use to resolve the destination run. The per-metric partial unique
-indexes (migration 037 for `korrektur_falloesung`, 061 for
-`korrektur_custom`) make the upsert safe under concurrent submits.
+the extended `submit_falloesung_grade` / `submit_custom_grade` /
+`submit_feedback_grade` endpoints use to resolve the destination run. The
+per-metric partial unique indexes (migration 037 for
+`korrektur_falloesung`, 061 for `korrektur_custom`, 122 for
+`korrektur_feedback`) make the upsert safe under concurrent submits.
 """
 
 from __future__ import annotations
@@ -35,12 +37,12 @@ from models import EvaluationRun
 # open-core split rule: this is a hook, not the implementation.
 #
 # NOTE: every metric listed here needs a matching partial unique index on
-# evaluation_runs (see migrations 037 and 061) — the upsert below infers
+# evaluation_runs (see migrations 037, 061 and 122) — the upsert below infers
 # the index from a per-metric predicate, and without the index the
 # ON CONFLICT clause raises "no unique or exclusion constraint matching
 # the ON CONFLICT specification".
 HUMAN_GRADED_METRICS: Final[frozenset[str]] = frozenset(
-    {"korrektur_falloesung", "korrektur_custom"}
+    {"korrektur_falloesung", "korrektur_custom", "korrektur_feedback"}
 )
 
 
@@ -121,7 +123,8 @@ def get_or_create_human_eval_run(
     concurrent ones from different graders) returns the same row via the
     metric's partial unique index (`uq_human_eval_run_per_project_metric`
     for korrektur_falloesung, `uq_human_eval_run_per_project_metric_custom`
-    for korrektur_custom).
+    for korrektur_custom, `uq_human_eval_run_per_project_metric_feedback`
+    for korrektur_feedback).
 
     `created_by` is the user who triggered this call and is recorded
     only on first creation; it has no semantic meaning for the ongoing

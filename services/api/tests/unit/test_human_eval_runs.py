@@ -306,9 +306,74 @@ class TestKorrekturCustomHumanEvalRun:
             test_db.flush()
 
 
+class TestKorrekturFeedbackHumanEvalRun:
+    """korrektur_feedback (French exam types, barème /20) is the third
+    human-graded metric; migration 122 gives it its own partial index."""
+
+    def test_korrektur_feedback_is_human_graded(self):
+        assert is_human_graded_metric("korrektur_feedback")
+
+    def test_singleton_per_metric(self, test_db: Session, admin_user: User):
+        project = _make_project(test_db, admin_user)
+
+        custom_run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+        feedback_run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_feedback", admin_user.id
+        )
+        test_db.commit()
+        again = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_feedback", admin_user.id
+        )
+        test_db.commit()
+
+        assert feedback_run.id == again.id
+        assert feedback_run.id != custom_run.id
+        assert feedback_run.eval_metadata["evaluation_type"] == "korrektur_feedback"
+
+    def test_partial_unique_index_rejects_bypass_insert(
+        self, test_db: Session, admin_user: User
+    ):
+        project = _make_project(test_db, admin_user)
+
+        get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_feedback", admin_user.id
+        )
+        test_db.commit()
+
+        with pytest.raises(IntegrityError):
+            test_db.execute(
+                text(
+                    """
+                    INSERT INTO evaluation_runs
+                      (id, project_id, model_id, evaluation_type_ids, metrics,
+                       eval_metadata, status, samples_evaluated, has_sample_results,
+                       created_by, created_at)
+                    VALUES
+                      (:id, :pid, 'human',
+                       '["korrektur_feedback"]'::json,
+                       '{}'::json,
+                       '{"evaluation_type": "korrektur_feedback"}'::json,
+                       'in_progress', 0, true, :uid, now())
+                    """
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "pid": project.id,
+                    "uid": admin_user.id,
+                },
+            )
+            test_db.flush()
+
+
 class TestMetricSetExports:
     def test_korrektur_falloesung_in_set(self):
         assert "korrektur_falloesung" in HUMAN_GRADED_METRICS
+
+    def test_korrektur_feedback_in_set(self):
+        assert "korrektur_feedback" in HUMAN_GRADED_METRICS
 
     def test_korrektur_custom_in_set(self):
         assert "korrektur_custom" in HUMAN_GRADED_METRICS

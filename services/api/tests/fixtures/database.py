@@ -69,6 +69,16 @@ def _create_tables():
                     "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_custom'"
                 )
             )
+            # Migration 122: the korrektur_feedback sibling (French barème /20).
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_human_eval_run_per_project_metric_feedback "
+                    "ON evaluation_runs (project_id, model_id) "
+                    "WHERE model_id = 'human' "
+                    "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_feedback'"
+                )
+            )
             # Migration 064: one active annotation per (task, user). Declared on
             # the Annotation model, but force it in idempotently too so a
             # long-lived test DB bootstrapped before it landed still gets the

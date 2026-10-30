@@ -8209,7 +8209,8 @@
     "metricTabs": {
       "korrektur_classic": "Kommentare (Classic)",
       "korrektur_falloesung": "Bewertungen (Falllösung)",
-      "korrektur_custom": "Bewertungen (Bewertungsbogen)"
+      "korrektur_custom": "Bewertungen (Bewertungsbogen)",
+      "korrektur_feedback": "Bewertungen (Barème /20)"
     },
     "itemFilter": {
       "label": "Status",

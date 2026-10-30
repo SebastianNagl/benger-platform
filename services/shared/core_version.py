@@ -639,11 +639,20 @@ whenever one is added, renamed or removed):
   ``finalize``) and writes ``annotations`` only with one; the platform no
   longer ships ``ml_evaluation/margin_notes.py`` nor registers the
   ``margin_notes`` flag (the overlay does, the row keeps its state).
+
+2.44 (2026-10-30): ``korrektur_feedback``, the human Korrektur of the
+  French exam types on the barème /20, is a human-graded metric:
+  ``HUMAN_GRADED_METRICS`` lists it (so ``get_or_create_human_eval_run``
+  accepts it and the results read endpoints accept its runs) and migration
+  122 adds its partial unique index
+  ``uq_human_eval_run_per_project_metric_feedback``. Its note /20 lives in
+  ``details.grade`` (never ``grade_points``), so the Notenschlüssel
+  recompute leaves it alone; ``report_snapshot`` names it.
 """
 
 import os
 
-CORE_API_VERSION = "2.43"
+CORE_API_VERSION = "2.44"
 
 
 def extended_required() -> bool:

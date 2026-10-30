@@ -17,6 +17,11 @@ Scope rule — recompute only what is ALREADY a grade
 A metric blob is in scope when its ``details`` carries a numeric
 ``grade_points``. Legacy ``llm_judge_custom`` rows store totals but never a
 grade; minting one for them would invent an assessment that nobody made.
+The French barème lanes (``llm_judge_feedback``, ``korrektur_feedback``)
+are out of scope by the same rule: their note /20 lives in
+``details.grade`` and is computed from the barème, not from the 0-18
+Notenschlüssel, so they never carry ``grade_points`` and a key change can
+never rewrite them.
 
 Points and total per blob (the two grading lanes name them differently)::
 

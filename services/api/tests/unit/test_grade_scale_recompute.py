@@ -234,6 +234,29 @@ class TestOutOfScopeRows:
         assert in_scope is False
         assert updated is None and row_passed is None and sources == set()
 
+    def test_a_note_sur_20_is_never_recomputed(self):
+        """The French barème lanes (``llm_judge_feedback``,
+        ``korrektur_feedback``) store a note /20 under ``details.grade``,
+        never ``grade_points``: the 0-18 Notenschlüssel must not touch them."""
+        grade = {
+            "note": 13.5,
+            "sur": 20,
+            "total": 13.5,
+            "total_max": 20.0,
+            "passed": True,
+            "criteres": [],
+        }
+        for metric in ("korrektur_feedback", "llm_judge_feedback"):
+            metrics = {
+                metric: {
+                    "value": 0.675,
+                    "method": metric,
+                    "details": {"grade": grade, "passed": True},
+                    "error": None,
+                }
+            }
+            assert _plan_row(metrics, True, UEBUNGSKLAUSUR, {}) == (False, None, None, set())
+
     def test_rows_without_object_metrics_are_skipped(self):
         for metrics in (None, [], "nope", 3):
             assert _plan_row(metrics, True, UEBUNGSKLAUSUR, {}) == (False, None, None, set())
