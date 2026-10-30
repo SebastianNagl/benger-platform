@@ -16,7 +16,7 @@ combined predicate would collapse the metrics' singletons into one row.
 Idempotent (``IF NOT EXISTS`` / ``IF EXISTS``), like 037 and 061.
 
 Revision ID: 122_korrektur_feedback_human_run_singleton
-Revises: 120_group_jurisdiction
+Revises: 121_project_enable_prompts
 Create Date: 2026-10-30
 """
 
@@ -24,7 +24,7 @@ from alembic import op
 
 
 revision = "122_korrektur_feedback_human_run_singleton"
-down_revision = "120_group_jurisdiction"
+down_revision = "121_project_enable_prompts"
 branch_labels = None
 depends_on = None
 
