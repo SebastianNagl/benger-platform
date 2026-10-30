@@ -30,8 +30,30 @@ jest.mock('@/contexts/I18nContext', () => ({
 // `mock` prefix = hoist-safe; flipped per test to simulate the community
 // (nothing registered) and the extended build.
 let mockGradeScaleSlotRegistered = false
+let mockSettingsSlotRegistered = false
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => {
+    if (name === 'ProjectWizardEvaluationSettings') {
+      if (!mockSettingsSlotRegistered) return null
+      const SettingsStub = ({
+        data,
+        onChange,
+        immediateEvaluationEnabled,
+      }: any) => (
+        <div
+          data-testid="evaluation-settings"
+          data-immediate={String(immediateEvaluationEnabled)}
+          data-configs={String((data?.evaluationConfigs ?? []).length)}
+        >
+          <button
+            data-testid="evaluation-settings-write"
+            onClick={() => onChange({ evaluationConfigs: [] })}
+          />
+        </div>
+      )
+      SettingsStub.displayName = 'SettingsStub'
+      return SettingsStub
+    }
     if (name !== 'ProjectWizardEvaluationGradeScale') return null
     if (!mockGradeScaleSlotRegistered) return null
     const GradeScaleStub = ({ data, onChange }: any) => (
@@ -108,6 +130,7 @@ function setup(
 
 afterEach(() => {
   mockGradeScaleSlotRegistered = false
+  mockSettingsSlotRegistered = false
 })
 
 function expandMetric(metricKey: string) {
@@ -259,5 +282,44 @@ describe('StepEvaluationMethods — Notenschlüssel slot', () => {
     mockGradeScaleSlotRegistered = true
     setup([])
     expect(screen.queryByTestId('grade-scale-section')).not.toBeInTheDocument()
+  })
+})
+
+describe('evaluation settings slot (ProjectWizardEvaluationSettings)', () => {
+  const onWizardChange = jest.fn()
+  beforeEach(() => onWizardChange.mockClear())
+
+  it('renders nothing extra in a community build (slot unregistered)', () => {
+    setup([], { wizardData: { evaluationConfigs: [] }, onWizardChange })
+    expect(screen.queryByTestId('evaluation-settings')).not.toBeInTheDocument()
+  })
+
+  it('mounts right below the immediate evaluation toggle with the wizard state', () => {
+    mockSettingsSlotRegistered = true
+    const { container } = setup(JUDGE_PAIR, {
+      wizardData: { evaluationConfigs: JUDGE_PAIR },
+      onWizardChange,
+      immediateEvaluationEnabled: true,
+    })
+    const settings = screen.getByTestId('evaluation-settings')
+    expect(settings).toHaveAttribute('data-immediate', 'true')
+    expect(settings).toHaveAttribute('data-configs', String(JUDGE_PAIR.length))
+    // The row of the immediate evaluation toggle: its label's section, then
+    // the checkbox beside it. The slot follows that row directly.
+    const toggleRow = screen.getByText(
+      'projects.creation.wizard.step7.immediateEvaluation',
+    ).parentElement!.parentElement!
+    expect(toggleRow.querySelector('input[type="checkbox"]')).not.toBeNull()
+    expect(toggleRow.nextElementSibling).toBe(settings)
+    expect(container.firstChild!.lastChild).not.toBe(settings)
+
+    fireEvent.click(screen.getByTestId('evaluation-settings-write'))
+    expect(onWizardChange).toHaveBeenCalledWith({ evaluationConfigs: [] })
+  })
+
+  it('stays unmounted when the host does not pass the wizard state', () => {
+    mockSettingsSlotRegistered = true
+    setup([])
+    expect(screen.queryByTestId('evaluation-settings')).not.toBeInTheDocument()
   })
 })

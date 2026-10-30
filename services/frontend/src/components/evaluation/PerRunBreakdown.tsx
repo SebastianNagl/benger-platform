@@ -160,7 +160,7 @@ export function PerRunBreakdown({
               </td>
               <td className="px-3 py-2">
                 <span
-                  className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${statusBadgeClass(row.status)}`}
+                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(row.status)}`}
                 >
                   {runStatusLabel(row.status, t)}
                 </span>

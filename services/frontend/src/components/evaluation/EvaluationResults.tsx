@@ -1090,8 +1090,8 @@ export function EvaluationResults({
         onChanged={fetchResults}
       />
       {/* Header with metric selector, controls, and action buttons */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
             {t('evaluation.multiFieldResults.title')}
           </h3>
@@ -1141,7 +1141,7 @@ export function EvaluationResults({
               )
             })()}
           {/* Include history toggle */}
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
             <input
               type="checkbox"
               checked={showHistory}
@@ -1154,7 +1154,7 @@ export function EvaluationResults({
               meaningful when statisticsData has per_run_means_by_model_metric
               data; hidden otherwise so the toggle isn't a no-op. */}
           {(statisticsData as any)?.per_run_means_by_model_metric && (
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
               <input
                 type="checkbox"
                 checked={byRunChart}
@@ -1165,7 +1165,7 @@ export function EvaluationResults({
             </label>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* Export dropdown */}
           {taskModelData &&
             taskModelData.tasks.length > 0 &&
@@ -1381,10 +1381,10 @@ export function EvaluationResults({
                             >
                               <div className="flex flex-col items-end">
                                 <span
-                                  className={`rounded px-2 py-0.5 text-xs ${
+                                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium tracking-normal normal-case ${
                                     isAnnotator
-                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                      : 'bg-zinc-200 dark:bg-zinc-700'
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                      : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                                   }`}
                                 >
                                   {displayName}

@@ -457,7 +457,7 @@ describe('MetadataField', () => {
       renderWithToast(<MetadataField {...defaultProps} value={true} />)
 
       const badge = screen.getByText('Yes')
-      expect(badge).toHaveClass('inline-flex', 'items-center', 'rounded')
+      expect(badge).toHaveClass('inline-flex', 'items-center', 'rounded-full')
     })
 
     it('parses comma-separated input correctly', async () => {

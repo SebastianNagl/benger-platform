@@ -123,7 +123,7 @@ export function MetadataField({
     } else if (typeof value === 'boolean') {
       return (
         <span
-          className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
             value
               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
               : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'

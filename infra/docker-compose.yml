@@ -15,10 +15,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/config:/etc/traefik:ro
-      - ./traefik/certs:/certs:ro
     command:
       # Static configuration. This command line is the ONLY static config:
-      # traefik/config holds dynamic files only (see traefik/config/tls.yml).
+      # traefik/config holds dynamic files only. Never add a traefik.yml
+      # there: traefik auto-loads /etc/traefik/traefik.yml as its static
+      # config and then ignores every flag below, including the per-project
+      # docker constraint. websecure has no certificate of its own and serves
+      # traefik's default one; local dev uses plain http://benger.localhost.
       # API and Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"  # Remove in production
