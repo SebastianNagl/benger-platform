@@ -58,11 +58,25 @@ class StructureKeysRequired(ValueError):
         )
 
 
+class NoPromptStructures(ValueError):
+    """A generation run on a project without any generation structure.
+
+    Every generation runs on a prompt structure; there is no built-in
+    default prompt (it used to be a hidden German legal prompt in the
+    worker that the UI never showed)."""
+
+    def __init__(self):
+        super().__init__(
+            "This project has no prompt structure for generation. Add one in "
+            "the project's Prompts section, then start the run with it."
+        )
+
+
 def run_structure_keys(
     generation_config: Optional[dict], requested: Optional[Sequence[str]]
-) -> List[Optional[str]]:
-    """The structures a run generates: the requested ones, or ``[None]`` for a
-    project without generation structures.
+) -> List[str]:
+    """The structures a run generates: the requested ones. A project without
+    generation structures cannot generate (``NoPromptStructures``).
 
     A project WITH structures must name them. Falling back to all of them made
     a call that simply omitted the field generate every structure (2-3x the
@@ -74,7 +88,7 @@ def run_structure_keys(
     keys = implicit_structure_keys((generation_config or {}).get("prompt_structures", {}))
     if keys:
         raise StructureKeysRequired(keys)
-    return [None]
+    raise NoPromptStructures()
 
 
 def latest_status_stmt(project_id: str, task_ids: Sequence[str], model_ids: Sequence[str]):

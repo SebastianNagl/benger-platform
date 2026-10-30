@@ -255,12 +255,23 @@ class TestRubricJudgePromptEstimate:
         actor = await _seed_user(async_test_db)
         await _seed_model(async_test_db, JUDGE)
         project, _rubric = await _seed_exam(async_test_db, actor)
+        # Every generation runs on a prompt structure.
+        project.generation_config = {
+            "prompt_structures": {
+                "s0": {"name": "s0", "system_prompt": "S", "instruction_prompt": "$sachverhalt"}
+            }
+        }
         pid = project.id
         await async_test_db.commit()
 
         with _as_user(actor):
             resp = await _post(
-                async_test_client, project_id=pid, mode="generation", model_ids=[JUDGE], generation_mode="missing"
+                async_test_client,
+                project_id=pid,
+                mode="generation",
+                model_ids=[JUDGE],
+                generation_mode="missing",
+                structure_keys=["s0"],
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()

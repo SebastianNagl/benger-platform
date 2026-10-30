@@ -37,7 +37,7 @@ class AccessKeyCreate(_KeyFields):
 
 
 class OrgAccessKeyCreate(AccessKeyCreate):
-    org_role: Literal["ANNOTATOR", "CONTRIBUTOR"] = "ANNOTATOR"
+    org_role: Literal["ANNOTATOR", "CONTRIBUTOR", "ORG_ADMIN"] = "ANNOTATOR"
     group_id: Optional[str] = None
 
 

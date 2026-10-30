@@ -265,7 +265,8 @@ describe('ProjectDetailPage — 4-card structure', () => {
     render(<ProjectDetailPage params={params} />)
     await waitFor(() => {
       // i18n mock returns the key verbatim, so each card title appears as
-      // its translation key. The 4 cards from the rework:
+      // its translation key. The 4 cards from the rework plus Prompts
+      // (mockProject carries no enable_prompts, like older payloads):
       expect(
         screen.getByText('project.annotationConfiguration.title'),
       ).toBeInTheDocument()
@@ -273,8 +274,40 @@ describe('ProjectDetailPage — 4-card structure', () => {
         screen.getByText('project.generationConfiguration.title'),
       ).toBeInTheDocument()
       expect(screen.getByText('project.evaluation.title')).toBeInTheDocument()
+      expect(screen.getByText('project.prompts.title')).toBeInTheDocument()
       expect(screen.getByText('project.settings.title')).toBeInTheDocument()
     })
+  })
+
+  it('hides Prompts card when enable_prompts is false', async () => {
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: { ...mockProject, enable_prompts: false },
+      loading: false,
+      fetchProject: jest.fn(),
+      updateProject: jest.fn().mockResolvedValue({}),
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    await waitFor(() => {
+      expect(
+        screen.getByText('project.generationConfiguration.title'),
+      ).toBeInTheDocument()
+    })
+    expect(screen.queryByText('project.prompts.title')).not.toBeInTheDocument()
+  })
+
+  it('moves the prompt structures from the Generation card to the Prompts card', async () => {
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    fireEvent.click(
+      await screen.findByText('project.generationConfiguration.title'),
+    )
+    expect(
+      screen.queryByTestId('prompt-structures-manager'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('project.prompts.title'))
+    expect(screen.getByTestId('prompt-structures-manager')).toBeInTheDocument()
   })
 
   it('hides Annotation card when enable_annotation is false', async () => {

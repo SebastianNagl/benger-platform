@@ -48,6 +48,7 @@ const notificationIcons = {
   task_assigned: UserPlusIcon,
   korrektur_assigned: UserPlusIcon,
   llm_generation_completed: CheckCircleIcon,
+  llm_generation_failed: ExclamationTriangleIcon,
   evaluation_completed: CheckCircleIcon,
   evaluation_failed: ExclamationTriangleIcon,
   evaluation_received_human: CheckCircleIcon,
@@ -75,6 +76,8 @@ const notificationColors = {
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   llm_generation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
+  llm_generation_failed:
+    'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
   evaluation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_failed:
@@ -140,7 +143,10 @@ export function NotificationDropdown({
       onClose()
       return
     }
-    if (notification.type === 'llm_generation_completed') {
+    if (
+      notification.type === 'llm_generation_completed' ||
+      notification.type === 'llm_generation_failed'
+    ) {
       if (genId) {
         router.push(`/generations/${genId}`)
         onClose()

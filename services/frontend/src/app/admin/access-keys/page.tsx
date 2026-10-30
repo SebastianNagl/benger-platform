@@ -13,7 +13,10 @@ import {
   RevokeKeyPanel,
   ScopeChips,
 } from '@/components/accessKeys/AccessKeyParts'
-import { formatDate } from '@/components/accessKeys/accessKeyUtils'
+import {
+  formatDate,
+  orgRoleLabelKey,
+} from '@/components/accessKeys/accessKeyUtils'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -340,6 +343,12 @@ export default function AdminAccessKeysPage() {
                         {key.owner_type === 'org'
                           ? `${t('accessKeys.ownerOrg')}: ${orgName(key.organization_id)}`
                           : `${t('accessKeys.ownerUser')}: ${key.user_id}`}
+                        {key.owner_type === 'org' && (
+                          <div data-testid={`admin-key-role-${key.id}`}>
+                            {t('accessKeys.columns.role')}:{' '}
+                            {t(orgRoleLabelKey(key.org_role))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <ScopeChips scopes={key.scopes} />

@@ -5,6 +5,11 @@
  * one of the plain-language presets (the scope list stays behind
  * "Erweitert"), and for organization keys the role, the group and an
  * optional project allowlist. Expiry defaults to one year.
+ *
+ * The scope list only offers what the creator may grant for this kind of
+ * key (app/core/scopes.py); scopes that need a higher org-key role stay
+ * visible but disabled, with the role they need. ORG_ADMIN keys are
+ * org-wide only and only org-wide admins create them.
  */
 
 import { Button } from '@/components/shared/Button'
@@ -34,10 +39,12 @@ import {
   expiryToIso,
   isScopeGrantable,
   matchPreset,
-  needsContributor,
   offeredScopes,
+  orgRoleLabelKey,
   presetIds,
+  requiredRole,
   resolvePreset,
+  roleAtLeast,
   scopeDescription,
 } from './accessKeyUtils'
 
@@ -56,6 +63,8 @@ interface AccessKeyCreateFormProps {
   catalog: ScopeCatalog | null
   /** Org-wide admin (or superadmin). Group admins pass false. */
   isOrgAdmin?: boolean
+  /** The creator is a superadmin: personal keys may carry admin:platform. */
+  isSuperadmin?: boolean
   /** Groups the caller may create keys for. */
   groups?: GroupOption[]
   projects?: ProjectOption[]
@@ -74,13 +83,17 @@ export function AccessKeyCreateForm({
   mode,
   catalog,
   isOrgAdmin = false,
+  isSuperadmin = false,
   groups = [],
   projects = [],
   onSubmit,
   onCancel,
 }: AccessKeyCreateFormProps) {
   const { t, locale } = useI18n()
-  const ctxBase = useMemo(() => ({ mode, isOrgAdmin }), [mode, isOrgAdmin])
+  const ctxBase = useMemo(
+    () => ({ mode, isOrgAdmin, isSuperadmin }),
+    [mode, isOrgAdmin, isSuperadmin],
+  )
   const presets = presetIds(catalog)
   const initialPreset = presets.includes(FIRST_PRESET)
     ? FIRST_PRESET
@@ -102,13 +115,30 @@ export function AccessKeyCreateForm({
   const [perDay, setPerDay] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showLimits, setShowLimits] = useState(false)
-  const [roleNotice, setRoleNotice] = useState(false)
+  const [roleNotice, setRoleNotice] = useState<
+    'contributor' | 'admin' | 'groupLowered' | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const ctx = { ...ctxBase, role }
   const available = offeredScopes(catalog, ctxBase)
   const selectedPreset = matchPreset(catalog, scopes, ctxBase)
+  // ORG_ADMIN keys: org-wide only, and only an org-wide admin creates them.
+  const adminRoleOffered = mode === 'org' && isOrgAdmin && !groupId
+  const roleOptions: AccessKeyOrgRole[] = adminRoleOffered
+    ? ['ANNOTATOR', 'CONTRIBUTOR', 'ORG_ADMIN']
+    : ['ANNOTATOR', 'CONTRIBUTOR']
+
+  // Drop the selected scopes a key with `next` may not hold.
+  const dropBlocked = (next: AccessKeyOrgRole) => {
+    const blocked = new Set(
+      available
+        .filter((s) => !isScopeGrantable(s, { ...ctxBase, role: next }))
+        .map((s) => s.name),
+    )
+    setScopes((prev) => prev.filter((s) => !blocked.has(s)))
+  }
 
   const choosePreset = (id: string) => {
     setError(null)
@@ -117,9 +147,16 @@ export function AccessKeyCreateForm({
       return
     }
     const resolved = resolvePreset(catalog, id, ctxBase)
-    if (mode === 'org' && resolved.needsContributor && role !== 'CONTRIBUTOR') {
-      setRole('CONTRIBUTOR')
-      setRoleNotice(true)
+    const minRole = resolved.minRole
+    if (mode === 'org' && minRole && !roleAtLeast(role, minRole)) {
+      setRole(minRole)
+      if (minRole === 'ORG_ADMIN') {
+        // Admin keys are org-wide (only offered to org-wide admins).
+        setGroupId('')
+        setRoleNotice('admin')
+      } else {
+        setRoleNotice('contributor')
+      }
     }
     setScopes(resolved.scopes)
   }
@@ -135,15 +172,17 @@ export function AccessKeyCreateForm({
 
   const changeRole = (next: AccessKeyOrgRole) => {
     setRole(next)
-    setRoleNotice(false)
-    if (next === 'ANNOTATOR') {
-      // Drop what an ANNOTATOR key may not hold.
-      const blocked = new Set(
-        available
-          .filter((s) => !isScopeGrantable(s, { ...ctxBase, role: next }))
-          .map((s) => s.name),
-      )
-      setScopes((prev) => prev.filter((s) => !blocked.has(s)))
+    setRoleNotice(null)
+    dropBlocked(next)
+  }
+
+  const changeGroup = (next: string) => {
+    setGroupId(next)
+    if (next && role === 'ORG_ADMIN') {
+      // A group key cannot be an admin key.
+      setRole('CONTRIBUTOR')
+      setRoleNotice('groupLowered')
+      dropBlocked('CONTRIBUTOR')
     }
   }
 
@@ -265,7 +304,13 @@ export function AccessKeyCreateForm({
             className="mt-2 text-xs text-amber-700 dark:text-amber-400"
             data-testid="access-key-role-notice"
           >
-            {t('accessKeys.form.roleSwitched')}
+            {t(
+              roleNotice === 'admin'
+                ? 'accessKeys.form.roleSwitchedAdmin'
+                : roleNotice === 'groupLowered'
+                  ? 'accessKeys.form.roleLoweredForGroup'
+                  : 'accessKeys.form.roleSwitched',
+            )}
           </p>
         )}
       </fieldset>
@@ -290,6 +335,7 @@ export function AccessKeyCreateForm({
             <p className={hintClass}>{t('accessKeys.form.advancedHint')}</p>
             {available.map((scope) => {
               const grantable = isScopeGrantable(scope, ctx)
+              const minRole = requiredRole(scope, ctx)
               return (
                 <label
                   key={scope.name}
@@ -319,9 +365,16 @@ export function AccessKeyCreateForm({
                         })}
                       </span>
                     )}
-                    {needsContributor(scope, ctx) && !grantable && (
-                      <span className="block text-xs text-amber-700 dark:text-amber-400">
-                        {t('accessKeys.form.needsContributor')}
+                    {minRole && !grantable && (
+                      <span
+                        className="block text-xs text-amber-700 dark:text-amber-400"
+                        data-testid={`access-key-scope-needs-${scope.name}`}
+                      >
+                        {t(
+                          minRole === 'ORG_ADMIN'
+                            ? 'accessKeys.form.needsOrgAdmin'
+                            : 'accessKeys.form.needsContributor',
+                        )}
                       </span>
                     )}
                   </span>
@@ -350,12 +403,11 @@ export function AccessKeyCreateForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ANNOTATOR">
-                  {t('admin.organizations.roleAnnotator')}
-                </SelectItem>
-                <SelectItem value="CONTRIBUTOR">
-                  {t('admin.organizations.roleContributor')}
-                </SelectItem>
+                {roleOptions.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {t(orgRoleLabelKey(r))}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className={hintClass}>{t('accessKeys.form.roleHint')}</p>
@@ -369,7 +421,7 @@ export function AccessKeyCreateForm({
                 // Group admins get no org-wide option: until a group is
                 // picked, show the placeholder rather than the sentinel.
                 value={groupId || (isOrgAdmin ? ORG_WIDE : '')}
-                onValueChange={(v) => setGroupId(v === ORG_WIDE ? '' : v)}
+                onValueChange={(v) => changeGroup(v === ORG_WIDE ? '' : v)}
               >
                 <SelectTrigger
                   id="access-key-group"

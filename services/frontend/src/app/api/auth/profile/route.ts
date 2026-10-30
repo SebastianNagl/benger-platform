@@ -1,19 +1,17 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
+import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
     const apiBaseUrl = getInternalApiUrl(request)
-    const cookies = request.headers.get('cookie') || ''
-    const authorization = request.headers.get('authorization') || ''
 
     // Forward the request to the backend with cookies
     const backendResponse = await fetch(`${apiBaseUrl}/api/auth/profile`, {
       method: 'GET',
       headers: {
-        Cookie: cookies, // Forward cookies for authentication
-        Authorization: authorization, // Forward authorization header
+        ...proxyAuthHeaders(request),
       },
     })
 
@@ -40,8 +38,6 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const apiBaseUrl = getInternalApiUrl(request)
-    const cookies = request.headers.get('cookie') || ''
-    const authorization = request.headers.get('authorization') || ''
     const parsed = await readJsonBody(request)
     if (!parsed.ok) return parsed.response
     const body = parsed.body
@@ -51,8 +47,7 @@ export async function PUT(request: NextRequest) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: cookies, // Forward cookies for authentication
-        Authorization: authorization, // Forward authorization header
+        ...proxyAuthHeaders(request),
       },
       body: JSON.stringify(body),
     })

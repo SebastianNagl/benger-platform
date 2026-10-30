@@ -16,6 +16,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { apiClient, getApiUrl } from '@/lib/api/client'
+import { apiErrorMessage } from '@/lib/api/errors'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { logger } from '@/lib/utils/logger'
 import { Project } from '@/types/labelStudio'
@@ -411,8 +412,7 @@ export function GenerationTaskList({
         fetchData()
       } catch (error: any) {
         addToast(
-          error.response?.data?.detail ||
-            t('generation.taskList.cellGenerationFailed'),
+          apiErrorMessage(error, t('generation.taskList.cellGenerationFailed')),
           'error',
         )
       } finally {

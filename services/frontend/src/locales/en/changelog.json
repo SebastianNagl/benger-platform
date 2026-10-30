@@ -1,5 +1,7 @@
 {
   "changelogEntries": {
+    "2026-10-30-full-api-access-keys": "Access keys now work on the whole BenGER API, not only under /api/v1. With the new \"Full API for research pipelines\" preset you register your own models and start generation and evaluation from your scripts. Organization keys can get the Admin role, and the full reference is at /api/v1/reference.",
+    "2026-10-30-project-prompts-card": "The project page has a new \"Prompts\" section: the project's system, instruction and evaluation prompts plus the LLM judge's default templates at a glance. You can edit the evaluation prompts right there and hide the section under \"Section visibility\".",
     "2026-10-19-runtime-extension-switches": "Superadmins can switch whole extension packages on or off for single organizations or users under \"Feature Flags\", without a redeploy.",
     "2026-10-14-french-language-menu": "BenGER is now also available in French. You choose the language from the flag menu at the top right (previously a toggle between German and English); date and number formats follow the chosen language.",
     "2026-10-13-evaluations-limited-model-answers": "Evaluations can be limited to model answers: with no annotator selected only the model answers are graded (and with no model only the submitted answers). The cost estimate now counts only the selected metrics, models, annotators and prompt structures.",

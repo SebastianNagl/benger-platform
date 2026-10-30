@@ -51,3 +51,46 @@ describe('api-zugaenge guide', () => {
     expect(text).toMatch(/\bdu\b/)
   })
 })
+
+describe('api-research-workflow guide', () => {
+  const workflow = API_ACCESS_GUIDES.find(
+    (g) => g.id === 'api-research-workflow',
+  )!
+  const texts = (['de', 'en', 'fr'] as const).map((l) => guideText(workflow, l))
+
+  it('is registered once and hidden unless the public API is on', () => {
+    expect(
+      PLATFORM_HOWTO_GUIDES.filter((g) => g.id === 'api-research-workflow'),
+    ).toHaveLength(1)
+    expect(workflow.requires).toBe('publicApi')
+  })
+
+  it('walks from the key to the results in every language', () => {
+    for (const text of texts) {
+      expect(text.steps).toHaveLength(7)
+      const all = text.steps.join(' ')
+      for (const path of [
+        'POST /api/custom-models/',
+        'PUT /api/projects/{id}/generation-config',
+        'POST /api/generation-tasks/projects/{id}/generate',
+        'GET /api/projects/{id}/generation-status',
+        'PUT /api/evaluations/projects/{id}/evaluation-config',
+        'POST /api/evaluations/run',
+        'GET /api/evaluations/run/results/project/{id}',
+      ]) {
+        expect(all).toContain(path)
+      }
+      expect(text.tips.join(' ')).toContain(
+        'from benger_client import BengerClient',
+      )
+      expect(text.links.map((l) => l.href)).toEqual([
+        '/profile',
+        '/how-to#api-zugaenge',
+      ])
+    }
+  })
+
+  it('cross-links from api-zugaenge', () => {
+    expect(guide.links).toContain('/how-to#api-research-workflow')
+  })
+})

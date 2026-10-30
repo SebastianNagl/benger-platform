@@ -137,6 +137,7 @@ def build_project_export_data(project, organization_id) -> dict:
         "enable_annotation": project.enable_annotation,
         "enable_generation": project.enable_generation,
         "enable_evaluation": project.enable_evaluation,
+        "enable_prompts": project.enable_prompts,
     }
 
 

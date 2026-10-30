@@ -2,15 +2,14 @@
 (``prompt_inputs``), never the whole task (compliance prep, 2026-10-13).
 
 ``GenerationStructureParser.prompt_input_fields`` walks the same references
-the prompt builder resolves; ``_placeholder_prompt_inputs`` covers the
-legacy ``{key}`` interpolation without a structure. Reference fields are
-never recorded on either path.
+the prompt builder resolves (every generation runs on a structure since
+the built-in default prompt was removed). Reference fields are never
+recorded.
 """
 
 import pytest
 
 import tasks  # noqa: F401  (loads the generation package through its entry point)
-from generation.llm_generation_service import _placeholder_prompt_inputs
 from generation_structure_parser import GenerationStructureParser
 
 
@@ -97,16 +96,3 @@ class TestPromptInputFields:
         assert parser.prompt_input_fields(None, {"instruction_prompt": "$sachverhalt"}) == {}
         assert parser.prompt_input_fields(TASK, {"instruction_prompt": "no refs"}) == {}
 
-
-class TestPlaceholderPromptInputs:
-    def test_records_used_placeholders_without_reference_fields(self):
-        prompt = "Fall: {sachverhalt}\nVermerk: {bearbeitervermerk}\nLösung: {musterloesung} {answer}"
-        assert _placeholder_prompt_inputs(prompt, TASK) == {
-            "sachverhalt": "A schlägt B.",
-            "bearbeitervermerk": "Auf Verjährung ist nicht einzugehen.",
-        }
-
-    def test_unused_keys_and_odd_inputs(self):
-        assert _placeholder_prompt_inputs("no placeholders", TASK) == {}
-        assert _placeholder_prompt_inputs("{sachverhalt}", None) == {}
-        assert _placeholder_prompt_inputs(None, TASK) == {}

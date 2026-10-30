@@ -50,6 +50,7 @@ import {
   daysUntil,
   expiresSoon,
   formatDate,
+  orgRoleLabelKey,
   renewalBody,
 } from './accessKeyUtils'
 
@@ -59,6 +60,8 @@ export interface AccessKeyManagerProps {
   organizationId?: string
   /** Org-wide admin (or superadmin). */
   isAdmin?: boolean
+  /** Superadmin: personal keys may carry admin:platform. */
+  isSuperadmin?: boolean
   /** Active groups the caller administers (group admins). */
   adminGroupIds?: string[]
   /** Load data only while visible (the org dialog is mounted closed). */
@@ -84,6 +87,7 @@ export function AccessKeyManager({
   mode,
   organizationId,
   isAdmin = false,
+  isSuperadmin = false,
   adminGroupIds = [],
   active = true,
 }: AccessKeyManagerProps) {
@@ -266,6 +270,7 @@ export function AccessKeyManager({
         mode={mode}
         catalog={catalog}
         isOrgAdmin={isAdmin}
+        isSuperadmin={isSuperadmin}
         groups={groups}
         projects={projectOptions}
         onSubmit={handleCreate}
@@ -495,11 +500,7 @@ function KeyRow({
               <dt className="inline font-medium">
                 {t('accessKeys.columns.role')}:{' '}
               </dt>
-              <dd className="inline">
-                {key.org_role === 'CONTRIBUTOR'
-                  ? t('admin.organizations.roleContributor')
-                  : t('admin.organizations.roleAnnotator')}
-              </dd>
+              <dd className="inline">{t(orgRoleLabelKey(key.org_role))}</dd>
             </div>
             <div>
               <dt className="inline font-medium">

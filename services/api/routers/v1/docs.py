@@ -203,8 +203,10 @@ def scopes_markdown() -> str:
     lines += [
         "",
         "`grantable`: `any` (every key), `full_data_role` (personal keys and organization",
-        "keys with role CONTRIBUTOR), `org_admin` (organization keys created by an",
-        "organization admin), `personal_only` (personal keys only).",
+        "keys with role CONTRIBUTOR or ORG_ADMIN), `org_admin` (organization keys created",
+        "by an organization admin), `org_admin_role` (personal keys and organization keys",
+        "with role ORG_ADMIN), `personal_only` (personal keys only), `superadmin`",
+        "(personal keys created by a superadmin).",
         "",
         "## Presets",
         "",

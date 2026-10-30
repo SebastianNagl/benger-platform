@@ -120,9 +120,11 @@ async def _make_project_with_tasks(
     """Create a published project with N tasks, wired to the given org.
 
     Seeds generation_config so start_generation finds models + structure keys
-    without needing the caller to pass them explicitly.
+    without needing the caller to pass them explicitly. Defaults to one
+    structure ``s0`` (every generation runs on a prompt structure); pass
+    ``[]`` for a project without any.
     """
-    structure_keys = structure_keys or []
+    structure_keys = ["s0"] if structure_keys is None else structure_keys
     pid = _uid()
     prompt_structures = {sk: {"key": sk} for sk in structure_keys}
     project = Project(
@@ -316,12 +318,13 @@ class TestStartGenerationMissingModeDecisionMatrix:
         assert actual == expected
 
     @pytest.mark.asyncio
-    async def test_missing_mode_with_null_structure_key_legacy_projects(
+    async def test_project_without_structures_cannot_generate(
         self, async_test_client, async_test_db
     ):
-        """Projects with no `prompt_structures` configured collapse to a single
-        [None] structure_key. The bulk query keys by `None` and must match
-        rows where structure_key IS NULL — not rows with a non-null key."""
+        """No built-in default prompt any more: a project without prompt
+        structures used to collapse to a single [None] structure_key and
+        generate with a hidden worker prompt. It is refused with 422 and
+        nothing is queued."""
         admin = await _make_superadmin(async_test_db)
         org = await _make_org(async_test_db)
 
@@ -331,58 +334,30 @@ class TestStartGenerationMissingModeDecisionMatrix:
             org,
             num_tasks=2,
             model_ids=["m-1"],
-            structure_keys=[],  # → handler uses [None]
+            structure_keys=[],
         )
-        project = data["project"]
-        project_id = project.id
-        t0, t1 = data["tasks"]
-        t1_id = t1.id
-
-        # t0 has a NULL-keyed completed row → should NOT queue.
-        # t1 has only a non-NULL-keyed completed row → that row is invisible to
-        # the [None] cell, so the [None] cell is "no row" → SHOULD queue.
-        await _seed_response_gen(
-            async_test_db,
-            project_id=project_id,
-            task_id=t0.id,
-            model_id="m-1",
-            structure_key=None,
-            status="completed",
-            created_by=admin.id,
-        )
-        await _seed_response_gen(
-            async_test_db,
-            project_id=project_id,
-            task_id=t1.id,
-            model_id="m-1",
-            structure_key="leftover-key",  # not in the structure_keys list
-            status="completed",
-            created_by=admin.id,
-        )
+        project_id = data["project"].id
         await async_test_db.commit()
 
         with patch("routers.generation_task_list.celery_app") as mock_celery:
-            mock_celery.send_task.return_value = None
             with _as_user(admin):
                 resp = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project_id}/generate",
                     json={"mode": "missing"},
                 )
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["tasks_queued"] == 1
+        assert resp.status_code == 422, resp.text
+        assert "prompt structure" in resp.json()["detail"]
+        mock_celery.send_task.assert_not_called()
 
         async_test_db.expire_all()
         queued = (
             await async_test_db.execute(
                 select(DBResponseGeneration).where(
                     DBResponseGeneration.project_id == project_id,
-                    DBResponseGeneration.status == "pending",
                 )
             )
         ).scalars().all()
-        assert len(queued) == 1
-        assert queued[0].task_id == t1_id
-        assert queued[0].structure_key == None  # noqa: E711
+        assert queued == []
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +385,7 @@ class TestStartGenerationBulkQueryPerf:
             org,
             num_tasks=num_tasks,
             model_ids=model_ids,
-            structure_keys=[],  # single [None] cell per (task, model)
+            structure_keys=["s0"],  # one cell per (task, model)
         )
         project = data["project"]
         project_id = project.id
@@ -461,7 +436,7 @@ class TestStartGenerationBulkQueryPerf:
                 with _as_user(admin):
                     resp = await async_test_client.post(
                         f"/api/generation-tasks/projects/{project_id}/generate",
-                        json={"mode": "missing"},
+                        json={"mode": "missing", "structure_keys": ["s0"]},
                     )
             elapsed = time.perf_counter() - start
         finally:
@@ -693,7 +668,7 @@ class TestStartGenerationFallbackBound:
                 with _as_user(admin):
                     resp = await async_test_client.post(
                         f"/api/generation-tasks/projects/{project_id}/generate",
-                        json={"mode": "all"},
+                        json={"mode": "all", "structure_keys": ["s0"]},
                     )
 
             assert resp.status_code == 400, resp.text
@@ -729,7 +704,7 @@ class TestStartGenerationFallbackBound:
                 with _as_user(admin):
                     resp = await async_test_client.post(
                         f"/api/generation-tasks/projects/{project_id}/generate",
-                        json={"mode": "all"},
+                        json={"mode": "all", "structure_keys": ["s0"]},
                     )
 
         assert resp.status_code == 200, resp.text
@@ -756,7 +731,7 @@ class TestStartGenerationFallbackBound:
                 with _as_user(admin):
                     resp = await async_test_client.post(
                         f"/api/generation-tasks/projects/{project_id}/generate",
-                        json={"mode": "all", "task_ids": picked},
+                        json={"mode": "all", "task_ids": picked, "structure_keys": ["s0"]},
                     )
 
         assert resp.status_code == 200, resp.text

@@ -8,6 +8,7 @@
 'use client'
 
 import { GenerationStructureEditor } from '@/components/projects/GenerationStructureEditor'
+import { PromptText } from '@/components/projects/PromptText'
 import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -39,11 +40,15 @@ interface PromptStructure {
 interface PromptStructuresManagerProps {
   projectId: string
   onStructuresChange?: () => void
+  /** Viewers without edit rights see the structures and their prompts but
+   * no add / edit / delete / activate controls. */
+  readOnly?: boolean
 }
 
 export function PromptStructuresManager({
   projectId,
   onStructuresChange,
+  readOnly = false,
 }: PromptStructuresManagerProps) {
   const { t } = useI18n()
   const [structures, setStructures] = useState<Record<string, PromptStructure>>(
@@ -54,6 +59,16 @@ export function PromptStructuresManager({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
+  // Structure keys whose prompt texts are unfolded
+  const [shownPrompts, setShownPrompts] = useState<Set<string>>(new Set())
+
+  const togglePrompts = (key: string) =>
+    setShownPrompts((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
@@ -346,7 +361,7 @@ export function PromptStructuresManager({
             />
           </svg>
         </button>
-        {expanded && (
+        {expanded && !readOnly && (
           <Button onClick={openAddModal} variant="outline" className="text-sm">
             <PlusIcon className="mr-2 h-4 w-4" />
             {t('project.promptStructures.addStructure')}
@@ -366,12 +381,16 @@ export function PromptStructuresManager({
           {totalCount === 0 ? (
             <div className="py-8 text-center">
               <p className="mb-4 text-zinc-600 dark:text-zinc-400">
-                {t('project.promptStructures.noStructuresYet')}
+                {readOnly
+                  ? t('project.prompts.noStructures')
+                  : t('project.promptStructures.noStructuresYet')}
               </p>
-              <Button onClick={openAddModal} variant="outline">
-                <PlusIcon className="mr-2 h-4 w-4" />
-                {t('project.promptStructures.createFirstStructure')}
-              </Button>
+              {!readOnly && (
+                <Button onClick={openAddModal} variant="outline">
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  {t('project.promptStructures.createFirstStructure')}
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -379,6 +398,7 @@ export function PromptStructuresManager({
                 const structure = structures[key]
                 const isActive = activeStructures.includes(key)
                 const fieldRefs = extractFieldReferences(structure)
+                const promptsShown = shownPrompts.has(key)
 
                 return (
                   <Card key={key} className="overflow-hidden">
@@ -387,6 +407,7 @@ export function PromptStructuresManager({
                         <input
                           type="checkbox"
                           checked={isActive}
+                          disabled={readOnly}
                           onChange={() => handleToggleActive(key)}
                           className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
                           title={
@@ -431,25 +452,58 @@ export function PromptStructuresManager({
                               </div>
                             </div>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => togglePrompts(key)}
+                            aria-expanded={promptsShown}
+                            className="mt-2 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                          >
+                            {promptsShown
+                              ? t('project.prompts.hidePrompts')
+                              : t('project.prompts.showPrompts')}
+                          </button>
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-start gap-2">
-                        <button
-                          onClick={() => openEditModal(key, structure)}
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                          title={t('projects.promptStructures.editTooltip')}
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeletingKey(key)}
-                          className="flex h-9 w-9 items-center justify-center rounded-md border border-red-300 bg-white text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-zinc-800 dark:text-red-400 dark:hover:bg-red-950"
-                          title={t('projects.promptStructures.deleteTooltip')}
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
+                      {!readOnly && (
+                        <div className="flex shrink-0 items-start gap-2">
+                          <button
+                            onClick={() => openEditModal(key, structure)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                            title={t('projects.promptStructures.editTooltip')}
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingKey(key)}
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-red-300 bg-white text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-zinc-800 dark:text-red-400 dark:hover:bg-red-950"
+                            title={t('projects.promptStructures.deleteTooltip')}
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
+                    {promptsShown && (
+                      <div
+                        className="space-y-3 border-t border-zinc-200 p-4 dark:border-zinc-700"
+                        data-testid={`prompt-structure-texts-${key}`}
+                      >
+                        <PromptText
+                          label={t('generation.prompts.system')}
+                          value={structure.system_prompt}
+                        />
+                        <PromptText
+                          label={t('generation.prompts.instruction')}
+                          value={structure.instruction_prompt}
+                        />
+                        {structure.evaluation_prompt ? (
+                          <PromptText
+                            label={t('project.prompts.evaluation.prompt')}
+                            value={structure.evaluation_prompt}
+                          />
+                        ) : null}
+                      </div>
+                    )}
                   </Card>
                 )
               })}

@@ -58,6 +58,7 @@ _PRIMARY_PREFERENCE = [
     "llm_judge_rubric",
     "llm_judge_custom",
     "korrektur_custom",
+    "korrektur_feedback",
     "llm_judge_lexam",
     "llm_judge_classic",
     "accuracy",
@@ -78,6 +79,8 @@ _METRIC_NAMES = {
     "korrektur_falloesung": "Korrektur (Standard Falllösung)",
     "llm_judge_custom": "Custom LLM Judge",
     "korrektur_custom": "Korrektur (Custom Rubric)",
+    # French exam types: value = note / 20 (0-1 scale, never Notenpunkte).
+    "korrektur_feedback": "Korrektur (Barème /20)",
     "korrektur_classic": "Korrektur (Classic)",
     "llm_judge_rubric": "LLM Custom Rubric",
     "llm_judge_lexam": "LEXam Judge (DE)",

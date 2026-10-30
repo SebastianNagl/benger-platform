@@ -27,6 +27,7 @@ from services.generation_planning import (
     implicit_structure_keys as _implicit_structure_keys,
     plan_generation_cells,
     resolve_cell as _resolve_cell,
+    NoPromptStructures,
     run_structure_keys,
     StructureKeysRequired,
 )
@@ -670,13 +671,8 @@ async def start_generation(
     # (422), so an omitted field can't silently generate every structure.
     try:
         structure_keys = run_structure_keys(generation_config, request.structure_keys)
-    except StructureKeysRequired as e:
+    except (StructureKeysRequired, NoPromptStructures) as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-    if structure_keys == [None]:
-        logger.info(
-            f"No prompt structures configured for project {project_id}, "
-            "using default generation without structure_key"
-        )
 
     # Update parameters in generation_config if provided
     config_updated = False
@@ -725,6 +721,14 @@ async def start_generation(
     if not model_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No models configured for generation"
+        )
+
+    # A blank id (a script's empty variable) would queue jobs that can only
+    # fail in the worker.
+    if any(not isinstance(m, str) or not m.strip() for m in model_ids):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="model_ids must not contain empty ids",
         )
 
     # BYOM guard: custom ("custom-...") model ids must exist, be active, and

@@ -150,7 +150,9 @@ class TestExtensionLoader:
         # 2.42 moves the flag engine to the platform and adds the runtime
         # master flags extension.<id> with HOOK_GATING / UNGATED_ROUTES.
         # 2.43 moves margin notes to the overlay (get_judge_notes).
-        assert CORE_API_VERSION == "2.43"
+        # 2.44 adds the korrektur_feedback human metric (migration 122).
+        # 2.45 opens the full API to access keys (key_routes, key gate).
+        assert CORE_API_VERSION == "2.45"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

@@ -639,11 +639,41 @@ whenever one is added, renamed or removed):
   ``finalize``) and writes ``annotations`` only with one; the platform no
   longer ships ``ml_evaluation/margin_notes.py`` nor registers the
   ``margin_notes`` flag (the overlay does, the row keeps its state).
+
+2.44 (2026-10-30): ``korrektur_feedback``, the human Korrektur of the
+  French exam types on the barème /20, is a human-graded metric:
+  ``HUMAN_GRADED_METRICS`` lists it (so ``get_or_create_human_eval_run``
+  accepts it and the results read endpoints accept its runs) and migration
+  122 adds its partial unique index
+  ``uq_human_eval_run_per_project_metric_feedback``. Its note /20 lives in
+  ``details.grade`` (never ``grade_points``), so the Notenschlüssel
+  recompute leaves it alone; ``report_snapshot`` names it.
+
+2.45 (2026-10-30): access keys on the full API. Besides ``/api/v1``, every
+  route now accepts access keys through its rule in
+  ``services/api/app/core/key_routes.py`` (``KeyRule``: pattern, methods,
+  scopes or never, ``neutral``, ``bind``), checked by
+  ``middleware/key_gate.py``; the auth dependencies read the gate's user
+  from ``request.state.key_gate_user``. Platform routes without a rule fail
+  startup (``assert_key_routes_covered``). Overlays declare rules for their
+  own routes with the optional package attribute ``get_key_route_rules()``
+  (``KeyRule`` objects or dicts ``{pattern, scopes, methods?, neutral?,
+  bind?}``) and may map extra path parameters to project resolvers with
+  ``get_key_project_params()`` (``{param: kind}``, for its own routes only, kinds ``project``,
+  ``task``, ``annotation``, ``evaluation_run``, ``response_generation``,
+  ``report``, or one added via ``middleware.key_gate.
+  register_project_resolver``); routes of an overlay without rules stay
+  closed to keys. New scopes ``account:read/write``, ``org:manage``,
+  ``projects:write``, ``tasks:write``, ``annotations:read/write``,
+  ``models:read/manage``, ``files:read/write``, ``admin:platform`` (grantable
+  values ``org_admin_role``, ``superadmin``); organization keys may carry
+  the role ORG_ADMIN; a key keeps its owner's superadmin rights only with
+  ``admin:platform``. ``GET /api/v1/reference`` documents the full API.
 """
 
 import os
 
-CORE_API_VERSION = "2.43"
+CORE_API_VERSION = "2.45"
 
 
 def extended_required() -> bool:

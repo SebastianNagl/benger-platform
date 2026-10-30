@@ -252,6 +252,8 @@ describe('ProjectDetailPage — participant tier', () => {
     ).toBeTruthy()
     // No settings / sharing for participants; quick actions reduced.
     expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
+    // Prompts card (judge + generation prompts) stays editor-only too.
+    expect(screen.queryByText('project.prompts.title')).not.toBeInTheDocument()
     expect(screen.queryByTestId('sharing-stub')).not.toBeInTheDocument()
     expect(
       screen.queryByText('project.quickActions.projectData'),

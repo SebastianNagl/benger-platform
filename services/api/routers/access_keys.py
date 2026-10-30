@@ -3,15 +3,18 @@
 * Organization keys: ``/api/organizations/{org_id}/access-keys``. Org admins
   manage every key of the org; group admins manage the keys of the groups
   they administer (``auth_module.org_scope``). An org key acts as its own
-  service-account user with role ANNOTATOR or CONTRIBUTOR.
+  service-account user with role ANNOTATOR, CONTRIBUTOR or (org-wide keys
+  of an org-wide admin, core 2.45) ORG_ADMIN.
 * Personal keys: ``/api/users/me/access-keys``. They act as their owner.
 * Superadmin: ``/api/admin/access-keys`` (list across orgs, revoke, CSV
   export of usage).
 * ``/api/access-keys/scopes``: scope definitions and presets for the UI.
 
-These routes are browser routes: an access key itself cannot call them
-(keys authenticate on ``/api/v1`` only). The full key is returned once, in
-the create response; lists only show ``key_prefix``.
+An access key may call these routes with the ``keys:manage`` scope
+(personal keys only, ``app/core/key_routes.py``). It never grants more
+than it holds, and a key limited to projects or a group cannot create
+keys. The full key is returned once, in the create response; lists only
+show ``key_prefix``.
 """
 
 from __future__ import annotations
@@ -23,13 +26,14 @@ import logging
 from datetime import datetime, timezone
 from typing import AsyncIterator, Iterable, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.scopes import GrantContext, scope_catalog, validate_scopes_for_grant
 from auth_module import User, require_superadmin, require_user
+from auth_module.principal import get_principal
 from auth_module.org_scope import require_scope_admin
 from database import get_async_db
 from models import ApiKey, ApiKeyUsageEvent
@@ -141,6 +145,21 @@ async def _check_personal_projects(
             "unknown_project",
             f"Projects not accessible: {', '.join(missing)}",
         )
+
+
+def _grant_context(request: Request, **kw) -> GrantContext:
+    """Who grants: a browser session, or an access key (``keys:manage``),
+    which never grants more than it holds and must not be project-bound."""
+    principal = get_principal(request)
+    if principal is None or not principal.is_api_key:
+        return GrantContext(**kw)
+    if principal.project_ids is not None or principal.group_id is not None:
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "key_project_restricted",
+            "A key limited to projects or a group cannot create keys",
+        )
+    return GrantContext(creator_scopes=principal.scopes, **kw)
 
 
 def _parse_window(frm: Optional[datetime], to: Optional[datetime]):
@@ -300,6 +319,7 @@ async def list_org_keys(
 async def create_org_key(
     org_id: str,
     payload: OrgAccessKeyCreate,
+    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -316,8 +336,14 @@ async def create_org_key(
             "role_exceeds_creator",
             "You cannot create a key with a higher role than your own",
         )
+    if payload.org_role == "ORG_ADMIN" and (payload.group_id or not scope.org_wide):
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "role_exceeds_creator",
+            "Only an organization admin can create an org-wide ORG_ADMIN key",
+        )
     scopes = validate_scopes_for_grant(
-        GrantContext(is_superadmin=scope.is_superadmin, is_org_admin=scope.org_wide),
+        _grant_context(request, is_superadmin=scope.is_superadmin, is_org_admin=scope.org_wide),
         "org",
         payload.org_role,
         payload.scopes,
@@ -451,10 +477,16 @@ async def list_my_keys(
 @router.post(ME_BASE, response_model=AccessKeyCreated, status_code=status.HTTP_201_CREATED)
 async def create_my_key(
     payload: AccessKeyCreate,
+    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    scopes = validate_scopes_for_grant(GrantContext(), "user", None, payload.scopes)
+    scopes = validate_scopes_for_grant(
+        _grant_context(request, is_superadmin=bool(current_user.is_superadmin)),
+        "user",
+        None,
+        payload.scopes,
+    )
     await _check_personal_projects(db, current_user, payload.project_ids)
     active = await _count_active(
         db, ApiKey.owner_type == "user", ApiKey.user_id == current_user.id

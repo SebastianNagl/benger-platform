@@ -5,6 +5,7 @@ import { Card } from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient, getApiUrl } from '@/lib/api/client'
+import { apiErrorMessage } from '@/lib/api/errors'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { logger } from '@/lib/utils/logger'
 import {
@@ -346,7 +347,7 @@ export function GenerationProgress({
       }))
     } catch (error: any) {
       addToast(
-        error.response?.data?.detail || t('generation.errors.stopFailed'),
+        apiErrorMessage(error, t('generation.errors.stopFailed')),
         'error',
       )
     }
@@ -367,7 +368,7 @@ export function GenerationProgress({
       }))
     } catch (error: any) {
       addToast(
-        error.response?.data?.detail || t('generation.errors.pauseFailed'),
+        apiErrorMessage(error, t('generation.errors.pauseFailed')),
         'error',
       )
     }
@@ -388,7 +389,7 @@ export function GenerationProgress({
       }))
     } catch (error: any) {
       addToast(
-        error.response?.data?.detail || t('generation.errors.resumeFailed'),
+        apiErrorMessage(error, t('generation.errors.resumeFailed')),
         'error',
       )
     }
@@ -410,7 +411,7 @@ export function GenerationProgress({
       }))
     } catch (error: any) {
       addToast(
-        error.response?.data?.detail || t('generation.errors.retryFailed'),
+        apiErrorMessage(error, t('generation.errors.retryFailed')),
         'error',
       )
     }

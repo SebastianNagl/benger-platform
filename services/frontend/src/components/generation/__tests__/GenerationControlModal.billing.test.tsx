@@ -54,6 +54,17 @@ jest.mock('@/hooks/useBillingOrganization', () => ({
 
 import { apiClient } from '@/lib/api/client'
 
+// Every generation runs on a prompt structure; with exactly one the modal
+// pre-selects it.
+const STRUCTURED_PROJECT = {
+  id: 'p-structured',
+  generation_config: {
+    prompt_structures: {
+      s0: { name: 'Default', system_prompt: 'S', instruction_prompt: '$text' },
+    },
+  },
+} as any
+
 async function startRun() {
   const user = userEvent.setup()
   ;(apiClient.post as jest.Mock).mockResolvedValue({
@@ -63,6 +74,7 @@ async function startRun() {
   })
   render(
     <GenerationControlModal
+      project={STRUCTURED_PROJECT}
       isOpen={true}
       projectId="project-1"
       onClose={jest.fn()}

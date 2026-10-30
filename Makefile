@@ -693,7 +693,7 @@ generate-api-docs: ## Generate API documentation
 generate-public-api-docs: ## Regenerate the public API spec snapshot and scope table
 	@echo "$(BLUE)📚 Generating public API docs...$(NC)"
 	@cd $(API_DIR) && python scripts/export_public_api_docs.py
-	@echo "$(GREEN)✅ docs/api-docs/openapi-v1.json and docs/public-api-scopes.md updated$(NC)"
+	@echo "$(GREEN)✅ docs/api-docs/openapi-v1.json, docs/public-api-scopes.md and docs/full-api-routes.md updated$(NC)"
 
 .PHONY: analyze-bundle
 analyze-bundle: ## Analyze frontend bundle size

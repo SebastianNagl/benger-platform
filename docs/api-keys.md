@@ -1,8 +1,10 @@
 # API keys
 
-Access keys let scripts and other systems call the public API under
-`/api/v1` without a browser session. This page describes the model behind
-them. The endpoints themselves are documented in [Public API](public-api.md).
+Access keys let scripts and other systems call BenGER without a browser
+session: the versioned public API under `/api/v1` and, since core 2.45,
+every other route of the app that a rule opens for keys (the "full API").
+This page describes the model behind them. The endpoints are documented in
+[Public API](public-api.md) (`/api/v1`) and [Full API](full-api.md).
 
 ## Key format
 
@@ -34,28 +36,32 @@ cookie or a query string, and WebSocket connections refuse them.
 
 An organisation key gets a **service account**: a user record that exists
 only so the key passes the normal permission checks. It holds an
-organisation membership with the key's role (ANNOTATOR or CONTRIBUTOR,
-never admin) and, for a group key, a membership in that group. Service
+organisation membership with the key's role (ANNOTATOR, CONTRIBUTOR or
+ORG_ADMIN) and, for a group key, a membership in that group. Only an
+org-wide admin (or a superadmin) can create an ORG_ADMIN key, and such a key
+is always org-wide: a group key never carries ORG_ADMIN. Service
 accounts cannot sign in, reset a password or receive notifications, use the
 reserved username prefix `svc-`, and do not appear in member lists, member
 counts or user lists (superadmins can include them in `GET /api/users` with
 `include_service_accounts=true`). Revoking the key deactivates the service
 account and ends its memberships.
 
-A key never carries superadmin rights, even when a superadmin created it
-for themselves.
+A key carries its owner's superadmin rights only when it holds the scope
+`admin:platform`, which only a superadmin can grant, and only to a personal
+key. Any other key of a superadmin acts like a key of a plain user.
 
 ## Managing keys in the web UI
 
 * **Organisation keys**: *Users & organizations* → organisation →
-  **API access** (org admins, and group admins for their groups).
+  **More** → **API access** (org admins, and group admins for their groups).
 * **Personal keys**: the **API access** section at the end of the profile
   page.
 * **All keys** (superadmins): `/admin/access-keys`, with filters by
   organisation, owner type and status, revocation and the usage CSV.
 
 Creating a key starts from a preset (`benchmark_read`, `benchmark_submit`,
-`org_full`); *Advanced* lists every scope the caller may grant. The full key
+`org_full`, `full_access`); *Advanced* lists every scope the caller may
+grant. The full key
 is shown once, together with `curl` and Python snippets and a **Test
 connection** button that calls `GET /api/v1/me` with the new key. **Renew**
 creates a key with the same settings; the old key keeps working until it is
@@ -73,8 +79,11 @@ scope check.
 
 ## Scopes
 
-A key only reaches the `/api/v1` routes its scopes cover. Some scopes imply
-others (`submissions:write` implies `submissions:read`).
+A key only reaches the routes its scopes cover: on `/api/v1` the routes
+declare their scopes, everywhere else the rule table in
+`services/api/app/core/key_routes.py` does (generated overview:
+[full-api-routes.md](full-api-routes.md)). Some scopes imply others
+(`projects:write` implies `projects:read`).
 
 | Scope | Allows |
 |---|---|
@@ -88,23 +97,50 @@ others (`submissions:write` implies `submissions:read`).
 | `evaluations:read`, `evaluations:run` | reading and starting evaluations |
 | `results:read` | reading results |
 | `exports:read` | downloading exports |
-| `keys:manage` | managing the owner's own keys (personal keys only) |
+| `keys:manage` | managing access keys through the API (personal keys only; a key never grants more than it holds, and a project- or group-limited key cannot create keys) |
+| `account:read`, `account:write` | the own account, notifications and settings; joining projects through a share link |
+| `org:manage` | members, groups, invitations, storage connections and settings of the organisation (implies `org:read`; personal keys and ORG_ADMIN organisation keys) |
+| `projects:write` | creating, configuring, sharing, importing into, archiving and deleting projects |
+| `tasks:write` | creating, editing, assigning and deleting tasks, rubrics |
+| `annotations:read`, `annotations:write` | annotations, drafts, reviews, human evaluation and grading |
+| `models:read`, `models:manage` | the model catalog, own models (BYOM) and provider keys |
+| `files:read`, `files:write` | uploaded files and object storage uploads |
+| `admin:platform` | superadmin routes (personal keys of superadmins only) |
+
+On the full API the scopes `runs:*` cover generation, `evaluations:*`
+evaluation configuration and runs, `results:read` results, statistics,
+reports and leaderboards. Routes that return task content need
+`tasks:read_reference` there, because the full API does not blind
+reference solutions the way `/api/v1` does.
 
 Overlays can add scopes of their own. `GET /api/access-keys/scopes` lists
-all scopes with German and English descriptions plus the presets
-`benchmark_read`, `benchmark_submit` and `org_full`.
+all scopes with German, English and French descriptions plus the presets
+`benchmark_read`, `benchmark_submit`, `org_full` and `full_access`.
 
 A key can additionally be limited to a list of projects. A group key only
 sees projects attached to its group, and no key sees a project that
 requires the Safe Exam Browser. For a key, every project it may not see
-answers 404.
+answers 404. On the full API a key limited to projects or a group can only
+call routes that name their project (in the path, or in the query or body
+field the rule binds); routes that name no project and are not
+account-level answer `403 key_project_restricted`.
 
 ## Deny by default
 
-Keys authenticate only on `/api/v1/...` and the health probes. Any other
-path answers `401` with the code `api_key_not_allowed_here`, so a key can
-never use the browser API. Every `/api/v1` route must declare its scopes;
-the API refuses to start when one does not.
+Every `/api/v1` route must declare its scopes, and every other route must
+have a rule in `app/core/key_routes.py`; the API refuses to start when one
+does not. A rule can keep keys out entirely (`never`): sign-in, tokens,
+passwords, sign-up, e-mail verification, the profile update (it changes the
+e-mail address), accepting invitations, LTI launches, the Safe Exam Browser
+configuration, billing, test seeding and diagnostics. Such a route answers
+`401` with the code `api_key_not_allowed_here`. Overlay routes without a
+rule stay closed to keys as well.
+
+On the full API the key is checked by one middleware
+(`middleware/key_gate.py`) before any handler runs: route rule, key, the
+`public_api` feature gate, scopes, the projects the request names and the
+rate limit. The handler's own checks (project roles, organisation admin)
+then run for the key's user as they would for a browser session.
 
 A missing scope answers `403 insufficient_scope` with
 `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."`.
@@ -118,7 +154,8 @@ exhausted budget answers `429` with `Retry-After`.
 
 ## Usage log and retention
 
-Every `/api/v1` request made with a key is recorded: key, method, route
+Every request made with a key (on `/api/v1` and on the full API) is
+recorded: key, method, route
 template (never the concrete path), project, status, duration, scope, a
 shortened client IP (`API_USAGE_IP_MODE`), user agent and byte counts. No
 request or response body is stored. Admins see per-key summaries and

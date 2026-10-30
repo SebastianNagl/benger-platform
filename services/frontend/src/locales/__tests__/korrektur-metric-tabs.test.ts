@@ -13,6 +13,7 @@ const KORREKTUR_METRICS = [
   'korrektur_classic',
   'korrektur_falloesung',
   'korrektur_custom',
+  'korrektur_feedback',
 ] as const
 
 const TABS = {
@@ -38,5 +39,7 @@ describe('Korrektur metric tab labels', () => {
     expect(TABS.en.korrektur_custom).toBe('Grades (grading sheet)')
     expect(TABS.de.korrektur_falloesung).toMatch(/^Bewertungen \(/)
     expect(TABS.en.korrektur_falloesung).toMatch(/^Grades \(/)
+    expect(TABS.de.korrektur_feedback).toMatch(/^Bewertungen \(/)
+    expect(TABS.en.korrektur_feedback).toMatch(/^Grades \(/)
   })
 })

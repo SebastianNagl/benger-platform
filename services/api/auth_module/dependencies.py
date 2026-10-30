@@ -50,17 +50,58 @@ def _set_principal(request, principal) -> None:
         pass
 
 
-def _authenticate_api_key(request, db: Session, plain: str) -> User:
-    """Resolve an access key to its user. Keys never carry superadmin
-    powers, whatever the owner's flag says."""
-    from services.api_key_service import authenticate_api_key_sync
+#: Scope that lets a superadmin's personal key keep superadmin rights.
+SUPERADMIN_SCOPE = "admin:platform"
 
-    auth = authenticate_api_key_sync(db, plain, path=_request_path(request))
-    _set_principal(request, auth.principal)
-    user = db_user_to_user(auth.user)
-    if user.is_superadmin:
+
+def key_keeps_superadmin(principal) -> bool:
+    """A key acts as superadmin only with ``admin:platform`` (grantable to
+    superadmins' personal keys alone); the owner's flag is not enough."""
+    from app.core.scopes import scopes_satisfied
+
+    return principal is not None and scopes_satisfied(principal.scopes, (SUPERADMIN_SCOPE,))
+
+
+def _key_user(user: User, principal) -> User:
+    if user.is_superadmin and not key_keeps_superadmin(principal):
         user = user.model_copy(update={"is_superadmin": False})
     return user
+
+
+def _gate_user(request) -> Optional[User]:
+    state = getattr(request, "state", None)
+    user = getattr(state, "key_gate_user", None) if state is not None else None
+    return user if isinstance(user, User) else None
+
+
+def _authenticate_api_key(request, db: Session, plain: str) -> User:
+    """Resolve an access key to its user.
+
+    On ``/api/v1`` the key is checked here (the routes check scopes
+    themselves). Everywhere else ``middleware/key_gate.py`` already checked
+    the key, the route's rule, the scopes and the projects, and left the
+    user on ``request.state.key_gate_user``; without that the route is
+    closed to keys."""
+    path = _request_path(request)
+    if not _is_v1_path(path):
+        user = _gate_user(request)
+        principal = get_principal(request)
+        if user is None or principal is None or not principal.is_api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": "api_key_not_allowed_here",
+                    "message": "Access keys cannot be used on this endpoint",
+                },
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+            )
+        return _key_user(user, principal)
+
+    from services.api_key_service import authenticate_api_key_sync
+
+    auth = authenticate_api_key_sync(db, plain, path=path)
+    _set_principal(request, auth.principal)
+    return _key_user(db_user_to_user(auth.user), auth.principal)
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
@@ -73,8 +114,8 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
     ``require_user``).
 
     An access key (``Authorization: Bearer bgr_...``) is checked first; a
-    present but invalid key, or a key on a non-v1 path, raises 401 instead
-    of degrading to anonymous.
+    present but invalid key, or a key on a route closed to keys, raises 401
+    instead of degrading to anonymous.
     """
     api_key = extract_api_key(request)
     if api_key is not None:
@@ -102,8 +143,8 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     """
     Require authenticated user (raises 401 if not authenticated)
 
-    Accepts an access key (``Authorization: Bearer bgr_...``, checked first,
-    ``/api/v1`` only) or a session JWT (cookie first; header first on
+    Accepts an access key (``Authorization: Bearer bgr_...``, checked first;
+    outside ``/api/v1`` by ``middleware/key_gate.py``) or a session JWT (cookie first; header first on
     ``/api/v1``). Stores the caller's ``Principal`` on
     ``request.state.principal``.
     """
@@ -165,11 +206,11 @@ def require_superadmin(
     current_user: User = Depends(require_user), request: Request = None
 ) -> User:
     """
-    Require superadmin user (raises 403 if not superadmin). Access keys never
-    pass, even a superadmin's personal key.
+    Require superadmin user (raises 403 if not superadmin). An access key
+    passes only with the ``admin:platform`` scope.
     """
     principal = get_principal(request) if request is not None else None
-    if principal is not None and principal.is_api_key:
+    if principal is not None and principal.is_api_key and not key_keeps_superadmin(principal):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required"
         )

@@ -3,6 +3,17 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { GenerationControlModal } from '../GenerationControlModal'
 
+// Every generation runs on a prompt structure; with exactly one the modal
+// pre-selects it.
+const STRUCTURED_PROJECT = {
+  id: 'p-structured',
+  generation_config: {
+    prompt_structures: {
+      s0: { name: 'Default', system_prompt: 'S', instruction_prompt: '$text' },
+    },
+  },
+} as any
+
 // Mock useModels hook.
 // IMPORTANT: the default implementation must return a REFERENTIALLY STABLE
 // object. The modal's BYOM pruning effect is keyed on the `models` array; a
@@ -126,6 +137,7 @@ describe('GenerationControlModal', () => {
   it('renders when open', () => {
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -140,6 +152,7 @@ describe('GenerationControlModal', () => {
   it('does not render when closed', () => {
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={false}
         onClose={mockOnClose}
         models={mockModels}
@@ -153,6 +166,7 @@ describe('GenerationControlModal', () => {
   it('displays all model options', () => {
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -169,6 +183,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -186,6 +201,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -193,7 +209,7 @@ describe('GenerationControlModal', () => {
       />,
     )
 
-    const selectAllButton = screen.getByText('Select All')
+    const selectAllButton = screen.getAllByText('Select All')[0]
     await user.click(selectAllButton)
 
     mockModels.forEach((model) => {
@@ -205,6 +221,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -213,11 +230,11 @@ describe('GenerationControlModal', () => {
     )
 
     // First select all
-    const selectAllButton = screen.getByText('Select All')
+    const selectAllButton = screen.getAllByText('Select All')[0]
     await user.click(selectAllButton)
 
     // Then clear all
-    const clearAllButton = screen.getByText('Clear All')
+    const clearAllButton = screen.getAllByText('Clear All')[0]
     await user.click(clearAllButton)
 
     mockModels.forEach((model) => {
@@ -229,6 +246,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -252,6 +270,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -273,13 +292,14 @@ describe('GenerationControlModal', () => {
     expect(mockOnGenerate).toHaveBeenCalledWith(
       [mockModels[0], mockModels[1]],
       false, // generate_missing_only = false
-      undefined, // no structures for this project
+      ['s0'], // the project's single structure, pre-selected
     )
   })
 
   it('disables start button when no models selected', () => {
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -295,6 +315,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -314,6 +335,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -331,6 +353,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -351,6 +374,7 @@ describe('GenerationControlModal', () => {
     const user = userEvent.setup()
     const { rerender } = render(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -365,6 +389,7 @@ describe('GenerationControlModal', () => {
     // Close modal
     rerender(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={false}
         onClose={mockOnClose}
         models={mockModels}
@@ -375,6 +400,7 @@ describe('GenerationControlModal', () => {
     // Reopen modal
     rerender(
       <GenerationControlModal
+        project={STRUCTURED_PROJECT}
         isOpen={true}
         onClose={mockOnClose}
         models={mockModels}
@@ -700,6 +726,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -725,6 +752,7 @@ describe('GenerationControlModal', () => {
               max_tokens: 4000,
               seed: 42,
             },
+            structure_keys: ['s0'],
           },
         )
       })
@@ -763,10 +791,11 @@ describe('GenerationControlModal', () => {
       })
 
       await user.click(screen.getByLabelText(mockModels[0]))
+      // The project's only structure starts ticked.
       const struct1 = document.getElementById(
         'structure-struct1',
       ) as HTMLInputElement
-      await user.click(struct1)
+      expect(struct1).toBeChecked()
 
       const startButton = screen.getByText('Start Generation')
       await user.click(startButton)
@@ -803,6 +832,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -835,6 +865,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -868,6 +899,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -900,6 +932,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -930,6 +963,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -951,6 +985,7 @@ describe('GenerationControlModal', () => {
     it('displays close button in header', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -966,6 +1001,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -982,6 +1018,7 @@ describe('GenerationControlModal', () => {
     it('displays generation mode descriptions', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1001,6 +1038,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1014,7 +1052,9 @@ describe('GenerationControlModal', () => {
       expect(
         screen.getByText('Total Generations Per Task:'),
       ).toBeInTheDocument()
-      expect(screen.getByText(/2 models = 2 generations/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/2 models × 1 structure = 2 generations/),
+      ).toBeInTheDocument()
     })
   })
 
@@ -1024,6 +1064,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1040,6 +1081,7 @@ describe('GenerationControlModal', () => {
     it('defaults to missing mode', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1055,6 +1097,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1079,6 +1122,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -1104,6 +1148,7 @@ describe('GenerationControlModal', () => {
               max_tokens: 4000,
               seed: 42,
             },
+            structure_keys: ['s0'],
           },
         )
       })
@@ -1114,6 +1159,7 @@ describe('GenerationControlModal', () => {
     it('handles empty models array', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={[]}
@@ -1201,6 +1247,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       const { rerender } = render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1213,6 +1260,7 @@ describe('GenerationControlModal', () => {
 
       rerender(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={false}
           onClose={mockOnClose}
           models={mockModels}
@@ -1222,6 +1270,7 @@ describe('GenerationControlModal', () => {
 
       rerender(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1245,6 +1294,7 @@ describe('GenerationControlModal', () => {
 
       const { rerender } = render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -1260,6 +1310,7 @@ describe('GenerationControlModal', () => {
 
       rerender(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={false}
           projectId="project-1"
           onClose={mockOnClose}
@@ -1270,6 +1321,7 @@ describe('GenerationControlModal', () => {
 
       rerender(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -1288,6 +1340,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1307,6 +1360,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1314,7 +1368,7 @@ describe('GenerationControlModal', () => {
         />,
       )
 
-      await user.click(screen.getByText('Select All'))
+      await user.click(screen.getAllByText('Select All')[0])
       expect(screen.getByText('3 models selected')).toBeInTheDocument()
 
       const firstCheckbox = screen.getByLabelText(mockModels[0])
@@ -1391,6 +1445,7 @@ describe('GenerationControlModal', () => {
     it('applies correct dialog panel styling', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1407,6 +1462,7 @@ describe('GenerationControlModal', () => {
     it('applies correct overlay styling', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1425,6 +1481,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1443,6 +1500,7 @@ describe('GenerationControlModal', () => {
     it('applies disabled styling to start button when disabled', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1458,6 +1516,7 @@ describe('GenerationControlModal', () => {
     it('applies correct styling to cancel button', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1476,6 +1535,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1503,6 +1563,7 @@ describe('GenerationControlModal', () => {
     it('radio buttons have correct IDs', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1519,6 +1580,7 @@ describe('GenerationControlModal', () => {
     it('model checkboxes have correct IDs', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1560,6 +1622,7 @@ describe('GenerationControlModal', () => {
     it('renders transition components', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1573,10 +1636,11 @@ describe('GenerationControlModal', () => {
   })
 
   describe('Generation Count Calculation', () => {
-    it('calculates total for single model and no structures', async () => {
+    it('calculates total for single model and the pre-selected structure', async () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1586,13 +1650,16 @@ describe('GenerationControlModal', () => {
 
       await user.click(screen.getByLabelText(mockModels[0]))
 
-      expect(screen.getByText(/1 model = 1 generation/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/1 model × 1 structure = 1 generation/),
+      ).toBeInTheDocument()
     })
 
-    it('calculates total for multiple models and no structures', async () => {
+    it('calculates total for multiple models and the pre-selected structure', async () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1604,7 +1671,9 @@ describe('GenerationControlModal', () => {
       await user.click(screen.getByLabelText(mockModels[1]))
       await user.click(screen.getByLabelText(mockModels[2]))
 
-      expect(screen.getByText(/3 models = 3 generations/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/3 models × 1 structure = 3 generations/),
+      ).toBeInTheDocument()
     })
 
     it('calculates total for one model and one structure', async () => {
@@ -1635,7 +1704,7 @@ describe('GenerationControlModal', () => {
       const struct1 = document.getElementById(
         'structure-struct1',
       ) as HTMLInputElement
-      await user.click(struct1)
+      expect(struct1).toBeChecked() // the only structure is pre-selected
 
       expect(
         screen.getByText(/1 model × 1 structure = 1 generation/),
@@ -1652,6 +1721,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1669,6 +1739,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1686,6 +1757,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={mockModels}
@@ -1716,6 +1788,7 @@ describe('GenerationControlModal', () => {
 
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           projectId="project-1"
           onClose={mockOnClose}
@@ -1804,6 +1877,7 @@ describe('GenerationControlModal', () => {
     it('splits the picker into Official and Custom sections', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={byomModelIds}
@@ -1821,6 +1895,7 @@ describe('GenerationControlModal', () => {
     it('renders no section headers when there are no custom models', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={['openai-gpt-4']}
@@ -1835,6 +1910,7 @@ describe('GenerationControlModal', () => {
     it('disables credential-less custom models and links to /models', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={byomModelIds}
@@ -1855,6 +1931,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={byomModelIds}
@@ -1874,6 +1951,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={byomModelIds}
@@ -1881,7 +1959,7 @@ describe('GenerationControlModal', () => {
         />,
       )
 
-      await user.click(screen.getByText('Select All'))
+      await user.click(screen.getAllByText('Select All')[0])
 
       expect(
         document.getElementById('model-openai-gpt-4') as HTMLInputElement,
@@ -1968,6 +2046,7 @@ describe('GenerationControlModal', () => {
     it('does not pre-select saved models that are missing a credential', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={gatingIds}
@@ -1994,6 +2073,7 @@ describe('GenerationControlModal', () => {
 
       const { rerender } = render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={gatingIds}
@@ -2014,6 +2094,7 @@ describe('GenerationControlModal', () => {
       })
       rerender(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={gatingIds}
@@ -2033,6 +2114,7 @@ describe('GenerationControlModal', () => {
       const user = userEvent.setup()
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={gatingIds}
@@ -2041,7 +2123,8 @@ describe('GenerationControlModal', () => {
         />,
       )
 
-      // No structures on this project → models alone enable the button.
+      // The project's single structure is pre-selected, so the models
+      // alone enable the button.
       const startButton = screen.getByText('Start Generation')
       expect(startButton).not.toBeDisabled()
       await user.click(startButton)
@@ -2049,13 +2132,14 @@ describe('GenerationControlModal', () => {
       expect(mockOnGenerate).toHaveBeenCalledWith(
         ['gpt-4o-mini', 'custom-haskey'],
         true, // default mode stays 'missing'
-        undefined,
+        ['s0'],
       )
     })
 
     it('shows the amber configure-key hint linking to /models', () => {
       render(
         <GenerationControlModal
+          project={STRUCTURED_PROJECT}
           isOpen={true}
           onClose={mockOnClose}
           models={gatingIds}

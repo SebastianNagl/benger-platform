@@ -660,9 +660,7 @@ describe('PromptStructuresManager', () => {
         .closest('[class*="p-4"]')
       expect(legalAnalysisCard).toBeInTheDocument()
 
-      const editButtons = within(legalAnalysisCard!).getAllByRole('button')
-      // First button should be the edit button (pencil icon)
-      await userEvent.click(editButtons[0])
+      await userEvent.click(within(legalAnalysisCard!).getByTitle('Edit'))
 
       await waitFor(() => {
         expect(screen.getByText('Edit Prompt Structure')).toBeInTheDocument()
@@ -702,8 +700,7 @@ describe('PromptStructuresManager', () => {
       const legalAnalysisCard = screen
         .getByText('Legal Analysis')
         .closest('[class*="p-4"]')
-      const editButtons = within(legalAnalysisCard!).getAllByRole('button')
-      await userEvent.click(editButtons[0])
+      await userEvent.click(within(legalAnalysisCard!).getByTitle('Edit'))
 
       await waitFor(() => {
         expect(screen.getByText('Edit Prompt Structure')).toBeInTheDocument()
@@ -753,9 +750,7 @@ describe('PromptStructuresManager', () => {
         .closest('[class*="p-4"]')
       expect(legalAnalysisCard).toBeInTheDocument()
 
-      const editButtons = within(legalAnalysisCard!).getAllByRole('button')
-      // First button should be the edit button (pencil icon)
-      await userEvent.click(editButtons[0])
+      await userEvent.click(within(legalAnalysisCard!).getByTitle('Edit'))
 
       await waitFor(() => {
         expect(screen.getByText('Edit Prompt Structure')).toBeInTheDocument()
@@ -1139,6 +1134,105 @@ describe('PromptStructuresManager', () => {
           })
         }
       }
+    })
+  })
+
+  describe('Prompt texts and read-only mode', () => {
+    const openList = async () => {
+      await waitFor(() => {
+        expect(
+          screen.queryByText('Loading prompt structures...'),
+        ).not.toBeInTheDocument()
+      })
+      await userEvent.click(
+        screen.getByRole('button', { name: /Prompt Structures/i }),
+      )
+    }
+
+    it('unfolds the system and instruction prompt of a structure', async () => {
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+
+      expect(
+        screen.queryByTestId('prompt-structure-texts-simple-qa'),
+      ).not.toBeInTheDocument()
+      const card = screen.getByText('Simple Q&A').closest('[class*="p-4"]')!
+      await userEvent.click(
+        within(card as HTMLElement).getByRole('button', {
+          name: 'Show prompts',
+        }),
+      )
+
+      const texts = screen.getByTestId('prompt-structure-texts-simple-qa')
+      expect(
+        within(texts).getByText('You are a helpful assistant'),
+      ).toBeInTheDocument()
+      // Object-shaped prompts render as pretty JSON
+      expect(
+        within(texts).getByText(/"template": "Answer: \{\{question\}\}"/),
+      ).toBeInTheDocument()
+      // No evaluation_prompt on this structure, so no third block
+      expect(
+        within(texts).queryByText('Evaluation prompt'),
+      ).not.toBeInTheDocument()
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Hide prompts' }),
+      )
+      expect(
+        screen.queryByTestId('prompt-structure-texts-simple-qa'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('shows the evaluation prompt of a structure when it has one', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        'legal-analysis': {
+          ...mockStructures['legal-analysis'],
+          evaluation_prompt: 'Grade the answer strictly',
+        },
+      })
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Show prompts' }),
+      )
+
+      const texts = screen.getByTestId('prompt-structure-texts-legal-analysis')
+      expect(within(texts).getByText('Evaluation prompt')).toBeInTheDocument()
+      expect(
+        within(texts).getByText('Grade the answer strictly'),
+      ).toBeInTheDocument()
+    })
+
+    it('hides add, edit, delete and activation for read-only viewers', async () => {
+      render(<PromptStructuresManager projectId={mockProjectId} readOnly />)
+      await openList()
+
+      expect(screen.getByText('Legal Analysis')).toBeInTheDocument()
+      expect(screen.queryByText('Add Structure')).not.toBeInTheDocument()
+      expect(screen.queryByTitle('Edit')).not.toBeInTheDocument()
+      for (const box of screen.getAllByRole('checkbox')) {
+        expect(box).toBeDisabled()
+      }
+      // Prompt texts stay readable
+      expect(
+        screen.getAllByRole('button', { name: 'Show prompts' }),
+      ).toHaveLength(2)
+    })
+
+    it('shows a neutral empty state without a create button when read-only', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({})
+      render(<PromptStructuresManager projectId={mockProjectId} readOnly />)
+      await openList()
+
+      expect(
+        screen.getByText(
+          'No prompt structures are configured for this project.',
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByText('Create First Structure'),
+      ).not.toBeInTheDocument()
     })
   })
 })

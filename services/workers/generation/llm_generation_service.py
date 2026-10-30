@@ -21,26 +21,48 @@ names, and decorator args) remain in ``tasks.py`` and delegate here.
 import re
 
 import tasks
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
-def _placeholder_prompt_inputs(prompt_text: str, task_content: Any) -> Dict[str, Any]:
-    """The task fields a ``{key}``-interpolated prompt (the legacy path without
-    a generation structure) draws on, for the generation record's
-    ``case_data``. Reference fields (``GenerationStructureParser.SENSITIVE_FIELDS``)
-    are never recorded."""
-    if not isinstance(task_content, dict) or not isinstance(prompt_text, str):
-        return {}
-    sensitive = (
-        tasks.GenerationStructureParser.SENSITIVE_FIELDS
-        if getattr(tasks, "HAS_GENERATION_PARSER", False)
-        else set()
-    )
-    return {
-        key: value
-        for key, value in task_content.items()
-        if f"{{{key}}}" in prompt_text and str(key).lower() not in sensitive
-    }
+def _notify_generation_failed(
+    db, project_id: str, user_id: Optional[str], generation_id: str,
+    model_id: str, error: Optional[str],
+) -> None:
+    """Tell the user who started a generation that it failed.
+
+    Called once per parent generation: from the trial that turns it
+    ``failed`` (not from siblings that land on the latched status). ``data``
+    carries the variables of the localized
+    ``notifications.content.llm_generation_failed`` texts (project_name,
+    model_name, error_message); the frontend shows it as an
+    error toast. Never raises.
+    """
+    if not (tasks.HAS_DATABASE and user_id):
+        return
+    try:
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        project_title = project.title if project else str(project_id)
+        message = (error or "").strip() or "unknown error"
+        tasks.NotificationService.create_notification(
+            db=db,
+            user_ids=[user_id],
+            notification_type=tasks.NotificationType.LLM_GENERATION_FAILED,
+            title="Generation Failed",
+            message=f"Generation with {model_id} failed for {project_title}: {message[:200]}",
+            data={
+                "project_id": project_id,
+                "generation_id": generation_id,
+                "model_id": model_id,
+                "error": message,
+                "error_message": message[:300],
+                "project_name": project_title,
+                "model_name": model_id,
+            },
+        )
+    except Exception as notification_error:
+        tasks.logger.warning(f"⚠️ Failed to send failure notification: {notification_error}")
 
 
 def _check_custom_model_access(db, user_id: str, model) -> bool:
@@ -400,19 +422,25 @@ def generate_llm_responses_impl(
                             f"Available structures: {list(prompt_structures.keys())}"
                         )
 
-            # Default prompts (overridden by generation_structure if configured)
-            # Note: DefaultConfigService removed in Issue #759, using hardcoded defaults
-            system_prompt = "Sie sind ein erfahrener Jurist mit Expertise im deutschen Zivilrecht und Arbeitsrecht. Analysieren Sie rechtliche Sachverhalte präzise und fundiert."
-            instruction_prompt_text = "Beantworten Sie die Frage mit 'Ja' oder 'Nein' und geben Sie anschließend eine ausführliche rechtliche Begründung. Format: Antwort: <Ja/Nein> Begründung: <ausführliche Begründung>"
+            # Every generation runs on a prompt structure: there is no built-in
+            # default prompt any more. The hardcoded German legal prompt that
+            # used to stand in for a missing structure (and for a structure's
+            # missing or unparsable prompts) was invisible in the UI, so a run
+            # could generate with a prompt nobody configured. The API refuses
+            # to start a run without a structure; this guards direct dispatches
+            # and retries of legacy structure-less generations.
+            if generation_structure is None:
+                raise Exception(
+                    "No prompt structure for this generation: configure one in "
+                    "the project's Prompts section and start the run with it."
+                )
+            if not tasks.HAS_GENERATION_PARSER:
+                raise Exception("Generation structure parser not available")
+            system_prompt = ""
 
-            # Create instruction_prompts list for iteration (single default prompt)
-            instruction_prompts = [
-                {
-                    "id": "default_instruction",
-                    "prompt_text": instruction_prompt_text,
-                    "prompt_name": "Default Legal Analysis",
-                }
-            ]
+            # One prompt per trial: the structure's (recorded as prompt_id /
+            # prompt_name in the response metadata)
+            instruction_prompts = [{"id": structure_key, "prompt_name": structure_key}]
 
             # Get task data directly from database
             # Issue #762: Use the specific task_id from generation record, not all project tasks
@@ -579,22 +607,16 @@ def generate_llm_responses_impl(
 
             last_request_time = 0
 
-            # Capture prompt templates for provenance
-            # Use the generation_structure (what the user configures) as source of truth
-            if generation_structure:
-                # Extract template string from structure fields
-                # Fields can be either a dict with "template" key or a plain string
-                sys_field = generation_structure.get("system_prompt")
-                instr_field = generation_structure.get("instruction_prompt")
-                _captured_prompt_templates = {
-                    "system_prompt": sys_field.get("template", system_prompt) if isinstance(sys_field, dict) else (sys_field or system_prompt),
-                    "instruction_prompt": instr_field.get("template", instruction_prompt_text) if isinstance(instr_field, dict) else (instr_field or instruction_prompt_text),
-                }
-            else:
-                _captured_prompt_templates = {
-                    "system_prompt": system_prompt,
-                    "instruction_prompt": instruction_prompt_text,
-                }
+            # Capture prompt templates for provenance: the generation_structure
+            # (what the user configures) is the source of truth. Fields are a
+            # dict with a "template" key or a plain string.
+            def _template_of(field: Any) -> Any:
+                return field.get("template", "") if isinstance(field, dict) else (field or "")
+
+            _captured_prompt_templates = {
+                "system_prompt": _template_of(generation_structure.get("system_prompt")),
+                "instruction_prompt": _template_of(generation_structure.get("instruction_prompt")),
+            }
             _captured_prompt_json = json.dumps(
                 _captured_prompt_templates, ensure_ascii=False, sort_keys=True
             )
@@ -659,17 +681,8 @@ def generate_llm_responses_impl(
 
                 for instruction_prompt in instruction_prompts:
                     try:
-                        # Handle both database objects and dict objects
-                        if hasattr(instruction_prompt, "id"):
-                            # Database object
-                            prompt_id = instruction_prompt.id
-                            prompt_text = instruction_prompt.prompt_text
-                            prompt_name = instruction_prompt.prompt_name
-                        else:
-                            # Dict object (fallback)
-                            prompt_id = instruction_prompt["id"]
-                            prompt_text = instruction_prompt["prompt_text"]
-                            prompt_name = instruction_prompt["prompt_name"]
+                        prompt_id = instruction_prompt["id"]
+                        prompt_name = instruction_prompt["prompt_name"]
 
                         # Check if response already exists (unless force_rerun is True)
                         force_rerun = config_data.get("force_rerun", False)
@@ -694,68 +707,43 @@ def generate_llm_responses_impl(
                                 f"🔄 Force regenerating response for task {task_data['id']}, prompt {prompt_id}"
                             )
 
-                        # Prepare the prompt - use safe field interpolation if enabled (Issue #507)
-                        user_prompt = prompt_text
+                        # The trial's prompts come from the structure alone
+                        # (Issue #507, #519, #762). A structure that yields no
+                        # system or instruction prompt for this task fails the
+                        # trial instead of falling back to a built-in prompt.
+                        tasks.logger.info(
+                            f"🔒 Using generation structure '{structure_key}' for task {task_data['id']}"
+                        )
+                        parser = tasks.GenerationStructureParser()
+                        # V2 returns (prompts_dict, filtered_data)
+                        prompts, _filtered_data = parser.process_generation_structure(
+                            task_data=task_content,
+                            generation_structure=generation_structure,
+                        )
                         # The task fields the prompt draws on; recorded in the
                         # generation's case_data instead of the whole task
                         # (which carries the reference solution).
-                        prompt_inputs: Dict[str, Any] = {}
-
-                        # Use safe generation structure parsing if available (Issue #507, #519, #762)
-                        if tasks.HAS_GENERATION_PARSER and generation_structure:
-                            tasks.logger.info(
-                                f"🔒 Using generation structure '{structure_key}' for task {task_data['id']}"
+                        prompt_inputs: Dict[str, Any] = parser.prompt_input_fields(
+                            task_content, parser.parse_structure(generation_structure)
+                        )
+                        system_prompt = prompts.get("system_prompt") or ""
+                        user_prompt = prompts.get("instruction_prompt") or ""
+                        missing = [
+                            name
+                            for name, value in (
+                                ("system_prompt", system_prompt),
+                                ("instruction_prompt", user_prompt),
                             )
-                            try:
-                                parser = tasks.GenerationStructureParser()
-                                # Process the generation structure to filter task data
-                                # V2 returns (prompts_dict, filtered_data)
-                                prompts, filtered_data = parser.process_generation_structure(
-                                    task_data=task_content,
-                                    generation_structure=generation_structure,
-                                    fallback_instruction=prompt_text,
-                                )
-                                prompt_inputs = parser.prompt_input_fields(
-                                    task_content, parser.parse_structure(generation_structure)
-                                )
-
-                                # Use generated prompts if available
-                                if 'system_prompt' in prompts:
-                                    system_prompt = prompts['system_prompt']
-                                    tasks.logger.info(
-                                        f"✅ Using structured system prompt for task {task_data['id']}"
-                                    )
-
-                                if 'instruction_prompt' in prompts:
-                                    user_prompt = prompts['instruction_prompt']
-                                    tasks.logger.info(
-                                        f"✅ Applied generation structure '{structure_key}' for task {task_data['id']}"
-                                    )
-                                else:
-                                    # Fallback to original prompt if no instruction generated
-                                    user_prompt = prompt_text
-                                    tasks.logger.info(
-                                        f"⚠️ No instruction prompt generated, using fallback for task {task_data['id']}"
-                                    )
-
-                            except Exception as e:
-                                tasks.logger.error(
-                                    f"Error applying generation structure '{structure_key}': {e}"
-                                )
-                                # Fall back to original behavior on error
-                                user_prompt = prompt_text
-                                prompt_inputs = _placeholder_prompt_inputs(prompt_text, task_content)
-                                for key, value in task_content.items():
-                                    placeholder = f"{{{key}}}"
-                                    if placeholder in user_prompt:
-                                        user_prompt = user_prompt.replace(placeholder, str(value))
-                        else:
-                            # Original behavior - simple interpolation
-                            prompt_inputs = _placeholder_prompt_inputs(prompt_text, task_content)
-                            for key, value in task_content.items():
-                                placeholder = f"{{{key}}}"
-                                if placeholder in user_prompt:
-                                    user_prompt = user_prompt.replace(placeholder, str(value))
+                            if not str(value).strip()
+                        ]
+                        if missing:
+                            raise Exception(
+                                f"Prompt structure '{structure_key}' yields no "
+                                f"{' or '.join(missing)} for task {task_data['id']}"
+                            )
+                        tasks.logger.info(
+                            f"✅ Applied generation structure '{structure_key}' for task {task_data['id']}"
+                        )
 
                         tasks.logger.info(
                             f"🎯 Generating response for task {task_data['id']}, model {model_id}, prompt {prompt_id}"
@@ -1522,6 +1510,9 @@ def generate_llm_responses_impl(
                     else responses_generated or int(_reused_existing)
                 )
 
+            # Set by the trial that turns the parent "failed" (the one that
+            # notifies); siblings landing on the latch leave it False.
+            _became_failed = False
             if generation.status in ("cancelled", "stopped", "paused"):
                 # User-terminal (incl. the #198 mid-call abort) — the user asked
                 # to stop; this wins over EVERYTHING, even a derived "completed"
@@ -1562,6 +1553,7 @@ def generate_llm_responses_impl(
                 generation.status = "failed"
                 generation.error_message = _last_error or generation.error_message or "Trial failed"
                 generation.completed_at = datetime.now()
+                _became_failed = True
             else:
                 # This trial succeeded; more trials still pending.
                 generation.runs_completed = min(_completed, _runs_requested)
@@ -1762,6 +1754,11 @@ def generate_llm_responses_impl(
             except Exception as notification_error:
                 tasks.logger.warning(f"⚠️ Failed to send notification: {notification_error}")
 
+            if _became_failed:
+                _notify_generation_failed(
+                    db, project_id, user_id, generation_id, model_id, _last_error
+                )
+
             # Note: Bidirectional sync will be handled by the periodic sync task every 10 minutes
 
             # Return status reflecting actual outcome
@@ -1867,6 +1864,12 @@ def generate_llm_responses_impl(
                         generation.error_message = str(e)
                         generation.completed_at = datetime.now()
                         db.commit()
+                        # Only the trial that flips it; a sibling on an
+                        # already-failed parent stays quiet.
+                        if _live_status != "failed":
+                            _notify_generation_failed(
+                                db, project_id, user_id, generation_id, model_id, str(e)
+                            )
             except Exception as db_error:
                 tasks.logger.error(f"❌ Failed to update generation status: {str(db_error)}")
 

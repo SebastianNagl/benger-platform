@@ -10,19 +10,27 @@
 > `tasks:read_reference` besitzt und seine Rolle die vollen Aufgabendaten
 > sehen darf. Die Schnittstelle ist versioniert; Änderungen, die bestehende
 > Clients brechen, kommen nur mit einer neuen Version und mindestens sechs
-> Monaten Vorlauf. Der Rest dieser Seite ist auf Englisch.
+> Monaten Vorlauf. Alles Weitere, was die App kann (eigene Modelle,
+Generierung, Evaluation, Annotation, Verwaltung), erreichen dieselben
+Schlüssel über die [vollständige API](full-api.md). Der Rest dieser Seite
+ist auf Englisch.
 
 The public API is the stable, versioned contract for integrations: benchmark
 pipelines that fetch tasks, scripts that export projects, and overlay
-products built on top of BenGER. The browser API under `/api/...` is
-internal and may change with any release; integrations should only use
-`/api/v1`.
+products built on top of BenGER. Everything else the app can do is reachable
+with the same keys through the [full API](full-api.md): the routes the
+browser uses, each opened for keys by a scope rule. Those routes are not
+versioned and may change with any release, so prefer `/api/v1` where it
+covers your need.
 
 * Live reference: `GET /api/v1/docs` (Swagger UI) and
   `GET /api/v1/openapi.json` on any deployment. Both are public.
 * Committed snapshot: [`api-docs/openapi-v1.json`](api-docs/openapi-v1.json)
   (regenerate with `make generate-public-api-docs`).
 * Key model, service accounts and the usage log: [API keys](api-keys.md).
+* Everything beyond v1 (models, generation, evaluation, annotation,
+  administration): [Full API](full-api.md), live reference
+  `GET /api/v1/reference`.
 * Why the API is versioned: [ADR-007](architecture/adr-007-api-versioning-adopted.md).
 
 ## Authentication
@@ -39,8 +47,9 @@ Authorization: Bearer bgr_<env>_<id>_<secret>
   `GET /api/v1/me` and identifies a key without revealing it.
 * The full key is shown once, when it is created. Store it in a secret
   manager; a lost key is replaced, not recovered.
-* Keys are never accepted in a cookie or a query string, and only on
-  `/api/v1` (and the health probes). The browser API answers
+* Keys are never accepted in a cookie or a query string. Outside `/api/v1`
+  they work only where a rule opens the route ([full API](full-api.md));
+  sign-in, password and similar routes answer
   `401 api_key_not_allowed_here`.
 
 **Personal keys** act as their owner and see what the owner sees.
@@ -91,8 +100,10 @@ endpoints on this page:
 | `tasks:read_reference` | reading tasks with reference solutions; also required for exports. Only grantable to personal keys and CONTRIBUTOR organisation keys |
 | `exports:read` | starting, polling and downloading exports |
 
-The remaining scopes (`submissions:*`, `systems:*`, `runs:*`,
-`evaluations:*`, `results:read`, `org:read`, `keys:manage`) are reserved for
+The other scopes (`runs:*`, `evaluations:*`, `results:read`, `models:*`,
+`projects:write`, `tasks:write`, `annotations:*`, `account:*`, `org:*`,
+`files:*`, `keys:manage`, `admin:platform`) open routes of the
+[full API](full-api.md); `submissions:*` and `systems:*` are reserved for
 endpoints that follow in later releases of version 1. Overlays (extension
 packages) can add scopes and endpoints of their own under `/api/v1/<overlay>`.
 
@@ -109,6 +120,7 @@ packages) can add scopes and endpoints of their own under `/api/v1/<overlay>`.
 | `GET /api/v1/exports/{job_id}` | `exports:read`, `tasks:read_reference` | poll an export job |
 | `GET /api/v1/exports/{job_id}/download` | `exports:read`, `tasks:read_reference` | `302` to a presigned download URL (valid 5 minutes) |
 | `GET /api/v1/openapi.json`, `GET /api/v1/docs` | public | the spec and Swagger UI |
+| `GET /api/v1/reference/openapi.json`, `GET /api/v1/reference` | public | spec and Swagger UI of the [full API](full-api.md) |
 
 ### Projects
 
@@ -117,7 +129,8 @@ own projects and projects of its organisations), narrowed by the key's
 project list and group, never including projects that require the Safe Exam
 Browser. A project the key may not see answers `404`, whether or not it
 exists. Projects a user only reaches as a participant (shared exams,
-enrolments) are not listed but can be read by id.
+enrolments, org exams) or through an own submission are listed as well;
+`access.tier` is then `participant` or `attempted`.
 
 ```json
 {

@@ -55,6 +55,18 @@ def _mock_db_query_returns(db, return_value):
     return db
 
 
+# Every generation runs on a prompt structure (no built-in default prompt),
+# so the mocked projects carry one and the runs name it.
+STRUCTURE_KEY = "s0"
+STRUCTURE = {"system_prompt": "Du bist Jurist.", "instruction_prompt": "$text"}
+
+
+def _with_structure(generation_config):
+    cfg = dict(generation_config or {})
+    cfg.setdefault("prompt_structures", {STRUCTURE_KEY: dict(STRUCTURE)})
+    return cfg
+
+
 def _setup_generate_llm_mocks(
     ai_response_fn=None,
     generation_config=None,
@@ -78,7 +90,7 @@ def _setup_generate_llm_mocks(
 
     project = MagicMock()
     project.deleted_at = None  # soft-delete guard (093)
-    project.generation_config = generation_config
+    project.generation_config = _with_structure(generation_config)
     project.label_config = label_config
     project.label_config_version = None
 
@@ -177,8 +189,9 @@ def _run_generate_with_mocks(db, ai_service, config_data=None, model_id="gpt-4",
                 model_id=model_id,
                 user_id="u1",
             )
-            if structure_key is not None:
-                kwargs["structure_key"] = structure_key
+            kwargs["structure_key"] = (
+                structure_key if structure_key is not None else STRUCTURE_KEY
+            )
             return generate_llm_responses(**kwargs)
 
 
@@ -376,7 +389,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_structure_key_found_by_key(self, mock_session_cls):
         db = _mock_db()
@@ -390,7 +403,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
         project.deleted_at = None  # soft-delete guard (093)
         project.generation_config = {
             "prompt_structures": [
-                {"key": "my_struct", "structure": {"system_prompt": "test"}},
+                {"key": "my_struct", "structure": {"system_prompt": "test", "instruction_prompt": "$text"}},
             ],
             "selected_configuration": {"parameters": {}, "model_configs": {}},
         }
@@ -582,7 +595,7 @@ class TestGenerateLLMResponsesNoAIServices:
 
         project = MagicMock()
         project.deleted_at = None  # soft-delete guard (093)
-        project.generation_config = None
+        project.generation_config = _with_structure(None)
         project.label_config = None
 
         task = MagicMock()
@@ -621,6 +634,7 @@ class TestGenerateLLMResponsesNoAIServices:
             config_data={"project_id": "p1"},
             model_id="gpt-4",
             user_id="u1",
+            structure_key=STRUCTURE_KEY,
         )
         assert result["status"] == "error"
         assert "AI services" in result["message"]
@@ -640,7 +654,7 @@ class TestGenerateLLMResponsesAPIKeyError:
 
         project = MagicMock()
         project.deleted_at = None  # soft-delete guard (093)
-        project.generation_config = None
+        project.generation_config = _with_structure(None)
         project.label_config = None
 
         task = MagicMock()
@@ -685,6 +699,7 @@ class TestGenerateLLMResponsesAPIKeyError:
                 config_data={"project_id": "p1"},
                 model_id="gpt-4",
                 user_id="u1",
+                structure_key=STRUCTURE_KEY,
             )
         assert result["status"] == "error"
         assert "API key" in result["message"]
@@ -695,7 +710,7 @@ class TestGenerateLLMResponsesZeroResponses:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_zero_responses_returns_failed(self, mock_session_cls):
         async def failing_gen(**kwargs):
@@ -1373,7 +1388,7 @@ class TestTemperatureConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_temperature_not_supported_uses_required_value(self, mock_session_cls):
         """When model says temperature not supported, use required_value."""
@@ -1391,7 +1406,7 @@ class TestTemperatureConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     @pytest.mark.parametrize(
         "bad_constraints",
@@ -1461,7 +1476,7 @@ class TestMaxTokensConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_project_param_over_declared_max_is_clamped(self, mock_session_cls):
         """(a) project-level max_tokens over the model's max → clamped to max."""
@@ -1488,7 +1503,7 @@ class TestMaxTokensConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_per_model_float_override_over_max_is_clamped_to_int(
         self, mock_session_cls
@@ -1518,7 +1533,7 @@ class TestMaxTokensConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_value_under_declared_max_is_unchanged(self, mock_session_cls):
         """(c) a value below the declared max passes through unchanged."""
@@ -1545,7 +1560,7 @@ class TestMaxTokensConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_no_declared_max_leaves_value_unchanged(self, mock_session_cls):
         """(d) a model that declares no max_tokens.max is unaffected — even a
@@ -1574,7 +1589,7 @@ class TestMaxTokensConstraints:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_float_under_max_is_coerced_to_int(self, mock_session_cls):
         """(e) a per-model JSON-float below the max is coerced to int — no
@@ -1611,7 +1626,7 @@ class TestResponseFormatContentKey:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_content_format_parsed(self, mock_session_cls):
         async def content_format_gen(**kwargs):
@@ -1645,7 +1660,7 @@ class TestModelConfigTemperature:
 
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_nested_model_config_temperature(self, mock_session_cls):
         """Test temperature from model_config.generation_config.temperature (nested)."""
@@ -1680,7 +1695,7 @@ class TestModelConfigTemperature:
 class TestForceRerun:
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_force_rerun_regenerates(self, mock_session_cls):
         """When force_rerun=True in config_data, skip existing response check."""
@@ -1730,7 +1745,7 @@ class TestForceRerun:
 class TestRateLimitOverride:
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_rate_limit_delay_from_config(self, mock_session_cls):
         """Test rate_limit_delay override from config_data."""
@@ -1753,7 +1768,7 @@ class TestRateLimitOverride:
 class TestUnexpectedResponseFormat:
     @patch("tasks.HAS_DATABASE", True)
     @patch("tasks.HAS_AI_SERVICES", True)
-    @patch("tasks.HAS_GENERATION_PARSER", False)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
     @patch("tasks.SessionLocal")
     def test_unexpected_format_fails_gracefully(self, mock_session_cls):
         """When response has neither response_text nor content, generation fails."""

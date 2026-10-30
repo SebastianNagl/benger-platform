@@ -9,6 +9,17 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-30-full-api-access-keys',
+    date: '2026-10-30',
+    audience: 'benger',
+    requires: 'publicApi',
+  },
+  {
+    id: '2026-10-30-project-prompts-card',
+    date: '2026-10-30',
+    audience: 'benger',
+  },
+  {
     id: '2026-10-19-runtime-extension-switches',
     date: '2026-10-19',
     audience: 'both',

@@ -109,7 +109,12 @@ async def _world(db):
         title="billing choice",
         created_by=admin.id,
         label_config='<View><Text name="text" value="$text"/></View>',
-        generation_config={"selected_configuration": {"models": ["model-A"]}},
+        generation_config={
+            "selected_configuration": {"models": ["model-A"]},
+            "prompt_structures": {
+                "s0": {"name": "s0", "system_prompt": "S", "instruction_prompt": "$text"}
+            },
+        },
     )
     db.add(project)
     await db.flush()
@@ -241,14 +246,22 @@ async def test_generation_is_billed_to_the_chosen_org(
         with _as_user(w["admin"]):
             r = await async_test_client.post(
                 url,
-                json={"mode": "all", "billing_organization_id": w["gamma"].id},
+                json={
+                    "mode": "all",
+                    "structure_keys": ["s0"],
+                    "billing_organization_id": w["gamma"].id,
+                },
             )
             assert r.status_code == 403, r.text
             mock_celery.send_task.assert_not_called()
 
             r = await async_test_client.post(
                 url,
-                json={"mode": "all", "billing_organization_id": w["delta"].id},
+                json={
+                    "mode": "all",
+                    "structure_keys": ["s0"],
+                    "billing_organization_id": w["delta"].id,
+                },
             )
             assert r.status_code == 200, r.text
 

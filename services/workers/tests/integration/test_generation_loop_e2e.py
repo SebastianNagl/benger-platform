@@ -17,9 +17,22 @@ from models import Generation, ResponseGeneration
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
 
+# Every generation runs on a prompt structure (the built-in default prompt is
+# gone), so the projects here carry one and every trial names it.
+STRUCTURE_KEY = "s0"
+GEN_CONFIG = {
+    "prompt_structures": {
+        STRUCTURE_KEY: {
+            "name": "Test",
+            "system_prompt": "Du bist Jurist.",
+            "instruction_prompt": "$text",
+        }
+    }
+}
+
 
 def _make_parent(db_conn, project_id, task_id, model_id, created_by,
-                 runs_requested=1):
+                 runs_requested=1, structure_key="s0"):
     import uuid as _uuid
 
     rg = ResponseGeneration(
@@ -29,6 +42,7 @@ def _make_parent(db_conn, project_id, task_id, model_id, created_by,
         model_id=model_id,
         status="pending",
         runs_requested=runs_requested,
+        structure_key=structure_key,
         created_by=created_by,
     )
     db_conn.add(rg)
@@ -71,7 +85,8 @@ def test_generation_loop_happy_path_and_unique_run_index(
     # No label_config → parsing is skipped (parse_status="pending",
     # final child status "completed"); standard (non-structured) generate
     # path with the fake service.
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Ist der Vertrag gültig?"},
                      created_by=user.id)
 
@@ -81,6 +96,7 @@ def test_generation_loop_happy_path_and_unique_run_index(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id,
         user_id=user.id,
@@ -122,6 +138,7 @@ def test_generation_loop_happy_path_and_unique_run_index(
     # created, and the original child is untouched.
     rerun = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id,
         user_id=user.id,
@@ -155,7 +172,8 @@ def test_generation_loop_multirun_derives_completed_from_children(
     derivation can't double-count under the fan-out."""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
                       runs_requested=3)
@@ -164,7 +182,8 @@ def test_generation_loop_multirun_derives_completed_from_children(
     for run_index in range(3):
         tasks.generate_llm_responses(
             generation_id=rg.id,
-            config_data={"project_id": project.id, "rate_limit_delay": 0},
+            structure_key=STRUCTURE_KEY,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
             model_id=model.id,
             user_id=user.id,
             run_index=run_index,
@@ -196,7 +215,8 @@ def test_generation_loop_reused_existing_response_is_not_a_failure(
     cell stayed failed and every further retry failed the same way."""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     old = _make_parent(db_conn, project.id, task.id, model.id, user.id)
     old.status = "completed"
@@ -206,6 +226,7 @@ def test_generation_loop_reused_existing_response_is_not_a_failure(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id,
         user_id=user.id,
@@ -232,7 +253,8 @@ def test_generation_loop_multirun_counts_reused_run_index(
     completes it, because the derivation counts the reused run_index too."""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     old = _make_parent(db_conn, project.id, task.id, model.id, user.id)
     old.status = "completed"
@@ -244,7 +266,8 @@ def test_generation_loop_multirun_counts_reused_run_index(
     for run_index, expected in ((0, "running"), (1, "completed")):
         tasks.generate_llm_responses(
             generation_id=rg.id,
-            config_data={"project_id": project.id, "rate_limit_delay": 0},
+            structure_key=STRUCTURE_KEY,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
             model_id=model.id,
             user_id=user.id,
             run_index=run_index,
@@ -273,7 +296,8 @@ def test_generation_loop_failed_trial_latches_even_if_not_last(
 
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
                       runs_requested=3)
@@ -296,6 +320,7 @@ def test_generation_loop_failed_trial_latches_even_if_not_last(
     # Trial 1 fails first → status latches 'failed', no child written.
     res1 = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=1,
     )
@@ -308,7 +333,8 @@ def test_generation_loop_failed_trial_latches_even_if_not_last(
     for run_index in (0, 2):
         tasks.generate_llm_responses(
             generation_id=rg.id,
-            config_data={"project_id": project.id, "rate_limit_delay": 0},
+            structure_key=STRUCTURE_KEY,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
             model_id=model.id, user_id=user.id, run_index=run_index,
         )
         db_conn.expire(rg)
@@ -330,6 +356,7 @@ def test_generation_loop_failed_trial_latches_even_if_not_last(
     db_conn.commit()
     res_retry = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=1,
     )
@@ -356,7 +383,8 @@ def test_generation_loop_completion_wins_over_stale_failed_latch(
     recompute branch order (completion checked BEFORE the failed-latch)."""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
                       runs_requested=3)
@@ -374,6 +402,7 @@ def test_generation_loop_completion_wins_over_stale_failed_latch(
     # recompute now sees _completed==3>=runs_requested → completion wins.
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=2,
     )
@@ -400,7 +429,8 @@ def test_generation_loop_post_loop_failure_preserves_user_terminal_status(
     is the real-world trigger.)"""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     # Parent is 'running' so the worker passes the up-front skip check and reaches
     # the AI-service resolution.
@@ -432,6 +462,7 @@ def test_generation_loop_post_loop_failure_preserves_user_terminal_status(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=0,
     )
@@ -460,7 +491,8 @@ def test_generation_loop_completion_notification_only_on_terminal_complete(
     )
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
                       runs_requested=3)
@@ -469,24 +501,28 @@ def test_generation_loop_completion_notification_only_on_terminal_complete(
     cfg = {"project_id": project.id, "rate_limit_delay": 0}
     # Trials 0 and 1 leave the parent 'running' → NO completion notification.
     for run_index in (0, 1):
-        tasks.generate_llm_responses(generation_id=rg.id, config_data=cfg,
+        tasks.generate_llm_responses(generation_id=rg.id, structure_key=STRUCTURE_KEY,
+        config_data=cfg,
                                      model_id=model.id, user_id=user.id,
                                      run_index=run_index)
     assert notes == [], "no completion notification while the parent is still running"
 
     # Trial 2 drives the parent to 'completed' → exactly one notification.
-    tasks.generate_llm_responses(generation_id=rg.id, config_data=cfg,
+    tasks.generate_llm_responses(generation_id=rg.id, structure_key=STRUCTURE_KEY,
+                                 config_data=cfg,
                                  model_id=model.id, user_id=user.id, run_index=2)
     db_conn.expire(rg)
     assert rg.status == "completed"
     assert len(notes) == 1, "exactly one completion notification, from the finishing trial"
 
 
-def test_generation_loop_failed_trial_sends_no_completion_notification(
+def test_generation_loop_failed_trial_sends_a_failure_not_a_completion_notification(
     db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
 ):
     """A failed trial (responses_generated==0, status='failed') must NOT send a
-    'Generation Complete' notification — it would falsely read '0/1 responses'."""
+    'Generation Complete' notification — it would falsely read '0/1 responses'.
+    It sends exactly one LLM_GENERATION_FAILED to the user who started it,
+    carrying the variables of the localized notification texts."""
     from conftest import FakeAIService
 
     notes = []
@@ -497,7 +533,8 @@ def test_generation_loop_failed_trial_sends_no_completion_notification(
     )
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
     db_conn.commit()
@@ -513,13 +550,32 @@ def test_generation_loop_failed_trial_sends_no_completion_notification(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=0,
     )
     assert result["status"] == "failed"
     db_conn.expire(rg)
     assert rg.status == "failed"
-    assert notes == [], "a failed generation must not send a completion notification"
+    assert [n["notification_type"] for n in notes] == [
+        tasks.NotificationType.LLM_GENERATION_FAILED
+    ], "a failed generation sends one failure notification and no completion"
+    note = notes[0]
+    assert note["user_ids"] == [user.id]
+    assert note["data"]["generation_id"] == rg.id
+    assert note["data"]["project_name"] == project.title
+    assert note["data"]["model_name"] == model.id
+    assert "simulated LLM failure" in note["data"]["error_message"]
+
+    # A sibling trial landing on the already-failed parent stays quiet.
+    notes.clear()
+    tasks.generate_llm_responses(
+        generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
+        model_id=model.id, user_id=user.id, run_index=0,
+    )
+    assert notes == []
 
 
 def test_generation_loop_structured_output_parses_via_response_parser(
@@ -549,7 +605,8 @@ def test_generation_loop_structured_output_parses_via_response_parser(
     )
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=choices_config)
+    project = make_project(created_by=user.id, label_config=choices_config,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Ein toller Tag."}, created_by=user.id)
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
     db_conn.commit()
@@ -563,6 +620,7 @@ def test_generation_loop_structured_output_parses_via_response_parser(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id, user_id=user.id, run_index=0,
     )
@@ -598,7 +656,8 @@ def test_generation_loop_cooperative_cancel_midrun(
 
     user = make_user()
     model = make_llm_model(provider="OpenAI")
-    project = make_project(created_by=user.id, label_config=None)
+    project = make_project(created_by=user.id, label_config=None,
+                           generation_config=GEN_CONFIG)
     task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
 
     rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
@@ -630,6 +689,7 @@ def test_generation_loop_cooperative_cancel_midrun(
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
         config_data={"project_id": project.id, "rate_limit_delay": 0},
         model_id=model.id,
         user_id=user.id,
@@ -727,19 +787,27 @@ def test_case_data_records_prompt_inputs_without_the_reference_solution(
     assert "original_task_data" not in blob
 
 
-def test_case_data_without_a_structure_records_only_placeholder_inputs(
+def test_generation_without_a_structure_fails_without_calling_the_model(
     db_conn, make_user, make_llm_model, make_project, make_task, patch_ai_service,
+    monkeypatch,
 ):
+    """No built-in default prompt: a trial without a prompt structure (a
+    direct dispatch, or a retry of a legacy structure-less generation) fails
+    with a pointer to the Prompts section and never reaches the model."""
     user = make_user()
     model = make_llm_model(provider="OpenAI")
     project = make_project(created_by=user.id, label_config=None)
-    task = make_task(
-        project.id,
-        {"text": "Ist der Vertrag gültig?", "musterloesung": SECRET_SOLUTION},
-        created_by=user.id,
-    )
-    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    task = make_task(project.id, {"text": "Ist der Vertrag gültig?"},
+                     created_by=user.id)
+    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
+                      structure_key=None)
     db_conn.commit()
+    notes = []
+    monkeypatch.setattr(
+        tasks.NotificationService,
+        "create_notification",
+        lambda *a, **k: notes.append(k) or [],
+    )
 
     result = tasks.generate_llm_responses(
         generation_id=rg.id,
@@ -748,11 +816,14 @@ def test_case_data_without_a_structure_records_only_placeholder_inputs(
         user_id=user.id,
         run_index=0,
     )
-    assert result["status"] == "success", result
 
-    case_data = _child_case_data(db_conn, rg)
-    assert set(case_data) == {"text", "task_item_id", "prompt_inputs"}
-    # The default instruction prompt interpolates no {key} placeholder, so
-    # nothing of the task is recorded; above all not the reference solution.
-    assert case_data["prompt_inputs"] == {}
-    assert SECRET_SOLUTION not in str(case_data)
+    assert result["status"] == "error", result
+    assert "prompt structure" in result["message"]
+    assert patch_ai_service.calls == 0
+    db_conn.expire_all()
+    assert db_conn.get(ResponseGeneration, rg.id).status == "failed"
+    # The user hears about it (error toast + bell), with the reason.
+    assert [n["notification_type"] for n in notes] == [
+        tasks.NotificationType.LLM_GENERATION_FAILED
+    ]
+    assert "prompt structure" in notes[0]["data"]["error_message"]

@@ -106,9 +106,17 @@ async def test_group_admin_scope(async_test_client, async_test_db, world):
         assert r.status_code == 200 and r.json()["name"] == "renamed"
 
 
-async def test_org_role_admin_rejected_and_reference_scope_rules(async_test_client, world):
+async def test_org_role_admin_and_reference_scope_rules(async_test_client, world):
     with _as(world["admin"]):
+        # ORG_ADMIN keys (core 2.44): org-wide only.
         r = await _create_org_key(async_test_client, world, org_role="ORG_ADMIN")
+        assert r.status_code == 201, r.text
+        r = await _create_org_key(
+            async_test_client, world, org_role="ORG_ADMIN", group_id=world["group"].id
+        )
+        assert r.status_code == 403
+        assert r.json()["detail"]["code"] == "role_exceeds_creator"
+        r = await _create_org_key(async_test_client, world, org_role="KING")
         assert r.status_code == 422
         r = await _create_org_key(
             async_test_client, world, org_role="ANNOTATOR", scopes=["tasks:read_reference"]

@@ -19,11 +19,25 @@ Do not edit by hand. See [public-api.md](public-api.md) for how scopes are used.
 | `evaluations:run` | Start evaluations (Evaluationen starten) | `evaluations:read` | `any` |
 | `results:read` | Read results (Ergebnisse lesen) | - | `any` |
 | `exports:read` | Download exports (Exporte abrufen) | - | `any` |
+| `account:read` | Read the own account, notifications and settings (Eigenes Konto, Benachrichtigungen und Einstellungen lesen) | - | `any` |
+| `account:write` | Change the own settings and notifications, join projects (Eigene Einstellungen und Benachrichtigungen ändern, Projekten beitreten) | `account:read` | `any` |
+| `org:manage` | Manage the organization (members, groups, invitations, settings) (Organisation verwalten (Mitglieder, Gruppen, Einladungen, Einstellungen)) | `org:read` | `org_admin_role` |
+| `projects:write` | Create, configure, share, import and delete projects (Projekte anlegen, konfigurieren, teilen, importieren und löschen) | `projects:read` | `any` |
+| `tasks:write` | Create, edit, assign and delete tasks (Aufgaben anlegen, bearbeiten, zuweisen und löschen) | `tasks:read` | `any` |
+| `annotations:read` | Read annotations, drafts, reviews and gradings (Annotationen, Entwürfe, Reviews und Korrekturen lesen) | - | `any` |
+| `annotations:write` | Annotate, save drafts, review and grade (Annotieren, Entwürfe speichern, reviewen und korrigieren) | `annotations:read` | `any` |
+| `models:read` | Read the model catalog and own models (Modellkatalog und eigene Modelle lesen) | - | `any` |
+| `models:manage` | Manage own models (BYOM) and provider keys (Eigene Modelle (BYOM) und Anbieter-Schlüssel verwalten) | `models:read` | `any` |
+| `files:read` | Read uploaded files (Hochgeladene Dateien lesen) | - | `any` |
+| `files:write` | Upload and delete files (Dateien hochladen und löschen) | `files:read` | `any` |
+| `admin:platform` | Platform superadmin rights (Superadmin-Rechte der Plattform) | - | `superadmin` |
 | `keys:manage` | Manage the owner's own access keys (Eigene Zugangsschlüssel verwalten) | - | `personal_only` |
 
 `grantable`: `any` (every key), `full_data_role` (personal keys and organization
-keys with role CONTRIBUTOR), `org_admin` (organization keys created by an
-organization admin), `personal_only` (personal keys only).
+keys with role CONTRIBUTOR or ORG_ADMIN), `org_admin` (organization keys created
+by an organization admin), `org_admin_role` (personal keys and organization keys
+with role ORG_ADMIN), `personal_only` (personal keys only), `superadmin`
+(personal keys created by a superadmin).
 
 ## Presets
 
@@ -32,3 +46,4 @@ organization admin), `personal_only` (personal keys only).
 | `benchmark_read` | `org:read`, `projects:read`, `tasks:read`, `runs:read`, `evaluations:read`, `results:read` |
 | `benchmark_submit` | `org:read`, `projects:read`, `tasks:read`, `submissions:write`, `systems:manage`, `runs:write`, `evaluations:run`, `results:read` |
 | `org_full` | `org:read`, `projects:read`, `tasks:read_reference`, `submissions:write`, `systems:manage`, `runs:write`, `evaluations:run`, `results:read`, `exports:read` |
+| `full_access` | `account:write`, `org:read`, `projects:write`, `tasks:read_reference`, `tasks:write`, `annotations:write`, `models:manage`, `runs:write`, `evaluations:run`, `results:read`, `exports:read`, `files:write` |

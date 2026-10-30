@@ -1,11 +1,10 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
     const apiBaseUrl = getInternalApiUrl(request)
-    const cookies = request.headers.get('cookie') || ''
-    const authorization = request.headers.get('authorization') || ''
     const { searchParams } = new URL(request.url)
     const queryString = searchParams.toString()
     const url = `${apiBaseUrl}/api/auth/profile-history${queryString ? `?${queryString}` : ''}`
@@ -13,8 +12,7 @@ export async function GET(request: NextRequest) {
     const backendResponse = await fetch(url, {
       method: 'GET',
       headers: {
-        Cookie: cookies,
-        Authorization: authorization,
+        ...proxyAuthHeaders(request),
       },
     })
 
