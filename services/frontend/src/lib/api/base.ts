@@ -14,44 +14,13 @@ import {
 } from '@/lib/seb'
 import logger from '@/lib/utils/logger'
 import { translate } from '@/lib/utils/translate'
+import { formatErrorDetail } from './errors'
 
 /** A failed fetch, named so error boundaries can recognise it in any UI language. */
 function networkError(url: string): Error {
   const error = new Error(translate('errors.api.networkUnreachable', { url }))
   error.name = 'NetworkError'
   return error
-}
-
-/**
- * FastAPI returns validation errors as `detail: [{loc, msg, type}, ...]`.
- * Without flattening, `new Error(arr)` calls Array#toString and produces
- * `"[object Object],..."` — opaque to the user. This turns the array into
- * `"email: field required; password: too short"` while leaving plain-string
- * details unchanged.
- */
-function formatErrorDetail(detail: unknown): string | null {
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail)) {
-    const parts = detail
-      .map((item) => {
-        if (!item || typeof item !== 'object') return String(item)
-        const e = item as { loc?: unknown[]; msg?: string; message?: string }
-        const msg = e.msg || e.message || JSON.stringify(item)
-        const loc = Array.isArray(e.loc)
-          ? e.loc.filter((p) => p !== 'body').join('.')
-          : ''
-        return loc ? `${loc}: ${msg}` : msg
-      })
-      .filter(Boolean)
-    return parts.length ? parts.join('; ') : null
-  }
-  if (detail && typeof detail === 'object') {
-    const m =
-      (detail as { msg?: string; message?: string }).msg ||
-      (detail as { msg?: string; message?: string }).message
-    return m || JSON.stringify(detail)
-  }
-  return null
 }
 
 // Server-side vs client-side API URL handling

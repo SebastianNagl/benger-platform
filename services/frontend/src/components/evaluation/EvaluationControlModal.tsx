@@ -12,6 +12,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { apiClient } from '@/lib/api/client'
+import { apiErrorMessage } from '@/lib/api/errors'
 import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
 import { Dialog, Transition } from '@headlessui/react'
 import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline'
@@ -446,8 +447,7 @@ export function EvaluationControlModal({
     } catch (error: any) {
       console.error('Failed to start evaluation:', error)
       addToast(
-        error.response?.data?.detail ||
-          t('evaluation.controlModal.failedToStart'),
+        apiErrorMessage(error, t('evaluation.controlModal.failedToStart')),
         'error',
       )
     } finally {

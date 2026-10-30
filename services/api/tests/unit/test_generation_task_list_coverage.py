@@ -613,6 +613,15 @@ class TestGetTaskGenerationStatusEndpoint:
 # ===========================================================================
 
 
+# Every generation runs on a prompt structure (no built-in default prompt).
+GEN_SK = "s0"
+GEN_STRUCTURES = {
+    "prompt_structures": {
+        GEN_SK: {"name": "s0", "system_prompt": "S", "instruction_prompt": "$text"}
+    }
+}
+
+
 class TestStartGeneration:
     @pytest.mark.asyncio
     async def test_no_models_configured_error(self, async_test_client, async_test_db):
@@ -620,14 +629,14 @@ class TestStartGeneration:
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
-            generation_config={"selected_configuration": {"models": []}},
+            generation_config={"selected_configuration": {"models": []}, **GEN_STRUCTURES},
         )
         await async_test_db.commit()
 
         with _as_user(admin):
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_SK], "mode": "all"},
             )
         assert resp.status_code == 400
         assert "No models" in resp.json()["detail"]
@@ -638,14 +647,14 @@ class TestStartGeneration:
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
-            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}, **GEN_STRUCTURES},
         )
         await async_test_db.commit()
 
         with _as_user(admin):
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_SK], "mode": "all"},
             )
         assert resp.status_code == 400
         assert "No tasks" in resp.json()["detail"]
@@ -660,7 +669,8 @@ class TestStartGeneration:
         project = await _seed_project(
             async_test_db, admin,
             generation_config={
-                "selected_configuration": {"models": ["gpt-4"], "parameters": {}}
+                "selected_configuration": {"models": ["gpt-4"], "parameters": {}},
+                **GEN_STRUCTURES,
             },
         )
         task = await _seed_task(async_test_db, project, admin)
@@ -668,7 +678,7 @@ class TestStartGeneration:
         # revokes its deterministic fan-out (reconstructed from runs_requested).
         old_pending = await _seed_response_generation(
             async_test_db, project, task, admin,
-            model_id="gpt-4", structure_key=None, status="pending",
+            model_id="gpt-4", structure_key=GEN_SK, status="pending",
         )
         old_pending.runs_requested = 2
         await async_test_db.commit()
@@ -679,6 +689,7 @@ class TestStartGeneration:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
                 json={
+                    "structure_keys": [GEN_SK],
                     "mode": "all",
                     "parameters": {"temperature": 0.5, "max_tokens": 2000},
                     "model_configs": {"gpt-4": {"max_tokens": 4000}},
@@ -717,18 +728,18 @@ class TestStartGeneration:
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
-            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}, **GEN_STRUCTURES},
         )
         task1 = await _seed_task(async_test_db, project, admin, inner_id=1)
         task2 = await _seed_task(async_test_db, project, admin, inner_id=2)
         # task1: completed (skip), task2: failed (re-queue).
         await _seed_response_generation(
             async_test_db, project, task1, admin,
-            model_id="gpt-4", structure_key=None, status="completed",
+            model_id="gpt-4", structure_key=GEN_SK, status="completed",
         )
         await _seed_response_generation(
             async_test_db, project, task2, admin,
-            model_id="gpt-4", structure_key=None, status="failed",
+            model_id="gpt-4", structure_key=GEN_SK, status="failed",
         )
         await async_test_db.commit()
 
@@ -736,7 +747,7 @@ class TestStartGeneration:
             mock_celery.send_task = Mock()
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "missing"},
+                json={"structure_keys": [GEN_SK], "mode": "missing"},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -844,6 +855,7 @@ class TestStartGeneration:
                         "old": {"max_tokens": 2000},
                     },
                 },
+                **GEN_STRUCTURES,
             },
         )
         await _seed_task(async_test_db, project, admin)
@@ -854,6 +866,7 @@ class TestStartGeneration:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
                 json={
+                    "structure_keys": [GEN_SK],
                     "mode": "all",
                     "model_ids": ["gpt-4"],
                     "model_configs": {
@@ -931,11 +944,12 @@ class TestStartGeneration:
         assert "['default']" in resp.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_only_excluded_structures_generates_without_structure(
+    async def test_only_excluded_structures_cannot_generate(
         self, async_test_client, async_test_db
     ):
-        """No generation structures at all (only excluded ones) is the
-        plain-task-data case: no field needed, one cell per task."""
+        """Only excluded structures means no generation prompt at all: the
+        run is refused (422), nothing is dispatched. It used to generate
+        with the worker's hidden built-in prompt."""
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
@@ -958,8 +972,9 @@ class TestStartGeneration:
                 f"/api/generation-tasks/projects/{project.id}/generate",
                 json={"mode": "all"},
             )
-        assert resp.status_code == 200
-        assert resp.json()["tasks_queued"] == 1
+        assert resp.status_code == 422
+        assert "prompt structure" in resp.json()["detail"]
+        mock_celery.send_task.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_explicit_structure_keys_may_include_excluded(
@@ -1003,7 +1018,7 @@ class TestStartGeneration:
         org = await _seed_org(async_test_db)
         project = await _seed_project(
             async_test_db, admin, org=org,
-            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}, **GEN_STRUCTURES},
         )
         pid = project.id
         org_id = org.id
@@ -1014,7 +1029,7 @@ class TestStartGeneration:
             mock_celery.send_task = Mock()
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{pid}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_SK], "mode": "all"},
             )
         assert resp.status_code == 200
         assert resp.json()["tasks_queued"] == 1
@@ -1039,7 +1054,7 @@ class TestStartGeneration:
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
-            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}, **GEN_STRUCTURES},
         )
         await _seed_task(async_test_db, project, admin, inner_id=1)
         await _seed_task(async_test_db, project, admin, inner_id=2)
@@ -1050,7 +1065,7 @@ class TestStartGeneration:
         ), patch("routers.generation_task_list.celery_app"), _as_user(admin):
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_SK], "mode": "all"},
             )
         assert resp.status_code == 400
         assert "limit" in resp.json()["detail"].lower()

@@ -2545,6 +2545,7 @@ def _create_imported_project(
         enable_annotation=_setting(project_data, "enable_annotation", True),
         enable_generation=_setting(project_data, "enable_generation", True),
         enable_evaluation=_setting(project_data, "enable_evaluation", True),
+        enable_prompts=_setting(project_data, "enable_prompts", True),
         # Deliberately NOT imported: is_private / is_public / public_role /
         # origin. Visibility is reset on import (the importer decides who sees
         # the copy: private unless an org owns it), and origin marks how the

@@ -97,7 +97,7 @@ def _build_fixtures():
     project.deleted_at = None  # soft-delete guard (093)
     project.generation_config = {
         "prompt_structures": [
-            {"key": "default", "structure": {"system_prompt": "be helpful"}},
+            {"key": "default", "structure": {"system_prompt": "be helpful", "instruction_prompt": "$text"}},
         ],
         "selected_configuration": {"parameters": {}, "model_configs": {}},
     }
@@ -147,7 +147,7 @@ def _run(ai_service, *, organization_id, user_id="u1"):
 
     with patch.object(tasks_module, "HAS_DATABASE", True), \
          patch.object(tasks_module, "HAS_AI_SERVICES", True), \
-         patch.object(tasks_module, "HAS_GENERATION_PARSER", False), \
+         patch.object(tasks_module, "HAS_GENERATION_PARSER", True), \
          patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
          patch.object(tasks_module, "user_aware_ai_service", mock_user_aware), \
          patch.object(tasks_module, "notify_task_completed", MagicMock()):

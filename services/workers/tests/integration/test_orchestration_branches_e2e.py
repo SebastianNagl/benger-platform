@@ -128,6 +128,18 @@ def _run(db_conn, run, project, configs, **kwargs):
 # ---------------------------------------------------------------------------
 
 
+def _capture_notifications(monkeypatch):
+    """Record NotificationService.create_notification kwargs (the autouse
+    stub otherwise drops them)."""
+    notes = []
+    monkeypatch.setattr(
+        tasks.NotificationService,
+        "create_notification",
+        lambda *a, **k: notes.append(k) or [],
+    )
+    return notes
+
+
 def test_annotation_cell_happy_path_two_cells_one_match(
     db_conn, make_user, make_llm_model, make_project, make_task,
     make_annotation, make_evaluation_run,
@@ -401,9 +413,15 @@ def test_whole_cell_failure_drives_run_to_failed(
         raise RuntimeError("cell setup kaboom")
 
     monkeypatch.setattr(tasks, "_build_sample_evaluator_for_cell", _boom)
+    notes = _capture_notifications(monkeypatch)
 
     result = _run(db_conn, run, project, [exact_match_config()])
     assert result["status"] == "dispatched"
+    # finalize reports the failed run as EVALUATION_FAILED (it used to send
+    # EVALUATION_COMPLETED titled "Evaluation Failed": green, success toast).
+    types = [n["notification_type"] for n in notes]
+    assert tasks.NotificationType.EVALUATION_FAILED in types
+    assert tasks.NotificationType.EVALUATION_COMPLETED not in types
 
     n = (
         db_conn.query(TaskEvaluation)
@@ -527,9 +545,12 @@ def test_finalize_missing_evaluation_is_skipped(db_conn):
 
 def test_run_evaluation_no_enabled_configs_fails(
     db_conn, make_user, make_project, make_task, make_evaluation_run,
+    monkeypatch,
 ):
     """All configs disabled → the 'No enabled evaluation configurations'
-    short-circuit marks the run failed before any judge_run/cell work."""
+    short-circuit marks the run failed before any judge_run/cell work, and
+    tells the user who started it."""
+    notes = _capture_notifications(monkeypatch)
     user = make_user()
     project = make_project(created_by=user.id)
     make_task(project.id, {"expected": "ja"}, created_by=user.id)
@@ -551,6 +572,12 @@ def test_run_evaluation_no_enabled_configs_fails(
     fresh = _refresh(db_conn, run)
     assert fresh.status == "failed"
     assert "No enabled" in (fresh.error_message or "")
+    assert [n["notification_type"] for n in notes] == [
+        tasks.NotificationType.EVALUATION_FAILED
+    ]
+    assert notes[0]["user_ids"] == [user.id]
+    assert notes[0]["data"]["project_name"] == project.title
+    assert "No enabled" in notes[0]["data"]["error_message"]
 
 
 def test_run_evaluation_no_tasks_fails(

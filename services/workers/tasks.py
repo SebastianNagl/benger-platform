@@ -2021,6 +2021,7 @@ def run_evaluation(
                 evaluation.status = "failed"
                 evaluation.error_message = f"Project {project_id} not found"
                 db.commit()
+                _notify_evaluation_failed(db, evaluation)
                 return {
                     "status": "error",
                     "message": f"Project {project_id} not found",
@@ -2033,6 +2034,7 @@ def run_evaluation(
                 evaluation.status = "failed"
                 evaluation.error_message = "No enabled evaluation configurations"
                 db.commit()
+                _notify_evaluation_failed(db, evaluation)
                 return {
                     "status": "error",
                     "message": "No enabled evaluation configurations",
@@ -2071,6 +2073,7 @@ def run_evaluation(
                 evaluation.status = "failed"
                 evaluation.error_message = "No tasks found in project"
                 db.commit()
+                _notify_evaluation_failed(db, evaluation)
                 return {
                     "status": "error",
                     "message": "No tasks found in project",
@@ -2419,6 +2422,7 @@ def run_evaluation(
                 evaluation.status = "failed"
                 evaluation.error_message = "No tasks found in project"
                 db.commit()
+                _notify_evaluation_failed(db, evaluation)
                 return {
                     "status": "error",
                     "message": "No tasks found in project",
@@ -2620,6 +2624,7 @@ def run_evaluation(
                     logger.error(
                         f"❌ Eval {evaluation_id} matched nothing: {diagnostic}"
                     )
+                    _notify_evaluation_failed(db, evaluation)
                     return {
                         "status": "error",
                         "message": diagnostic,
@@ -2752,29 +2757,7 @@ def run_evaluation(
                 evaluation.completed_at = datetime.now()
                 db.commit()
 
-                # Create notification for evaluation failure
-                try:
-                    triggered_by = (
-                        evaluation.eval_metadata.get("triggered_by")
-                        if evaluation.eval_metadata
-                        else None
-                    )
-                    if triggered_by:
-                        NotificationService.create_notification(
-                            db=db,
-                            user_ids=[triggered_by],
-                            notification_type=NotificationType.EVALUATION_FAILED,
-                            title="Evaluation Failed",
-                            message=f"Evaluation failed: {str(e)[:100]}",
-                            data={
-                                "project_id": project_id,
-                                "evaluation_id": evaluation_id,
-                                "error": str(e),
-                            },
-                        )
-                        logger.info(f"📬 Created failure notification for user {triggered_by}")
-                except Exception as notif_err:
-                    logger.error(f"Failed to create failure notification: {notif_err}")
+                _notify_evaluation_failed(db, evaluation, str(e))
 
             db.close()
         except Exception as update_error:
@@ -3029,6 +3012,7 @@ def _apply_batch_billing(db, *, evaluation, project, organization_id, configs):
     evaluation.error_message = message
     evaluation.completed_at = now
     db.commit()
+    _notify_evaluation_failed(db, evaluation)
     return organization_id, block, False
 
 
@@ -3094,6 +3078,45 @@ def _notify_immediate_grading_received(
             f"[SingleSampleEval] grading notification failed for "
             f"{evaluation_run_id}: {notif_err}"
         )
+
+
+def _notify_evaluation_failed(db, evaluation, error_message: Optional[str] = None) -> None:
+    """Tell the user who started a batch evaluation run that it failed.
+
+    Called at every place a batch run turns ``failed``, after the status is
+    committed. ``data`` carries the variables of the localized
+    ``notifications.content.evaluation_failed`` texts (project_name,
+    error_message); the frontend shows the notification as an error toast.
+    Immediate (per-submission) gradings have their own
+    surface and never come here. Never raises.
+    """
+    try:
+        meta = evaluation.eval_metadata or {}
+        recipient = meta.get("triggered_by") or getattr(evaluation, "created_by", None)
+        if not recipient or not HAS_NOTIFICATION_SERVICE:
+            return
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == evaluation.project_id).first()
+        error = (error_message or evaluation.error_message or "").strip() or "unknown error"
+        project_title = project.title if project else str(evaluation.project_id)
+        NotificationService.create_notification(
+            db=db,
+            user_ids=[recipient],
+            notification_type=NotificationType.EVALUATION_FAILED,
+            title="Evaluation Failed",
+            message=f"Evaluation failed for {project_title}: {error[:200]}",
+            data={
+                "project_id": evaluation.project_id,
+                "evaluation_id": evaluation.id,
+                "error": error,
+                "error_message": error[:300],
+                "project_name": project_title,
+            },
+        )
+        logger.info(f"📬 Created failure notification for user {recipient}")
+    except Exception as notif_err:
+        logger.error(f"Failed to create failure notification: {notif_err}")
 
 
 def _notify_batch_grading_received(db, evaluation) -> None:
@@ -4782,14 +4805,16 @@ def finalize_evaluation_run(
                 if evaluation.eval_metadata
                 else None
             )
-            if triggered_by:
+            if evaluation.status == "failed":
+                # A failed run used to go out as EVALUATION_COMPLETED titled
+                # "Evaluation Failed" (green icon, success toast).
+                _notify_evaluation_failed(db, evaluation)
+            elif triggered_by:
                 NotificationService.create_notification(
                     db=db,
                     user_ids=[triggered_by],
                     notification_type=NotificationType.EVALUATION_COMPLETED,
-                    title="Evaluation Completed"
-                    if evaluation.status == "completed"
-                    else "Evaluation Failed",
+                    title="Evaluation Completed",
                     message=(
                         f"Evaluation completed: {samples_evaluated_total} samples evaluated, "
                         f"pass rate {samples_passed_total/samples_evaluated_total:.1%}"
@@ -4842,6 +4867,7 @@ def finalize_evaluation_run(
                 ev.error_message = f"finalize_evaluation_run crashed: {str(e)[:500]}"
                 ev.completed_at = _dt2.now()
                 db.commit()
+                _notify_evaluation_failed(db, ev)
         except Exception:
             pass
         return {"status": "error", "evaluation_id": evaluation_id, "error": str(e)}

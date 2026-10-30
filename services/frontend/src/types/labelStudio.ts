@@ -85,6 +85,7 @@ export interface Project {
   enable_annotation?: boolean
   enable_generation?: boolean
   enable_evaluation?: boolean
+  enable_prompts?: boolean
 
   // Total Generation rows for this project — feeds the Statistiken tile
   // when > 0; computed by routers/projects/helpers.calculate_generation_stats.

@@ -354,6 +354,7 @@ class ProjectUpdate(BaseModel):
     enable_annotation: Optional[bool] = None
     enable_generation: Optional[bool] = None
     enable_evaluation: Optional[bool] = None
+    enable_prompts: Optional[bool] = None
 
     # Task assignment
     assignment_mode: Optional[str] = Field(
@@ -506,6 +507,7 @@ class ProjectResponse(ProjectBase):
     enable_annotation: bool = True
     enable_generation: bool = True
     enable_evaluation: bool = True
+    enable_prompts: bool = True
 
     # Task assignment
     assignment_mode: str = "open"

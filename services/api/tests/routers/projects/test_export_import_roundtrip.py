@@ -1235,6 +1235,7 @@ class TestRoundtripExtensions:
         project.enable_annotation = True
         project.enable_generation = False
         project.enable_evaluation = False
+        project.enable_prompts = False
         db_session.commit()
 
         export = _export_project_dict(db_session, project.id)
@@ -1272,6 +1273,7 @@ class TestRoundtripExtensions:
         assert imported.enable_annotation is True
         assert imported.enable_generation is False
         assert imported.enable_evaluation is False
+        assert imported.enable_prompts is False
         # Unknown model ids are reconciled away like generation_config models.
         assert imported.llm_model_ids == [official_id]
         # Visibility is reset (the org named in the request owns the copy) and
@@ -1317,6 +1319,7 @@ class TestRoundtripExtensions:
         proj["skip_queue"] = None
         proj["checkpoint_interval_seconds"] = None
         proj["enable_evaluation"] = None
+        proj["enable_prompts"] = None
 
         result = run_full_project_import(
             db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
@@ -1329,6 +1332,7 @@ class TestRoundtripExtensions:
         assert imported.skip_queue == "requeue_for_others"
         assert imported.checkpoint_interval_seconds == 300
         assert imported.enable_evaluation is True
+        assert imported.enable_prompts is True
 
 
 class TestTaskRubricRoundtrip:

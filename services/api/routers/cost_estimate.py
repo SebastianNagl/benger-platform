@@ -29,6 +29,7 @@ from routers.projects.helpers import (
 )
 from evaluation_planning import judge_call_counts, judge_runs, plan_evaluation
 from services.generation_planning import (
+    NoPromptStructures,
     StructureKeysRequired,
     plan_generation_cells_sync,
     run_structure_keys,
@@ -522,7 +523,7 @@ def _compute_cost_estimate_impl(
                 gen_structure_keys = run_structure_keys(
                     project.generation_config, request.structure_keys
                 )
-            except StructureKeysRequired as e:
+            except (StructureKeysRequired, NoPromptStructures) as e:
                 raise HTTPException(status_code=422, detail=str(e))
 
     per_model_costs: List[PerModelCost] = []

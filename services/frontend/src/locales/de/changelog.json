@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-10-30-project-prompts-card": "Auf der Projektseite gibt es den neuen Bereich „Prompts“: System-, Anweisungs- und Bewertungs-Prompts des Projekts samt den Standardvorlagen des LLM-Judge auf einen Blick. Die Bewertungs-Prompts kannst du dort direkt anpassen, und unter „Sichtbarkeit der Bereiche“ lässt sich der Bereich ausblenden.",
     "2026-10-19-runtime-extension-switches": "Superadmins können unter „Feature Flags“ ganze Erweiterungspakete für einzelne Organisationen oder Personen ein- und ausschalten, ohne neues Deployment.",
     "2026-10-14-french-language-menu": "BenGER gibt es jetzt auch auf Französisch. Die Sprache wählst du über das Flaggen-Menü oben rechts (bisher ein Umschalter zwischen Deutsch und Englisch); Datums- und Zahlenformate folgen der gewählten Sprache.",
     "2026-10-13-evaluations-limited-model-answers": "Evaluationen lassen sich auf Modellantworten beschränken: Wählst du keine Annotator:in aus, werden nur die Modellantworten bewertet (und ohne Modell nur die eingereichten Antworten). Die Kostenschätzung rechnet dabei nur noch mit den ausgewählten Metriken, Modellen, Annotator:innen und Prompt-Strukturen.",

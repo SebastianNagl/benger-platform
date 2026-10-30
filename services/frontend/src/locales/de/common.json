@@ -1107,6 +1107,34 @@
       "onlyCreatorCanManage": "Nur der Projektersteller kann Prompt-Strukturen verwalten",
       "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen."
     },
+    "prompts": {
+      "title": "Prompts",
+      "help": "Alle Prompts dieses Projekts an einem Ort: System- und Anweisungs-Prompts der Generierung, die Prompts der Bewertungsmethoden und die Standardvorlagen, auf die der LLM-Judge zurückgreift.",
+      "showPrompts": "Prompts anzeigen",
+      "hidePrompts": "Prompts ausblenden",
+      "empty": "(leer)",
+      "noStructures": "Für dieses Projekt sind keine Prompt-Strukturen konfiguriert.",
+      "evaluation": {
+        "title": "Bewertungs-Prompts",
+        "help": "Für jede konfigurierte LLM-Judge-Methode der Prompt, mit dem sie bewertet. Platzhalter in geschweiften Klammern werden bei der Bewertung je Aufgabe ersetzt.",
+        "prompt": "Bewertungs-Prompt",
+        "sourceCustom": "Eigene Vorlage",
+        "sourceAnswerType": "Standardvorlage für {type}",
+        "sourceFallback": "Allgemeine Standardvorlage",
+        "builtAtGrading": "Diese Methode stellt ihren Prompt erst bei der Bewertung zusammen, zum Beispiel aus dem Bewertungsbogen oder der Lösungsskizze der jeweiligen Aufgabe.",
+        "disabled": "Deaktiviert",
+        "empty": "Noch keine LLM-Judge-Methode konfiguriert. Die Standardvorlagen unten zeigen, womit ein Judge ohne eigene Vorlage bewertet.",
+        "edit": "Prompt bearbeiten",
+        "useDefault": "Standardvorlage verwenden",
+        "apply": "Übernehmen",
+        "cancel": "Abbrechen",
+        "editHint": "Die Änderung wird mit der Evaluierungskonfiguration automatisch gespeichert und gilt für die nächste Bewertung."
+      },
+      "templates": {
+        "title": "Standardvorlagen",
+        "help": "Diese Vorlagen verwendet der LLM-Judge, wenn eine Methode keine eigene Vorlage hat. Du kannst sie als Ausgangspunkt für eigene Bewertungs-Prompts nutzen."
+      }
+    },
     "permissions": {
       "orgAdminOnly": "Nur Organisationsadministratoren können {section} verwalten.",
       "creatorOnly": "Nur der Projektersteller kann {section} verwalten.",
@@ -2981,7 +3009,8 @@
       "runsPerTask": "Läufe pro Aufgabe",
       "runsPerTaskDesc": "Wie oft jede Kombination aus Aufgabe und Modell generiert werden soll. Standardmäßig 1, ein Wert > 1 erzeugt mehrere Durchläufe für die Varianzanalyse. Die Kosten vervielfachen sich entsprechend.",
       "fixedTemperatureOne": "{models} erfordert eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für dieses Modell.",
-      "fixedTemperatureOther": "{models} erfordern eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für diese Modelle."
+      "fixedTemperatureOther": "{models} erfordern eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für diese Modelle.",
+      "noStructures": "Dieses Projekt hat keine Prompt-Struktur für die Generierung. Lege im Bereich „Prompts“ der Projektseite eine an, dann kannst du die Generierung starten."
     }
   },
   "notifications": {
@@ -3144,8 +3173,8 @@
         "message": "Die Evaluierung des Modells '{model_name}' für die Aufgabe '{task_name}' wurde erfolgreich abgeschlossen."
       },
       "evaluation_failed": {
-        "title": "Evaluierung fehlgeschlagen: {task_name}",
-        "message": "Die Evaluierung des Modells '{model_name}' für die Aufgabe '{task_name}' ist fehlgeschlagen: {error_message}"
+        "title": "Evaluierung fehlgeschlagen: {project_name}",
+        "message": "Die Evaluierung ist fehlgeschlagen: {error_message}"
       },
       "evaluation_received_human": {
         "title": "Neue Korrektur: {project_title}",
@@ -3212,8 +3241,8 @@
         "message": "Die LLM-Generierung für die Aufgabe '{task_name}' wurde erfolgreich abgeschlossen."
       },
       "llm_generation_failed": {
-        "title": "LLM-Generierung fehlgeschlagen: {task_name}",
-        "message": "Die LLM-Generierung mit '{model_name}' für die Aufgabe '{task_name}' ist fehlgeschlagen: {error_message}"
+        "title": "Generierung fehlgeschlagen: {project_name}",
+        "message": "Die Generierung mit {model_name} ist fehlgeschlagen: {error_message}"
       },
       "model_api_key_invalid": {
         "title": "Ungültiger API-Schlüssel: {model_provider}",

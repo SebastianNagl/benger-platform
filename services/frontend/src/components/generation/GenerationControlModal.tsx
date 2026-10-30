@@ -1,5 +1,6 @@
 'use client'
 import { CustomBadge, OfficialBadge } from '@/components/models/ModelBadges'
+import { Alert } from '@/components/shared/Alert'
 import { Badge } from '@/components/shared/Badge'
 import { BillingOrgSelect } from '@/components/shared/BillingOrgSelect'
 import { Button } from '@/components/shared/Button'
@@ -14,6 +15,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { ModelScopeProvider, useModelScope } from '@/contexts/ModelScopeContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
+import { apiErrorMessage } from '@/lib/api/errors'
 import {
   getRecommendedParam,
   getTemperatureConstraints,
@@ -229,7 +231,12 @@ function GenerationControlModalBody({
   useEffect(() => {
     if (isOpen) {
       setSelectedModels(defaultSelectedModels)
-      setSelectedStructures([])
+      // Every run needs a structure: a project with exactly one generation
+      // structure starts with it ticked, several leave the choice open.
+      const generationKeys = structureKeys.filter(
+        (key) => !availableStructures[key]?.exclude_from_generation,
+      )
+      setSelectedStructures(generationKeys.length === 1 ? generationKeys : [])
       setMode('missing')
       setLoading(false)
       setShowAdvanced(false)
@@ -281,18 +288,19 @@ function GenerationControlModalBody({
       return
     }
 
-    if (hasStructures && selectedStructures.length === 0) {
+    // Every generation runs on a prompt structure (no built-in default).
+    if (!hasStructures) {
+      addToast(t('generation.controlModal.noStructures'), 'error')
+      return
+    }
+    if (selectedStructures.length === 0) {
       addToast(t('toasts.generation.selectStructure'), 'error')
       return
     }
 
     // If onGenerate is provided (for testing), call it instead of API
     if (onGenerate) {
-      onGenerate(
-        selectedModels,
-        mode === 'missing',
-        hasStructures ? selectedStructures : undefined,
-      )
+      onGenerate(selectedModels, mode === 'missing', selectedStructures)
       onClose()
       return
     }
@@ -326,10 +334,7 @@ function GenerationControlModalBody({
         requestBody.model_configs = modelConfigs
       }
 
-      // Add structure_keys only if structures are available and selected
-      if (hasStructures && selectedStructures.length > 0) {
-        requestBody.structure_keys = selectedStructures
-      }
+      requestBody.structure_keys = selectedStructures
 
       if (billingOrganizationId) {
         requestBody.billing_organization_id = billingOrganizationId
@@ -355,8 +360,7 @@ function GenerationControlModalBody({
     } catch (error: any) {
       console.error('Failed to start bulk generation:', error)
       addToast(
-        error.response?.data?.detail ||
-          t('generation.controlModal.failedToStart'),
+        apiErrorMessage(error, t('generation.controlModal.failedToStart')),
         'error',
       )
     } finally {
@@ -365,8 +369,7 @@ function GenerationControlModalBody({
   }
 
   // Calculate total generations for display
-  const totalGenerations =
-    selectedModels.length * (hasStructures ? selectedStructures.length : 1)
+  const totalGenerations = selectedModels.length * selectedStructures.length
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -552,6 +555,17 @@ function GenerationControlModalBody({
                       onClearAll={() => setSelectedModels([])}
                     />
                   </div>
+
+                  {!hasStructures && (
+                    <Alert variant="error">
+                      <p
+                        className="text-sm"
+                        data-testid="generation-no-structures"
+                      >
+                        {t('generation.controlModal.noStructures')}
+                      </p>
+                    </Alert>
+                  )}
 
                   {/* Structure Selection (Issue #762) */}
                   {hasStructures && (
@@ -925,7 +939,7 @@ function GenerationControlModalBody({
 
                   {/* Generation Count Info */}
                   {selectedModels.length > 0 &&
-                    (hasStructures ? selectedStructures.length > 0 : true) && (
+                    selectedStructures.length > 0 && (
                       <div className={R.summaryBox}>
                         <p className={R.summaryLabel}>
                           {t('generation.controlModal.totalGenerationsPerTask')}
@@ -934,16 +948,11 @@ function GenerationControlModalBody({
                           {selectedModels.length}{' '}
                           {selectedModels.length !== 1
                             ? t('generation.controlModal.models')
-                            : t('generation.controlModal.model')}
-                          {hasStructures && (
-                            <>
-                              {' '}
-                              × {selectedStructures.length}{' '}
-                              {selectedStructures.length !== 1
-                                ? t('generation.controlModal.structures')
-                                : t('generation.controlModal.structure')}
-                            </>
-                          )}
+                            : t('generation.controlModal.model')}{' '}
+                          × {selectedStructures.length}{' '}
+                          {selectedStructures.length !== 1
+                            ? t('generation.controlModal.structures')
+                            : t('generation.controlModal.structure')}
                           {' = '}
                           {totalGenerations}{' '}
                           {totalGenerations !== 1
@@ -953,7 +962,7 @@ function GenerationControlModalBody({
                       </div>
                     )}
 
-                  {selectedModels.length > 0 && projectId && (
+                  {selectedModels.length > 0 && hasStructures && projectId && (
                     <CostEstimatePanel
                       projectId={projectId}
                       mode="generation"
@@ -961,9 +970,7 @@ function GenerationControlModalBody({
                       runsPerCall={runsPerTask}
                       enabled={isOpen}
                       generationMode={mode}
-                      structureKeys={
-                        hasStructures ? selectedStructures : undefined
-                      }
+                      structureKeys={selectedStructures}
                     />
                   )}
                 </div>
@@ -978,7 +985,7 @@ function GenerationControlModalBody({
                     disabled={
                       loading ||
                       selectedModels.length === 0 ||
-                      (hasStructures && selectedStructures.length === 0)
+                      selectedStructures.length === 0
                     }
                   >
                     {loading

@@ -1107,6 +1107,34 @@
       "onlyCreatorCanManage": "Only the project creator can manage prompt structures",
       "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts."
     },
+    "prompts": {
+      "title": "Prompts",
+      "help": "Every prompt of this project in one place: the system and instruction prompts for generation, the prompts of the evaluation methods and the default templates the LLM judge falls back to.",
+      "showPrompts": "Show prompts",
+      "hidePrompts": "Hide prompts",
+      "empty": "(empty)",
+      "noStructures": "No prompt structures are configured for this project.",
+      "evaluation": {
+        "title": "Evaluation prompts",
+        "help": "For each configured LLM judge method, the prompt it grades with. Placeholders in curly braces are filled in per task at grading time.",
+        "prompt": "Evaluation prompt",
+        "sourceCustom": "Custom template",
+        "sourceAnswerType": "Default template for {type}",
+        "sourceFallback": "General default template",
+        "builtAtGrading": "This method assembles its prompt at grading time, for example from the grading sheet or the solution outline of each task.",
+        "disabled": "Disabled",
+        "empty": "No LLM judge method configured yet. The default templates below show what a judge without its own template grades with.",
+        "edit": "Edit prompt",
+        "useDefault": "Use default template",
+        "apply": "Apply",
+        "cancel": "Cancel",
+        "editHint": "The change is saved automatically with the evaluation configuration and applies to the next evaluation."
+      },
+      "templates": {
+        "title": "Default templates",
+        "help": "The LLM judge uses these templates when a method has no template of its own. You can use them as a starting point for your own evaluation prompts."
+      }
+    },
     "permissions": {
       "orgAdminOnly": "Only organization administrators can manage {section}.",
       "creatorOnly": "Only the project creator can manage {section}.",
@@ -2981,7 +3009,8 @@
       "runsPerTask": "Runs per task",
       "runsPerTaskDesc": "How often each task-model combination is generated. Defaults to 1; a value > 1 produces several trials for variance analysis. Multiplies the cost accordingly.",
       "fixedTemperatureOne": "{models} requires fixed temperature=1.0. The backend will override for this model.",
-      "fixedTemperatureOther": "{models} require fixed temperature=1.0. The backend will override for these models."
+      "fixedTemperatureOther": "{models} require fixed temperature=1.0. The backend will override for these models.",
+      "noStructures": "This project has no prompt structure for generation. Add one in the \"Prompts\" section of the project page, then you can start the generation."
     }
   },
   "notifications": {
@@ -3144,8 +3173,8 @@
         "message": "Evaluation of model '{model_name}' on task '{task_name}' has completed successfully."
       },
       "evaluation_failed": {
-        "title": "Evaluation failed: {task_name}",
-        "message": "Evaluation of model '{model_name}' on task '{task_name}' failed: {error_message}"
+        "title": "Evaluation failed: {project_name}",
+        "message": "The evaluation failed: {error_message}"
       },
       "evaluation_received_human": {
         "title": "New grading: {project_title}",
@@ -3212,8 +3241,8 @@
         "message": "LLM generation for task '{task_name}' has completed successfully."
       },
       "llm_generation_failed": {
-        "title": "LLM Generation Failed: {task_name}",
-        "message": "LLM generation using '{model_name}' failed for task '{task_name}': {error_message}"
+        "title": "Generation failed: {project_name}",
+        "message": "Generation with {model_name} failed: {error_message}"
       },
       "model_api_key_invalid": {
         "title": "Invalid API Key: {model_provider}",

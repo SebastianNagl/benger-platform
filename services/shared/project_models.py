@@ -170,6 +170,7 @@ class Project(Base):
     enable_annotation = Column(Boolean, default=True, server_default="true", nullable=False)
     enable_generation = Column(Boolean, default=True, server_default="true", nullable=False)
     enable_evaluation = Column(Boolean, default=True, server_default="true", nullable=False)
+    enable_prompts = Column(Boolean, default=True, server_default="true", nullable=False)
 
     # Status
     is_published = Column(Boolean, default=False, nullable=False)

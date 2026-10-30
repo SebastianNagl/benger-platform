@@ -110,6 +110,22 @@ async def _add_membership(db, user: User, org: Organization, *, role="CONTRIBUTO
     await db.flush()
 
 
+# Every generation runs on a prompt structure (no built-in default prompt).
+STRUCTURE_KEY = "s0"
+_PROMPT_STRUCTURES = {
+    STRUCTURE_KEY: {
+        "name": "Test",
+        "system_prompt": "Du bist Jurist.",
+        "instruction_prompt": "$text",
+    }
+}
+
+
+def _with_structures(generation_config):
+    """A generation-ready config: the given one plus a prompt structure."""
+    return {"prompt_structures": _PROMPT_STRUCTURES, **generation_config}
+
+
 async def _create_project(
     db,
     creator: User,
@@ -544,9 +560,9 @@ class TestStartGeneration:
         project = await _create_project(
             async_test_db,
             admin,
-            generation_config={
-                "selected_configuration": {"models": ["gpt-4o", "claude-3-opus-20240229"]}
-            },
+            generation_config=_with_structures(
+                {"selected_configuration": {"models": ["gpt-4o", "claude-3-opus-20240229"]}}
+            ),
             org=org,
             num_tasks=3,
         )
@@ -557,7 +573,7 @@ class TestStartGeneration:
             with _as_user(admin):
                 response = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project_id}/generate",
-                    json={"mode": "all"},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY]},
                 )
 
         assert response.status_code == 200
@@ -596,7 +612,7 @@ class TestStartGeneration:
         project = await _create_project(
             async_test_db,
             admin,
-            generation_config={"selected_configuration": {"models": []}},
+            generation_config=_with_structures({"selected_configuration": {"models": []}}),
             org=org,
             num_tasks=1,
         )
@@ -606,7 +622,7 @@ class TestStartGeneration:
             with _as_user(admin):
                 response = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project.id}/generate",
-                    json={"mode": "all"},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY]},
                 )
 
         assert response.status_code == 400
@@ -652,7 +668,7 @@ class TestStartGenerationCustomModelGuard:
         project = await _create_project(
             async_test_db,
             owner,
-            generation_config={"selected_configuration": {"models": []}},
+            generation_config=_with_structures({"selected_configuration": {"models": []}}),
             num_tasks=1,
         )
         await async_test_db.commit()
@@ -661,7 +677,7 @@ class TestStartGenerationCustomModelGuard:
             with _as_user(owner):
                 response = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project.id}/generate",
-                    json={"mode": "all", "model_ids": [foreign_model.id]},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY], "model_ids": [foreign_model.id]},
                 )
 
         assert response.status_code == 403
@@ -678,7 +694,7 @@ class TestStartGenerationCustomModelGuard:
         project = await _create_project(
             async_test_db,
             owner,
-            generation_config={"selected_configuration": {"models": []}},
+            generation_config=_with_structures({"selected_configuration": {"models": []}}),
             num_tasks=1,
         )
         await async_test_db.commit()
@@ -687,11 +703,11 @@ class TestStartGenerationCustomModelGuard:
             with _as_user(owner):
                 missing = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project.id}/generate",
-                    json={"mode": "all", "model_ids": ["custom-does-not-exist"]},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY], "model_ids": ["custom-does-not-exist"]},
                 )
                 inactive = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project.id}/generate",
-                    json={"mode": "all", "model_ids": [inactive_model.id]},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY], "model_ids": [inactive_model.id]},
                 )
 
         assert missing.status_code == 400
@@ -711,7 +727,7 @@ class TestStartGenerationCustomModelGuard:
         project = await _create_project(
             async_test_db,
             owner,
-            generation_config={"selected_configuration": {"models": []}},
+            generation_config=_with_structures({"selected_configuration": {"models": []}}),
             num_tasks=2,
         )
         await async_test_db.commit()
@@ -720,7 +736,7 @@ class TestStartGenerationCustomModelGuard:
             with _as_user(owner):
                 response = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project.id}/generate",
-                    json={"mode": "all", "model_ids": [own_model.id]},
+                    json={"mode": "all", "structure_keys": [STRUCTURE_KEY], "model_ids": [own_model.id]},
                 )
 
         assert response.status_code == 200

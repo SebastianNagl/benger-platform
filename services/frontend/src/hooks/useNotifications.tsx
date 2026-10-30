@@ -24,6 +24,11 @@ export interface NotificationPreferences {
 // Mirrors the cap used by the three project-progress WS clients.
 const MAX_RECONNECT_ATTEMPTS = 5
 
+/** Notification types that report a failure and toast as an error. */
+export function isFailureNotificationType(type: string | undefined): boolean {
+  return type === 'error_occurred' || (!!type && type.endsWith('_failed'))
+}
+
 export function useNotifications() {
   const { apiClient, user } = useAuth()
   const { t } = useI18n()
@@ -237,7 +242,13 @@ export function useNotifications() {
                 tRef.current,
                 newNotification,
               )
-              toast(translatedToastTitle, 'success')
+              // Failures (generation / evaluation runs) toast as errors.
+              toast(
+                translatedToastTitle,
+                isFailureNotificationType(newNotification.type)
+                  ? 'error'
+                  : 'success',
+              )
               break
 
             case 'unread_count':

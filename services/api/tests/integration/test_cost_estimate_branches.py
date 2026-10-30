@@ -152,7 +152,13 @@ async def _seed_project(
         created_by=owner.id,
         is_published=True,
         is_private=is_private,
-        generation_config=generation_config,
+        # Every generation runs on a prompt structure: seed one ("s0")
+        # unless the test brings its own config.
+        generation_config=(
+            generation_config
+            if generation_config is not None
+            else {"prompt_structures": {"s0": {"name": "s0", "system_prompt": "S", "instruction_prompt": "$q"}}}
+        ),
     )
     db.add(project)
     await db.flush()
@@ -416,7 +422,7 @@ class TestPricingBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=["totally-unknown-model"],
             )
         assert body_resp.status_code == 200, body_resp.text
@@ -446,7 +452,7 @@ class TestPricingBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[FREE_MODEL],
             )
         assert body_resp.status_code == 200, body_resp.text
@@ -469,7 +475,7 @@ class TestPricingBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
             )
         assert body_resp.status_code == 200, body_resp.text
@@ -498,7 +504,7 @@ class TestPricingBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL, "unknown-x"],
             )
         assert body_resp.status_code == 200, body_resp.text
@@ -526,7 +532,7 @@ class TestPricingBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=["unknown-a", "unknown-b"],
             )
         assert body_resp.status_code == 200, body_resp.text
@@ -557,7 +563,7 @@ class TestGenerationCells:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
                 generation_mode="all",
             )
@@ -700,7 +706,7 @@ class TestGenerationCells:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
                 generation_mode="missing",
             )
@@ -740,7 +746,7 @@ class TestGenerationCells:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
                 generation_mode="missing",
             )
@@ -772,7 +778,8 @@ class TestModelParameterBranches:
             "selected_configuration": {
                 "parameters": {"max_tokens": 1000},
                 "model_configs": {override_model: {"max_tokens": 16000}},
-            }
+            },
+            "prompt_structures": {"s0": {"name": "s0", "system_prompt": "S", "instruction_prompt": "$q"}},
         }
         project = await _seed_project(
             async_test_db, actor,
@@ -784,7 +791,7 @@ class TestModelParameterBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL, override_model],
                 generation_mode="all",
             )
@@ -818,7 +825,7 @@ class TestModelParameterBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL, REASONING_MODEL],
                 generation_mode="all",
             )
@@ -850,7 +857,7 @@ class TestModelParameterBranches:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL, rec_model],
                 generation_mode="all",
             )
@@ -882,7 +889,7 @@ class TestNoteText:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
                 generation_mode="all",
             )
@@ -906,7 +913,7 @@ class TestNoteText:
             body_resp = await _post(
                 async_test_client,
                 project_id=pid,
-                mode="generation",
+                mode="generation", structure_keys=["s0"],
                 model_ids=[PRICED_MODEL],
                 generation_mode="missing",
             )

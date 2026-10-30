@@ -89,10 +89,24 @@ jest.mock('@/lib/api/client', () => ({
   },
 }))
 
+// Every generation runs on a prompt structure; with exactly one the modal
+// pre-selects it.
 const defaultProps = {
   isOpen: true,
   projectId: 'project-1',
   models: ['gpt-4', 'claude-3'],
+  project: {
+    id: 'project-1',
+    generation_config: {
+      prompt_structures: {
+        s0: {
+          name: 'Default',
+          system_prompt: 'S',
+          instruction_prompt: '$text',
+        },
+      },
+    },
+  } as any,
   onClose: jest.fn(),
 }
 
@@ -111,6 +125,23 @@ describe('GenerationControlModal branch coverage', () => {
     expect(submitBtn).toBeDisabled()
   })
 
+  // No built-in default prompt: without a structure the run cannot start.
+  it('blocks the start and explains it when the project has no structure', async () => {
+    const user = userEvent.setup()
+    const mockPost = require('@/lib/api/client').apiClient.post
+    render(
+      <GenerationControlModal
+        {...defaultProps}
+        project={{ id: 'project-1', generation_config: {} } as any}
+      />,
+    )
+
+    expect(screen.getByTestId('generation-no-structures')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('checkbox')[0])
+    expect(screen.getByText('Start Generation')).toBeDisabled()
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
   // Lines 89-90: handleSubmit with structures but none selected
   it('shows error when structures available but none selected', async () => {
     const user = userEvent.setup()
@@ -118,8 +149,10 @@ describe('GenerationControlModal branch coverage', () => {
       ...defaultProps,
       project: {
         generation_config: {
+          // Two structures, so none is pre-selected.
           prompt_structures: {
             struct1: { name: 'Structure 1', description: 'Test structure' },
+            struct2: { name: 'Structure 2', description: 'Other structure' },
           },
         },
       } as any,
@@ -199,7 +232,7 @@ describe('GenerationControlModal branch coverage', () => {
       expect(mockOnGenerate).toHaveBeenCalledWith(
         ['gpt-4'],
         true, // missing mode by default
-        undefined, // no structures
+        ['s0'], // the project's single structure, pre-selected
       )
     })
   })
@@ -407,9 +440,9 @@ describe('GenerationControlModal branch coverage', () => {
 
     // Get all checkboxes - model(s) come first, then structure(s)
     const checkboxes = screen.getAllByRole('checkbox')
-    // Select model (index 0) and structure (index 1)
+    // Select the model (index 0); the only structure starts ticked
     await user.click(checkboxes[0])
-    await user.click(checkboxes[1])
+    expect(checkboxes[1]).toBeChecked()
 
     await waitFor(() => {
       // Check for the generation count info panel

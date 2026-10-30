@@ -20,6 +20,7 @@ import { GenerationControlModal } from '@/components/generation/GenerationContro
 import { AdvancedSettingsCard } from '@/components/projects/AdvancedSettingsCard'
 import { ConfigCard } from '@/components/projects/ConfigCard'
 import { EvaluationDefaultsCard } from '@/components/projects/EvaluationDefaultsCard'
+import { EvaluationPromptsOverview } from '@/components/projects/EvaluationPromptsOverview'
 import { GenerationDefaultsCard } from '@/components/projects/GenerationDefaultsCard'
 import {
   LabelConfigEditor,
@@ -2420,29 +2421,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     onNavigateToProfile={() => router.push('/profile')}
                   />
 
-                  {/* Prompt Structures Section - Issue #762 */}
-                  <div className="bg-white dark:bg-zinc-900">
-                    {canEditProject() ? (
-                      <PromptStructuresManager
-                        projectId={projectId || ''}
-                        onStructuresChange={() => {
-                          // Refetch project to update UI
-                          if (projectId) {
-                            fetchProject(projectId)
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="py-6 text-center">
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {getReadOnlyMessage(
-                            t('project.promptStructures.title'),
-                          )}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Always-visible "Generierung starten" CTA at the card footer.
               Mirrors the eval card's start button so both ConfigCards have
               parallel placement, and stays visible regardless of which
@@ -2461,6 +2439,48 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       </Button>
                     </div>
                   )}
+                </ConfigCard>
+              )}
+
+              {/* Prompts — every prompt the project uses or falls back to in
+              one place: the generation prompt structures (system +
+              instruction prompt, moved here from the generation card) and the
+              evaluation prompts of the configured judge methods plus the
+              default judge templates. Read-only for viewers without edit
+              rights; its own feature-visibility switch (enable_prompts). */}
+              {currentProject.enable_prompts !== false && (
+                <ConfigCard
+                  title={t('project.prompts.title')}
+                  defaultExpanded={false}
+                >
+                  {/* Prompt Structures Section - Issue #762 */}
+                  <div className="bg-white dark:bg-zinc-900">
+                    <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('project.prompts.help')}
+                    </p>
+                    <PromptStructuresManager
+                      projectId={projectId || ''}
+                      readOnly={!canEditProject()}
+                      onStructuresChange={() => {
+                        // Refetch project to update UI
+                        if (projectId) {
+                          fetchProject(projectId)
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <SubSection title={t('project.prompts.evaluation.title')}>
+                    <EvaluationPromptsOverview
+                      projectId={projectId || ''}
+                      evaluationConfigs={evaluationConfigs}
+                      onConfigsChange={
+                        canEditProject()
+                          ? handleEvaluationConfigsChange
+                          : undefined
+                      }
+                    />
+                  </SubSection>
                 </ConfigCard>
               )}
 
@@ -2796,6 +2816,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             t('project.generationConfiguration.title'),
                           ],
                           ['enable_evaluation', t('project.evaluation.title')],
+                          ['enable_prompts', t('project.prompts.title')],
                         ] as const
                       ).map(([key, label]) => (
                         <label

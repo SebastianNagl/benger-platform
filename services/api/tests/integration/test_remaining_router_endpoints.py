@@ -309,7 +309,23 @@ async def _gen_make_user(db, *, is_superadmin=True, prefix="gen"):
     return u
 
 
+# Every generation runs on a prompt structure (no built-in default prompt):
+# _gen_make_project seeds one unless the config names its own.
+GEN_STRUCTURE_KEY = "s0"
+
+
 async def _gen_make_project(db, creator, *, generation_config=None, num_tasks=2):
+    if generation_config is not None and "prompt_structures" not in generation_config:
+        generation_config = {
+            **generation_config,
+            "prompt_structures": {
+                GEN_STRUCTURE_KEY: {
+                    "name": "Test",
+                    "system_prompt": "Du bist Jurist.",
+                    "instruction_prompt": "$text",
+                }
+            },
+        }
     project = Project(
         id=_uid(),
         title=f"Gen Project {uuid.uuid4().hex[:6]}",
@@ -620,7 +636,7 @@ class TestGenerationTaskListEndpoints:
         with _gen_user_ctx(admin), patch("routers.generation_task_list.celery_app"):
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_STRUCTURE_KEY], "mode": "all"},
             )
         assert resp.status_code == 400
 
@@ -640,7 +656,7 @@ class TestGenerationTaskListEndpoints:
             mock_celery.control.revoke = MagicMock()
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
-                json={"mode": "all"},
+                json={"structure_keys": [GEN_STRUCTURE_KEY], "mode": "all"},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -676,6 +692,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 12000},
@@ -703,6 +720,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 8000},
@@ -728,6 +746,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 100000},
@@ -756,6 +775,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 50000},
@@ -799,6 +819,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 50000},
@@ -835,6 +856,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "model_configs": {model_id: {"max_tokens": 100000.0}},
@@ -864,6 +886,7 @@ class TestGenerationTaskListEndpoints:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project_id}/generate",
                 json={
+                    "structure_keys": [GEN_STRUCTURE_KEY],
                     "mode": "all",
                     "model_ids": [model_id],
                     "parameters": {"max_tokens": 8000},

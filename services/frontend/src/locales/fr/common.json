@@ -1107,6 +1107,34 @@
       "onlyCreatorCanManage": "Seul le créateur du projet peut gérer les structures de prompt",
       "fieldReferenceHelp": "Utilisez la syntaxe $nomduchamp ou $chemin.imbrique pour référencer les champs des données de tâche dans vos prompts."
     },
+    "prompts": {
+      "title": "Prompts",
+      "help": "Tous les prompts de ce projet au même endroit : les prompts système et d'instruction de la génération, les prompts des méthodes d'évaluation et les modèles par défaut auxquels le juge LLM a recours.",
+      "showPrompts": "Afficher les prompts",
+      "hidePrompts": "Masquer les prompts",
+      "empty": "(vide)",
+      "noStructures": "Aucune structure de prompt n'est configurée pour ce projet.",
+      "evaluation": {
+        "title": "Prompts d'évaluation",
+        "help": "Pour chaque méthode de juge LLM configurée, le prompt avec lequel elle évalue. Les espaces réservés entre accolades sont remplacés pour chaque tâche au moment de l'évaluation.",
+        "prompt": "Prompt d'évaluation",
+        "sourceCustom": "Modèle personnalisé",
+        "sourceAnswerType": "Modèle par défaut pour {type}",
+        "sourceFallback": "Modèle général par défaut",
+        "builtAtGrading": "Cette méthode compose son prompt au moment de l'évaluation, par exemple à partir de la grille de correction ou du plan de solution de chaque tâche.",
+        "disabled": "Désactivée",
+        "empty": "Aucune méthode de juge LLM n'est encore configurée. Les modèles par défaut ci-dessous montrent avec quoi évalue un juge sans modèle propre.",
+        "edit": "Modifier le prompt",
+        "useDefault": "Utiliser le modèle par défaut",
+        "apply": "Appliquer",
+        "cancel": "Annuler",
+        "editHint": "La modification est enregistrée automatiquement avec la configuration de l'évaluation et s'applique à la prochaine évaluation."
+      },
+      "templates": {
+        "title": "Modèles par défaut",
+        "help": "Le juge LLM utilise ces modèles lorsqu'une méthode n'a pas de modèle propre. Vous pouvez vous en servir comme point de départ pour vos propres prompts d'évaluation."
+      }
+    },
     "permissions": {
       "orgAdminOnly": "Seuls les administrateurs de l'organisation peuvent gérer {section}.",
       "creatorOnly": "Seul le créateur du projet peut gérer {section}.",
@@ -2981,7 +3009,8 @@
       "runsPerTask": "Exécutions par tâche",
       "runsPerTaskDesc": "Nombre de générations pour chaque combinaison tâche-modèle. Par défaut 1 ; une valeur > 1 produit plusieurs essais pour l'analyse de variance. Le coût est multiplié d'autant.",
       "fixedTemperatureOne": "{models} exige une température fixe de 1.0. Le backend remplacera la valeur pour ce modèle.",
-      "fixedTemperatureOther": "{models} exigent une température fixe de 1.0. Le backend remplacera la valeur pour ces modèles."
+      "fixedTemperatureOther": "{models} exigent une température fixe de 1.0. Le backend remplacera la valeur pour ces modèles.",
+      "noStructures": "Ce projet n'a pas de structure de prompt pour la génération. Ajoutez-en une dans la section « Prompts » de la page du projet, puis lancez la génération."
     }
   },
   "notifications": {
@@ -3144,8 +3173,8 @@
         "message": "L'évaluation du modèle « {model_name} » pour la tâche « {task_name} » s'est terminée avec succès."
       },
       "evaluation_failed": {
-        "title": "Échec de l'évaluation : {task_name}",
-        "message": "L'évaluation du modèle « {model_name} » pour la tâche « {task_name} » a échoué : {error_message}"
+        "title": "Échec de l'évaluation : {project_name}",
+        "message": "L'évaluation a échoué : {error_message}"
       },
       "evaluation_received_human": {
         "title": "Nouvelle correction : {project_title}",
@@ -3212,8 +3241,8 @@
         "message": "La génération LLM pour la tâche « {task_name} » s'est terminée avec succès."
       },
       "llm_generation_failed": {
-        "title": "Échec de la génération LLM : {task_name}",
-        "message": "La génération LLM avec « {model_name} » pour la tâche « {task_name} » a échoué : {error_message}"
+        "title": "Échec de la génération : {project_name}",
+        "message": "La génération avec {model_name} a échoué : {error_message}"
       },
       "model_api_key_invalid": {
         "title": "Clé API non valide : {model_provider}",
