@@ -49,8 +49,21 @@ def test_key_is_masked_everywhere(client, router):
     assert secret not in repr(client)
     assert "bgr_test_k3Yx9Q2a_***" in repr(client)
     assert secret not in str(vars(client))
-    router.add("GET", "/api/v1/me", lambda r: httpx.Response(401, json={"error": {
-        "code": "invalid_api_key", "message": "bad key", "request_id": "r1", "details": {}}}))
+    router.add(
+        "GET",
+        "/api/v1/me",
+        lambda r: httpx.Response(
+            401,
+            json={
+                "error": {
+                    "code": "invalid_api_key",
+                    "message": "bad key",
+                    "request_id": "r1",
+                    "details": {},
+                }
+            },
+        ),
+    )
     with pytest.raises(AuthenticationError) as exc:
         client.me()
     assert secret not in str(exc.value) and secret not in repr(exc.value)
@@ -72,9 +85,21 @@ def test_absolute_url_on_same_host(client, router):
 
 
 def test_v1_error_envelope(client, router):
-    router.add("GET", "/api/v1/projects/p1", lambda r: httpx.Response(403, json={"error": {
-        "code": "insufficient_scope", "message": "This API key lacks the scope(s): projects:read",
-        "request_id": "req-1", "details": {"required_scopes": ["projects:read"]}}}))
+    router.add(
+        "GET",
+        "/api/v1/projects/p1",
+        lambda r: httpx.Response(
+            403,
+            json={
+                "error": {
+                    "code": "insufficient_scope",
+                    "message": "This API key lacks the scope(s): projects:read",
+                    "request_id": "req-1",
+                    "details": {"required_scopes": ["projects:read"]},
+                }
+            },
+        ),
+    )
     with pytest.raises(InsufficientScopeError) as exc:
         client.projects.get("p1")
     err = exc.value
@@ -84,12 +109,21 @@ def test_v1_error_envelope(client, router):
 
 
 def test_full_api_detail_dict(client, router):
-    router.add("POST", "/api/evaluations/run", lambda r: httpx.Response(
-        403,
-        json={"detail": {"code": "insufficient_scope", "message": "lacks evaluations:run",
-                         "required_scopes": ["evaluations:run"]}},
-        headers={"X-Request-ID": "hdr-id"},
-    ))
+    router.add(
+        "POST",
+        "/api/evaluations/run",
+        lambda r: httpx.Response(
+            403,
+            json={
+                "detail": {
+                    "code": "insufficient_scope",
+                    "message": "lacks evaluations:run",
+                    "required_scopes": ["evaluations:run"],
+                }
+            },
+            headers={"X-Request-ID": "hdr-id"},
+        ),
+    )
     with pytest.raises(InsufficientScopeError) as exc:
         client.post("/api/evaluations/run", json={})
     assert exc.value.required_scopes == ["evaluations:run"]
@@ -98,16 +132,29 @@ def test_full_api_detail_dict(client, router):
 
 
 def test_full_api_detail_string(client, router):
-    router.add("GET", "/api/projects/x", lambda r: httpx.Response(
-        404, json={"detail": "Project not found"}))
+    router.add(
+        "GET",
+        "/api/projects/x",
+        lambda r: httpx.Response(404, json={"detail": "Project not found"}),
+    )
     with pytest.raises(NotFoundError) as exc:
         client.projects.get("x", full=True)
     assert (exc.value.code, exc.value.message) == ("not_found", "Project not found")
 
 
 def test_fastapi_validation_list(client, router):
-    router.add("POST", "/api/custom-models/", lambda r: httpx.Response(422, json={"detail": [
-        {"loc": ["body", "base_url"], "msg": "Field required", "type": "missing"}]}))
+    router.add(
+        "POST",
+        "/api/custom-models/",
+        lambda r: httpx.Response(
+            422,
+            json={
+                "detail": [
+                    {"loc": ["body", "base_url"], "msg": "Field required", "type": "missing"}
+                ]
+            },
+        ),
+    )
     with pytest.raises(ValidationError) as exc:
         client.post("/api/custom-models/", json={})
     assert exc.value.code == "validation_error"
@@ -124,8 +171,19 @@ def test_non_json_error(client, router):
 
 
 def test_api_key_not_allowed_here(client, router):
-    router.add("POST", "/api/auth/login", lambda r: httpx.Response(401, json={"detail": {
-        "code": "api_key_not_allowed_here", "message": "Access keys cannot call this route"}}))
+    router.add(
+        "POST",
+        "/api/auth/login",
+        lambda r: httpx.Response(
+            401,
+            json={
+                "detail": {
+                    "code": "api_key_not_allowed_here",
+                    "message": "Access keys cannot call this route",
+                }
+            },
+        ),
+    )
     with pytest.raises(AuthenticationError) as exc:
         client.post("/api/auth/login", json={})
     assert exc.value.code == "api_key_not_allowed_here"
@@ -135,13 +193,28 @@ def test_api_key_not_allowed_here(client, router):
 
 
 def test_429_retries_with_retry_after(client, router, sleeps):
-    answers = iter([
-        httpx.Response(429, headers={"Retry-After": "7"}, json={"error": {
-            "code": "rate_limited", "message": "slow down", "request_id": "a", "details": {}}}),
-        httpx.Response(429, headers={"Retry-After": "2"}, json={"detail": {
-            "code": "rate_limited", "message": "slow down"}}),
-        httpx.Response(200, json={"ok": True}),
-    ])
+    answers = iter(
+        [
+            httpx.Response(
+                429,
+                headers={"Retry-After": "7"},
+                json={
+                    "error": {
+                        "code": "rate_limited",
+                        "message": "slow down",
+                        "request_id": "a",
+                        "details": {},
+                    }
+                },
+            ),
+            httpx.Response(
+                429,
+                headers={"Retry-After": "2"},
+                json={"detail": {"code": "rate_limited", "message": "slow down"}},
+            ),
+            httpx.Response(200, json={"ok": True}),
+        ]
+    )
     router.add("POST", "/api/evaluations/run", lambda r: next(answers))
     assert client.post("/api/evaluations/run", json={"project_id": "p"}) == {"ok": True}
     assert sleeps == [7.0, 2.0]
@@ -150,9 +223,15 @@ def test_429_retries_with_retry_after(client, router, sleeps):
 
 def test_429_gives_up_after_max_retries(client, router, sleeps):
     client.max_retries = 2
-    router.add("GET", "/api/v1/me", lambda r: httpx.Response(
-        429, headers={"Retry-After": "1"},
-        json={"error": {"code": "rate_limited", "message": "m", "request_id": "x"}}))
+    router.add(
+        "GET",
+        "/api/v1/me",
+        lambda r: httpx.Response(
+            429,
+            headers={"Retry-After": "1"},
+            json={"error": {"code": "rate_limited", "message": "m", "request_id": "x"}},
+        ),
+    )
     with pytest.raises(RateLimitError) as exc:
         client.me()
     assert exc.value.retry_after == 1.0
@@ -190,7 +269,9 @@ def test_transport_error_retried_for_get(router, sleeps):
 
 
 def test_v1_posts_carry_idempotency_key_stable_across_retries(client, router, sleeps):
-    answers = iter([httpx.Response(503), httpx.Response(202, json={"id": "e1", "status": "pending"})])
+    answers = iter(
+        [httpx.Response(503), httpx.Response(202, json={"id": "e1", "status": "pending"})]
+    )
     router.add("POST", "/api/v1/projects/p1/exports", lambda r: next(answers))
     assert client.exports.create("p1")["id"] == "e1"
     keys = [r.headers.get("Idempotency-Key") for r in router.calls]
@@ -228,7 +309,9 @@ def test_v1_pagination(client, router):
 def test_generic_request_shapes(client, router):
     router.add("DELETE", "/api/generation/g1", lambda r: httpx.Response(204))
     router.add("GET", "/api/text", lambda r: httpx.Response(200, text="hello"))
-    router.add("GET", "/api/redirect", lambda r: httpx.Response(302, headers={"Location": "https://s3/x"}))
+    router.add(
+        "GET", "/api/redirect", lambda r: httpx.Response(302, headers={"Location": "https://s3/x"})
+    )
     assert client.delete("/api/generation/g1") is None
     assert client.get("/api/text") == "hello"
     assert client.get("/api/redirect") == {"status": 302, "location": "https://s3/x"}
