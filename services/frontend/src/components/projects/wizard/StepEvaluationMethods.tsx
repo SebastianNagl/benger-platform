@@ -72,6 +72,10 @@ export function StepEvaluationMethods({
   // it writes is handed to a post-create hook once the project exists;
   // community builds register nothing and the step is unchanged.
   const GradeScaleSection = useSlot('ProjectWizardEvaluationGradeScale')
+  // Extended: project-wide judge settings right below the immediate
+  // evaluation toggle (the KI margin notes). The slot reads and writes the
+  // wizard's evaluationConfigs through the same state + updater pair.
+  const EvaluationSettings = useSlot('ProjectWizardEvaluationSettings')
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null)
 
   const groupedMetrics = getGroupedMetrics()
@@ -246,6 +250,14 @@ export function StepEvaluationMethods({
           className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
         />
       </div>
+
+      {EvaluationSettings && wizardData && onWizardChange
+        ? createElement(EvaluationSettings, {
+            data: wizardData,
+            onChange: onWizardChange,
+            immediateEvaluationEnabled,
+          })
+        : null}
 
       {/* Selected metrics summary */}
       {evaluationConfigs.length > 0 && (
