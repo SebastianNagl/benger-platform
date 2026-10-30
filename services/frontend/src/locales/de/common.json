@@ -11252,7 +11252,7 @@
       "implies": "enthält auch {scopes}",
       "needsContributor": "nur mit der Rolle Mitwirkender",
       "roleLabel": "Rolle des Schlüssels",
-      "roleHint": "Der Schlüssel handelt als eigenes Dienstkonto mit dieser Rolle in der Organisation. Mitwirkende sehen auch Musterlösungen.",
+      "roleHint": "Der Schlüssel handelt als eigenes Dienstkonto mit dieser Rolle in der Organisation. Mitwirkende sehen auch Musterlösungen. Admin-Schlüssel gelten für die ganze Organisation und dürfen sie auch verwalten.",
       "roleSwitched": "Für diese Auswahl braucht der Schlüssel die Rolle Mitwirkender. Die Rolle wurde angepasst.",
       "groupLabel": "Gruppe",
       "groupHint": "Ein Gruppenschlüssel sieht nur die Projekte seiner Gruppe und die der ganzen Organisation.",
@@ -11273,7 +11273,10 @@
       "create": "Schlüssel anlegen",
       "creating": "Wird angelegt …",
       "createFailed": "Der Schlüssel konnte nicht angelegt werden: {message}",
-      "tooManyKeys": "Es gibt schon zu viele aktive Schlüssel. Widerrufe zuerst einen Schlüssel, den du nicht mehr brauchst."
+      "tooManyKeys": "Es gibt schon zu viele aktive Schlüssel. Widerrufe zuerst einen Schlüssel, den du nicht mehr brauchst.",
+      "needsOrgAdmin": "nur mit der Rolle Admin (ganze Organisation)",
+      "roleSwitchedAdmin": "Für diese Auswahl braucht der Schlüssel die Rolle Admin und gilt dann für die ganze Organisation. Rolle und Gruppe wurden angepasst.",
+      "roleLoweredForGroup": "Ein Gruppenschlüssel kann nicht die Rolle Admin haben. Die Rolle steht jetzt auf Mitwirkender."
     },
     "presets": {
       "benchmark_read": {
@@ -11287,6 +11290,10 @@
       "org_full": {
         "label": "Vollzugriff auf die eigene Organisation",
         "description": "Alles aus „Ausführen und einreichen“, dazu Musterlösungen und Exporte. Braucht die Rolle Mitwirkender."
+      },
+      "full_access": {
+        "label": "Volle API für Forschungs-Pipelines",
+        "description": "Konto, Projekte, Aufgaben samt Musterlösungen, Annotationen, eigene Modelle, Generierung, Evaluationen, Ergebnisse, Exporte und Dateien. Was der Schlüssel sieht, bestimmen weiter seine Rolle und seine Projekte. Organisationsschlüssel brauchen die Rolle Mitwirkender."
       }
     },
     "secret": {
@@ -11297,7 +11304,11 @@
       "copyFailed": "Kopieren hat nicht geklappt. Markiere den Schlüssel und kopiere ihn von Hand.",
       "curlTitle": "Mit curl ausprobieren",
       "pythonTitle": "In Python verwenden",
-      "done": "Fertig"
+      "done": "Fertig",
+      "referenceTitle": "Die ganze Schnittstelle",
+      "referenceHint": "Der Schlüssel funktioniert in der ganzen BenGER-Schnittstelle, soweit seine Berechtigungen reichen. Anmelden, Passwort und Registrierung bleiben dem Browser vorbehalten. Alle Endpunkte findest du in den Referenzen:",
+      "referenceFull": "Vollständige Referenz mit allen Endpunkten",
+      "referenceV1": "Benchmark-Schnittstelle"
     },
     "test": {
       "button": "Verbindung testen",
@@ -11373,7 +11384,19 @@
       "evaluationsRun": "Evaluationen starten",
       "resultsRead": "Ergebnisse lesen",
       "exportsRead": "Exporte abrufen",
-      "keysManage": "Eigene Zugangsschlüssel verwalten"
+      "keysManage": "Eigene Zugangsschlüssel verwalten",
+      "accountRead": "Eigenes Konto, Benachrichtigungen und Einstellungen lesen",
+      "accountWrite": "Eigene Einstellungen und Benachrichtigungen ändern, Projekten beitreten",
+      "orgManage": "Organisation verwalten (Mitglieder, Gruppen, Einladungen, Einstellungen)",
+      "projectsWrite": "Projekte anlegen, konfigurieren, teilen, importieren und löschen",
+      "tasksWrite": "Aufgaben anlegen, bearbeiten, zuweisen und löschen",
+      "annotationsRead": "Annotationen, Entwürfe, Reviews und Korrekturen lesen",
+      "annotationsWrite": "Annotieren, Entwürfe speichern, reviewen und korrigieren",
+      "modelsRead": "Modellkatalog und eigene Modelle lesen",
+      "modelsManage": "Eigene Modelle (BYOM) und Anbieter-Schlüssel verwalten",
+      "filesRead": "Hochgeladene Dateien lesen",
+      "filesWrite": "Dateien hochladen und löschen",
+      "adminPlatform": "Superadmin-Rechte der Plattform"
     }
   },
   "architecture": {

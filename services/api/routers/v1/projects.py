@@ -4,8 +4,9 @@ The list is the caller's accessible projects
 (``get_accessible_project_ids_async``: public projects, own private ones and
 those reached through organization memberships) narrowed, for keys, by the
 key's project allowlist and group restriction, without Safe Exam Browser
-projects. Participant-tier projects (student enrollments, shares) are not
-listed but can be read by id when the caller holds that tier.
+projects. Projects the caller reaches only with the participant tier
+(shares, entitlements, org exams) or the attempted tier (an own
+submission) are listed too, with ``access.tier`` saying which.
 """
 
 from __future__ import annotations
@@ -23,7 +24,12 @@ from database import get_async_db
 from project_models import Project, ProjectOrganization, Task
 from routers.projects.deps import ProjectAccess
 from routers.projects.helpers import (
+    TIER_ATTEMPTED,
+    TIER_FULL,
+    TIER_PARTICIPANT,
     get_accessible_project_ids_async,
+    get_attempted_project_ids_async,
+    get_participant_project_ids_async,
     get_effective_project_role_async,
     resolve_project_roles_batch_async,
 )
@@ -144,7 +150,15 @@ async def list_projects(
 ):
     position = decode_cursor(_CURSOR_KIND, cursor)
     after_id = str(position.get("id")) if position and position.get("id") else None
-    ids = await get_accessible_project_ids_async(db, user) or []
+    full = {str(pid) for pid in (await get_accessible_project_ids_async(db, user) or [])}
+    participant = set(await get_participant_project_ids_async(db, user.id)) - full
+    attempted = await get_attempted_project_ids_async(db, user.id) - full - participant
+    tiers = {
+        **{pid: TIER_ATTEMPTED for pid in attempted},
+        **{pid: TIER_PARTICIPANT for pid in participant},
+        **{pid: TIER_FULL for pid in full},
+    }
+    ids = sorted(tiers)
     if principal.is_api_key and principal.project_ids is not None:
         ids = [pid for pid in ids if str(pid) in principal.project_ids]
     if not ids:
@@ -164,7 +178,7 @@ async def list_projects(
             serialize_project_public(
                 project,
                 task_count=counts.get(str(project.id), 0),
-                tier="full",
+                tier=tiers.get(str(project.id), TIER_FULL),
                 effective_role=role,
                 blinded=v1_bound_fields(principal, role, project) is not None,
             )

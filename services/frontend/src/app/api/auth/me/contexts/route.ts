@@ -1,16 +1,14 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
     const apiBaseUrl = getInternalApiUrl(request)
-    const cookies = request.headers.get('cookie') || ''
 
     const backendResponse = await fetch(`${apiBaseUrl}/api/auth/me/contexts`, {
       method: 'GET',
-      headers: {
-        Cookie: cookies,
-      },
+      headers: proxyAuthHeaders(request),
     })
 
     if (!backendResponse.ok) {

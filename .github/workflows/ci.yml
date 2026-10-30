@@ -129,6 +129,14 @@ jobs:
       - name: Lint publications
         run: pipx run ruff==0.16.9 check publications/
 
+      # Python API client (clients/python): mock-transport tests, no network.
+      # Same pinned ruff as publications (clients/python/pyproject.toml).
+      - name: Lint + test Python client
+        run: |
+          pipx run ruff==0.16.9 check clients/python/
+          pip install httpx pytest
+          python -m pytest -q clients/python/tests
+
       # Every Celery queue must be consumed by exactly one worker pool. A
       # stranded queue fails silently in production -- tasks just never run --
       # so it is checked here, on a runner that has the Helm chart. The workers

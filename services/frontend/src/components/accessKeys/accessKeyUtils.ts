@@ -7,6 +7,7 @@
 import type {
   AccessKey,
   AccessKeyCreate,
+  AccessKeyOrgRole,
   AccessKeyTestResult,
   ScopeCatalog,
   ScopeDefinition,
@@ -23,11 +24,12 @@ export type ExpiryChoice = '30' | '90' | '365' | 'never'
 export const EXPIRY_CHOICES: ExpiryChoice[] = ['30', '90', '365', 'never']
 export const DEFAULT_EXPIRY: ExpiryChoice = '365'
 
-/** The three presets the UI names in plain language, in display order. */
+/** The presets the UI names in plain language, in display order. */
 export const KNOWN_PRESETS = [
   'benchmark_read',
   'benchmark_submit',
   'org_full',
+  'full_access',
 ] as const
 
 export type AccessKeyMode = 'org' | 'personal'
@@ -67,26 +69,64 @@ export function formatDate(
   return d.toLocaleDateString(intlTag(locale))
 }
 
+/** Org roles of a key, lowest first. */
+export const ORG_KEY_ROLES: AccessKeyOrgRole[] = [
+  'ANNOTATOR',
+  'CONTRIBUTOR',
+  'ORG_ADMIN',
+]
+
+export function roleAtLeast(
+  role: AccessKeyOrgRole,
+  minimum: AccessKeyOrgRole,
+): boolean {
+  return ORG_KEY_ROLES.indexOf(role) >= ORG_KEY_ROLES.indexOf(minimum)
+}
+
 export interface GrantContext {
   mode: AccessKeyMode
   /** Org-wide admin (or superadmin); group admins are not. */
   isOrgAdmin: boolean
-  role: 'ANNOTATOR' | 'CONTRIBUTOR'
+  /** The creator is a superadmin (personal keys may carry admin:platform). */
+  isSuperadmin?: boolean
+  role: AccessKeyOrgRole
 }
 
-/** Whether the scope can be offered at all in this context. */
+type OfferContext = Pick<GrantContext, 'mode' | 'isOrgAdmin' | 'isSuperadmin'>
+
+/**
+ * Whether the scope can be offered at all for this kind of key and creator
+ * (app/core/scopes.py, validate_scopes_for_grant). Role requirements of org
+ * keys come on top, see requiredRole().
+ */
 export function isScopeOffered(
   scope: ScopeDefinition,
-  ctx: Pick<GrantContext, 'mode' | 'isOrgAdmin'>,
+  ctx: OfferContext,
 ): boolean {
   switch (scope.grantable) {
     case 'personal_only':
       return ctx.mode === 'personal'
+    case 'superadmin':
+      return ctx.mode === 'personal' && ctx.isSuperadmin === true
     case 'org_admin':
       return ctx.mode === 'org' && ctx.isOrgAdmin
+    case 'org_admin_role':
+      // Org keys need the ORG_ADMIN role, which only org-wide admins grant.
+      return ctx.mode === 'personal' || ctx.isOrgAdmin
     default:
       return true
   }
+}
+
+/** The lowest org-key role that may hold the scope, null without one. */
+export function requiredRole(
+  scope: ScopeDefinition,
+  ctx: Pick<GrantContext, 'mode'>,
+): AccessKeyOrgRole | null {
+  if (ctx.mode !== 'org') return null
+  if (scope.grantable === 'full_data_role') return 'CONTRIBUTOR'
+  if (scope.grantable === 'org_admin_role') return 'ORG_ADMIN'
+  return null
 }
 
 /** Offered but blocked by the chosen role (org keys with ANNOTATOR). */
@@ -94,7 +134,7 @@ export function needsContributor(
   scope: ScopeDefinition,
   ctx: Pick<GrantContext, 'mode'>,
 ): boolean {
-  return ctx.mode === 'org' && scope.grantable === 'full_data_role'
+  return requiredRole(scope, ctx) === 'CONTRIBUTOR'
 }
 
 export function isScopeGrantable(
@@ -102,13 +142,13 @@ export function isScopeGrantable(
   ctx: GrantContext,
 ): boolean {
   if (!isScopeOffered(scope, ctx)) return false
-  if (needsContributor(scope, ctx)) return ctx.role === 'CONTRIBUTOR'
-  return true
+  const minimum = requiredRole(scope, ctx)
+  return minimum === null || roleAtLeast(ctx.role, minimum)
 }
 
 export function offeredScopes(
   catalog: ScopeCatalog | null,
-  ctx: Pick<GrantContext, 'mode' | 'isOrgAdmin'>,
+  ctx: OfferContext,
 ): ScopeDefinition[] {
   return (catalog?.scopes ?? []).filter((s) => isScopeOffered(s, ctx))
 }
@@ -121,31 +161,43 @@ export function presetIds(catalog: ScopeCatalog | null): string[] {
 }
 
 /**
- * Scopes of a preset that the context may grant at all, plus whether the
- * preset needs the CONTRIBUTOR role for an org key.
+ * Scopes of a preset that the context may grant at all, plus the lowest
+ * org-key role that holds them all (null for personal keys or when any role
+ * does). `needsContributor` stays for callers that only ask that question.
  */
 export function resolvePreset(
   catalog: ScopeCatalog | null,
   presetId: string,
-  ctx: Pick<GrantContext, 'mode' | 'isOrgAdmin'>,
-): { scopes: string[]; needsContributor: boolean } {
+  ctx: OfferContext,
+): {
+  scopes: string[]
+  minRole: AccessKeyOrgRole | null
+  needsContributor: boolean
+} {
   const byName = new Map((catalog?.scopes ?? []).map((s) => [s.name, s]))
   const scopes: string[] = []
-  let contributor = false
+  let minRole: AccessKeyOrgRole | null = null
   for (const name of catalog?.presets?.[presetId] ?? []) {
     const def = byName.get(name)
     if (!def || !isScopeOffered(def, ctx)) continue
-    if (needsContributor(def, ctx)) contributor = true
+    const need = requiredRole(def, ctx)
+    if (need && (minRole === null || !roleAtLeast(minRole, need))) {
+      minRole = need
+    }
     scopes.push(name)
   }
-  return { scopes, needsContributor: contributor }
+  return {
+    scopes,
+    minRole,
+    needsContributor: minRole !== null && roleAtLeast(minRole, 'CONTRIBUTOR'),
+  }
 }
 
 /** The preset whose scopes equal the selection, or 'custom'. */
 export function matchPreset(
   catalog: ScopeCatalog | null,
   selected: string[],
-  ctx: Pick<GrantContext, 'mode' | 'isOrgAdmin'>,
+  ctx: OfferContext,
 ): string {
   const want = [...selected].sort().join(',')
   for (const id of presetIds(catalog)) {
@@ -221,11 +273,28 @@ export function renewalBody(
     rate_limit_per_day: key.rate_limit_per_day,
   }
   if (key.owner_type === 'org') {
-    body.org_role = key.org_role === 'CONTRIBUTOR' ? 'CONTRIBUTOR' : 'ANNOTATOR'
+    body.org_role = ORG_KEY_ROLES.includes(key.org_role as AccessKeyOrgRole)
+      ? (key.org_role as AccessKeyOrgRole)
+      : 'ANNOTATOR'
     body.group_id = key.group_id
   }
   return body
 }
+
+/** Catalog key of an org-key role label (admin.organizations.role*). */
+export function orgRoleLabelKey(role: string | null | undefined): string {
+  if (role === 'ORG_ADMIN') return 'admin.organizations.roleAdmin'
+  if (role === 'CONTRIBUTOR') return 'admin.organizations.roleContributor'
+  return 'admin.organizations.roleAnnotator'
+}
+
+/** Interactive references of the API, relative to the server. */
+export const API_REFERENCE_PATHS = {
+  /** The public /api/v1 (benchmark surface). */
+  v1: '/api/v1/docs',
+  /** Every route a key can call, with its scope. */
+  full: '/api/v1/reference',
+} as const
 
 export function curlSnippet(baseUrl: string, secret: string): string {
   return `curl -H "Authorization: Bearer ${secret}" \\\n  ${baseUrl}/api/v1/me`

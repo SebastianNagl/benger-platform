@@ -26,6 +26,7 @@ import {
 import { type ReactNode, useEffect, useState } from 'react'
 
 import {
+  API_REFERENCE_PATHS,
   DAY_MS,
   apiErrorMessage,
   curlSnippet,
@@ -277,6 +278,48 @@ export function AccessKeySecretPanel({
           code={pythonSnippet(baseUrl, secret)}
           testId="access-key-python"
         />
+      </div>
+
+      <div
+        className="space-y-1 rounded-md border border-zinc-200 p-3 text-sm dark:border-zinc-700"
+        data-testid="access-key-reference"
+      >
+        <p className="font-medium text-zinc-900 dark:text-zinc-100">
+          {t('accessKeys.secret.referenceTitle')}
+        </p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          {t('accessKeys.secret.referenceHint')}
+        </p>
+        <ul className="list-disc space-y-0.5 pl-5">
+          <li>
+            <a
+              href={`${baseUrl}${API_REFERENCE_PATHS.full}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 hover:underline dark:text-emerald-400"
+              data-testid="access-key-reference-full"
+            >
+              {t('accessKeys.secret.referenceFull')}
+            </a>{' '}
+            <code className="font-mono text-xs text-zinc-500">
+              {API_REFERENCE_PATHS.full}
+            </code>
+          </li>
+          <li>
+            <a
+              href={`${baseUrl}${API_REFERENCE_PATHS.v1}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 hover:underline dark:text-emerald-400"
+              data-testid="access-key-reference-v1"
+            >
+              {t('accessKeys.secret.referenceV1')}
+            </a>{' '}
+            <code className="font-mono text-xs text-zinc-500">
+              {API_REFERENCE_PATHS.v1}
+            </code>
+          </li>
+        </ul>
       </div>
 
       {footer}

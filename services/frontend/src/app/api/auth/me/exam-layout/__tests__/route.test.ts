@@ -121,8 +121,12 @@ describe('PUT /api/auth/me/exam-layout', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        headers: expect.objectContaining({ Cookie: '', Authorization: '' }),
+        headers: expect.objectContaining({ Cookie: '' }),
       }),
+    )
+    // No Authorization header is invented when the caller sent none.
+    expect(mockFetch.mock.calls[0][1].headers).not.toHaveProperty(
+      'Authorization',
     )
   })
 

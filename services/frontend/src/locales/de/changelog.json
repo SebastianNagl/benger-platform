@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-10-30-full-api-access-keys": "Zugangsschlüssel funktionieren jetzt in der ganzen BenGER-Schnittstelle, nicht mehr nur unter /api/v1. Mit der neuen Voreinstellung „Volle API für Forschungs-Pipelines“ registrierst du eigene Modelle und startest Generierung und Evaluation aus deinen Skripten. Organisationsschlüssel können die Rolle Admin bekommen, und die vollständige Referenz findest du unter /api/v1/reference.",
     "2026-10-30-project-prompts-card": "Auf der Projektseite gibt es den neuen Bereich „Prompts“: System-, Anweisungs- und Bewertungs-Prompts des Projekts samt den Standardvorlagen des LLM-Judge auf einen Blick. Die Bewertungs-Prompts kannst du dort direkt anpassen, und unter „Sichtbarkeit der Bereiche“ lässt sich der Bereich ausblenden.",
     "2026-10-19-runtime-extension-switches": "Superadmins können unter „Feature Flags“ ganze Erweiterungspakete für einzelne Organisationen oder Personen ein- und ausschalten, ohne neues Deployment.",
     "2026-10-14-french-language-menu": "BenGER gibt es jetzt auch auf Französisch. Die Sprache wählst du über das Flaggen-Menü oben rechts (bisher ein Umschalter zwischen Deutsch und Englisch); Datums- und Zahlenformate folgen der gewählten Sprache.",

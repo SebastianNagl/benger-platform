@@ -980,14 +980,16 @@ export interface ProfileHistoryEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Access keys (`bgr_...`) for the public /api/v1. Management shapes of
+// Access keys (`bgr_...`): they work on the whole API (core 2.45), each
+// route gated by a scope rule (services/api/app/core/key_routes.py). Management shapes of
 // services/api/routers/access_keys.py. The secret only appears once, in
 // AccessKeyCreated; lists carry the key_prefix.
 // ---------------------------------------------------------------------------
 
 export type AccessKeyStatus = 'active' | 'revoked' | 'expired'
 export type AccessKeyOwnerType = 'user' | 'org'
-export type AccessKeyOrgRole = 'ANNOTATOR' | 'CONTRIBUTOR'
+/** ORG_ADMIN only for org-wide keys of an org-wide admin (core 2.45). */
+export type AccessKeyOrgRole = 'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
 
 export interface AccessKey {
   id: string
@@ -1093,9 +1095,22 @@ export interface AccessKeyUsageEventPage {
   next_cursor: number | null
 }
 
-/** Who may grant a scope (see app/core/scopes.py). */
+/**
+ * Who may grant a scope (see app/core/scopes.py):
+ * - `any`: every key
+ * - `full_data_role`: personal keys, org keys with CONTRIBUTOR or ORG_ADMIN
+ * - `org_admin`: org keys created by an org-wide admin
+ * - `org_admin_role`: personal keys, org keys with role ORG_ADMIN
+ * - `personal_only`: personal keys
+ * - `superadmin`: personal keys created by a superadmin
+ */
 export type ScopeGrantable =
-  'any' | 'full_data_role' | 'org_admin' | 'personal_only'
+  | 'any'
+  | 'full_data_role'
+  | 'org_admin'
+  | 'org_admin_role'
+  | 'personal_only'
+  | 'superadmin'
 
 export interface ScopeDefinition {
   name: string
@@ -1115,7 +1130,7 @@ export interface ScopePreset {
 
 export interface ScopeCatalog {
   scopes: ScopeDefinition[]
-  /** Preset id -> scope names (benchmark_read, benchmark_submit, org_full, ...). */
+  /** Preset id -> scope names (benchmark_read, benchmark_submit, org_full, full_access, ...). */
   presets: Record<string, string[]>
 }
 

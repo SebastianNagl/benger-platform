@@ -50,7 +50,6 @@ describe('/api/auth/profile route', () => {
           method: 'GET',
           headers: {
             Cookie: 'access_token=valid-token',
-            Authorization: '',
           },
         }),
       )

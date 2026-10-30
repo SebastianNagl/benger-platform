@@ -18,6 +18,10 @@ What an API-side package may provide (all optional):
 - ``get_api_scopes()`` / ``get_v1_routers()``: API-key scopes and routers
   for the public ``/api/v1`` surface (collected by :func:`get_api_scopes_all`
   and :func:`get_v1_routers_all`).
+- ``get_key_route_rules()`` (core 2.45): access-key rules for the package's
+  own routes on the full API (``app/core/key_routes.py``); optional
+  ``get_key_project_params()`` maps extra path parameters to project
+  resolvers (``{"deck_id": "project"}``) for the package's own routes.
 
 Runtime switch (core 2.42): every loaded package gets a master feature flag
 ``extension.<EXTENSION_ID>`` (default: the optional package attribute
@@ -170,6 +174,7 @@ def load_extended():
     _register_extension_field_types()
     _validate_hook_ownership()
     _register_extension_scopes()
+    _register_extension_key_rules()
 
     logger.info(
         "BenGER extension packages loaded: %s (core API %s)",
@@ -584,6 +589,31 @@ def _register_extension_scopes():
             register_scopes(dict(getter() or {}), source=name)
         except Exception:
             logger.exception("Extension package %s: get_api_scopes() failed", name)
+
+
+def _register_extension_key_rules():
+    """Hand every package's ``get_key_route_rules()`` to
+    ``app.core.key_routes``. Rules apply to the package's own routes only;
+    a package without the attribute keeps its routes closed to keys. A
+    failing getter is logged and leaves the package's routes closed."""
+    try:
+        from app.core.key_routes import register_overlay_rules, register_project_param
+    except ImportError:
+        return
+    for name, package in _packages():
+        getter = getattr(package, "get_key_route_rules", None)
+        if getter is not None:
+            try:
+                register_overlay_rules(name, list(getter() or []))
+            except Exception:
+                logger.exception("Extension package %s: get_key_route_rules() failed", name)
+        params = getattr(package, "get_key_project_params", None)
+        if params is not None:
+            try:
+                for param, kind in dict(params() or {}).items():
+                    register_project_param(param, kind, name)
+            except Exception:
+                logger.exception("Extension package %s: get_key_project_params() failed", name)
 
 
 def get_v1_routers_all():

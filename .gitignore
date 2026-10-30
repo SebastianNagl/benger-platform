@@ -238,6 +238,7 @@ test_*.py
 !services/**/tests/test_*.py
 !services/**/tests/**/test_*.py
 !services/api/routers/test_seeding.py
+!clients/*/tests/test_*.py
 
 # Virtual environments
 test_env/

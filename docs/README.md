@@ -25,6 +25,7 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 - [**Migration Management**](./development/MIGRATION_MANAGEMENT.md) - Database migrations
 - [**API Documentation**](../README.md#quick-start) - Interactive OpenAPI schema at `/docs` on the running API; topic docs in [`api-docs/`](./api-docs/)
 - [**Public API (`/api/v1`)**](./public-api.md) - Versioned, key-authenticated API for scripts and integrations: authentication, [scopes](./public-api-scopes.md), endpoints, pagination, errors; spec snapshot in [`api-docs/openapi-v1.json`](./api-docs/openapi-v1.json), live at `/api/v1/docs`
+- [**Full API**](./full-api.md) - Access keys on every app route (own models, generation, evaluation, annotation, administration): rules, scopes, research workflow; [route table](./full-api-routes.md), live at `/api/v1/reference`; Python client in [`clients/python`](../clients/python/README.md)
 - [**API keys**](./api-keys.md) - Personal and organisation keys, service accounts, usage log
 - [**ADR-007: API versioning**](./architecture/adr-007-api-versioning-adopted.md) - Why the public API is versioned and how deprecation works
 

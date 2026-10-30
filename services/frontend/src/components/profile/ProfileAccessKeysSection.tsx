@@ -2,16 +2,19 @@
 
 /**
  * Personal access keys on the profile page: keys that act as the user on
- * the public /api/v1 (never more than the user may see). Same list, create
+ * the whole API (never more than the user may see). Same list, create
  * form, show-once panel, test, renewal and revocation as the organization
  * dialog, without role, group and project allowlist.
  */
 
 import { AccessKeyManager } from '@/components/accessKeys/AccessKeyManager'
+import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 
 export function ProfileAccessKeysSection() {
   const { t } = useI18n()
+  // Only a superadmin's personal keys may carry admin:platform.
+  const isSuperadmin = useOptionalAuth()?.user?.is_superadmin === true
   return (
     <section
       className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-700"
@@ -23,7 +26,7 @@ export function ProfileAccessKeysSection() {
       <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
         {t('accessKeys.personalDescription')}
       </p>
-      <AccessKeyManager mode="personal" />
+      <AccessKeyManager mode="personal" isSuperadmin={isSuperadmin} />
     </section>
   )
 }

@@ -1,19 +1,17 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
     const apiBaseUrl = getInternalApiUrl(request)
-    const cookies = request.headers.get('cookie') || ''
-    const authorization = request.headers.get('authorization') || ''
 
     const backendResponse = await fetch(
       `${apiBaseUrl}/api/auth/mandatory-profile-status`,
       {
         method: 'GET',
         headers: {
-          Cookie: cookies,
-          Authorization: authorization,
+          ...proxyAuthHeaders(request),
         },
       },
     )

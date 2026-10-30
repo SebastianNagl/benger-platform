@@ -1,6 +1,7 @@
-"""Usage logging and rate-limit headers for ``/api/v1`` (pure ASGI).
+"""Usage logging and rate-limit headers for the API (pure ASGI).
 
-For every HTTP request under ``/api/v1`` this middleware:
+For every HTTP request under ``/api/v1``, and every other request that
+carries an access key (``Bearer bgr_...``), this middleware:
 
 * makes sure the response carries ``X-Request-ID`` (the caller's, when it
   sent one, otherwise a fresh id);
@@ -50,6 +51,13 @@ def route_template(scope) -> Optional[str]:
     return getattr(route, "path_format", None) or getattr(route, "path", None)
 
 
+def _carries_key(scope) -> bool:
+    """Access keys work on the whole API (core 2.45): their requests are
+    logged and get the headers wherever they go."""
+    value = _header(scope, b"authorization")
+    return bool(value) and value.startswith("Bearer bgr_")
+
+
 def _client_ip(scope) -> Optional[str]:
     forwarded = _header(scope, b"x-forwarded-for")
     if forwarded:
@@ -76,7 +84,8 @@ class ApiUsageMiddleware:
         root = scope.get("root_path") or ""
         if root and path.startswith(root):
             path = path[len(root):]
-        if not (path == V1_PREFIX or path.startswith(V1_PREFIX + "/")):
+        is_v1 = path == V1_PREFIX or path.startswith(V1_PREFIX + "/")
+        if not is_v1 and not _carries_key(scope):
             return await self.app(scope, receive, send)
 
         started = time.perf_counter()
@@ -124,7 +133,7 @@ class ApiUsageMiddleware:
         from services import api_usage_writer
         from services.api_key_service import mask_ip
 
-        template = route_template(scope)
+        template = route_template(scope) or state.get("key_gate_route")
         path_params = scope.get("path_params") or {}
         event = {
             "api_key_id": principal.api_key_id,
@@ -134,7 +143,7 @@ class ApiUsageMiddleware:
             "request_id": request_id,
             "method": scope.get("method"),
             "route": template or "(unmatched)",
-            "project_id": path_params.get("project_id"),
+            "project_id": path_params.get("project_id") or state.get("key_gate_project"),
             "status_code": result["status"] or 500,
             "duration_ms": int((time.perf_counter() - started) * 1000),
             "scope_used": state.get("scope_used"),

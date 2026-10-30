@@ -1,4 +1,5 @@
 import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest } from 'next/server'
 
 // Configure Next.js route segment config for SSE
@@ -14,15 +15,13 @@ export async function GET(
 
   const apiBaseUrl = getInternalApiUrl(request)
 
-  const cookies = request.headers.get('cookie') || ''
-
   try {
     // Proxy the SSE request to the backend API
     const response = await fetch(
       `${apiBaseUrl}/api/evaluations/stream/${evaluationId}`,
       {
         headers: {
-          Cookie: cookies,
+          ...proxyAuthHeaders(request),
           Accept: 'text/event-stream',
           'Cache-Control': 'no-cache',
         },

@@ -210,11 +210,24 @@ const stubScope = () =>
       '{}',
   )
 
-describe('OrganizationsTab access keys button', () => {
+// The entry lives in the organization's "More" menu (next to the LMS
+// integration); open the menu when it is there.
+const openMoreMenu = async () => {
+  const more = await screen.findByTestId('org-more-button')
+  fireEvent.click(more)
+}
+
+const openMoreMenuIfPresent = () => {
+  const more = screen.queryByTestId('org-more-button')
+  if (more) fireEvent.click(more)
+}
+
+describe('OrganizationsTab access keys menu item', () => {
   it('opens the dialog for superadmins', async () => {
     setupMocks()
     render(<OrganizationsTab />)
 
+    await openMoreMenu()
     const button = await screen.findByTestId('org-access-keys-button')
     expect(button).toHaveTextContent('admin.organizations.accessKeys')
     expect(screen.getByTestId('org-access-keys-stub')).toHaveAttribute(
@@ -237,13 +250,18 @@ describe('OrganizationsTab access keys button', () => {
     )
   })
 
-  it('shows the button to org admins next to the provider keys', async () => {
+  it('lists the entry in the More menu for org admins, not as a header button', async () => {
     setupMocks({ user: regularUser })
     render(<OrganizationsTab />)
 
-    const button = await screen.findByTestId('org-access-keys-button')
-    const providerButton = screen.getByTestId('org-api-keys-button')
-    expect(providerButton.nextElementSibling).toBe(button)
+    await screen.findByTestId('org-api-keys-button')
+    expect(
+      screen.queryByTestId('org-access-keys-button'),
+    ).not.toBeInTheDocument()
+    await openMoreMenu()
+    expect(
+      await screen.findByTestId('org-access-keys-button'),
+    ).toBeInTheDocument()
     expect(stubScope().isAdmin).toBe(true)
   })
 
@@ -251,6 +269,7 @@ describe('OrganizationsTab access keys button', () => {
     setupMocks({ user: regularUser, organizations: groupAdminOrganizations })
     render(<OrganizationsTab />)
 
+    await openMoreMenu()
     await screen.findByTestId('org-access-keys-button')
     expect(stubScope()).toEqual({
       organizationId: 'org-1',
@@ -270,6 +289,7 @@ describe('OrganizationsTab access keys button', () => {
       render(<OrganizationsTab />)
 
       await waitForOrg()
+      openMoreMenuIfPresent()
       expect(
         screen.queryByTestId('org-access-keys-button'),
       ).not.toBeInTheDocument()
@@ -290,6 +310,7 @@ describe('OrganizationsTab access keys button', () => {
       render(<OrganizationsTab />)
 
       await waitForOrg()
+      openMoreMenuIfPresent()
       expect(
         screen.queryByTestId('org-access-keys-button'),
       ).not.toBeInTheDocument()

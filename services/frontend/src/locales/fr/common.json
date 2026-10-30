@@ -11252,7 +11252,7 @@
       "implies": "inclut aussi {scopes}",
       "needsContributor": "uniquement avec le rôle Contributeur",
       "roleLabel": "Rôle de la clé",
-      "roleHint": "La clé agit comme un compte de service distinct avec ce rôle dans l'organisation. Les contributeurs voient aussi les corrigés types.",
+      "roleHint": "La clé agit comme un compte de service distinct avec ce rôle dans l'organisation. Les contributeurs voient aussi les corrigés types. Les clés Admin couvrent toute l'organisation et peuvent aussi la gérer.",
       "roleSwitched": "Pour cette sélection, la clé a besoin du rôle Contributeur. Le rôle a été ajusté.",
       "groupLabel": "Groupe",
       "groupHint": "Une clé de groupe ne voit que les projets de son groupe et ceux de toute l'organisation.",
@@ -11273,7 +11273,10 @@
       "create": "Créer la clé",
       "creating": "Création …",
       "createFailed": "Impossible de créer la clé : {message}",
-      "tooManyKeys": "Il y a déjà trop de clés actives. Révoquez d'abord une clé dont vous n'avez plus besoin."
+      "tooManyKeys": "Il y a déjà trop de clés actives. Révoquez d'abord une clé dont vous n'avez plus besoin.",
+      "needsOrgAdmin": "uniquement avec le rôle Admin (toute l'organisation)",
+      "roleSwitchedAdmin": "Pour cette sélection, la clé a besoin du rôle Admin et couvre alors toute l'organisation. Le rôle et le groupe ont été ajustés.",
+      "roleLoweredForGroup": "Une clé de groupe ne peut pas avoir le rôle Admin. Le rôle est désormais Contributeur."
     },
     "presets": {
       "benchmark_read": {
@@ -11287,6 +11290,10 @@
       "org_full": {
         "label": "Accès complet à votre organisation",
         "description": "Tout ce que permet « Exécuter et soumettre », plus les corrigés types et les exportations. Nécessite le rôle Contributeur."
+      },
+      "full_access": {
+        "label": "API complète pour pipelines de recherche",
+        "description": "Compte, projets, tâches avec corrigés types, annotations, modèles personnels, génération, évaluations, résultats, exportations et fichiers. Ce que voit la clé dépend toujours de son rôle et de ses projets. Les clés d'organisation nécessitent le rôle Contributeur."
       }
     },
     "secret": {
@@ -11297,7 +11304,11 @@
       "copyFailed": "La copie n'a pas fonctionné. Sélectionnez la clé et copiez-la manuellement.",
       "curlTitle": "Essayer avec curl",
       "pythonTitle": "Utiliser en Python",
-      "done": "Terminé"
+      "done": "Terminé",
+      "referenceTitle": "L'interface complète",
+      "referenceHint": "La clé fonctionne sur toute l'interface BenGER, dans la limite de ses autorisations. La connexion, le mot de passe et l'inscription restent réservés au navigateur. Vous trouverez tous les points d'accès dans les références :",
+      "referenceFull": "Référence complète de tous les points d'accès",
+      "referenceV1": "Interface de benchmark"
     },
     "test": {
       "button": "Tester la connexion",
@@ -11373,7 +11384,19 @@
       "evaluationsRun": "Lancer des évaluations",
       "resultsRead": "Lire les résultats",
       "exportsRead": "Télécharger les exports",
-      "keysManage": "Gérer ses propres clés d'accès"
+      "keysManage": "Gérer ses propres clés d'accès",
+      "accountRead": "Lire son compte, ses notifications et ses paramètres",
+      "accountWrite": "Modifier ses paramètres et notifications, rejoindre des projets",
+      "orgManage": "Gérer l'organisation (membres, groupes, invitations, paramètres)",
+      "projectsWrite": "Créer, configurer, partager, importer et supprimer des projets",
+      "tasksWrite": "Créer, modifier, attribuer et supprimer des tâches",
+      "annotationsRead": "Lire les annotations, brouillons, relectures et corrections",
+      "annotationsWrite": "Annoter, enregistrer des brouillons, relire et corriger",
+      "modelsRead": "Lire le catalogue de modèles et ses propres modèles",
+      "modelsManage": "Gérer ses propres modèles (BYOM) et les clés des fournisseurs",
+      "filesRead": "Lire les fichiers téléversés",
+      "filesWrite": "Téléverser et supprimer des fichiers",
+      "adminPlatform": "Droits de superadministrateur de la plateforme"
     }
   },
   "architecture": {

@@ -1194,22 +1194,27 @@
     },
     "api-zugaenge": {
       "title": "Wie richte ich einen API-Zugang für Skripte oder einen Benchmark-Runner ein?",
-      "summary": "Mit einem **Zugangsschlüssel** (beginnt mit `bgr_`). Schlüssel für deine Organisation legst du als Org- oder Gruppen-Admin unter **API-Zugänge** an, persönliche Schlüssel in deinem [Profil](/profile). Der Schlüssel wird dir nur einmal angezeigt.",
+      "summary": "Mit einem **Zugangsschlüssel** (beginnt mit `bgr_`). Er funktioniert in der ganzen BenGER-Schnittstelle, mit denselben Endpunkten, die auch der Browser nutzt, soweit seine Berechtigungen reichen. Schlüssel für deine Organisation legst du als Org- oder Gruppen-Admin unter **API-Zugänge** an, persönliche Schlüssel in deinem [Profil](/profile). Der Schlüssel wird dir nur einmal angezeigt.",
       "steps": [
-        "**Schlüssel anlegen**: Für die Organisation öffnest du [Benutzer & Organisationen](/users-organizations), wählst die Organisation und klickst auf **API-Zugänge**. Für dich selbst gehst du in dein [Profil](/profile) zu **API-Zugänge**. Dort klickst du auf **Neuer Schlüssel** und gibst ihm einen Namen, an dem du ihn später wiedererkennst.",
-        "**Umfang wählen**: Wähle eine Voreinstellung: **Benchmark nur lesen**, **Benchmark ausführen und einreichen** oder **Vollzugriff auf die eigene Organisation**. Unter **Erweitert** siehst du jede Berechtigung einzeln. Bei Organisationsschlüsseln wählst du dazu die Rolle, bei Bedarf eine Gruppe und einzelne Projekte. Die Gültigkeit steht auf einem Jahr.",
+        "**Schlüssel anlegen**: Für die Organisation öffnest du [Benutzer & Organisationen](/users-organizations), wählst die Organisation und klickst auf **Mehr** → **API-Zugänge**. Für dich selbst gehst du in dein [Profil](/profile) zu **API-Zugänge**. Dort klickst du auf **Neuer Schlüssel** und gibst ihm einen Namen, an dem du ihn später wiedererkennst.",
+        "**Umfang wählen**: Wähle eine Voreinstellung: **Benchmark nur lesen**, **Benchmark ausführen und einreichen**, **Vollzugriff auf die eigene Organisation** oder **Volle API für Forschungs-Pipelines** (Konto, Projekte, Aufgaben, Annotationen, eigene Modelle, Generierung, Evaluationen, Ergebnisse, Exporte und Dateien). Unter **Erweitert** siehst du jede Berechtigung einzeln, und zwar die, die du für diese Art Schlüssel vergeben darfst. Bei Organisationsschlüsseln wählst du dazu die Rolle, bei Bedarf eine Gruppe und einzelne Projekte. Die Gültigkeit steht auf einem Jahr.",
         "**Kopieren**: Nach **Schlüssel anlegen** erscheint der vollständige Schlüssel. Kopiere ihn sofort mit **Kopieren** und bewahre ihn sicher auf, zum Beispiel in einem Passwortmanager. Danach siehst du nur noch die Kennung.",
-        "**Verbindung testen**: Klicke auf **Verbindung testen**. BenGER ruft damit die Schnittstelle so auf, wie es dein Skript tun wird, und zeigt dir Organisation und Berechtigungen des Schlüssels.",
-        "**In Skript oder Runner einsetzen**: Übernimm das angezeigte `curl`- oder Python-Beispiel. Der Schlüssel steht im Header `Authorization: Bearer <Schlüssel>`. Lege ihn als Umgebungsvariable oder Geheimnis deines Runners ab, nie im Quelltext."
+        "**Verbindung testen**: Klicke auf **Verbindung testen**. BenGER ruft damit `/api/v1/me` so auf, wie es dein Skript tun wird, und zeigt dir Organisation und Berechtigungen des Schlüssels.",
+        "**In Skript oder Runner einsetzen**: Übernimm das angezeigte `curl`- oder Python-Beispiel. Der Schlüssel steht im Header `Authorization: Bearer <Schlüssel>`. Lege ihn als Umgebungsvariable oder Geheimnis deines Runners ab, nie im Quelltext. Welche Endpunkte es gibt, steht in der vollständigen Referenz unter `/api/v1/reference`. Die Benchmark-Schnittstelle `/api/v1` ist unter `/api/v1/docs` beschrieben."
       ],
       "tips": [
         "**Erneuern** legt einen neuen Schlüssel mit denselben Einstellungen an. Der alte funktioniert weiter, bis du ihn widerrufst. So stellst du deine Skripte ohne Ausfall um.",
         "Unter **Nutzung** siehst du, wie oft ein Schlüssel in den letzten 30 Tagen verwendet wurde und welche Schnittstellen er aufgerufen hat.",
-        "Ein Organisationsschlüssel handelt als eigenes Dienstkonto. Ein persönlicher Schlüssel handelt als du und sieht nie mehr als du selbst."
+        "Ein Organisationsschlüssel handelt als eigenes Dienstkonto. Ein persönlicher Schlüssel handelt als du und sieht nie mehr als du selbst.",
+        "Ein Organisationsschlüssel mit der Rolle **Admin** darf die Organisation auch verwalten, also Mitglieder, Gruppen und Einladungen. Er gilt immer für die ganze Organisation, und nur Admins der ganzen Organisation legen ihn an.",
+        "Die Referenz unter `/api/v1/reference` nennt zu jedem Endpunkt die Berechtigung, die ein Schlüssel dafür braucht.",
+        "Wie du über die API dein eigenes Modell registrierst und Generierung und Evaluation startest, zeigt [Modell über die API evaluieren](/how-to#api-research-workflow)."
       ],
       "pitfalls": [
         "Den vollständigen Schlüssel siehst du nur direkt nach dem Anlegen. Hast du ihn verloren, lege einen neuen an und widerrufe den alten.",
-        "Musterlösungen kann ein Organisationsschlüssel nur mit der Rolle **Mitwirkender** lesen.",
+        "Musterlösungen kann ein Organisationsschlüssel nur mit der Rolle **Mitwirkender** oder **Admin** lesen.",
+        "Ein Schlüssel, der auf einzelne Projekte oder eine Gruppe beschränkt ist, erreicht nur diese Projekte. Neue Projekte oder weitere Schlüssel legt er nicht an.",
+        "Anmelden, Passwort, Registrierung und das Ändern der E-Mail-Adresse bleiben dem Browser vorbehalten. Diese Endpunkte lehnen jeden Schlüssel ab.",
         "Ist ein Schlüssel in falsche Hände geraten, widerrufe ihn sofort mit **Widerrufen**. Er funktioniert dann nicht mehr."
       ],
       "keywords": [
@@ -1223,9 +1228,58 @@
         "Benchmark",
         "bgr_",
         "curl",
-        "Python"
+        "Python",
+        "Referenz",
+        "OpenAPI",
+        "Swagger",
+        "Vollzugriff",
+        "Dienstkonto"
       ],
-      "links": ["Profil", "Benutzer & Organisationen"]
+      "links": [
+        "Profil",
+        "Benutzer & Organisationen",
+        "Modell über die API evaluieren"
+      ]
+    },
+    "api-research-workflow": {
+      "title": "Wie registriere ich mein Modell und starte Generierung und Evaluation über die API?",
+      "summary": "Mit einem persönlichen Zugangsschlüssel mit der Voreinstellung **Volle API für Forschungs-Pipelines**. Damit registrierst du dein OpenAI-kompatibles Modell, lässt es Antworten auf die Aufgaben eines Projekts erzeugen und bewertest sie, alles über dieselben Endpunkte, die auch der Browser nutzt.",
+      "steps": [
+        "**Schlüssel anlegen**: Lege in deinem [Profil](/profile) unter **API-Zugänge** einen Schlüssel mit **Volle API für Forschungs-Pipelines** an (siehe [API-Zugänge einrichten](/how-to#api-zugaenge)). Speichere ihn als Umgebungsvariable, etwa `BENGER_API_KEY`, und schick ihn bei jedem Aufruf im Header `Authorization: Bearer <Schlüssel>` mit.",
+        "**Modell registrieren**: Schick `POST /api/custom-models/` mit `name`, `base_url` (die Adresse deines OpenAI-kompatiblen Endpunkts), `endpoint_model_name` und bei Bedarf `api_key`. Die Antwort enthält die `id` des Modells, sie beginnt mit `custom-`. Prüfe das Modell mit `POST /api/custom-models/{id}/test` und `{\"chat_ping\": true}`. BenGER schickt dann eine kurze Chat-Anfrage an dein Modell.",
+        "**Projekt und Aufgaben vorbereiten**: Lege ein Projekt mit `POST /api/projects/` an oder nimm ein vorhandenes aus `GET /api/projects/`. Für den Import holst du mit `POST /api/projects/{id}/imports/upload-url` ein Upload-Formular (`upload_url`, `fields`, `file_key`) und lädst deine JSON-Datei dorthin hoch. Danach startest du den Import mit `POST /api/projects/{id}/imports` und `{\"object_key\": \"<file_key>\"}` und fragst `GET /api/projects/{id}/imports/{job_id}` ab, bis er fertig ist.",
+        "**Generierung einrichten**: Wähle die Modelle mit `PUT /api/projects/{id}/generation-config` und `{\"selected_configuration\": {\"models\": [\"<Modell-ID>\"]}}`. Der Aufruf führt deine Angaben mit der gespeicherten Konfiguration zusammen, Prompt-Strukturen bleiben also erhalten.",
+        "**Generierung starten**: `POST /api/generation-tasks/projects/{id}/generate` mit `{\"mode\": \"missing\"}` erzeugt alle fehlenden Antworten, `\"all\"` erzeugt alle neu. Hat das Projekt Prompt-Strukturen, nennst du sie in `structure_keys`. Den Fortschritt liest du mit `GET /api/projects/{id}/generation-status`.",
+        "**Evaluation einrichten und starten**: Lege die Metriken mit `PUT /api/evaluations/projects/{id}/evaluation-config` und `{\"evaluation_configs\": [...]}` fest. Jeder Eintrag hat `id`, `metric`, `prediction_fields` und `reference_fields`. Starte dann `POST /api/evaluations/run` mit `project_id` und denselben `evaluation_configs`. Die Antwort enthält die `evaluation_id`, den Stand liest du mit `GET /api/evaluations/evaluation/status/{evaluation_id}`.",
+        "**Ergebnisse lesen**: Ist die Evaluation fertig, liefert `GET /api/evaluations/run/results/project/{id}` die Ergebnisse des Projekts. Dieselben Ergebnisse siehst du auch im Browser auf der Projektseite."
+      ],
+      "tips": [
+        "Für Python gibt es den Client `benger-client` im Ordner `clients/python` des Plattform-Repositorys. Nach der Installation verbindest du dich mit `from benger_client import BengerClient`.",
+        "Alle Endpunkte mit ihren Feldern und der jeweils nötigen Berechtigung findest du in der Referenz unter `/api/v1/reference`.",
+        "Generierung und Evaluation laufen im Hintergrund. Frag den Stand alle paar Sekunden ab, statt auf den Start-Aufruf zu warten.",
+        "Mit `\"mode\": \"missing\"` und ohne `force_rerun` setzt ein abgebrochenes Skript beim nächsten Lauf dort fort, wo es aufgehört hat."
+      ],
+      "pitfalls": [
+        "Ein Schlüssel, der auf einzelne Projekte beschränkt ist, erreicht nur diese Projekte und legt keine neuen an. Für eine Pipeline, die eigene Projekte anlegt, brauchst du einen Schlüssel ohne Projektbeschränkung.",
+        "Dein Modell muss vom BenGER-Server aus erreichbar sein. Adressen im lokalen Netz oder auf `localhost` lehnt BenGER in der Regel ab.",
+        "Metriken mit einem LLM als Richter rufen einen Anbieter auf und verbrauchen Guthaben über deine eigenen API-Schlüssel oder die deiner Organisation."
+      ],
+      "keywords": [
+        "API",
+        "Pipeline",
+        "Forschung",
+        "eigenes Modell",
+        "BYOM",
+        "OpenAI-kompatibel",
+        "Generierung",
+        "Evaluation",
+        "Metrik",
+        "Python",
+        "benger-client",
+        "Skript",
+        "Automatisierung"
+      ],
+      "links": ["Profil", "API-Zugänge einrichten"]
     },
     "ts-no-projects": {
       "title": "„Ich sehe keine Projekte“ oder „mein Projekt ist verschwunden“",

@@ -273,13 +273,20 @@ def test_org_key_creates_service_account_and_memberships(test_db):
     assert auth.principal.group_id == world["group"].id
 
 
-def test_org_key_rejects_admin_role(test_db):
+def test_org_key_roles(test_db):
+    """ORG_ADMIN keys exist since core 2.45 (the router keeps them org-wide
+    and admin-made); unknown roles stay invalid."""
     world = seed_world_sync(test_db)
+    key, _ = _org_key(test_db, world, org_role="ORG_ADMIN")
+    membership = (
+        test_db.execute(
+            select(OrganizationMembership).where(OrganizationMembership.user_id == key.user_id)
+        )
+    ).scalar_one()
+    assert membership.role == OrganizationRole.ORG_ADMIN
     with pytest.raises(HTTPException) as ei:
-        _org_key(test_db, world, org_role="ORG_ADMIN")
-    assert ei.value.status_code == 422 and _code(ei) == "invalid_org_role"
-    with pytest.raises(HTTPException):
         _org_key(test_db, world, org_role="KING")
+    assert ei.value.status_code == 422 and _code(ei) == "invalid_org_role"
 
 
 def test_service_account_email_host_setting(test_db, monkeypatch):

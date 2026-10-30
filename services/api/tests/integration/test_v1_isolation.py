@@ -145,3 +145,82 @@ async def test_session_on_v1_follows_the_browser_rules(
     with v1_auth(db, session_user=annotator):
         r = await async_test_client.get("/api/v1/me")
         assert r.json()["principal"]["organization"]["id"] == a["org"].id
+
+
+async def test_participant_and_attempted_projects_are_listed(
+    async_test_client, async_test_db, two_orgs
+):
+    """A share member sees the shared exam in the list (participant tier),
+    without it being one of the org's projects."""
+    import uuid as _uuid
+
+    from project_models import ProjectShareLink, ProjectShareMember
+
+    a, b = two_orgs
+    db = async_test_db
+    shared = await make_project(db, b["admin"].id, title="Shared", is_private=True)
+    link = ProjectShareLink(
+        id=str(_uuid.uuid4()),
+        token=_uuid.uuid4().hex,
+        project_id=shared.id,
+        created_by=b["admin"].id,
+        password_hash="x",
+    )
+    db.add(link)
+    await db.flush()
+    db.add(
+        ProjectShareMember(
+            id=str(_uuid.uuid4()),
+            share_link_id=link.id,
+            project_id=shared.id,
+            user_id=a["member"].id,
+            gdpr_consent_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+    _, plain = await svc.create_personal_key(
+        db, a["member"].id, {"name": "mine", "scopes": ["projects:read"]}
+    )
+    with v1_auth(db):
+        r = await async_test_client.get("/api/v1/projects", headers=bearer(plain))
+    assert r.status_code == 200, r.text
+    by_id = {p["id"]: p for p in r.json()["items"]}
+    assert by_id[shared.id]["access"]["tier"] == "participant"
+    assert by_id[a["project"].id]["access"]["tier"] == "full"
+
+
+async def test_task_list_etag_follows_assignments(async_test_client, async_test_db, two_orgs):
+    """An annotator in manual assignment mode: moving an assignment from one
+    task to another keeps count and timestamps but must change the ETag."""
+    import uuid as _uuid
+
+    from project_models import TaskAssignment
+
+    a, _ = two_orgs
+    db = async_test_db
+    project = await make_project(
+        db, a["admin"].id, org_id=a["org"].id, title="Assigned", assignment_mode="manual"
+    )
+    tasks = await make_tasks(db, project, 2, a["admin"].id)
+    annotator = a["group_admin"]  # ANNOTATOR in the org
+    assignment = TaskAssignment(
+        id=str(_uuid.uuid4()), task_id=tasks[0].id, user_id=annotator.id, assigned_by=a["admin"].id
+    )
+    db.add(assignment)
+    await db.flush()
+    _, plain = await svc.create_personal_key(
+        db, annotator.id, {"name": "mine", "scopes": ["tasks:read"]}
+    )
+    url = f"/api/v1/projects/{project.id}/tasks"
+    with v1_auth(db):
+        first = await async_test_client.get(url, headers=bearer(plain))
+        assert first.status_code == 200, first.text
+        assert ids(first.json()["items"]) == [tasks[0].id]
+        assignment.task_id = tasks[1].id
+        await db.flush()
+        second = await async_test_client.get(
+            url, headers={**bearer(plain), "If-None-Match": first.headers["etag"]}
+        )
+    assert second.status_code == 200
+    assert ids(second.json()["items"]) == [tasks[1].id]
+    assert second.headers["etag"] != first.headers["etag"]

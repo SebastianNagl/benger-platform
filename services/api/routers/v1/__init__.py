@@ -25,7 +25,7 @@ V1_PREFIX = "/api/v1"
 
 
 def build_v1_router() -> APIRouter:
-    from routers.v1 import docs, exports, me, projects, tasks
+    from routers.v1 import docs, exports, me, projects, reference, tasks
 
     from routers.public_api_gate import require_public_api, require_public_api_public
 
@@ -38,6 +38,8 @@ def build_v1_router() -> APIRouter:
     router.include_router(tasks.router, dependencies=[Depends(require_public_api)])
     router.include_router(exports.router, dependencies=[Depends(require_public_api)])
     router.include_router(docs.router, dependencies=[Depends(require_public_api_public)])
+    # The full-API reference (core 2.45): same gate as the v1 docs.
+    router.include_router(reference.router, dependencies=[Depends(require_public_api_public)])
     return router
 
 

@@ -72,7 +72,12 @@ async def update_generation_config(
     db: AsyncSession = Depends(get_async_db),
     current_user: AuthUser = Depends(require_user),
 ):
-    """Update generation configuration for a project"""
+    """Update the generation configuration of a project.
+
+    Deep-merges into the stored document like ``PATCH /projects/{id}`` and
+    the evaluation-config PUT (``utils.json_merge``: nested dicts merge,
+    lists replace, an explicit null deletes a key), so a body that names
+    only ``selected_configuration`` keeps the prompt structures."""
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
@@ -98,12 +103,14 @@ async def update_generation_config(
                 detail="runs_per_task must be an integer between 1 and 25",
             )
 
-    # Update config
-    project.generation_config = config
+    from utils.json_merge import deep_merge_dicts
+
+    merged = deep_merge_dicts(project.generation_config or {}, config)
+    project.generation_config = merged
     flag_modified(project, "generation_config")
     await db.commit()
 
-    return {"message": "Generation configuration updated successfully", "config": config}
+    return {"message": "Generation configuration updated successfully", "config": merged}
 
 
 @router.delete("/{project_id}/generation-config", status_code=204)

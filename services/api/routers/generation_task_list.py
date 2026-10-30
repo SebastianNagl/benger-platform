@@ -723,6 +723,14 @@ async def start_generation(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No models configured for generation"
         )
 
+    # A blank id (a script's empty variable) would queue jobs that can only
+    # fail in the worker.
+    if any(not isinstance(m, str) or not m.strip() for m in model_ids):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="model_ids must not contain empty ids",
+        )
+
     # BYOM guard: custom ("custom-...") model ids must exist, be active, and
     # be visible to the TRIGGERING user (creator / public / org-shared /
     # superadmin). Official catalog ids pass through untouched — they keep

@@ -13,8 +13,10 @@ A deployment accepts only keys carrying its own tag (``live`` in
 production, ``test`` elsewhere; ``API_KEY_ENVIRONMENT`` overrides), so a
 staging key never works against production and vice versa.
 
-Keys are deny-by-default: they authenticate only on ``/api/v1/...`` and the
-health probes. Everything else (the browser API) answers 401
+Keys are deny-by-default. On ``/api/v1/...`` the routes declare their
+scopes; on every other route (the full API, core 2.45)
+``middleware/key_gate.py`` opens a route only through its rule in
+``app/core/key_routes.py``. A route without one answers 401
 ``api_key_not_allowed_here``.
 
 Personal keys act as their owner. Organization keys act as their own
@@ -72,8 +74,13 @@ _KEY_RE = re.compile(r"^bgr_(live|test)_([0-9A-Za-z]{8})_([A-Za-z0-9_-]{43})$")
 KEY_ALLOWED_EXACT_PATHS = frozenset({"/health", "/healthz"})
 KEY_ALLOWED_PATH_PREFIX = "/api/v1/"
 
-#: Roles an organization key may carry. ORG_ADMIN is never handed to a key.
-ORG_KEY_ROLES = (OrganizationRole.ANNOTATOR, OrganizationRole.CONTRIBUTOR)
+#: Roles an organization key may carry. ORG_ADMIN (core 2.45) only for
+#: org-wide keys created by an org-wide admin (``routers/access_keys``).
+ORG_KEY_ROLES = (
+    OrganizationRole.ANNOTATOR,
+    OrganizationRole.CONTRIBUTOR,
+    OrganizationRole.ORG_ADMIN,
+)
 
 _ROLE_RANK = {
     OrganizationRole.ANNOTATOR.value: 1,
@@ -191,7 +198,8 @@ def hash_api_key(plain: str, version: int = CURRENT_HASH_VERSION) -> str:
 
 
 def path_allows_api_key(path: Optional[str]) -> bool:
-    """Deny by default: keys work only on /api/v1/... and the health probes."""
+    """Where the auth dependency itself checks keys: /api/v1/... and the
+    health probes. Other routes go through ``middleware/key_gate.py``."""
     if not isinstance(path, str):
         return False
     return path.startswith(KEY_ALLOWED_PATH_PREFIX) or path in KEY_ALLOWED_EXACT_PATHS
@@ -294,7 +302,7 @@ def _build_select_key_by_prefix(prefix: str):
     return select(ApiKey).where(ApiKey.key_prefix == prefix)
 
 
-def _precheck(plain: str, path: Optional[str]) -> ParsedKey:
+def _precheck(plain: str, path: Optional[str], check_path: bool = True) -> ParsedKey:
     parsed = parse_api_key(plain)
     if parsed is None:
         raise _unauthorized("invalid_api_key", "Invalid API key")
@@ -302,7 +310,7 @@ def _precheck(plain: str, path: Optional[str]) -> ParsedKey:
         raise _unauthorized(
             "invalid_api_key", "This API key belongs to a different environment"
         )
-    if not path_allows_api_key(path):
+    if check_path and not path_allows_api_key(path):
         raise _unauthorized(
             "api_key_not_allowed_here",
             "API keys are only accepted on /api/v1 endpoints",
@@ -360,9 +368,11 @@ def authenticate_api_key_sync(db: Session, plain: str, *, path: Optional[str]) -
 
 
 async def authenticate_api_key(
-    db: AsyncSession, plain: str, *, path: Optional[str]
+    db: AsyncSession, plain: str, *, path: Optional[str], check_path: bool = True
 ) -> ApiKeyAuth:
-    parsed = _precheck(plain, path)
+    """``check_path=False`` is for the full-API gate
+    (``middleware/key_gate.py``), which decides per route instead."""
+    parsed = _precheck(plain, path, check_path)
     key = (
         await db.execute(_build_select_key_by_prefix(parsed.prefix))
     ).scalar_one_or_none()
@@ -398,7 +408,7 @@ def _role_enum(role: Any) -> OrganizationRole:
         raise _error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "invalid_org_role",
-            "org_role must be ANNOTATOR or CONTRIBUTOR",
+            "org_role must be ANNOTATOR, CONTRIBUTOR or ORG_ADMIN",
         )
 
 
@@ -511,7 +521,7 @@ def _org_parts(creator_id: str, org_id: str, payload: Any):
         raise _error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "invalid_org_role",
-            "org_role must be ANNOTATOR or CONTRIBUTOR",
+            "org_role must be ANNOTATOR, CONTRIBUTOR or ORG_ADMIN",
         )
     group_id = _field(payload, "group_id")
     name = _field(payload, "name")

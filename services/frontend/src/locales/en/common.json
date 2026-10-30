@@ -11252,7 +11252,7 @@
       "implies": "also includes {scopes}",
       "needsContributor": "only with the Contributor role",
       "roleLabel": "Role of the key",
-      "roleHint": "The key acts as its own service account with this role in the organization. Contributors also see reference solutions.",
+      "roleHint": "The key acts as its own service account with this role in the organization. Contributors also see reference solutions. Admin keys cover the whole organization and may also manage it.",
       "roleSwitched": "This selection needs the Contributor role. The role has been adjusted.",
       "groupLabel": "Group",
       "groupHint": "A group key only sees its group's projects and those of the whole organization.",
@@ -11273,7 +11273,10 @@
       "create": "Create key",
       "creating": "Creating …",
       "createFailed": "The key could not be created: {message}",
-      "tooManyKeys": "There are already too many active keys. Revoke a key you no longer need first."
+      "tooManyKeys": "There are already too many active keys. Revoke a key you no longer need first.",
+      "needsOrgAdmin": "only with the Admin role (whole organization)",
+      "roleSwitchedAdmin": "This selection needs the Admin role, and the key then covers the whole organization. Role and group have been adjusted.",
+      "roleLoweredForGroup": "A group key cannot have the Admin role. The role is now Contributor."
     },
     "presets": {
       "benchmark_read": {
@@ -11287,6 +11290,10 @@
       "org_full": {
         "label": "Full access to your own organization",
         "description": "Everything in \"Run and submit\", plus reference solutions and exports. Needs the Contributor role."
+      },
+      "full_access": {
+        "label": "Full API for research pipelines",
+        "description": "Account, projects, tasks including reference solutions, annotations, own models, generation, evaluations, results, exports and files. What the key sees still depends on its role and its projects. Organization keys need the Contributor role."
       }
     },
     "secret": {
@@ -11297,7 +11304,11 @@
       "copyFailed": "Copying did not work. Select the key and copy it by hand.",
       "curlTitle": "Try it with curl",
       "pythonTitle": "Use it in Python",
-      "done": "Done"
+      "done": "Done",
+      "referenceTitle": "The whole API",
+      "referenceHint": "The key works on the whole BenGER API, as far as its permissions reach. Sign-in, password and sign-up stay in the browser. You find every endpoint in the references:",
+      "referenceFull": "Full reference of every endpoint",
+      "referenceV1": "Benchmark API"
     },
     "test": {
       "button": "Test connection",
@@ -11373,7 +11384,19 @@
       "evaluationsRun": "Start evaluations",
       "resultsRead": "Read results",
       "exportsRead": "Download exports",
-      "keysManage": "Manage the owner's own access keys"
+      "keysManage": "Manage the owner's own access keys",
+      "accountRead": "Read the own account, notifications and settings",
+      "accountWrite": "Change the own settings and notifications, join projects",
+      "orgManage": "Manage the organization (members, groups, invitations, settings)",
+      "projectsWrite": "Create, configure, share, import and delete projects",
+      "tasksWrite": "Create, edit, assign and delete tasks",
+      "annotationsRead": "Read annotations, drafts, reviews and gradings",
+      "annotationsWrite": "Annotate, save drafts, review and grade",
+      "modelsRead": "Read the model catalog and own models",
+      "modelsManage": "Manage own models (BYOM) and provider keys",
+      "filesRead": "Read uploaded files",
+      "filesWrite": "Upload and delete files",
+      "adminPlatform": "Platform superadmin rights"
     }
   },
   "architecture": {

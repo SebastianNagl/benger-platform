@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-10-30-full-api-access-keys": "Les clés d'accès fonctionnent désormais sur toute l'interface BenGER, et plus seulement sous /api/v1. Avec le nouveau préréglage « API complète pour pipelines de recherche », vous enregistrez vos propres modèles et lancez la génération et l'évaluation depuis vos scripts. Les clés d'organisation peuvent recevoir le rôle Admin, et la référence complète se trouve sous /api/v1/reference.",
     "2026-10-30-project-prompts-card": "La page du projet comporte une nouvelle section « Prompts » : les prompts système, d'instruction et d'évaluation du projet ainsi que les modèles par défaut du juge LLM en un coup d'œil. Vous pouvez y modifier directement les prompts d'évaluation et masquer la section dans « Visibilité des sections ».",
     "2026-10-19-runtime-extension-switches": "Les superadministrateurs peuvent activer ou désactiver des paquets d'extension entiers pour certaines organisations ou certains utilisateurs dans « Feature flags », sans nouveau déploiement.",
     "2026-10-14-french-language-menu": "BenGER est désormais aussi disponible en français. Choisissez la langue dans le menu à drapeau en haut à droite (auparavant un simple bouton entre allemand et anglais) ; les formats de date et de nombre suivent la langue choisie.",

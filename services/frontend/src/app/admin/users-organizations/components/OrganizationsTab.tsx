@@ -866,6 +866,11 @@ export function OrganizationsTab() {
   const showLtiMenuItem = Boolean(
     OrgLtiPanel && (canManageOrg || adminGroupIds.length > 0),
   )
+  // Access keys (bgr_...) for scripts and the API: org admins, and group
+  // admins for their groups, while the public_api feature is on.
+  const showAccessKeysMenuItem = Boolean(
+    publicApiEnabled && (canManageOrg || isGroupAdminOfSelectedOrg),
+  )
 
   // A group admin without org-admin rights may only invite into one of
   // their own groups; the org role is then fixed to ANNOTATOR, the group
@@ -1116,19 +1121,10 @@ export function OrganizationsTab() {
               </Button>
             )}
           {selectedOrganization &&
-            publicApiEnabled &&
-            (canManageOrg || isGroupAdminOfSelectedOrg) && (
-              <Button
-                onClick={() => setShowAccessKeysModal(true)}
-                variant="outline"
-                data-testid="org-access-keys-button"
-              >
-                <CommandLineIcon className="h-4 w-4" />
-                {t('admin.organizations.accessKeys')}
-              </Button>
-            )}
-          {selectedOrganization &&
-            (canManageOrg || showLtiMenuItem || canDeleteOrg) && (
+            (canManageOrg ||
+              showLtiMenuItem ||
+              showAccessKeysMenuItem ||
+              canDeleteOrg) && (
               <Menu as="div" className="relative inline-block text-left">
                 <Menu.Button
                   as={Button}
@@ -1205,6 +1201,22 @@ export function OrganizationsTab() {
                         >
                           <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                           {t('admin.organizations.lmsIntegration')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {showAccessKeysMenuItem && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowAccessKeysModal(true)}
+                          data-testid="org-access-keys-button"
+                        >
+                          <CommandLineIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.accessKeys')}
                         </button>
                       )}
                     </Menu.Item>

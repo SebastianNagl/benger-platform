@@ -1220,23 +1220,28 @@
       ]
     },
     "api-zugaenge": {
-      "title": "Comment configurer un accès API pour des scripts ou un benchmark runner ?",
-      "summary": "Avec une **clé d'accès** (elle commence par `bgr_`). En tant qu'administrateur de l'organisation ou d'un groupe, vous créez les clés de votre organisation sous **Accès API** ; les clés personnelles se créent dans votre [profil](/profile). La clé ne vous est affichée qu'une seule fois.",
+      "title": "Comment configurer un accès API pour des scripts ou un benchmark runner ?",
+      "summary": "Avec une **clé d'accès** (elle commence par `bgr_`). Elle fonctionne sur toute l'interface BenGER, avec les mêmes points d'accès que le navigateur, dans la limite de ses autorisations. En tant qu'administrateur de l'organisation ou d'un groupe, vous créez les clés de votre organisation sous **Accès API** ; les clés personnelles se créent dans votre [profil](/profile). La clé ne vous est affichée qu'une seule fois.",
       "steps": [
-        "**Créer une clé** : pour l'organisation, ouvrez [Utilisateurs et organisations](/users-organizations), choisissez l'organisation et cliquez sur **Accès API**. Pour vous-même, allez dans votre [profil](/profile), section **Accès API**. Cliquez ensuite sur **Nouvelle clé** et donnez-lui un nom qui vous permettra de la reconnaître plus tard.",
-        "**Choisir la portée** : choisissez un préréglage : **Benchmark en lecture seule**, **Exécuter le benchmark et soumettre** ou **Accès complet à votre organisation**. Sous **Avancé**, vous voyez chaque autorisation séparément. Pour les clés d'organisation, vous choisissez en plus le rôle et, si nécessaire, un groupe et des projets précis. La validité est fixée à un an.",
-        "**Copier** : après **Créer la clé**, la clé complète s'affiche. Copiez-la aussitôt avec **Copier** et conservez-la en lieu sûr, par exemple dans un gestionnaire de mots de passe. Ensuite, vous ne voyez plus que son identifiant.",
-        "**Tester la connexion** : cliquez sur **Tester la connexion**. BenGER appelle alors l'interface comme le fera votre script et vous montre l'organisation et les autorisations de la clé.",
-        "**Utiliser dans un script ou un runner** : reprenez l'exemple `curl` ou Python affiché. La clé figure dans l'en-tête `Authorization: Bearer <Schlüssel>`. Stockez-la comme variable d'environnement ou comme secret de votre runner, jamais dans le code source."
+        "**Créer une clé** : pour l'organisation, ouvrez [Utilisateurs et organisations](/users-organizations), choisissez l'organisation et cliquez sur **Plus** → **Accès API**. Pour vous-même, allez dans votre [profil](/profile), section **Accès API**. Cliquez ensuite sur **Nouvelle clé** et donnez-lui un nom qui vous permettra de la reconnaître plus tard.",
+        "**Choisir la portée** : choisissez un préréglage : **Benchmark en lecture seule**, **Exécuter le benchmark et soumettre**, **Accès complet à votre organisation** ou **API complète pour pipelines de recherche** (compte, projets, tâches, annotations, modèles personnels, génération, évaluations, résultats, exportations et fichiers). Sous **Avancé**, vous voyez séparément chaque autorisation que vous pouvez accorder pour ce type de clé. Pour les clés d'organisation, vous choisissez en plus le rôle et, si nécessaire, un groupe et des projets précis. La validité est fixée à un an.",
+        "**Copier** : après **Créer la clé**, la clé complète s'affiche. Copiez-la aussitôt avec **Copier** et conservez-la en lieu sûr, par exemple dans un gestionnaire de mots de passe. Ensuite, vous ne voyez plus que son identifiant.",
+        "**Tester la connexion** : cliquez sur **Tester la connexion**. BenGER appelle alors `/api/v1/me` comme le fera votre script et vous montre l'organisation et les autorisations de la clé.",
+        "**Utiliser dans un script ou un runner** : reprenez l'exemple `curl` ou Python affiché. La clé figure dans l'en-tête `Authorization: Bearer <clé>`. Stockez-la comme variable d'environnement ou comme secret de votre runner, jamais dans le code source. La référence complète sous `/api/v1/reference` recense tous les points d'accès. L'interface de benchmark `/api/v1` est décrite sous `/api/v1/docs`."
       ],
       "tips": [
         "**Renouveler** crée une nouvelle clé avec les mêmes paramètres. L'ancienne continue de fonctionner jusqu'à ce que vous la révoquiez. Vous basculez ainsi vos scripts sans interruption.",
         "Sous **Utilisation**, vous voyez combien de fois une clé a été utilisée au cours des 30 derniers jours et quelles interfaces elle a appelées.",
-        "Une clé d'organisation agit comme un compte de service distinct. Une clé personnelle agit en votre nom et ne voit jamais plus que vous."
+        "Une clé d'organisation agit comme un compte de service distinct. Une clé personnelle agit en votre nom et ne voit jamais plus que vous.",
+        "Une clé d'organisation avec le rôle **Admin** peut aussi gérer l'organisation, c'est-à-dire les membres, les groupes et les invitations. Elle couvre toujours toute l'organisation, et seuls les administrateurs de toute l'organisation peuvent la créer.",
+        "La référence sous `/api/v1/reference` indique pour chaque point d'accès l'autorisation dont une clé a besoin.",
+        "Pour enregistrer votre propre modèle et lancer la génération et l'évaluation via l'API, consultez [Évaluer un modèle via l'API](/how-to#api-research-workflow)."
       ],
       "pitfalls": [
         "Vous ne voyez la clé complète qu'immédiatement après sa création. Si vous l'avez perdue, créez-en une nouvelle et révoquez l'ancienne.",
-        "Une clé d'organisation ne peut lire les corrigés types qu'avec le rôle **Contributeur**.",
+        "Une clé d'organisation ne peut lire les corrigés types qu'avec le rôle **Contributeur** ou **Admin**.",
+        "Une clé limitée à certains projets ou à un groupe n'atteint que ces projets. Elle ne crée ni nouveaux projets ni autres clés.",
+        "La connexion, le mot de passe, l'inscription et la modification de l'adresse e-mail restent réservés au navigateur. Ces points d'accès refusent toute clé.",
         "Si une clé est tombée entre de mauvaises mains, révoquez-la immédiatement avec **Révoquer**. Elle ne fonctionne alors plus."
       ],
       "keywords": [
@@ -1252,9 +1257,58 @@
         "benchmark",
         "bgr_",
         "curl",
-        "Python"
+        "Python",
+        "référence",
+        "OpenAPI",
+        "Swagger",
+        "accès complet",
+        "compte de service"
       ],
-      "links": ["Profil", "Utilisateurs et organisations"]
+      "links": [
+        "Profil",
+        "Utilisateurs et organisations",
+        "Évaluer un modèle via l'API"
+      ]
+    },
+    "api-research-workflow": {
+      "title": "Comment enregistrer mon modèle et lancer la génération et l'évaluation via l'API ?",
+      "summary": "Avec une clé d'accès personnelle utilisant le préréglage **API complète pour pipelines de recherche**. Elle vous permet d'enregistrer votre modèle compatible OpenAI, de lui faire répondre aux tâches d'un projet et d'évaluer ces réponses, le tout avec les mêmes points d'accès que le navigateur.",
+      "steps": [
+        "**Créer la clé** : dans votre [profil](/profile), section **Accès API**, créez une clé avec **API complète pour pipelines de recherche** (voir [Configurer un accès API](/how-to#api-zugaenge)). Stockez-la comme variable d'environnement, par exemple `BENGER_API_KEY`, et envoyez-la à chaque appel dans l'en-tête `Authorization: Bearer <clé>`.",
+        "**Enregistrer le modèle** : envoyez `POST /api/custom-models/` avec `name`, `base_url` (l'adresse de votre point d'accès compatible OpenAI), `endpoint_model_name` et, si nécessaire, `api_key`. La réponse contient l'`id` du modèle, qui commence par `custom-`. Vérifiez le modèle avec `POST /api/custom-models/{id}/test` et `{\"chat_ping\": true}`. BenGER envoie alors une courte requête de chat à votre modèle.",
+        "**Préparer le projet et les tâches** : créez un projet avec `POST /api/projects/` ou choisissez-en un dans `GET /api/projects/`. Pour l'importation, `POST /api/projects/{id}/imports/upload-url` vous fournit un formulaire de téléversement (`upload_url`, `fields`, `file_key`) où vous déposez votre fichier JSON. Lancez ensuite l'importation avec `POST /api/projects/{id}/imports` et `{\"object_key\": \"<file_key>\"}`, puis interrogez `GET /api/projects/{id}/imports/{job_id}` jusqu'à ce qu'elle soit terminée.",
+        "**Configurer la génération** : choisissez les modèles avec `PUT /api/projects/{id}/generation-config` et `{\"selected_configuration\": {\"models\": [\"<id du modèle>\"]}}`. L'appel fusionne ce que vous envoyez avec la configuration enregistrée, les structures de prompt sont donc conservées.",
+        "**Lancer la génération** : `POST /api/generation-tasks/projects/{id}/generate` avec `{\"mode\": \"missing\"}` génère toutes les réponses manquantes, `\"all\"` les régénère toutes. Si le projet comporte des structures de prompt, indiquez-les dans `structure_keys`. Suivez la progression avec `GET /api/projects/{id}/generation-status`.",
+        "**Configurer et lancer l'évaluation** : définissez les métriques avec `PUT /api/evaluations/projects/{id}/evaluation-config` et `{\"evaluation_configs\": [...]}`. Chaque entrée comporte `id`, `metric`, `prediction_fields` et `reference_fields`. Lancez ensuite `POST /api/evaluations/run` avec `project_id` et les mêmes `evaluation_configs`. La réponse contient l'`evaluation_id`, et `GET /api/evaluations/evaluation/status/{evaluation_id}` vous indique l'avancement.",
+        "**Lire les résultats** : une fois l'évaluation terminée, `GET /api/evaluations/run/results/project/{id}` renvoie les résultats du projet. Vous retrouvez les mêmes résultats dans le navigateur, sur la page du projet."
+      ],
+      "tips": [
+        "Pour Python, il existe le paquet `benger-client` dans le dossier `clients/python` du dépôt de la plateforme. Une fois installé, vous vous connectez avec `from benger_client import BengerClient`.",
+        "La référence sous `/api/v1/reference` recense tous les points d'accès avec leurs champs et l'autorisation nécessaire.",
+        "La génération et l'évaluation s'exécutent en arrière-plan. Interrogez l'état toutes les quelques secondes au lieu d'attendre la réponse de l'appel de lancement.",
+        "Avec `\"mode\": \"missing\"` et sans `force_rerun`, un script interrompu reprend là où il s'était arrêté lors de son exécution suivante."
+      ],
+      "pitfalls": [
+        "Une clé limitée à certains projets n'atteint que ces projets et n'en crée pas de nouveaux. Un pipeline qui crée ses propres projets a besoin d'une clé sans limitation de projet.",
+        "Votre modèle doit être joignable depuis le serveur BenGER. BenGER refuse en général les adresses d'un réseau local ou `localhost`.",
+        "Les métriques utilisant un LLM comme juge appellent un fournisseur et consomment du crédit via vos propres clés API ou celles de votre organisation."
+      ],
+      "keywords": [
+        "API",
+        "pipeline",
+        "recherche",
+        "modèle personnel",
+        "BYOM",
+        "compatible OpenAI",
+        "génération",
+        "évaluation",
+        "métrique",
+        "Python",
+        "benger-client",
+        "script",
+        "automatisation"
+      ],
+      "links": ["Profil", "Configurer un accès API"]
     },
     "ts-no-projects": {
       "title": "« Je ne vois aucun projet » ou « mon projet a disparu »",

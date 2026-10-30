@@ -1,9 +1,11 @@
 """Scope vocabulary for access keys (``bgr_...``).
 
-A scope names one capability of the public ``/api/v1`` surface. Keys carry
-a list of granted scopes; v1 routes declare the scopes they need through
-``routers/v1/_deps.require_scope``. Browser sessions are not scoped: their
-principal carries :data:`SESSION_SCOPES`, which satisfies every check.
+A scope names one capability of the API. Keys carry a list of granted
+scopes; v1 routes declare the scopes they need through
+``routers/v1/_deps.require_scope``, every other route through the rule table
+in ``app/core/key_routes.py`` (checked by ``middleware/key_gate.py``).
+Browser sessions are not scoped: their principal carries
+:data:`SESSION_SCOPES`, which satisfies every check.
 
 Scopes imply others (``submissions:write`` implies ``submissions:read``);
 :func:`expand` computes the transitive closure. Overlays add their own
@@ -19,7 +21,10 @@ Who may grant a scope is data too (``ScopeDef.grantable``):
   (personal keys, whose owner's per-project role still applies at request
   time, and organization keys with role CONTRIBUTOR).
 * ``org_admin``: organization keys created by an org-wide admin.
+* ``org_admin_role``: personal keys (the owner's own role still applies at
+  request time) and organization keys with role ORG_ADMIN.
 * ``personal_only``: personal keys only.
+* ``superadmin``: personal keys created by a superadmin.
 
 Errors use the structured shape ``{"detail": {"code", "message"}}``.
 """
@@ -48,7 +53,14 @@ class _AllScopes(frozenset):
 #: Scope set of session (cookie/JWT) principals. Compare with ``is``.
 SESSION_SCOPES: frozenset = _AllScopes()
 
-GRANTABLE_VALUES = ("any", "full_data_role", "org_admin", "personal_only")
+GRANTABLE_VALUES = (
+    "any",
+    "full_data_role",
+    "org_admin",
+    "org_admin_role",
+    "personal_only",
+    "superadmin",
+)
 
 
 @dataclass(frozen=True)
@@ -147,6 +159,87 @@ _BUILTIN: Tuple[ScopeDef, ...] = (
         "exports:read", "Exporte abrufen", "Download exports", "Télécharger les exports"
     ),
     ScopeDef(
+        "account:read",
+        "Eigenes Konto, Benachrichtigungen und Einstellungen lesen",
+        "Read the own account, notifications and settings",
+        "Lire son compte, ses notifications et ses paramètres",
+    ),
+    ScopeDef(
+        "account:write",
+        "Eigene Einstellungen und Benachrichtigungen ändern, Projekten beitreten",
+        "Change the own settings and notifications, join projects",
+        "Modifier ses paramètres et notifications, rejoindre des projets",
+        implies=("account:read",),
+    ),
+    ScopeDef(
+        "org:manage",
+        "Organisation verwalten (Mitglieder, Gruppen, Einladungen, Einstellungen)",
+        "Manage the organization (members, groups, invitations, settings)",
+        "Gérer l'organisation (membres, groupes, invitations, paramètres)",
+        implies=("org:read",),
+        grantable="org_admin_role",
+    ),
+    ScopeDef(
+        "projects:write",
+        "Projekte anlegen, konfigurieren, teilen, importieren und löschen",
+        "Create, configure, share, import and delete projects",
+        "Créer, configurer, partager, importer et supprimer des projets",
+        implies=("projects:read",),
+    ),
+    ScopeDef(
+        "tasks:write",
+        "Aufgaben anlegen, bearbeiten, zuweisen und löschen",
+        "Create, edit, assign and delete tasks",
+        "Créer, modifier, attribuer et supprimer des tâches",
+        implies=("tasks:read",),
+    ),
+    ScopeDef(
+        "annotations:read",
+        "Annotationen, Entwürfe, Reviews und Korrekturen lesen",
+        "Read annotations, drafts, reviews and gradings",
+        "Lire les annotations, brouillons, relectures et corrections",
+    ),
+    ScopeDef(
+        "annotations:write",
+        "Annotieren, Entwürfe speichern, reviewen und korrigieren",
+        "Annotate, save drafts, review and grade",
+        "Annoter, enregistrer des brouillons, relire et corriger",
+        implies=("annotations:read",),
+    ),
+    ScopeDef(
+        "models:read",
+        "Modellkatalog und eigene Modelle lesen",
+        "Read the model catalog and own models",
+        "Lire le catalogue de modèles et ses propres modèles",
+    ),
+    ScopeDef(
+        "models:manage",
+        "Eigene Modelle (BYOM) und Anbieter-Schlüssel verwalten",
+        "Manage own models (BYOM) and provider keys",
+        "Gérer ses propres modèles (BYOM) et les clés des fournisseurs",
+        implies=("models:read",),
+    ),
+    ScopeDef(
+        "files:read",
+        "Hochgeladene Dateien lesen",
+        "Read uploaded files",
+        "Lire les fichiers téléversés",
+    ),
+    ScopeDef(
+        "files:write",
+        "Dateien hochladen und löschen",
+        "Upload and delete files",
+        "Téléverser et supprimer des fichiers",
+        implies=("files:read",),
+    ),
+    ScopeDef(
+        "admin:platform",
+        "Superadmin-Rechte der Plattform",
+        "Platform superadmin rights",
+        "Droits de superadministrateur de la plateforme",
+        grantable="superadmin",
+    ),
+    ScopeDef(
         "keys:manage",
         "Eigene Zugangsschlüssel verwalten",
         "Manage the owner's own access keys",
@@ -187,6 +280,21 @@ SCOPE_PRESETS: Dict[str, List[str]] = {
         "evaluations:run",
         "results:read",
         "exports:read",
+    ],
+    # The whole app as the key's user sees it (research pipelines, scripts).
+    "full_access": [
+        "account:write",
+        "org:read",
+        "projects:write",
+        "tasks:read_reference",
+        "tasks:write",
+        "annotations:write",
+        "models:manage",
+        "runs:write",
+        "evaluations:run",
+        "results:read",
+        "exports:read",
+        "files:write",
     ],
 }
 
@@ -268,6 +376,10 @@ class GrantContext:
 
     is_superadmin: bool = False
     is_org_admin: bool = False
+    #: Scopes of the access key that is creating this key (``keys:manage``),
+    #: or None when a browser session creates it. A key never grants more
+    #: than it holds.
+    creator_scopes: Optional[frozenset] = None
 
 
 _FULL_DATA_ROLES = ("CONTRIBUTOR", "ORG_ADMIN")
@@ -306,6 +418,12 @@ def validate_scopes_for_grant(
             allowed = owner_type == "user" or role in _FULL_DATA_ROLES
         elif grantable == "org_admin":
             allowed = owner_type == "org" and (ctx.is_org_admin or ctx.is_superadmin)
+        elif grantable == "org_admin_role":
+            allowed = owner_type == "user" or role == "ORG_ADMIN"
+        elif grantable == "superadmin":
+            allowed = owner_type == "user" and ctx.is_superadmin
+        if allowed and ctx.creator_scopes is not None:
+            allowed = scopes_satisfied(ctx.creator_scopes, (name,))
         if not allowed:
             raise _error(
                 status.HTTP_400_BAD_REQUEST,

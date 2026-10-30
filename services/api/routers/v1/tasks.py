@@ -227,19 +227,23 @@ async def list_tasks(
     blinded = bound is not None
 
     base = _base_query(project.id, clause, assigned_only, user.id).subquery()
+    # The id fingerprint changes when the visible set changes without any
+    # task changing (an assignment moved, a submission made). hashtext, not
+    # md5: the production Postgres runs in FIPS mode.
     stats = (
         await db.execute(
             select(
                 func.count(),
                 func.max(func.coalesce(base.c.updated_at, base.c.created_at)),
+                func.sum(func.hashtext(base.c.id)),
             ).select_from(base)
         )
     ).one()
-    count, newest = int(stats[0] or 0), stats[1]
+    count, newest, fingerprint = int(stats[0] or 0), stats[1], stats[2]
     last_modified = _latest(project.updated_at, project.created_at, newest)
     etag = weak_etag(
-        "tasks", project.id, project.updated_at, count, newest, cursor, limit, blinded,
-        sorted(bound) if bound is not None else None,
+        "tasks", project.id, project.updated_at, count, newest, fingerprint, cursor, limit,
+        blinded, sorted(bound) if bound is not None else None,
     )
     if etag_matches(request, etag):
         return conditional_response(request, None, etag, last_modified)

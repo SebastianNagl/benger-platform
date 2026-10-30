@@ -145,8 +145,37 @@ def test_presets_only_name_known_scopes():
         assert scopes, name
         assert set(scopes) <= known, name
     catalog = sc.scope_catalog()
-    assert set(catalog["presets"]) == {"benchmark_read", "benchmark_submit", "org_full"}
+    assert set(catalog["presets"]) == {
+        "benchmark_read",
+        "benchmark_submit",
+        "org_full",
+        "full_access",
+    }
     assert any(s["name"] == "keys:manage" for s in catalog["scopes"])
+
+
+def test_full_access_preset_is_grantable_to_contributor_org_key():
+    assert sc.validate_scopes_for_grant(
+        sc.GrantContext(is_org_admin=True), "org", "CONTRIBUTOR", sc.SCOPE_PRESETS["full_access"]
+    )
+
+
+def test_new_grantable_values():
+    ok = sc.validate_scopes_for_grant
+    assert ok(sc.GrantContext(), "user", None, ["org:manage"]) == ["org:manage"]
+    assert ok(sc.GrantContext(is_org_admin=True), "org", "ORG_ADMIN", ["org:manage"])
+    with pytest.raises(HTTPException):
+        ok(sc.GrantContext(is_org_admin=True), "org", "CONTRIBUTOR", ["org:manage"])
+    assert ok(sc.GrantContext(is_superadmin=True), "user", None, ["admin:platform"])
+    with pytest.raises(HTTPException):
+        ok(sc.GrantContext(), "user", None, ["admin:platform"])
+    with pytest.raises(HTTPException):
+        ok(sc.GrantContext(is_superadmin=True), "org", "ORG_ADMIN", ["admin:platform"])
+    # A key that creates keys never grants more than it holds.
+    held = frozenset({"projects:write", "projects:read"})
+    assert ok(sc.GrantContext(creator_scopes=held), "user", None, ["projects:read"])
+    with pytest.raises(HTTPException):
+        ok(sc.GrantContext(creator_scopes=held), "user", None, ["tasks:write"])
 
 
 def test_org_full_preset_is_grantable_to_contributor_org_key():

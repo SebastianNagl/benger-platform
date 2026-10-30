@@ -1081,22 +1081,27 @@
     },
     "api-zugaenge": {
       "title": "How do I set up API access for scripts or a benchmark runner?",
-      "summary": "With an **access key** (it starts with `bgr_`). As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once.",
+      "summary": "With an **access key** (it starts with `bgr_`). It works on the whole BenGER API, with the same endpoints the browser uses, as far as its permissions reach. As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once.",
       "steps": [
-        "**Create the key**: for the organization, open [Users & organizations](/users-organizations), pick the organization and click **API access**. For yourself, go to **API access** on your [profile](/profile). Click **New key** and give it a name you will recognize later.",
-        "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark** or **Full access to your own organization**. **Advanced** lists every permission on its own. For organization keys you also choose the role and, if needed, a group and single projects. Validity defaults to one year.",
+        "**Create the key**: for the organization, open [Users & organizations](/users-organizations), pick the organization and click **More** → **API access**. For yourself, go to **API access** on your [profile](/profile). Click **New key** and give it a name you will recognize later.",
+        "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark**, **Full access to your own organization** or **Full API for research pipelines** (account, projects, tasks, annotations, own models, generation, evaluations, results, exports and files). **Advanced** lists every permission you may grant for this kind of key on its own. For organization keys you also choose the role and, if needed, a group and single projects. Validity defaults to one year.",
         "**Copy**: after **Create key** the full key appears. Copy it right away with **Copy** and keep it safe, for example in a password manager. Afterwards you only see its identifier.",
-        "**Test the connection**: click **Test connection**. BenGER calls the API the way your script will and shows the key's organization and permissions.",
-        "**Use it in a script or runner**: take the `curl` or Python example shown. The key goes into the `Authorization: Bearer <key>` header. Store it as an environment variable or a secret of your runner, never in the source code."
+        "**Test the connection**: click **Test connection**. BenGER calls `/api/v1/me` the way your script will and shows the key's organization and permissions.",
+        "**Use it in a script or runner**: take the `curl` or Python example shown. The key goes into the `Authorization: Bearer <key>` header. Store it as an environment variable or a secret of your runner, never in the source code. The full reference at `/api/v1/reference` lists every endpoint. The benchmark API `/api/v1` is described at `/api/v1/docs`."
       ],
       "tips": [
         "**Renew** creates a new key with the same settings. The old one keeps working until you revoke it, so your scripts switch over without downtime.",
         "**Usage** shows how often a key was used in the last 30 days and which endpoints it called.",
-        "An organization key acts as its own service account. A personal key acts as you and never sees more than you do."
+        "An organization key acts as its own service account. A personal key acts as you and never sees more than you do.",
+        "An organization key with the **Admin** role may also manage the organization, that is members, groups and invitations. It always covers the whole organization, and only admins of the whole organization create one.",
+        "The reference at `/api/v1/reference` names the permission a key needs for each endpoint.",
+        "How to register your own model and run generation and evaluation through the API is shown in [Evaluate a model through the API](/how-to#api-research-workflow)."
       ],
       "pitfalls": [
         "You only see the full key right after creating it. If you lost it, create a new one and revoke the old one.",
-        "An organization key can read reference solutions only with the **Contributor** role.",
+        "An organization key can read reference solutions only with the **Contributor** or **Admin** role.",
+        "A key limited to single projects or a group only reaches those projects. It creates neither new projects nor further keys.",
+        "Sign-in, password, sign-up and changing the email address stay in the browser. Those endpoints reject every key.",
         "If a key got into the wrong hands, revoke it at once with **Revoke**. It stops working immediately."
       ],
       "keywords": [
@@ -1109,9 +1114,58 @@
         "benchmark",
         "bgr_",
         "curl",
-        "python"
+        "python",
+        "reference",
+        "openapi",
+        "swagger",
+        "full access",
+        "service account"
       ],
-      "links": ["Profile", "Users & organizations"]
+      "links": [
+        "Profile",
+        "Users & organizations",
+        "Evaluate a model through the API"
+      ]
+    },
+    "api-research-workflow": {
+      "title": "How do I register my model and run generation and evaluation through the API?",
+      "summary": "With a personal access key using the **Full API for research pipelines** preset. With it you register your OpenAI-compatible model, let it answer the tasks of a project and evaluate the answers, all through the same endpoints the browser uses.",
+      "steps": [
+        "**Create the key**: on your [profile](/profile), under **API access**, create a key with **Full API for research pipelines** (see [Set up API access](/how-to#api-zugaenge)). Store it as an environment variable such as `BENGER_API_KEY` and send it with every call in the `Authorization: Bearer <key>` header.",
+        "**Register the model**: send `POST /api/custom-models/` with `name`, `base_url` (the address of your OpenAI-compatible endpoint), `endpoint_model_name` and, if needed, `api_key`. The answer carries the model's `id`, which starts with `custom-`. Check the model with `POST /api/custom-models/{id}/test` and `{\"chat_ping\": true}`. BenGER then sends a short chat request to your model.",
+        "**Prepare project and tasks**: create a project with `POST /api/projects/` or pick one from `GET /api/projects/`. For the import, `POST /api/projects/{id}/imports/upload-url` hands you an upload form (`upload_url`, `fields`, `file_key`), and you upload your JSON file there. Then start the import with `POST /api/projects/{id}/imports` and `{\"object_key\": \"<file_key>\"}` and poll `GET /api/projects/{id}/imports/{job_id}` until it is done.",
+        "**Configure generation**: pick the models with `PUT /api/projects/{id}/generation-config` and `{\"selected_configuration\": {\"models\": [\"<model id>\"]}}`. The call merges what you send into the stored configuration, so prompt structures are kept.",
+        "**Start generation**: `POST /api/generation-tasks/projects/{id}/generate` with `{\"mode\": \"missing\"}` creates every missing answer, `\"all\"` creates them all anew. If the project has prompt structures, name them in `structure_keys`. Read the progress with `GET /api/projects/{id}/generation-status`.",
+        "**Configure and start evaluation**: set the metrics with `PUT /api/evaluations/projects/{id}/evaluation-config` and `{\"evaluation_configs\": [...]}`. Each entry has `id`, `metric`, `prediction_fields` and `reference_fields`. Then start `POST /api/evaluations/run` with `project_id` and the same `evaluation_configs`. The answer carries the `evaluation_id`, and `GET /api/evaluations/evaluation/status/{evaluation_id}` tells you how far it got.",
+        "**Read the results**: once the evaluation is done, `GET /api/evaluations/run/results/project/{id}` returns the project's results. You see the same results in the browser on the project page."
+      ],
+      "tips": [
+        "For Python there is the `benger-client` package in the `clients/python` folder of the platform repository. After installing it you connect with `from benger_client import BengerClient`.",
+        "The reference at `/api/v1/reference` lists every endpoint with its fields and the permission it needs.",
+        "Generation and evaluation run in the background. Poll the status every few seconds instead of waiting on the start call.",
+        "With `\"mode\": \"missing\"` and without `force_rerun`, an interrupted script picks up where it stopped on its next run."
+      ],
+      "pitfalls": [
+        "A key limited to single projects only reaches those projects and creates no new ones. A pipeline that creates its own projects needs a key without a project limit.",
+        "Your model must be reachable from the BenGER server. BenGER usually rejects addresses in a local network or on `localhost`.",
+        "Metrics with an LLM as judge call a provider and spend credit through your own API keys or those of your organization."
+      ],
+      "keywords": [
+        "api",
+        "pipeline",
+        "research",
+        "own model",
+        "byom",
+        "openai compatible",
+        "generation",
+        "evaluation",
+        "metric",
+        "python",
+        "benger-client",
+        "script",
+        "automation"
+      ],
+      "links": ["Profile", "Set up API access"]
     },
     "ts-no-projects": {
       "title": "“I see no projects” or “my project has disappeared”",

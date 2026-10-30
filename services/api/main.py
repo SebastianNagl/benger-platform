@@ -132,6 +132,10 @@ async def lifespan(app: FastAPI):
     from routers.v1._deps import assert_v1_routes_scoped
 
     assert_v1_routes_scoped(app)
+    # Same for the full API: every route has an access-key rule (or never()).
+    from app.core.key_routes import assert_key_routes_covered
+
+    assert_key_routes_covered(app)
 
     is_reload = False
     try:
@@ -394,7 +398,15 @@ app.add_middleware(
     expose_headers=["Content-Length"],
 )
 
-# Usage events and X-RateLimit-* / X-Request-ID headers for /api/v1.
+# Access keys outside /api/v1 (core 2.45): route rule, scopes, projects and
+# rate limit, before any handler runs. Added before the usage middleware so
+# it runs inside it and its rejections are not logged as key usage.
+from middleware.key_gate import KeyGateMiddleware  # noqa: E402
+
+app.add_middleware(KeyGateMiddleware)
+
+# Usage events and X-RateLimit-* / X-Request-ID headers for /api/v1 and for
+# every other request made with an access key.
 from middleware.api_usage import ApiUsageMiddleware  # noqa: E402
 
 app.add_middleware(ApiUsageMiddleware)
