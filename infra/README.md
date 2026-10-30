@@ -336,9 +336,6 @@ sudo usermod -aG docker $USER
 
 **❌ SSL certificate issues (production):**
 ```bash
-# Check certificate storage
-ls -la traefik/certs/
-
 # View Traefik logs
 docker-compose logs -f traefik
 

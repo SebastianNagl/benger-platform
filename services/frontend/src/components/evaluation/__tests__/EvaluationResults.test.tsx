@@ -1376,7 +1376,7 @@ describe('EvaluationResults', () => {
 
       await waitFor(() => {
         const annotatorLabel = screen.getByText('reviewer1')
-        expect(annotatorLabel.className).toContain('bg-emerald-100')
+        expect(annotatorLabel.className).toContain('bg-emerald-50')
       })
     })
   })

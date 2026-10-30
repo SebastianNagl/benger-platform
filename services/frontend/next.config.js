@@ -110,6 +110,14 @@ const nextConfig = {
       optimizeCss: false,
       optimizePackageImports: [],
       webVitalsAttribution: [],
+      // The persistent Turbopack dev cache (default on since 16.1) can go
+      // stale across restarts and then sends every page a "restart" for its
+      // entry chunk on each HMR subscribe, so open tabs reload in a loop
+      // (vercel/next.js#100267, still open on 16.4.x). The dev container keeps
+      // .next in a volume, so that cache survives every restart. Off unless
+      // NEXT_TURBOPACK_DEV_CACHE=true.
+      turbopackFileSystemCacheForDev:
+        process.env.NEXT_TURBOPACK_DEV_CACHE === 'true',
     },
   }),
 
