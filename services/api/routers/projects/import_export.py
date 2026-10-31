@@ -1008,7 +1008,7 @@ _BULK_EXPORT_TASK_BATCH = 200
 
 
 @router.post("/bulk-export")
-async def bulk_export_projects(
+def bulk_export_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -1184,7 +1184,7 @@ async def bulk_export_projects(
 
 
 @router.post("/bulk-export-full")
-async def bulk_export_full_projects(
+def bulk_export_full_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),

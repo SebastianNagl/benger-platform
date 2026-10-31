@@ -36,7 +36,7 @@ router = APIRouter()
 
 
 @router.post("/{project_id}/tasks/assign")
-async def assign_tasks(
+def assign_tasks(
     project_id: str,
     data: dict,
     current_user: AuthUser = Depends(require_user),
@@ -430,7 +430,7 @@ async def list_task_assignments(
 
 
 @router.delete("/{project_id}/tasks/{task_id}/assignments/{assignment_id}")
-async def remove_task_assignment(
+def remove_task_assignment(
     project_id: str,
     task_id: str,  # Changed from int to str to match UUID task IDs
     assignment_id: str,
@@ -511,7 +511,7 @@ async def remove_task_assignment(
 
 
 @router.get("/{project_id}/my-tasks")
-async def get_my_tasks(
+def get_my_tasks(
     project_id: str,
     request: Request,
     page: int = Query(1, ge=1),

@@ -633,7 +633,7 @@ class TestDeleteUser:
         user = Mock(is_superadmin=False)
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-1", current_user=user, db=db)
+            delete_user(user_id="user-1", current_user=user, db=db)
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
@@ -645,7 +645,7 @@ class TestDeleteUser:
         db.execute.return_value.first.return_value = None
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-1", current_user=user, db=db)
+            delete_user(user_id="user-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -658,7 +658,7 @@ class TestDeleteUser:
         db.execute.return_value.first.return_value = result
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-1", current_user=user, db=db)
+            delete_user(user_id="user-1", current_user=user, db=db)
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
@@ -683,7 +683,7 @@ class TestDeleteUser:
         db.execute.side_effect = execute_side_effect
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-2", current_user=user, db=db)
+            delete_user(user_id="user-2", current_user=user, db=db)
         assert exc_info.value.status_code == 400
 
 

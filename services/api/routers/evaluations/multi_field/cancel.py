@@ -115,7 +115,7 @@ def _cancel_runs(
     "/run/{evaluation_id}/cancel",
     response_model=CancelEvaluationResponse,
 )
-async def cancel_evaluation_run(
+def cancel_evaluation_run(
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -175,7 +175,7 @@ async def cancel_evaluation_run(
     "/projects/{project_id}/runs/cancel-all",
     response_model=CancelEvaluationResponse,
 )
-async def cancel_all_project_evaluations(
+def cancel_all_project_evaluations(
     project_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),

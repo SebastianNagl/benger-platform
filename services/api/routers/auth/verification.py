@@ -9,7 +9,7 @@ from services import auth_rate_limit
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/verify-email")
-async def verify_email(
+def verify_email(
     verification_request: EmailVerificationRequest,
     db: Session = Depends(get_db),
 ):
@@ -30,7 +30,7 @@ async def verify_email(
 
 
 @router.post("/verify-email/{token}")
-async def verify_email_with_token(token: str, db: Session = Depends(get_db)):
+def verify_email_with_token(token: str, db: Session = Depends(get_db)):
     """Verify email address using verification token (path parameter)"""
     try:
         success, message = email_verification_service.verify_email_with_token(db, token)
@@ -119,7 +119,7 @@ async def resend_verification_email(
 
 
 @router.post("/verify-email-enhanced/{token}", response_model=EmailVerificationEnhancedResponse)
-async def verify_email_enhanced(
+def verify_email_enhanced(
     token: str,
     db: Session = Depends(get_db),
 ):

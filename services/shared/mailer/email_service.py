@@ -23,6 +23,7 @@ The two former copies are reconciled here as a behavioral *superset*:
 * ``is_available()`` (api-only originally) is preserved.
 """
 
+import asyncio
 import html
 import logging
 import os
@@ -252,7 +253,7 @@ class EmailService:
             subject, html_body = self._render_template(template_name, template_context)
 
             # Send email
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body, **sender
             )
 
@@ -319,7 +320,7 @@ class EmailService:
             )
 
             # Send email
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body
             )
 
@@ -366,7 +367,7 @@ class EmailService:
         """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body
             )
 
@@ -517,7 +518,7 @@ class EmailService:
         )
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,
@@ -631,7 +632,7 @@ class EmailService:
             """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,
@@ -754,7 +755,7 @@ class EmailService:
             """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,

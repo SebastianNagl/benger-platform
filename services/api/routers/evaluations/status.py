@@ -167,7 +167,7 @@ async def stream_evaluation_status(
 
 
 @router.get("/", response_model=List[EvaluationResult])
-async def get_evaluations(
+def get_evaluations(
     request: Request,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -210,7 +210,7 @@ async def get_evaluations(
 
 
 @router.get("/evaluation-types", response_model=List[EvaluationTypeResponse])
-async def get_evaluation_types(
+def get_evaluation_types(
     task_type_id: Optional[str] = None,
     category: Optional[str] = None,
     current_user: User = Depends(require_user),

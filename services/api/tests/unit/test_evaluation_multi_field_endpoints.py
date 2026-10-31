@@ -384,9 +384,9 @@ class TestCancellationEndpoints:
 
     def test_cancel_endpoints_exist(self):
         from routers.evaluations import multi_field
-        from inspect import getmembers, iscoroutinefunction
+        from inspect import getmembers, isfunction
 
-        fn_names = {n for n, f in getmembers(multi_field, iscoroutinefunction)}
+        fn_names = {n for n, f in getmembers(multi_field, isfunction)}
         assert "cancel_evaluation_run" in fn_names, (
             "POST /api/evaluations/run/{id}/cancel handler missing"
         )

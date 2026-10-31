@@ -76,7 +76,7 @@ class TestMarkNotificationReadSuccess:
         user = _mock_user()
         db = _mock_db()
 
-        result = await mark_notification_read(
+        result = mark_notification_read(
             notification_id="notif-1", current_user=user, db=db,
         )
         assert result["message"] == "Notification marked as read"
@@ -90,7 +90,7 @@ class TestMarkNotificationReadSuccess:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await mark_notification_read(
+            mark_notification_read(
                 notification_id="missing", current_user=user, db=db,
             )
         assert exc_info.value.status_code == 404
@@ -104,7 +104,7 @@ class TestMarkNotificationReadSuccess:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await mark_notification_read(
+            mark_notification_read(
                 notification_id="notif-1", current_user=user, db=db,
             )
         assert exc_info.value.status_code == 500
@@ -123,7 +123,7 @@ class TestMarkAllReadSuccess:
         user = _mock_user()
         db = _mock_db()
 
-        result = await mark_all_notifications_read(current_user=user, db=db)
+        result = mark_all_notifications_read(current_user=user, db=db)
         assert "5" in result["message"]
 
 
@@ -140,7 +140,7 @@ class TestGetNotificationsLimitBranches:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notifications(
+        result = get_notifications(
             current_user=user, db=db, limit=0, offset=0, unread_only=False,
         )
         assert result == []
@@ -157,7 +157,7 @@ class TestGetNotificationsLimitBranches:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notifications(
+        result = get_notifications(
             current_user=user, db=db, limit=20, offset=0, unread_only=True,
         )
         assert len(result) == 1
@@ -170,7 +170,7 @@ class TestGetNotificationsLimitBranches:
         user = _mock_user()
         db = _mock_db()
 
-        await get_notifications(
+        get_notifications(
             current_user=user, db=db, limit=200, offset=0, unread_only=False,
         )
         assert mock_get.call_args.kwargs.get("limit") == 100
@@ -322,7 +322,7 @@ class TestTestNotificationsDeep:
         user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await create_test_notification(
+        result = create_test_notification(
             request=TestNotificationRequest(
                 notification_type="system_alert",
                 title="Custom Title",
@@ -347,7 +347,7 @@ class TestTestNotificationsDeep:
         user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await create_test_notification(
+        result = create_test_notification(
             request=TestNotificationRequest(notification_type="system_alert", count=1),
             current_user=user,
             db=db,
@@ -369,7 +369,7 @@ class TestTestNotificationsDeep:
         user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await create_admin_test_notification(
+        result = create_admin_test_notification(
             request=AdminTestNotificationRequest(
                 type="totally_invalid_type",
                 title="Admin Test",
@@ -392,7 +392,7 @@ class TestTestNotificationsDeep:
         user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await create_admin_test_notification(
+        result = create_admin_test_notification(
             request=AdminTestNotificationRequest(
                 type="system_alert",
                 title="Test",
@@ -413,7 +413,7 @@ class TestTestNotificationsDeep:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await create_admin_test_notification(
+            create_admin_test_notification(
                 request=AdminTestNotificationRequest(
                     type="system_alert",
                     title="Test",
@@ -432,7 +432,7 @@ class TestTestNotificationsDeep:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await create_admin_test_notification(
+            create_admin_test_notification(
                 request=AdminTestNotificationRequest(
                     type="system_alert",
                     title="Test",
@@ -457,7 +457,7 @@ class TestGenerateAllDeep:
         user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await generate_all_test_notifications(current_user=user, db=db)
+        result = generate_all_test_notifications(current_user=user, db=db)
         assert result["success"] == False  # noqa: E712
         assert result["count"] == 0
         assert result["errors"] is not None
@@ -476,7 +476,7 @@ class TestGenerateAllDeep:
         db.commit.side_effect = Exception("commit fail")
 
         with pytest.raises(HTTPException) as exc_info:
-            await generate_all_test_notifications(current_user=user, db=db)
+            generate_all_test_notifications(current_user=user, db=db)
         assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
@@ -487,7 +487,7 @@ class TestGenerateAllDeep:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await generate_all_test_notifications(current_user=user, db=db)
+            generate_all_test_notifications(current_user=user, db=db)
         assert exc_info.value.status_code == 403
 
 
@@ -505,7 +505,7 @@ class TestGroupsDeep:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notification_groups(
+        result = get_notification_groups(
             current_user=user, db=db, group_by="date", limit=50,
         )
         assert "groups" in result.__dict__ or hasattr(result, "groups")
@@ -519,7 +519,7 @@ class TestGroupsDeep:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notification_groups(
+        result = get_notification_groups(
             current_user=user, db=db, group_by="organization", limit=50,
         )
         assert result is not None
@@ -532,7 +532,7 @@ class TestGroupsDeep:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_notification_groups(
+            get_notification_groups(
                 current_user=user, db=db, group_by="invalid", limit=50,
             )
         assert exc_info.value.status_code == 400
@@ -560,7 +560,7 @@ class TestSummaryDeep:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notification_summary(current_user=user, db=db, days=0)  # noqa: F841
+        result = get_notification_summary(current_user=user, db=db, days=0)  # noqa: F841
         # days should be capped to 1
         mock_summary.assert_called_once()
         assert mock_summary.call_args.kwargs.get("days") == 1
@@ -579,7 +579,7 @@ class TestDigestAlias:
         user = _mock_user()
         db = _mock_db()
 
-        result = await update_notification_preferences_put(
+        result = update_notification_preferences_put(
             preferences_update=NotificationPreferencesUpdate(preferences={"system_alert": True}),
             current_user=user,
             db=db,
@@ -594,7 +594,7 @@ class TestDigestAlias:
         user = _mock_user()
         db = _mock_db()
 
-        result = await update_notification_preferences(
+        result = update_notification_preferences(
             preferences_update=NotificationPreferencesUpdate(preferences={"system_alert": True}),
             current_user=user,
             db=db,
@@ -610,7 +610,7 @@ class TestDigestAlias:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await update_notification_preferences(
+            update_notification_preferences(
                 preferences_update=NotificationPreferencesUpdate(preferences={"system_alert": True}),
                 current_user=user,
                 db=db,
@@ -631,7 +631,7 @@ class TestBulkOperations:
         user = _mock_user()
         db = _mock_db()
 
-        result = await mark_notifications_read_bulk(
+        result = mark_notifications_read_bulk(
             request=BulkOperationRequest(notification_ids=["n1", "n2", "n3"]),
             current_user=user,
             db=db,
@@ -646,7 +646,7 @@ class TestBulkOperations:
         user = _mock_user()
         db = _mock_db()
 
-        result = await delete_notifications_bulk(
+        result = delete_notifications_bulk(
             request=BulkOperationRequest(notification_ids=["n1", "n2"]),
             current_user=user,
             db=db,
@@ -667,7 +667,7 @@ class TestUnreadCount:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_unread_count(current_user=user, db=db)
+        result = get_unread_count(current_user=user, db=db)
         assert result.count == 7
 
 
@@ -684,5 +684,5 @@ class TestGetPreferences:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notification_preferences(current_user=user, db=db)
+        result = get_notification_preferences(current_user=user, db=db)
         assert result.preferences == {"system_alert": True}

@@ -37,7 +37,7 @@ router = APIRouter()
 
 
 @router.post("/tasks/{task_id}/annotations", response_model=AnnotationResponse)
-async def create_annotation(
+def create_annotation(
     task_id: str,  # Accept string task IDs
     annotation: AnnotationCreate,
     request: Request,

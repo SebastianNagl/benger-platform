@@ -728,7 +728,7 @@ def validate_evaluation_config_write(body: Any, merged: Any) -> None:
 
 
 @router.put("/projects/{project_id}/evaluation-config")
-async def update_project_evaluation_config(
+def update_project_evaluation_config(
     project_id: str,
     config: Dict[str, Any],
     current_user: User = Depends(require_user),

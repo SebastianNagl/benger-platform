@@ -385,7 +385,7 @@ def _active_member_id(db: Session, organization_id: str, email_key: str) -> Opti
     response_model=InvitationResponse,
     responses={200: {"model": GroupAddResult}},
 )
-async def create_invitation(
+def create_invitation(
     organization_id: str,
     invitation_data: InvitationCreate,
     request: Request = None,
@@ -574,7 +574,7 @@ async def create_invitation(
     "/organizations/{organization_id}/invitations/bulk",
     response_model=BulkInvitationResponse,
 )
-async def create_bulk_invitations(
+def create_bulk_invitations(
     organization_id: str,
     bulk_data: BulkInvitationCreate,
     request: Request = None,
@@ -934,7 +934,7 @@ async def get_invitation_by_token(token: str, db: AsyncSession = Depends(get_asy
 
 
 @router.post("/accept/{token}")
-async def accept_invitation(
+def accept_invitation(
     token: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),

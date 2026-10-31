@@ -69,7 +69,7 @@ def _login_hint(login: str) -> str:
         503: {"description": "Rate limiter unavailable (Redis down), login refused"},
     },
 )
-async def login(
+def login(
     login_data: UserLogin,
     response: Response,
     request: Request,
@@ -345,7 +345,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
 
 @router.post("/register", response_model=User)
-async def register(
+def register(
     user_data: UserCreate,
     current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),

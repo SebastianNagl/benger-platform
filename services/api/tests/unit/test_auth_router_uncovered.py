@@ -250,7 +250,7 @@ class TestLoginCookiePaths:
         request = _mock_request()
         db = _mock_db()
 
-        result = await login(
+        result = login(
             login_data=UserLogin(username="testuser", password="pass"),
             response=response,
             request=request,
@@ -280,7 +280,7 @@ class TestLoginCookiePaths:
         request = _mock_request()
         db = _mock_db()
 
-        result = await login(
+        result = login(
             login_data=UserLogin(username="testuser", password="pass"),
             response=response,
             request=request,
@@ -299,7 +299,7 @@ class TestLoginCookiePaths:
         db = _mock_db()
 
         with pytest.raises(RuntimeError, match="DB boom"):
-            await login(
+            login(
                 login_data=UserLogin(username="testuser", password="pass"),
                 response=response,
                 request=request,
@@ -317,7 +317,7 @@ class TestLoginCookiePaths:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await login(
+            login(
                 login_data=UserLogin(username="bad", password="bad"),
                 response=response,
                 request=request,
@@ -339,7 +339,7 @@ class TestLoginCookiePaths:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await login(
+            login(
                 login_data=UserLogin(username="testuser", password="pass"),
                 response=response,
                 request=request,
@@ -369,7 +369,7 @@ class TestRefreshToken:
         response = Response()
         db = _mock_db()
 
-        result = await refresh_token_endpoint(request=request, response=response, db=db)
+        result = refresh_token_endpoint(request=request, response=response, db=db)
         assert result.access_token == "new-access"
 
     @pytest.mark.asyncio
@@ -381,7 +381,7 @@ class TestRefreshToken:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await refresh_token_endpoint(request=request, response=response, db=db)
+            refresh_token_endpoint(request=request, response=response, db=db)
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
@@ -394,7 +394,7 @@ class TestRefreshToken:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await refresh_token_endpoint(request=request, response=response, db=db)
+            refresh_token_endpoint(request=request, response=response, db=db)
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
@@ -411,7 +411,7 @@ class TestRefreshToken:
         response = Response()
         db = _mock_db()
 
-        result = await refresh_token_endpoint(request=request, response=response, db=db)
+        result = refresh_token_endpoint(request=request, response=response, db=db)
         assert result.access_token == "new-access"
 
 
@@ -625,7 +625,7 @@ class TestRegister:
         admin = _mock_user(is_superadmin=True)
         db = _mock_db()
 
-        result = await register(
+        result = register(
             user_data=_make_user_create(),
             current_user=admin,
             db=db,
@@ -764,7 +764,7 @@ class TestProfileEndpoints:
         mock_update.return_value = updated_user
         mock_build.return_value = Mock(id="user-123")
 
-        result = await update_profile(  # noqa: F841
+        result = update_profile(  # noqa: F841
             profile_data=UserUpdate(name="New Name"),
             current_user=user,
             db=db,
@@ -781,7 +781,7 @@ class TestProfileEndpoints:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await update_profile(
+            update_profile(
                 profile_data=UserUpdate(name="New Name"),
                 current_user=user,
                 db=db,
@@ -803,7 +803,7 @@ class TestChangePassword:
         user = _mock_user()
         db = _mock_db()
 
-        result = await change_password(
+        result = change_password(
             password_data=PasswordUpdate(
                 current_password="old", new_password="newpassword123", confirm_password="newpassword123"
             ),
@@ -821,7 +821,7 @@ class TestChangePassword:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await change_password(
+            change_password(
                 password_data=PasswordUpdate(
                     current_password="old", new_password="newpassword123", confirm_password="different123"
                 ),
@@ -840,7 +840,7 @@ class TestChangePassword:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await change_password(
+            change_password(
                 password_data=PasswordUpdate(
                     current_password="wrong", new_password="newpassword123", confirm_password="newpassword123"
                 ),
@@ -924,7 +924,7 @@ class TestResetPassword:
 
         with patch("app.auth_module.password_reset.password_reset_service") as mock_svc:
             mock_svc.reset_password.return_value = True
-            result = await reset_password(
+            result = reset_password(
                 reset_confirm=PasswordResetConfirm(
                     token="valid-token", new_password="newpassword123", confirm_password="newpassword123"
                 ),
@@ -940,7 +940,7 @@ class TestResetPassword:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await reset_password(
+            reset_password(
                 reset_confirm=PasswordResetConfirm(
                     token="token", new_password="newpassword999", confirm_password="different123"
                 ),
@@ -958,7 +958,7 @@ class TestResetPassword:
         with patch("app.auth_module.password_reset.password_reset_service") as mock_svc:
             mock_svc.reset_password.return_value = False
             with pytest.raises(HTTPException) as exc_info:
-                await reset_password(
+                reset_password(
                     reset_confirm=PasswordResetConfirm(
                         token="bad-token", new_password="newpassword123", confirm_password="newpassword123"
                     ),
@@ -981,7 +981,7 @@ class TestVerifyEmail:
         mock_svc.verify_email_with_token.return_value = (True, "Verified")
         db = _mock_db()
 
-        result = await verify_email(
+        result = verify_email(
             verification_request=EmailVerificationRequest(token="valid-token"),
             db=db,
         )
@@ -997,7 +997,7 @@ class TestVerifyEmail:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await verify_email(
+            verify_email(
                 verification_request=EmailVerificationRequest(token="bad-token"),
                 db=db,
             )
@@ -1011,7 +1011,7 @@ class TestVerifyEmail:
         mock_svc.verify_email_with_token.return_value = (True, "OK")
         db = _mock_db()
 
-        result = await verify_email_with_token(token="path-token", db=db)
+        result = verify_email_with_token(token="path-token", db=db)
         assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
@@ -1023,7 +1023,7 @@ class TestVerifyEmail:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await verify_email_with_token(token="bad-token", db=db)
+            verify_email_with_token(token="bad-token", db=db)
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
@@ -1035,7 +1035,7 @@ class TestVerifyEmail:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            await verify_email_with_token(token="crash-token", db=db)
+            verify_email_with_token(token="crash-token", db=db)
         assert exc_info.value.status_code == 500
 
 
@@ -1052,7 +1052,7 @@ class TestVerifyEmailEnhanced:
         mock_svc.verify_email_with_token.return_value = (False, "Bad token")
         db = _mock_db()
 
-        result = await verify_email_enhanced(token="bad", db=db)
+        result = verify_email_enhanced(token="bad", db=db)
         assert result.success == False  # noqa: E712
         assert result.user_type == "unknown"
 
@@ -1066,7 +1066,7 @@ class TestVerifyEmailEnhanced:
 
         with patch("auth_module.email_verification.email_verification_service") as inner_svc:
             inner_svc.validate_verification_token.return_value = None
-            result = await verify_email_enhanced(token="tok", db=db)
+            result = verify_email_enhanced(token="tok", db=db)
         assert result.success == True  # noqa: E712
         assert result.redirect_url == "/login"
 
@@ -1086,7 +1086,7 @@ class TestVerifyEmailEnhanced:
 
         with patch("auth_module.email_verification.email_verification_service") as inner_svc:
             inner_svc.validate_verification_token.return_value = ("user-123", "test@example.com")
-            result = await verify_email_enhanced(token="tok", db=db)
+            result = verify_email_enhanced(token="tok", db=db)
         assert result.user_type == "self_registered"
         assert result.redirect_url == "/login"
 
@@ -1123,7 +1123,7 @@ class TestVerifyEmailEnhanced:
 
         with patch("auth_module.email_verification.email_verification_service") as inner_svc:
             inner_svc.validate_verification_token.return_value = ("user-123", "test@example.com")
-            result = await verify_email_enhanced(token="tok", db=db)
+            result = verify_email_enhanced(token="tok", db=db)
         assert result.user_type == "invited"
         assert result.redirect_url == "/complete-profile"
 

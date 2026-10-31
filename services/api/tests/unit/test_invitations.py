@@ -193,7 +193,7 @@ class TestCreateInvitation:
 
                 mock_db.refresh = mock_refresh
 
-                result = await create_invitation(
+                result = create_invitation(
                     organization_id="org-123",
                     invitation_data=invitation_data,
                     current_user=mock_user,
@@ -243,7 +243,7 @@ class TestCreateInvitation:
         with patch("routers.invitations.can_manage_organization", return_value=True):
             with patch("routers.invitations.notify_organization_invitation_sent"):
                 with patch("routers.invitations.celery_app") as mock_celery:
-                    await create_invitation(
+                    create_invitation(
                         organization_id="org-123",
                         invitation_data=invitation_data,
                         request=req,
@@ -270,7 +270,7 @@ class TestCreateInvitation:
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            await create_invitation(
+            create_invitation(
                 organization_id="non-existent",
                 invitation_data=invitation_data,
                 current_user=mock_user,
@@ -307,7 +307,7 @@ class TestCreateInvitation:
 
         with patch("routers.invitations.can_manage_organization", return_value=True):
             with pytest.raises(HTTPException) as exc_info:
-                await create_invitation(
+                create_invitation(
                     organization_id="org-123",
                     invitation_data=invitation_data,
                     current_user=mock_user,
@@ -358,7 +358,7 @@ class TestCreateBulkInvitations:
 
         with patch("routers.invitations.can_manage_organization", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
-                await create_bulk_invitations(
+                create_bulk_invitations(
                     organization_id="org-123",
                     bulk_data=bulk_data,
                     current_user=mock_user,
@@ -410,7 +410,7 @@ class TestCreateBulkInvitations:
         with patch("routers.invitations.can_manage_organization", return_value=True), \
              patch("routers.invitations.notify_organization_invitation_sent"), \
              patch("routers.invitations.celery_app") as mock_celery:
-            result = await create_bulk_invitations(
+            result = create_bulk_invitations(
                 organization_id="org-123",
                 bulk_data=bulk_data,
                 current_user=mock_user,
@@ -468,7 +468,7 @@ class TestCreateBulkInvitations:
 
         with patch("routers.invitations.can_manage_organization", return_value=True), \
              patch("routers.invitations.celery_app") as mock_celery:
-            result = await create_bulk_invitations(
+            result = create_bulk_invitations(
                 organization_id="org-123",
                 bulk_data=bulk_data,
                 current_user=mock_user,
@@ -615,7 +615,7 @@ class TestAcceptInvitation:
 
         # Mock notification service
         with patch("routers.invitations.notify_organization_invitation_accepted"):
-            result = await accept_invitation(
+            result = accept_invitation(
                 token="test-token-123", current_user=mock_user, db=mock_db
             )
 
@@ -646,7 +646,7 @@ class TestAcceptInvitation:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_invitation
 
         with pytest.raises(HTTPException) as exc_info:
-            await accept_invitation(token="test-token-123", current_user=mock_user, db=mock_db)
+            accept_invitation(token="test-token-123", current_user=mock_user, db=mock_db)
 
         assert exc_info.value.status_code == 400
         assert "expired" in str(exc_info.value.detail)
@@ -661,7 +661,7 @@ class TestAcceptInvitation:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_invitation
 
         with pytest.raises(HTTPException) as exc_info:
-            await accept_invitation(token="test-token-123", current_user=mock_user, db=mock_db)
+            accept_invitation(token="test-token-123", current_user=mock_user, db=mock_db)
 
         assert exc_info.value.status_code == 400
         assert "not for your email" in str(exc_info.value.detail)

@@ -265,7 +265,7 @@ async def anonymize_user_endpoint(
 
 
 @router.patch("/{user_id}/verify-email", response_model=User)
-async def verify_user_email_endpoint(
+def verify_user_email_endpoint(
     user_id: str,
     current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),
@@ -298,7 +298,7 @@ async def verify_user_email_endpoint(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user_endpoint(
+def delete_user_endpoint(
     user_id: str,
     current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),

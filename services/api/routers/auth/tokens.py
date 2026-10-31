@@ -5,7 +5,7 @@ from auth_module.session_origin import clear_session_origin
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token_endpoint(
+def refresh_token_endpoint(
     request: Request, response: Response, db: Session = Depends(get_db)
 ):
     """Refresh access token using refresh token"""

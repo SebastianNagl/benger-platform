@@ -115,7 +115,7 @@ class TestBulkExportProjects:
 
         mock_db.query.side_effect = query_side_effect
 
-        result = await bulk_export_projects(
+        result = bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "json", "include_data": True},
             current_user=_mock_user(),
             db=mock_db,
@@ -155,7 +155,7 @@ class TestBulkExportProjects:
 
         mock_db.query.side_effect = query_side_effect
 
-        result = await bulk_export_projects(
+        result = bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "csv", "include_data": False},
             current_user=_mock_user(),
             db=mock_db,
@@ -173,7 +173,7 @@ class TestBulkExportProjects:
         mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
-            await bulk_export_projects(
+            bulk_export_projects(
                 data={"project_ids": [], "format": "xml"},
                 current_user=_mock_user(),
                 db=mock_db,
@@ -189,7 +189,7 @@ class TestBulkExportProjects:
         project = _mock_project()
         mock_db.query.return_value.filter.return_value.first.return_value = project
 
-        result = await bulk_export_projects(
+        result = bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "json"},
             current_user=_mock_user(),
             db=mock_db,
@@ -214,7 +214,7 @@ class TestBulkExportFullProjects:
         from routers.projects.import_export import bulk_export_full_projects
 
         with pytest.raises(Exception) as exc_info:
-            await bulk_export_full_projects(
+            bulk_export_full_projects(
                 data={"project_ids": []},
                 current_user=_mock_user(),
                 db=mock_db,
@@ -239,7 +239,7 @@ class TestBulkExportFullProjects:
         mock_db.query.return_value.filter.return_value.first.return_value = project
         mock_stream.return_value = iter(['{"project":{"title":"Test"},"tasks":[]}'])
 
-        result = await bulk_export_full_projects(
+        result = bulk_export_full_projects(
             data={"project_ids": ["project-123"]},
             current_user=_mock_user(is_superadmin=True),
             db=mock_db,
@@ -265,7 +265,7 @@ class TestBulkExportFullProjects:
         mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
-            await bulk_export_full_projects(
+            bulk_export_full_projects(
                 data={"project_ids": ["nonexistent"]},
                 current_user=_mock_user(),
                 db=mock_db,
@@ -286,7 +286,7 @@ class TestBulkExportFullProjects:
         # handler also cleans up its tempfile on the empty-zip path, so no
         # file is left behind for the test to chase.
         with pytest.raises(Exception) as exc_info:
-            await bulk_export_full_projects(
+            bulk_export_full_projects(
                 data={"project_ids": ["project-123"]},
                 current_user=_mock_user(is_superadmin=True),
                 db=mock_db,

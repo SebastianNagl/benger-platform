@@ -37,7 +37,7 @@ def _email_taken_by_other(db, DBUser, email: str, user_id: str) -> bool:
 # caller's own account. (There is no global limiter middleware; the public
 # auth routes call services.auth_rate_limit explicitly.)
 @router.post("/request-account-activation")
-async def request_account_activation(
+def request_account_activation(
     request: Request,
     body: AccountActivationRequest,
     current_user: User = Depends(require_user),
@@ -107,7 +107,7 @@ async def request_account_activation(
 
 
 @router.post("/activate-account")
-async def activate_account(
+def activate_account(
     confirm: AccountActivateConfirm,
     request: Request = None,
     db: Session = Depends(get_db),

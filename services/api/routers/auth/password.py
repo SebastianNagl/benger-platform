@@ -10,7 +10,7 @@ from auth_module.service import forbid_service_account
 from services import auth_rate_limit
 
 @router.post("/change-password")
-async def change_password(
+def change_password(
     password_data: PasswordUpdate,
     request: Request = None,
     current_user: User = Depends(require_user),
@@ -107,7 +107,7 @@ async def request_password_reset(
 
 
 @router.post("/reset-password")
-async def reset_password(
+def reset_password(
     reset_confirm: PasswordResetConfirm,
     request: Request = None,
     db: Session = Depends(get_db),

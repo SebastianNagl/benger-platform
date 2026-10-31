@@ -447,7 +447,7 @@ class TestDeleteUserSuccess:
         with patch(
             "routers.organizations.manage.delete_user_service", return_value=True
         ) as svc:
-            result = await delete_user(user_id="user-2", current_user=admin, db=db)
+            result = delete_user(user_id="user-2", current_user=admin, db=db)
 
         svc.assert_called_once_with(db, "user-2")
         assert result["message"] == "User deleted successfully"
@@ -465,7 +465,7 @@ class TestDeleteUserSuccess:
 
         with patch("routers.organizations.manage.delete_user_service", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
-                await delete_user(user_id="user-2", current_user=admin, db=db)
+                delete_user(user_id="user-2", current_user=admin, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -484,7 +484,7 @@ class TestDeleteUserSuccess:
             side_effect=RuntimeError("boom"),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await delete_user(user_id="user-2", current_user=admin, db=db)
+                delete_user(user_id="user-2", current_user=admin, db=db)
         assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
@@ -498,7 +498,7 @@ class TestDeleteUserSuccess:
         db.execute.side_effect = RuntimeError("Unexpected DB crash")
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-2", current_user=admin, db=db)
+            delete_user(user_id="user-2", current_user=admin, db=db)
         assert exc_info.value.status_code == 500
 
 

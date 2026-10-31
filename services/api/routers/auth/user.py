@@ -495,7 +495,7 @@ async def get_user_profile(
 
 
 @router.put("/profile", response_model=UserProfile)
-async def update_profile(
+def update_profile(
     profile_data: UserUpdate,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),

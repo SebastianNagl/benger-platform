@@ -114,7 +114,7 @@ class NotificationSummaryResponse(BaseModel):
 
 
 @router.get("/", response_model=List[NotificationResponse])
-async def get_notifications(
+def get_notifications(
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
     limit: int = 20,
@@ -171,7 +171,7 @@ async def get_notifications(
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
-async def get_unread_count(
+def get_unread_count(
     current_user: User = Depends(require_user), db: Session = Depends(get_db)
 ):
     """Get the count of unread notifications for the current user"""
@@ -187,7 +187,7 @@ async def get_unread_count(
 
 
 @router.post("/mark-read/{notification_id}")
-async def mark_notification_read(
+def mark_notification_read(
     notification_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -217,7 +217,7 @@ async def mark_notification_read(
 
 
 @router.post("/mark-all-read")
-async def mark_all_notifications_read(
+def mark_all_notifications_read(
     current_user: User = Depends(require_user), db: Session = Depends(get_db)
 ):
     """Mark all notifications as read for the current user"""
@@ -233,7 +233,7 @@ async def mark_all_notifications_read(
 
 
 @router.get("/preferences", response_model=NotificationPreferencesResponse)
-async def get_notification_preferences(
+def get_notification_preferences(
     current_user: User = Depends(require_user), db: Session = Depends(get_db)
 ):
     """Get notification preferences for the current user"""
@@ -249,7 +249,7 @@ async def get_notification_preferences(
 
 
 @router.post("/preferences")
-async def update_notification_preferences(
+def update_notification_preferences(
     preferences_update: NotificationPreferencesUpdate,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -280,18 +280,18 @@ async def update_notification_preferences(
 
 # Frontend compatibility alias - PUT endpoint for updating preferences
 @router.put("/preferences")
-async def update_notification_preferences_put(
+def update_notification_preferences_put(
     preferences_update: NotificationPreferencesUpdate,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     """Update notification preferences for the current user (PUT alias for frontend compatibility)"""
-    return await update_notification_preferences(preferences_update, current_user, db)
+    return update_notification_preferences(preferences_update, current_user, db)
 
 
 # Frontend compatibility alias - digest test endpoint
 @router.post("/digest/test")
-async def send_test_digest_alias(
+def send_test_digest_alias(
     current_user: User = Depends(require_user), db: Session = Depends(get_db)
 ):
     """Send a test digest to the current user (alias for frontend compatibility)"""
@@ -536,7 +536,7 @@ class AdminTestNotificationRequest(BaseModel):
 
 
 @router.post("/test")
-async def create_test_notification(
+def create_test_notification(
     request: TestNotificationRequest,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -610,7 +610,7 @@ async def create_test_notification(
 
 
 @router.post("/test/create")
-async def create_admin_test_notification(
+def create_admin_test_notification(
     request: AdminTestNotificationRequest,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -668,7 +668,7 @@ async def create_admin_test_notification(
 
 
 @router.post("/test/generate-all")
-async def generate_all_test_notifications(
+def generate_all_test_notifications(
     current_user: User = Depends(require_user), db: Session = Depends(get_db)
 ):
     """
@@ -833,7 +833,7 @@ async def send_test_email(
 
 
 @router.post("/bulk/mark-read", response_model=BulkOperationResponse)
-async def mark_notifications_read_bulk(
+def mark_notifications_read_bulk(
     request: BulkOperationRequest,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -857,7 +857,7 @@ async def mark_notifications_read_bulk(
 
 
 @router.post("/bulk/delete", response_model=BulkOperationResponse)
-async def delete_notifications_bulk(
+def delete_notifications_bulk(
     request: BulkOperationRequest,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -884,7 +884,7 @@ async def delete_notifications_bulk(
 
 
 @router.get("/groups", response_model=NotificationGroupsResponse)
-async def get_notification_groups(
+def get_notification_groups(
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
     group_by: str = "type",
@@ -936,7 +936,7 @@ async def get_notification_groups(
 
 
 @router.get("/summary", response_model=NotificationSummaryResponse)
-async def get_notification_summary(
+def get_notification_summary(
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
     days: int = 7,
