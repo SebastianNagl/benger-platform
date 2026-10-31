@@ -298,7 +298,13 @@ def create_validator_from_env(mode: Optional[str] = None) -> SchemaValidator:
         validation_mode = ValidationMode(mode_str)
 
     try:
-        engine = create_engine(database_uri)
+        # application_name marks the startup schema check in pg_stat_activity.
+        connect_args = (
+            {"application_name": "benger-api-schema-check"}
+            if database_uri.startswith("postgresql")
+            else {}
+        )
+        engine = create_engine(database_uri, connect_args=connect_args)
         return SchemaValidator(engine, validation_mode)
     except Exception as e:
         logger.error(f"Failed to create schema validator: {e}")

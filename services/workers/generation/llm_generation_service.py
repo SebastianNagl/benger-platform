@@ -208,6 +208,14 @@ def generate_response_impl(
             # Get user ID from generation record
             user_id = generation.created_by
 
+            # End this session's read transaction before the nested call. The
+            # nested call runs the provider request (minutes for thinking
+            # models) on its own session; without this commit the backend of
+            # THIS session sits idle in transaction for that whole time,
+            # holding AccessShareLocks on response_generations, tasks and
+            # projects (the 2026-10-15 migration lock incident).
+            db.commit()
+
             # Call generate_llm_responses directly (not via Celery)
             # It uses its own DB session and commits all changes (status,
             # error_message, prompt_used, parameters) to the generation record.
@@ -311,8 +319,12 @@ def generate_llm_responses_impl(
         if not tasks.HAS_DATABASE:
             raise Exception("Database not available - check database connection")
 
-        # Create database session
+        # Create database session. expire_on_commit is off for this session
+        # so the rows loaded below stay readable after the commit that ends
+        # the read transaction before the provider call (see below); the
+        # post-call aggregation re-reads the parent with db.refresh().
         db = tasks.SessionLocal()
+        db.expire_on_commit = False
 
         try:
             # Get generation record
@@ -981,6 +993,13 @@ def generate_llm_responses_impl(
                                 "_param_provenance": _provenance,
                             }
 
+                        # All inputs are read. End the transaction so the
+                        # connection is not idle in transaction (holding
+                        # AccessShareLocks) during the rate-limit sleep and
+                        # the provider call; the response is written in its
+                        # own short transaction afterwards.
+                        db.commit()
+
                         # Apply rate limiting (Issue #482)
                         current_time = time.time()
                         time_since_last = current_time - last_request_time
@@ -1583,9 +1602,8 @@ def generate_llm_responses_impl(
             if _captured_parameters:
                 generation.parameters = _captured_parameters
 
-            # Capture the derived status BEFORE commit (the worker session is
-            # expire_on_commit=True, so reading generation.status after commit
-            # would re-query).
+            # Capture the derived status BEFORE commit so the code below never
+            # depends on what the ORM object holds after the commit.
             _final_status = generation.status
 
             db.commit()

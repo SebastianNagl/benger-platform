@@ -101,26 +101,48 @@ def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = url
 
+    connect_args = {}
     # Add SQLite specific configuration
     if "sqlite" in url:
-        configuration["sqlalchemy.connect_args"] = {"check_same_thread": False}
+        connect_args = {"check_same_thread": False}
+    elif url.startswith("postgresql"):
+        # Lets pg_stat_activity tell a migration apart from the API lanes
+        # ("benger-api" / "benger-api-async") and the workers.
+        connect_args = {"application_name": "benger-migrations"}
 
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            # SQLite specific options for batch operations
-            render_as_batch=True if "sqlite" in url else False,
-        )
+    def _upgrade_once() -> None:
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                # SQLite specific options for batch operations
+                render_as_batch=True if "sqlite" in url else False,
+            )
 
-        with context.begin_transaction():
-            context.run_migrations()
+            with context.begin_transaction():
+                context.run_migrations()
+
+    # Migrations on hot tables set a 5 s lock_timeout. A transaction that
+    # holds the table for a little longer (an idle worker session) must not
+    # fail the deploy, so a lock timeout or deadlock is retried a few times
+    # (6 attempts, 20 s apart by default; see utils/migration_lock_retry.py).
+    # Each attempt is its own transaction, so a failed one leaves the schema
+    # at the last committed revision. The API lifespan's advisory lock is
+    # held by its caller for the whole retry window, so concurrent API
+    # processes keep waiting on it as before.
+    from utils.migration_lock_retry import describe_lock_holders, run_with_lock_retry
+
+    run_with_lock_retry(
+        _upgrade_once,
+        describe_holders=lambda: describe_lock_holders(connectable),
+    )
 
 
 if context.is_offline_mode():

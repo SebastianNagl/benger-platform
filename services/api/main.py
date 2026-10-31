@@ -170,9 +170,17 @@ async def lifespan(app: FastAPI):
                 )
 
                 try:
-                    # Check current revision
+                    # application_name marks the advisory-lock session in
+                    # pg_stat_activity (the upgrade itself connects as
+                    # "benger-migrations", see alembic/env.py).
+                    _lock_connect_args = (
+                        {"application_name": "benger-api-migrate-lock"}
+                        if settings.database_url.startswith("postgresql")
+                        else {}
+                    )
                     engine = create_engine(
-                        settings.database_url
+                        settings.database_url,
+                        connect_args=_lock_connect_args,
                     )
 
                     # Postgres advisory lock so concurrent processes (multiple
@@ -185,6 +193,7 @@ async def lifespan(app: FastAPI):
 
                     with engine.connect() as conn:
                         from sqlalchemy import text
+                        # Take the lock, then check the current revision.
                         conn.execute(text(f"SELECT pg_advisory_lock({ALEMBIC_LOCK_ID})"))
                         try:
                             context = MigrationContext.configure(conn)
@@ -200,6 +209,9 @@ async def lifespan(app: FastAPI):
                                 logger.info("Database migrations up to date")
                         finally:
                             conn.execute(text(f"SELECT pg_advisory_unlock({ALEMBIC_LOCK_ID})"))
+                    # Close the pooled lock connection; it would otherwise
+                    # stay open for the life of every uvicorn worker.
+                    engine.dispose()
 
                 except Exception as migration_error:
                     logger.warning(f"Migration error (non-fatal): {migration_error}")
@@ -242,6 +254,12 @@ async def lifespan(app: FastAPI):
                     logger.warning("Migration history issues detected:")
                     for error in migration_result.errors:
                         logger.error(f"  {error}")
+
+                # The validator's engine is only needed at startup; close its
+                # pooled connection instead of keeping it for the process life.
+                _validator_engine = getattr(validator, "engine", None)
+                if _validator_engine is not None:
+                    _validator_engine.dispose()
 
             except RuntimeError:
                 raise  # Re-raise schema validation errors

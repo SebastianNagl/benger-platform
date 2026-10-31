@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -217,15 +217,29 @@ def persist_annotation_submission(
     # results). Only on a NEW row — the update-in-place path adds no annotation,
     # so the counters must not move.
     if existing_annotation is None and annotation.result and len(annotation.result) > 0:
-        # total_annotations = ALL completed annotations (cancelled + not cancelled)
-        task.total_annotations += 1
-
-        if annotation.was_cancelled:
-            task.cancelled_annotations += 1
+        # total_annotations = ALL completed annotations (cancelled + not cancelled).
+        # Atomic in-SQL increments: the advisory lock above is per (task,
+        # user), so submits by different users to the same task run
+        # concurrently and a Python read-modify-write lost updates. The
+        # UPDATE also takes the task's row lock until commit, which
+        # serializes the is_labeled check below across those submitters.
+        # "fetch" copies the RETURNING values onto the loaded ``task``.
+        db.execute(
+            update(Task)
+            .where(Task.id == task_id)
+            .values(
+                total_annotations=Task.total_annotations + 1,
+                cancelled_annotations=Task.cancelled_annotations
+                + (1 if annotation.was_cancelled else 0),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
         # Update task labeling status based on non-cancelled annotations
         if not annotation.was_cancelled:
-            # Count non-cancelled annotations for this task (including the new one)
+            # Count non-cancelled annotations for this task (including the new
+            # one). Runs after the row lock is held, so under READ COMMITTED it
+            # sees every concurrent submitter that committed before us.
             non_cancelled_annotations = (
                 db.query(Annotation)
                 .filter(
@@ -239,7 +253,12 @@ def persist_annotation_submission(
 
             # Label Studio approach: Task is labeled when it meets minimum annotation requirement
             if non_cancelled_annotations >= project.min_annotations_per_task:
-                task.is_labeled = True
+                db.execute(
+                    update(Task)
+                    .where(Task.id == task_id)
+                    .values(is_labeled=True)
+                    .execution_options(synchronize_session="fetch")
+                )
 
     # Task completion status is tracked on the task itself
     # No need to update project-level counter as it's calculated dynamically

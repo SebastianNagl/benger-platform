@@ -104,6 +104,53 @@ def _authenticate_api_key(request, db: Session, plain: str) -> User:
     return _key_user(db_user_to_user(auth.user), auth.principal)
 
 
+def _session_idle(db) -> bool:
+    """True when ``db`` is a real Session with no open transaction and no
+    unflushed changes, i.e. nothing ran on it yet in this request. Mocks and
+    ``None`` answer False (their ``in_transaction()`` is truthy or missing)."""
+    in_tx = getattr(db, "in_transaction", None)
+    if not callable(in_tx):
+        return False
+    try:
+        if in_tx():
+            return False
+        return not (db.new or db.dirty or db.deleted)
+    except Exception:
+        return False
+
+
+def _end_auth_read(db, began_idle: bool) -> None:
+    """End the transaction the user lookup itself opened.
+
+    ``require_user`` is a sync dependency on the shared request session, so
+    before this every request, async-lane ones included, held a pooled sync
+    connection idle in transaction (AccessShareLock on ``users`` and
+    ``organization_memberships``) for its whole duration. When the lookup was
+    the first thing to touch the session (``began_idle``) and left no
+    changes behind, the transaction holds nothing but our SELECTs, so
+    committing it is a no-op that returns the connection to the pool; a sync
+    handler that uses ``db`` afterwards simply begins a new transaction.
+    ``expire_on_commit`` is suspended for this one commit so the rows already
+    loaded stay as they are (the caller only keeps the Pydantic ``User``).
+    If anything else ran on the session first, it is left untouched.
+    """
+    if not began_idle:
+        return
+    try:
+        if db.new or db.dirty or db.deleted or not db.in_transaction():
+            return
+        previous = db.expire_on_commit
+        db.expire_on_commit = False
+        try:
+            db.commit()
+        finally:
+            db.expire_on_commit = previous
+    except Exception as exc:  # pragma: no cover - connection already broken
+        import logging
+
+        logging.getLogger(__name__).debug("auth read transaction end failed: %s", exc)
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
     """
     Get current user from token (either cookie or header)
@@ -128,12 +175,16 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
         if user_id is None:
             return None
 
+        began_idle = _session_idle(db)
         db_user = get_user_by_id(db, user_id)
         if db_user is None or not db_user.is_active or is_service_account(db_user):
+            _end_auth_read(db, began_idle)
             return None
 
         _set_principal(request, session_principal(db_user.id))
-        return db_user_to_user(db_user)
+        user = db_user_to_user(db_user)
+        _end_auth_read(db, began_idle)
+        return user
     except HTTPException:
         # Return None for optional auth instead of raising exception
         return None
@@ -169,6 +220,7 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        began_idle = _session_idle(db)
         db_user = get_user_by_id(db, user_id)
         if db_user is None:
             logger.warning(f"User not found in database: {user_id}")
@@ -187,7 +239,9 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
             )
 
         _set_principal(request, session_principal(db_user.id))
-        return db_user_to_user(db_user)
+        user = db_user_to_user(db_user)
+        _end_auth_read(db, began_idle)
+        return user
     except HTTPException:
         raise
     except Exception as e:
