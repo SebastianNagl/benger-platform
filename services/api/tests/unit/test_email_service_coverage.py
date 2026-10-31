@@ -620,3 +620,71 @@ class TestConvenienceFunctions:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+# ─────────────────────────────────────────────
+# HTML escaping of interpolated values (audit S10)
+# ─────────────────────────────────────────────
+
+EVIL_NAME = '<a href="https://evil.example">Click here</a>'
+
+
+class TestMailBodiesEscapeInterpolatedValues:
+    def _body(self, email_svc):
+        return email_svc.mail_client.send_message.call_args[1]["html_body"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("language", ["en", "de", "fr"])
+    async def test_verification_email_escapes_name(self, email_svc, language):
+        email_svc.mail_client.send_message = MagicMock(return_value={"status": "success"})
+        await email_svc.send_verification_email(
+            "user@example.com",
+            EVIL_NAME,
+            "https://what-a-benger.net/verify?token=a&lang=de",
+            language=language,
+            brand_name="<b>Brand</b>",
+        )
+        body = self._body(email_svc)
+        assert EVIL_NAME not in body
+        assert "evil.example" in body  # present, but only as escaped text
+        assert "&lt;a href=&quot;https://evil.example&quot;&gt;" in body
+        assert "<b>Brand</b>" not in body
+        assert "&lt;b&gt;Brand&lt;/b&gt;" in body
+        assert 'href="https://what-a-benger.net/verify?token=a&amp;lang=de"' in body
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("language", ["en", "de", "fr"])
+    async def test_password_reset_email_escapes_name(self, email_svc, language):
+        email_svc.mail_client.send_message = MagicMock(return_value={"status": "success"})
+        await email_svc.send_password_reset_email(
+            "user@example.com",
+            EVIL_NAME,
+            "https://what-a-benger.net/reset/tok",
+            language=language,
+        )
+        body = self._body(email_svc)
+        assert EVIL_NAME not in body
+        assert "&lt;a href=&quot;https://evil.example&quot;&gt;" in body
+        assert 'href="https://what-a-benger.net/reset/tok"' in body
+
+    @pytest.mark.asyncio
+    async def test_test_email_escapes_name(self, email_svc):
+        email_svc.mail_client.send_message = MagicMock(return_value={"status": "success"})
+        await email_svc.send_test_email("user@example.com", EVIL_NAME)
+        body = self._body(email_svc)
+        assert EVIL_NAME not in body
+        assert "&lt;a href=&quot;https://evil.example&quot;&gt;" in body
+
+
+@pytest.mark.asyncio
+async def test_stored_sanitised_name_is_not_double_escaped(email_svc):
+    """Names are stored html-escaped by the signup sanitiser; the mail shows
+    them once-escaped (renders as the real name), never as entity text."""
+    email_svc.mail_client.send_message = MagicMock(return_value={"status": "success"})
+    await email_svc.send_password_reset_email(
+        "user@example.com", "D&#x27;Amico &amp; S&lt;b&gt;", "https://x/reset/t"
+    )
+    body = email_svc.mail_client.send_message.call_args[1]["html_body"]
+    assert "Hello D&#x27;Amico &amp; S&lt;b&gt;," in body
+    assert "&amp;#x27;" not in body
+    assert "<b>" not in body

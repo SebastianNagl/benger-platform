@@ -1850,6 +1850,11 @@ async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: P
     return await get_effective_project_role_async(db, user, project) == "ORG_ADMIN"
 
 
+def _build_select_task_in_project(task_id: str, project_id):
+    """Shared SQL builder: the task id, only when it belongs to the project."""
+    return select(Task.id).where(Task.id == task_id, Task.project_id == project_id)
+
+
 def check_task_assigned_to_user(
     db: Session,
     user,
@@ -1868,9 +1873,17 @@ def check_task_assigned_to_user(
       bypass; resolved centrally, so group roles apply)
     - User has an active assignment for this task
 
-    Returns False only when an annotator tries to access an unassigned task
-    in manual/auto mode.
+    Returns False when the task does not belong to ``project`` (whatever the
+    mode or role: callers check access on ``project``, so a task id from
+    another project must not ride on that check), or when an annotator tries
+    to access an unassigned task in manual/auto mode.
     """
+    task_in_project = db.execute(
+        _build_select_task_in_project(task_id, getattr(project, "id", None))
+    ).first()
+    if task_in_project is None:
+        return False
+
     if getattr(project, "assignment_mode", "open") == "open":
         return True
 
@@ -1915,6 +1928,12 @@ async def check_task_assigned_to_user_async(
     project: Project,
 ) -> bool:
     """Async equivalent of :func:`check_task_assigned_to_user`."""
+    task_in_project = (
+        await db.execute(_build_select_task_in_project(task_id, getattr(project, "id", None)))
+    ).first()
+    if task_in_project is None:
+        return False
+
     if getattr(project, "assignment_mode", "open") == "open":
         return True
 

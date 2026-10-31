@@ -145,6 +145,10 @@ def _require_task_access(
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    # The tier and SEB checks above run against project_id, so a task from
+    # another project (e.g. an SEB-locked exam) must never pass through here.
+    if not _task_in_project(db, task_id, project_id):
+        raise HTTPException(status_code=404, detail="Task not found")
     enforce_seb(
         db,
         current_user,

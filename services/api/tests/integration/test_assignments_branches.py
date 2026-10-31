@@ -586,6 +586,50 @@ class TestRemoveAssignment:
         assert still_there is not None
 
 
+    def test_cannot_remove_assignment_of_another_project(
+        self, client, auth_headers, assignment_project, test_db, test_users
+    ):
+        """The role check runs on the path project, so the task must belong
+        to it: a contributor of project A cannot delete an assignment in
+        project B by putting A in the path (audit S8)."""
+        p = assignment_project
+        # Project B: created by the contributor, so the contributor holds a
+        # contributor-or-better role there; the assignment lives in A.
+        other = Project(
+            id=str(uuid.uuid4()),
+            title="Contributor's own project",
+            created_by=p["users"]["contributor"].id,
+        )
+        test_db.add(other)
+        test_db.commit()
+
+        assignment = TaskAssignment(
+            id=str(uuid.uuid4()),
+            task_id=p["tasks"][0].id,
+            user_id=p["users"]["annotator"].id,
+            assigned_by=p["users"]["admin"].id,
+            status="assigned",
+        )
+        test_db.add(assignment)
+        test_db.commit()
+
+        resp = client.delete(
+            f"/api/projects/{other.id}/tasks/{p['tasks'][0].id}"
+            f"/assignments/{assignment.id}",
+            headers=auth_headers["contributor"],
+        )
+        assert resp.status_code == 404, resp.text
+        assert resp.json()["detail"] == "Assignment not found"
+
+        test_db.expire_all()
+        still_there = (
+            test_db.query(TaskAssignment)
+            .filter(TaskAssignment.id == assignment.id)
+            .first()
+        )
+        assert still_there is not None
+
+
 # ---------------------------------------------------------------------------
 # get_my_tasks — error + filter branches
 # ---------------------------------------------------------------------------

@@ -918,7 +918,9 @@ def update_user_profile(
 
     # Update fields if provided
     if name is not None:
-        user.name = name
+        # Same sanitiser as signup: the name is interpolated into mails and
+        # rendered across the UI.
+        user.name = sanitize_user_input(name)
     if email is not None and email != user.email:
         user.email = email
         # Reset email verification when email changes

@@ -183,6 +183,26 @@ def _resolve_and_check_addresses(host: str, port: int) -> List[str]:
     return validated
 
 
+def validate_public_host(host: str, port: int) -> List[str]:
+    """Run the network-state checks (checks 2-3) on a bare host.
+
+    Applies the DNS-independent hostname deny-list, then requires every
+    resolved A/AAAA answer to be globally routable. Returns the validated
+    IPs. Raises ValueError with the generic ``UNREACHABLE_HOST_MESSAGE`` on
+    any rejection. Shared by ``resolve_and_validate`` and other outbound
+    clients with their own structural URL rules (org storage connections).
+    """
+    # Deny-list check runs before (and regardless of) DNS, so these names
+    # are rejected even when resolution is unavailable or spoofed.
+    # A trailing dot ("localhost.") is the absolute-FQDN spelling of the
+    # same name, so strip it for comparison.
+    bare_host = host.lower().rstrip(".")
+    if bare_host in _DENIED_HOSTNAMES or bare_host.endswith(_DENIED_HOST_SUFFIXES):
+        raise _reject_host(host, "hostname is on the deny-list")
+
+    return _resolve_and_check_addresses(host, port)
+
+
 def resolve_and_validate(
     url: str, *, allow_private: Optional[bool] = None
 ) -> Tuple[str, List[str]]:
@@ -242,15 +262,7 @@ def resolve_and_validate(
 
     validated_ips: List[str] = []
     if not allow_private:
-        # Deny-list check runs before (and regardless of) DNS, so these names
-        # are rejected even when resolution is unavailable or spoofed.
-        # A trailing dot ("localhost.") is the absolute-FQDN spelling of the
-        # same name, so strip it for comparison.
-        bare_host = host.lower().rstrip(".")
-        if bare_host in _DENIED_HOSTNAMES or bare_host.endswith(_DENIED_HOST_SUFFIXES):
-            raise _reject_host(host, "hostname is on the deny-list")
-
-        validated_ips = _resolve_and_check_addresses(host, port or _DEFAULT_PORTS[scheme])
+        validated_ips = validate_public_host(host, port or _DEFAULT_PORTS[scheme])
 
     # Normalize: lowercase scheme+host (urlsplit already lowercases
     # .hostname), drop default ports, strip trailing slashes.

@@ -1,7 +1,7 @@
 """Member management endpoints for projects."""
 
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -10,9 +10,10 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import OrganizationGroupMembership, OrganizationMembership, User
-from org_groups import attachment_role, best_role, group_member_fan_in_clause
+from org_groups import attachment_role, best_role, group_member_fan_in_clause, role_at_least
 from project_models import Annotation, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
+from routers.projects.helpers import get_effective_project_role_async
 from services.member_privacy import (
     is_public_visitor,
     lms_account_ids,
@@ -47,6 +48,21 @@ async def list_project_members(
 
     # Project existence + read access enforced by require_project_access
     # (404 "Project not found" / 403 "Access denied").
+
+    # The roster carries every member's email, which the org member list
+    # deliberately denies annotators. Its consumers (task assignment modal,
+    # Korrektur assignee filter) are assignment UIs, so the gate is the same
+    # one the assign / unassign endpoints apply: superadmin or an effective
+    # project role of CONTRIBUTOR or above (creator, attached org or group
+    # role, or a public project's public_role).
+    if not current_user.is_superadmin and not role_at_least(
+        await get_effective_project_role_async(db, current_user, _access.project),
+        "CONTRIBUTOR",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Member list requires a contributor or admin role",
+        )
 
     # Get members from project organizations only. Grouped attachments
     # narrow the fan-in to the group's members + the org's ORG_ADMINs.

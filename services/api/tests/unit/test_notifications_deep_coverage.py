@@ -319,7 +319,7 @@ class TestTestNotificationsDeep:
         mock_notif.id = "n"
         mock_create.return_value = [mock_notif]
 
-        user = _mock_user()
+        user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
         result = await create_test_notification(
@@ -344,7 +344,7 @@ class TestTestNotificationsDeep:
         mock_notif.id = "n"
         mock_create.return_value = [mock_notif]
 
-        user = _mock_user()
+        user = _mock_user(is_superadmin=True)
         db = _mock_db()
 
         result = await create_test_notification(

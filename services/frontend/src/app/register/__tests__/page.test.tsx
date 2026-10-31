@@ -572,7 +572,52 @@ describe('RegisterPage', () => {
       expect(screen.queryByTestId('auth-register-form')).not.toBeInTheDocument()
     })
 
-    // Note: Custom redirect URL requires window.location manipulation - jsdom limitations
+    it('follows a safe internal next path after authentication', async () => {
+      window.history.pushState(
+        {},
+        '',
+        'http://localhost/register?next=%2Fprojects%2F1%3Fx%3D1',
+      )
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: { id: '1', username: 'testuser' },
+        signup: mockSignup,
+        isLoading: false,
+      })
+
+      render(<RegisterPage />)
+
+      await waitFor(() =>
+        expect(mockRouterReplace).toHaveBeenLastCalledWith('/projects/1?x=1'),
+      )
+    })
+
+    it.each([
+      ['redirect', 'https://evil.example/'],
+      ['next', '//evil.example'],
+      ['next', '/\\evil.example'],
+      ['redirect', 'javascript:alert(1)'],
+    ])(
+      'ignores an unsafe %s target (%s) and falls back to the dashboard',
+      async (param, target) => {
+        window.history.pushState(
+          {},
+          '',
+          `http://localhost/register?${param}=${encodeURIComponent(target)}`,
+        )
+        ;(useAuth as jest.Mock).mockReturnValue({
+          user: { id: '1', username: 'testuser' },
+          signup: mockSignup,
+          isLoading: false,
+        })
+
+        render(<RegisterPage />)
+
+        await waitFor(() => expect(mockRouterReplace).toHaveBeenCalled())
+        for (const call of mockRouterReplace.mock.calls) {
+          expect(call[0]).toBe('/dashboard')
+        }
+      },
+    )
   })
 
   describe('Accessibility', () => {

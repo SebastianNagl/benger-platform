@@ -12,7 +12,6 @@ through ``require_user`` overrides; the S3 layer is patched at the shared
 module, so a patch there is seen by the handler).
 """
 
-import os
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -57,6 +56,14 @@ def _as_user(db_user):
 
 def _uid():
     return str(uuid.uuid4())
+
+
+@pytest.fixture(autouse=True)
+def _allow_private_storage_endpoints(monkeypatch):
+    """The fixtures use example hostnames that do not resolve in CI. Most
+    tests here are about the router, not the SSRF guard, so they run with
+    private endpoints allowed; the guard tests below clear the flag."""
+    monkeypatch.setenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", "true")
 
 
 async def _seed_user(db, *, is_superadmin=False):
@@ -374,22 +381,86 @@ class TestEndpointUrlValidation:
         assert response.status_code == 201
         assert response.json()["endpoint_url"] is None
 
-    def test_private_endpoint_rejected_only_when_env_falsy(self):
-        """Default posture allows private endpoints (self-hosted MinIO); the
-        explicit falsy env flips rejection on. Direct service-level check."""
-        # Default (unset) → allowed.
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", None)
+    def test_private_endpoints_rejected_by_default(self, monkeypatch):
+        """Default posture is deny: with the env unset, loopback, RFC1918,
+        link-local metadata and deny-listed names are refused, all with the
+        same generic message (no port-scan / DNS oracle)."""
+        import url_guard
+
+        monkeypatch.delenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", raising=False)
+        for url in (
+            "http://127.0.0.1:9000",
+            "http://10.0.0.5:9000",
+            "http://169.254.169.254/",
+            "http://[::1]:9000",
+            "http://localhost:9000",
+            "http://minio.benger.svc.cluster.local:9000",
+            "http://metadata.google.internal/",
+        ):
+            with pytest.raises(ValueError) as excinfo:
+                storage_conn_service.validate_endpoint_url(url)
+            assert str(excinfo.value) == url_guard.UNREACHABLE_HOST_MESSAGE
+
+    @pytest.mark.parametrize("value", ["false", "0", "", "no", "off", "maybe"])
+    def test_non_truthy_env_values_keep_denying(self, monkeypatch, value):
+        monkeypatch.setenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", value)
+        with pytest.raises(ValueError):
             storage_conn_service.validate_endpoint_url("http://127.0.0.1:9000")
 
-        # Explicitly falsy → loopback rejected.
-        with patch.dict(
-            os.environ, {"ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS": "false"}, clear=False
-        ):
+    @pytest.mark.parametrize("value", ["true", "1", "yes", "on", "TRUE"])
+    def test_truthy_env_allows_private_endpoints(self, monkeypatch, value):
+        """Self-hosters (and the dev compose) opt in explicitly."""
+        monkeypatch.setenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", value)
+        storage_conn_service.validate_endpoint_url("http://127.0.0.1:9000")
+        storage_conn_service.validate_endpoint_url("http://minio:9000")
+
+    def test_public_endpoint_allowed_by_default(self, monkeypatch):
+        monkeypatch.delenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", raising=False)
+        public = [(2, 1, 6, "", ("93.184.216.34", 443))]
+        with patch("url_guard.socket.getaddrinfo", return_value=public):
+            storage_conn_service.validate_endpoint_url("https://s3.example.com")
+
+    def test_dns_answer_with_private_address_rejected(self, monkeypatch):
+        """A public-looking name that resolves (even partly) to a private
+        address is refused."""
+        monkeypatch.delenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", raising=False)
+        mixed = [
+            (2, 1, 6, "", ("93.184.216.34", 443)),
+            (2, 1, 6, "", ("10.43.0.1", 443)),
+        ]
+        with patch("url_guard.socket.getaddrinfo", return_value=mixed):
             with pytest.raises(ValueError):
-                storage_conn_service.validate_endpoint_url("http://127.0.0.1:9000")
+                storage_conn_service.validate_endpoint_url("https://s3.example.com")
+
+    def test_build_client_revalidates_saved_endpoint(self, monkeypatch):
+        """A row saved under a permissive setting cannot reach a private
+        address once the deployment denies them: build_client re-checks."""
+        monkeypatch.delenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", raising=False)
+        conn = MagicMock()
+        conn.endpoint_url = "http://169.254.169.254"
+        conn.region = None
+        conn.use_ssl = False
+        with patch("boto3.client") as boto_client:
             with pytest.raises(ValueError):
-                storage_conn_service.validate_endpoint_url("http://169.254.169.254/")
+                storage_conn_service.build_client(
+                    conn, access_key="AKIA", secret_key="secret"
+                )
+            boto_client.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_with_private_endpoint_rejected_by_default(
+        self, async_test_client, async_test_db, monkeypatch
+    ):
+        monkeypatch.delenv("ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS", raising=False)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+
+        body = dict(_CREATE_BODY, endpoint_url="http://169.254.169.254")
+        with _as_user(admin):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/storage-connections", json=body
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestBrowseEndpoint:

@@ -22,52 +22,52 @@ infrastructure. The client built here is read-only by construction: only
 are ever issued, and the stored credentials should be scoped read-only on
 the customer side too.
 
-Security posture (SSRF trade-off, deliberate): ``validate_endpoint_url``
-enforces the http(s) scheme whitelist always, but rejects endpoints that
-resolve to private / loopback / link-local addresses ONLY when the
-``ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS`` env var is explicitly falsy. The
-default is to ALLOW private endpoints because self-hosted MinIO on a LAN /
-in-cluster address is a primary use case for this feature — the same
-posture as ``CUSTOM_MODEL_ALLOW_PRIVATE_URLS`` for BYOM base URLs, except
-inverted by default. Operators running a multi-tenant SaaS deployment where
-org admins are not trusted with cluster-internal reachability should set
-``ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS=false`` to close the SSRF window
-(requests could otherwise probe internal S3-compatible services). Note that
-only org ADMINS can create/point connections, and the client only ever
-speaks the S3 protocol with SigV4 signing — a much narrower oracle than the
-BYOM case's arbitrary-path HTTP client.
+Security posture (SSRF): ``validate_endpoint_url`` always enforces the
+http(s) scheme whitelist and the structural rules, and by DEFAULT also
+rejects endpoints whose host is on the ``url_guard`` deny-list or resolves
+to a private / loopback / link-local / otherwise non-global address
+(``url_guard.validate_public_host``, the same check BYOM base URLs get).
+Org admins are tenant users (LTI self-service included), so they must not be
+able to aim the server at cloud metadata, the K8s API or cluster services.
+Self-hosters whose MinIO lives on a LAN / in-cluster address opt in with
+``ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS=true`` (the dev compose sets it). The
+check runs when a connection is saved AND every time a client is built, so
+rows saved under an earlier, more permissive setting stop working once the
+deployment denies private endpoints. Residual gap: boto3 re-resolves DNS
+per request, so a TTL-0 rebinding between the check and the request is not
+pinned yet.
 
 Prefix jail: every listing and download enforces that the requested key /
 prefix starts with the connection's stored ``prefix``, so members can never
 browse outside the sub-tree the admin scoped the connection to.
 """
 
-import ipaddress
 import logging
 import os
-import socket
 from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
 
+import url_guard
 from encryption_service import encryption_service
 
 logger = logging.getLogger(__name__)
 
 _ALLOWED_SCHEMES = ("http", "https")
+_DEFAULT_PORTS = {"http": 80, "https": 443}
 
 _ENV_ALLOW_PRIVATE = "ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS"
-_FALSY = ("0", "false", "no", "off")
+_TRUTHY = ("1", "true", "yes", "on")
 
 # Sanity ceiling for one browse page; the router clamps user input to this.
 MAX_LIST_KEYS = 1000
 
 
 def _allow_private_endpoints() -> bool:
-    """Default ALLOW; only an explicitly falsy env value turns rejection on.
+    """Default DENY; only an explicitly truthy env value allows private hosts.
 
-    See the module docstring for the SSRF trade-off.
+    See the module docstring for the SSRF posture.
     """
-    return os.getenv(_ENV_ALLOW_PRIVATE, "true").strip().lower() not in _FALSY
+    return os.getenv(_ENV_ALLOW_PRIVATE, "false").strip().lower() in _TRUTHY
 
 
 # ---------------------------------------------------------------------------
@@ -112,11 +112,14 @@ def validate_endpoint_url(url: Optional[str]) -> None:
 
     ``None`` / empty is valid (means the AWS default endpoint). Always
     enforced: http/https scheme, a hostname, no userinfo (credential
-    smuggling), no query/fragment. Additionally, when
-    ``ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS`` is explicitly falsy, every
-    resolved address must be globally routable (rejects loopback, RFC1918,
-    link-local incl. 169.254.169.254, ULA, ...). Default is allow — see the
-    module docstring.
+    smuggling), no query/fragment. Unless ``ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS``
+    is explicitly truthy, the host must also pass
+    ``url_guard.validate_public_host``: not on the deny-list (localhost,
+    ``*.internal``, ``*.local``, GCE metadata) and every resolved address
+    globally routable (rejects loopback, RFC1918, link-local incl.
+    169.254.169.254, CGNAT, ULA, NAT64, ...). Network-state rejections all
+    share one generic message so the check cannot be used to map internal
+    DNS. See the module docstring.
     """
     if url is None or not url.strip():
         return
@@ -124,11 +127,12 @@ def validate_endpoint_url(url: Optional[str]) -> None:
     try:
         parts = urlsplit(url.strip())
         host = parts.hostname
-        parts.port  # noqa: B018 — raises ValueError on a malformed port
+        port = parts.port  # raises ValueError on a malformed port
     except ValueError as exc:
         raise ValueError(f"Endpoint URL could not be parsed: {exc}") from exc
 
-    if parts.scheme.lower() not in _ALLOWED_SCHEMES:
+    scheme = parts.scheme.lower()
+    if scheme not in _ALLOWED_SCHEMES:
         raise ValueError("Endpoint URL must use http:// or https://")
     if not host:
         raise ValueError("Endpoint URL must include a hostname")
@@ -140,25 +144,7 @@ def validate_endpoint_url(url: Optional[str]) -> None:
     if _allow_private_endpoints():
         return
 
-    # Private-endpoint rejection (opt-in hardening). Resolve every A/AAAA
-    # answer and require global routability — mirrors url_guard's check.
-    try:
-        addrinfos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    except (socket.gaierror, OSError) as exc:
-        raise ValueError("Endpoint URL hostname could not be resolved") from exc
-    for _family, _type, _proto, _canonname, sockaddr in addrinfos:
-        try:
-            ip = ipaddress.ip_address(sockaddr[0].split("%")[0])
-        except ValueError as exc:
-            raise ValueError("Endpoint URL resolved to an unparseable address") from exc
-        mapped = getattr(ip, "ipv4_mapped", None)
-        if mapped is not None:
-            ip = mapped
-        if not ip.is_global:
-            raise ValueError(
-                "Endpoint URL resolves to a private or non-routable address, "
-                "which this deployment does not allow"
-            )
+    url_guard.validate_public_host(host, port or _DEFAULT_PORTS[scheme])
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +185,10 @@ def build_client(
     access_key, secret_key = _resolve_credentials(conn, access_key, secret_key)
 
     endpoint_url = getattr(conn, "endpoint_url", None) or None
+    # Re-check on every client build, not only at save time: DNS can change
+    # after the save, and rows saved under a permissive setting must not keep
+    # reaching private addresses once the deployment denies them.
+    validate_endpoint_url(endpoint_url)
     config = Config(
         connect_timeout=10,
         read_timeout=60,

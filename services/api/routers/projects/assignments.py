@@ -454,6 +454,15 @@ async def remove_task_assignment(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # The role check below runs on the path project, so the task (and with it
+    # the assignment) must belong to that project: otherwise a contributor of
+    # any project could delete assignments everywhere.
+    task_in_project = (
+        db.query(Task.id).filter(Task.id == task_id, Task.project_id == project_id).first()
+    )
+    if task_in_project is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
     # The central effective-role resolution (best role over every eligible
     # attachment; the group role decides on a grouped attachment).
     if current_user.is_superadmin:
@@ -469,7 +478,6 @@ async def remove_task_assignment(
 
     # Store info for notification before deletion
     assigned_user_id = assignment.user_id
-    task = db.query(Task).filter(Task.id == task_id).first()  # noqa: F841
 
     db.delete(assignment)
     db.commit()

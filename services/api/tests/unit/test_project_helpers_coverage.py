@@ -781,6 +781,30 @@ class TestCheckTaskAssignedToUser:
         assign_q.first.return_value = found
         return assign_q
 
+    @staticmethod
+    def _exec_first(row):
+        result = MagicMock()
+        result.first.return_value = row
+        return result
+
+    def test_task_from_another_project_rejected_in_every_mode(self):
+        """The task must belong to the project the caller checked access on,
+        even in open mode and for superadmins (audit S8)."""
+        for mode, superadmin in (("open", False), ("manual", False), ("auto", True)):
+            db = Mock()
+            db.execute.return_value.first.return_value = None
+            user = Mock(is_superadmin=superadmin, id="user-1")
+            project = Mock(assignment_mode=mode, id="proj-1")
+            assert check_task_assigned_to_user(db, user, "task-x", project) is False
+            db.query.assert_not_called()
+
+    def test_open_mode_task_in_project_allowed(self):
+        db = Mock()
+        db.execute.return_value.first.return_value = ("task-1",)
+        user = Mock(is_superadmin=False, id="user-1")
+        project = Mock(assignment_mode="open", id="proj-1")
+        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+
     def test_non_annotator_role_bypass(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
@@ -804,8 +828,9 @@ class TestCheckTaskAssignedToUser:
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
         db.query.side_effect = [self._assign_q(None)]
-        # No own annotation either (the attempted-tier fallback).
-        db.execute.return_value.first.return_value = None
+        # Task belongs to the project; no own annotation either (the
+        # attempted-tier fallback).
+        db.execute.side_effect = [self._exec_first(("task-1",)), self._exec_first(None)]
 
         with patch(self._RESOLVER, return_value="ANNOTATOR"):
             assert check_task_assigned_to_user(db, user, "task-1", project) is False
@@ -816,7 +841,7 @@ class TestCheckTaskAssignedToUser:
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
         db.query.side_effect = [self._assign_q(None)]
-        db.execute.return_value.first.return_value = ("ann-1",)
+        db.execute.side_effect = [self._exec_first(("task-1",)), self._exec_first(("ann-1",))]
 
         with patch(self._RESOLVER, return_value="ANNOTATOR"):
             assert check_task_assigned_to_user(db, user, "task-1", project) is True
@@ -826,10 +851,38 @@ class TestCheckTaskAssignedToUser:
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="auto", id="proj-1")
         db.query.side_effect = [self._assign_q(None)]
-        db.execute.return_value.first.return_value = None
+        db.execute.side_effect = [self._exec_first(("task-1",)), self._exec_first(None)]
 
         with patch(self._RESOLVER, return_value=None):
             assert check_task_assigned_to_user(db, user, "task-1", project) is False
+
+
+class TestCheckTaskAssignedToUserAsyncProjectBinding:
+    """The async twin applies the same task-to-project binding."""
+
+    @pytest.mark.asyncio
+    async def test_task_from_another_project_rejected(self):
+        from routers.projects.helpers import check_task_assigned_to_user_async
+
+        result = MagicMock()
+        result.first.return_value = None
+        db = Mock()
+        db.execute = AsyncMock(return_value=result)
+        user = Mock(is_superadmin=True, id="user-1")
+        project = Mock(assignment_mode="open", id="proj-1")
+        assert await check_task_assigned_to_user_async(db, user, "task-x", project) is False
+
+    @pytest.mark.asyncio
+    async def test_open_mode_task_in_project_allowed(self):
+        from routers.projects.helpers import check_task_assigned_to_user_async
+
+        result = MagicMock()
+        result.first.return_value = ("task-1",)
+        db = Mock()
+        db.execute = AsyncMock(return_value=result)
+        user = Mock(is_superadmin=False, id="user-1")
+        project = Mock(assignment_mode="open", id="proj-1")
+        assert await check_task_assigned_to_user_async(db, user, "task-1", project) is True
 
 
 # ============= check_user_can_edit_project =============

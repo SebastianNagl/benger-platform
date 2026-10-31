@@ -1466,20 +1466,36 @@ async def test_project_editors_keep_the_ordinary_names_on_a_public_project(
 
 
 @pytest.mark.asyncio
-async def test_public_visitor_sees_their_own_name(
+async def test_annotators_get_no_project_roster(
     async_test_client, async_test_db, viewers
 ):
-    w = await _public_world(async_test_db)
+    """The project roster (names + emails of every attached-org member) is a
+    CONTRIBUTOR+ view, like the org member list (audit S8). An org ANNOTATOR
+    of the project is refused, and so is a public visitor whose public role
+    is ANNOTATOR; a CONTRIBUTOR public role keeps it (masked, see above)."""
+    w = await _project_world(async_test_db)
+    url = f"/api/projects/{w['project'].id}/members"
     with _as_user(w["plain"]):
-        response = await async_test_client.get(f"/api/projects/{w['project'].id}/members")
-    assert response.status_code == 200, response.text
-    _assert_revealed(
-        _rows_by_user(response.json())[w["plain"].id],
-        w["plain"],
-        lms=False,
-        name_key="name",
-        email_key="email",
+        response = await async_test_client.get(url)
+    assert response.status_code == 403, response.text
+    assert response.json()["detail"] == (
+        "Member list requires a contributor or admin role"
     )
+    with _as_user(w["student"]):
+        response = await async_test_client.get(url)
+    assert response.status_code == 403, response.text
+
+
+@pytest.mark.asyncio
+async def test_public_annotator_role_gets_no_project_roster(
+    async_test_client, async_test_db, viewers
+):
+    w = await _public_world(async_test_db, public_role="ANNOTATOR")
+    with _as_user(w["visitor"]):
+        response = await async_test_client.get(
+            f"/api/projects/{w['project'].id}/members"
+        )
+    assert response.status_code == 403, response.text
 
 
 @pytest.mark.asyncio

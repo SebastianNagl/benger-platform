@@ -715,7 +715,7 @@ async def complete_profile(
             redirect_url="/dashboard",
         )
 
-    from auth_module.user_service import _reject_reserved_username
+    from auth_module.user_service import _reject_reserved_username, sanitize_user_input
 
     _reject_reserved_username(profile_data.username)
     existing_user = await get_user_by_username_async(db, profile_data.username)
@@ -727,7 +727,8 @@ async def complete_profile(
     db_user.username = profile_data.username
     db_user.hashed_password = get_password_hash(profile_data.password)
     if profile_data.name:
-        db_user.name = profile_data.name
+        # Same sanitiser as signup and profile update.
+        db_user.name = sanitize_user_input(profile_data.name)
     db_user.profile_completed = True
 
     try:

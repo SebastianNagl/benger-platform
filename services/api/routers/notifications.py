@@ -522,9 +522,8 @@ class TestNotificationRequest(BaseModel):
     )
     title: Optional[str] = Field(default=None, description="Custom title for the notification")
     message: Optional[str] = Field(default=None, description="Custom message for the notification")
-    count: int = Field(
-        default=1, min=1, max=10, description="Number of test notifications to create"
-    )
+    # ge/le are the Pydantic v2 constraint names; min/max were silently ignored.
+    count: int = Field(1, ge=1, le=10, description="Number of test notifications to create")
 
 
 class AdminTestNotificationRequest(BaseModel):
@@ -547,7 +546,15 @@ async def create_test_notification(
 
     This endpoint is useful for testing the notification system without
     triggering actual events like project creation.
+
+    Requires superadmin privileges, like the sibling test routes.
     """
+    if not current_user.is_superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superadmin privileges required",
+        )
+
     from models import NotificationType
 
     try:

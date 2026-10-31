@@ -52,6 +52,9 @@ services:
       S3_REGION: us-east-1
       S3_USE_SSL: "false"
       STORAGE_BASE_URL: http://localhost:9000
+      # Org storage connections deny private endpoints by default (SSRF
+      # guard); local dev points them at the compose MinIO.
+      ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS: "true"
 
   # Frontend Development Configuration  
   frontend-dev:
@@ -148,6 +151,9 @@ services:
       S3_REGION: us-east-1
       S3_USE_SSL: "false"
       STORAGE_BASE_URL: http://localhost:9000
+      # Org storage connections deny private endpoints by default (SSRF
+      # guard); local dev points them at the compose MinIO.
+      ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS: "true"
 
   # Interactive pool — same dev treatment as `worker` above. Must stay in sync:
   # it serves immediate evaluation, so if it lacks a mount or an env var the
@@ -170,6 +176,9 @@ services:
       S3_REGION: us-east-1
       S3_USE_SSL: "false"
       STORAGE_BASE_URL: http://localhost:9000
+      # Org storage connections deny private endpoints by default (SSRF
+      # guard); local dev points them at the compose MinIO.
+      ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS: "true"
 
   # Disable production frontend in development to avoid conflicts
   frontend:

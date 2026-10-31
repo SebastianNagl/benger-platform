@@ -338,6 +338,22 @@ class TestUpdateUserProfile:
         assert user.name == "New Name"
         db.commit.assert_called()
 
+    def test_update_name_is_sanitised_like_signup(self):
+        """PUT /profile runs the signup sanitiser, so an anchor tag is stored
+        escaped and can never render as markup (mail bodies, UI)."""
+        from auth_module.user_service import update_user_profile
+
+        db = MagicMock()
+        user = self._make_mock_user()
+        evil = '<a href="https://evil.example">Click</a>'
+
+        with patch("auth_module.user_service.get_user_by_id", return_value=user):
+            with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender"]):
+                update_user_profile(db, "user-id", name=evil)
+
+        assert "<a" not in user.name
+        assert "&lt;a href=" in user.name
+
     def test_update_email_resets_verification(self):
         from auth_module.user_service import update_user_profile
 

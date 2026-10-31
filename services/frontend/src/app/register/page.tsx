@@ -191,7 +191,11 @@ export default function RegisterPage() {
     const email = params.get('email')
     // Accept `next` as an alias for the legacy `redirect` param so the exam
     // share CTA can use a single param name across login + register (Issue #35).
-    const redirect = params.get('redirect') || params.get('next')
+    // Only internal paths survive; anything else falls back to the default
+    // authed path (open-redirect guard).
+    const redirect = authRedirect.sanitizeNext(
+      params.get('redirect') || params.get('next'),
+    )
 
     if (token) {
       setInvitationToken(token)

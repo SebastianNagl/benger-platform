@@ -450,6 +450,28 @@ class TestCreateTestNotification:
         assert len(persisted) == 3
         assert all(n.user_id == admin.id for n in persisted)
 
+    def test_non_superadmin_forbidden(
+        self, client, test_db, test_users, auth_headers
+    ):
+        """The route is superadmin-only like /test/create and /test/generate-all."""
+        resp = client.post(
+            "/api/notifications/test",
+            json={"notification_type": "system_alert", "count": 1},
+            headers=auth_headers["contributor"],
+        )
+        assert resp.status_code == 403, resp.text
+
+    def test_count_above_cap_rejected(
+        self, client, test_db, test_users, auth_headers
+    ):
+        """count is bounded at 10 (Field ge/le); larger values are a 422."""
+        resp = client.post(
+            "/api/notifications/test",
+            json={"notification_type": "system_alert", "count": 11},
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 422, resp.text
+
     def test_invalid_type_defaults_to_system_alert(
         self, client, test_db, test_users, auth_headers
     ):
