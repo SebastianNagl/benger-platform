@@ -754,7 +754,8 @@ describe('/api/auth/login', () => {
           .find((c: string) => c.startsWith('access_token='))
         expect(accessCookie).toBeDefined()
         expect(accessCookie).toMatch(/;\s*Secure/i)
-        expect(accessCookie).toContain('Domain=.what-a-benger.net')
+        // Host-only in production too: never scoped to the apex.
+        expect(accessCookie).not.toContain('Domain=')
       } finally {
         process.env.NODE_ENV = previousNodeEnv
       }

@@ -1,7 +1,7 @@
 import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
 import { logger } from '@/lib/utils/logger'
-import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -36,29 +36,25 @@ export async function POST(request: NextRequest) {
     // Handle Set-Cookie headers if present
     const setCookieHeaders = response.headers.getSetCookie()
     if (setCookieHeaders && setCookieHeaders.length > 0) {
-      setCookieHeaders.forEach((cookieString) => {
-        // Remove any existing domain restriction
-        let modifiedCookie = cookieString.replace(/Domain=[^;]+;?/gi, '')
+      // Host-only: Domain is stripped (legacy-domain clears excepted).
+      const host = getExternalHost(request)
+      scopeUpstreamSetCookies(setCookieHeaders, host).forEach(
+        (cookieString) => {
+          let modifiedCookie = cookieString
 
-        // Set cookie domain for cross-subdomain sharing
-        const host = getExternalHost(request)
-        const cookieDomain = getCookieDomainFromHost(host)
-        if (cookieDomain) {
-          modifiedCookie += `; Domain=${cookieDomain}`
-        }
+          // Ensure SameSite is set appropriately
+          if (!modifiedCookie.includes('SameSite')) {
+            modifiedCookie += '; SameSite=Lax'
+          }
 
-        // Ensure SameSite is set appropriately
-        if (!modifiedCookie.includes('SameSite')) {
-          modifiedCookie += '; SameSite=Lax'
-        }
+          logger.debug('🍪 Setting cookie from verify-email:', {
+            original: cookieString.substring(0, 100),
+            modified: modifiedCookie.substring(0, 100),
+          })
 
-        logger.debug('🍪 Setting cookie from verify-email:', {
-          original: cookieString.substring(0, 100),
-          modified: modifiedCookie.substring(0, 100),
-        })
-
-        nextResponse.headers.append('Set-Cookie', modifiedCookie)
-      })
+          nextResponse.headers.append('Set-Cookie', modifiedCookie)
+        },
+      )
     }
 
     return nextResponse

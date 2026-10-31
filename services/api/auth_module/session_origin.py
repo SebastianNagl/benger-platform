@@ -7,7 +7,8 @@ next to the HttpOnly token cookies, so the frontend can tell such sessions
 apart (the onboarding tour stays quiet in them). The overlay that opens the
 session sets the cookie; the platform owns its end of life: the password
 login and the logouts clear it, so a regular sign-in is never mistaken for
-one. Token refreshes leave it alone.
+one. Token refreshes leave it alone. The cookie is host-only like the
+session cookies (auth_module/auth_cookies.py).
 """
 
 from fastapi import Response
@@ -26,5 +27,4 @@ def clear_session_origin(response: Response) -> None:
         secure=settings.is_production,
         samesite="lax",
         path="/",
-        domain=settings.cookie_domain,
     )

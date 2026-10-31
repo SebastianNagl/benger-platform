@@ -1,15 +1,14 @@
 /**
  * Tests for subdomain utility functions (Issue #1179).
  *
- * Tests the core hostname-based functions that don't depend on window.location,
- * plus the server-side getCookieDomainFromHost.
+ * Tests the core hostname-based functions that don't depend on window.location.
+ * The server-side cookie scoping lives in upstreamCookies.ts.
  */
 
 import {
   getBaseDomain,
   getBaseDomainFromHost,
   getCookieDomain,
-  getCookieDomainFromHost,
   getPrivateUrl,
   getSisterHostUrl,
   isDemoHost,
@@ -205,88 +204,6 @@ describe('parseSubdomainFromHost', () => {
       orgSlug: null,
       isPrivateMode: true,
     })
-  })
-})
-
-describe('getCookieDomainFromHost', () => {
-  it('returns .benger.localhost for benger.localhost', () => {
-    expect(getCookieDomainFromHost('benger.localhost')).toBe(
-      '.benger.localhost',
-    )
-  })
-
-  it('returns .benger.localhost for org subdomain', () => {
-    expect(getCookieDomainFromHost('tum.benger.localhost')).toBe(
-      '.benger.localhost',
-    )
-  })
-
-  it('returns .what-a-benger.net for production domain', () => {
-    expect(getCookieDomainFromHost('what-a-benger.net')).toBe(
-      '.what-a-benger.net',
-    )
-  })
-
-  it('returns .what-a-benger.net for production org subdomain', () => {
-    expect(getCookieDomainFromHost('tum.what-a-benger.net')).toBe(
-      '.what-a-benger.net',
-    )
-  })
-
-  // Vertretbar apex: this is what lets auth cookies work on vertretbar.net.
-  // The API's Set-Cookie Domain is stripped and re-scoped to the request host by
-  // the auth proxy routes (login/refresh/logout/signup + [...path]) via this fn,
-  // so a browser on vertretbar.net receives Domain=.vertretbar.net (which it
-  // accepts) instead of the backend's .what-a-benger.net (which it would reject).
-  it('returns .vertretbar.net for the vertretbar apex', () => {
-    expect(getCookieDomainFromHost('vertretbar.net')).toBe('.vertretbar.net')
-  })
-
-  it('returns .vertretbar.net for a vertretbar subdomain (www)', () => {
-    expect(getCookieDomainFromHost('www.vertretbar.net')).toBe(
-      '.vertretbar.net',
-    )
-  })
-
-  it('returns .staging.vertretbar.net for the vertretbar staging apex', () => {
-    expect(getCookieDomainFromHost('staging.vertretbar.net')).toBe(
-      '.staging.vertretbar.net',
-    )
-  })
-
-  // Demo environment: the multi-level apex must win over what-a-benger.net so
-  // the auth cookie is scoped to .demo.what-a-benger.net (org subdomains
-  // included) and never leaks to prod.
-  it('returns .demo.what-a-benger.net for the demo apex and its org subdomains', () => {
-    expect(getCookieDomainFromHost('demo.what-a-benger.net')).toBe(
-      '.demo.what-a-benger.net',
-    )
-    expect(getCookieDomainFromHost('demo-uni.demo.what-a-benger.net')).toBe(
-      '.demo.what-a-benger.net',
-    )
-    expect(getCookieDomainFromHost('demo.vertretbar.net')).toBe(
-      '.demo.vertretbar.net',
-    )
-  })
-
-  it('returns .vertretbar.localhost for local vertretbar dev', () => {
-    expect(getCookieDomainFromHost('vertretbar.localhost')).toBe(
-      '.vertretbar.localhost',
-    )
-  })
-
-  it('returns empty string for plain localhost', () => {
-    expect(getCookieDomainFromHost('localhost')).toBe('')
-  })
-
-  it('returns empty string for localhost with port', () => {
-    expect(getCookieDomainFromHost('localhost:3000')).toBe('')
-  })
-
-  it('returns .benger.localhost for deeply nested subdomain', () => {
-    expect(getCookieDomainFromHost('a.b.benger.localhost')).toBe(
-      '.benger.localhost',
-    )
   })
 })
 

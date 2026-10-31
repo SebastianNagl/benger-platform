@@ -1,4 +1,5 @@
 """Auth: token refresh and logout handlers."""
+from auth_module.auth_cookies import SESSION_TOKEN_COOKIES, expire_legacy_cookies
 from auth_module.session_origin import clear_session_origin
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
@@ -35,13 +36,17 @@ async def refresh_token_endpoint(
             secure=_settings.is_production,
             samesite="lax",
             path="/",
-            domain=_settings.cookie_domain,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Drop domain-wide token cookies of older releases before the new
+    # host-only ones. The session-origin marker is left alone, as refreshes
+    # always do.
+    expire_legacy_cookies(response, SESSION_TOKEN_COOKIES)
 
     # Set new access token cookie
     response.set_cookie(
@@ -52,7 +57,6 @@ async def refresh_token_endpoint(
         secure=_settings.is_production,
         samesite="lax",
         path="/",
-        domain=_settings.cookie_domain,
     )
 
     # Set new refresh token cookie (token rotation)
@@ -65,7 +69,6 @@ async def refresh_token_endpoint(
             secure=_settings.is_production,
             samesite="lax",
             path="/",
-            domain=_settings.cookie_domain,
         )
 
     return token_response
@@ -94,7 +97,6 @@ async def logout(
         secure=_settings.is_production,
         samesite="lax",
         path="/",
-        domain=_settings.cookie_domain,
     )
     response.delete_cookie(
         key="refresh_token",
@@ -102,9 +104,9 @@ async def logout(
         secure=_settings.is_production,
         samesite="lax",
         path="/",
-        domain=_settings.cookie_domain,
     )
     clear_session_origin(response)
+    expire_legacy_cookies(response)
 
     return {"message": "Logged out successfully"}
 
@@ -127,7 +129,6 @@ async def logout_all_devices(
             secure=_settings.is_production,
             samesite="lax",
             path="/",
-            domain=_settings.cookie_domain,
         )
         response.delete_cookie(
             key="refresh_token",
@@ -135,9 +136,9 @@ async def logout_all_devices(
             secure=_settings.is_production,
             samesite="lax",
             path="/",
-            domain=_settings.cookie_domain,
         )
         clear_session_origin(response)
+        expire_legacy_cookies(response)
 
     return {
         "message": "Logged out from all devices successfully",

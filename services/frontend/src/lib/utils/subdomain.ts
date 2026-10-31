@@ -196,16 +196,3 @@ export function getPrivateUrl(path?: string): string {
 export function getCookieDomain(): string {
   return `.${getBaseDomain()}`
 }
-
-/**
- * Get the cookie domain from a request hostname (for server-side use).
- */
-export function getCookieDomainFromHost(host: string): string {
-  for (const baseDomain of BASE_DOMAINS) {
-    if (host === baseDomain || host.endsWith(`.${baseDomain}`)) {
-      return `.${baseDomain}`
-    }
-  }
-  // For plain localhost, don't set a domain
-  return ''
-}

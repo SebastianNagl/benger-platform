@@ -1,5 +1,6 @@
 """Auth: login / signup / registration handlers."""
 from account_activation import mask_email
+from auth_module.auth_cookies import expire_legacy_cookies
 from auth_module.session_origin import clear_session_origin
 from sqlalchemy import func
 
@@ -119,6 +120,10 @@ async def login(
             include_refresh_token=True,
         )
 
+        # Drop domain-wide cookies of older releases first (before the new
+        # host-only ones, see expire_legacy_cookies).
+        expire_legacy_cookies(response)
+
         # Set access token as HttpOnly cookie for security
         _settings = get_settings()
         response.set_cookie(
@@ -129,7 +134,6 @@ async def login(
             secure=_settings.is_production,
             samesite="lax",
             path="/",
-            domain=_settings.cookie_domain,
         )
 
         # Set refresh token as HttpOnly cookie for security
@@ -142,7 +146,6 @@ async def login(
                 secure=_settings.is_production,
                 samesite="lax",
                 path="/",
-                domain=_settings.cookie_domain,
             )
 
         # A password login is a regular session: drop any LMS-launch marker.

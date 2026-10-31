@@ -23,7 +23,7 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
     jest.restoreAllMocks()
   })
 
-  it('should forward and modify Set-Cookie headers with domain and SameSite', async () => {
+  it('should forward Set-Cookie headers host-only with SameSite', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -61,18 +61,17 @@ describe('/api/auth/signup - cookie forwarding coverage', () => {
     const setCookieHeaders = response.headers.getSetCookie()
     expect(setCookieHeaders.length).toBe(2)
 
-    // First cookie: should have Secure removed, SameSite added, Domain added
+    // First cookie: should have Secure removed, SameSite added, no Domain
     const cookie1 = setCookieHeaders[0]
     expect(cookie1).toContain('session=abc123')
-    expect(cookie1).toContain('Domain=.benger.localhost')
+    expect(cookie1).not.toContain('Domain=')
     expect(cookie1).not.toMatch(/;\s*Secure/i) // Secure removed for dev
     expect(cookie1).toContain('SameSite=Lax')
 
-    // Second cookie: existing Domain should be replaced
+    // Second cookie: the upstream Domain is stripped
     const cookie2 = setCookieHeaders[1]
     expect(cookie2).toContain('token=xyz789')
-    expect(cookie2).not.toContain('Domain=api.localhost')
-    expect(cookie2).toContain('Domain=.benger.localhost')
+    expect(cookie2).not.toContain('Domain=')
     expect(cookie2).toContain('SameSite=Lax')
   })
 

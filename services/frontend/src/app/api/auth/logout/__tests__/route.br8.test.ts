@@ -13,13 +13,6 @@ jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
 }))
 
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    return ''
-  },
-}))
-
 function makeRequest(host: string) {
   return new NextRequest(new URL('http://localhost/api/auth/logout'), {
     method: 'POST',
@@ -80,7 +73,7 @@ describe('logout route br8', () => {
     )
   })
 
-  it('clears cookies with domain attribute (L49-60)', async () => {
+  it('clears the host-only cookies without a Domain attribute (L49-60)', async () => {
     jest
       .spyOn(global, 'fetch')
       .mockResolvedValue(new Response(null, { status: 204 }))
@@ -89,19 +82,56 @@ describe('logout route br8', () => {
     expect(res.status).toBe(204)
     const cookies = res.headers.getSetCookie()
     expect(cookies.length).toBe(3)
+    for (const cookie of cookies) {
+      expect(cookie).toContain('Max-Age=0')
+      expect(cookie).not.toContain('Domain=')
+    }
     expect(cookies[0]).toContain('access_token=')
-    expect(cookies[0]).toContain('Max-Age=0')
-    expect(cookies[0]).toContain('.benger.localhost')
     expect(cookies[1]).toContain('refresh_token=')
-    expect(cookies[1]).toContain('Max-Age=0')
     // The LMS-launch marker is readable by the page, so no HttpOnly.
     expect(cookies[2]).toMatch(/^benger_session_origin=;/)
-    expect(cookies[2]).toContain('Max-Age=0')
-    expect(cookies[2]).toContain('.benger.localhost')
     expect(cookies[2]).not.toContain('HttpOnly')
   })
 
-  it('clears cookies without domain for localhost (L52 empty domain)', async () => {
+  it("relays the backend's legacy-domain clears for this host only", async () => {
+    const headers = new Headers()
+    headers.append(
+      'Set-Cookie',
+      'access_token=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+    )
+    headers.append(
+      'Set-Cookie',
+      'access_token=""; Domain=.benger.localhost; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+    )
+    headers.append(
+      'Set-Cookie',
+      'access_token=""; Domain=.vertretbar.localhost; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+    )
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 200, headers }))
+    const { POST } = require('../route')
+    const res = await POST(makeRequest('benger.localhost'))
+    const cookies = res.headers.getSetCookie()
+    const legacy = cookies.filter((c: string) => c.includes('Domain='))
+    expect(legacy).toEqual([
+      'access_token=""; Domain=.benger.localhost; HttpOnly; Max-Age=0; Path=/; SameSite=lax',
+    ])
+    // Plus the backend's host-only clear and the route's own three.
+    expect(cookies.length).toBe(5)
+  })
+
+  it('still clears the host-only cookies when the backend rejects the logout', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 401 }))
+    const { POST } = require('../route')
+    const res = await POST(makeRequest('benger.localhost'))
+    expect(res.status).toBe(204)
+    expect(res.headers.getSetCookie()).toHaveLength(3)
+  })
+
+  it('clears cookies without domain for localhost', async () => {
     jest
       .spyOn(global, 'fetch')
       .mockResolvedValue(new Response(null, { status: 204 }))

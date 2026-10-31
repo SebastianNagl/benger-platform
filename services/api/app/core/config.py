@@ -233,8 +233,23 @@ class Settings(BaseSettings):
             return None
         return DEV_CORS_ORIGIN_REGEX
 
-    # Cookie Configuration
-    cookie_domain: Optional[str] = None  # Set to ".what-a-benger.net" in production
+    # Cookie Configuration. Auth cookies are host-only (no Domain attribute).
+    # LEGACY_COOKIE_DOMAIN lists, comma-separated, the domains older releases
+    # scoped them to (e.g. ".what-a-benger.net,.vertretbar.net"); login,
+    # refresh and logout send expiring copies for those domains so browsers
+    # drop the old domain-wide cookies (auth_module/auth_cookies.py).
+    legacy_cookie_domain: Optional[str] = None
+
+    @property
+    def cookie_domain(self) -> None:
+        """Deprecated: always None, so every cookie stays host-only.
+
+        Kept only so overlay code that still passes
+        ``domain=settings.cookie_domain`` keeps working (benger_extended LTI
+        cookies). Not an environment variable anymore: a stale COOKIE_DOMAIN
+        in a deployment is ignored. Remove once no overlay reads it.
+        """
+        return None
 
     # Performance Configuration
     default_page_size: int = 30

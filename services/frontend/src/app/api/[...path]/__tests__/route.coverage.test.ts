@@ -97,7 +97,7 @@ describe('API Proxy Route - coverage extensions', () => {
     )
   })
 
-  it('should forward Set-Cookie headers from non-204 responses with domain rewrite', async () => {
+  it('should forward Set-Cookie headers from non-204 responses host-only (Domain stripped)', async () => {
     mockFetch.mockResolvedValueOnce({
       status: 200,
       statusText: 'OK',
@@ -118,8 +118,8 @@ describe('API Proxy Route - coverage extensions', () => {
     const cookies = response.headers.getSetCookie()
     expect(cookies.length).toBe(1)
     expect(cookies[0]).toContain('session=abc123')
-    expect(cookies[0]).toContain('Domain=.benger.localhost')
-    expect(cookies[0]).not.toContain('Domain=old.domain')
+    expect(cookies[0]).not.toContain('Domain=')
+    expect(cookies[0]).toBe('session=abc123; Path=/; HttpOnly; SameSite=Lax')
     expect(cookies[0]).toContain('SameSite=Lax')
   })
 

@@ -1,6 +1,6 @@
 import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Development debugging
@@ -47,8 +47,8 @@ export async function DELETE(
 }
 
 // Forward all upstream response headers (skipping ones the runtime owns) and
-// rewrite Set-Cookie Domain= so cookies work across multi-org subdomains. Runs
-// identically for buffered and streamed bodies — body-independent.
+// relay Set-Cookie host-only (scopeUpstreamSetCookies strips Domain=). Runs
+// identically for buffered and streamed bodies, body-independent.
 function forwardHeadersAndCookies(
   upstream: Response,
   downstream: NextResponse,
@@ -74,12 +74,8 @@ function forwardHeadersAndCookies(
   const setCookieHeaders = upstream.headers.getSetCookie()
   if (setCookieHeaders && setCookieHeaders.length > 0) {
     const host = getExternalHost(request)
-    const cookieDomain = getCookieDomainFromHost(host)
-    setCookieHeaders.forEach((cookieString) => {
-      let modifiedCookie = cookieString.replace(/Domain=[^;]+;?/gi, '')
-      if (cookieDomain) {
-        modifiedCookie += `; Domain=${cookieDomain}`
-      }
+    scopeUpstreamSetCookies(setCookieHeaders, host).forEach((cookieString) => {
+      let modifiedCookie = cookieString
       if (!modifiedCookie.includes('SameSite')) {
         modifiedCookie += '; SameSite=Lax'
       }

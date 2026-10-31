@@ -11,14 +11,6 @@ jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
 }))
 
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    if (host.includes('what-a-benger.net')) return '.what-a-benger.net'
-    return ''
-  },
-}))
-
 function makeRequest(host: string) {
   return new NextRequest(
     new URL(`http://localhost/api/auth/verify-email-enhanced/test-token-abc`),
@@ -112,7 +104,7 @@ describe('verify-email-enhanced route', () => {
     fetchSpy.mockRestore()
   })
 
-  it('handles Set-Cookie with domain and SameSite', async () => {
+  it('handles Set-Cookie host-only with SameSite', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'access_token=xyz; Path=/; Domain=old.test')
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
@@ -126,9 +118,11 @@ describe('verify-email-enhanced route', () => {
       params: Promise.resolve({ token: 'abc' }),
     })
     expect(res.status).toBe(200)
-    // Should have Set-Cookie header with modified domain
+    // The upstream Domain is stripped, SameSite added
     const setCookies = res.headers.getSetCookie()
     expect(setCookies.length).toBeGreaterThan(0)
+    expect(setCookies[0]).not.toContain('Domain=')
+    expect(setCookies[0]).toContain('SameSite=Lax')
     fetchSpy.mockRestore()
   })
 

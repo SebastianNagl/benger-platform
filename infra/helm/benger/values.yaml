@@ -182,8 +182,14 @@ api:
       value: "true"
     - name: MAIL_ENABLED
       value: "true"
-    - name: COOKIE_DOMAIN
-      value: ".what-a-benger.net"
+    # Auth cookies are host-only. Older releases scoped them to the apex
+    # (the API to the first domain, the Next proxy re-scoped them to each
+    # host family); login, refresh and logout send expiring copies for these
+    # domains so browsers drop the old domain-wide cookies. Remove once the
+    # refresh-token lifetime (REFRESH_TOKEN_EXPIRE_DAYS, 7 days) has passed
+    # since the switch.
+    - name: LEGACY_COOKIE_DOMAIN
+      value: ".what-a-benger.net,.vertretbar.net"
     # Vertretbar student billing (extended). Secrets live in the
     # benger-billing-secrets Secret (pre-create per namespace, like
     # benger-email-config / benger-minio-credentials). optional:true so a
@@ -641,12 +647,11 @@ frontend:
       traefik.ingress.kubernetes.io/router.priority: "100"
       # cert-manager annotation removed: using explicit Certificate resource
       # in templates/certificates.yaml for wildcard support
+    # Apex only. The "*.<domain>" host that served org subdomains is gone: no
+    # frontend feature uses them anymore, and the catch-all answered any
+    # unclaimed subdomain with the app.
     hosts:
       - host: what-a-benger.net
-        paths:
-          - path: /
-            pathType: Prefix
-      - host: "*.what-a-benger.net"
         paths:
           - path: /
             pathType: Prefix
@@ -654,7 +659,6 @@ frontend:
       - secretName: benger-tls
         hosts:
           - what-a-benger.net
-          - "*.what-a-benger.net"
   resources:
     limits:
       cpu: 500m
@@ -893,8 +897,9 @@ middleware:
 # second branded apex from THIS same release, no separate backend. A neutral
 # open-core hook: the frontend already recognizes vertretbar.net
 # (STUDENT_LOCKED_DOMAINS in services/frontend/src/lib/utils/subdomain.ts) and the
-# Next proxy already scopes auth cookies to it (BASE_DOMAINS), so serving the host
-# needs no app code — only this ingress + its own TLS cert.
+# auth cookies are host-only (the Next proxy strips any Domain), so they work on
+# any host as is. Serving the host needs no app code, only this ingress + its own
+# TLS cert.
 #
 # Rendered when `enabled` (default off, so the open-core base and any deploy that
 # doesn't opt in stay inert). Host + cert are per-environment via the overlays:
