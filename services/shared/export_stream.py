@@ -30,9 +30,10 @@ from __future__ import annotations
 import csv
 import io
 import json
+import uuid
 from datetime import datetime
 from itertools import chain
-from typing import Callable, Iterable, Iterator, List, Optional
+from typing import Any, Callable, Iterable, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -442,6 +443,55 @@ def stream_export_flat_csv(
             yield _emit_rows(obj)
 
 
+# Issue #964: span annotation format conversion for the Label Studio export.
+# Lives here (not in the API router) because the export worker runs
+# stream_export_label_studio and has no routers package.
+def convert_to_label_studio_format(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Convert BenGER annotation format to Label Studio format for export.
+    Flattens span annotations: one result with spans array -> multiple results.
+
+    BenGER format:
+    {"from_name": "label", "type": "labels", "value": {"spans": [...]}}
+
+    Label Studio format:
+    [{"id": "span-1", "from_name": "label", "type": "labels", "value": {"start": 0, "end": 10, ...}}]
+    """
+    if not results or not isinstance(results, list):
+        return results
+
+    output = []
+    for result in results:
+        # Handle span/labels type with nested spans array
+        if result.get("type") == "labels" and isinstance(result.get("value"), dict):
+            spans = result["value"].get("spans", [])
+            if spans and isinstance(spans, list):
+                # Flatten: create one result per span
+                for span in spans:
+                    output.append(
+                        {
+                            "id": span.get("id", str(uuid.uuid4())),
+                            "from_name": result.get("from_name"),
+                            "to_name": result.get("to_name"),
+                            "type": "labels",
+                            "value": {
+                                "start": span.get("start"),
+                                "end": span.get("end"),
+                                "text": span.get("text", ""),
+                                "labels": span.get("labels", []),
+                            },
+                        }
+                    )
+            else:
+                # No spans array, pass through as-is
+                output.append(result)
+        else:
+            # Non-span annotations pass through unchanged
+            output.append(result)
+
+    return output
+
+
 def stream_export_label_studio(
     db: Session,
     project_id: str,
@@ -463,8 +513,6 @@ def stream_export_label_studio(
     one shot and OOMKilled the API pod; 5-task batches keep peak well under
     the container limit.
     """
-    from routers.projects.import_export import convert_to_label_studio_format
-
     LS_BATCH_SIZE = 5
 
     eval_runs = db.query(EvaluationRun).filter(

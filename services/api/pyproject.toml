@@ -150,7 +150,6 @@ warn_no_return = true
 # Exclude problematic files from checking entirely
 exclude = [
     "alembic/",
-    "migration_utils.py", 
     "add_sample_data.py",
     "init_db.py",
     "models.py",  # Skip models due to SQLAlchemy complexity

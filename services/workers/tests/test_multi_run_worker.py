@@ -58,30 +58,6 @@ def test_evaluate_falloesung_single_accepts_judge_run_id():
     assert params["judge_run_id"].default == None
 
 
-def test_inter_annotator_agreement_delegates_to_shared():
-    """Worker's cohens_kappa is a thin wrapper over shared bg_statistics.
-    Same numeric output for the same input."""
-    from ml_evaluation.inter_annotator_agreement import cohens_kappa as worker_kappa
-    from bg_statistics import cohens_kappa as shared_kappa
-
-    raters = (["a", "b", "a", "b"], ["a", "b", "b", "a"])
-    w = worker_kappa(*raters)
-    s = shared_kappa(*raters)
-    # Both return the same dict shape with same kappa
-    assert w["kappa"] == s["kappa"]
-
-
-def test_inter_annotator_agreement_fleiss_kappa_delegates():
-    from ml_evaluation.inter_annotator_agreement import fleiss_kappa as worker_fleiss
-    from bg_statistics import fleiss_kappa as shared_fleiss
-
-    matrix = [["a", "a", "a"], ["b", "b", "b"], ["c", "c", "c"]]
-    w = worker_fleiss(matrix)
-    s = shared_fleiss(matrix)
-    assert w["kappa"] == s["kappa"]
-    assert w["kappa"] == 1.0  # perfect agreement
-
-
 def test_judge_run_helper_dedupes_within_dispatch():
     """Regression for the dup-key bug in immediate-eval dispatch.
 

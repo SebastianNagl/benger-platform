@@ -16,6 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from metric_values import coerce_metric_value
 from models import EvaluationRun, EvaluationType, Generation, ResponseGeneration, TaskEvaluation, User
 from project_models import Annotation, Project, Task
 from report_models import ProjectReport
@@ -675,8 +676,6 @@ def get_evaluation_charts_data(db: Session, project_id: str) -> Dict:
             if model_id not in by_model:
                 by_model[model_id] = {}
             if eval.metrics:
-                from routers.evaluations.results import _coerce_metric_value
-
                 by_model[model_id].update(eval.metrics)
                 for metric_name, value in eval.metrics.items():
                     metric_names_seen.add(metric_name)
@@ -685,7 +684,7 @@ def get_evaluation_charts_data(db: Session, project_id: str) -> Dict:
                     # cell; coerce both legacy floats and {value, details}
                     # dicts to a number. Fall back to the raw value (may be
                     # None / non-numeric) if coercion can't extract one.
-                    coerced = _coerce_metric_value(value)
+                    coerced = coerce_metric_value(value)
                     by_method[metric_name][model_id] = (
                         coerced if coerced is not None else value
                     )

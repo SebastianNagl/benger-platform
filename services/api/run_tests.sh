@@ -69,12 +69,6 @@ setup_test_environment() {
     # Create test database if it doesn't exist
     export DATABASE_URL="$POSTGRES_URL"
     
-    # Run migrations
-    if [ -f "migration_utils.py" ]; then
-        print_success "Running database migrations..."
-        python migration_utils.py init || print_warning "Migration failed, continuing..."
-    fi
-    
     print_success "Test environment ready"
 }
 
