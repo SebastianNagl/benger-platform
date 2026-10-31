@@ -686,6 +686,9 @@ frontend:
       - secretName: benger-tls
         hosts:
           - what-a-benger.net
+    # www.<global.domain> redirects permanently to the apex (needs
+    # middleware.enabled for the Traefik redirect).
+    wwwRedirect: true
   resources:
     limits:
       cpu: 500m

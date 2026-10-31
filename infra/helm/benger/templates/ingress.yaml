@@ -154,6 +154,61 @@ spec:
 {{- end }}
 {{- end }}
 ---
+{{- if and .Values.frontend.ingress.enabled .Values.frontend.ingress.wwwRedirect .Values.middleware.enabled }}
+{{- $wwwHost := printf "www.%s" .Values.global.domain }}
+# www.<domain> answers with a permanent redirect to the apex. The "*.<domain>"
+# frontend host is gone, so without this a www link would get Traefik's 404.
+# Derived from global.domain, so staging and demo redirect their own www host
+# and never claim prod's. TLS is the wildcard cert (global.tlsSecretName).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-www-redirect
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  redirectRegex:
+    regex: {{ printf "^https?://%s(.*)" (regexQuoteMeta $wwwHost) | quote }}
+    replacement: {{ printf "https://%s${1}" .Values.global.domain | quote }}
+    permanent: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-www-redirect
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-www-redirect@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - {{ $wwwHost | quote }}
+      secretName: {{ .Values.global.tlsSecretName }}
+  rules:
+    - host: {{ $wwwHost | quote }}
+      http:
+        paths:
+          # The redirect answers before the backend is reached; Ingress just
+          # needs one.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+{{- end }}
+---
 {{- if .Values.vertretbar.enabled }}
 # vertretbar.net (prod) / staging.vertretbar.net (staging) → the SAME frontend
 # service as the main host. The host is
