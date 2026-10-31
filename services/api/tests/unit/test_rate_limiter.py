@@ -121,7 +121,8 @@ class TestClientIdentification:
         """Test client ID with X-Forwarded-For header"""
         mock_request.headers = {"X-Forwarded-For": "10.0.0.1, 192.168.1.1"}
         client_id = rate_limiter_with_redis._get_client_id(mock_request, None)
-        assert client_id == "ip:10.0.0.1"
+        # Rightmost hop: the leftmost entry is client-controlled.
+        assert client_id == "ip:192.168.1.1"
 
     def test_get_key_generation(self, rate_limiter_with_redis):
         """Test Redis key generation"""

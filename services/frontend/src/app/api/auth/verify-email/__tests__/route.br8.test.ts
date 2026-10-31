@@ -5,8 +5,7 @@
  * Targets uncovered branches:
  *   - L7: host empty fallback
  *   - L20: benger-test.localhost branch
- *   - L78: cookieDomain truthy check
- *   - L80: Set-Cookie domain append
+ *   - L78: upstream Domain stripped from Set-Cookie
  *   - L85: SameSite missing check
  */
 
@@ -14,14 +13,6 @@ import { NextRequest } from 'next/server'
 
 jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
-}))
-
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    if (host.includes('what-a-benger.net')) return '.what-a-benger.net'
-    return ''
-  },
 }))
 
 function makeRequest(host: string) {
@@ -60,7 +51,7 @@ describe('verify-email route br8', () => {
     )
   })
 
-  it('handles response with Set-Cookie, domain rewrite and SameSite (L72-95)', async () => {
+  it('handles response with Set-Cookie, Domain stripped and SameSite (L72-95)', async () => {
     const headers = new Headers()
     headers.append(
       'Set-Cookie',
@@ -77,7 +68,7 @@ describe('verify-email route br8', () => {
     const res = await POST(makeRequest('benger.localhost'))
     const cookies = res.headers.getSetCookie()
     expect(cookies.length).toBeGreaterThan(0)
-    expect(cookies[0]).toContain('.benger.localhost')
+    expect(cookies[0]).not.toContain('Domain=')
     expect(cookies[0]).toContain('SameSite=Lax')
   })
 
@@ -110,7 +101,7 @@ describe('verify-email route br8', () => {
     expect(res.status).toBe(200)
   })
 
-  it('handles empty cookieDomain (L80 falsy, no domain added)', async () => {
+  it('adds no Domain for plain localhost', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'token=val')
 

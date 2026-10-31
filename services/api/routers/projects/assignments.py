@@ -36,7 +36,7 @@ router = APIRouter()
 
 
 @router.post("/{project_id}/tasks/assign")
-async def assign_tasks(
+def assign_tasks(
     project_id: str,
     data: dict,
     current_user: AuthUser = Depends(require_user),
@@ -430,7 +430,7 @@ async def list_task_assignments(
 
 
 @router.delete("/{project_id}/tasks/{task_id}/assignments/{assignment_id}")
-async def remove_task_assignment(
+def remove_task_assignment(
     project_id: str,
     task_id: str,  # Changed from int to str to match UUID task IDs
     assignment_id: str,
@@ -454,6 +454,15 @@ async def remove_task_assignment(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # The role check below runs on the path project, so the task (and with it
+    # the assignment) must belong to that project: otherwise a contributor of
+    # any project could delete assignments everywhere.
+    task_in_project = (
+        db.query(Task.id).filter(Task.id == task_id, Task.project_id == project_id).first()
+    )
+    if task_in_project is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
     # The central effective-role resolution (best role over every eligible
     # attachment; the group role decides on a grouped attachment).
     if current_user.is_superadmin:
@@ -469,7 +478,6 @@ async def remove_task_assignment(
 
     # Store info for notification before deletion
     assigned_user_id = assignment.user_id
-    task = db.query(Task).filter(Task.id == task_id).first()  # noqa: F841
 
     db.delete(assignment)
     db.commit()
@@ -503,7 +511,7 @@ async def remove_task_assignment(
 
 
 @router.get("/{project_id}/my-tasks")
-async def get_my_tasks(
+def get_my_tasks(
     project_id: str,
     request: Request,
     page: int = Query(1, ge=1),

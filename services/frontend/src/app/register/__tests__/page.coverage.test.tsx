@@ -126,11 +126,11 @@ describe('RegisterPage - branch coverage', () => {
     )
     await user.type(
       screen.getByTestId('auth-register-password-input'),
-      'password123',
+      'password12345',
     )
     await user.type(
       screen.getByTestId('auth-register-confirm-password-input'),
-      'password123',
+      'password12345',
     )
   }
 
@@ -393,11 +393,11 @@ describe('RegisterPage - branch coverage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'password123',
+        'password12345',
       )
 
       await user.click(screen.getByTestId('register-next-button'))
@@ -420,11 +420,11 @@ describe('RegisterPage - branch coverage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'password123',
+        'password12345',
       )
 
       await user.click(screen.getByTestId('register-next-button'))
@@ -450,11 +450,11 @@ describe('RegisterPage - branch coverage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'password123',
+        'password12345',
       )
 
       await user.click(screen.getByTestId('register-next-button'))
@@ -657,7 +657,7 @@ describe('RegisterPage - branch coverage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
@@ -791,7 +791,7 @@ describe('RegisterPage - branch coverage', () => {
           'testuser',
           'test@example.com',
           'Test User',
-          'password123',
+          'password12345',
           expect.objectContaining({
             legal_expertise_level: 'referendar',
             german_proficiency: 'native',

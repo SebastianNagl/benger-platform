@@ -23,6 +23,8 @@ The two former copies are reconciled here as a behavioral *superset*:
 * ``is_available()`` (api-only originally) is preserved.
 """
 
+import asyncio
+import html
 import logging
 import os
 from pathlib import Path
@@ -42,6 +44,16 @@ logger = logging.getLogger(__name__)
 # Languages that have a localized template variant (``<base>_<lang>.html``).
 # English is the unsuffixed base file.
 LOCALIZED_TEMPLATE_LANGUAGES = ("de", "fr")
+
+
+def _escape_name(name: Optional[str]) -> str:
+    """HTML-escape a display name for a mail body.
+
+    Names are stored already escaped by the signup / profile sanitiser
+    (``sanitize_user_input``), so unescape first: escaping once more would
+    show "D&#x27;Amico" in the mail. The final escape neutralises any markup.
+    """
+    return html.escape(html.unescape(name or ""))
 
 
 def _localized_template(base: str, language: Optional[str], *, fallback: str) -> str:
@@ -241,7 +253,7 @@ class EmailService:
             subject, html_body = self._render_template(template_name, template_context)
 
             # Send email
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body, **sender
             )
 
@@ -308,7 +320,7 @@ class EmailService:
             )
 
             # Send email
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body
             )
 
@@ -339,10 +351,12 @@ class EmailService:
             return False
 
         subject = "BenGER Email Test"
+        # Every interpolated value is escaped: the name is user-controlled.
+        e_user_name = _escape_name(user_name)
         html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>Hello {user_name}!</h2>
+            <h2>Hello {e_user_name}!</h2>
             <p>This is a test email from BenGER to verify that our email service is working correctly.</p>
             <p>If you're receiving this email, it means our mail server is configured properly.</p>
             <p style="color: #666; font-size: 12px; margin-top: 30px;">
@@ -353,7 +367,7 @@ class EmailService:
         """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[user_email], subject=subject, html_body=html_body
             )
 
@@ -504,7 +518,7 @@ class EmailService:
         )
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,
@@ -549,20 +563,27 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
+        # Every value interpolated into the HTML bodies is escaped: the name
+        # is user-controlled (profile update), so raw markup there would let
+        # anyone put their own links into a BenGER-signed mail.
+        e_user_name = _escape_name(user_name)
+        e_brand_name = html.escape(brand_name or "")
+        e_link = html.escape(verification_link or "")
+
         if language == "fr":
             subject = f"Confirmez votre adresse e-mail pour {brand_name}"
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Bienvenue sur {brand_name}, {user_name} !</h2>
+                <h2>Bienvenue sur {e_brand_name}, {e_user_name} !</h2>
                 <p>Veuillez confirmer votre adresse e-mail pour activer votre compte.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Confirmer l'adresse e-mail
                     </a>
                 </p>
                 <p>Ou copiez ce lien dans votre navigateur :</p>
-                <p style="color: #007bff;">{verification_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
                     Ce lien est valable 24 heures. Si vous n'avez pas demandé cet e-mail, vous pouvez l'ignorer.
                 </p>
@@ -574,15 +595,15 @@ class EmailService:
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Willkommen bei {brand_name}, {user_name}!</h2>
+                <h2>Willkommen bei {e_brand_name}, {e_user_name}!</h2>
                 <p>Bitte bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         E-Mail-Adresse bestätigen
                     </a>
                 </p>
                 <p>Oder kopiere diesen Link in deinen Browser:</p>
-                <p style="color: #007bff;">{verification_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
                     Dieser Link ist 24 Stunden gültig. Falls du diese E-Mail nicht angefordert hast, kannst du sie ignorieren.
                 </p>
@@ -594,15 +615,15 @@ class EmailService:
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Welcome to {brand_name}, {user_name}!</h2>
+                <h2>Welcome to {e_brand_name}, {e_user_name}!</h2>
                 <p>Please verify your email address to activate your account.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Verify Email Address
                     </a>
                 </p>
                 <p>Or copy and paste this link into your browser:</p>
-                <p style="color: #007bff;">{verification_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
                     This link will expire in 24 hours. If you didn't request this email, you can safely ignore it.
                 </p>
@@ -611,7 +632,7 @@ class EmailService:
             """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,
@@ -666,22 +687,28 @@ class EmailService:
         if expiry_label:
             labels.update(expiry_label)
 
+        # Every value interpolated into the HTML bodies is escaped (see
+        # send_verification_email).
+        e_user_name = _escape_name(user_name)
+        e_link = html.escape(reset_link or "")
+        e_labels = {k: html.escape(str(v)) for k, v in labels.items()}
+
         if language == "fr":
             subject = "Réinitialiser votre mot de passe BenGER"
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Bonjour {user_name},</h2>
+                <h2>Bonjour {e_user_name},</h2>
                 <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Réinitialiser le mot de passe
                     </a>
                 </p>
                 <p>Ou copiez ce lien dans votre navigateur :</p>
-                <p style="color: #007bff;">{reset_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    Ce lien est valable {labels["fr"]}. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+                    Ce lien est valable {e_labels["fr"]}. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
                 </p>
             </body>
             </html>
@@ -691,17 +718,17 @@ class EmailService:
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Hallo {user_name},</h2>
+                <h2>Hallo {e_user_name},</h2>
                 <p>Du hast angefordert, dein Passwort zurückzusetzen.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Passwort zurücksetzen
                     </a>
                 </p>
                 <p>Oder kopiere diesen Link in deinen Browser:</p>
-                <p style="color: #007bff;">{reset_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    Dieser Link ist {labels["de"]} gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
+                    Dieser Link ist {e_labels["de"]} gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
                 </p>
             </body>
             </html>
@@ -711,24 +738,24 @@ class EmailService:
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Hello {user_name},</h2>
+                <h2>Hello {e_user_name},</h2>
                 <p>You requested to reset your password.</p>
                 <p style="margin: 30px 0;">
-                    <a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    <a href="{e_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Reset Password
                     </a>
                 </p>
                 <p>Or copy and paste this link into your browser:</p>
-                <p style="color: #007bff;">{reset_link}</p>
+                <p style="color: #007bff;">{e_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    This link will expire in {labels["en"]}. If you didn't request this, you can safely ignore this email.
+                    This link will expire in {e_labels["en"]}. If you didn't request this, you can safely ignore this email.
                 </p>
             </body>
             </html>
             """
 
         try:
-            result = self.mail_client.send_message(
+            result = await asyncio.to_thread(self.mail_client.send_message,
                 to=[to_email],
                 subject=subject,
                 html_body=html_body,

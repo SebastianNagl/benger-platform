@@ -105,9 +105,9 @@ const nextPollDelay = (attempt: number, overrideMs?: number): number =>
 // Job status must be read fresh on every poll: the client's 30s GET cache
 // would otherwise replay the first "running" answer and hold a finished
 // import/export at its last progress step until the entry expires.
+// Job status polls must see the live state, never the 30 s GET cache.
 const getJobStatus = (endpoint: string) => {
-  apiClient.invalidateCache(endpoint)
-  return apiClient.get(endpoint)
+  return apiClient.get(endpoint, { cache: 'no-store' })
 }
 
 export const projectsAPI = {

@@ -14,6 +14,7 @@ import {
 } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
@@ -191,7 +192,11 @@ export default function RegisterPage() {
     const email = params.get('email')
     // Accept `next` as an alias for the legacy `redirect` param so the exam
     // share CTA can use a single param name across login + register (Issue #35).
-    const redirect = params.get('redirect') || params.get('next')
+    // Only internal paths survive; anything else falls back to the default
+    // authed path (open-redirect guard).
+    const redirect = authRedirect.sanitizeNext(
+      params.get('redirect') || params.get('next'),
+    )
 
     if (token) {
       setInvitationToken(token)
@@ -274,7 +279,10 @@ export default function RegisterPage() {
         if (!formData.username.trim()) return t('register.usernameRequired')
         if (!formData.email.trim()) return t('register.emailRequired')
         if (!formData.name.trim()) return t('register.nameRequired')
-        if (!formData.password || formData.password.length < 6)
+        if (
+          !formData.password ||
+          formData.password.length < MIN_PASSWORD_LENGTH
+        )
           return t('register.passwordTooShort')
         if (formData.password !== formData.confirmPassword)
           return t('register.passwordMismatch')

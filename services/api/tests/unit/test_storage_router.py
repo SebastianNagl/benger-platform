@@ -211,7 +211,8 @@ class TestStorageRouter:
 
             try:
                 request_data = {
-                    "file_key": "uploads/large_file.zip",
+                    # Keys minted by multipart/init end in /<user_id>/<name>.
+                    "file_key": "uploads/2026/10/31/test-user-123/large_file.zip",
                     "upload_id": "upload-123",
                     "part_numbers": [1, 2],
                 }

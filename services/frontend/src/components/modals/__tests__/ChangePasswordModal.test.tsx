@@ -123,7 +123,7 @@ describe('ChangePasswordModal', () => {
 
     it('displays password requirements hint', () => {
       render(<ChangePasswordModal {...defaultProps} />)
-      expect(screen.getByText('Minimum 6 characters')).toBeInTheDocument()
+      expect(screen.getByText('Minimum 12 characters')).toBeInTheDocument()
     })
 
     it('renders close button with aria-label', () => {
@@ -250,11 +250,11 @@ describe('ChangePasswordModal', () => {
 
       expect(screen.getByLabelText('New Password')).toHaveAttribute(
         'minLength',
-        '6',
+        '12',
       )
       expect(screen.getByLabelText('Confirm New Password')).toHaveAttribute(
         'minLength',
-        '6',
+        '12',
       )
     })
 

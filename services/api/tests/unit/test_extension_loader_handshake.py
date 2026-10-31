@@ -449,6 +449,7 @@ class TestHookOwnership:
     def test_hook_specs_cover_every_wrapper(self):
         implemented = set(extensions.HOOK_SPECS) - extensions.PENDING_HOOK_KEYS
         assert implemented == {
+            "before_annotation_write",
             "on_annotation_created",
             "on_draft_saved",
             "after_eval_config_save",

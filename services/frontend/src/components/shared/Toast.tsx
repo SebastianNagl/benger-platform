@@ -15,6 +15,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from 'react'
 
@@ -68,7 +69,9 @@ const VALID_TOAST_TYPES: readonly ToastType[] = [
 ]
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const toasts = useNotificationStore((s) => s.toasts)
+  // The provider deliberately does not subscribe to `toasts`: only the
+  // container below does, so adding or removing a toast re-renders the
+  // container and not the whole tree of useToast() consumers.
   const storeAdd = useNotificationStore((s) => s.addToast)
   const storeRemove = useNotificationStore((s) => s.removeToast)
   const consumeFlashes = useNotificationStore((s) => s.consumeFlashes)
@@ -183,23 +186,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Stable context value: the callbacks only depend on store actions, so the
+  // value identity never changes after mount and consumers never re-render
+  // because of the provider.
+  const value = useMemo<ToastContextType>(
+    () => ({ addToast, showToast: addToast, removeToast }),
+    [addToast, removeToast],
+  )
+
   return (
-    <ToastContext.Provider
-      value={{ addToast, showToast: addToast, removeToast }}
-    >
+    <ToastContext.Provider value={value}>
       {children}
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer onRemove={removeToast} />
     </ToastContext.Provider>
   )
 }
 
-function ToastContainer({
-  toasts,
-  onRemove,
-}: {
-  toasts: ToastItem[]
-  onRemove: (id: string) => void
-}) {
+function ToastContainer({ onRemove }: { onRemove: (id: string) => void }) {
+  const toasts = useNotificationStore((s) => s.toasts)
   return (
     <div
       // z-60 keeps toasts above HeadlessUI Dialogs (which render at z-50);

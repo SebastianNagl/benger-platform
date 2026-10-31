@@ -141,10 +141,6 @@ jest.mock('@/components/evaluation/ChartTypeSelector', () => ({
   ChartTypeSelector: () => <div data-testid="chart-type-selector" />,
 }))
 
-jest.mock('@/components/evaluation/FieldPairSelector', () => ({
-  FieldPairSelector: () => <div data-testid="field-pair-selector" />,
-}))
-
 jest.mock('@/components/evaluation/StatisticsSelector', () => ({
   StatisticsSelector: () => <div data-testid="statistics-selector" />,
 }))

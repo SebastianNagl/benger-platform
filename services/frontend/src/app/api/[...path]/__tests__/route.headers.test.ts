@@ -57,4 +57,46 @@ describe('API proxy response-header forwarding', () => {
     expect(response.headers.get('content-type')).toContain('application/json')
     expect(response.headers.get('x-catalog-version')).toBe('abc123')
   })
+
+  describe('client address forwarding (per-IP auth limits)', () => {
+    const okUpstream = () =>
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        statusText: 'OK',
+        headers: upstreamHeaders({ 'content-type': 'application/json' }),
+        text: async () => '{}',
+      } as any)
+
+    it('forwards x-forwarded-for unchanged', async () => {
+      okUpstream()
+      const request = new NextRequest(
+        'http://localhost:3000/api/auth/reset-password',
+        {
+          headers: {
+            host: 'localhost:3000',
+            'x-forwarded-for': '198.51.100.7, 203.0.113.9',
+          },
+        },
+      )
+      await GET(request, {
+        params: Promise.resolve({ path: ['auth', 'reset-password'] }),
+      })
+      const init = mockFetch.mock.calls[0][1] as RequestInit
+      expect(new Headers(init.headers).get('x-forwarded-for')).toBe(
+        '198.51.100.7, 203.0.113.9',
+      )
+    })
+
+    it('adds x-forwarded-for from x-real-ip when missing', async () => {
+      okUpstream()
+      const request = new NextRequest('http://localhost:3000/api/tasks', {
+        headers: { host: 'localhost:3000', 'x-real-ip': '198.51.100.8' },
+      })
+      await GET(request, { params: Promise.resolve({ path: ['tasks'] }) })
+      const init = mockFetch.mock.calls[0][1] as RequestInit
+      expect(new Headers(init.headers).get('x-forwarded-for')).toBe(
+        '198.51.100.8',
+      )
+    })
+  })
 })

@@ -217,7 +217,9 @@ export function GenerationTaskList({
       const url = `/generation-tasks/projects/${projectId}/task-status?${params}`
       logger.debug('[GenerationTaskList] Fetching from:', url)
 
-      const responseData = await apiClient.get(url)
+      // Live status grid (WS ticks, filters, post-action refreshes): skip
+      // the API client's 30 s GET cache.
+      const responseData = await apiClient.get(url, { cache: 'no-store' })
       logger.debug('[GenerationTaskList] Received data:', responseData)
       setData(responseData)
       setFetchError(null)

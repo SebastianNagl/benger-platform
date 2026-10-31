@@ -42,12 +42,19 @@ spec:
         app.kubernetes.io/component: object-storage-init
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.minio.initSecurityContext) | nindent 6 }}
       restartPolicy: OnFailure
       containers:
         - name: mc
           image: "{{ .Values.minio.mcImage.repository }}@{{ .Values.minio.mcImage.digest }}"
           imagePullPolicy: {{ .Values.minio.mcImage.pullPolicy | default "IfNotPresent" }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.minio.initSecurityContext) | nindent 10 }}
           env:
+            # The mc image runs as root by default and keeps its config under
+            # $HOME/.mc. Under the non-root securityContext that home is not
+            # writable, so the alias config goes to the world-writable /tmp.
+            - name: MC_CONFIG_DIR
+              value: /tmp/.mc
             - name: MINIO_ROOT_USER
               valueFrom:
                 secretKeyRef:

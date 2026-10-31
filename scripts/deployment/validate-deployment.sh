@@ -129,7 +129,7 @@ validate_database() {
     
     # Test database schema
     log_info "Validating database schema..."
-    if kubectl exec -n "$NAMESPACE" deployment/benger-api -- timeout 30s python schema_validator.py >/dev/null 2>&1; then
+    if kubectl exec -n "$NAMESPACE" deployment/benger-api -- timeout 30s python -c "import sys; from app.core.schema_validator import create_validator_from_env; sys.exit(0 if create_validator_from_env(mode='lenient').validate().is_valid else 1)" >/dev/null 2>&1; then
         log_success "Database schema validation passed"
     else
         log_warning "Database schema validation failed (may be expected during development)"

@@ -329,7 +329,7 @@ class TestSignupBody:
         assert resp.status_code == 422  # validation error
 
     def test_signup_short_password(self, client, test_db, test_users):
-        payload = _signup_payload(password="12345")  # too short (min 6)
+        payload = _signup_payload(password="x" * 11)  # too short (min 12)
         resp = client.post("/api/auth/signup", json=payload)
         assert resp.status_code == 422
 
@@ -656,8 +656,8 @@ class TestChangePasswordBody:
             "/api/auth/change-password",
             json={
                 "current_password": "admin123",
-                "new_password": "newpass1",
-                "confirm_password": "newpass2",
+                "new_password": "newpassword1",
+                "confirm_password": "newpassword2",
             },
             headers=auth_headers["admin"],
         )
@@ -712,8 +712,8 @@ class TestPasswordResetBody:
             "/api/auth/reset-password",
             json={
                 "token": "fake-token",
-                "new_password": "newpass1",
-                "confirm_password": "newpass2",
+                "new_password": "newpassword1",
+                "confirm_password": "newpassword2",
             },
         )
         assert resp.status_code == 400
@@ -723,8 +723,8 @@ class TestPasswordResetBody:
             "/api/auth/reset-password",
             json={
                 "token": "invalid-token",
-                "new_password": "newpass123",
-                "confirm_password": "newpass123",
+                "new_password": "newpassword123",
+                "confirm_password": "newpassword123",
             },
         )
         assert resp.status_code == 400

@@ -96,7 +96,7 @@ class NextEvaluationItem(BaseModel):
 
 
 @router.post("/human/session/start", response_model=HumanEvaluationSessionResponse)
-async def start_human_evaluation_session(
+def start_human_evaluation_session(
     request: HumanEvaluationSessionCreate,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),

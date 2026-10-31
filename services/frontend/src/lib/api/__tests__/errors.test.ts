@@ -1,4 +1,9 @@
-import { apiErrorMessage, formatErrorDetail } from '../errors'
+import {
+  apiErrorMessage,
+  formatErrorDetail,
+  rateLimitMessage,
+  rateLimitRetryAfter,
+} from '../errors'
 
 const apiError = (detail: unknown) =>
   Object.assign(new Error('HTTP error! status: 422'), {
@@ -29,5 +34,36 @@ describe('apiErrorMessage', () => {
 describe('formatErrorDetail', () => {
   it('returns null for an empty detail', () => {
     expect(formatErrorDetail(null)).toBeNull()
+  })
+})
+
+describe('rateLimitRetryAfter / rateLimitMessage', () => {
+  const t = (key: string, vars?: Record<string, string | number>) =>
+    `${key}:${vars?.minutes}`
+  const limited = (retryAfter: number) => ({
+    detail: { code: 'rate_limited', retry_after: retryAfter },
+  })
+
+  it('reads retry_after from a 429 rate_limited body only', () => {
+    expect(rateLimitRetryAfter(429, limited(120))).toBe(120)
+    expect(rateLimitRetryAfter(401, limited(120))).toBeNull()
+    expect(rateLimitRetryAfter(429, { detail: 'Too many' })).toBeNull()
+    expect(rateLimitRetryAfter(429, { detail: { code: 'other' } })).toBeNull()
+    expect(rateLimitRetryAfter(429, null)).toBeNull()
+  })
+
+  it('rounds the wait up to whole minutes', () => {
+    expect(rateLimitMessage(429, t, limited(900))).toBe('auth.rateLimited:15')
+    expect(rateLimitMessage(429, t, limited(61))).toBe('auth.rateLimited:2')
+    expect(rateLimitMessage(429, t, limited(5))).toBe('auth.rateLimited:1')
+  })
+
+  it('reads a thrown API client error', () => {
+    const error = Object.assign(new Error('{"code":"rate_limited"}'), {
+      response: { status: 429, data: limited(300) },
+    })
+    expect(rateLimitMessage(error, t)).toBe('auth.rateLimited:5')
+    expect(rateLimitMessage(new Error('Incorrect password'), t)).toBeNull()
+    expect(rateLimitMessage(undefined, t)).toBeNull()
   })
 })

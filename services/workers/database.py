@@ -24,21 +24,62 @@ if not DATABASE_URL:
     pg_db = os.getenv("POSTGRES_DB", "postgres")
     DATABASE_URL = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
 
-# Create engine with TCP keepalives to prevent K8s/NAT from dropping idle connections
-# during long-running LLM generation (thinking models can take 2-4+ minutes)
+def _env_ms(name: str, default: int) -> int:
+    """Millisecond setting from the environment; ``0`` disables it."""
+    try:
+        return max(int(os.getenv(name, default)), 0)
+    except (TypeError, ValueError):
+        return default
+
+
+# Postgres-side session settings for every worker connection.
+#
+# application_name: tells the worker lane apart in pg_stat_activity, next to
+#   the API's "benger-api" / "benger-api-async".
+# idle_in_transaction_session_timeout (30 min): Postgres ends a backend that
+#   sits in an open transaction without running a statement for this long, so
+#   a stuck task can no longer hold AccessShareLocks that block a migration
+#   indefinitely (the 2026-10-15 "ALTER users never gets its lock" incident).
+#   The platform LLM paths (evaluation cells, generation) now end their read
+#   transaction before the provider call and write in a short transaction
+#   afterwards. The extended worker tasks (bewertungsbogen, flashcard,
+#   synthetic, falloesung) still hold a transaction across provider calls
+#   whose SDK timeout is 600 s with retries, so a 10 minute limit could kill
+#   a live grading; 30 minutes stays above that and still frees a stuck
+#   session long before the next deploy window. A session idle longer than
+#   this loses its connection and fails at its next statement. Override with
+#   WORKER_IDLE_IN_TX_TIMEOUT_MS (0 disables it).
+# lock_timeout (30 s): a worker statement waiting for a lock fails instead of
+#   queueing indefinitely (and queueing everybody behind it).
+# statement_timeout is deliberately not set: bulk exports, project deletes and
+#   the summary aggregation run single statements whose duration grows with
+#   project size, and no bound has been measured that is safe for all of them.
+WORKER_APPLICATION_NAME = "benger-workers"
+IDLE_IN_TX_TIMEOUT_MS = _env_ms("WORKER_IDLE_IN_TX_TIMEOUT_MS", 30 * 60 * 1000)
+LOCK_TIMEOUT_MS = _env_ms("WORKER_LOCK_TIMEOUT_MS", 30 * 1000)
+
+# TCP keepalives prevent K8s/NAT from dropping idle connections during
+# long-running LLM generation (thinking models can take 2-4+ minutes).
+connect_args = {
+    "keepalives": 1,              # Enable TCP keepalives
+    "keepalives_idle": 30,        # Send keepalive after 30s idle
+    "keepalives_interval": 10,    # Retry every 10s
+    "keepalives_count": 3,        # Give up after 3 missed
+    "connect_timeout": 10,        # 10s connection timeout
+    "application_name": WORKER_APPLICATION_NAME,
+    "options": (
+        f"-c idle_in_transaction_session_timeout={IDLE_IN_TX_TIMEOUT_MS} "
+        f"-c lock_timeout={LOCK_TIMEOUT_MS}"
+    ),
+}
+
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,       # Verify connection is alive before using it
     pool_recycle=1800,         # Recycle connections older than 30 min
     pool_size=5,               # Workers need few connections
     max_overflow=3,            # Allow burst to 8 total
-    connect_args={
-        "keepalives": 1,              # Enable TCP keepalives
-        "keepalives_idle": 30,        # Send keepalive after 30s idle
-        "keepalives_interval": 10,    # Retry every 10s
-        "keepalives_count": 3,        # Give up after 3 missed
-        "connect_timeout": 10,        # 10s connection timeout
-    },
+    connect_args=connect_args,
 )
 
 # Create session factory

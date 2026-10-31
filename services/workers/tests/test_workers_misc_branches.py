@@ -1,16 +1,7 @@
 """Branch-coverage tests for several low-coverage worker helper modules.
 
-Bundles the remaining testable, behavioral gaps in three modules whose own
+Bundles the remaining testable, behavioral gaps in two modules whose own
 dedicated suites left specific branches uncovered:
-
-  * ml_evaluation/utils.py
-        - load_task_data_from_label_studio: the httpx success path (dict-with-
-          'results' and bare-list response shapes) and the exception -> [] path,
-          all with httpx.Client fully mocked (no network).
-        - extract_task_type_from_label_config: the exception branch (None input
-          -> AttributeError caught -> None).
-        - EvaluationTimer: __enter__/__exit__ success and failure paths +
-          duration_seconds before/after completion.
 
   * ml_evaluation/registry.py
         - get_supported_metrics / validate_evaluator_compatibility inner
@@ -26,13 +17,11 @@ dedicated suites left specific branches uncovered:
     function), so NO real Postgres / SQLAlchemy model metadata is needed.
 
 Everything is behavioral: crafted inputs -> assert returned values / side
-effects. Mirrors test_ml_evaluation_utils_coverage.py and
-test_registry_coverage.py idioms.
+effects. Mirrors the test_registry_coverage.py idioms.
 """
 
 import os
 import sys
-import time
 import types
 from unittest.mock import MagicMock, patch
 
@@ -42,103 +31,8 @@ workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
 
-from ml_evaluation.utils import (  # noqa: E402
-    EvaluationTimer,
-    extract_task_type_from_label_config,
-    load_task_data_from_label_studio,
-)
 from ml_evaluation.registry import EvaluatorRegistry  # noqa: E402
 from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationResult  # noqa: E402
-
-
-# ============================================================================
-# utils.load_task_data_from_label_studio
-# ============================================================================
-
-
-def _mock_httpx_client(response):
-    """Build a context-manager httpx.Client mock returning `response`."""
-    client = MagicMock()
-    client.get.return_value = response
-    client.__enter__ = lambda self: client
-    client.__exit__ = lambda *a: False
-    return client
-
-
-class TestLoadTaskDataFromLabelStudio:
-    def test_dict_results_shape(self):
-        resp = MagicMock()
-        resp.json.return_value = {"results": [{"id": 1}, {"id": 2}]}
-        resp.raise_for_status.return_value = None
-        client = _mock_httpx_client(resp)
-        with patch("ml_evaluation.utils.httpx.Client", return_value=client):
-            tasks = load_task_data_from_label_studio(7, "http://ls", "key")
-        assert tasks == [{"id": 1}, {"id": 2}]
-        # Auth header + include params were sent
-        _, kwargs = client.get.call_args
-        assert kwargs["headers"]["Authorization"] == "Token key"
-        assert "annotations" in kwargs["params"]["include"]
-
-    def test_bare_list_response(self):
-        resp = MagicMock()
-        resp.json.return_value = [{"id": 5}]
-        resp.raise_for_status.return_value = None
-        client = _mock_httpx_client(resp)
-        with patch("ml_evaluation.utils.httpx.Client", return_value=client):
-            tasks = load_task_data_from_label_studio(7, "http://ls", "key")
-        assert tasks == [{"id": 5}]
-
-    def test_exception_returns_empty_list(self):
-        client = MagicMock()
-        client.get.side_effect = RuntimeError("network down")
-        client.__enter__ = lambda self: client
-        client.__exit__ = lambda *a: False
-        with patch("ml_evaluation.utils.httpx.Client", return_value=client):
-            tasks = load_task_data_from_label_studio(7, "http://ls", "key")
-        assert tasks == []
-
-
-# ============================================================================
-# utils.extract_task_type_from_label_config — exception branch
-# ============================================================================
-
-
-class TestExtractTaskTypeException:
-    def test_none_input_returns_none(self):
-        # None.lower() raises AttributeError -> caught -> None
-        assert extract_task_type_from_label_config(None) is None
-
-    def test_non_string_input_returns_none(self):
-        assert extract_task_type_from_label_config(12345) is None
-
-
-# ============================================================================
-# utils.EvaluationTimer
-# ============================================================================
-
-
-class TestEvaluationTimer:
-    def test_success_path_records_duration(self):
-        with EvaluationTimer("op") as t:
-            time.sleep(0.001)
-        assert t.duration_seconds is not None
-        assert t.duration_seconds >= 0.0
-        assert t.start_time is not None and t.end_time is not None
-
-    def test_failure_path_still_records_duration(self):
-        timer = EvaluationTimer("failing-op")
-        with pytest.raises(ValueError):
-            with timer:
-                raise ValueError("boom")
-        # __exit__ ran the error branch but still set end_time
-        assert timer.duration_seconds is not None
-
-    def test_duration_none_before_completion(self):
-        t = EvaluationTimer()
-        assert t.duration_seconds is None
-        # Only start
-        t.__enter__()
-        assert t.duration_seconds is None  # end_time not set yet
 
 
 # ============================================================================

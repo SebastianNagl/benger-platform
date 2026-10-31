@@ -43,7 +43,7 @@ except Exception:
     boto3 = MagicMock()
     ClientError = MockClientError
 
-from storage_service import (  # noqa: E402
+from storage.storage_service import (  # noqa: E402
     LocalStorageBackend,
     S3StorageBackend,
     StorageBackend,
@@ -341,7 +341,7 @@ class TestStorageFactory:
             # Need to reimport to pick up mocked modules
             import importlib
 
-            import storage_service as ss
+            import storage.storage_service as ss
 
             importlib.reload(ss)
 

@@ -89,7 +89,7 @@ class TestAssignTasks:
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await assign_tasks(project_id="proj-1", data={},
+            assign_tasks(project_id="proj-1", data={},
                              current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
@@ -114,7 +114,7 @@ class TestRemoveTaskAssignment:
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await remove_task_assignment(project_id="proj-1", task_id="task-1",
+            remove_task_assignment(project_id="proj-1", task_id="task-1",
                                         assignment_id="a-1", current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
@@ -131,7 +131,7 @@ class TestGetMyTasks:
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await get_my_tasks(project_id="proj-1", request=Mock(),
+            get_my_tasks(project_id="proj-1", request=Mock(),
                              page=1, page_size=30, status=None,  # noqa: E128
                              current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404

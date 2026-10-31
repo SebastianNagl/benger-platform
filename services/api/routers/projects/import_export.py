@@ -15,53 +15,6 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
-# Issue #964: Span annotation format conversion functions
-def convert_to_label_studio_format(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Convert BenGER annotation format to Label Studio format for export.
-    Flattens span annotations: one result with spans array -> multiple results.
-
-    BenGER format:
-    {"from_name": "label", "type": "labels", "value": {"spans": [...]}}
-
-    Label Studio format:
-    [{"id": "span-1", "from_name": "label", "type": "labels", "value": {"start": 0, "end": 10, ...}}]
-    """
-    if not results or not isinstance(results, list):
-        return results
-
-    output = []
-    for result in results:
-        # Handle span/labels type with nested spans array
-        if result.get("type") == "labels" and isinstance(result.get("value"), dict):
-            spans = result["value"].get("spans", [])
-            if spans and isinstance(spans, list):
-                # Flatten: create one result per span
-                for span in spans:
-                    output.append(
-                        {
-                            "id": span.get("id", str(uuid.uuid4())),
-                            "from_name": result.get("from_name"),
-                            "to_name": result.get("to_name"),
-                            "type": "labels",
-                            "value": {
-                                "start": span.get("start"),
-                                "end": span.get("end"),
-                                "text": span.get("text", ""),
-                                "labels": span.get("labels", []),
-                            },
-                        }
-                    )
-            else:
-                # No spans array, pass through as-is
-                output.append(result)
-        else:
-            # Non-span annotations pass through unchanged
-            output.append(result)
-
-    return output
-
-
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request  # noqa: E402
 from fastapi.responses import (  # noqa: E402
     JSONResponse,
@@ -77,8 +30,9 @@ from auth_module.models import User as AuthUser  # noqa: E402
 from celery_client import send_task_safe  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
 from object_storage import object_storage  # noqa: E402
-from routers.projects._export_stream import (  # noqa: E402
+from routers.projects._export_stream import (  # noqa: E402,F401
     EXPORT_FORMAT_MEDIA_TYPES,
+    convert_to_label_studio_format,  # re-exported: tests import it from here
     stream_comprehensive_project_data_json,
 )
 from routers.projects._import_stream import (  # noqa: E402,F401
@@ -1054,7 +1008,7 @@ _BULK_EXPORT_TASK_BATCH = 200
 
 
 @router.post("/bulk-export")
-async def bulk_export_projects(
+def bulk_export_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -1230,7 +1184,7 @@ async def bulk_export_projects(
 
 
 @router.post("/bulk-export-full")
-async def bulk_export_full_projects(
+def bulk_export_full_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),

@@ -344,10 +344,10 @@ pytest tests/test_storage_service.py -v
 
 ```bash
 # Test storage configuration
-python -c "from storage_config import get_storage_config; print(get_storage_config())"
+python -c "from storage.storage_config import get_storage_config; print(get_storage_config())"
 
 # Test CDN configuration  
-python -c "from storage_config import get_cdn_config; print(get_cdn_config())"
+python -c "from storage.storage_config import get_cdn_config; print(get_cdn_config())"
 
 # Test file operations
 python test_storage_integration.py

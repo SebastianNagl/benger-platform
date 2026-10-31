@@ -13,13 +13,6 @@ jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
 }))
 
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    return ''
-  },
-}))
-
 function makeRequest(host: string, path: string, method = 'GET') {
   return new NextRequest(new URL(`http://localhost/api/${path}`), {
     method,
@@ -110,7 +103,7 @@ describe('[...path] route branch coverage', () => {
     fetchSpy.mockRestore()
   })
 
-  it('forwards Set-Cookie with domain rewriting', async () => {
+  it('forwards Set-Cookie host-only, stripping the upstream Domain', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'token=xyz; Domain=old.test; Path=/')
     const fetchSpy = jest
@@ -122,7 +115,8 @@ describe('[...path] route branch coverage', () => {
     })
     const setCookies = res.headers.getSetCookie()
     expect(setCookies.length).toBeGreaterThan(0)
-    expect(setCookies[0]).toContain('.benger.localhost')
+    expect(setCookies[0]).not.toContain('Domain=')
+    expect(setCookies[0]).toContain('token=xyz; Path=/')
     fetchSpy.mockRestore()
   })
 

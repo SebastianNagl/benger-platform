@@ -690,12 +690,12 @@ describe('/api/auth/refresh route', () => {
       expect(response.status).toBe(200)
       const cookies = response.headers.getSetCookie()
       expect(cookies.length).toBeGreaterThanOrEqual(1)
-      // Should have Domain rewritten and Secure removed
+      // Should have Domain stripped and Secure removed
       const accessCookie = cookies.find((c: string) =>
         c.startsWith('access_token='),
       )
       if (accessCookie) {
-        expect(accessCookie).not.toMatch(/Domain=api:8000/)
+        expect(accessCookie).not.toMatch(/Domain=/)
         expect(accessCookie).not.toMatch(/;\s*Secure/i)
         expect(accessCookie).toContain('SameSite=Lax')
       }

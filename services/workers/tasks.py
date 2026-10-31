@@ -1891,7 +1891,19 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
 # NOTE: Label Studio sync function removed - using native annotation system
 
 
-@app.task(name="tasks.generate_response")
+# Acks late and requeues on worker loss, like the evaluation cells: a pod
+# OOM-killed or evicted mid-call would otherwise drop the trial silently and
+# leave its ResponseGeneration `running` forever. Redelivery is safe because
+# generate_response_impl skips a generation that is already completed,
+# stopped, cancelled or paused. The `generation` queue's hard time limit
+# (2100s, shared/celery_queues.py) stays well below the Redis broker
+# visibility_timeout (7200s, worker_celery.py), so a slow but healthy call is
+# never redelivered while it is still running.
+@app.task(
+    name="tasks.generate_response",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def generate_response(
     generation_id: str,
     project_id: str,

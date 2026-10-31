@@ -248,21 +248,29 @@ export function GlobalDataTab() {
         indeterminate: true,
       })
 
+      // Same-origin through the Next route proxy, so the session cookie
+      // authenticates the call (POST /api/data/export takes the selected task
+      // ids as a JSON array body; no body exports every accessible task). The
+      // endpoint answers with Content-Disposition: attachment, which apiClient
+      // returns as a Blob.
       const params = new URLSearchParams({ format })
-      if (selectedTasks.size > 0) {
-        Array.from(selectedTasks).forEach((id) => params.append('task_ids', id))
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/data/export?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        },
+      const taskIds = Array.from(selectedTasks)
+      const result = await apiClient.post(
+        `/data/export?${params.toString()}`,
+        taskIds.length > 0 ? taskIds : undefined,
       )
 
-      const blob = await response.blob()
+      const blob =
+        result instanceof Blob
+          ? result
+          : new Blob(
+              [
+                typeof result === 'string'
+                  ? result
+                  : JSON.stringify(result, null, 2),
+              ],
+              { type: format === 'csv' ? 'text/csv' : 'application/json' },
+            )
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

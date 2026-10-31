@@ -233,3 +233,49 @@ class TestCheckpointEndpoints:
         )
         # ...but the checkpoint history survives.
         assert _count_checkpoints(test_db, task.id, admin.id) == 1
+
+
+class TestCrossProjectTaskRejected:
+    """Access is checked on the path project, so a task id from another
+    project (e.g. an SEB-locked exam) must 404 on every draft/checkpoint
+    route instead of riding on the path project's tier and SEB checks
+    (audit S8)."""
+
+    def test_checkpoint_routes_refuse_foreign_task(
+        self, client, test_db, test_users, auth_headers
+    ):
+        admin = test_users[0]
+        open_project = _make_project(
+            test_db, created_by=admin.id, restorable_checkpoints_enabled=True
+        )
+        other_project = _make_project(
+            test_db, created_by=admin.id, restorable_checkpoints_enabled=True
+        )
+        foreign_task = _make_task(test_db, other_project)
+        own_task = _make_task(test_db, open_project)
+
+        base = f"/api/projects/{open_project.id}/tasks/{foreign_task.id}"
+
+        post = client.post(
+            f"{base}/checkpoint", json=_loesung(), headers=auth_headers["admin"]
+        )
+        assert post.status_code == 404, post.text
+        listing = client.get(f"{base}/checkpoints", headers=auth_headers["admin"])
+        assert listing.status_code == 404, listing.text
+        one = client.get(f"{base}/checkpoints/{_uid()}", headers=auth_headers["admin"])
+        assert one.status_code == 404, one.text
+        draft = client.put(f"{base}/draft", json=_loesung(), headers=auth_headers["admin"])
+        assert draft.status_code == 404, draft.text
+
+        test_db.expire_all()
+        assert _count_checkpoints(test_db, foreign_task.id, admin.id) == 0
+
+        # The same routes keep working for the project's own task.
+        ok = client.post(
+            f"/api/projects/{open_project.id}/tasks/{own_task.id}/checkpoint",
+            json=_loesung(),
+            headers=auth_headers["admin"],
+        )
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["status"] == "ok"
+

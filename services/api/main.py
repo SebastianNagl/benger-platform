@@ -3,7 +3,6 @@ BenGER API v3.0.1 - Refactored with Router Architecture
 Main application file with clean separation of concerns.
 """
 
-import asyncio
 import logging
 import os
 import sys
@@ -43,7 +42,7 @@ if shared_dir not in sys.path:
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration
-from app.core.config import docs_url_kwargs, get_settings  # noqa: E402
+from app.core.config import cors_middleware_kwargs, docs_url_kwargs, get_settings  # noqa: E402
 
 install_access_log_redaction()
 
@@ -126,7 +125,6 @@ async def lifespan(app: FastAPI):
         SessionLocal,
         initialize_task_types_and_evaluation_types,
     )
-    from services.websocket_clustering import cluster_manager
 
     # Deny by default: every public /api/v1 route must declare its scopes.
     from routers.v1._deps import assert_v1_routes_scoped
@@ -172,9 +170,17 @@ async def lifespan(app: FastAPI):
                 )
 
                 try:
-                    # Check current revision
+                    # application_name marks the advisory-lock session in
+                    # pg_stat_activity (the upgrade itself connects as
+                    # "benger-migrations", see alembic/env.py).
+                    _lock_connect_args = (
+                        {"application_name": "benger-api-migrate-lock"}
+                        if settings.database_url.startswith("postgresql")
+                        else {}
+                    )
                     engine = create_engine(
-                        settings.database_url
+                        settings.database_url,
+                        connect_args=_lock_connect_args,
                     )
 
                     # Postgres advisory lock so concurrent processes (multiple
@@ -187,6 +193,7 @@ async def lifespan(app: FastAPI):
 
                     with engine.connect() as conn:
                         from sqlalchemy import text
+                        # Take the lock, then check the current revision.
                         conn.execute(text(f"SELECT pg_advisory_lock({ALEMBIC_LOCK_ID})"))
                         try:
                             context = MigrationContext.configure(conn)
@@ -202,6 +209,9 @@ async def lifespan(app: FastAPI):
                                 logger.info("Database migrations up to date")
                         finally:
                             conn.execute(text(f"SELECT pg_advisory_unlock({ALEMBIC_LOCK_ID})"))
+                    # Close the pooled lock connection; it would otherwise
+                    # stay open for the life of every uvicorn worker.
+                    engine.dispose()
 
                 except Exception as migration_error:
                     logger.warning(f"Migration error (non-fatal): {migration_error}")
@@ -244,6 +254,12 @@ async def lifespan(app: FastAPI):
                     logger.warning("Migration history issues detected:")
                     for error in migration_result.errors:
                         logger.error(f"  {error}")
+
+                # The validator's engine is only needed at startup; close its
+                # pooled connection instead of keeping it for the process life.
+                _validator_engine = getattr(validator, "engine", None)
+                if _validator_engine is not None:
+                    _validator_engine.dispose()
 
             except RuntimeError:
                 raise  # Re-raise schema validation errors
@@ -300,19 +316,6 @@ async def lifespan(app: FastAPI):
                 f.write(_boot_marker())
         except OSError:
             pass
-
-    # Initialize WebSocket clustering (skip in test mode)
-    if not settings.testing:
-        try:
-            await asyncio.wait_for(cluster_manager.initialize(), timeout=10.0)
-            logger.info("WebSocket clustering initialized")
-        except asyncio.TimeoutError:
-            logger.warning("WebSocket clustering timed out after 10s (single-instance mode)")
-        except Exception as e:
-            logger.warning(f"WebSocket clustering initialization failed: {e}")
-            logger.info("   (Single-instance WebSocket mode will be used)")
-    else:
-        logger.info("⏭️  WebSocket clustering skipped (test mode)")
 
     # Log FRONTEND_URL configuration for verification
     logger.info(f"📧 Email verification configured with FRONTEND_URL: {settings.frontend_url}")
@@ -387,16 +390,12 @@ app = FastAPI(
     **docs_url_kwargs(settings.internal_docs_enabled),
 )
 
-# Configure CORS with regex to support wildcard subdomains
-# Matches: benger.localhost, *.benger.localhost, what-a-benger.net, *.what-a-benger.net, localhost:*
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"https?://(([a-z0-9-]+\.)?benger\.localhost|([a-z0-9-]+\.)?what-a-benger\.net|localhost(:\d+)?)",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
-    expose_headers=["Content-Length"],
-)
+# CORS: production allows only the explicit CORS_ALLOWED_ORIGINS list (empty
+# by default, so no middleware and no cross-origin browser access); dev and
+# test add a localhost-only regex. See cors_middleware_kwargs.
+_cors_kwargs = cors_middleware_kwargs(settings)
+if _cors_kwargs is not None:
+    app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # Access keys outside /api/v1 (core 2.45): route rule, scopes, projects and
 # rate limit, before any handler runs. Added before the usage middleware so

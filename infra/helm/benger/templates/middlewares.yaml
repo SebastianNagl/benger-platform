@@ -92,6 +92,26 @@ spec:
   chain:
     middlewares:
       - name: {{ .Release.Name }}-security-headers-frameable
+{{- if and .Values.minio.enabled .Values.minio.ingress.enabled }}
+---
+# Object storage host (minio.publicHost): every object, whatever type it was
+# stored with, is served without MIME sniffing and inside a CSP sandbox with
+# no sources, so a stored HTML or SVG file opened through a presigned link
+# cannot run script on this same-site host. Used by the minio Ingress.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-storage-headers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  headers:
+    contentTypeNosniff: true
+    contentSecurityPolicy: "sandbox; default-src 'none'"
+{{- end }}
 {{- end }}
 {{- if .Values.vertretbar.enabled }}
 ---

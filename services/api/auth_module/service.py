@@ -20,12 +20,63 @@ from .models import Token, User
 from .serialization import ensure_dict, iso_or_none
 
 
+def _preload_memberships(db_user) -> None:
+    """Load a persistent user's memberships and their organizations at once.
+
+    ``organization_memberships`` and ``membership.organization`` are lazy, so
+    iterating them cost one query for the collection plus one per membership
+    on every authenticated request. This loads both with one SELECT (joined
+    organizations) and installs the result as the loaded collection. All
+    memberships are loaded, inactive ones included, so the collection keeps
+    its usual contents for any later code on the same session; the active
+    filter is applied by ``db_user_to_user``. Anything that is not a
+    persistent ORM user (unit-test Mocks, transient objects) or whose
+    collection is already loaded is left alone.
+    """
+    from sqlalchemy import inspect as sa_inspect
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy.orm.attributes import set_committed_value
+    from sqlalchemy.orm.state import InstanceState
+
+    from models import OrganizationMembership
+
+    state = sa_inspect(db_user, raiseerr=False)
+    # A Mock answers inspect() with a Mock state; only a real one counts.
+    if not isinstance(state, InstanceState) or not state.persistent:
+        return
+    if "organization_memberships" not in state.unloaded or state.session is None:
+        return
+    rows = (
+        state.session.execute(
+            select(OrganizationMembership)
+            .options(joinedload(OrganizationMembership.organization))
+            .where(OrganizationMembership.user_id == db_user.id)
+        )
+        .scalars()
+        .all()
+    )
+    set_committed_value(db_user, "organization_memberships", list(rows))
+
+
 def db_user_to_user(db_user: DBUser) -> User:
-    """Convert database user to API user model"""
+    """Convert database user to API user model.
+
+    ``organizations`` lists the user's ACTIVE memberships only, matching
+    every backend permission check (they all filter
+    ``OrganizationMembership.is_active``). Deactivated memberships, including
+    those of soft-deleted organizations, used to be listed as well.
+    """
     # Get user's organizations
     organizations = []
+    # Before the hasattr below: hasattr reads the attribute, which would
+    # trigger the lazy load this replaces.
+    _preload_memberships(db_user)
     if hasattr(db_user, 'organization_memberships'):
         for membership in db_user.organization_memberships:
+            # ``is False`` so unit-test Mocks (truthy attributes) still count.
+            if getattr(membership, 'is_active', True) is False:
+                continue
             organizations.append(
                 {
                     'id': str(membership.organization_id),

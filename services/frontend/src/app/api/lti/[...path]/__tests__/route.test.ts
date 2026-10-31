@@ -173,7 +173,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
   })
 
   describe('Set-Cookie rewriting', () => {
-    it('re-scopes Domain to the requesting host, strips Secure outside production, preserves SameSite', async () => {
+    it('strips the upstream Domain (host-only), strips Secure outside production, preserves SameSite', async () => {
       mockFetch.mockResolvedValueOnce(
         upstreamResponse(303, {
           headers: upstreamHeaders(
@@ -197,9 +197,8 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       expect(cookies).toHaveLength(1)
       const cookie = cookies[0]
       expect(cookie).toContain('access_token=x')
-      // Upstream Domain replaced with the browser-facing cookie domain.
-      expect(cookie).not.toContain('api.internal')
-      expect(cookie).toContain('Domain=.benger.localhost')
+      // Upstream Domain stripped, none added: the cookie is host-only.
+      expect(cookie).not.toContain('Domain=')
       // NODE_ENV is 'test' here, so Secure must be stripped for plain-HTTP dev.
       expect(cookie).not.toMatch(/Secure/i)
       // The explicit SameSite is preserved, not duplicated.
@@ -211,7 +210,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       expect(cookie).toContain('HttpOnly')
     })
 
-    it('appends SameSite=Lax and Path=/ when missing and sets no Domain for plain localhost', async () => {
+    it('appends SameSite=Lax and Path=/ when missing and sets no Domain', async () => {
       mockFetch.mockResolvedValueOnce(
         upstreamResponse(200, {
           headers: upstreamHeaders({ 'content-type': 'application/json' }, [
@@ -233,7 +232,6 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       expect(cookie).toContain('lti_state=abc')
       expect(cookie).toContain('SameSite=Lax')
       expect(cookie).toContain('Path=/')
-      // getCookieDomainFromHost('localhost:3000') is empty: no Domain attribute.
       expect(cookie).not.toContain('Domain=')
     })
 
@@ -260,7 +258,37 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
 
       const cookie = response.headers.getSetCookie()[0]
       expect(cookie).toContain('Secure')
-      expect(cookie).toContain('Domain=.what-a-benger.net')
+      expect(cookie).not.toContain('Domain=')
+    })
+
+    it('relays an expiring legacy-domain cookie with its Domain when the host is inside it', async () => {
+      mockFetch.mockResolvedValueOnce(
+        upstreamResponse(303, {
+          headers: upstreamHeaders(
+            { location: 'http://benger.localhost/student' },
+            [
+              'access_token=""; Domain=.benger.localhost; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+              'access_token=""; Domain=.vertretbar.localhost; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+              'access_token=new; Domain=api.internal; HttpOnly; Path=/; SameSite=lax',
+            ],
+          ),
+        }),
+      )
+
+      const response = await POST(
+        ltiRequest('http://benger.localhost/api/lti/launch', {
+          method: 'POST',
+          headers: { host: 'benger.localhost' },
+          body: 'id_token=abc',
+        }),
+      )
+
+      const cookies = response.headers.getSetCookie()
+      expect(cookies).toHaveLength(2)
+      expect(cookies[0]).toContain('Domain=.benger.localhost')
+      expect(cookies[0]).toContain('Max-Age=0')
+      expect(cookies[1]).toMatch(/^access_token=new;/)
+      expect(cookies[1]).not.toContain('Domain=')
     })
   })
 
@@ -283,8 +311,8 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
             [
               PENDING_COOKIE,
               // The consent launch also logs out whoever was signed in.
-              'access_token=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
-              'refresh_token=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+              'access_token=""; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+              'refresh_token=""; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
             ],
           ),
         }),
@@ -313,8 +341,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       // Still a session cookie: the proxy adds no lifetime.
       expect(pending).not.toMatch(/Max-Age|expires/i)
       expect(pending.match(/SameSite=/gi)).toHaveLength(1)
-      expect(pending).not.toContain('api.internal')
-      expect(pending).toContain('Domain=.benger.localhost')
+      expect(pending).not.toContain('Domain=')
 
       // The session cookies are deleted, not dropped: expiry survives.
       const access = cookies.find((c) => c.startsWith('access_token='))!
@@ -359,7 +386,7 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
         upstreamResponse(200, {
           headers: upstreamHeaders({ 'content-type': 'application/json' }, [
             'access_token=new; Domain=api.internal; HttpOnly; Path=/; SameSite=lax',
-            'lti_pending=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/api/lti; SameSite=lax',
+            'lti_pending=""; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/api/lti; SameSite=lax',
           ]),
           body: '{"redirect":"/student/exams/p1?lti_u=u1"}',
         }),
@@ -401,9 +428,9 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
       expect(cleared).toContain('Max-Age=0')
       expect(cleared).toContain('Path=/api/lti')
       expect(cleared.match(/Path=/gi)).toHaveLength(1)
-      expect(cleared).toContain('Domain=.vertretbar.localhost')
+      expect(cleared).not.toContain('Domain=')
       const session = cookies.find((c) => c.startsWith('access_token='))!
-      expect(session).toContain('Domain=.vertretbar.localhost')
+      expect(session).not.toContain('Domain=')
       expect(session).toContain('Path=/')
     })
 

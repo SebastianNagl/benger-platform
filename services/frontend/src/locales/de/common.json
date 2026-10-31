@@ -56,7 +56,8 @@
       "cancel": "Abbrechen"
     },
     "myOrganizations": "Meine Organisationen",
-    "private": "Privat"
+    "private": "Privat",
+    "rateLimited": "Zu viele Versuche. Bitte versuche es in {minutes} Min. erneut."
   },
   "loginModal": {
     "title": "Bei BenGER anmelden",
@@ -88,7 +89,7 @@
     "createAccount": "Konto erstellen",
     "defaultRole": "Neue Benutzer erhalten standardmäßig die Annotator-Rolle",
     "passwordMismatch": "Passwörter stimmen nicht überein",
-    "passwordLength": "Passwort muss mindestens 6 Zeichen lang sein",
+    "passwordLength": "Passwort muss mindestens 12 Zeichen lang sein",
     "signupFailed": "Registrierung fehlgeschlagen"
   },
   "dashboard": {
@@ -2159,7 +2160,7 @@
     "changePassword": "Passwort ändern",
     "currentPassword": "Aktuelles Passwort",
     "newPassword": "Neues Passwort",
-    "passwordMinLength": "Mindestens 6 Zeichen",
+    "passwordMinLength": "Mindestens 12 Zeichen",
     "confirmNewPassword": "Neues Passwort bestätigen",
     "changing": "Wird geändert...",
     "changePasswordButton": "Passwort ändern",
@@ -2498,7 +2499,7 @@
     "button": "Konto erstellen",
     "redirecting": "Weiterleitung...",
     "passwordMismatch": "Passwörter stimmen nicht überein",
-    "passwordTooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "passwordTooShort": "Das Passwort muss mindestens 12 Zeichen lang sein",
     "registrationFailed": "Registrierung fehlgeschlagen",
     "usernameRequired": "Bitte gib einen Benutzernamen ein",
     "emailRequired": "Bitte gib eine E-Mail-Adresse ein",
@@ -7236,7 +7237,7 @@
     "invalid": "Ungültiger Zurücksetzungslink",
     "invalidDescription": "Dieser Zurücksetzungslink ist ungültig oder wurde bereits verwendet.",
     "mismatch": "Passwörter stimmen nicht überein",
-    "tooShort": "Passwort muss mindestens 8 Zeichen lang sein",
+    "tooShort": "Passwort muss mindestens 12 Zeichen lang sein",
     "tooWeak": "Passwort ist zu schwach",
     "tryAgainLink": "erneut versuchen"
   },
@@ -7657,7 +7658,8 @@
     },
     "api": {
       "invalidJson": "Ungültige JSON-Antwort: {error}",
-      "networkUnreachable": "Netzwerkfehler: Die API unter {url} ist nicht erreichbar"
+      "networkUnreachable": "Netzwerkfehler: Die API unter {url} ist nicht erreichbar",
+      "requestQueueTimeout": "Die App wartet gerade auf zu viele Anfragen gleichzeitig. Bitte versuche es gleich noch einmal."
     }
   },
   "invitation": {
@@ -7683,11 +7685,11 @@
     "username": "Benutzername",
     "usernamePlaceholder": "Wähle einen Benutzernamen",
     "password": "Passwort",
-    "passwordPlaceholder": "Erstelle ein Passwort (mind. 6 Zeichen)",
+    "passwordPlaceholder": "Erstelle ein Passwort (mind. 12 Zeichen)",
     "confirmPassword": "Passwort bestätigen",
     "confirmPasswordPlaceholder": "Bestätige dein Passwort",
     "passwordMismatch": "Passwörter stimmen nicht überein",
-    "passwordTooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "passwordTooShort": "Das Passwort muss mindestens 12 Zeichen lang sein",
     "creatingAccount": "Konto wird erstellt...",
     "createAndJoin": "Konto erstellen & Organisation beitreten",
     "back": "Zurück",
@@ -7712,11 +7714,11 @@
     "displayName": "Anzeigename (Optional)",
     "displayNamePlaceholder": "Dein Anzeigename",
     "password": "Passwort",
-    "passwordPlaceholder": "Erstelle ein Passwort (mind. 8 Zeichen)",
+    "passwordPlaceholder": "Erstelle ein Passwort (mind. 12 Zeichen)",
     "confirmPassword": "Passwort bestätigen",
     "confirmPasswordPlaceholder": "Bestätige dein Passwort",
     "passwordMismatch": "Passwörter stimmen nicht überein",
-    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "passwordTooShort": "Das Passwort muss mindestens 12 Zeichen lang sein",
     "submitting": "Profil wird eingerichtet...",
     "submit": "Profil vervollständigen",
     "notice": "Mit der Vervollständigung deines Profils erhältst du vollen Zugriff auf die Projekte und Daten deiner Organisation.",
@@ -10813,7 +10815,7 @@
     "success": "Konto aktiviert",
     "successDescription": "Du kannst dich jetzt direkt anmelden. Weiterleitung zur Anmeldung...",
     "mismatch": "Die Passwörter stimmen nicht überein",
-    "tooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "tooShort": "Das Passwort muss mindestens 12 Zeichen lang sein",
     "expiredDescription": "Der Link ist abgelaufen oder wurde bereits verwendet. Melde dich an oder starte die Klausur erneut aus Moodle, um einen neuen Link anzufordern.",
     "emailTaken": "Diese E-Mail-Adresse wird bereits verwendet. Bitte fordere den Zugang mit einer anderen Adresse erneut an.",
     "backToLogin": "Zurück zur Anmeldung"

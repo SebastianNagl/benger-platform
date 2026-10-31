@@ -3,6 +3,7 @@
 import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import React, { useState } from 'react'
 
@@ -34,7 +35,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
       return
     }
 
-    if (password.length < 6) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       setError(t('signupModal.passwordLength'))
       setIsLoading(false)
       return

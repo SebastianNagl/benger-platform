@@ -1,11 +1,15 @@
 """Auth: email verification handlers."""
+import asyncio
+
 from account_activation import mask_email
 from sqlalchemy import func
+
+from services import auth_rate_limit
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/verify-email")
-async def verify_email(
+def verify_email(
     verification_request: EmailVerificationRequest,
     db: Session = Depends(get_db),
 ):
@@ -26,7 +30,7 @@ async def verify_email(
 
 
 @router.post("/verify-email/{token}")
-async def verify_email_with_token(token: str, db: Session = Depends(get_db)):
+def verify_email_with_token(token: str, db: Session = Depends(get_db)):
     """Verify email address using verification token (path parameter)"""
     try:
         success, message = email_verification_service.verify_email_with_token(db, token)
@@ -51,8 +55,27 @@ async def resend_verification_email(
     request: Request = None,
     db: Session = Depends(get_db),
 ):
-    """Resend email verification link"""
+    """Resend email verification link.
+
+    Limited to 60 requests per hour per client IP by default
+    (``AUTH_IP_LIMIT_VERIFY_MAIL``) and 3 per hour per
+    submitted address (429 ``rate_limited``), counted whether or not the
+    address exists.
+    """
     from models import User as DBUser
+
+    # This handler stays async (it awaits the mail coroutine): the blocking
+    # limiter calls run in a worker thread.
+    await asyncio.to_thread(
+        auth_rate_limit.enforce_ip_limit, request, auth_rate_limit.VERIFICATION_MAIL
+    )
+    await asyncio.to_thread(
+        auth_rate_limit.enforce_account_limit,
+        request,
+        resend_request.email,
+        auth_rate_limit.VERIFICATION_MAIL,
+        auth_rate_limit.MAIL_ACCOUNT_LIMIT,
+    )
 
     user = (
         db.query(DBUser)
@@ -96,7 +119,7 @@ async def resend_verification_email(
 
 
 @router.post("/verify-email-enhanced/{token}", response_model=EmailVerificationEnhancedResponse)
-async def verify_email_enhanced(
+def verify_email_enhanced(
     token: str,
     db: Session = Depends(get_db),
 ):

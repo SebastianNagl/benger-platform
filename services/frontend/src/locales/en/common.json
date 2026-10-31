@@ -56,7 +56,8 @@
       "cancel": "Cancel"
     },
     "myOrganizations": "My organizations",
-    "private": "Private"
+    "private": "Private",
+    "rateLimited": "Too many attempts. Please try again in {minutes} min."
   },
   "loginModal": {
     "title": "Sign in to BenGER",
@@ -88,7 +89,7 @@
     "createAccount": "Create account",
     "defaultRole": "New users are created with annotator role by default",
     "passwordMismatch": "Passwords do not match",
-    "passwordLength": "Password must be at least 6 characters long",
+    "passwordLength": "Password must be at least 12 characters long",
     "signupFailed": "Signup failed"
   },
   "dashboard": {
@@ -2159,7 +2160,7 @@
     "changePassword": "Change Password",
     "currentPassword": "Current Password",
     "newPassword": "New Password",
-    "passwordMinLength": "Minimum 6 characters",
+    "passwordMinLength": "Minimum 12 characters",
     "confirmNewPassword": "Confirm New Password",
     "changing": "Changing...",
     "changePasswordButton": "Change Password",
@@ -2498,7 +2499,7 @@
     "button": "Create Account",
     "redirecting": "Redirecting...",
     "passwordMismatch": "Passwords do not match",
-    "passwordTooShort": "Password must be at least 6 characters long",
+    "passwordTooShort": "Password must be at least 12 characters long",
     "registrationFailed": "Registration failed",
     "usernameRequired": "Please enter a username",
     "emailRequired": "Please enter an email address",
@@ -7236,7 +7237,7 @@
     "invalid": "Invalid Reset Link",
     "invalidDescription": "This reset link is invalid or has already been used.",
     "mismatch": "Passwords do not match",
-    "tooShort": "Password must be at least 8 characters",
+    "tooShort": "Password must be at least 12 characters",
     "tooWeak": "Password is too weak",
     "tryAgainLink": "try again"
   },
@@ -7538,7 +7539,8 @@
     },
     "api": {
       "invalidJson": "Invalid JSON response: {error}",
-      "networkUnreachable": "Network error: Unable to connect to API at {url}"
+      "networkUnreachable": "Network error: Unable to connect to API at {url}",
+      "requestQueueTimeout": "The app is waiting on too many requests at once. Please try again in a moment."
     }
   },
   "invitation": {
@@ -7564,11 +7566,11 @@
     "username": "Username",
     "usernamePlaceholder": "Choose a username",
     "password": "Password",
-    "passwordPlaceholder": "Create a password (min 6 characters)",
+    "passwordPlaceholder": "Create a password (min 12 characters)",
     "confirmPassword": "Confirm Password",
     "confirmPasswordPlaceholder": "Confirm your password",
     "passwordMismatch": "Passwords do not match",
-    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordTooShort": "Password must be at least 12 characters",
     "creatingAccount": "Creating Account...",
     "createAndJoin": "Create Account & Join Organization",
     "back": "Back",
@@ -7593,11 +7595,11 @@
     "displayName": "Display Name (Optional)",
     "displayNamePlaceholder": "Your display name",
     "password": "Password",
-    "passwordPlaceholder": "Create a password (min 8 characters)",
+    "passwordPlaceholder": "Create a password (min 12 characters)",
     "confirmPassword": "Confirm Password",
     "confirmPasswordPlaceholder": "Confirm your password",
     "passwordMismatch": "Passwords do not match",
-    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordTooShort": "Password must be at least 12 characters",
     "submitting": "Setting up profile...",
     "submit": "Complete Profile Setup",
     "notice": "By completing your profile, you'll gain full access to your organization's projects and data.",
@@ -10813,7 +10815,7 @@
     "success": "Account activated",
     "successDescription": "You can now sign in directly. Redirecting to login...",
     "mismatch": "Passwords do not match",
-    "tooShort": "Password must be at least 6 characters",
+    "tooShort": "Password must be at least 12 characters",
     "expiredDescription": "This link has expired or was already used. Sign in, or launch the exam from Moodle again to request a new link.",
     "emailTaken": "This email address is already in use. Please request access again with a different address.",
     "backToLogin": "Back to login"

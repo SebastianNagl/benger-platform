@@ -76,7 +76,10 @@ export class EvaluationsClient extends BaseApiClient {
     message?: string
     progress?: number
   }> {
-    return this.request(`/evaluation/status/${evaluationId}`)
+    // Live status: never served from the 30 s GET cache.
+    return this.request(`/evaluation/status/${evaluationId}`, {
+      cache: 'no-store',
+    })
   }
 
   /**
@@ -148,6 +151,7 @@ export class EvaluationsClient extends BaseApiClient {
   }> {
     return await this.request(`/generation/status/${generationId}`, {
       method: 'GET',
+      cache: 'no-store',
     })
   }
 
@@ -1023,6 +1027,8 @@ export class EvaluationsClient extends BaseApiClient {
     while (Date.now() - startTime < timeout) {
       const result = (await this.request(
         `/evaluations/projects/${projectId}/tasks/${taskId}/immediate/${evaluationId}/status`,
+        // A 2 s poll: a cached copy would freeze it for 30 s.
+        { cache: 'no-store' },
       )) as ImmediateEvaluationData
       last = result
       if (result.status === 'completed' || result.status === 'failed') {
@@ -1186,10 +1192,12 @@ export class EvaluationsClient extends BaseApiClient {
    * @param projectId - The project ID to get results for
    * @param latestOnly - If true (default), return only the most recent evaluation.
    *                     If false, return all historical evaluation runs.
+   * @param options - `cache: 'no-store'` skips the 30 s GET cache (live polls).
    */
   async getProjectEvaluationResults(
     projectId: string,
     latestOnly: boolean = true,
+    options?: { cache?: RequestCache },
   ): Promise<{
     project_id: string
     evaluations: Array<{
@@ -1232,6 +1240,7 @@ export class EvaluationsClient extends BaseApiClient {
     const params = latestOnly ? '' : '?latest_only=false'
     return this.request(
       `/evaluations/run/results/project/${projectId}${params}`,
+      options?.cache ? { cache: options.cache } : {},
     )
   }
 
@@ -1282,7 +1291,7 @@ export class EvaluationsClient extends BaseApiClient {
     includeHistory: boolean = false,
     metric?: string | null,
     evaluationConfigId?: string | null,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; cache?: RequestCache },
   ): Promise<{
     project_id: string
     models: string[]
@@ -1324,8 +1333,12 @@ export class EvaluationsClient extends BaseApiClient {
     return this.request(
       `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`,
       // AbortSignal so a superseded config/metric switch cancels the old
-      // request instead of leaving it occupying a DB connection (issue #280)
-      options?.signal ? { signal: options.signal } : {},
+      // request instead of leaving it occupying a DB connection (issue #280).
+      // `cache: 'no-store'` keeps live refreshes out of the 30 s GET cache.
+      {
+        ...(options?.signal ? { signal: options.signal } : {}),
+        ...(options?.cache ? { cache: options.cache } : {}),
+      },
     )
   }
 

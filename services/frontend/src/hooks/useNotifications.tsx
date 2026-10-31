@@ -69,7 +69,11 @@ export function useNotifications() {
           params.append('read_status', 'false')
         }
 
-        const response = await apiClient.getNotifications(params.toString())
+        // The bell refreshes every 30 s; a cached copy would hide new
+        // notifications for up to another 30 s.
+        const response = await apiClient.getNotifications(params.toString(), {
+          cache: 'no-store',
+        })
         return response || []
       } catch (error) {
         console.error('Error fetching notifications:', error)
@@ -86,7 +90,9 @@ export function useNotifications() {
     }
 
     try {
-      const response = await apiClient.getUnreadNotificationCount()
+      const response = await apiClient.getUnreadNotificationCount({
+        cache: 'no-store',
+      })
       return response.count || 0
     } catch (error) {
       console.error('Error fetching unread count:', error)
@@ -284,9 +290,8 @@ export function useNotifications() {
           eventSourceRef.current.close()
           eventSourceRef.current = null
 
-          // Cap reconnect attempts. The three project-progress WS clients
-          // (EvaluationResults, GenerationTaskList, GenerationProgress)
-          // cap at 5; this SSE used to retry forever — once the user's
+          // Cap reconnect attempts. The project-progress WS clients
+          // (EvaluationResults, GenerationTaskList) cap at 5; this SSE used to retry forever — once the user's
           // session expired the browser hammered /api/notifications/stream
           // every ~5 s indefinitely with no auth cookie.
           if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {

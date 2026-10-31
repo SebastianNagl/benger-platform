@@ -278,6 +278,29 @@ test-build: ## Rebuild changed test images (uses cache) then start
 	@$(DOCKER_COMPOSE_TEST) up -d --build 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
 	@echo "$(GREEN)✅ Rebuilt and started$(NC)"
 
+# Lightweight backing services for the pytest suites. `make test-api` and
+# `make test-workers` only talk to Postgres and Redis: each pytest-xdist
+# worker builds its own empty database (test_benger_gwN) from the models, so
+# neither the migrated API container, the seed (init_complete.py), MinIO
+# (the runners use STORAGE_TYPE=local), the Celery worker nor the frontend
+# build is needed. CI uses this instead of test-build for its pytest shards.
+.PHONY: test-start-lite
+test-start-lite: ## Start only Postgres + Redis (all make test-api / test-workers need)
+	@echo "$(BLUE)🚀 Starting test Postgres + Redis...$(NC)"
+	@$(DOCKER_COMPOSE_TEST) up -d --wait test-db test-redis
+	@echo "$(GREEN)✅ test-db and test-redis healthy$(NC)"
+
+# The runner images sit behind `--profile test`, so `up -d --build` (and
+# therefore test-build) never builds them; `compose run` only builds them
+# when the image is missing. This target builds them explicitly and, unlike
+# test-build, does not filter the output, so a build failure fails the
+# target. RUNNERS picks a subset, e.g. `make test-build-runners RUNNERS=workers`.
+RUNNERS ?= api workers
+
+.PHONY: test-build-runners
+test-build-runners: ## Build the test runner images (RUNNERS="api workers" by default)
+	@$(DOCKER_COMPOSE_TEST) --profile test build $(foreach r,$(RUNNERS),test-$(r)-runner)
+
 .PHONY: test-rebuild
 test-rebuild: ## Force rebuild all test images (no cache) then start
 	@echo "$(BLUE)🔄 Rebuilding test infrastructure (no cache)...$(NC)"

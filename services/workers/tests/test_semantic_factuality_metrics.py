@@ -86,6 +86,12 @@ class TestBERTScoreBackendAware:
     """Test BERTScore with platform-appropriate backend.
 
     Reference: Zhang et al. (2020) "BERTScore: Evaluating Text Generation with BERT"
+
+    BERTScore runs with lang="de" here, the only language production scores
+    with: workers-base bakes just that model (bert-base-multilingual-cased) and
+    the image runs with HF_HUB_OFFLINE=1, so lang="en" (roberta-large) would
+    fail to load. mBERT handles the English sentences; the thresholds hold
+    (measured: identical 1.00, unrelated 0.73, paraphrase 0.92).
     """
 
     def test_bertscore_perfect_match(self):
@@ -97,7 +103,7 @@ class TestBERTScoreBackendAware:
         candidates = ["The contract is legally binding."]
         references = ["The contract is legally binding."]
 
-        P, R, F1 = backend.compute(candidates, references, lang="en")
+        P, R, F1 = backend.compute(candidates, references, lang="de")
         assert F1 > 0.9, f"Perfect match should be > 0.9, got {F1}"
 
     def test_bertscore_different_text(self):
@@ -109,7 +115,7 @@ class TestBERTScoreBackendAware:
         candidates = ["The weather is sunny today."]
         references = ["Legal proceedings require documentation."]
 
-        P, R, F1 = backend.compute(candidates, references, lang="en")
+        P, R, F1 = backend.compute(candidates, references, lang="de")
         # BERTScore uses contextual embeddings that can find some similarity
         # even in semantically different text, so threshold is relatively high
         assert F1 < 0.9, f"Different text should be < 0.9, got {F1}"

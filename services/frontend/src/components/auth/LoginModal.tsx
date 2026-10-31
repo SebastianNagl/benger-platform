@@ -3,6 +3,7 @@
 import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { rateLimitMessage } from '@/lib/api/errors'
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
 import React, { useState } from 'react'
 
@@ -30,7 +31,10 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setUsername('')
       setPassword('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('loginModal.loginFailed'))
+      setError(
+        rateLimitMessage(err, t) ??
+          (err instanceof Error ? err.message : t('loginModal.loginFailed')),
+      )
     } finally {
       setIsLoading(false)
     }

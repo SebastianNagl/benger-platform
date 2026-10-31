@@ -5,6 +5,7 @@ import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -88,7 +89,7 @@ export default function CompleteProfilePage() {
     }
 
     // Validate password length
-    if (formData.password.length < 8) {
+    if (formData.password.length < MIN_PASSWORD_LENGTH) {
       setError(t('completeProfile.passwordTooShort'))
       setSubmitting(false)
       return

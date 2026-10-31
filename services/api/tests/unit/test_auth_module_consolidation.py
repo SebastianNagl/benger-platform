@@ -477,10 +477,12 @@ class TestAuthModuleConsolidation:
         result = RefreshTokenService.revoke_refresh_token(mock_db, "token123")
         assert result is True
 
-        # Test revoke_all_user_tokens
-        mock_refresh_service.revoke_all_user_tokens.return_value = True
+        # Test revoke_all_user_tokens (delegates to revoke_user_tokens; it
+        # used to call a refresh_token_service function that never existed)
+        mock_refresh_service.revoke_user_tokens.return_value = 3
         result = RefreshTokenService.revoke_all_user_tokens(mock_db, "user-id")
-        assert result is True
+        assert result == 3
+        mock_refresh_service.revoke_user_tokens.assert_called_once_with(mock_db, "user-id")
 
         # Test cleanup_expired_tokens
         mock_refresh_service.cleanup_expired_tokens.return_value = 5
@@ -507,7 +509,7 @@ class TestAuthModuleConsolidation:
             "username": "newuser",
             "email": "new@example.com",
             "name": "New User",
-            "password": "password123",
+            "password": "password12345",
             "legal_expertise_level": "layperson",
             "german_proficiency": "native",
         }

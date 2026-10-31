@@ -1,7 +1,12 @@
-import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import {
+  copyRetryAfter,
+  forwardedForHeaders,
+  getExternalHost,
+  getInternalApiUrl,
+} from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
 import { logger } from '@/lib/utils/logger'
-import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -23,6 +28,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'x-forwarded-host': getExternalHost(request),
+        ...forwardedForHeaders(request),
       },
       body: JSON.stringify(body),
     })
@@ -30,27 +36,20 @@ export async function POST(request: NextRequest) {
     // Get the response data
     const data = await backendResponse.json()
 
-    // Create Next.js response
+    // Create Next.js response. Status and body pass through unchanged, so a
+    // 429 keeps its {"detail": {"code": "rate_limited", "retry_after"}} body.
     const response = NextResponse.json(data, { status: backendResponse.status })
+    copyRetryAfter(backendResponse, response)
 
     if (backendResponse.ok) {
       // Forward Set-Cookie headers from backend to frontend
       const setCookieHeaders = backendResponse.headers.getSetCookie()
       logger.debug('🍪 Backend sent', setCookieHeaders.length, 'cookies')
 
-      setCookieHeaders.forEach((cookie) => {
-        // Parse and modify cookie for proper domain/path
+      // Host-only: Domain is stripped (legacy-domain clears excepted).
+      const host = getExternalHost(request)
+      scopeUpstreamSetCookies(setCookieHeaders, host).forEach((cookie) => {
         let modifiedCookie = cookie
-
-        // Remove any existing domain restriction
-        modifiedCookie = modifiedCookie.replace(/Domain=[^;]+;?/gi, '')
-
-        // Set cookie domain for cross-subdomain sharing
-        const host = getExternalHost(request)
-        const cookieDomain = getCookieDomainFromHost(host)
-        if (cookieDomain) {
-          modifiedCookie += `; Domain=${cookieDomain}`
-        }
 
         // Ensure path is set to root
         if (!modifiedCookie.includes('Path=')) {

@@ -6,7 +6,7 @@ Fixtures are organized in tests/fixtures/:
   - users.py:      test_users, test_user, auth_headers
   - evaluation.py: test_evaluation_types, test_org, test_org_with_members, sample_evaluation_data,
                    security_test_data, performance_config
-  - mocks.py:      mock_celery, mock_redis (autouse), mock_redis_async
+  - mocks.py:      mock_celery, mock_redis (autouse)
 """
 
 import os

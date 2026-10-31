@@ -17,6 +17,14 @@ except ImportError:
         from pydantic import BaseSettings
 
 
+# Local development hosts only: http(s)://localhost[:port] and
+# [sub.]benger.localhost / [sub.]vertretbar.localhost[:port]. Starlette
+# matches allow_origin_regex with fullmatch, so no anchors are needed.
+DEV_CORS_ORIGIN_REGEX = (
+    r"https?://(localhost|([a-z0-9-]+\.)?(benger|vertretbar)\.localhost)(:\d+)?"
+)
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
 
@@ -193,12 +201,55 @@ class Settings(BaseSettings):
         """Get API root path from ROOT_PATH env var"""
         return os.getenv("ROOT_PATH", "")
 
-    # CORS Configuration
-    cors_origins: list = ["*"]
-    cors_allow_credentials: bool = True
+    # CORS Configuration. The browser frontends reach the API only through
+    # the same-origin Next route proxy, so production needs no cross-origin
+    # browser access at all: CORS_ALLOWED_ORIGINS (comma-separated, exact
+    # origins such as https://app.example.org) is empty by default and the
+    # middleware is then not mounted. Outside production a fixed regex admits
+    # the local dev hosts only (see cors_origin_regex). Storage, staging and
+    # demo hosts are never admitted: a credentialed CORS grant to a host that
+    # serves user uploads lets a stored page read /api/auth/refresh.
+    cors_allowed_origins: str = ""
 
-    # Cookie Configuration
-    cookie_domain: Optional[str] = None  # Set to ".what-a-benger.net" in production
+    @property
+    def cors_allowed_origin_list(self) -> list:
+        """Exact origins from CORS_ALLOWED_ORIGINS, wildcards and junk dropped."""
+        origins = []
+        for raw in (self.cors_allowed_origins or "").split(","):
+            origin = raw.strip().rstrip("/")
+            if not origin:
+                continue
+            # "*" with credentials would reflect any origin; a bare host
+            # without scheme never matches an Origin header.
+            if "*" in origin or not origin.startswith(("https://", "http://")):
+                continue
+            origins.append(origin)
+        return origins
+
+    @property
+    def cors_origin_regex(self) -> Optional[str]:
+        """Dev-only origin regex; None in production."""
+        if self.is_production:
+            return None
+        return DEV_CORS_ORIGIN_REGEX
+
+    # Cookie Configuration. Auth cookies are host-only (no Domain attribute).
+    # LEGACY_COOKIE_DOMAIN lists, comma-separated, the domains older releases
+    # scoped them to (e.g. ".what-a-benger.net,.vertretbar.net"); login,
+    # refresh and logout send expiring copies for those domains so browsers
+    # drop the old domain-wide cookies (auth_module/auth_cookies.py).
+    legacy_cookie_domain: Optional[str] = None
+
+    @property
+    def cookie_domain(self) -> None:
+        """Deprecated: always None, so every cookie stays host-only.
+
+        Kept only so overlay code that still passes
+        ``domain=settings.cookie_domain`` keeps working (benger_extended LTI
+        cookies). Not an environment variable anymore: a stale COOKIE_DOMAIN
+        in a deployment is ignored. Remove once no overlay reads it.
+        """
+        return None
 
     # Performance Configuration
     default_page_size: int = 30
@@ -231,6 +282,30 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         extra = "ignore"  # Ignore extra environment variables
+
+
+def cors_middleware_kwargs(config: "Settings") -> Optional[dict]:
+    """CORSMiddleware kwargs for ``config``, or None when nothing is allowed.
+
+    Production gets the explicit CORS_ALLOWED_ORIGINS list only; elsewhere
+    the list (if any) plus the dev regex. None means the middleware is not
+    added, so the API sends no CORS headers and browsers refuse every
+    cross-origin read.
+    """
+    origins = config.cors_allowed_origin_list
+    regex = config.cors_origin_regex
+    if not origins and not regex:
+        return None
+    kwargs = {
+        "allow_origins": origins,
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
+        "expose_headers": ["Content-Length"],
+    }
+    if regex:
+        kwargs["allow_origin_regex"] = regex
+    return kwargs
 
 
 def docs_url_kwargs(enabled: bool) -> dict:

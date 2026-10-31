@@ -368,8 +368,8 @@ class TestActivateAccount:
             "/api/auth/activate-account",
             json={
                 "token": "whatever",
-                "new_password": "abcdef1",
-                "confirm_password": "abcdef2",
+                "new_password": "abcdefghijk1",
+                "confirm_password": "abcdefghijk2",
             },
         )
         assert r.status_code == 400

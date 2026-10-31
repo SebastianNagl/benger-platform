@@ -135,8 +135,14 @@ api:
       value: "true"
     - name: MAIL_ENABLED
       value: "true"
-    - name: COOKIE_DOMAIN
-      value: ".demo.what-a-benger.net"
+    # Auth cookies are host-only. Older releases scoped them to the apex
+    # (the API to the first domain, the Next proxy re-scoped them to each
+    # host family); login, refresh and logout send expiring copies for these
+    # domains so browsers drop the old domain-wide cookies. Remove once the
+    # refresh-token lifetime (REFRESH_TOKEN_EXPIRE_DAYS, 7 days) has passed
+    # since the switch.
+    - name: LEGACY_COOKIE_DOMAIN
+      value: ".demo.what-a-benger.net,.demo.vertretbar.net"
   ingress:
     annotations:
       traefik.ingress.kubernetes.io/router.priority: "200"
@@ -346,15 +352,10 @@ frontend:
         paths:
           - path: /
             pathType: Prefix
-      - host: "*.demo.what-a-benger.net"
-        paths:
-          - path: /
-            pathType: Prefix
     tls:
       - secretName: benger-demo-tls
         hosts:
           - demo.what-a-benger.net
-          - "*.demo.what-a-benger.net"
 
 # Database migrations configuration for demo
 # Migrations run as a Helm pre-upgrade/pre-install hook before deployments

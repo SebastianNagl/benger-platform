@@ -585,8 +585,8 @@ class TestChangePasswordDeep:
             "/api/auth/change-password",
             json={
                 "current_password": "admin123",
-                "new_password": "newpass1",
-                "confirm_password": "newpass2",
+                "new_password": "newpassword1",
+                "confirm_password": "newpassword2",
             },
             headers=auth_headers["admin"],
         )
@@ -598,8 +598,8 @@ class TestChangePasswordDeep:
             "/api/auth/change-password",
             json={
                 "current_password": "wrongpassword",
-                "new_password": "newpass123",
-                "confirm_password": "newpass123",
+                "new_password": "newpassword123",
+                "confirm_password": "newpassword123",
             },
             headers=auth_headers["admin"],
         )
@@ -874,7 +874,7 @@ class TestSignupDeep:
                 "username": "admin@test.com",
                 "email": "different@test.com",
                 "name": "Duplicate",
-                "password": "password123",
+                "password": "password12345",
                 "legal_expertise_level": "layperson",
                 "german_proficiency": "native",
             },
@@ -898,7 +898,7 @@ class TestRegisterDeep:
                 "username": f"registered_{uuid.uuid4().hex[:8]}",
                 "email": f"reg_{uuid.uuid4().hex[:8]}@test.com",
                 "name": "Registered User",
-                "password": "password123",
+                "password": "password12345",
                 "legal_expertise_level": "layperson",
                 "german_proficiency": "native",
             },
@@ -914,7 +914,7 @@ class TestRegisterDeep:
                 "username": "shouldfail",
                 "email": "fail@test.com",
                 "name": "Fail",
-                "password": "password123",
+                "password": "password12345",
             },
             headers=auth_headers["annotator"],
         )

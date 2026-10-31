@@ -178,7 +178,8 @@ class TestUploadFileToStorage:
         assert row is not None
         assert row.uploaded_by == admin.id
         assert row.file_path == "uploads/2026/06/14/note.txt"
-        assert row.file_metadata == {"kind": "doc"}
+        # The client's metadata plus the server-owned validated type.
+        assert row.file_metadata == {"kind": "doc", "stored_content_type": "text/plain"}
         assert row.format == "txt"
 
     @pytest.mark.asyncio
@@ -190,10 +191,10 @@ class TestUploadFileToStorage:
         admin = await _make_user(async_test_db, is_superadmin=True)
         await async_test_db.commit()
         upload_result = {
-            "file_key": "uploads/x/bad.bin",
-            "url": "file:///tmp/x/bad.bin",
+            "file_key": "uploads/x/note.txt",
+            "url": "file:///tmp/x/note.txt",
             "size": 3,
-            "content_type": "application/octet-stream",
+            "content_type": "text/plain",
             "hash": "abc",
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "storage_backend": "local",
@@ -203,14 +204,14 @@ class TestUploadFileToStorage:
         ):
             resp = await async_test_client.post(
                 "/storage/upload",
-                files={"file": ("bad.bin", b"xyz", "application/octet-stream")},
+                files={"file": ("note.txt", b"xyz", "text/plain")},
                 data={"metadata": "{not valid json"},
             )
         assert resp.status_code == 200, resp.text
         row_id = resp.json()["id"]
         row = await _get_row(async_test_db, row_id)
         assert row is not None
-        assert row.file_metadata == {}
+        assert row.file_metadata == {"stored_content_type": "text/plain"}
 
     @pytest.mark.asyncio
     async def test_upload_storage_failure_returns_500_no_row(
@@ -394,7 +395,7 @@ class TestCompleteMultipart:
             resp = await async_test_client.post(
                 "/storage/multipart/complete",
                 json={
-                    "file_key": "uploads/2026/06/big.zip",
+                    "file_key": f"uploads/2026/06/14/{admin.id}/big.zip",
                     "upload_id": "mp-1",
                     "parts": [{"PartNumber": 1, "ETag": "e1"}],
                     "metadata": {"original_filename": "report-final.zip"},
@@ -413,6 +414,273 @@ class TestCompleteMultipart:
         assert row.name == "big.zip"
         assert row.size == 9000
         assert row.uploaded_by == admin.id
+
+
+# ---------------------------------------------------------------------------
+# Upload / download policy (audit S1): types, prefixes, sizes, expiry,
+# disposition, multipart key ownership
+# ---------------------------------------------------------------------------
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+
+
+@pytest.mark.integration
+class TestStoragePolicy:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "content_type,filename",
+        [
+            ("text/html", "x.html"),
+            ("image/svg+xml", "x.svg"),
+            ("application/xml", "x.xml"),
+            ("text/javascript", "x.js"),
+        ],
+    )
+    async def test_upload_url_refuses_scriptable_types(
+        self, async_test_client, async_test_db, content_type, filename
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user), patch(
+            "routers.storage.object_storage.get_upload_url"
+        ) as mock_url:
+            resp = await async_test_client.post(
+                "/storage/upload-url",
+                params={"filename": filename, "content_type": content_type},
+            )
+        assert resp.status_code == 415, resp.text
+        mock_url.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("file_type", ["static", "exports", "imports", "submissions"])
+    async def test_upload_url_refuses_server_prefixes(
+        self, async_test_client, async_test_db, file_type
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user), patch(
+            "routers.storage.object_storage.get_upload_url"
+        ) as mock_url:
+            resp = await async_test_client.post(
+                "/storage/upload-url",
+                params={"filename": "a.png", "file_type": file_type},
+            )
+        assert resp.status_code == 400, resp.text
+        mock_url.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "max_size,expected",
+        [("0", 100 * 1024 * 1024), ("999999999999", 100 * 1024 * 1024), ("1024", 1024)],
+    )
+    async def test_upload_url_clamps_max_size_and_pins_type(
+        self, async_test_client, async_test_db, max_size, expected
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user), patch(
+            "routers.storage.object_storage.get_upload_url",
+            return_value={"upload_url": "u", "file_key": "k", "fields": {}},
+        ) as mock_url:
+            resp = await async_test_client.post(
+                "/storage/upload-url",
+                params={"filename": "deck.apkg", "file_type": "temp", "max_size": max_size},
+            )
+        assert resp.status_code == 200, resp.text
+        kwargs = mock_url.call_args.kwargs
+        assert kwargs["max_size"] == expected
+        assert kwargs["file_type"] == "temp"
+        assert kwargs["content_type"] == "application/zip"
+
+    @pytest.mark.asyncio
+    async def test_upload_refuses_html_and_magic_mismatch(
+        self, async_test_client, async_test_db
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        before = await _count(async_test_db)
+        with _as_user(user), patch("routers.storage.object_storage.upload_file") as mock_up:
+            html = await async_test_client.post(
+                "/storage/upload",
+                files={"file": ("x.html", b"<script>1</script>", "text/html")},
+            )
+            disguised = await async_test_client.post(
+                "/storage/upload",
+                files={"file": ("x.png", b"<html><script>1</script>", "image/png")},
+            )
+            static = await async_test_client.post(
+                "/storage/upload",
+                files={"file": ("x.png", PNG_BYTES, "image/png")},
+                data={"file_type": "static"},
+            )
+        assert html.status_code == 415, html.text
+        assert disguised.status_code == 415, disguised.text
+        assert static.status_code == 400, static.text
+        mock_up.assert_not_called()
+        async_test_db.expire_all()
+        assert await _count(async_test_db) == before
+
+    @pytest.mark.asyncio
+    async def test_upload_over_ceiling_is_413(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user), patch.dict(
+            "storage.upload_policy.CLIENT_PREFIX_MAX_BYTES", {"uploads": 8}
+        ), patch("routers.storage.object_storage.upload_file") as mock_up:
+            resp = await async_test_client.post(
+                "/storage/upload",
+                files={"file": ("a.txt", b"123456789", "text/plain")},
+            )
+        assert resp.status_code == 413, resp.text
+        mock_up.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_upload_valid_png_stores_validated_type(
+        self, async_test_client, async_test_db
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        upload_result = {
+            "file_key": f"uploads/2026/10/31/{user.id}/p.png",
+            "url": "file:///tmp/p.png",
+            "size": len(PNG_BYTES),
+            "content_type": "image/png",
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "storage_backend": "local",
+        }
+        with _as_user(user), patch(
+            "routers.storage.object_storage.upload_file", return_value=upload_result
+        ) as mock_up:
+            resp = await async_test_client.post(
+                "/storage/upload",
+                files={"file": ("p.png", PNG_BYTES, "image/png")},
+                # A client cannot forge the server-owned type key.
+                data={"metadata": '{"stored_content_type": "text/html"}'},
+            )
+        assert resp.status_code == 200, resp.text
+        assert mock_up.call_args.kwargs["content_type"] == "image/png"
+        row = await _get_row(async_test_db, resp.json()["id"])
+        assert row.file_metadata["stored_content_type"] == "image/png"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "requested,expected", [(None, 3600), ("86400", 3600), ("5", 60), ("600", 600)]
+    )
+    async def test_download_url_clamps_expiry_and_forces_attachment(
+        self, async_test_client, async_test_db, requested, expected
+    ):
+        owner = await _make_user(async_test_db)
+        row = await _seed_uploaded(async_test_db, uploaded_by=owner.id)
+        params = {} if requested is None else {"expires_in": requested}
+        with _as_user(owner), patch(
+            "routers.storage.object_storage.get_download_url",
+            return_value="https://signed.example/x",
+        ) as mock_dl:
+            resp = await async_test_client.get(
+                f"/storage/download-url/{row.id}", params=params
+            )
+        assert resp.status_code == 200, resp.text
+        kwargs = mock_dl.call_args.kwargs
+        assert kwargs["expires_in"] == expected
+        # doc.txt has no stored type key: the extension decides, re-validated.
+        assert kwargs["response_content_type"] == "text/plain"
+        assert kwargs["response_content_disposition"] == 'attachment; filename="doc.txt"'
+
+    @pytest.mark.asyncio
+    async def test_download_url_never_echoes_html_type(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        row = UploadedData(
+            id=_uid(),
+            name="x.html",
+            original_filename="x.html",
+            file_path="uploads/2026/06/14/x.html",
+            size=5,
+            format="html",
+            uploaded_by=owner.id,
+            storage_backend="local",
+            file_metadata={"stored_content_type": "text/html"},
+        )
+        async_test_db.add(row)
+        await async_test_db.commit()
+        with _as_user(owner), patch(
+            "routers.storage.object_storage.get_download_url",
+            return_value="https://signed.example/x",
+        ) as mock_dl:
+            resp = await async_test_client.get(f"/storage/download-url/{row.id}")
+        assert resp.status_code == 200, resp.text
+        kwargs = mock_dl.call_args.kwargs
+        assert kwargs["response_content_type"] == "application/octet-stream"
+        assert kwargs["response_content_disposition"].startswith("attachment;")
+
+    @pytest.mark.asyncio
+    async def test_multipart_init_refuses_svg(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user), patch(
+            "routers.storage.object_storage.create_multipart_upload"
+        ) as mock_init:
+            resp = await async_test_client.post(
+                "/storage/multipart/init", params={"filename": "x.svg"}
+            )
+        assert resp.status_code == 415, resp.text
+        mock_init.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "key_template",
+        [
+            "uploads/2026/10/31/someone-else/big.zip",
+            "exports/2026/10/{uid}/big.zip",
+            "uploads/2026/../../exports/{uid}/big.zip",
+            "big.zip",
+        ],
+    )
+    async def test_multipart_refuses_keys_the_caller_does_not_own(
+        self, async_test_client, async_test_db, key_template
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        key = key_template.format(uid=user.id)
+        with _as_user(user), patch(
+            "routers.storage.object_storage.get_multipart_upload_urls"
+        ) as mock_urls, patch(
+            "routers.storage.object_storage.complete_multipart_upload"
+        ) as mock_complete:
+            urls = await async_test_client.post(
+                "/storage/multipart/urls",
+                json={"file_key": key, "upload_id": "u", "part_numbers": [1]},
+            )
+            complete = await async_test_client.post(
+                "/storage/multipart/complete",
+                json={"file_key": key, "upload_id": "u", "parts": []},
+            )
+        assert urls.status_code == 403, urls.text
+        assert complete.status_code == 403, complete.text
+        mock_urls.assert_not_called()
+        mock_complete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_multipart_complete_over_ceiling_deletes_and_413(
+        self, async_test_client, async_test_db
+    ):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        before = await _count(async_test_db)
+        key = f"uploads/2026/10/31/{user.id}/big.zip"
+        with _as_user(user), patch(
+            "routers.storage.object_storage.complete_multipart_upload",
+            return_value={"size": 200 * 1024 * 1024, "storage_backend": "s3"},
+        ), patch("routers.storage.object_storage.delete_file") as mock_delete:
+            resp = await async_test_client.post(
+                "/storage/multipart/complete",
+                json={"file_key": key, "upload_id": "u", "parts": []},
+            )
+        assert resp.status_code == 413, resp.text
+        mock_delete.assert_called_once_with(key)
+        async_test_db.expire_all()
+        assert await _count(async_test_db) == before
 
 
 # ---------------------------------------------------------------------------

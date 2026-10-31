@@ -21,14 +21,6 @@ jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
 }))
 
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    if (host.includes('benger-test.localhost')) return '.benger-test.localhost'
-    return ''
-  },
-}))
-
 function makeRequest(host: string, path: string, method = 'GET') {
   return new NextRequest(new URL(`http://localhost/api/${path}`), {
     method,
@@ -226,10 +218,10 @@ describe('[...path] route br6 - uncovered branches', () => {
       params: Promise.resolve({ path: ['projects', '1'] }),
     })
     expect(res.status).toBe(204)
-    // Cookie should have domain rewritten
+    // Cookie passes through host-only: no Domain is added
     const setCookies = res.headers.getSetCookie()
     expect(setCookies.length).toBeGreaterThan(0)
-    expect(setCookies[0]).toContain('.benger.localhost')
+    expect(setCookies[0]).not.toContain('Domain=')
     // SameSite=None already exists, so SameSite=Lax should NOT be added
     expect(setCookies[0]).not.toContain('SameSite=Lax')
     fetchSpy.mockRestore()

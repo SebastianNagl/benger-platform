@@ -63,14 +63,18 @@ ENV INTERNAL_API_URL=http://api:8000
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Create user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Runtime user: the `node` user (uid/gid 1000) that node:alpine already ships.
+# uid 1000 matches the pod securityContext in infra/helm/benger; the former
+# dedicated nextjs user (uid 1001) did not.
 
 # Copy standalone output for optimized deployment
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=1000:1000 /app/.next/standalone ./
+COPY --from=builder --chown=1000:1000 /app/.next/static ./.next/static
+COPY --from=builder --chown=1000:1000 /app/public ./public
+
+# Next.js writes its image-optimizer and fetch caches to .next/cache at
+# runtime. WORKDIR created /app as root, so hand it to uid 1000 too.
+RUN mkdir -p .next/cache && chown 1000:1000 /app /app/.next /app/.next/cache
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -79,7 +83,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Add tini for proper signal handling (before switching user)
 RUN apk add --no-cache tini
 
-USER nextjs
+USER 1000
 
 EXPOSE 3000
 

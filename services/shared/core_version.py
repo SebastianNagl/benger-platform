@@ -669,11 +669,26 @@ whenever one is added, renamed or removed):
   values ``org_admin_role``, ``superadmin``); organization keys may carry
   the role ORG_ADMIN; a key keeps its owner's superadmin rights only with
   ``admin:platform``. ``GET /api/v1/reference`` documents the full API.
+
+2.46 (2026-10-31): hook key ``before_annotation_write`` (CALL_ALL, gating
+  class ALWAYS, ``extensions.before_annotation_write(db, task_id, user_id,
+  project_id, annotation_id=None, is_update=False)``, the last two passed as
+  keyword arguments). The annotation routers call it for HTTP clients
+  BEFORE a write, after their access, assignment, window and SEB checks:
+  ``POST /tasks/{task_id}/annotations`` (``create_annotation``, sync
+  session, ``annotation_id`` None) and ``PATCH /annotations/{id}``
+  (``update_annotation``, a sync session via ``AsyncSession.run_sync``,
+  ``is_update`` True), inside ``use_context(project_id=...)``. An
+  implementation refuses by raising ``extensions.AnnotationWriteRejected(
+  detail, status_code=409)``, which the routers answer as an HTTP error with
+  that status and detail; any other exception propagates and fails the
+  write. The server-side timer auto-submit and other callers of
+  ``persist_annotation_submission`` do not call it.
 """
 
 import os
 
-CORE_API_VERSION = "2.45"
+CORE_API_VERSION = "2.46"
 
 
 def extended_required() -> bool:

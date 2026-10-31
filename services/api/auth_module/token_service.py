@@ -68,9 +68,9 @@ class RefreshTokenService:
         return refresh_token_service.revoke_refresh_token(db, token)
 
     @staticmethod
-    def revoke_all_user_tokens(db: Session, user_id: str) -> bool:
-        """Revoke all refresh tokens for a user"""
-        return refresh_token_service.revoke_all_user_tokens(db, user_id)
+    def revoke_all_user_tokens(db: Session, user_id: str) -> int:
+        """Revoke all refresh tokens for a user; returns how many were revoked"""
+        return refresh_token_service.revoke_user_tokens(db, user_id)
 
     @staticmethod
     def cleanup_expired_tokens(db: Session) -> int:

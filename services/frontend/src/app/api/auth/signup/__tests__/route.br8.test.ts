@@ -5,7 +5,7 @@
  * Targets uncovered branches:
  *   - L7: host empty fallback
  *   - L24: staging.what-a-benger.net branch (3rd in chain)
- *   - L67: cookieDomain truthy in Set-Cookie handling
+ *   - L67: upstream Domain stripped in Set-Cookie handling
  *   - L69: missing Path= in cookie
  *   - L79: missing SameSite in cookie
  */
@@ -14,14 +14,6 @@ import { NextRequest } from 'next/server'
 
 jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
-}))
-
-jest.mock('@/lib/utils/subdomain', () => ({
-  getCookieDomainFromHost: (host: string) => {
-    if (host.includes('benger.localhost')) return '.benger.localhost'
-    if (host.includes('what-a-benger.net')) return '.what-a-benger.net'
-    return ''
-  },
 }))
 
 function makeRequest(host: string) {
@@ -60,7 +52,7 @@ describe('signup route br8', () => {
     )
   })
 
-  it('handles OK response with Set-Cookie headers including domain rewrite (L52-92)', async () => {
+  it('handles OK response with Set-Cookie headers, stripping the upstream Domain (L52-92)', async () => {
     const headers = new Headers()
     headers.append(
       'Set-Cookie',
@@ -76,12 +68,12 @@ describe('signup route br8', () => {
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     expect(res.status).toBe(200)
-    // Check that Set-Cookie was forwarded with domain rewrite
+    // Check that Set-Cookie was forwarded host-only
     const cookies = res.headers.getSetCookie()
     expect(cookies.length).toBeGreaterThan(0)
-    // Domain should be rewritten
     const cookie = cookies[0]
-    expect(cookie).toContain('.benger.localhost')
+    expect(cookie).toContain('access_token=abc')
+    expect(cookie).not.toContain('Domain=')
     // Secure should be removed
     expect(cookie).not.toMatch(/;\s*Secure/i)
   })
@@ -123,7 +115,7 @@ describe('signup route br8', () => {
     expect(res.status).toBe(500)
   })
 
-  it('handles empty cookieDomain (localhost fallback)', async () => {
+  it('handles a cookie on plain localhost', async () => {
     const headers = new Headers()
     headers.append('Set-Cookie', 'token=val; HttpOnly')
 

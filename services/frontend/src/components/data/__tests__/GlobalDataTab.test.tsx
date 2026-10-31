@@ -664,9 +664,7 @@ describe('GlobalDataTab', () => {
 
   describe('Export Functionality', () => {
     beforeEach(() => {
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(new Blob(['test data'])),
-      })
+      mockPost.mockResolvedValue(new Blob(['test data']))
       global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
       global.URL.revokeObjectURL = jest.fn()
 
@@ -709,9 +707,9 @@ describe('GlobalDataTab', () => {
       await user.click(exportButton)
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/data/export?format=json'),
-          expect.any(Object),
+        expect(mockPost).toHaveBeenCalledWith(
+          expect.stringContaining('/data/export?format=json'),
+          ['task-1'],
         )
       })
 
@@ -742,16 +740,16 @@ describe('GlobalDataTab', () => {
       await user.click(exportButton)
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/data/export?format=csv'),
-          expect.any(Object),
+        expect(mockPost).toHaveBeenCalledWith(
+          expect.stringContaining('/data/export?format=csv'),
+          ['task-1'],
         )
       })
     })
 
     it('handles export errors gracefully', async () => {
       const user = userEvent.setup()
-      global.fetch = jest.fn().mockRejectedValue(new Error('Export failed'))
+      mockPost.mockRejectedValue(new Error('Export failed'))
 
       render(<GlobalDataTab />)
 
@@ -1246,9 +1244,7 @@ describe('GlobalDataTab', () => {
 
     it('exports all tasks when no selection', async () => {
       const user = userEvent.setup()
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(new Blob(['all tasks data'])),
-      })
+      mockPost.mockResolvedValue(new Blob(['all tasks data']))
       global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
       global.URL.revokeObjectURL = jest.fn()
 
@@ -1286,9 +1282,9 @@ describe('GlobalDataTab', () => {
       await user.click(exportButton)
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/data/export?format=json'),
-          expect.any(Object),
+        expect(mockPost).toHaveBeenCalledWith(
+          expect.stringContaining('/data/export?format=json'),
+          ['task-1'],
         )
       })
     })
@@ -1296,9 +1292,7 @@ describe('GlobalDataTab', () => {
     it('exports with correct filename format', async () => {
       const user = userEvent.setup()
       const mockBlob = new Blob(['test'], { type: 'application/json' })
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      })
+      mockPost.mockResolvedValue(mockBlob)
       global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
       global.URL.revokeObjectURL = jest.fn()
 
@@ -1342,9 +1336,7 @@ describe('GlobalDataTab', () => {
 
     it('cleans up blob URL after export', async () => {
       const user = userEvent.setup()
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(new Blob(['test'])),
-      })
+      mockPost.mockResolvedValue(new Blob(['test']))
       const revokeObjectURLSpy = jest.fn()
       global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
       global.URL.revokeObjectURL = revokeObjectURLSpy
@@ -1386,12 +1378,14 @@ describe('GlobalDataTab', () => {
       })
     })
 
-    it('sends correct authorization header in export', async () => {
+    it('exports through the same-origin apiClient, never the API host', async () => {
+      // The old code fetched NEXT_PUBLIC_API_URL with a bearer token from a
+      // localStorage key nothing writes, so the export always failed auth.
+      // It now goes through apiClient (Next route proxy, cookie auth).
       const user = userEvent.setup()
-      const fetchSpy = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(new Blob(['test'])),
-      })
+      const fetchSpy = jest.fn()
       global.fetch = fetchSpy
+      mockPost.mockResolvedValue(new Blob(['test']))
       global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
       global.URL.revokeObjectURL = jest.fn()
 
@@ -1412,9 +1406,6 @@ describe('GlobalDataTab', () => {
           return originalCreateElement(tagName)
         })
 
-      // Set token in localStorage
-      localStorage.setItem('token', 'test-token-123')
-
       render(<GlobalDataTab />)
 
       await waitFor(() => {
@@ -1431,17 +1422,59 @@ describe('GlobalDataTab', () => {
       await user.click(exportButton)
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.objectContaining({
-            headers: {
-              Authorization: 'Bearer test-token-123',
-            },
-          }),
-        )
+        expect(mockPost).toHaveBeenCalledWith('/data/export?format=json', [
+          'task-1',
+        ])
+        expect(mockLink.click).toHaveBeenCalled()
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    it('downloads a JSON body that arrives parsed instead of as a Blob', async () => {
+      const user = userEvent.setup()
+      mockPost.mockResolvedValue({ tasks: [], total_tasks: 0 })
+      const createObjectURLSpy = jest.fn((_blob: Blob) => 'blob:mock-url')
+      global.URL.createObjectURL = createObjectURLSpy as any
+      global.URL.revokeObjectURL = jest.fn()
+
+      const mockLink = {
+        click: jest.fn(),
+        href: '',
+        download: '',
+        setAttribute: jest.fn(),
+        style: {},
+      }
+      const originalCreateElement = document.createElement.bind(document)
+      jest
+        .spyOn(document, 'createElement')
+        .mockImplementation((tagName: string) => {
+          if (tagName === 'a') {
+            return mockLink as any
+          }
+          return originalCreateElement(tagName)
+        })
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
       })
 
-      localStorage.removeItem('token')
+      const checkboxes = screen.getAllByRole('checkbox')
+      await user.click(checkboxes[1])
+      await user.click(screen.getByRole('button', { name: /Actions/i }))
+      await user.click(screen.getByText('Export as JSON'))
+
+      await waitFor(() => {
+        expect(mockLink.click).toHaveBeenCalled()
+      })
+      const blob = createObjectURLSpy.mock.calls[0][0]
+      expect(blob).toBeInstanceOf(Blob)
+      expect(blob.type).toBe('application/json')
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Export completed successfully',
+        'success',
+      )
     })
 
     it('changes sort order in filter panel', async () => {
@@ -1590,9 +1623,9 @@ describe('GlobalDataTab', () => {
       await user.click(exportCsvButton)
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(mockPost).toHaveBeenCalledWith(
           expect.stringContaining('format=csv'),
-          expect.any(Object),
+          ['task-1'],
         )
       })
     })
@@ -1600,9 +1633,7 @@ describe('GlobalDataTab', () => {
     it('handles export link creation and download trigger', async () => {
       const user = userEvent.setup()
       const mockBlob = new Blob(['export data'], { type: 'text/csv' })
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      })
+      mockPost.mockResolvedValue(mockBlob)
 
       const createObjectURLSpy = jest.fn(() => 'blob:test-url')
       global.URL.createObjectURL = createObjectURLSpy
@@ -1649,9 +1680,7 @@ describe('GlobalDataTab', () => {
     it('creates export link with ISO timestamp in filename', async () => {
       const user = userEvent.setup()
       const mockBlob = new Blob(['data'], { type: 'application/json' })
-      global.fetch = jest.fn().mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      })
+      mockPost.mockResolvedValue(mockBlob)
       global.URL.createObjectURL = jest.fn(() => 'blob:url')
       global.URL.revokeObjectURL = jest.fn()
 

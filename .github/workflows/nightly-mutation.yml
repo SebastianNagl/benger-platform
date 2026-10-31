@@ -23,7 +23,7 @@ jobs:
     name: mutate ${{ matrix.name }}
     runs-on: ubuntu-latest
     # Ceiling sized for the slowest shard. fail-fast:false isolates shards and
-    # the fast ones (statistics/IAA/parsers) finish in well under an hour, so
+    # the fast ones (statistics/parsers) finish in well under an hour, so
     # the high ceiling only ever applies to the long ones. GitHub-hosted job
     # hard limit is 6h; 350 leaves margin. A module whose shard nears it gets
     # split (2026-10: llm_judge_evaluator reached 2724 mutants at ~7.5 s each
@@ -43,9 +43,6 @@ jobs:
           - name: statistics
             module: ml_evaluation/statistics.py
             tests: tests/test_statistics.py tests/test_statistics_branches.py tests/test_statistics_coverage.py tests/test_statistics_properties.py tests/test_statistics_mutation_kills.py
-          - name: inter_annotator_agreement
-            module: ml_evaluation/inter_annotator_agreement.py
-            tests: tests/test_inter_annotator_agreement.py tests/test_inter_annotator_agreement_branches.py tests/test_iaa_coverage.py tests/test_inter_annotator_agreement_properties.py tests/test_inter_annotator_agreement_mutation_kills.py
           - name: sample_evaluator
             module: ml_evaluation/sample_evaluator.py
             tests: tests/test_sample_evaluator_properties.py tests/test_sample_evaluator_mutation_kills.py tests/test_sample_evaluator_kills_nlg_ranking.py tests/test_sample_evaluator_kills_scalar_failure.py tests/test_sample_evaluator_kills_spans_hier.py tests/test_sample_evaluator_kills_json_util_lang.py tests/test_sample_evaluator_neural_logic_kills.py tests/test_sample_evaluator_embedding_logic_kills.py tests/test_sample_evaluator_dispatch_factuality_kills.py tests/test_core_metrics_accuracy.py tests/test_hierarchical_metrics.py

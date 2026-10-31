@@ -611,8 +611,8 @@ class TestPassword:
                     "/api/auth/reset-password",
                     json={
                         "token": "token123",
-                        "new_password": "NewPass123!",
-                        "confirm_password": "NewPass123!",
+                        "new_password": "NewPassword123!",
+                        "confirm_password": "NewPassword123!",
                     },
                 )
                 assert resp.status_code == 200
@@ -630,8 +630,8 @@ class TestPassword:
                     "/api/auth/reset-password",
                     json={
                         "token": "bad-token",
-                        "new_password": "NewPass123!",
-                        "confirm_password": "NewPass123!",
+                        "new_password": "NewPassword123!",
+                        "confirm_password": "NewPassword123!",
                     },
                 )
                 assert resp.status_code == 400

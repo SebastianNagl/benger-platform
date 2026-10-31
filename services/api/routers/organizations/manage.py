@@ -244,7 +244,7 @@ async def update_user_superadmin_status(
 
 
 @router.delete("/manage/users/{user_id}")
-async def delete_user(
+def delete_user(
     user_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

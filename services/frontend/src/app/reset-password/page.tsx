@@ -5,6 +5,7 @@ import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
+import { rateLimitMessage } from '@/lib/api/errors'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -13,6 +14,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState('')
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { t, locale } = useI18n()
 
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
@@ -27,6 +29,7 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
       // Call the actual API endpoint
@@ -40,6 +43,20 @@ export default function ResetPasswordPage() {
           language: locale,
         }),
       })
+
+      if (response.status === 429) {
+        // The limit counts every request, existing address or not, so
+        // saying so reveals nothing about the account.
+        const limited = rateLimitMessage(
+          429,
+          t,
+          await response.json().catch(() => null),
+        )
+        if (limited) {
+          setError(limited)
+          return
+        }
+      }
 
       if (!response.ok) {
         // Even if the API returns an error, we show success to prevent email enumeration
@@ -111,6 +128,17 @@ export default function ResetPasswordPage() {
 
               {/* Reset Form */}
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div
+                    className="rounded-md bg-red-50 p-4 dark:bg-red-900/20"
+                    role="alert"
+                    data-testid="password-reset-error"
+                  >
+                    <div className="text-sm text-red-700 dark:text-red-400">
+                      {error}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label
                     htmlFor="email"

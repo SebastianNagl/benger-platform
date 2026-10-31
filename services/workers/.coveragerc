@@ -14,8 +14,6 @@ omit =
     */conftest.py
     */alembic/*
     */migrations/*
-    # one-shot CLI script, exercised by running not unit tests
-    parse_existing_generations.py
 
 [report]
 show_missing = True

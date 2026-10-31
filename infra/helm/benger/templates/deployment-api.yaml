@@ -24,11 +24,13 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.api.name }}
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.api.securityContext) | nindent 6 }}
       terminationGracePeriodSeconds: 120
       containers:
         - name: {{ .Values.api.name }}
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.api.securityContext) | nindent 10 }}
           command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", {{ .Values.api.workers | default 1 | quote }}, "--access-log"]
           lifecycle:
             preStop:

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session  # noqa: F401
 
 from auth_module import User, require_user  # noqa: F401
 from database import get_async_db, get_db  # noqa: F401
+from metric_values import coerce_metric_value
 from models import EvaluationRun as DBEvaluationRun  # noqa: F401
 from models import HumanEvaluationSession, LikertScaleEvaluation, PreferenceRanking  # noqa: F401
 from project_models import Annotation, Project, Task  # noqa: F401
@@ -50,40 +51,11 @@ _METRIC_METADATA_SUFFIXES = (
 )
 
 
-def _coerce_metric_value(val: Any) -> Optional[float]:
-    """Phase 2: accept either the legacy bare-float persistence shape OR the
-    new ``{"value": float|dict, "details": {...}}`` shape produced by
-    ``SampleEvaluator._compute_metric_with_details``.
-
-    For multi-output metrics (precision/recall/f1 from one compute call),
-    the inner value is a dict — surface ``primary_metric_key`` if set,
-    otherwise the first numeric value in insertion order.
-
-    Also accepts the pre-unified-shape Korrektur Falllösung blob
-    (``{"score": 51.5, "total_score": 51.5, "dimensions": {...}, ...}``)
-    that earlier submit_falloesung_grade calls wrote — surface
-    ``total_score`` (or ``score``) as the primary number so legacy rows
-    don't render as n/a in the eval results table.
-    """
-    if val is None or isinstance(val, bool):
-        return None
-    if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, dict):
-        inner = val.get("value")
-        if isinstance(inner, (int, float)) and not isinstance(inner, bool):
-            return float(inner)
-        if isinstance(inner, dict):
-            primary = val.get("primary_metric_key") or next(iter(inner), None)
-            inner_v = inner.get(primary) if primary else None
-            if isinstance(inner_v, (int, float)) and not isinstance(inner_v, bool):
-                return float(inner_v)
-        # Legacy Korrektur Falllösung shape fallback.
-        for legacy_key in ("total_score", "score"):
-            legacy_v = val.get(legacy_key)
-            if isinstance(legacy_v, (int, float)) and not isinstance(legacy_v, bool):
-                return float(legacy_v)
-    return None
+# Implementation lives in /shared/metric_values.py so worker-side code
+# (report_service, export_stream) can use it; kept here under its historical
+# name for the router submodules, tests and overlays that import it from
+# routers.evaluations.results.
+_coerce_metric_value = coerce_metric_value
 
 
 def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]:

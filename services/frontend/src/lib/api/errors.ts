@@ -45,3 +45,49 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     ?.response?.data?.detail
   return formatErrorDetail(detail) || fallback
 }
+
+/**
+ * Seconds to wait from an auth rate-limit answer: status 429 with
+ * `detail: {code: "rate_limited", retry_after}`. Null for anything else.
+ */
+export function rateLimitRetryAfter(
+  status: number | undefined,
+  body: unknown,
+): number | null {
+  if (status !== 429 || !body || typeof body !== 'object') return null
+  const detail = (body as { detail?: unknown }).detail
+  if (!detail || typeof detail !== 'object') return null
+  const { code, retry_after: retryAfter } = detail as {
+    code?: unknown
+    retry_after?: unknown
+  }
+  if (code !== 'rate_limited') return null
+  const seconds = Number(retryAfter)
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null
+}
+
+/**
+ * Localized "too many attempts, try again in N minutes" for a thrown API
+ * error (BaseApiClient puts `{status, data}` on `error.response`) or for a
+ * raw `status` + JSON body. Minutes are rounded up. Null when the error is
+ * not a rate limit, so callers fall back to their usual text.
+ */
+export function rateLimitMessage(
+  source: unknown,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  body?: unknown,
+): string | null {
+  let seconds: number | null
+  if (typeof source === 'number') {
+    seconds = rateLimitRetryAfter(source, body)
+  } else {
+    const response = (
+      source as { response?: { status?: number; data?: unknown } } | null
+    )?.response
+    seconds = rateLimitRetryAfter(response?.status, response?.data)
+  }
+  if (seconds === null) return null
+  return t('auth.rateLimited', {
+    minutes: Math.max(1, Math.ceil(seconds / 60)),
+  })
+}

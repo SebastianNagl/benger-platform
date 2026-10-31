@@ -254,7 +254,7 @@ describe('CompleteProfilePage', () => {
     it('should validate password mismatch', async () => {
       const user = userEvent.setup()
 
-      await user.type(screen.getByLabelText('Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
       await user.type(screen.getByLabelText('Confirm Password'), 'different')
       await user.click(screen.getByText('Complete Profile Setup'))
 
@@ -310,13 +310,13 @@ describe('CompleteProfilePage', () => {
 
       await user.type(usernameInput, 'newusername')
       await user.type(nameInput, 'New Name')
-      await user.type(passwordInput, 'password123')
-      await user.type(confirmPasswordInput, 'password123')
+      await user.type(passwordInput, 'password12345')
+      await user.type(confirmPasswordInput, 'password12345')
 
       expect(usernameInput.value).toBe('newusername')
       expect(nameInput.value).toBe('New Name')
-      expect(passwordInput.value).toBe('password123')
-      expect(confirmPasswordInput.value).toBe('password123')
+      expect(passwordInput.value).toBe('password12345')
+      expect(confirmPasswordInput.value).toBe('password12345')
     })
   })
 
@@ -604,8 +604,11 @@ describe('CompleteProfilePage', () => {
           },
         })
 
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
       await user.click(screen.getByText('Complete Profile Setup'))
 
       await waitFor(() => {

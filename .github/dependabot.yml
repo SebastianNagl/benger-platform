@@ -21,7 +21,12 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  - package-ecosystem: "pip"
+  # "uv" (not "pip"): the images install from uv.lock, so an update has to
+  # change the lock together with pyproject.toml or CI's `uv lock --check`
+  # fails. Bounds shared with the other service live in
+  # services/shared/dependency-constraints.txt; a bump past one of those needs
+  # a manual edit there.
+  - package-ecosystem: "uv"
     directory: "/services/api"
     schedule:
       interval: "weekly"
@@ -46,7 +51,12 @@ updates:
       - dependency-name: "sqlalchemy"
         versions: [">=2.1"]
 
-  - package-ecosystem: "pip"
+  # "uv" (not "pip"): the images install from uv.lock, so an update has to
+  # change the lock together with pyproject.toml or CI's `uv lock --check`
+  # fails. Bounds shared with the other service live in
+  # services/shared/dependency-constraints.txt; a bump past one of those needs
+  # a manual edit there.
+  - package-ecosystem: "uv"
     directory: "/services/workers"
     schedule:
       interval: "weekly"
@@ -66,11 +76,6 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # spacy >=3.8 pulls thinc 8.3.x (numpy-2.x ABI) and breaks at runtime
-      # under the numpy<2 cap — see the comment in services/workers/pyproject.toml.
-      # Drop this once the numpy 2.x migration lands.
-      - dependency-name: "spacy"
-        versions: [">=3.8"]
       # Same psycopg 3 switch as the api; workers ship psycopg2 only.
       - dependency-name: "sqlalchemy"
         versions: [">=2.1"]

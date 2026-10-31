@@ -3,7 +3,7 @@
 Provides centralized mocking for Celery, Redis, and other external services.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import fakeredis
 import pytest
@@ -41,28 +41,10 @@ def mock_redis():
     redis_cache.cache.redis_client = fake_redis
     redis_cache.cache.is_available = True
 
-    # Also mock websocket_clustering to prevent Redis connection errors
-    import services.websocket_clustering as websocket_clustering
-
-    original_cluster_redis = websocket_clustering.cluster_manager.redis_client
-    websocket_clustering.cluster_manager.redis_client = None  # Disable clustering in tests
-
     try:
         yield fake_redis
     finally:
         # Restore original values
         redis_cache.cache.redis_client = original_redis_client
         redis_cache.cache.is_available = original_is_available
-        websocket_clustering.cluster_manager.redis_client = original_cluster_redis
 
-
-@pytest.fixture(scope="function")
-def mock_redis_async():
-    """Async Redis mock for testing async Redis operations"""
-    fake_redis = fakeredis.FakeAsyncRedis(decode_responses=True)
-
-    with (
-        patch("services.websocket_clustering.redis_client", fake_redis),
-        patch("main.async_redis_client", fake_redis),
-    ):
-        yield fake_redis

@@ -41,11 +41,26 @@ export const authRedirect = {
   /**
    * Sanitize a return-to path so it can only point at an internal route
    * (guards against open-redirect). Returns null when the path is missing,
-   * not root-relative, protocol-relative, or itself the login page.
+   * not root-relative, protocol-relative, contains a backslash or a control
+   * character (browsers treat `/\host` like `//host` and strip tabs and
+   * newlines before parsing), resolves to another origin, or is itself the
+   * login page.
    */
   sanitizeNext: (path: string | null | undefined): string | null => {
-    if (!path) return null
+    if (!path || typeof path !== 'string') return null
     if (!path.startsWith('/') || path.startsWith('//')) return null
+    if (path.includes('\\')) return null
+    if (/[\u0000-\u001f\u007f]/.test(path)) return null
+    // Defence in depth: whatever the browser's URL parser makes of the
+    // path, it must stay on this origin.
+    const here = typeof window !== 'undefined' ? window.location : undefined
+    if (here) {
+      try {
+        if (new URL(path, here.href).origin !== here.origin) return null
+      } catch {
+        return null
+      }
+    }
     if (path === '/login' || path.startsWith('/login?')) return null
     return path
   },

@@ -840,11 +840,13 @@ describe('projectsAPI', () => {
       await projectsAPI.getImportJob('proj-1', 'job-1')
       expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/proj-1/imports/job-1',
+        { cache: 'no-store' },
       )
 
       await projectsAPI.getFullImportJob('job-2')
       expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/project-imports/job-2',
+        { cache: 'no-store' },
       )
     })
 
@@ -855,20 +857,18 @@ describe('projectsAPI', () => {
       await projectsAPI.getFullImportJob('job-2')
       await projectsAPI.getExportJob('proj-1', 'job-3')
 
-      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+      expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/proj-1/imports/job-1',
+        { cache: 'no-store' },
       )
-      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+      expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/project-imports/job-2',
+        { cache: 'no-store' },
       )
-      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+      expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/proj-1/exports/job-3',
+        { cache: 'no-store' },
       )
-      // Each invalidation precedes its read.
-      const invalidated = (apiClient.invalidateCache as jest.Mock).mock
-        .invocationCallOrder
-      const read = (apiClient.get as jest.Mock).mock.invocationCallOrder
-      invalidated.forEach((order, i) => expect(order).toBeLessThan(read[i]))
     })
 
     it('runNestedImportJob presigns, uploads, enqueues, then polls to completion', async () => {
@@ -1205,6 +1205,7 @@ describe('projectsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/proj-1/exports/job-1',
+        { cache: 'no-store' },
       )
       expect(res.status).toBe('running')
     })

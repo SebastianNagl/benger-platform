@@ -75,6 +75,20 @@ describe('/api/auth/resend-verification', () => {
     expect(response.status).toBe(429)
   })
 
+  it('passes a 429 body and its Retry-After through unchanged', async () => {
+    const body = { detail: { code: 'rate_limited', retry_after: 1800 } }
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+      status: 429,
+      headers: new Headers({ 'Retry-After': '1800' }),
+      json: async () => body,
+    })
+
+    const response = await POST(makeReq('benger.localhost'))
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Retry-After')).toBe('1800')
+    expect(await response.json()).toEqual(body)
+  })
+
   it('returns 500 on a network error', async () => {
     ;(global.fetch as jest.Mock).mockRejectedValueOnce(
       new Error('Network error'),

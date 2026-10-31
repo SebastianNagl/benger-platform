@@ -35,6 +35,7 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.beat.name }}
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.beat.securityContext) | nindent 6 }}
       containers:
         - name: {{ .Values.beat.name }}
           # Reuse the workers image + env — same Celery app / codebase, same
@@ -42,6 +43,7 @@ spec:
           # extended workers image by values-extended.yaml; beat inherits it.)
           image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.beat.securityContext) | nindent 10 }}
           # Schedule DB + pidfile live under /tmp so a restart never trips on
           # a stale pidfile or a read-only workdir. --pidfile= disables the
           # pidfile entirely (beat is PID 1; the container restarts on crash).

@@ -57,33 +57,43 @@ export function useResultsData({
   const [error, setError] = useState<string | null>(null)
   const inFlightRef = useRef(false)
 
-  const fetchResults = useCallback(async () => {
-    // In-flight guard: the 5 s poll below must never stack a second request
-    // behind a slow one — overlapping full-cost queries are exactly what
-    // brushed the DB statement_timeout under load (issue #280).
-    if (inFlightRef.current) return
-    inFlightRef.current = true
-    try {
-      // Always fetch all runs so the metric selector can list all completed metrics.
-      // showHistory controls display filtering, not the API fetch.
-      const displayData = await apiClient.getProjectEvaluationResults(
-        String(projectId),
-        false,
-      )
-      setResults(displayData)
-      setError(null)
-    } catch (err: any) {
-      console.error('Failed to fetch evaluation results:', err)
-      setError(err?.message || failedLoadMessage)
-    } finally {
-      inFlightRef.current = false
-      setLoading(false)
-    }
-  }, [projectId, showHistory]) // eslint-disable-line react-hooks/exhaustive-deps
+  // `fresh` bypasses the 30 s GET cache in the API client. Everything except
+  // the very first load is a live refresh (poll, WS-driven refreshKey bump,
+  // manual refetch) and must see the current state, not a cached copy.
+  const hasLoadedRef = useRef(false)
+  const fetchResults = useCallback(
+    async (fresh: boolean = true) => {
+      // In-flight guard: the 5 s poll below must never stack a second request
+      // behind a slow one — overlapping full-cost queries are exactly what
+      // brushed the DB statement_timeout under load (issue #280).
+      if (inFlightRef.current) return
+      inFlightRef.current = true
+      try {
+        // Always fetch all runs so the metric selector can list all completed metrics.
+        // showHistory controls display filtering, not the API fetch.
+        const displayData = await apiClient.getProjectEvaluationResults(
+          String(projectId),
+          false,
+          fresh ? { cache: 'no-store' } : undefined,
+        )
+        setResults(displayData)
+        setError(null)
+      } catch (err: any) {
+        console.error('Failed to fetch evaluation results:', err)
+        setError(err?.message || failedLoadMessage)
+      } finally {
+        inFlightRef.current = false
+        setLoading(false)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectId, showHistory],
+  )
 
   // Initial fetch and refresh when parent signals data change
   useEffect(() => {
-    fetchResults()
+    fetchResults(hasLoadedRef.current)
+    hasLoadedRef.current = true
   }, [fetchResults, refreshKey])
 
   // Poll for running evaluations
@@ -93,16 +103,18 @@ export function useResultsData({
     )
 
     if (hasRunningEval) {
-      const interval = setInterval(fetchResults, 5000)
+      const interval = setInterval(() => fetchResults(true), 5000)
       return () => clearInterval(interval)
     }
   }, [results, fetchResults])
+
+  const refetch = useCallback(() => fetchResults(true), [fetchResults])
 
   return {
     results,
     loading,
     error,
-    refetch: fetchResults,
+    refetch,
     setLoading,
   }
 }
@@ -194,7 +206,10 @@ export function useTaskModelData({
           showHistory,
           selectedMetricKey || null,
           selectedConfigId || null,
-          { signal: controller.signal },
+          // Live refreshes skip the API client's 30 s GET cache.
+          opts.live
+            ? { signal: controller.signal, cache: 'no-store' }
+            : { signal: controller.signal },
         )
         lastFetchAtRef.current = Date.now()
         taskModelCache.set(cacheKey, { data, at: Date.now() })

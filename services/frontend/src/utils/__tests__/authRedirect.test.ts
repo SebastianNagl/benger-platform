@@ -153,6 +153,63 @@ describe('authRedirect', () => {
       expect(authRedirect.sanitizeNext('/student/exams/1')).toBe(
         '/student/exams/1',
       )
+      expect(authRedirect.sanitizeNext('/projects/1?x=1')).toBe(
+        '/projects/1?x=1',
+      )
+    })
+
+    it('rejects backslash paths that browsers read as protocol-relative', () => {
+      expect(authRedirect.sanitizeNext('/\\evil.example')).toBeNull()
+      expect(authRedirect.sanitizeNext('/\\/evil.example')).toBeNull()
+      expect(authRedirect.sanitizeNext('/projects\\..\\x')).toBeNull()
+    })
+
+    it('rejects protocol-relative and scheme URLs', () => {
+      expect(authRedirect.sanitizeNext('//evil.example')).toBeNull()
+      expect(authRedirect.sanitizeNext('javascript:alert(1)')).toBeNull()
+      expect(authRedirect.sanitizeNext('JavaScript:alert(1)')).toBeNull()
+      expect(authRedirect.sanitizeNext('data:text/html,x')).toBeNull()
+    })
+
+    it('rejects control characters (tab/newline are stripped by URL parsers)', () => {
+      expect(authRedirect.sanitizeNext('/\t/evil.example')).toBeNull()
+      expect(authRedirect.sanitizeNext('/\n/evil.example')).toBeNull()
+      expect(authRedirect.sanitizeNext('/projects\u0000')).toBeNull()
+    })
+
+    it('rejects a path the URL parser resolves to another origin', () => {
+      const RealURL = global.URL
+      class OtherOriginURL {
+        origin = 'https://evil.example'
+      }
+      global.URL = OtherOriginURL as unknown as typeof URL
+      try {
+        expect(authRedirect.sanitizeNext('/projects/1')).toBeNull()
+      } finally {
+        global.URL = RealURL
+      }
+    })
+
+    it('rejects a path the URL parser cannot resolve', () => {
+      const RealURL = global.URL
+      global.URL = class {
+        constructor() {
+          throw new TypeError('Invalid URL')
+        }
+      } as unknown as typeof URL
+      try {
+        expect(authRedirect.sanitizeNext('/projects/1')).toBeNull()
+      } finally {
+        global.URL = RealURL
+      }
+    })
+
+    it('keeps resolved paths on the current origin', () => {
+      const result = authRedirect.sanitizeNext('/projects/1?x=1#y')
+      expect(result).toBe('/projects/1?x=1#y')
+      expect(new URL(result as string, window.location.href).origin).toBe(
+        window.location.origin,
+      )
     })
   })
 

@@ -7,6 +7,7 @@ email status, test notifications, and error paths.
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -580,7 +581,7 @@ class TestDigestEndpoint:
 class TestTestNotifications:
     def test_create_test_notification(self):
         client = TestClient(app)
-        mock_user = _make_user()
+        mock_user = _make_user(is_superadmin=True)
         mock_db = Mock(spec=Session)
 
         from database import get_db
@@ -605,7 +606,7 @@ class TestTestNotifications:
 
     def test_create_test_notification_invalid_type(self):
         client = TestClient(app)
-        mock_user = _make_user()
+        mock_user = _make_user(is_superadmin=True)
         mock_db = Mock(spec=Session)
 
         from database import get_db
@@ -629,7 +630,7 @@ class TestTestNotifications:
 
     def test_create_test_notification_error(self):
         client = TestClient(app)
-        mock_user = _make_user()
+        mock_user = _make_user(is_superadmin=True)
         mock_db = Mock(spec=Session)
 
         from database import get_db
@@ -646,6 +647,51 @@ class TestTestNotifications:
                     json={"notification_type": "system_alert", "count": 1},
                 )
                 assert resp.status_code == 500
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_create_test_notification_requires_superadmin(self):
+        client = TestClient(app)
+        mock_user = _make_user(is_superadmin=False)
+
+        from database import get_db
+        from routers.notifications import require_user
+
+        app.dependency_overrides[require_user] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: Mock(spec=Session)
+
+        try:
+            with patch("notification_service.NotificationService.create_notification") as mock_create:
+                resp = client.post(
+                    "/api/notifications/test",
+                    json={"notification_type": "system_alert", "count": 1},
+                )
+                assert resp.status_code == 403
+                mock_create.assert_not_called()
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.parametrize("count", [0, 11, 1000000])
+    def test_create_test_notification_count_bounds(self, count):
+        """count is bounded to 1..10; out-of-range values are rejected with
+        422 before any notification is created."""
+        client = TestClient(app)
+        mock_user = _make_user(is_superadmin=True)
+
+        from database import get_db
+        from routers.notifications import require_user
+
+        app.dependency_overrides[require_user] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: Mock(spec=Session)
+
+        try:
+            with patch("notification_service.NotificationService.create_notification") as mock_create:
+                resp = client.post(
+                    "/api/notifications/test",
+                    json={"notification_type": "system_alert", "count": count},
+                )
+                assert resp.status_code == 422
+                mock_create.assert_not_called()
         finally:
             app.dependency_overrides.clear()
 

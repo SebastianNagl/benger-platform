@@ -68,6 +68,7 @@ DICT_FIRST_WINS = "dict_first_wins"
 SINGLE_OWNER = "single_owner"
 
 HOOK_SPECS = {
+    "before_annotation_write": CALL_ALL,
     "on_annotation_created": CALL_ALL,
     "on_draft_saved": CALL_ALL,
     "after_eval_config_save": CALL_ALL,
@@ -107,7 +108,9 @@ HOOK_GATING = {
     # Timer integrity: these close the open exam timer session on submit and
     # mirror drafts into it. The auto-submit task keeps running while the
     # package is off, so skipping them could hand in a stale draft over the
-    # real submission.
+    # real submission. before_annotation_write refuses a client write once
+    # the strict timer has run out, so it must hold while the package is off.
+    "before_annotation_write": activation.ALWAYS,
     "on_annotation_created": activation.ALWAYS,
     "on_draft_saved": activation.ALWAYS,
     "after_eval_config_save": activation.ALWAYS,
@@ -644,6 +647,47 @@ def get_v1_routers_all():
 # --------------------------------------------------------------------------- #
 # Hooks
 # --------------------------------------------------------------------------- #
+class AnnotationWriteRejected(Exception):
+    """Raised by a ``before_annotation_write`` implementation to refuse a write.
+
+    The annotation routers turn it into ``HTTPException(status_code,
+    detail)``; ``detail`` may be a dict (a coded error body) or a string.
+    """
+
+    def __init__(self, detail, status_code=409):
+        super().__init__(detail)
+        self.detail = detail
+        self.status_code = status_code
+
+
+def before_annotation_write(
+    db, task_id, user_id, project_id, annotation_id=None, is_update=False
+):
+    """Hook called BEFORE an annotation is created or updated (CALL_ALL).
+
+    The annotation routers call it for HTTP clients only, after their own
+    access, assignment, window and SEB checks and before anything is
+    written, inside ``use_context(project_id=...)``. ``user_id`` is the
+    caller who writes (on an update that may be a superadmin editing
+    someone else's row), ``annotation_id`` is the row being updated (None
+    on create) and ``is_update`` tells the two apart; both arrive as
+    keyword arguments. An implementation refuses the write by raising
+    :class:`AnnotationWriteRejected`. Every exception propagates, so a
+    broken integrity check blocks the write instead of letting it through.
+    The server-side timer auto-submit does not call it. No-op if no package
+    implements it.
+    """
+    for _name, hook in _hook_impls("before_annotation_write"):
+        hook(
+            db,
+            task_id,
+            user_id,
+            project_id,
+            annotation_id=annotation_id,
+            is_update=is_update,
+        )
+
+
 def on_annotation_created(db, task_id, user_id, annotation_id, project_id):
     """Hook called after an annotation is created (CALL_ALL).
 

@@ -1,7 +1,6 @@
 /**
  * Targeted edge-case coverage for util branches not exercised elsewhere.
  */
-import { findNextUnannotatedItem } from '../annotationStatus'
 import { clearAllStores } from '../clearAllStores'
 import { flattenJson } from '../jsonUtils'
 import { localInputToIso } from '../projectWindow'
@@ -35,12 +34,6 @@ describe('util edge-case coverage', () => {
       const out = flattenJson({ arr: [{ a: 1 }], n: null })
       expect(out['arr[0].a']).toBe(1)
       expect(out['n']).toBeNull()
-    })
-  })
-
-  describe('annotationStatus.findNextUnannotatedItem', () => {
-    it('returns null when there are no items', () => {
-      expect(findNextUnannotatedItem([], [])).toBeNull()
     })
   })
 

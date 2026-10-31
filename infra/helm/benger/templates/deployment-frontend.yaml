@@ -24,10 +24,12 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.frontend.name }}
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.frontend.securityContext) | nindent 6 }}
       containers:
         - name: {{ .Values.frontend.name }}
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.frontend.securityContext) | nindent 10 }}
           ports:
             - name: http
               containerPort: 3000

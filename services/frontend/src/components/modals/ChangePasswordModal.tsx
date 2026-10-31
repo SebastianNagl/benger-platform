@@ -9,6 +9,7 @@ import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
 
 interface ChangePasswordModalProps {
   isOpen: boolean
@@ -143,7 +144,7 @@ export function ChangePasswordModal({
                     })
                   }
                   autoComplete="new-password"
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   required
                 />
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -170,7 +171,7 @@ export function ChangePasswordModal({
                     })
                   }
                   autoComplete="new-password"
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   required
                 />
               </div>

@@ -45,13 +45,22 @@ async def test_responses_expose_headers_without_credentials(async_test_client):
 
 
 async def test_other_paths_keep_the_app_wide_policy(async_test_client):
+    # Outside production the app-wide policy admits the local dev hosts only
+    # (app.core.config.DEV_CORS_ORIGIN_REGEX); a production host, and in
+    # particular the storage host, never gets a credentialed grant.
     r = await async_test_client.options(
         "/api/projects",
-        headers={"Origin": "https://what-a-benger.net", "Access-Control-Request-Method": "GET"},
+        headers={"Origin": "http://benger.localhost", "Access-Control-Request-Method": "GET"},
     )
-    assert r.headers["access-control-allow-origin"] == "https://what-a-benger.net"
+    assert r.headers["access-control-allow-origin"] == "http://benger.localhost"
     assert r.headers["access-control-allow-credentials"] == "true"
     assert "x-api-version" not in r.headers
+    for origin in ("https://what-a-benger.net", "https://storage.what-a-benger.net"):
+        r = await async_test_client.options(
+            "/api/projects",
+            headers={"Origin": origin, "Access-Control-Request-Method": "GET"},
+        )
+        assert "access-control-allow-origin" not in r.headers
     r = await async_test_client.options(
         "/api/projects",
         headers={"Origin": ORIGIN, "Access-Control-Request-Method": "GET"},

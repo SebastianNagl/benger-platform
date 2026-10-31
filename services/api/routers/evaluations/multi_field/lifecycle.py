@@ -137,7 +137,7 @@ def _redispatch(db: Session, evaluation: DBEvaluationRun, action: str) -> str:
     "/run/{evaluation_id}/pause",
     response_model=EvaluationLifecycleResponse,
 )
-async def pause_evaluation_run(
+def pause_evaluation_run(
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -194,7 +194,7 @@ async def pause_evaluation_run(
     "/run/{evaluation_id}/resume",
     response_model=EvaluationLifecycleResponse,
 )
-async def resume_evaluation_run(
+def resume_evaluation_run(
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -256,7 +256,7 @@ async def resume_evaluation_run(
     "/run/{evaluation_id}/retry",
     response_model=EvaluationLifecycleResponse,
 )
-async def retry_evaluation_run(
+def retry_evaluation_run(
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),

@@ -1,6 +1,6 @@
 import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
-import { getCookieDomainFromHost } from '@/lib/utils/subdomain'
+import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
@@ -16,10 +16,10 @@ import { NextRequest, NextResponse } from 'next/server'
  * A more specific route segment wins over the dynamic catch-all in the App
  * Router, so every /api/lti/* request lands here and nowhere else.
  *
- * Cookie handling mirrors the dedicated auth handlers: strip the upstream
- * Domain, re-scope to the requesting host (multi-host: vertretbar.* and
- * *.what-a-benger.net families), preserve an explicit SameSite, and drop
- * Secure outside production so plain-HTTP dev setups keep working.
+ * Cookie handling mirrors the dedicated auth handlers: cookies stay
+ * host-only (the upstream Domain is stripped, legacy-domain clears excepted,
+ * see upstreamCookies.ts), an explicit SameSite is preserved, and Secure is
+ * dropped outside production so plain-HTTP dev setups keep working.
  */
 
 const HOP_BY_HOP_REQUEST_HEADERS = ['host', 'connection', 'content-length']
@@ -99,15 +99,14 @@ async function proxyLti(request: NextRequest): Promise<NextResponse> {
     responseHeaders.set(key, value)
   })
 
-  // Re-scope cookies to the host the browser is actually on.
+  // Host-only cookies for the host the browser is actually on.
   const host = getExternalHost(request)
-  const cookieDomain = getCookieDomainFromHost(host)
   const isProduction = process.env.NODE_ENV === 'production'
-  for (const cookie of backendResponse.headers.getSetCookie()) {
-    let modified = cookie.replace(/Domain=[^;]+;?\s*/gi, '')
-    if (cookieDomain) {
-      modified += `; Domain=${cookieDomain}`
-    }
+  for (const cookie of scopeUpstreamSetCookies(
+    backendResponse.headers.getSetCookie(),
+    host,
+  )) {
+    let modified = cookie
     if (!/Path=/i.test(modified)) {
       modified += '; Path=/'
     }

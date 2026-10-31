@@ -280,6 +280,22 @@ def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
     return {name: str(value or "") for name, value in pairs if name in params}
 
 
+def _end_read_transaction(db) -> None:
+    """End the cell session's open transaction before slow non-DB work.
+
+    A cell reads its inputs, then spends minutes in judge calls. Without this
+    the pooled connection sits idle in transaction for the whole fan-out and
+    holds AccessShareLocks on every table it read, which is what blocked the
+    2026-10-15 migration on ``users``. The cell sessions set
+    ``expire_on_commit = False`` so the loaded rows stay readable afterwards
+    (only plain columns are used; no lazy relationship is touched). Any later
+    read opens a fresh short transaction, and the call sites release it
+    again right after. Commit (not rollback) so a write made while loading
+    the inputs, if any helper ever does one, is kept.
+    """
+    db.commit()
+
+
 def evaluate_generation_cell_impl(
     self,
     evaluation_id: str,
@@ -332,6 +348,8 @@ def evaluate_generation_cell_impl(
     import uuid as _gen_uuid
 
     db = SessionLocal()
+    # Loaded rows must stay usable after _end_read_transaction commits.
+    db.expire_on_commit = False
     try:
         from models import EvaluationRun, Generation
         from project_models import Annotation, Task
@@ -409,6 +427,8 @@ def evaluate_generation_cell_impl(
             project_id=project_id,
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
+        # All inputs are loaded: release the connection before the judge calls.
+        _end_read_transaction(db)
 
         # Pre-normalize the orchestrator-supplied "already done" set so the
         # per-field-pair skip check below is a cheap set membership lookup
@@ -583,6 +603,7 @@ def evaluate_generation_cell_impl(
                                 task_rubric = _resolve_task_rubric(
                                     db, task, config.get("metric_parameters")
                                 )
+                                _end_read_transaction(db)
                                 if task_rubric is None:
                                     err = _NO_RUBRIC_ERROR.format(task_id=task.id)
                                     sample_results.append({
@@ -704,6 +725,10 @@ def evaluate_generation_cell_impl(
                                             ("zusatzmaterial", zusatzmaterial),
                                         ),
                                     )
+                                    _grade_scale_kw = _falloesung_grade_scale_kwargs(
+                                        falloesung_bulk_fn, db, project_id
+                                    )
+                                    _end_read_transaction(db)
                                     result = falloesung_bulk_fn(
                                         ai_service=jr_evaluator.ai_service,
                                         judge_model=jr_evaluator.judge_model,
@@ -718,9 +743,7 @@ def evaluate_generation_cell_impl(
                                         **_falloesung_margin_notes_kwargs(
                                             falloesung_bulk_fn, config.get("metric_parameters")
                                         ),
-                                        **_falloesung_grade_scale_kwargs(
-                                            falloesung_bulk_fn, db, project_id
-                                        ),
+                                        **_grade_scale_kw,
                                     )
                                 elif multidim_mode:
                                     # Flatten the model's per-field output
@@ -770,11 +793,13 @@ def evaluate_generation_cell_impl(
 
                                 if multidim_mode:
                                     if task_rubric is not None:
+                                        _proj_cfg = _project_eval_config(db, project_id)
+                                        _end_read_transaction(db)
                                         _stamp_rubric_result(
                                             result,
                                             judge_prompts,
                                             task_rubric,
-                                            _project_eval_config(db, project_id),
+                                            _proj_cfg,
                                         )
                                     error_msg = (
                                         result.get("error_message")
@@ -1050,6 +1075,8 @@ def evaluate_annotation_cell_impl(
     import uuid as _ann_uuid
 
     db = SessionLocal()
+    # Loaded rows must stay usable after _end_read_transaction commits.
+    db.expire_on_commit = False
     try:
         from models import EvaluationRun
         from project_models import Annotation, Task
@@ -1103,6 +1130,8 @@ def evaluate_annotation_cell_impl(
             project_id=project_id,
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
+        # All inputs are loaded: release the connection before the judge calls.
+        _end_read_transaction(db)
 
         # Pre-normalize per-cell already-done set (annotation-side mirror of
         # the generation-side skip). Same rationale — avoid the wasted
@@ -1238,6 +1267,7 @@ def evaluate_annotation_cell_impl(
                                     task_rubric = _resolve_task_rubric(
                                         db, task, config.get("metric_parameters")
                                     )
+                                    _end_read_transaction(db)
                                     if task_rubric is None:
                                         err = _NO_RUBRIC_ERROR.format(task_id=task.id)
                                         sample_results.append({
@@ -1354,6 +1384,10 @@ def evaluate_annotation_cell_impl(
                                             if task.data
                                             else ""
                                         )
+                                        _grade_scale_kw = _falloesung_grade_scale_kwargs(
+                                            falloesung_bulk_fn, db, project_id
+                                        )
+                                        _end_read_transaction(db)
                                         result = falloesung_bulk_fn(
                                             ai_service=jr_evaluator.ai_service,
                                             judge_model=jr_evaluator.judge_model,
@@ -1367,9 +1401,7 @@ def evaluate_annotation_cell_impl(
                                             **_falloesung_margin_notes_kwargs(
                                                 falloesung_bulk_fn, config.get("metric_parameters")
                                             ),
-                                            **_falloesung_grade_scale_kwargs(
-                                                falloesung_bulk_fn, db, project_id
-                                            ),
+                                            **_grade_scale_kw,
                                         )
                                     elif multidim_mode:
                                         # Same as the gen-cell side: flatten
@@ -1418,11 +1450,13 @@ def evaluate_annotation_cell_impl(
 
                                     if multidim_mode:
                                         if task_rubric is not None:
+                                            _proj_cfg = _project_eval_config(db, project_id)
+                                            _end_read_transaction(db)
                                             _stamp_rubric_result(
                                                 result,
                                                 judge_prompts,
                                                 task_rubric,
-                                                _project_eval_config(db, project_id),
+                                                _proj_cfg,
                                             )
                                         error_msg = (
                                             result.get("error_message")

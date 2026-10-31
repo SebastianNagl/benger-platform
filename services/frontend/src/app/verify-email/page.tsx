@@ -4,6 +4,7 @@ import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
+import { rateLimitMessage } from '@/lib/api/errors'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -106,6 +107,13 @@ export default function VerifyEmailPage() {
 
       if (response.ok) {
         setMessage(t('emailVerification.resent'))
+      } else if (response.status === 429) {
+        const limited = rateLimitMessage(
+          429,
+          t,
+          await response.json().catch(() => null),
+        )
+        if (limited) setMessage(limited)
       }
     } catch (error) {
       console.error('Error resending verification:', error)

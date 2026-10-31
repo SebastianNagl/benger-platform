@@ -11,11 +11,6 @@ Grouped into one file because each module needs only one or two tests.
     * _krippendorff_alpha_interval expected_pairs==0 guard (statistics.py:673)
       is already covered by test_statistics_branches.py; not retried here.
 
-  ml_evaluation/inter_annotator_agreement.py  (krippendorff_alpha)
-    * unknown level_of_measurement -> nominal-style distance fallback (160).
-    * total_pairs == 0 -> "No valid rating pairs found" (183): ratings spread
-      so no single item has 2+ valid ratings, yet >= 2 ratings overall.
-
   generation_structure_parser.py
     * extract_nested_value non-integer array index -> ValueError -> None
       (172-173).
@@ -32,22 +27,19 @@ Grouped into one file because each module needs only one or two tests.
 
 All behavioral: real functions, crafted inputs (or one targeted patch of an
 internal transform), asserted outputs. Mirrors the idioms in
-test_statistics_branches.py / test_inter_annotator_agreement_branches.py /
-test_generation_structure_parser_coverage.py / test_response_parser_coverage.py.
+test_statistics_branches.py / test_generation_structure_parser_coverage.py /
+test_response_parser_coverage.py.
 """
 
 import os
 import sys
 from unittest.mock import patch
 
-import pytest
-
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
 
-from ml_evaluation.statistics import significance_test, correlation_matrix  # noqa: E402
-from ml_evaluation.inter_annotator_agreement import krippendorff_alpha  # noqa: E402
+from ml_evaluation.statistics import correlation_matrix  # noqa: E402
 from generation_structure_parser import GenerationStructureParser  # noqa: E402
 from response_parser import ResponseParser  # noqa: E402
 
@@ -69,29 +61,6 @@ class TestCorrelationMatrixCellExcept:
         result = correlation_matrix(data, method="pearson")
         assert result["a"]["b"] is None
         assert result["b"]["a"] is None
-
-
-# ============================================================================
-# inter_annotator_agreement.krippendorff_alpha — edge guards
-# ============================================================================
-
-
-class TestKrippendorffEdgeGuards:
-    def test_unknown_level_uses_nominal_fallback(self):
-        """An unrecognised level_of_measurement falls through every distance
-        branch to the final `return 0 if v1 == v2 else 1` (line 160). Identical
-        rows -> observed disagreement 0 -> alpha 1.0."""
-        matrix = [[1, 1], [2, 2], [3, 3]]
-        result = krippendorff_alpha(matrix, level_of_measurement="bogus_level")
-        assert result["alpha"] == pytest.approx(1.0)
-
-    def test_no_item_with_two_valid_ratings_returns_error(self):
-        """Ratings are spread one-per-item, so no single item has 2+ valid
-        ratings (total_pairs == 0), yet there are >= 2 ratings overall (passing
-        the earlier 'need 2 ratings' guard). Hits the line-183 error."""
-        matrix = [[1, None], [2, None]]
-        result = krippendorff_alpha(matrix, "nominal")
-        assert result == {"error": "No valid rating pairs found"}
 
 
 # ============================================================================

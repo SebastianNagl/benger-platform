@@ -101,8 +101,14 @@ describe('projectsAPI — cloud imports', () => {
       { pollIntervalMs: 1 },
     )
 
-    expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/imports/job-1')
-    expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/imports/job-2')
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/projects/proj-1/imports/job-1',
+      { cache: 'no-store' },
+    )
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/projects/proj-1/imports/job-2',
+      { cache: 'no-store' },
+    )
     expect(finals).toHaveLength(2)
     expect(finals.every((s) => s.status === 'completed')).toBe(true)
     // onStatus reports per object key.

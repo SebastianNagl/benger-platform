@@ -610,4 +610,29 @@ describe('Reset Password Page', () => {
       expect(nav).toHaveClass('lg:px-8')
     })
   })
+
+  describe('Rate limit', () => {
+    it('shows the rate-limit message instead of the success screen', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({
+          detail: { code: 'rate_limited', retry_after: 1800 },
+        }),
+      })
+      render(<ResetPasswordPage />)
+
+      fireEvent.change(screen.getByLabelText('Email Address'), {
+        target: { value: 'student@example.com' },
+      })
+      fireEvent.click(screen.getByTestId('submit-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('password-reset-error')).toHaveTextContent(
+          'auth.rateLimited',
+        )
+      })
+      expect(screen.queryByText('Check Your Email')).not.toBeInTheDocument()
+    })
+  })
 })

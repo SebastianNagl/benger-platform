@@ -58,10 +58,19 @@ spec:
         benger.io/worker-pool: {{ $poolName }}
     spec:
       {{- include "benger.imagePullSecrets" $ | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" ($pool.securityContext | default $.Values.workers.securityContext)) | nindent 6 }}
+      # Celery's warm shutdown on SIGTERM lets running tasks finish. If the
+      # kubelet SIGKILLs first (default grace 30 s), an acks_late message is
+      # only redelivered after the 7200 s Redis visibility timeout and every
+      # judge call the task already made is lost and paid for twice. 600 s
+      # covers the long tail of LLM calls; a pod with no running task still
+      # exits immediately.
+      terminationGracePeriodSeconds: {{ $pool.terminationGracePeriodSeconds | default $.Values.workers.terminationGracePeriodSeconds | default 600 }}
       containers:
         - name: workers-{{ $poolName }}
           image: "{{ $.Values.workers.image.repository }}:{{ $.Values.workers.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.workers.image.pullPolicy }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" ($pool.securityContext | default $.Values.workers.securityContext)) | nindent 10 }}
           # -n gives this pool a FIXED nodename prefix so the probes below can
           # name their own worker (see the probe comment).
           command:
@@ -149,7 +158,17 @@ spec:
             {{- with $pool.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- with (include "benger.overlayEnv" (dict "root" $ "role" "workers")) }}
+            {{- $overlayEnv := include "benger.overlayEnv" (dict "root" $ "role" "workers") }}
+            {{- with $overlayEnv }}
+            {{- . | nindent 12 }}
+            {{- end }}
+            {{- /* Key-by-key override (not sprig merge, which ignores a pool's
+                   `enabled: false` because false counts as empty). */}}
+            {{- $modelCache := deepCopy ($.Values.workers.modelCache | default dict) }}
+            {{- range $k, $v := ($pool.modelCache | default dict) }}
+            {{- $_ := set $modelCache $k $v }}
+            {{- end }}
+            {{- with (include "benger.workerModelCacheEnv" (dict "root" $ "cfg" $modelCache "existing" (list $.Values.workers.env $.Values.workers.extraEnv $pool.extraEnv (fromYamlArray (default "[]" $overlayEnv))))) }}
             {{- . | nindent 12 }}
             {{- end }}
           resources:

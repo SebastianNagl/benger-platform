@@ -92,11 +92,11 @@ describe('RegisterPage', () => {
     )
     await user.type(
       screen.getByTestId('auth-register-password-input'),
-      'password123',
+      'password12345',
     )
     await user.type(
       screen.getByTestId('auth-register-confirm-password-input'),
-      'password123',
+      'password12345',
     )
   }
 
@@ -270,14 +270,14 @@ describe('RegisterPage', () => {
       await user.type(nameInput, 'Test User')
       await user.type(usernameInput, 'testuser')
       await user.type(emailInput, 'test@example.com')
-      await user.type(passwordInput, 'password123')
-      await user.type(confirmPasswordInput, 'password123')
+      await user.type(passwordInput, 'password12345')
+      await user.type(confirmPasswordInput, 'password12345')
 
       expect(nameInput.value).toBe('Test User')
       expect(usernameInput.value).toBe('testuser')
       expect(emailInput.value).toBe('test@example.com')
-      expect(passwordInput.value).toBe('password123')
-      expect(confirmPasswordInput.value).toBe('password123')
+      expect(passwordInput.value).toBe('password12345')
+      expect(confirmPasswordInput.value).toBe('password12345')
     })
 
     it('should have email input type as email', () => {
@@ -317,7 +317,7 @@ describe('RegisterPage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
@@ -392,11 +392,11 @@ describe('RegisterPage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'password123',
+        'password12345',
       )
       await user.click(screen.getByTestId('register-step-indicator-5'))
 
@@ -432,7 +432,7 @@ describe('RegisterPage', () => {
           'testuser',
           'test@example.com',
           'Test User',
-          'password123',
+          'password12345',
           expect.objectContaining({
             legal_expertise_level: 'layperson',
             german_proficiency: 'native',
@@ -572,7 +572,52 @@ describe('RegisterPage', () => {
       expect(screen.queryByTestId('auth-register-form')).not.toBeInTheDocument()
     })
 
-    // Note: Custom redirect URL requires window.location manipulation - jsdom limitations
+    it('follows a safe internal next path after authentication', async () => {
+      window.history.pushState(
+        {},
+        '',
+        'http://localhost/register?next=%2Fprojects%2F1%3Fx%3D1',
+      )
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: { id: '1', username: 'testuser' },
+        signup: mockSignup,
+        isLoading: false,
+      })
+
+      render(<RegisterPage />)
+
+      await waitFor(() =>
+        expect(mockRouterReplace).toHaveBeenLastCalledWith('/projects/1?x=1'),
+      )
+    })
+
+    it.each([
+      ['redirect', 'https://evil.example/'],
+      ['next', '//evil.example'],
+      ['next', '/\\evil.example'],
+      ['redirect', 'javascript:alert(1)'],
+    ])(
+      'ignores an unsafe %s target (%s) and falls back to the dashboard',
+      async (param, target) => {
+        window.history.pushState(
+          {},
+          '',
+          `http://localhost/register?${param}=${encodeURIComponent(target)}`,
+        )
+        ;(useAuth as jest.Mock).mockReturnValue({
+          user: { id: '1', username: 'testuser' },
+          signup: mockSignup,
+          isLoading: false,
+        })
+
+        render(<RegisterPage />)
+
+        await waitFor(() => expect(mockRouterReplace).toHaveBeenCalled())
+        for (const call of mockRouterReplace.mock.calls) {
+          expect(call[0]).toBe('/dashboard')
+        }
+      },
+    )
   })
 
   describe('Accessibility', () => {

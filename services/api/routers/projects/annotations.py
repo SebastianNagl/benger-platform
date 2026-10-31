@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -37,7 +37,7 @@ router = APIRouter()
 
 
 @router.post("/tasks/{task_id}/annotations", response_model=AnnotationResponse)
-async def create_annotation(
+def create_annotation(
     task_id: str,  # Accept string task IDs
     annotation: AnnotationCreate,
     request: Request,
@@ -74,9 +74,48 @@ async def create_annotation(
         # must come from SEB; the server-side timer worker never lands here.
         enforce_seb(db, current_user, project, request, tier=tier)
 
+    # Overlay integrity checks (the strict exam timer) run last, right before
+    # the write. The server-side timer auto-submit never lands here.
+    _run_before_annotation_write(
+        db, task_id=task_id, user_id=current_user.id, project_id=task.project_id
+    )
+
     return persist_annotation_submission(
         db, task=task, project=project, user_id=current_user.id, annotation=annotation
     )
+
+
+def _run_before_annotation_write(
+    db: Session,
+    *,
+    task_id: str,
+    user_id: str,
+    project_id: str,
+    annotation_id: Optional[str] = None,
+    is_update: bool = False,
+) -> None:
+    """Run the ``before_annotation_write`` hook for a client write.
+
+    Sync on purpose: the update handler bridges it through
+    ``AsyncSession.run_sync``. A refusal (``AnnotationWriteRejected``)
+    becomes the HTTP error it names; any other exception propagates and
+    fails the request, so nothing is written either way.
+    """
+    from extension_activation import use_context
+    from extensions import AnnotationWriteRejected, before_annotation_write
+
+    try:
+        with use_context(project_id=project_id):
+            before_annotation_write(
+                db,
+                task_id,
+                user_id,
+                project_id,
+                annotation_id=annotation_id,
+                is_update=is_update,
+            )
+    except AnnotationWriteRejected as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
 def persist_annotation_submission(
@@ -217,15 +256,29 @@ def persist_annotation_submission(
     # results). Only on a NEW row — the update-in-place path adds no annotation,
     # so the counters must not move.
     if existing_annotation is None and annotation.result and len(annotation.result) > 0:
-        # total_annotations = ALL completed annotations (cancelled + not cancelled)
-        task.total_annotations += 1
-
-        if annotation.was_cancelled:
-            task.cancelled_annotations += 1
+        # total_annotations = ALL completed annotations (cancelled + not cancelled).
+        # Atomic in-SQL increments: the advisory lock above is per (task,
+        # user), so submits by different users to the same task run
+        # concurrently and a Python read-modify-write lost updates. The
+        # UPDATE also takes the task's row lock until commit, which
+        # serializes the is_labeled check below across those submitters.
+        # "fetch" copies the RETURNING values onto the loaded ``task``.
+        db.execute(
+            update(Task)
+            .where(Task.id == task_id)
+            .values(
+                total_annotations=Task.total_annotations + 1,
+                cancelled_annotations=Task.cancelled_annotations
+                + (1 if annotation.was_cancelled else 0),
+            )
+            .execution_options(synchronize_session="fetch")
+        )
 
         # Update task labeling status based on non-cancelled annotations
         if not annotation.was_cancelled:
-            # Count non-cancelled annotations for this task (including the new one)
+            # Count non-cancelled annotations for this task (including the new
+            # one). Runs after the row lock is held, so under READ COMMITTED it
+            # sees every concurrent submitter that committed before us.
             non_cancelled_annotations = (
                 db.query(Annotation)
                 .filter(
@@ -239,7 +292,12 @@ def persist_annotation_submission(
 
             # Label Studio approach: Task is labeled when it meets minimum annotation requirement
             if non_cancelled_annotations >= project.min_annotations_per_task:
-                task.is_labeled = True
+                db.execute(
+                    update(Task)
+                    .where(Task.id == task_id)
+                    .values(is_labeled=True)
+                    .execution_options(synchronize_session="fetch")
+                )
 
     # Task completion status is tracked on the task itself
     # No need to update project-level counter as it's calculated dynamically
@@ -509,6 +567,23 @@ async def update_annotation(
     # Check if user owns this annotation or has admin rights
     if db_annotation.completed_by != current_user.id and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Can only update your own annotations")
+
+    # Overlay integrity checks (the strict exam timer) before any write. The
+    # hook is sync and takes a sync session, hence run_sync on this session's
+    # connection (same transaction, same pattern as the eval-config hook).
+    hook_task_id = db_annotation.task_id
+    hook_user_id = current_user.id
+    hook_project_id = db_annotation.project_id
+    await db.run_sync(
+        lambda session: _run_before_annotation_write(
+            session,
+            task_id=hook_task_id,
+            user_id=hook_user_id,
+            project_id=hook_project_id,
+            annotation_id=annotation_id,
+            is_update=True,
+        )
+    )
 
     # Track if was_cancelled status changed for counter updates
     was_cancelled_changed = False

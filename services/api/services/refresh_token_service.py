@@ -142,18 +142,27 @@ def revoke_refresh_token(db: Session, token: str) -> bool:
     return False
 
 
-def revoke_user_tokens(db: Session, user_id: str) -> int:
+def revoke_user_tokens(
+    db: Session, user_id: str, keep_token: Optional[str] = None, commit: bool = True
+) -> int:
     """
     Revoke all refresh tokens for a user (logout from all devices)
     Returns the number of tokens revoked
-    """
-    count = (
-        db.query(RefreshToken)
-        .filter(RefreshToken.user_id == user_id, RefreshToken.is_active == True)  # noqa: E712
-        .update({"is_active": False})
-    )
 
-    db.commit()
+    ``keep_token`` (a raw refresh token) is spared, so a password change
+    ends every other session but not the one that made the change.
+    ``commit=False`` leaves the commit to the caller, so the revocation lands
+    in the same transaction as the password or status change behind it.
+    """
+    query = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id, RefreshToken.is_active == True  # noqa: E712
+    )
+    if keep_token:
+        query = query.filter(RefreshToken.token_hash != hash_token(keep_token))
+    count = query.update({"is_active": False})
+
+    if commit:
+        db.commit()
     return count
 
 
@@ -334,8 +343,8 @@ async def revoke_refresh_token_async(db: AsyncSession, token: str) -> bool:
     return False
 
 
-async def revoke_user_tokens_async(db: AsyncSession, user_id: str) -> int:
-    """Async twin of :func:`revoke_user_tokens`."""
+async def revoke_user_tokens_async(db: AsyncSession, user_id: str, commit: bool = True) -> int:
+    """Async twin of :func:`revoke_user_tokens` (without ``keep_token``)."""
     result = await db.execute(
         update(RefreshToken)
         .where(
@@ -344,7 +353,8 @@ async def revoke_user_tokens_async(db: AsyncSession, user_id: str) -> int:
         )
         .values(is_active=False)
     )
-    await db.commit()
+    if commit:
+        await db.commit()
     return result.rowcount
 
 

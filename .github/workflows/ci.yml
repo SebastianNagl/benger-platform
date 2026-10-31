@@ -124,6 +124,21 @@ jobs:
       - name: Lint API, Workers, Shared
         run: ruff check --select=F821,F823 --exclude="*/scripts/*" services/api/ services/workers/ services/shared/
 
+      # The api and workers images install exactly services/<svc>/uv.lock
+      # (`uv sync --locked` in the Dockerfiles). A pyproject.toml edit without
+      # a matching `uv lock` would fail the image build late, in the extended
+      # pipeline; catch it here instead. The second check fails when the
+      # [tool.uv] constraint blocks drift from
+      # services/shared/dependency-constraints.txt or the two locks resolve a
+      # package both images install to different versions. Same uv as the
+      # Dockerfiles.
+      - name: Check uv lockfiles are current
+        run: |
+          pip install uv==0.11.28
+          (cd services/api && uv lock --check)
+          (cd services/workers && uv lock --check)
+          python scripts/sync_shared_constraints.py --check
+
       # Publication scripts: ruff's default rules at the version pinned in
       # publications/ruff.toml (git-ignored WIP folders are skipped).
       - name: Lint publications
@@ -157,8 +172,15 @@ jobs:
   # dispatch), NOT on PRs, so PR iteration stays fast. A commit message
   # containing [hotfix] skips them; the notify-extended job below treats
   # skipped gates as passing, so a hotfix dispatches after the fast checks.
-  # Step sequence mirrors nightly-tests.yml, which is the proven recipe for
-  # running these suites on GitHub-hosted runners.
+  #
+  # Each shard starts only Postgres + Redis (`make test-start-lite`). The
+  # pytest suites never talk to the API container, the Celery worker, MinIO
+  # or the frontend: every xdist worker builds its own empty database from
+  # the models (test_benger_gwN, see the api and workers tests/conftest.py)
+  # and the runners use STORAGE_TYPE=local. Shards used to run `npm ci`,
+  # `make test-build` (incl. the frontend `next build`) and `make test-seed`
+  # first; none of that reached the tests. The complete stack is still built
+  # for the Playwright E2E run in nightly-tests.yml.
   integration-tests:
     name: ${{ matrix.shard }} tests (prod gate)
     runs-on: ubuntu-latest
@@ -177,61 +199,97 @@ jobs:
       matrix:
         include:
           - shard: api-unit-al
+            suite: api
             cmd: make test-api FILE="tests/unit/test_[a-l]*.py"
           - shard: api-unit-mz
+            suite: api
             cmd: make test-api FILE="tests/unit/test_[m-z]*.py"
           - shard: api-integration-al
+            suite: api
             cmd: make test-api FILE="tests/integration/test_[a-l]*.py"
           - shard: api-integration-mz
+            suite: api
             cmd: make test-api FILE="tests/integration/test_[m-z]*.py"
           - shard: api-rest
+            suite: api
             cmd: make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"
           - shard: workers
+            suite: workers
             cmd: make test-workers
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Only the workers runner needs the room: it builds FROM the multi-GB
+      # workers-base image (torch + ML models). The api shards pull
+      # postgres, redis and a slim Python image, which fit comfortably, and
+      # the rm -rf itself costs a minute or two.
       - name: Free disk space
+        if: matrix.suite == 'workers'
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: services/frontend/package-lock.json
+      # API runner image: built with buildx and the GitHub Actions cache, so
+      # the apt + uv dependency layers come from the cache and only the
+      # `COPY . .` layer is rebuilt per run. All five api shards share one
+      # cache scope; the first shard to finish writes it (ignore-error keeps
+      # the concurrent writers from failing a shard). The image is loaded
+      # into the local daemon under the name compose gives the service by
+      # default (<project>-<service>, project `benger-test` from the compose
+      # file), so `make test-api` finds it and does not build again. If that
+      # name ever drifts, compose simply builds the image itself (slower,
+      # still correct).
+      # Why not one build job that pushes to GHCR: it adds a serial job in
+      # front of every shard, needs packages: write on a public repo's
+      # workflow and a registry pull per shard; with a warm cache the
+      # per-shard build is about as fast and has fewer moving parts.
+      - name: Set up Docker Buildx
+        if: matrix.suite == 'api'
+        uses: docker/setup-buildx-action@v4
 
-      - name: Install frontend dependencies
-        uses: nick-fields/retry@v4
+      - name: Build API test runner image (GHA layer cache)
+        id: api-image
+        if: matrix.suite == 'api'
+        # One retry below absorbs a transient PyPI/apt/registry error, as the
+        # retry wrapper around `make test-build` used to.
+        continue-on-error: true
+        uses: docker/build-push-action@v7
         with:
-          timeout_minutes: 10
-          max_attempts: 2
-          retry_wait_seconds: 30
-          command: cd services/frontend && npm ci
+          context: services/api
+          file: services/api/Dockerfile
+          load: true
+          push: false
+          tags: benger-test-test-api-runner:latest
+          cache-from: type=gha,scope=api-test-runner
+          cache-to: type=gha,mode=max,scope=api-test-runner,ignore-error=true
 
-      - name: Build test infrastructure
-        # `make test-build` swallows docker-build failures (it pipes the
-        # output through `grep -v ... || true`), so wrap with retry to
-        # absorb transient build crashes and re-verify health below.
+      - name: Build API test runner image (retry)
+        if: matrix.suite == 'api' && steps.api-image.outcome == 'failure'
+        uses: docker/build-push-action@v7
+        with:
+          context: services/api
+          file: services/api/Dockerfile
+          load: true
+          push: false
+          tags: benger-test-test-api-runner:latest
+          cache-from: type=gha,scope=api-test-runner
+
+      # Workers runner image: a plain compose build. Its only expensive part
+      # is pulling the workers-base image from GHCR, which a layer cache
+      # cannot avoid (base layers are pulled, not cached), and exporting a
+      # multi-GB image out of a buildx builder with load: true would cost
+      # more than the cache saves. Retried once for transient pull errors.
+      - name: Build workers test runner image
+        if: matrix.suite == 'workers'
         uses: nick-fields/retry@v4
         with:
           timeout_minutes: 30
           max_attempts: 2
           retry_wait_seconds: 30
-          command: make test-build
+          command: make test-build-runners RUNNERS=workers
 
-      - name: Verify test infrastructure is up
-        run: |
-          if ! docker ps --format '{{.Names}}' | grep -q '^benger-test-test-api-1$'; then
-            echo "::error::test-api container did not come up after make test-build"
-            docker compose -f infra/docker-compose.test.yml ps
-            exit 1
-          fi
-
-      - name: Seed test database
-        run: make test-seed
+      - name: Start Postgres + Redis
+        run: make test-start-lite
 
       - name: Run ${{ matrix.shard }} tests
         run: ${{ matrix.cmd }}

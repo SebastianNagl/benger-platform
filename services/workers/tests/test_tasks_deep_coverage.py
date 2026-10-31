@@ -727,6 +727,63 @@ class TestGenerateLLMResponsesZeroResponses:
         assert result["responses_generated"] == 0
 
 
+class TestGenerateLLMResponsesReleasesTransaction:
+    """The provider call must run outside any open DB transaction.
+
+    A worker session that sat idle in transaction during a multi-minute LLM
+    call held AccessShareLocks that blocked the 2026-10-15 migration. The
+    worker now commits right before the rate-limit sleep and the call, and
+    keeps its loaded rows readable (expire_on_commit off for that session).
+    """
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.HAS_AI_SERVICES", True)
+    @patch("tasks.HAS_GENERATION_PARSER", True)
+    @patch("tasks.SessionLocal")
+    def test_commit_precedes_provider_call(self, mock_session_cls):
+        from unittest.mock import DEFAULT
+
+        events = []
+
+        def recording_gen(**kwargs):
+            events.append("llm")
+            return {
+                "response_text": "answer",
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2,
+                "cost_usd": 0.0,
+            }
+
+        db, gen, project, task, model, ai_service = _setup_generate_llm_mocks(
+            ai_response_fn=recording_gen,
+        )
+        query_effect = db.query.side_effect
+
+        def _query(*args):
+            events.append("query")
+            return query_effect(*args)
+
+        def _execute(*args, **kwargs):
+            events.append("execute")
+            return DEFAULT
+
+        db.query.side_effect = _query
+        db.execute.side_effect = _execute
+        db.commit.side_effect = lambda: events.append("commit")
+        mock_session_cls.return_value = db
+
+        _run_generate_with_mocks(db, ai_service)
+
+        assert "llm" in events, events
+        before_call = events[: events.index("llm")]
+        assert before_call and before_call[-1] == "commit", (
+            f"the last DB operation before the provider call must end the "
+            f"transaction, got {before_call}"
+        )
+        assert db.expire_on_commit is False
+
+
 # ===========================================================================
 # generate_response (bridge task)
 # ===========================================================================
@@ -761,6 +818,37 @@ class TestGenerateResponseBridge:
         )
         assert result["status"] == "error"
         assert "not found" in result["message"].lower()
+
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.SessionLocal")
+    def test_read_transaction_ends_before_nested_generation(self, mock_session_cls):
+        """The bridge's own session must not stay idle in transaction while
+        the nested generate_llm_responses call waits on the provider."""
+        gen = types.SimpleNamespace(
+            id="gen-1", status="running", structure_key=None, created_by="u1"
+        )
+        found = types.SimpleNamespace(id="t1", deleted_at=None)
+        db = _mock_db()
+        db.query.return_value.filter.return_value.first.side_effect = [gen, found, found]
+        mock_session_cls.return_value = db
+
+        commits_at_call = []
+
+        def fake_generate(*args, **kwargs):
+            commits_at_call.append(db.commit.call_count)
+            return {"status": "completed"}
+
+        from tasks import generate_response
+
+        with patch.object(tasks_module, "generate_llm_responses", fake_generate):
+            result = generate_response(
+                generation_id="gen-1",
+                project_id="p1",
+                task_id="t1",
+                model_id="m1",
+            )
+        assert result == {"status": "completed"}
+        assert commits_at_call and commits_at_call[0] >= 1
 
     @pytest.mark.parametrize(
         "terminal_status", ["stopped", "cancelled", "completed", "paused"]

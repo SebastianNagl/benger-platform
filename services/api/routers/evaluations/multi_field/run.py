@@ -78,7 +78,7 @@ def _can_launch_evaluation(db, user, project_id: str) -> bool:
 
 
 @router.post("/run", response_model=EvaluationRunResponse)
-async def run_evaluation(
+def run_evaluation(
     http_request: Request,
     request: EvaluationRunRequest,
     current_user: User = Depends(require_user),

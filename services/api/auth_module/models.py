@@ -11,6 +11,11 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .serialization import ensure_dict, iso_or_none
 
+#: Minimum length of every NEW password (signup, reset, change, activation,
+#: profile completion). Existing shorter passwords keep working; login never
+#: checks the length.
+MIN_PASSWORD_LENGTH = 12
+
 
 class User(BaseModel):
     """User model for API responses"""
@@ -87,7 +92,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     name: str = Field(..., min_length=1, max_length=100)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
     is_superadmin: bool = False
     invitation_token: Optional[str] = Field(None, description="Optional invitation token")
 
@@ -137,7 +142,7 @@ class UserCreateWithInvitation(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     name: str = Field(..., min_length=1, max_length=100)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
     invitation_token: str = Field(..., description="Invitation token from organization invite")
 
     # Legal expertise fields (required at signup for human baseline groups)
@@ -214,7 +219,7 @@ class PasswordUpdate(BaseModel):
     """Model for password change"""
 
     current_password: str = Field(..., description="Current password for verification")
-    new_password: str = Field(..., min_length=6, description="New password")
+    new_password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, description="New password")
     confirm_password: str = Field(..., description="Confirm new password")
 
 

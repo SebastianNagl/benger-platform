@@ -1,0 +1,2470 @@
+{
+  "generated_from": "a315a693e995a714613cce4836b2646e094b7515",
+  "api_shared": [
+    {
+      "module": "account_activation",
+      "name": "ACCOUNT_LINK_TOKEN_EXPIRY",
+      "importers": [
+        "benger_extended/lti/identity.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "EMAIL_METHOD_LMS_CLAIM",
+      "importers": [
+        "benger_extended/lti/provisioning.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "account_link_mail_eligibility",
+      "importers": [
+        "benger_extended/lti/identity.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "activation_eligibility",
+      "importers": [
+        "benger_extended/lti/provisioning.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "email_is_routable",
+      "importers": [
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/identity.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "email_ownership_proven",
+      "importers": [
+        "benger_extended/lti/identity.py"
+      ]
+    },
+    {
+      "module": "account_activation",
+      "name": "mask_email",
+      "importers": [
+        "benger_extended/lti/identity.py"
+      ]
+    },
+    {
+      "module": "aggregate_summaries",
+      "name": "_confidence_interval_from_stats",
+      "importers": [
+        "benger_extended/api/routers/leaderboards_human.py"
+      ]
+    },
+    {
+      "module": "ai_services",
+      "name": "user_aware_ai_service",
+      "importers": [
+        "benger_extended/workers/judge_resolution.py"
+      ]
+    },
+    {
+      "module": "ai_services.provider_capabilities",
+      "name": "get_provider_from_model",
+      "importers": [
+        "benger_extended/lti/billing.py",
+        "benger_extended/workers/judge_resolution.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "AnkiCard",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "AnkiDeck",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "AnkiImportError",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "apkg_to_deck",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "cards_to_csv",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "cards_to_tsv",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "csv_to_cards",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "anki",
+      "name": "deck_to_apkg",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "app.core.authorization",
+      "name": "Permission",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "app.core.authorization",
+      "name": "auth_service",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "app.core.config",
+      "name": "get_settings",
+      "importers": [
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/pending.py"
+      ]
+    },
+    {
+      "module": "auth_module",
+      "name": "require_user",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/judge_prompts.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/marketplace.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/synthetic.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "auth_module.auth_cookies",
+      "name": "SESSION_TOKEN_COOKIES",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.auth_cookies",
+      "name": "expire_legacy_cookies",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.config",
+      "name": "ACCESS_TOKEN_EXPIRE_MINUTES",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.config",
+      "name": "REFRESH_TOKEN_EXPIRE_DAYS",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.models",
+      "name": "User",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/judge_prompts.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/marketplace.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "auth_module.org_scope",
+      "name": "load_org_admin_scope_sync",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "auth_module.service",
+      "name": "create_tokens_with_refresh",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.service",
+      "name": "db_user_to_user",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.user_service",
+      "name": "verify_password",
+      "importers": [
+        "benger_extended/api/routers/lti_pending.py"
+      ]
+    },
+    {
+      "module": "celery_client",
+      "name": "get_celery_app",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/synthetic.py"
+      ]
+    },
+    {
+      "module": "celery_client",
+      "name": "send_task_safe",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/synthetic.py",
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/identity.py",
+        "benger_extended/lti/provisioning.py"
+      ]
+    },
+    {
+      "module": "database",
+      "name": "SessionLocal",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/synthetic.py",
+        "benger_extended/billing/policy.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py"
+      ]
+    },
+    {
+      "module": "database",
+      "name": "engine",
+      "importers": [
+        "benger_extended/maintenance/lti_korrektur_backfill.py",
+        "benger_extended/maintenance/rubric_judge_backfill.py"
+      ]
+    },
+    {
+      "module": "database",
+      "name": "get_async_db",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/student_sharing.py",
+        "benger_extended/api/routers/synthetic.py"
+      ]
+    },
+    {
+      "module": "database",
+      "name": "get_db",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/lti_pending.py",
+        "benger_extended/api/routers/marketplace.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "encryption_service",
+      "name": "encryption_service",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "eval_field_classification",
+      "name": "bare_field_name",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "eval_field_classification",
+      "name": "register_classifier_rule",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "eval_field_classification",
+      "name": "unprefixed_is_human",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "evaluation_config",
+      "name": "register_extended_metrics",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "extension_activation",
+      "name": "flag_active",
+      "importers": [
+        "benger_extended/workers/feedback_judge.py",
+        "benger_extended/workers/margin_notes.py"
+      ]
+    },
+    {
+      "module": "extension_activation",
+      "name": "use_context",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": null,
+      "importers": [
+        "benger_extended/api/routers/lti.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": "AnnotationWriteRejected",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": "before_annotation_write",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": "privacy_protected_member_ids",
+      "importers": [
+        "benger_extended/api/routers/lti.py"
+      ]
+    },
+    {
+      "module": "feature_flags.deps",
+      "name": "feature_disabled_detail",
+      "importers": [
+        "benger_extended/feature_flags/deps.py"
+      ]
+    },
+    {
+      "module": "feature_flags.deps",
+      "name": "feature_disabled_error",
+      "importers": [
+        "benger_extended/feature_flags/deps.py"
+      ]
+    },
+    {
+      "module": "feature_flags.deps",
+      "name": "require_feature_flag",
+      "importers": [
+        "benger_extended/feature_flags/deps.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "FEATURE_DISABLED",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "FEATURE_DISABLED_MESSAGE",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "FlagDefinition",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "PUBLIC_API",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "STATES",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "STATE_ALLOWLIST",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "STATE_EVERYONE",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "STATE_OFF",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "all_flags",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "flag",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "flag_owner",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "register_flags",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.registry",
+      "name": "unregister_flags",
+      "importers": [
+        "benger_extended/feature_flags/registry.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "SNAPSHOT_KEY",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "SNAPSHOT_TTL",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "entry_of",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "evaluate_all_for",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "evaluate_all_for_sync",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "evaluate_snapshot",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "evaluate_snapshot_sync",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "invalidate_cache",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "is_enabled_for",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "is_enabled_for_sync",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "load_snapshot",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.service",
+      "name": "load_snapshot_sync",
+      "importers": [
+        "benger_extended/feature_flags/service.py"
+      ]
+    },
+    {
+      "module": "feature_flags.worker",
+      "name": "feature_disabled_result",
+      "importers": [
+        "benger_extended/feature_flags/worker.py"
+      ]
+    },
+    {
+      "module": "feature_flags.worker",
+      "name": "flag_enabled_sync",
+      "importers": [
+        "benger_extended/feature_flags/worker.py"
+      ]
+    },
+    {
+      "module": "grade_scale_history",
+      "name": "append_grade_scale_change",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "grade_scale_history",
+      "name": "carry_grade_scale_history",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "BILLING_BLOCK_KEY",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/lti/gradebook.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "_existing_immediate_run",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "_graded_run_id",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "eligible_configs",
+      "importers": [
+        "benger_extended/lti/billing.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "eligible_metrics",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "ensure_immediate_evaluation",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/workers/auto_submit_timer.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "latest_blocked_run",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "record_blocked_immediate_run",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "resolve_org",
+      "importers": [
+        "benger_extended/billing/policy.py"
+      ]
+    },
+    {
+      "module": "judge_cost_profiles",
+      "name": "register_judge_cost_profile",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "label_config_parser",
+      "name": "LabelConfigParser",
+      "importers": [
+        "benger_extended/api/routers/_discovery.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "metric_filters",
+      "name": "is_immediate_eligible",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "metric_filters",
+      "name": "metric_key_is_real",
+      "importers": [
+        "benger_extended/api/grade_headline.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "middleware.key_gate",
+      "name": "register_project_resolver",
+      "importers": [
+        "benger_extended/api/key_routes.py"
+      ]
+    },
+    {
+      "module": "model_defaults",
+      "name": "DEFAULT_JUDGE_MODEL_ID",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/maintenance/rubric_judge_backfill.py",
+        "benger_extended/workers/falloesung_tasks.py",
+        "benger_extended/workers/feedback_judge.py",
+        "benger_extended/workers/flashcard_tasks.py"
+      ]
+    },
+    {
+      "module": "model_defaults",
+      "name": "RUBRIC_JUDGE_MAX_TOKENS",
+      "importers": [
+        "benger_extended/maintenance/rubric_judge_backfill.py",
+        "benger_extended/student_creation.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "EvaluationJudgeRun",
+      "importers": [
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/workers/billing_tasks.py",
+        "benger_extended/workers/falloesung_tasks.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "EvaluationRun",
+      "importers": [
+        "benger_extended/api/grade_headline.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/workers/billing_tasks.py",
+        "benger_extended/workers/falloesung_tasks.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "Generation",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "GradingUsageEvent",
+      "importers": [
+        "benger_extended/billing/policy.py",
+        "benger_extended/billing/service.py",
+        "benger_extended/workers/billing_tasks.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LLMModel",
+      "importers": [
+        "benger_extended/api/routers/synthetic.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/judge_resolution.py",
+        "benger_extended/workers/synthetic_tasks.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiAdminEvent",
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/hosts.py",
+        "benger_extended/lti/launch.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiDeployment",
+      "importers": [
+        "benger_extended/lti/config.py",
+        "benger_extended/lti/dynamic_registration.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiGradeSync",
+      "importers": [
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/relink.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiPlatformRegistration",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/config.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/launch.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/workers/__init__.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiRegistrationInvite",
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiResourceLink",
+      "importers": [
+        "benger_extended/api/key_routes.py",
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/lti_pending.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/workers/__init__.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiResourceLinkUser",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiTaskLineitem",
+      "importers": [
+        "benger_extended/lti/relink.py",
+        "benger_extended/lti/task_columns.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "LtiUserLink",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/identity.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/provisioning.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/workers/__init__.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "MarketplaceOrder",
+      "importers": [
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "NotificationType",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "Organization",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti_pending.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/config.py",
+        "benger_extended/lti/dynamic_registration.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "OrganizationApiKey",
+      "importers": [
+        "benger_extended/lti/billing.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "OrganizationGroup",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/teacher_access.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "OrganizationGroupMembership",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/live_activity/presence.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/provisioning.py",
+        "benger_extended/lti/teacher_access.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "OrganizationMembership",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/marketplace.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/billing/policy.py",
+        "benger_extended/billing/service.py",
+        "benger_extended/live_activity/presence.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/provisioning.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "OrganizationRole",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/marketplace.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/billing/service.py",
+        "benger_extended/live_activity/presence.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/provisioning.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "StudentSubscription",
+      "importers": [
+        "benger_extended/billing/service.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "TaskEvaluation",
+      "importers": [
+        "benger_extended/api/grade_headline.py",
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/key_routes.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/marketplace/service.py",
+        "benger_extended/workers/falloesung_tasks.py",
+        "benger_extended/workers/feedback_judge.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "User",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/lti_pending.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/synthetic.py",
+        "benger_extended/billing/personal_key.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/identity.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/provisioning.py",
+        "benger_extended/marketplace/service.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "VendorAccount",
+      "importers": [
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "notification_service",
+      "name": "NotificationService",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py"
+      ]
+    },
+    {
+      "module": "notification_service",
+      "name": "annotator_ids_for_annotations",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "notification_service",
+      "name": "notify_evaluation_received",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "object_storage",
+      "name": "object_storage",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "attachment_group_clause",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "attachment_role",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/teacher_access.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "best_role",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "build_select_admin_group_ids",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "get_lti_attachment_map_async",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "get_user_group_context",
+      "importers": [
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/teacher_access.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "grants_full_tier",
+      "importers": [
+        "benger_extended/lti/billing.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "group_member_fan_in_clause",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "lti_staff_role",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "require_private_keys_for",
+      "importers": [
+        "benger_extended/billing/policy.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "resolve_project_group_for_org",
+      "importers": [
+        "benger_extended/billing/policy.py",
+        "benger_extended/lti/billing.py"
+      ]
+    },
+    {
+      "module": "org_groups",
+      "name": "sync_lti_attachments",
+      "importers": [
+        "benger_extended/api/routers/lti.py"
+      ]
+    },
+    {
+      "module": "org_resolution",
+      "name": "resolve_dispatch_org_for_project",
+      "importers": [
+        "benger_extended/billing/policy.py"
+      ]
+    },
+    {
+      "module": "org_resolution",
+      "name": "resolve_dispatch_org_for_project_async",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "project_consumers",
+      "name": "is_project_consumer",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/billing/policy.py",
+        "benger_extended/lti/billing.py"
+      ]
+    },
+    {
+      "module": "project_consumers",
+      "name": "project_linked_org_ids",
+      "importers": [
+        "benger_extended/billing/policy.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "Annotation",
+      "importers": [
+        "benger_extended/api/grade_headline.py",
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/marketplace/service.py",
+        "benger_extended/workers/auto_submit_timer.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "AnnotationTimerSession",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/workers/auto_submit_timer.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "FlashcardReview",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/workers/flashcard_tasks.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "FlashcardSrsState",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/workers/flashcard_tasks.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "GradingFeedback",
+      "importers": [
+        "benger_extended/api/routers/grading_feedback.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "KorrekturComment",
+      "importers": [
+        "benger_extended/api/grade_headline.py",
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/lti/name_visibility.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "KorrekturReservation",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "MarketplaceEntitlement",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/billing/policy.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "MarketplaceGradingCredit",
+      "importers": [
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "MarketplaceGradingRequest",
+      "importers": [
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "MarketplaceListing",
+      "importers": [
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "Project",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/billing/policy.py",
+        "benger_extended/live_activity/presence.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/lti/consent.py",
+        "benger_extended/lti/grade_enqueue.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/marketplace/service.py",
+        "benger_extended/student_creation.py",
+        "benger_extended/workers/auto_submit_timer.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/falloesung_tasks.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "ProjectOrganization",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/student_sharing.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/live_activity/presence.py",
+        "benger_extended/lti/billing.py",
+        "benger_extended/marketplace/service.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "ProjectShareLink",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "ProjectShareMember",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "SkippedTask",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "SubmissionFile",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "Task",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/key_routes.py",
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/student_sharing.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py",
+        "benger_extended/lti/exam_gate.py",
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/lti/gradebook.py",
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/teacher_access.py",
+        "benger_extended/student_creation.py",
+        "benger_extended/workers/auto_submit_timer.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/flashcard_tasks.py",
+        "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TaskAssignment",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/lti/name_visibility.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TaskDraft",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/workers/auto_submit_timer.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TaskRubric",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/lti/exam_gate.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TaskWorkPresence",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TimerSession",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "project_is_deleted",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "project_not_deleted",
+      "importers": [
+        "benger_extended/lti/teacher_access.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "AnnotationCreate",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "AnnotationResponse",
+      "importers": [
+        "benger_extended/api/routers/reviews.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "KorrekturCommentCreate",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "KorrekturCommentUpdate",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "ReviewSubmit",
+      "importers": [
+        "benger_extended/api/routers/reviews.py"
+      ]
+    },
+    {
+      "module": "project_schemas",
+      "name": "TaskResponse",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/reviews.py"
+      ]
+    },
+    {
+      "module": "project_window",
+      "name": "project_window_state",
+      "importers": [
+        "benger_extended/api/routers/student_sharing.py"
+      ]
+    },
+    {
+      "module": "project_window",
+      "name": "project_writes_allowed",
+      "importers": [
+        "benger_extended/workers/auto_submit_timer.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": null,
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "TOOL_HOSTS",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "TOOL_HOST_MAIN",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "TOOL_HOST_STUDENT_LOCKED",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "ToolHostUnavailable",
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "is_tool_host_available",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "main_frontend_url",
+      "importers": [
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "public_host",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "tool_base_url",
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "tool_host_for_request_host",
+      "importers": [
+        "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "redis_cache",
+      "name": "cache",
+      "importers": [
+        "benger_extended/lti/oidc.py"
+      ]
+    },
+    {
+      "module": "redis_cache",
+      "name": "get_redis_client",
+      "importers": [
+        "benger_extended/billing/personal_key.py",
+        "benger_extended/lti/identity.py",
+        "benger_extended/lti/oidc.py",
+        "benger_extended/lti/pending.py"
+      ]
+    },
+    {
+      "module": "routers.evaluations.config",
+      "name": "_derive_evaluation_configs_from_selected_methods",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "routers.evaluations.helpers",
+      "name": "resolve_user_org_for_project",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "routers.projects.annotations",
+      "name": "persist_annotation_submission",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.projects.deps",
+      "name": "ProjectAccess",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/student_sharing.py"
+      ]
+    },
+    {
+      "module": "routers.projects.deps",
+      "name": "require_project_access",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/student_sharing.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "TIER_ATTEMPTED",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "_build_select_org_exam_participant",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "_lti_protected_org_ids_async",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "can_read_all_task_content",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_project_accessible",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_project_accessible_async",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_project_write_access",
+      "importers": [
+        "benger_extended/api/routers/marketplace.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_task_assigned_to_user",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_task_assigned_to_user_async",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_user_can_edit_project",
+      "importers": [
+        "benger_extended/api/routers/lti.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_user_can_edit_project_async",
+      "importers": [
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_user_can_edit_task_data_async",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "check_user_can_manage_shares_async",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "enforce_project_read_window",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "enforce_project_read_window_async",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "enforce_project_write_window",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "enforce_seb",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "enforce_seb_async",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_effective_project_role",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_lti_staff_project_ids_async",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_project_access_tier",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_project_access_tier_async",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/student_decks.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_soft_deletable_project_ids_async",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "get_student_read_access",
+      "importers": [
+        "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "require_write_tier",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "seb_request_allowed_async",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
+      "name": "tier_allows_writes",
+      "importers": [
+        "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "routers.projects.shares",
+      "name": "STUDENT_SHARE_KINDS",
+      "importers": [
+        "benger_extended/api/routers/student_sharing.py"
+      ]
+    },
+    {
+      "module": "routers.projects.srs",
+      "name": "select_due_counts_by_project",
+      "importers": [
+        "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "criteria_from_structure",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "criteria_without_guidance",
+      "importers": [
+        "benger_extended/api/rubric_visibility.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "grade_for_rubric",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "grade_from_points",
+      "importers": [
+        "benger_extended/workers/falloesung_constants.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "mirror_rubric_into_task_data",
+      "importers": [
+        "benger_extended/bewertungsbogen_shared.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "normalize_grade_scale",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "normalize_structure",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "order_criteria_keys",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "resolve_grade_scale",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/workers/falloesung_tasks.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "slugify_step_key",
+      "importers": [
+        "benger_extended/workers/bewertungsbogen_constants.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "structure_from_flat_criteria",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/student_creation.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "structure_without_guidance",
+      "importers": [
+        "benger_extended/api/rubric_visibility.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "total_points_from_structure",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "validate_grade_scale",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "validate_structure",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "GradingPayer",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "GradingQuota",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "GradingUsageEventRead",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "InvoiceSummary",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "StudentSubscriptionRead",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "schemas.billing_schemas",
+      "name": "UsageSummary",
+      "importers": [
+        "benger_extended/api/routers/billing.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": null,
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "CODE_SEB_VERSION_NOT_ALLOWED",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "accepted_browser_exam_keys",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "accepted_config_keys",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "deployment_hosts",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "exam_page_paths",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "host_allowed",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "normalize_key",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "seb",
+      "name": "verify_seb_request",
+      "importers": [
+        "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "services.api_key_service",
+      "name": "human_membership_clause",
+      "importers": [
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "services.api_key_service",
+      "name": "human_user_clause",
+      "importers": [
+        "benger_extended/api/routers/leaderboards_human.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "services.evaluation.human_eval_runs",
+      "name": "HUMAN_GRADED_METRICS",
+      "importers": [
+        "benger_extended/api/hooks.py"
+      ]
+    },
+    {
+      "module": "services.evaluation.human_eval_runs",
+      "name": "get_or_create_human_eval_run",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "services.member_privacy",
+      "name": "project_name_mask",
+      "importers": [
+        "benger_extended/api/routers/live_activity.py"
+      ]
+    },
+    {
+      "module": "services.rate_limiter",
+      "name": "rate_limiter",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "services.rubric_import",
+      "name": "MAX_RUBRIC_FILE_BYTES",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "services.rubric_import",
+      "name": "RubricImportError",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "services.rubric_import",
+      "name": "parse_rubric_file",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "services.rubric_import",
+      "name": "rubric_document_text",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "services.text_extraction",
+      "name": "MAX_EXTRACT_BYTES",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "services.text_extraction",
+      "name": "UnsupportedDocumentError",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "services.text_extraction",
+      "name": "extract_text",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "solution_reveal",
+      "name": "reference_revealed",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "solution_reveal",
+      "name": "step_detail_revealed",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py",
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "RubricValidationError",
+      "importers": [
+        "benger_extended/api/routers/_rubric_errors.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "UNSET",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "activate_task_rubric",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "archive_task_rubric",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "create_task_rubric",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "edit_task_rubric",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "remirror_project_rubrics",
+      "importers": [
+        "benger_extended/bewertungsbogen_shared.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "structure_equal",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "url_guard",
+      "name": "resolve_and_validate",
+      "importers": [
+        "benger_extended/lti/dynamic_registration.py"
+      ]
+    },
+    {
+      "module": "user_display",
+      "name": "display_name",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/lti.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/lti/name_visibility.py"
+      ]
+    },
+    {
+      "module": "user_display",
+      "name": "masked_name",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/korrektur_items.py",
+        "benger_extended/api/routers/reviews.py",
+        "benger_extended/lti/name_visibility.py"
+      ]
+    },
+    {
+      "module": "user_display",
+      "name": "prefers_pseudonym",
+      "importers": [
+        "benger_extended/lti/name_visibility.py"
+      ]
+    },
+    {
+      "module": "utils.assignment_helpers",
+      "name": "mark_assignment_completed",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "utils.assignment_helpers",
+      "name": "user_assignment_exists",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "utils.pseudonym_generator",
+      "name": "generate_pseudonym",
+      "importers": [
+        "benger_extended/lti/provisioning.py"
+      ]
+    }
+  ],
+  "workers": [
+    {
+      "module": "database",
+      "name": "SessionLocal",
+      "importers": [
+        "benger_extended/workers/__init__.py",
+        "benger_extended/workers/auto_submit_timer.py",
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/billing_tasks.py",
+        "benger_extended/workers/flashcard_tasks.py",
+        "benger_extended/workers/lti_grade_push.py",
+        "benger_extended/workers/synthetic_tasks.py"
+      ]
+    },
+    {
+      "module": "ml_evaluation.evidence_check",
+      "name": "EvidenceIndex",
+      "importers": [
+        "benger_extended/workers/margin_notes.py"
+      ]
+    },
+    {
+      "module": "ml_evaluation.evidence_check",
+      "name": "verify_evidence",
+      "importers": [
+        "benger_extended/workers/margin_notes.py"
+      ]
+    },
+    {
+      "module": "ml_evaluation.handlers",
+      "name": "MetricHandler",
+      "importers": [
+        "benger_extended/workers/__init__.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": null,
+      "importers": [
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/synthetic_tasks.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": "GenerationStructureParser",
+      "importers": [
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": "HAS_AI_SERVICES",
+      "importers": [
+        "benger_extended/workers/falloesung_tasks.py",
+        "benger_extended/workers/flashcard_tasks.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": "HAS_GENERATION_PARSER",
+      "importers": [
+        "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": "_clamp_temperature_to_constraint",
+      "importers": [
+        "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/synthetic_tasks.py"
+      ]
+    },
+    {
+      "module": "tasks",
+      "name": "_get_insensitive",
+      "importers": [
+        "benger_extended/workers/falloesung_tasks.py"
+      ]
+    }
+  ]
+}

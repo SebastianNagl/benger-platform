@@ -376,6 +376,25 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
       }
     })
 
+    it('does not sleep out a long Retry-After (auth lockout)', async () => {
+      const body = { detail: { code: 'rate_limited', retry_after: 900 } }
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: new Headers({
+          'content-type': 'application/json',
+          'retry-after': '900',
+        }),
+        text: async () => JSON.stringify(body),
+      })
+
+      await expect(client.post('/auth/login', {})).rejects.toMatchObject({
+        response: { status: 429, data: body },
+      })
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+    })
+
     it('should handle network errors', async () => {
       // Mock fetch to throw TypeError with "fetch" in message
       // BaseApiClient will retry twice before throwing the network error

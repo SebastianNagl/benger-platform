@@ -20,6 +20,17 @@ from database import get_async_db
 from models import OrganizationMembership, UploadedData
 from object_storage import object_storage
 from project_models import Project
+from storage.upload_policy import (
+    UploadPolicyError,
+    clamp_download_expiry,
+    clamp_max_size,
+    content_disposition_for,
+    content_type_for_filename,
+    resolve_client_content_type,
+    resolve_client_prefix,
+    safe_response_content_type,
+    verify_magic_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +58,49 @@ class CDNInvalidateRequest(BaseModel):
     wait: bool = False
 
 
+# ============= Upload policy helpers =============
+
+# Server-owned key in ``UploadedData.file_metadata`` holding the validated
+# content type the object was stored with (the table has no type column).
+STORED_CONTENT_TYPE_KEY = "stored_content_type"
+
+
+def _policy_http_error(exc: UploadPolicyError) -> HTTPException:
+    return HTTPException(status_code=exc.status_code, detail=str(exc))
+
+
+def _check_client_key(file_key: str, user_id: str) -> str:
+    """Return the prefix of a client-supplied multipart key the caller owns.
+
+    Keys minted by ``multipart/init`` look like ``<prefix>/.../<user_id>/<name>``
+    with a client prefix; anything else (another user's key, an export, a
+    traversal) is refused, so the part URLs and the completed row can only
+    ever point at the caller's own upload.
+    """
+    parts = (file_key or "").split("/")
+    if (
+        len(parts) < 3
+        or ".." in parts
+        or "" in parts
+        or parts[-2] != str(user_id)
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    try:
+        prefix, _ = resolve_client_prefix(parts[0])
+    except UploadPolicyError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return prefix
+
+
+def _stored_content_type(uploaded_data: UploadedData) -> str:
+    """Validated type of a stored row, for the presigned GET response."""
+    metadata = uploaded_data.file_metadata if isinstance(uploaded_data.file_metadata, dict) else {}
+    declared = metadata.get(STORED_CONTENT_TYPE_KEY) or content_type_for_filename(
+        uploaded_data.original_filename
+    )
+    return safe_response_content_type(declared)
+
+
 # ============= Storage Endpoints =============
 
 
@@ -58,18 +112,31 @@ async def get_upload_url(
     max_size: Optional[int] = 10 * 1024 * 1024,  # 10MB default
     current_user: User = Depends(require_user),
 ):
-    """Generate presigned URL for direct file upload to object storage"""
+    """Generate presigned URL for direct file upload to object storage.
+
+    The prefix must be one a client may choose (uploads/, temp/), the content
+    type must be on the allowlist (415 otherwise; HTML, SVG, XML and script
+    types never are), and ``max_size`` is clamped to the prefix ceiling.
+    """
+    try:
+        prefix, ceiling = resolve_client_prefix(file_type)
+        resolved_type = resolve_client_content_type(content_type, filename)
+    except UploadPolicyError as exc:
+        raise _policy_http_error(exc)
+
     try:
         upload_info = object_storage.get_upload_url(
             filename=filename,
-            file_type=file_type,
+            file_type=prefix,
             user_id=str(current_user.id),
-            content_type=content_type,
-            max_size=max_size,
+            content_type=resolved_type,
+            max_size=clamp_max_size(max_size, ceiling),
         )
 
         return upload_info
 
+    except UploadPolicyError as exc:
+        raise _policy_http_error(exc)
     except Exception as e:
         logger.error(f"Failed to generate upload URL: {e}")
         raise HTTPException(
@@ -86,37 +153,63 @@ async def upload_file_to_storage(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Upload file to object storage (for environments without direct upload)"""
+    """Upload file to object storage (for environments without direct upload).
+
+    Same prefix and type rules as ``/upload-url``; the bytes must also match
+    the declared type's signature for the binary types (415 on mismatch) and
+    stay under the prefix ceiling (413).
+    """
+    filename = file.filename or "upload"
     try:
-        # Read file content
-        file_data = await file.read()
+        prefix, ceiling = resolve_client_prefix(file_type)
+        resolved_type = resolve_client_content_type(file.content_type, filename)
+    except UploadPolicyError as exc:
+        raise _policy_http_error(exc)
+
+    try:
+        # Read at most one byte past the ceiling so an oversized body is
+        # detected without buffering all of it.
+        file_data = await file.read(ceiling + 1)
+        if len(file_data) > ceiling:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds the {ceiling // (1024 * 1024)} MB limit",
+            )
+        try:
+            verify_magic_bytes(resolved_type, file_data)
+        except UploadPolicyError as exc:
+            raise _policy_http_error(exc)
 
         # Parse metadata if provided
         file_metadata = {}
         if metadata:
             try:
-                file_metadata = json.loads(metadata)
+                parsed = json.loads(metadata)
+                if isinstance(parsed, dict):
+                    file_metadata = parsed
             except json.JSONDecodeError:
                 pass
+        # Server-owned, set after the client's metadata so it cannot be forged.
+        file_metadata[STORED_CONTENT_TYPE_KEY] = resolved_type
 
         # Upload to object storage
         upload_result = object_storage.upload_file(
             file_data=file_data,
-            filename=file.filename,
-            file_type=file_type,
+            filename=filename,
+            file_type=prefix,
             user_id=str(current_user.id),
-            content_type=file.content_type,
+            content_type=resolved_type,
             metadata=file_metadata,
         )
 
         # Store file reference in database
         uploaded_data = UploadedData(
             id=str(uuid.uuid4()),
-            name=file.filename,
-            original_filename=file.filename,
+            name=filename,
+            original_filename=filename,
             file_path=upload_result["file_key"],  # Store object storage key
             size=upload_result["size"],
-            format=(file.filename.split(".")[-1] if "." in file.filename else "unknown"),
+            format=(filename.split(".")[-1] if "." in filename else "unknown"),
             uploaded_by=current_user.id,
             storage_backend=upload_result.get("storage_backend", "local"),
             storage_url=upload_result["url"],
@@ -135,6 +228,8 @@ async def upload_file_to_storage(
             "uploaded_at": upload_result["uploaded_at"],
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to upload file: {e}")
         raise HTTPException(
@@ -146,11 +241,17 @@ async def upload_file_to_storage(
 @router.get("/download-url/{file_id}")
 async def get_download_url(
     file_id: str,
-    expires_in: Optional[int] = 86400,  # 24 hours default
+    expires_in: Optional[int] = 3600,  # clamped to [60, 3600]
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Generate presigned URL for file download"""
+    """Generate presigned URL for file download.
+
+    The URL lives 60 s to 1 h, always downloads as an attachment and carries
+    the validated stored type as its response type. No caller renders these
+    files inline, so the inline-safe exception stays off here.
+    """
+    expires_in = clamp_download_expiry(expires_in)
     try:
         # Get file record from database
         uploaded_data = (
@@ -204,10 +305,14 @@ async def get_download_url(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         # Generate download URL
+        response_type = _stored_content_type(uploaded_data)
         download_url = object_storage.get_download_url(
             file_key=uploaded_data.file_path,
             expires_in=expires_in,
-            response_content_disposition=f'attachment; filename="{uploaded_data.original_filename}"',
+            response_content_type=response_type,
+            response_content_disposition=content_disposition_for(
+                uploaded_data.original_filename, response_type
+            ),
         )
 
         return {
@@ -282,13 +387,18 @@ async def init_multipart_upload(
     content_type: Optional[str] = None,
     current_user: User = Depends(require_user),
 ):
-    """Initialize multipart upload for large files"""
+    """Initialize multipart upload for large files (same rules as /upload-url)."""
+    try:
+        prefix, _ = resolve_client_prefix(file_type)
+        resolved_type = resolve_client_content_type(content_type, filename)
+    except UploadPolicyError as exc:
+        raise _policy_http_error(exc)
     try:
         upload_info = object_storage.create_multipart_upload(
             filename=filename,
-            file_type=file_type,
+            file_type=prefix,
             user_id=str(current_user.id),
-            content_type=content_type,
+            content_type=resolved_type,
         )
 
         return upload_info
@@ -306,7 +416,12 @@ async def get_multipart_urls(
     request: MultipartUrlsRequest,
     current_user: User = Depends(require_user),
 ):
-    """Get presigned URLs for multipart upload parts"""
+    """Get presigned URLs for multipart upload parts of the caller's own key."""
+    _check_client_key(request.file_key, current_user.id)
+    if not request.part_numbers or any(
+        not isinstance(n, int) or n < 1 or n > 10000 for n in request.part_numbers
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid part numbers")
     try:
         urls = object_storage.get_multipart_upload_urls(
             file_key=request.file_key,
@@ -330,11 +445,29 @@ async def complete_multipart_upload(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Complete multipart upload and create database record"""
+    """Complete multipart upload and create database record.
+
+    Only the caller's own key is accepted; a result over the prefix ceiling
+    is deleted again (413), since part uploads carry no size condition.
+    """
+    prefix = _check_client_key(request.file_key, current_user.id)
+    _, ceiling = resolve_client_prefix(prefix)
     try:
         # Complete multipart upload
         result = object_storage.complete_multipart_upload(
             file_key=request.file_key, upload_id=request.upload_id, parts=request.parts
+        )
+        if (result.get("size") or 0) > ceiling:
+            object_storage.delete_file(request.file_key)
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds the {ceiling // (1024 * 1024)} MB limit",
+            )
+        file_metadata = dict(request.metadata) if isinstance(request.metadata, dict) else {}
+        # The stored type was pinned (and validated) at init; record it
+        # server-side so the download URL can echo it.
+        file_metadata[STORED_CONTENT_TYPE_KEY] = safe_response_content_type(
+            result.get("content_type")
         )
 
         # Extract filename from file_key
@@ -354,7 +487,7 @@ async def complete_multipart_upload(
             format=filename.split(".")[-1] if "." in filename else "unknown",
             uploaded_by=current_user.id,
             storage_backend=result["storage_backend"],
-            file_metadata=request.metadata,
+            file_metadata=file_metadata,
         )
 
         db.add(uploaded_data)
@@ -368,6 +501,8 @@ async def complete_multipart_upload(
             "completed_at": datetime.now().isoformat(),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to complete multipart upload: {e}")
         raise HTTPException(
