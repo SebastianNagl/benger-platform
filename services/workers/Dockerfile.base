@@ -1,5 +1,5 @@
 # Workers Base Image: Python + PyTorch + ML models + NLTK data
-# Rebuild when: pyproject.toml changes, or weekly via CI schedule
+# Rebuild when: uv.lock or this file changes (see build-workers-base.yml)
 # App code is NOT included — see Dockerfile which builds on top of this.
 #
 # Python 3.13, unblocked by moving to numpy 2.x + spaCy 3.8 / thinc 8.3.x
@@ -14,22 +14,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for dependency management
-RUN pip install uv
+# Install uv for dependency management. Pinned: it reads uv.lock, so the
+# version that wrote the lock (or newer) must be the one that installs it.
+RUN pip install uv==0.11.28
 
 WORKDIR /app
 
-# Install Python dependencies. torch resolves to the CPU-only build via the
-# [tool.uv.index] / [tool.uv.sources] block in pyproject.toml — see the
-# rationale there; nothing index-related belongs in this file.
-COPY pyproject.toml .
-RUN uv pip install --system --no-cache-dir -r pyproject.toml
+# Install exactly the locked set from uv.lock into the system interpreter.
+# torch is locked to the CPU-only build (the [tool.uv.index] / [tool.uv.sources]
+# block in pyproject.toml decides that at `uv lock` time, and the lock records
+# the download.pytorch.org wheels); nothing index-related belongs in this file.
+# --locked fails the build when uv.lock no longer matches pyproject.toml
+# instead of re-resolving; --inexact keeps pip and uv, which the lock omits.
+COPY pyproject.toml uv.lock ./
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact --no-cache
 
 # Set PYTHONPATH so local modules can be imported
 ENV PYTHONPATH=/app
 
 # Pre-download ALL ML models and NLTK data.
-# This layer is cached and only invalidated when pyproject.toml changes.
+# This layer is cached and only invalidated when the dependency layer changes.
 RUN python -c "\
 import nltk; \
 nltk.download('punkt'); \

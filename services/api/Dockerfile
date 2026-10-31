@@ -13,19 +13,23 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for dependency management
-RUN pip install uv
+# Install uv for dependency management. Pinned: it reads uv.lock, so the
+# version that wrote the lock (or newer) must be the one that installs it.
+RUN pip install uv==0.11.28
 
 # Dependencies stage
 FROM base AS deps
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml ./
-COPY requirements.txt* ./
+# Copy dependency files (manifest + lock) before the code for layer caching
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies only
-RUN uv pip install --system --no-cache-dir -r pyproject.toml
+# Install exactly the locked set into the system interpreter (/usr/local), the
+# environment the runner stage copies out. --locked fails the build when
+# uv.lock no longer matches pyproject.toml instead of re-resolving; --inexact
+# keeps pip and uv themselves, which the lock does not list (the compose test
+# runners pip-install requirements-test.txt on top at runtime).
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact --no-cache
 
 # Production stage
 FROM base AS runner

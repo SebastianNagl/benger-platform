@@ -124,6 +124,21 @@ jobs:
       - name: Lint API, Workers, Shared
         run: ruff check --select=F821,F823 --exclude="*/scripts/*" services/api/ services/workers/ services/shared/
 
+      # The api and workers images install exactly services/<svc>/uv.lock
+      # (`uv sync --locked` in the Dockerfiles). A pyproject.toml edit without
+      # a matching `uv lock` would fail the image build late, in the extended
+      # pipeline; catch it here instead. The second check fails when the
+      # [tool.uv] constraint blocks drift from
+      # services/shared/dependency-constraints.txt or the two locks resolve a
+      # package both images install to different versions. Same uv as the
+      # Dockerfiles.
+      - name: Check uv lockfiles are current
+        run: |
+          pip install uv==0.11.28
+          (cd services/api && uv lock --check)
+          (cd services/workers && uv lock --check)
+          python scripts/sync_shared_constraints.py --check
+
       # Publication scripts: ruff's default rules at the version pinned in
       # publications/ruff.toml (git-ignored WIP folders are skipped).
       - name: Lint publications

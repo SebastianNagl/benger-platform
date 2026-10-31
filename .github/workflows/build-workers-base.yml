@@ -1,31 +1,73 @@
 name: Build Workers Base Image
 
 # Builds the workers base image (Python deps + ML models + NLTK data) and
-# publishes it to ghcr.io/sebastiannagl/benger-platform/workers-base:latest.
-# This image is consumed by:
+# publishes it to ghcr.io/sebastiannagl/benger-platform/workers-base. This
+# image is consumed by:
+#   - services/workers/Dockerfile (WORKERS_BASE_IMAGE, the content tag below),
+#     which the extended prod/staging builds resolve to a digest
 #   - benger-platform's nightly-tests.yml (via make test-build)
 #   - OSS contributors running make test-build locally
 # The package must be public on GHCR so anonymous pulls succeed.
+#
+# How dependency versions move (since the images install from uv.lock):
+#
+#   1. Every image installs exactly services/<svc>/uv.lock (`uv sync --locked`
+#      in the Dockerfiles). Nothing resolves at build time, so rebuilding the
+#      base twice from the same commit gives the same Python packages. Before,
+#      the base ran `uv pip install -r pyproject.toml` and floated every `>=`:
+#      the Sunday rebuild of 2026-09-30 pulled SQLAlchemy 2.1.1 and every
+#      worker crashed at import.
+#   2. The weekly schedule therefore no longer builds anything. It runs the
+#      `refresh-lock` job: `uv lock --upgrade` for services/api and
+#      services/workers (they share the bounds in
+#      services/shared/dependency-constraints.txt, so they are refreshed
+#      together), then opens or updates a pull request against `dev` with the
+#      new locks. Version changes reach production only by reviewing and
+#      merging that PR along the normal dev -> main train.
+#   3. When the refreshed uv.lock lands on main, the `push` trigger below
+#      rebuilds the base from it. Until that rebuild finishes, app images
+#      built on the previous base are still correct: the app Dockerfile syncs
+#      the same lock on top of whatever base it gets.
+#
+# Notes for the refresh PR:
+#   - It is created with GITHUB_TOKEN, and GitHub does not start workflows for
+#     events caused by that token. CI on the PR therefore does not run by
+#     itself: close and reopen it (or push a commit to the branch) as a
+#     maintainer to start the checks. The lock is still verified when the
+#     dev -> main PR runs `uv lock --check` and the shared-constraints check.
+#   - "Allow GitHub Actions to create and approve pull requests" must be
+#     enabled in the repository's Actions settings.
+#   - If the shared-constraints check fails on the refreshed locks (the two
+#     services resolved a common package to different versions), the PR is
+#     still opened and its description carries the check output.
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: 'build = rebuild and push the base from the committed uv.lock; refresh-lock = open a PR with upgraded locks'
+        required: false
+        default: build
+        type: choice
+        options:
+          - build
+          - refresh-lock
       reason:
-        description: 'Reason for rebuild (e.g., pyproject.toml changed)'
+        description: 'Reason (free text, for the run log)'
         required: false
         type: string
   schedule:
-    - cron: "0 4 * * 0"  # Weekly, Sunday 04:00 UTC
+    - cron: "0 4 * * 0"  # Weekly, Sunday 04:00 UTC: lock refresh PR only
   push:
     branches: [main]
     paths:
+      - services/workers/uv.lock
       - services/workers/pyproject.toml
       - services/workers/Dockerfile.base
       - .github/workflows/build-workers-base.yml
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -38,16 +80,26 @@ env:
   # app image to a content tag makes that impossible: the tag changes in the
   # same commit as the base content.
   #
-  # BUMP THIS whenever Dockerfile.base or pyproject.toml changes the base
-  # materially (Python version, torch variant, ML stack), and bump the matching
-  # default in services/workers/Dockerfile in the SAME commit.
+  # BUMP THIS whenever Dockerfile.base or uv.lock changes the base materially
+  # (Python version, torch variant, ML stack), and bump the matching default
+  # in services/workers/Dockerfile in the SAME commit. A routine lock refresh
+  # does not need a bump: the app image syncs the lock on top of the base.
   CONTENT_TAG: py313-cpu
+  # Same uv as the Dockerfiles (and the version the locks are written with).
+  UV_VERSION: 0.11.28
+  # Branch the lock refresh PR targets and the branch it is pushed from.
+  REFRESH_BASE: dev
+  REFRESH_BRANCH: deps/uv-lock-refresh
 
 jobs:
   build-base:
     name: Build Workers Base (ML models + deps)
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'build')
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -69,7 +121,7 @@ jobs:
         # branch, so a workflow_dispatch from a feature ref (gh workflow run
         # --ref <branch>) can stage a new base for that branch's app images
         # without repointing main, the platform nightly, or a prod build at
-        # content their pyproject.toml cannot install.
+        # content their uv.lock does not describe.
         run: |
           docker build -f Dockerfile.base -t "$IMAGE:$CONTENT_TAG" .
           docker push "$IMAGE:$CONTENT_TAG"
@@ -80,4 +132,97 @@ jobs:
             echo "Pushed $IMAGE:latest (default branch)"
           else
             echo "Ref is ${{ github.ref_name }}, not main — leaving :latest untouched."
+          fi
+
+  refresh-lock:
+    name: Refresh uv.lock (pull request)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.action == 'refresh-lock')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.REFRESH_BASE }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: pip install "uv==${UV_VERSION}"
+
+      - name: Upgrade both locks
+        run: |
+          (cd services/api && uv lock --upgrade)
+          (cd services/workers && uv lock --upgrade)
+
+      - name: Open or update the refresh PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- services/api/uv.lock services/workers/uv.lock; then
+            echo "Locks already current, nothing to propose."
+            exit 0
+          fi
+
+          CHECK_STATUS="passed"
+          if ! CHECK_OUTPUT=$(python3 scripts/sync_shared_constraints.py --check 2>&1); then
+            CHECK_STATUS="FAILED"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$REFRESH_BRANCH"
+          git add services/api/uv.lock services/workers/uv.lock
+          git commit -m "Refresh uv.lock for api and workers (uv lock --upgrade)"
+          git push --force origin "$REFRESH_BRANCH"
+
+          {
+            echo "Weekly \`uv lock --upgrade\` of services/api and services/workers."
+            echo
+            echo "Shared-constraints check (\`python3 scripts/sync_shared_constraints.py --check\`): **${CHECK_STATUS}**"
+            if [ -n "$CHECK_OUTPUT" ]; then
+              echo
+              echo '```'
+              echo "$CHECK_OUTPUT"
+              echo '```'
+            fi
+            echo
+            echo "Changed versions:"
+            echo
+            for svc in api workers; do
+              git show "HEAD~1:services/$svc/uv.lock" > "$RUNNER_TEMP/old.lock"
+              echo "**$svc**"
+              echo
+              python3 - "$RUNNER_TEMP/old.lock" "services/$svc/uv.lock" <<'PY'
+          import sys, tomllib
+          def versions(path):
+              with open(path, "rb") as f:
+                  return {(p["name"], p.get("version")) for p in tomllib.load(f).get("package", [])}
+          old, new = versions(sys.argv[1]), versions(sys.argv[2])
+          names = sorted({n for n, _ in old ^ new})
+          for name in names:
+              before = ", ".join(sorted(v or "?" for n, v in old if n == name)) or "-"
+              after = ", ".join(sorted(v or "?" for n, v in new if n == name)) or "-"
+              print(f"- {name}: {before} -> {after}")
+          if not names:
+              print("- (no version changes)")
+          PY
+              echo
+            done
+            echo
+            echo "Opened by GITHUB_TOKEN, so CI does not start on its own: close and reopen this PR to run the checks."
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          if gh pr view "$REFRESH_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$REFRESH_BRANCH" --body-file "$RUNNER_TEMP/pr-body.md"
+          else
+            gh pr create --base "$REFRESH_BASE" --head "$REFRESH_BRANCH" \
+              --title "Refresh uv.lock (api + workers)" \
+              --body-file "$RUNNER_TEMP/pr-body.md"
           fi

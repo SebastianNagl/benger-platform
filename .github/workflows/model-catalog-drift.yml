@@ -66,12 +66,14 @@ jobs:
           python-version: '3.13'
 
       - name: Install API dependencies
-        # requirements.txt was dropped in 9878dc4 (pyproject.toml + uv);
-        # mirror the API Dockerfile's install step.
+        # Same locked set as the API image (services/api/uv.lock, installed
+        # there with `uv sync --locked`); exported to a hashed requirements
+        # file because this job installs into the runner's Python.
         run: |
           cd services/api
-          pip install uv
-          uv pip install --system -r pyproject.toml
+          pip install uv==0.11.28
+          uv export --locked --no-dev --no-emit-project -o "$RUNNER_TEMP/api-requirements.txt"
+          uv pip install --system -r "$RUNNER_TEMP/api-requirements.txt"
 
       - name: Run alembic migrations + LLM seed (ephemeral DB)
         if: ${{ inputs.database_url == '' }}
