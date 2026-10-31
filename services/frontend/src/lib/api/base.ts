@@ -43,6 +43,8 @@ function getApiBaseUrl(): string {
 // Increased from 3 to 10 to improve page load performance
 const MAX_CONCURRENT_REQUESTS = 10
 const REQUEST_TIMEOUT = 30000 // 30 seconds
+// A 429 with a longer Retry-After is not retried automatically.
+const MAX_AUTO_RETRY_AFTER_SECONDS = 10
 
 // Enhanced cache for GET requests with user validation
 interface CacheEntry {
@@ -717,11 +719,22 @@ export class BaseApiClient {
           return { kind: 'retry', delay: (retryCount + 1) * 1000 }
         }
 
-        // 429 rate limiting: retry with exponential backoff
-        if (response.status === 429 && retryCount < 3) {
-          const retryAfter = response.headers.get('retry-after')
-          const delay = retryAfter
-            ? parseInt(retryAfter) * 1000
+        // Handle 429 rate limiting - retry with exponential backoff, but only
+        // for short waits. A login lockout answers Retry-After: 900; sleeping
+        // that out (three times) would freeze the form, so long waits go to
+        // the caller, which shows rateLimitMessage().
+        const retryAfterHeader =
+          response.status === 429 ? response.headers.get('retry-after') : null
+        const retryAfterSeconds = retryAfterHeader
+          ? parseInt(retryAfterHeader, 10)
+          : NaN
+        if (
+          response.status === 429 &&
+          retryCount < 3 &&
+          !(retryAfterSeconds > MAX_AUTO_RETRY_AFTER_SECONDS)
+        ) {
+          const delay = Number.isFinite(retryAfterSeconds)
+            ? retryAfterSeconds * 1000
             : Math.pow(2, retryCount + 2) * 1000
           return { kind: 'retry', delay }
         }

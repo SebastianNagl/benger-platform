@@ -1,4 +1,8 @@
-import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import {
+  forwardedForHeaders,
+  getExternalHost,
+  getInternalApiUrl,
+} from '@/lib/utils/apiUrl'
 import { logger } from '@/lib/utils/logger'
 import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest, NextResponse } from 'next/server'
@@ -191,6 +195,13 @@ async function proxyRequest(
     const externalHost = getExternalHost(request)
     if (externalHost) {
       headers.set('x-forwarded-host', externalHost)
+    }
+
+    // x-forwarded-for was copied unchanged above: the API keys its per-IP
+    // auth limits (reset-password, activate-account) on its rightmost hop.
+    // When the ingress sent only X-Real-Ip, that stands in for the chain.
+    for (const [key, value] of Object.entries(forwardedForHeaders(request))) {
+      headers.set(key, value)
     }
 
     // Ensure cookies are forwarded

@@ -135,7 +135,7 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
@@ -173,6 +173,36 @@ describe('ResetPasswordConfirmPage', () => {
       })
 
       expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    it('rejects 11 characters and accepts 12 (minimum for new passwords)', async () => {
+      const user = userEvent.setup()
+      ;(global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      })
+      render(<ResetPasswordConfirmPage />)
+
+      const newInput = screen.getByLabelText('passwordReset.newPassword')
+      const confirmInput = screen.getByLabelText(
+        'passwordReset.confirmPassword',
+      )
+      await user.type(newInput, 'a'.repeat(11))
+      await user.type(confirmInput, 'a'.repeat(11))
+      await user.click(screen.getByText('passwordReset.reset'))
+
+      await waitFor(() => {
+        expect(screen.getByText('passwordReset.tooShort')).toBeInTheDocument()
+      })
+      expect(global.fetch).not.toHaveBeenCalled()
+
+      await user.type(newInput, 'a')
+      await user.type(confirmInput, 'a')
+      await user.click(screen.getByText('passwordReset.reset'))
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledTimes(1)
+      })
     })
   })
 
@@ -514,11 +544,11 @@ describe('ResetPasswordConfirmPage', () => {
       // First submission with error
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),
-        'password123',
+        'password12345',
       )
       await user.click(screen.getByText('passwordReset.reset'))
 
@@ -691,7 +721,7 @@ describe('ResetPasswordConfirmPage', () => {
 
       await user.type(
         screen.getByLabelText('passwordReset.newPassword'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByLabelText('passwordReset.confirmPassword'),

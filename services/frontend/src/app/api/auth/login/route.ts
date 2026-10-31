@@ -1,4 +1,9 @@
-import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import {
+  copyRetryAfter,
+  forwardedForHeaders,
+  getExternalHost,
+  getInternalApiUrl,
+} from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
 import { logger } from '@/lib/utils/logger'
 import { scopeUpstreamSetCookies } from '@/lib/utils/upstreamCookies'
@@ -23,6 +28,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'x-forwarded-host': getExternalHost(request),
+        ...forwardedForHeaders(request),
       },
       body: JSON.stringify(body),
     })
@@ -30,8 +36,10 @@ export async function POST(request: NextRequest) {
     // Get the response data
     const data = await backendResponse.json()
 
-    // Create Next.js response
+    // Create Next.js response. Status and body pass through unchanged, so a
+    // 429 keeps its {"detail": {"code": "rate_limited", "retry_after"}} body.
     const response = NextResponse.json(data, { status: backendResponse.status })
+    copyRetryAfter(backendResponse, response)
 
     if (backendResponse.ok) {
       // Forward Set-Cookie headers from backend to frontend

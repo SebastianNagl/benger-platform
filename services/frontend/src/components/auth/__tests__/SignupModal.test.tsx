@@ -37,7 +37,7 @@ jest.mock('@/contexts/I18nContext', () => ({
           'New users are created with annotator role by default',
         'signupModal.passwordMismatch': 'Passwords do not match',
         'signupModal.passwordLength':
-          'Password must be at least 6 characters long',
+          'Password must be at least 12 characters long',
         'signupModal.signupFailed': 'Signup failed',
       }
       return translations[key] || key
@@ -184,8 +184,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -194,7 +197,7 @@ describe('SignupModal Component', () => {
           'testuser',
           'test@example.com',
           'Test User',
-          'password123',
+          'password12345',
         )
       })
     })
@@ -211,8 +214,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -236,8 +242,8 @@ describe('SignupModal Component', () => {
       await user.type(nameInput, 'Test User')
       await user.type(emailInput, 'test@example.com')
       await user.type(usernameInput, 'testuser')
-      await user.type(passwordInput, 'password123')
-      await user.type(confirmPasswordInput, 'password123')
+      await user.type(passwordInput, 'password12345')
+      await user.type(confirmPasswordInput, 'password12345')
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -260,8 +266,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -284,8 +293,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -308,7 +320,7 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
       await user.type(
         screen.getByLabelText('Confirm Password'),
         'differentpassword',
@@ -336,7 +348,7 @@ describe('SignupModal Component', () => {
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
       expect(
-        screen.getByText('Password must be at least 6 characters long'),
+        screen.getByText('Password must be at least 12 characters long'),
       ).toBeInTheDocument()
       expect(mockSignup).not.toHaveBeenCalled()
     })
@@ -361,8 +373,11 @@ describe('SignupModal Component', () => {
       // Correct the password
       await user.clear(screen.getByLabelText('Password'))
       await user.clear(screen.getByLabelText('Confirm Password'))
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -390,8 +405,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       const submitButton = screen.getByRole('button', {
         name: 'Create account',
@@ -413,8 +431,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -435,8 +456,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -458,8 +482,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -482,8 +509,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
@@ -557,8 +587,11 @@ describe('SignupModal Component', () => {
         'test@example.com',
       )
       await user.type(screen.getByLabelText('Username'), 'testuser')
-      await user.type(screen.getByLabelText('Password'), 'password123')
-      await user.type(screen.getByLabelText('Confirm Password'), 'password123')
+      await user.type(screen.getByLabelText('Password'), 'password12345')
+      await user.type(
+        screen.getByLabelText('Confirm Password'),
+        'password12345',
+      )
 
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 

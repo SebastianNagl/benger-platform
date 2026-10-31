@@ -213,7 +213,7 @@ def _make_user_create(**overrides):
         username="newuser",
         email="new@test.com",
         name="New User",
-        password="password123",
+        password="password12345",
         legal_expertise_level="student",
         german_proficiency="native",
     )
@@ -805,7 +805,7 @@ class TestChangePassword:
 
         result = await change_password(
             password_data=PasswordUpdate(
-                current_password="old", new_password="newpass123", confirm_password="newpass123"
+                current_password="old", new_password="newpassword123", confirm_password="newpassword123"
             ),
             current_user=user,
             db=db,
@@ -823,7 +823,7 @@ class TestChangePassword:
         with pytest.raises(HTTPException) as exc_info:
             await change_password(
                 password_data=PasswordUpdate(
-                    current_password="old", new_password="newpass123", confirm_password="different123"
+                    current_password="old", new_password="newpassword123", confirm_password="different123"
                 ),
                 current_user=user,
                 db=db,
@@ -842,7 +842,7 @@ class TestChangePassword:
         with pytest.raises(HTTPException) as exc_info:
             await change_password(
                 password_data=PasswordUpdate(
-                    current_password="wrong", new_password="newpass123", confirm_password="newpass123"
+                    current_password="wrong", new_password="newpassword123", confirm_password="newpassword123"
                 ),
                 current_user=user,
                 db=db,
@@ -926,7 +926,7 @@ class TestResetPassword:
             mock_svc.reset_password.return_value = True
             result = await reset_password(
                 reset_confirm=PasswordResetConfirm(
-                    token="valid-token", new_password="newpass123", confirm_password="newpass123"
+                    token="valid-token", new_password="newpassword123", confirm_password="newpassword123"
                 ),
                 db=db,
             )
@@ -942,7 +942,7 @@ class TestResetPassword:
         with pytest.raises(HTTPException) as exc_info:
             await reset_password(
                 reset_confirm=PasswordResetConfirm(
-                    token="token", new_password="newpass999", confirm_password="different123"
+                    token="token", new_password="newpassword999", confirm_password="different123"
                 ),
                 db=db,
             )
@@ -960,7 +960,7 @@ class TestResetPassword:
             with pytest.raises(HTTPException) as exc_info:
                 await reset_password(
                     reset_confirm=PasswordResetConfirm(
-                        token="bad-token", new_password="newpass123", confirm_password="newpass123"
+                        token="bad-token", new_password="newpassword123", confirm_password="newpassword123"
                     ),
                     db=db,
                 )
@@ -1139,7 +1139,7 @@ class TestCompleteProfile:
         with _as_unseeded_user():
             resp = await async_test_client.post(
                 "/api/auth/complete-profile",
-                json={"username": "newname1", "password": "password123"},
+                json={"username": "newname1", "password": "password12345"},
             )
         assert resp.status_code == 404
 
@@ -1153,7 +1153,7 @@ class TestCompleteProfile:
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/auth/complete-profile",
-                json={"username": "newname2", "password": "password123"},
+                json={"username": "newname2", "password": "password12345"},
             )
         assert resp.status_code == 400
 
@@ -1167,7 +1167,7 @@ class TestCompleteProfile:
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/auth/complete-profile",
-                json={"username": "newname3", "password": "password123"},
+                json={"username": "newname3", "password": "password12345"},
             )
         assert resp.status_code == 200
         assert resp.json()["message"] == "Profile already completed"
@@ -1184,7 +1184,7 @@ class TestCompleteProfile:
                 "/api/auth/complete-profile",
                 json={
                     "username": f"newname-{_uid()[:6]}",
-                    "password": "password123",
+                    "password": "password12345",
                     "name": "New Name",
                 },
             )

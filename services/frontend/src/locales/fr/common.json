@@ -56,7 +56,8 @@
       "cancel": "Annuler"
     },
     "myOrganizations": "Mes organisations",
-    "private": "Privé"
+    "private": "Privé",
+    "rateLimited": "Trop de tentatives. Veuillez réessayer dans {minutes} min."
   },
   "loginModal": {
     "title": "Se connecter à BenGER",
@@ -88,7 +89,7 @@
     "createAccount": "Créer un compte",
     "defaultRole": "Les nouveaux utilisateurs reçoivent par défaut le rôle d'annotateur",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "passwordLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordLength": "Le mot de passe doit contenir au moins 12 caractères",
     "signupFailed": "Échec de l'inscription"
   },
   "dashboard": {
@@ -2159,7 +2160,7 @@
     "changePassword": "Changer le mot de passe",
     "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",
-    "passwordMinLength": "Au moins 6 caractères",
+    "passwordMinLength": "Au moins 12 caractères",
     "confirmNewPassword": "Confirmer le nouveau mot de passe",
     "changing": "Modification...",
     "changePasswordButton": "Changer le mot de passe",
@@ -2498,7 +2499,7 @@
     "button": "Créer un compte",
     "redirecting": "Redirection...",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "passwordTooShort": "Le mot de passe doit comporter au moins 6 caractères",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 12 caractères",
     "registrationFailed": "L'inscription a échoué",
     "usernameRequired": "Veuillez saisir un nom d'utilisateur",
     "emailRequired": "Veuillez saisir une adresse e-mail",
@@ -7236,7 +7237,7 @@
     "invalid": "Lien de réinitialisation invalide",
     "invalidDescription": "Ce lien de réinitialisation est invalide ou a déjà été utilisé.",
     "mismatch": "Les mots de passe ne correspondent pas",
-    "tooShort": "Le mot de passe doit comporter au moins 8 caractères",
+    "tooShort": "Le mot de passe doit comporter au moins 12 caractères",
     "tooWeak": "Le mot de passe est trop faible",
     "tryAgainLink": "réessayer"
   },
@@ -7684,11 +7685,11 @@
     "username": "Nom d'utilisateur",
     "usernamePlaceholder": "Choisissez un nom d'utilisateur",
     "password": "Mot de passe",
-    "passwordPlaceholder": "Créez un mot de passe (6 caractères min.)",
+    "passwordPlaceholder": "Créez un mot de passe (12 caractères min.)",
     "confirmPassword": "Confirmer le mot de passe",
     "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "passwordTooShort": "Le mot de passe doit comporter au moins 6 caractères",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 12 caractères",
     "creatingAccount": "Création du compte...",
     "createAndJoin": "Créer un compte et rejoindre l'organisation",
     "back": "Retour",
@@ -7713,11 +7714,11 @@
     "displayName": "Nom affiché (facultatif)",
     "displayNamePlaceholder": "Votre nom affiché",
     "password": "Mot de passe",
-    "passwordPlaceholder": "Créez un mot de passe (8 caractères min.)",
+    "passwordPlaceholder": "Créez un mot de passe (12 caractères min.)",
     "confirmPassword": "Confirmer le mot de passe",
     "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 12 caractères",
     "submitting": "Configuration du profil...",
     "submit": "Compléter le profil",
     "notice": "En complétant votre profil, vous obtenez un accès complet aux projets et aux données de votre organisation.",
@@ -10814,7 +10815,7 @@
     "success": "Compte activé",
     "successDescription": "Vous pouvez maintenant vous connecter directement. Redirection vers la connexion...",
     "mismatch": "Les mots de passe ne correspondent pas",
-    "tooShort": "Le mot de passe doit comporter au moins 6 caractères",
+    "tooShort": "Le mot de passe doit comporter au moins 12 caractères",
     "expiredDescription": "Le lien a expiré ou a déjà été utilisé. Connectez-vous ou relancez l'examen depuis Moodle pour demander un nouveau lien.",
     "emailTaken": "Cette adresse e-mail est déjà utilisée. Veuillez redemander l'accès avec une autre adresse.",
     "backToLogin": "Retour à la connexion"

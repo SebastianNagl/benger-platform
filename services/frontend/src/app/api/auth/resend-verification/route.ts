@@ -1,4 +1,9 @@
-import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import {
+  copyRetryAfter,
+  forwardedForHeaders,
+  getExternalHost,
+  getInternalApiUrl,
+} from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
 import { logger } from '@/lib/utils/logger'
 import { NextRequest, NextResponse } from 'next/server'
@@ -26,13 +31,16 @@ export async function POST(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json',
           'x-forwarded-host': getExternalHost(request),
+          ...forwardedForHeaders(request),
         },
         body: JSON.stringify(body),
       },
     )
 
     const data = await backendResponse.json()
-    return NextResponse.json(data, { status: backendResponse.status })
+    const response = NextResponse.json(data, { status: backendResponse.status })
+    copyRetryAfter(backendResponse, response)
+    return response
   } catch (error) {
     console.error('❌ Resend-verification proxy error:', error)
     return NextResponse.json(

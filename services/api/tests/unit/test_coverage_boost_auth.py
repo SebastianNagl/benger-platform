@@ -298,8 +298,8 @@ class TestPasswordChange:
             "/api/auth/change-password",
             json={
                 "current_password": "wrong_password",
-                "new_password": "NewPass123!",
-                "confirm_password": "NewPass123!",
+                "new_password": "NewPassword123!",
+                "confirm_password": "NewPassword123!",
             },
             headers=auth_headers["admin"],
         )
@@ -310,7 +310,7 @@ class TestPasswordChange:
             "/api/auth/change-password",
             json={
                 "current_password": "admin123",
-                "new_password": "NewPass123!",
+                "new_password": "NewPassword123!",
                 "confirm_password": "DifferentPass!",
             },
             headers=auth_headers["admin"],
@@ -322,8 +322,8 @@ class TestPasswordChange:
             "/api/auth/change-password",
             json={
                 "current_password": "x",
-                "new_password": "yyyyyy",
-                "confirm_password": "yyyyyy",
+                "new_password": "yyyyyyyyyyyy",
+                "confirm_password": "yyyyyyyyyyyy",
             },
         )
         assert resp.status_code in [401, 403]

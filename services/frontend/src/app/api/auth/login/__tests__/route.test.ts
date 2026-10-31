@@ -884,4 +884,71 @@ describe('/api/auth/login', () => {
       )
     })
   })
+
+  describe('Rate limiting (per-IP and per-account auth limits)', () => {
+    it('forwards the incoming x-forwarded-for chain unchanged', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: 'tok', token_type: 'bearer' }),
+        headers: { getSetCookie: () => [] },
+      })
+
+      const request = createRequest('http://benger.localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'x-forwarded-for': '198.51.100.7, 203.0.113.9' },
+        body: JSON.stringify({ username: 'student', password: 'pw' }),
+      })
+      await POST(request)
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/login'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-forwarded-for': '198.51.100.7, 203.0.113.9',
+          }),
+        }),
+      )
+    })
+
+    it('falls back to x-real-ip when no chain was sent', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        headers: { getSetCookie: () => [] },
+      })
+
+      const request = createRequest('http://benger.localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'x-real-ip': '198.51.100.8' },
+        body: JSON.stringify({ username: 'student', password: 'pw' }),
+      })
+      await POST(request)
+
+      const init = (global.fetch as jest.Mock).mock.calls[0][1]
+      expect(init.headers['x-forwarded-for']).toBe('198.51.100.8')
+    })
+
+    it('passes a 429 status, body and Retry-After through unchanged', async () => {
+      const body = { detail: { code: 'rate_limited', retry_after: 900 } }
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => body,
+        headers: new Headers({ 'Retry-After': '900' }),
+      })
+
+      const request = createRequest('http://benger.localhost/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: 'student', password: 'wrong' }),
+      })
+      const response = await POST(request)
+
+      expect(response.status).toBe(429)
+      expect(response.headers.get('Retry-After')).toBe('900')
+      expect(await response.json()).toEqual(body)
+      expect(response.headers.getSetCookie()).toEqual([])
+    })
+  })
 })

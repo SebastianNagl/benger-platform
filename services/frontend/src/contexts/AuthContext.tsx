@@ -458,9 +458,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           devAuthHelper.clearManualLogout()
         }
       } catch (error) {
-        // Check if this is an email verification error (403)
+        // Check if this is an email verification error (403). A 429 is
+        // never one, even when its retry_after happens to contain "403".
+        const errorStatus = (error as { response?: { status?: number } })
+          ?.response?.status
         if (
           error instanceof Error &&
+          errorStatus !== 429 &&
           (error.message.includes('Email verification required') ||
             error.message.includes('403'))
         ) {

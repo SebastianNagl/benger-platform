@@ -417,8 +417,8 @@ class TestAuthRouter:
             try:
                 password_data = {
                     "current_password": "oldpass123",
-                    "new_password": "newpass123",
-                    "confirm_password": "newpass123",
+                    "new_password": "newpassword123",
+                    "confirm_password": "newpassword123",
                 }
 
                 response = client.post("/api/auth/change-password", json=password_data)
@@ -447,7 +447,7 @@ class TestAuthRouter:
         try:
             password_data = {
                 "current_password": "oldpass123",
-                "new_password": "newpass123",
+                "new_password": "newpassword123",
                 "confirm_password": "differentpass123",
             }
 

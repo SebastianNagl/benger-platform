@@ -5,6 +5,7 @@ import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -42,7 +43,7 @@ export default function ResetPasswordConfirmPage() {
     }
 
     // Validate password strength
-    if (newPassword.length < 6) {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setError(t('passwordReset.tooShort'))
       return
     }

@@ -1,8 +1,13 @@
 """Auth: login / signup / registration handlers."""
+import asyncio
+
 from account_activation import mask_email
 from auth_module.auth_cookies import expire_legacy_cookies
 from auth_module.session_origin import clear_session_origin
 from sqlalchemy import func
+
+from services import auth_rate_limit
+from services.rate_limiter import get_client_ip
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
@@ -28,7 +33,15 @@ def _login_hint(login: str) -> str:
     4. Includes user profile and organization information
 
     **Security Features:**
-    - Rate limiting protection
+    - Brute-force limits: after 10 failed attempts for one login (username
+      or email as typed, case-insensitive) within a sliding 15 minutes, each
+      further attempt within 60 seconds of the last failure is refused
+      without checking the password (about one try per minute); a correct
+      password after the wait clears the counter. One client IP may try
+      1000 times per 15 minutes (`AUTH_IP_LIMIT_LOGIN`).
+      Limited requests get 429 with `Retry-After` and
+      `detail={"code": "rate_limited", "retry_after": <seconds>}`;
+      503 `rate_limiter_unavailable` while Redis is unreachable
     - Secure HttpOnly cookies for refresh tokens
     - JWT tokens with role-based claims
     """,
@@ -52,7 +65,8 @@ def _login_hint(login: str) -> str:
             },
         },
         401: {"description": "Invalid credentials"},
-        429: {"description": "Too many login attempts"},
+        429: {"description": "Too many login attempts (account throttled or IP limit)"},
+        503: {"description": "Rate limiter unavailable (Redis down), login refused"},
     },
 )
 async def login(
@@ -63,14 +77,23 @@ async def login(
 ):
     """Login endpoint that returns JWT tokens and sets HttpOnly cookies"""
     try:
+        # Per-IP soft limit first (counts every attempt), then the account
+        # throttle (counts nothing). Both run before the password is checked.
+        auth_rate_limit.enforce_ip_limit(request, auth_rate_limit.LOGIN)
+        auth_rate_limit.check_login_throttle(login_data.username)
+
         user = authenticate_user(login_data.username, login_data.password, db)
         if not user:
             logger.info(f"Authentication failed for login: {_login_hint(login_data.username)}")
+            auth_rate_limit.record_login_failure(login_data.username)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        # The password was right: earlier failures no longer count.
+        auth_rate_limit.reset_login_failures(login_data.username)
 
         # Check if email is verified
         if not user.email_verified:
@@ -109,7 +132,7 @@ async def login(
 
         # Extract request metadata for security tracking
         user_agent = request.headers.get("user-agent")
-        ip_address = request.client.host if request.client else None
+        ip_address = get_client_ip(request)
 
         # Create both access and refresh tokens
         token_response = create_tokens_with_refresh(
@@ -152,6 +175,9 @@ async def login(
         clear_session_origin(response)
 
         return token_response
+    except HTTPException:
+        # Expected outcomes (401/403/429/503), not crashes worth a traceback.
+        raise
     except Exception as e:
         logger.error(f"Login endpoint error: {str(e)}")
         logger.error(f"Exception type: {type(e)}")
@@ -163,6 +189,8 @@ async def login(
 async def signup(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
     """Public signup endpoint - new users default to annotator role"""
     from models import Invitation
+
+    await asyncio.to_thread(auth_rate_limit.enforce_ip_limit, request, auth_rate_limit.SIGNUP)
 
     try:
         logger.info(f"Signup attempt for email: {mask_email(user_data.email)}")

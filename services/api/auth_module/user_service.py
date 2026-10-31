@@ -478,6 +478,11 @@ def update_user_status(db: Session, user_id: str, is_active: bool) -> Optional[U
         return None
 
     user.is_active = is_active
+    if not is_active:
+        # A deactivated account must not keep refreshing its way back in.
+        from services.refresh_token_service import revoke_user_tokens
+
+        revoke_user_tokens(db, str(user.id), commit=False)
     db.commit()
     db.refresh(user)
     return user
@@ -1088,9 +1093,18 @@ def update_user_profile(
 
 
 def change_user_password(
-    db: Session, user_id: str, current_password: str, new_password: str
+    db: Session,
+    user_id: str,
+    current_password: str,
+    new_password: str,
+    keep_refresh_token: Optional[str] = None,
 ) -> bool:
-    """Change user password after verifying current password"""
+    """Change user password after verifying current password.
+
+    Every other session of the user ends (their refresh tokens are revoked);
+    ``keep_refresh_token``, the caller's own refresh cookie, is spared so the
+    tab that made the change stays signed in.
+    """
     user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
@@ -1107,6 +1121,9 @@ def change_user_password(
 
     # Update password
     user.hashed_password = get_password_hash(new_password)
+    from services.refresh_token_service import revoke_user_tokens
+
+    revoke_user_tokens(db, str(user.id), keep_token=keep_refresh_token, commit=False)
     db.commit()
     return True
 
@@ -1451,6 +1468,11 @@ async def update_user_status_async(
         return None
 
     user.is_active = is_active
+    if not is_active:
+        # A deactivated account must not keep refreshing its way back in.
+        from services.refresh_token_service import revoke_user_tokens_async
+
+        await revoke_user_tokens_async(db, str(user.id), commit=False)
     await db.commit()
     await db.refresh(user)
     return user

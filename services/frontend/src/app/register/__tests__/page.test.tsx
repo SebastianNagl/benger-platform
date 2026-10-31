@@ -92,11 +92,11 @@ describe('RegisterPage', () => {
     )
     await user.type(
       screen.getByTestId('auth-register-password-input'),
-      'password123',
+      'password12345',
     )
     await user.type(
       screen.getByTestId('auth-register-confirm-password-input'),
-      'password123',
+      'password12345',
     )
   }
 
@@ -270,14 +270,14 @@ describe('RegisterPage', () => {
       await user.type(nameInput, 'Test User')
       await user.type(usernameInput, 'testuser')
       await user.type(emailInput, 'test@example.com')
-      await user.type(passwordInput, 'password123')
-      await user.type(confirmPasswordInput, 'password123')
+      await user.type(passwordInput, 'password12345')
+      await user.type(confirmPasswordInput, 'password12345')
 
       expect(nameInput.value).toBe('Test User')
       expect(usernameInput.value).toBe('testuser')
       expect(emailInput.value).toBe('test@example.com')
-      expect(passwordInput.value).toBe('password123')
-      expect(confirmPasswordInput.value).toBe('password123')
+      expect(passwordInput.value).toBe('password12345')
+      expect(confirmPasswordInput.value).toBe('password12345')
     })
 
     it('should have email input type as email', () => {
@@ -317,7 +317,7 @@ describe('RegisterPage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
@@ -392,11 +392,11 @@ describe('RegisterPage', () => {
       )
       await user.type(
         screen.getByTestId('auth-register-password-input'),
-        'password123',
+        'password12345',
       )
       await user.type(
         screen.getByTestId('auth-register-confirm-password-input'),
-        'password123',
+        'password12345',
       )
       await user.click(screen.getByTestId('register-step-indicator-5'))
 
@@ -432,7 +432,7 @@ describe('RegisterPage', () => {
           'testuser',
           'test@example.com',
           'Test User',
-          'password123',
+          'password12345',
           expect.objectContaining({
             legal_expertise_level: 'layperson',
             german_proficiency: 'native',

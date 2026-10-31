@@ -8,6 +8,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 # Import existing auth models for consistency
 from auth_module import Token, TokenData, User, UserCreate, UserLogin
+from auth_module.models import MIN_PASSWORD_LENGTH
 
 # The 16 German states as two-letter codes (users.exam_bundesland). Same
 # codebook as the benchmark metadata's ``herkunft_bundesland``.
@@ -163,7 +164,7 @@ class PasswordUpdate(BaseModel):
     """Model for password change"""
 
     current_password: str = Field(..., description="Current password for verification")
-    new_password: str = Field(..., min_length=6, description="New password")
+    new_password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, description="New password")
     confirm_password: str = Field(..., description="Confirm new password")
 
 
@@ -178,7 +179,7 @@ class PasswordResetConfirm(BaseModel):
     """Model for confirming a password reset with token"""
 
     token: str = Field(..., description="Password reset token from email")
-    new_password: str = Field(..., min_length=6, description="New password")
+    new_password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, description="New password")
     confirm_password: str = Field(..., description="Confirm new password")
 
 
@@ -199,7 +200,7 @@ class AccountActivateConfirm(BaseModel):
     """Confirm activation: set the first password via the mailed token."""
 
     token: str = Field(..., description="Activation token from email")
-    new_password: str = Field(..., min_length=6, description="New password")
+    new_password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, description="New password")
     confirm_password: str = Field(..., description="Confirm new password")
 
 

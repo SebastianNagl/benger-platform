@@ -1,6 +1,10 @@
 """Auth: email verification handlers."""
+import asyncio
+
 from account_activation import mask_email
 from sqlalchemy import func
+
+from services import auth_rate_limit
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
@@ -51,8 +55,27 @@ async def resend_verification_email(
     request: Request = None,
     db: Session = Depends(get_db),
 ):
-    """Resend email verification link"""
+    """Resend email verification link.
+
+    Limited to 60 requests per hour per client IP by default
+    (``AUTH_IP_LIMIT_VERIFY_MAIL``) and 3 per hour per
+    submitted address (429 ``rate_limited``), counted whether or not the
+    address exists.
+    """
     from models import User as DBUser
+
+    # This handler stays async (it awaits the mail coroutine): the blocking
+    # limiter calls run in a worker thread.
+    await asyncio.to_thread(
+        auth_rate_limit.enforce_ip_limit, request, auth_rate_limit.VERIFICATION_MAIL
+    )
+    await asyncio.to_thread(
+        auth_rate_limit.enforce_account_limit,
+        request,
+        resend_request.email,
+        auth_rate_limit.VERIFICATION_MAIL,
+        auth_rate_limit.MAIL_ACCOUNT_LIMIT,
+    )
 
     user = (
         db.query(DBUser)

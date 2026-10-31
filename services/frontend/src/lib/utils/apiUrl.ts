@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * Get the external-facing hostname from the request.
@@ -9,6 +9,36 @@ export function getExternalHost(request: NextRequest): string {
   return (
     request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
   )
+}
+
+/**
+ * The `x-forwarded-for` header to send upstream, unchanged.
+ *
+ * The API keys its per-IP auth limits on the rightmost X-Forwarded-For hop,
+ * the one the ingress (Traefik) appended. Calls from this server to the API
+ * open a new connection, so without this header the API would see the
+ * frontend pod as the client and put every visitor into one bucket. When an
+ * ingress sent only X-Real-Ip, that address stands in for the chain.
+ */
+export function forwardedForHeaders(
+  request: NextRequest,
+): Record<string, string> {
+  const chain =
+    request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip')
+  return chain ? { 'x-forwarded-for': chain } : {}
+}
+
+/**
+ * Copy a 429's `Retry-After` from the API response onto the proxy response
+ * (the dedicated auth routes rebuild the response and would drop it).
+ */
+export function copyRetryAfter(
+  upstream: Response,
+  downstream: NextResponse,
+): void {
+  if (upstream.status !== 429) return
+  const retryAfter = upstream.headers?.get?.('retry-after')
+  if (retryAfter) downstream.headers.set('Retry-After', retryAfter)
 }
 
 /**

@@ -109,6 +109,13 @@ class PasswordResetService:
         user.password_reset_token = None
         user.password_reset_expires = None
 
+        # A reset is how someone recovers an account they may have lost to
+        # an attacker: end every session, or a stolen refresh cookie would
+        # keep working for its full lifetime.
+        from services.refresh_token_service import revoke_user_tokens
+
+        revoke_user_tokens(db, str(user.id), commit=False)
+
         db.commit()
 
         # A self-signup that never got its verification mail can recover this

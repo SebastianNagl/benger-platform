@@ -22,9 +22,54 @@ logger = logging.getLogger(__name__)
 _MEMORY_PRUNE_THRESHOLD = 10000
 
 
+class RateLimiterUnavailable(Exception):
+    """Redis is unreachable and the caller asked to fail closed."""
+
+
+def _trusted_proxy_hops() -> int:
+    """``TRUSTED_PROXY_HOPS``: how many proxies sit in front of the one that
+    talks to the API (default 0: Traefik is the only one). Read per call so
+    tests and a redeploy can change it without an import-time freeze."""
+    import os
+
+    try:
+        return max(0, int(os.environ.get("TRUSTED_PROXY_HOPS", "0")))
+    except ValueError:
+        return 0
+
+
+def client_ip_from_forwarded(forwarded_for: Optional[str], peer: Optional[str]) -> Optional[str]:
+    """The client address from an ``X-Forwarded-For`` value and the socket peer.
+
+    Each proxy APPENDS the address it received the connection from, so only
+    the right end of the list is written by infrastructure we run. The left
+    end is whatever the client sent in its own header: taking the leftmost
+    entry (as this module did before) lets any caller pick its own bucket
+    and walk around every per-IP limit. We therefore take the rightmost
+    entry, skipping ``TRUSTED_PROXY_HOPS`` further proxies in front of
+    Traefik (a CDN or load balancer adds one entry each). When the header is
+    absent or shorter than the configured hops it was not written by our
+    proxies, so the socket peer is used instead.
+    """
+    if isinstance(forwarded_for, str) and forwarded_for:
+        entries = [part.strip() for part in forwarded_for.split(",") if part.strip()]
+        index = len(entries) - 1 - _trusted_proxy_hops()
+        if entries and index >= 0:
+            return entries[index]
+    return peer
+
+
+def get_client_ip(request: Request) -> Optional[str]:
+    """Client IP of a request, see :func:`client_ip_from_forwarded`."""
+    peer = request.client.host if getattr(request, "client", None) else None
+    return client_ip_from_forwarded(request.headers.get("X-Forwarded-For"), peer)
+
+
 class RateLimiter:
     def __init__(self, redis_url: str = "redis://redis:6379"):
         """Initialize rate limiter with Redis backend"""
+        self._redis_url = redis_url
+        self._memory_store: Dict[str, Dict] = {}
         try:
             self.redis_client = redis.from_url(redis_url, decode_responses=True)
             self.redis_client.ping()  # Test connection
@@ -32,21 +77,36 @@ class RateLimiter:
         except Exception as e:
             logger.warning(f"Redis connection failed, using memory fallback: {e}")
             self.redis_client = None
-            self._memory_store: Dict[str, Dict] = {}
 
     def _get_client_id(self, request: Request, user: Optional[User] = None) -> str:
         """Get unique client identifier for rate limiting"""
         if user:
             return f"user:{user.id}"
 
-        # Fallback to IP address
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
-        else:
-            client_ip = request.client.host
+        # Fallback to IP address (rightmost X-Forwarded-For hop, see
+        # client_ip_from_forwarded for why never the leftmost)
+        return f"ip:{get_client_ip(request)}"
 
-        return f"ip:{client_ip}"
+    def require_redis(self):
+        """The Redis client for fail-closed callers.
+
+        A limiter that came up while Redis was down runs on the per-process
+        memory fallback forever; fail-closed buckets must not, so they retry
+        the connection here and raise :class:`RateLimiterUnavailable` when
+        Redis is still unreachable.
+        """
+        if self.redis_client is not None:
+            return self.redis_client
+        try:
+            client = redis.from_url(
+                self._redis_url, decode_responses=True, socket_connect_timeout=2
+            )
+            client.ping()
+        except Exception as e:
+            raise RateLimiterUnavailable(str(e)) from e
+        self.redis_client = client
+        logger.info("Rate limiter reconnected to Redis")
+        return client
 
     def _get_key(self, client_id: str, endpoint: str, window_type: str) -> str:
         """Generate Redis key for rate limiting"""
@@ -65,14 +125,18 @@ class RateLimiter:
             logger.error(f"Error getting rate limit count: {e}")
             return 0
 
-    async def _increment_count(self, key: str, ttl: int) -> int:
-        """Increment request count with TTL"""
+    def _increment_count_sync(self, key: str, ttl: int, fail_closed: bool = False) -> int:
+        """Increment request count with TTL (blocking on Redis).
+
+        On a Redis error the count reads as 1 (the request passes) unless
+        ``fail_closed`` is set, which raises :class:`RateLimiterUnavailable`.
+        """
         try:
             if self.redis_client:
                 pipe = self.redis_client.pipeline()
                 pipe.incr(key)
                 pipe.expire(key, ttl)
-                results = await asyncio.to_thread(pipe.execute)
+                results = pipe.execute()
                 return results[0]
             else:
                 # Memory fallback
@@ -94,7 +158,13 @@ class RateLimiter:
                 return entry["count"]
         except Exception as e:
             logger.error(f"Error incrementing rate limit count: {e}")
+            if fail_closed:
+                raise RateLimiterUnavailable(str(e)) from e
             return 1
+
+    async def _increment_count(self, key: str, ttl: int, fail_closed: bool = False) -> int:
+        """Async twin of :meth:`_increment_count_sync` (runs it off the loop)."""
+        return await asyncio.to_thread(self._increment_count_sync, key, ttl, fail_closed)
 
     def _prune_memory(self, now: float) -> None:
         """Drop expired memory-fallback entries (window-indexed keys would
@@ -103,7 +173,7 @@ class RateLimiter:
         for k in expired:
             self._memory_store.pop(k, None)
 
-    async def check_rate_limit(
+    def check_rate_limit_sync(
         self,
         request: Request,
         endpoint: str,
@@ -112,9 +182,11 @@ class RateLimiter:
         user: Optional[User] = None,
         client_id: Optional[str] = None,
         state: Optional[Dict] = None,
+        fail_closed: bool = False,
     ) -> Optional[Dict]:
         """
-        Check if request should be rate limited
+        Check if request should be rate limited (blocking on Redis; async
+        callers use :meth:`check_rate_limit`, which runs this off the loop)
 
         Windows are fixed: each window's counter key carries the window's
         index (``int(now // seconds)``), so a counter always resets at the
@@ -132,6 +204,10 @@ class RateLimiter:
             state: when given, filled with ``limit``, ``remaining``,
                 ``reset`` (epoch seconds) and ``window`` of the tightest
                 window, for X-RateLimit-* response headers
+            fail_closed: when Redis is unreachable, raise
+                :class:`RateLimiterUnavailable` instead of letting the request
+                through (and never count on the per-process memory fallback).
+                The auth buckets use this; the default stays fail-open.
 
         Returns:
             None if allowed, error dict if rate limited
@@ -142,6 +218,9 @@ class RateLimiter:
         if os.environ.get("TESTING") == "true":
             return None
 
+        if fail_closed:
+            self.require_redis()
+
         client_id = client_id or self._get_client_id(request, user)
         now = time.time()
         tightest: Optional[Dict] = None
@@ -151,7 +230,9 @@ class RateLimiter:
             reset_at = (window_index + 1) * window_seconds
             key = f"{self._get_key(client_id, endpoint, window_type)}:{window_index}"
 
-            current_count = await self._increment_count(key, window_seconds)
+            current_count = self._increment_count_sync(
+                key, window_seconds, fail_closed=fail_closed
+            )
             info = {
                 "limit": max_requests,
                 "remaining": max(0, max_requests - current_count),
@@ -185,6 +266,34 @@ class RateLimiter:
         if state is not None and tightest is not None:
             state.update(tightest)
         return None
+
+    async def check_rate_limit(
+        self,
+        request: Request,
+        endpoint: str,
+        # {window: (max_requests, seconds)}
+        limits: Dict[str, Tuple[int, int]],
+        user: Optional[User] = None,
+        client_id: Optional[str] = None,
+        state: Optional[Dict] = None,
+        fail_closed: bool = False,
+    ) -> Optional[Dict]:
+        """Async twin of :meth:`check_rate_limit_sync`; same arguments and
+        result, with the Redis round trips in a worker thread."""
+        import os
+
+        if os.environ.get("TESTING") == "true":
+            return None
+        return await asyncio.to_thread(
+            self.check_rate_limit_sync,
+            request,
+            endpoint,
+            limits,
+            user,
+            client_id,
+            state,
+            fail_closed,
+        )
 
 
 # Global rate limiter instance

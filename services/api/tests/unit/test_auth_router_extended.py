@@ -492,7 +492,7 @@ class TestAuthRouterExtended:
                     "username": "registered",
                     "email": "registered@example.com",
                     "name": "Registered",
-                    "password": "password123",
+                    "password": "password12345",
                     "legal_expertise_level": "law_student",
                     "german_proficiency": "native",
                 })
@@ -734,8 +734,8 @@ class TestAuthRouterExtended:
             try:
                 response = client.post("/api/auth/reset-password", json={
                     "token": "valid-token",
-                    "new_password": "newpass123",
-                    "confirm_password": "newpass123",
+                    "new_password": "newpassword123",
+                    "confirm_password": "newpassword123",
                 })
                 assert response.status_code == status.HTTP_200_OK
                 assert "successfully" in response.json()["message"].lower()
@@ -753,7 +753,7 @@ class TestAuthRouterExtended:
         try:
             response = client.post("/api/auth/reset-password", json={
                 "token": "valid-token",
-                "new_password": "newpass123",
+                "new_password": "newpassword123",
                 "confirm_password": "differentpass",
             })
             assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -774,8 +774,8 @@ class TestAuthRouterExtended:
             try:
                 response = client.post("/api/auth/reset-password", json={
                     "token": "invalid-token",
-                    "new_password": "newpass123",
-                    "confirm_password": "newpass123",
+                    "new_password": "newpassword123",
+                    "confirm_password": "newpassword123",
                 })
                 assert response.status_code == status.HTTP_400_BAD_REQUEST
             finally:

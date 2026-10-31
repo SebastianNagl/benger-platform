@@ -238,6 +238,33 @@ describe('LoginPage', () => {
       })
     })
 
+    it('shows the rate-limit message with minutes rounded up for a 429', async () => {
+      const user = userEvent.setup()
+      mockT.mockImplementation((key: string, vars?: Record<string, unknown>) =>
+        vars ? `${key}:${vars.minutes}` : key,
+      )
+      mockLogin.mockRejectedValue(
+        Object.assign(new Error('{"code":"rate_limited"}'), {
+          response: {
+            status: 429,
+            data: { detail: { code: 'rate_limited', retry_after: 841 } },
+          },
+        }),
+      )
+
+      render(<LoginPage />)
+
+      await user.type(screen.getByTestId('auth-login-email-input'), 'student')
+      await user.type(screen.getByTestId('auth-login-password-input'), 'guess')
+      await user.click(screen.getByTestId('auth-login-submit-button'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('auth-login-error-message'),
+        ).toHaveTextContent('auth.rateLimited:15')
+      })
+    })
+
     it('should display generic error for non-Error objects', async () => {
       const user = userEvent.setup()
       mockLogin.mockRejectedValue('String error')

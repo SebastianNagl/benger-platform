@@ -7,12 +7,14 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from auth_module.models import MIN_PASSWORD_LENGTH
+
 
 class ProfileCompletionRequest(BaseModel):
     """Request model for completing user profile after invitation"""
 
     username: str = Field(..., min_length=3, max_length=50, description="Unique username")
-    password: str = Field(..., min_length=8, description="User password")
+    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, description="User password")
     name: Optional[str] = Field(None, description="Display name (optional)")
 
 

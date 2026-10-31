@@ -5,6 +5,7 @@ import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { rateLimitMessage } from '@/lib/api/errors'
 import { getHostBrandName } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
@@ -67,7 +68,10 @@ export default function LoginPage() {
       await login(username, password)
       // Login success will trigger redirect via useEffect
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('login.failed'))
+      setError(
+        rateLimitMessage(err, t) ??
+          (err instanceof Error ? err.message : t('login.failed')),
+      )
     } finally {
       setIsLoading(false)
     }

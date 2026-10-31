@@ -19,6 +19,7 @@ from auth_module.service import forbid_service_account
 
 from account_activation import email_is_routable, mask_email, verify_email_by_link
 from schemas.auth_schemas import AccountActivateConfirm, AccountActivationRequest
+from services import auth_rate_limit
 
 
 def _email_taken_by_other(db, DBUser, email: str, user_id: str) -> bool:
@@ -32,9 +33,9 @@ def _email_taken_by_other(db, DBUser, email: str, user_id: str) -> bool:
     )
 
 
-# Rate limiting rides the global middleware ("api" bucket) like every other
-# auth route — no endpoint decorator (none exists in the routers today, and
-# the authed+guarded shape here bounds abuse to the caller's own account).
+# No rate limit of its own: the route is authed and only ever mails the
+# caller's own account. (There is no global limiter middleware; the public
+# auth routes call services.auth_rate_limit explicitly.)
 @router.post("/request-account-activation")
 async def request_account_activation(
     request: Request,
@@ -108,11 +109,18 @@ async def request_account_activation(
 @router.post("/activate-account")
 async def activate_account(
     confirm: AccountActivateConfirm,
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
-    """Set the first password (and adopt a pending email) via the mailed token."""
+    """Set the first password (and adopt a pending email) via the mailed token.
+
+    Limited to 40 submits per hour per client IP by default
+    (``AUTH_IP_LIMIT_ACTIVATE``; 429 ``rate_limited``).
+    """
     from auth_module.user_service import get_password_hash
     from models import User as DBUser
+
+    auth_rate_limit.enforce_ip_limit(request, auth_rate_limit.ACCOUNT_ACTIVATION)
 
     if confirm.new_password != confirm.confirm_password:
         raise HTTPException(
