@@ -1,5 +1,5 @@
 {
-  "generated_from": "c403f0f533e83c3dee7b049c6a55467a2d1947cc",
+  "generated_from": "a315a693e995a714613cce4836b2646e094b7515",
   "api_shared": [
     {
       "module": "account_activation",
@@ -175,6 +175,20 @@
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/synthetic.py",
         "benger_extended/api/routers/timer.py"
+      ]
+    },
+    {
+      "module": "auth_module.auth_cookies",
+      "name": "SESSION_TOKEN_COOKIES",
+      "importers": [
+        "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.auth_cookies",
+      "name": "expire_legacy_cookies",
+      "importers": [
+        "benger_extended/lti/consent.py"
       ]
     },
     {
@@ -361,10 +375,32 @@
       ]
     },
     {
+      "module": "extension_activation",
+      "name": "use_context",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
       "module": "extensions",
       "name": null,
       "importers": [
         "benger_extended/api/routers/lti.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": "AnnotationWriteRejected",
+      "importers": [
+        "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "extensions",
+      "name": "before_annotation_write",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
       ]
     },
     {
@@ -1018,6 +1054,7 @@
       "module": "models",
       "name": "User",
       "importers": [
+        "benger_extended/api/hooks.py",
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/korrektur.py",
@@ -1028,6 +1065,7 @@
         "benger_extended/api/routers/lti_pending.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/synthetic.py",
+        "benger_extended/billing/personal_key.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/consent.py",
         "benger_extended/lti/dynamic_registration.py",
@@ -1627,6 +1665,7 @@
       "module": "redis_cache",
       "name": "get_redis_client",
       "importers": [
+        "benger_extended/billing/personal_key.py",
         "benger_extended/lti/identity.py",
         "benger_extended/lti/oidc.py",
         "benger_extended/lti/pending.py"
@@ -2214,6 +2253,7 @@
       "module": "solution_reveal",
       "name": "reference_revealed",
       "importers": [
+        "benger_extended/api/hooks.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/student_exams.py"
