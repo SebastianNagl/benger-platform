@@ -11,6 +11,7 @@ set.
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
+import inspect
 import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
@@ -108,9 +109,13 @@ async def _refresh():
     token_resp = Mock(access_token="new-access", refresh_token="new-refresh")
     response = Response()
     with patch("routers.auth.tokens.refresh_access_token", return_value=token_resp):
-        await refresh_token_endpoint(
+        # The handler is a plain def (threadpool); await only if it ever
+        # becomes a coroutine again.
+        result = refresh_token_endpoint(
             request=_request({"refresh_token": "old"}), response=response, db=Mock()
         )
+        if inspect.isawaitable(result):
+            await result
     return _set_cookies(response)
 
 

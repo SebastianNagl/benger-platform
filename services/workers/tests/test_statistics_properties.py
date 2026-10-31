@@ -93,8 +93,11 @@ class TestAggregateWithStatistics:
         r = aggregate_with_statistics(data, name)
         assert r["metric"] == name
         assert r["n_samples"] == len(data)
-        assert r["min"] <= r["mean"] <= r["max"]
-        assert r["min"] <= r["median"] <= r["max"]
+        # The mean of floats can land one rounding step outside [min, max]
+        # (seen with values around 7e5), so allow a relative tolerance.
+        tol = 1e-9 * max(1.0, abs(r["min"]), abs(r["max"]))
+        assert r["min"] - tol <= r["mean"] <= r["max"] + tol
+        assert r["min"] - tol <= r["median"] <= r["max"] + tol
         assert r["std"] >= 0.0
 
     @settings(max_examples=40, deadline=None)
