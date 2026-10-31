@@ -107,6 +107,7 @@ test = [
     "psutil>=6.1.0",
     "fakeredis>=2.36.1",
     "memory-profiler>=0.61.0",
+    "pytest-xdist>=3.8.0",  # pytest.ini runs the suite with -n auto
 ]
 
 [tool.hatch.build.targets.wheel]
