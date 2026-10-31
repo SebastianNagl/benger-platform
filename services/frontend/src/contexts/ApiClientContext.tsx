@@ -24,9 +24,6 @@
  * selected organization: the API decides access per project from every
  * membership.
  *
- * NOTE: this is intentionally separate from the older
- * `contexts/ApiClientProvider.tsx`, which builds a bare client and is kept
- * for its existing consumers/tests. New call sites should use THIS context.
  */
 
 import type { ApiClient } from '@/lib/api'

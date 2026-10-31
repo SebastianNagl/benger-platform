@@ -330,9 +330,9 @@ describe('useNotifications', () => {
     it('should stop reconnecting after the 5-attempt cap', async () => {
       // Regression: previously this SSE retried forever. Once the user's
       // session expired the browser hammered /api/notifications/stream
-      // every ~5 s indefinitely with no auth cookie. The three project
-      // WS clients (EvaluationResults, GenerationTaskList,
-      // GenerationProgress) cap at 5; mirror that here.
+      // every ~5 s indefinitely with no auth cookie. The project WS
+      // clients (EvaluationResults, GenerationTaskList) cap at 5; mirror
+      // that here.
       //
       // Use a variant of MockEventSource that does NOT auto-fire onopen
       // — otherwise the open handler runs on every reconnect, resets

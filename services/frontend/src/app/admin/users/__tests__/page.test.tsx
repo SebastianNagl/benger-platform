@@ -23,8 +23,7 @@ import AdminUsersPage from '../page'
 // component is correct but jsdom + portal mounting + userEvent click on
 // Listbox.Option doesn't reliably fire onValueChange, so unit tests
 // drive it via native semantics. Matches the pattern used in
-// notifications/__tests__/page.coverage.test.tsx and
-// evaluation/__tests__/PDFReportGenerator.test.tsx.
+// notifications/__tests__/page.coverage.test.tsx.
 jest.mock('@/components/shared/Select', () => ({
   Select: ({ value, onValueChange, disabled, children }: any) => (
     <select

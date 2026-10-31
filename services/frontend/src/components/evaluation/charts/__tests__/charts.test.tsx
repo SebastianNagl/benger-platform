@@ -72,6 +72,6 @@ describe('BoxPlotChart', () => {
   })
 })
 
-// Note: SignificanceHeatmap, EvaluationHeatmap, and HistoricalTrendChart
+// Note: SignificanceHeatmap and HistoricalTrendChart
 // use complex recharts/canvas rendering that requires deep mocking.
 // They are covered by E2E tests instead of unit tests.

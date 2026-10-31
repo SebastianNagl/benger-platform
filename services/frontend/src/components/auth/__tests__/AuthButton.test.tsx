@@ -64,7 +64,7 @@ jest.mock('@/lib/utils/subdomain', () => ({
 // View-mode switch hook (issue #35). Controllable per test; defaults to
 // 'unavailable' so the account-dropdown switch item is hidden and the existing
 // AuthButton tests are unaffected. The switch logic itself is covered by the
-// ViewModeToggle component test.
+// useViewModeSwitch hook tests.
 const mockViewSwitchTo = jest.fn()
 let mockViewModeState: any = {
   status: 'unavailable',

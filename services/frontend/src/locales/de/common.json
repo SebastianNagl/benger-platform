@@ -7657,7 +7657,8 @@
     },
     "api": {
       "invalidJson": "Ungültige JSON-Antwort: {error}",
-      "networkUnreachable": "Netzwerkfehler: Die API unter {url} ist nicht erreichbar"
+      "networkUnreachable": "Netzwerkfehler: Die API unter {url} ist nicht erreichbar",
+      "requestQueueTimeout": "Die App wartet gerade auf zu viele Anfragen gleichzeitig. Bitte versuche es gleich noch einmal."
     }
   },
   "invitation": {

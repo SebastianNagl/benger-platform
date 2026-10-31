@@ -53,6 +53,21 @@ interface CacheEntry {
 
 const CACHE_TTL = 30000 // 30 seconds cache for GET requests
 
+// How long a request may wait in the queue for a free slot before it fails.
+// Every in-flight request aborts after REQUEST_TIMEOUT, so a longer wait
+// means a slot leaked; failing loudly beats hanging the page.
+const SLOT_WAIT_TIMEOUT = 2 * REQUEST_TIMEOUT
+
+// Monotonic counter so two identical requests in the same millisecond do not
+// share one slot id in `activeRequests`.
+let requestSequence = 0
+
+/** What one fetch attempt asks `request` to do next. */
+type AttemptOutcome =
+  | { kind: 'done'; value: any }
+  | { kind: 'retry'; delay: number }
+  | { kind: 'refresh'; error: Error }
+
 // One GET cache for every client instance. The app holds several instances
 // side by side (the global apiClient, the provider's ApiClient, each one's
 // resource clients, standalone exports like organizationsAPI), and pages
@@ -69,6 +84,8 @@ export class BaseApiClient {
   private refreshPromise: Promise<boolean> | null = null
   private activeRequests = new Set<string>()
   private requestQueue: Array<() => void> = []
+  /** Queue wait limit in ms; an instance field so tests can shorten it. */
+  protected slotWaitTimeoutMs = SLOT_WAIT_TIMEOUT
   private responseCache = sharedCache.responses
 
   private get lastKnownUserId(): string | null {
@@ -452,7 +469,7 @@ export class BaseApiClient {
    * Process request queue when a request completes
    */
   private processRequestQueue() {
-    if (
+    while (
       this.requestQueue.length > 0 &&
       this.activeRequests.size < MAX_CONCURRENT_REQUESTS
     ) {
@@ -464,23 +481,51 @@ export class BaseApiClient {
   }
 
   /**
-   * Wait for available request slot
+   * Wait for an available request slot. Rejects after `slotWaitTimeoutMs`
+   * so a wedged slot can never leave a request pending forever.
    */
-  private async waitForRequestSlot(requestId: string): Promise<void> {
-    if (this.activeRequests.size >= MAX_CONCURRENT_REQUESTS) {
-      // Request queue full, queueing request
-
-      return new Promise((resolve) => {
-        this.requestQueue.push(() => {
-          this.activeRequests.add(requestId)
-          resolve()
-        })
-      })
-    } else {
+  private waitForRequestSlot(requestId: string): Promise<void> {
+    if (this.activeRequests.size < MAX_CONCURRENT_REQUESTS) {
       this.activeRequests.add(requestId)
+      return Promise.resolve()
     }
+
+    return new Promise((resolve, reject) => {
+      const grant = () => {
+        clearTimeout(timer)
+        this.activeRequests.add(requestId)
+        resolve()
+      }
+      const timer = setTimeout(() => {
+        const index = this.requestQueue.indexOf(grant)
+        if (index !== -1) this.requestQueue.splice(index, 1)
+        const error = new Error(translate('errors.api.requestQueueTimeout'))
+        error.name = 'RequestQueueTimeoutError'
+        reject(error)
+      }, this.slotWaitTimeoutMs)
+      this.requestQueue.push(grant)
+    })
   }
 
+  private releaseRequestSlot(requestId: string) {
+    this.activeRequests.delete(requestId)
+    this.processRequestQueue()
+  }
+
+  /**
+   * Send a request through the GET cache, the concurrency limiter and the
+   * retry policy.
+   *
+   * Retries (502/503, 429, network errors, one token refresh after a 401)
+   * run as a loop, and every attempt holds a request slot only while its
+   * fetch is in flight: the slot is released before backing off or
+   * refreshing, so retries can never wait on slots held by their own
+   * parents.
+   *
+   * Pass `cache: 'no-store'` in `options` for live data (status, progress,
+   * job polls): the response is then neither read from nor written to the
+   * 30 s GET cache.
+   */
   protected async request(
     endpoint: string,
     options: RequestInit = {},
@@ -489,13 +534,9 @@ export class BaseApiClient {
   ): Promise<any> {
     const apiBaseUrl = getApiBaseUrl()
     const url = `${apiBaseUrl}${endpoint}`
-
-    // Debug logging for request construction - removed for production
-    const isFormData = options.body instanceof FormData
-    const requestId = `${options.method || 'GET'}-${endpoint}-${Date.now()}`
-
-    // Check cache for GET requests - include user identity in cache key
     const method = options.method || 'GET'
+    const bypassCache = options.cache === 'no-store'
+
     // Get the current user ID from localStorage
     const userId =
       typeof window !== 'undefined'
@@ -514,26 +555,85 @@ export class BaseApiClient {
     // Always include userId in cache key, use 'anonymous' for no user
     const cacheKey = `${userId || 'anonymous'}-${method}-${endpoint}`
 
-    if (method === 'GET' && !isRetry) {
+    if (method === 'GET' && !isRetry && !bypassCache) {
       const cached = this.responseCache.get(cacheKey)
       if (cached) {
         // Validate that the cache entry belongs to the current user
         if (this.validateCacheEntry(cached, userId)) {
           logger.debug(`Cache hit for ${cacheKey} (user: ${userId})`)
-          return Promise.resolve(cached.data)
-        } else {
-          // Cache entry is invalid or belongs to different user, remove it
-          logger.debug(
-            `Cache invalidated for ${cacheKey}, removing stale entry`,
-          )
-          this.responseCache.delete(cacheKey)
+          return cached.data
         }
+        // Cache entry is invalid or belongs to different user, remove it
+        logger.debug(`Cache invalidated for ${cacheKey}, removing stale entry`)
+        this.responseCache.delete(cacheKey)
       }
     }
 
-    // Wait for available request slot
-    await this.waitForRequestSlot(requestId)
+    let attempt = retryCount
+    let refreshed = isRetry
+    for (;;) {
+      requestSequence += 1
+      const requestId = `${method}-${endpoint}-${requestSequence}`
+      await this.waitForRequestSlot(requestId)
 
+      let outcome: AttemptOutcome
+      try {
+        outcome = await this.attemptRequest(
+          url,
+          endpoint,
+          options,
+          method,
+          cacheKey,
+          bypassCache,
+          attempt,
+          refreshed,
+        )
+      } finally {
+        this.releaseRequestSlot(requestId)
+      }
+
+      if (outcome.kind === 'done') return outcome.value
+
+      if (outcome.kind === 'retry') {
+        await new Promise((resolve) => setTimeout(resolve, outcome.delay))
+        attempt += 1
+        continue
+      }
+
+      // outcome.kind === 'refresh': one token refresh, then retry once.
+      // Ensure only one refresh happens at a time
+      if (!this.refreshPromise) {
+        this.refreshPromise = this.refreshAccessToken()
+      }
+      const refreshSuccess = await this.refreshPromise
+      this.refreshPromise = null
+      if (refreshSuccess) {
+        refreshed = true
+        continue
+      }
+      if (this.onAuthFailure) {
+        this.onAuthFailure()
+      }
+      throw outcome.error
+    }
+  }
+
+  /**
+   * One fetch attempt. Returns the parsed body, or tells `request` to retry
+   * (after a delay) or to refresh the token first. Never sleeps or recurses
+   * itself, so the caller can release the request slot in between.
+   */
+  private async attemptRequest(
+    url: string,
+    endpoint: string,
+    options: RequestInit,
+    method: string,
+    cacheKey: string,
+    bypassCache: boolean,
+    retryCount: number,
+    isRetry: boolean,
+  ): Promise<AttemptOutcome> {
+    const isFormData = options.body instanceof FormData
     try {
       // API Request in progress. Safe Exam Browser proof first, so SEB exams
       // verify on macOS / iOS too (see lib/seb.ts). Inside SEB the keys are
@@ -581,7 +681,7 @@ export class BaseApiClient {
       if (!response.ok) {
         // Special handling for logout endpoint - 401 is expected
         if (endpoint === '/auth/logout' && response.status === 401) {
-          return undefined // Return undefined for successful logout
+          return { kind: 'done', value: undefined }
         }
 
         // Parse error response to extract structured error data
@@ -612,57 +712,18 @@ export class BaseApiClient {
         // A feature switched off since the flags loaded: refetch them.
         reportFeatureDisabled(response.status, errorData)
 
-        // API Error occurred
-
-        // Handle 502/503 errors during service restarts - retry with backoff
+        // 502/503 during service restarts: retry with 1 s, 2 s backoff
         if ([502, 503].includes(response.status) && retryCount < 2) {
-          const delay = (retryCount + 1) * 1000 // 1s, 2s delays
-          // Service temporarily unavailable, retrying...
-          await new Promise((resolve) => setTimeout(resolve, delay))
-          return this.request(endpoint, options, isRetry, retryCount + 1)
+          return { kind: 'retry', delay: (retryCount + 1) * 1000 }
         }
 
-        // Handle 429 rate limiting - retry with exponential backoff
+        // 429 rate limiting: retry with exponential backoff
         if (response.status === 429 && retryCount < 3) {
           const retryAfter = response.headers.get('retry-after')
           const delay = retryAfter
             ? parseInt(retryAfter) * 1000
             : Math.pow(2, retryCount + 2) * 1000
-          // Rate limited, retrying...
-          await new Promise((resolve) => setTimeout(resolve, delay))
-          return this.request(endpoint, options, isRetry, retryCount + 1)
-        }
-
-        // Handle 401 errors - attempt token refresh before triggering logout
-        // Skip refresh attempt for certain endpoints where 401 is expected
-        const skipAuthFailureEndpoints = ['/auth/refresh', '/auth/logout']
-
-        const shouldSkipAuthFailure = skipAuthFailureEndpoints.some((path) =>
-          endpoint.includes(path),
-        )
-
-        if (response.status === 401 && !isRetry && !shouldSkipAuthFailure) {
-          // Authentication failed, attempting token refresh...
-
-          // Ensure only one refresh happens at a time
-          if (!this.refreshPromise) {
-            this.refreshPromise = this.refreshAccessToken()
-          }
-
-          const refreshSuccess = await this.refreshPromise
-          this.refreshPromise = null
-
-          if (refreshSuccess) {
-            // Token refresh successful, retrying original request
-            // Retry the original request with the new token
-            return this.request(endpoint, options, true, retryCount)
-          } else {
-            // Token refresh failed, triggering logout
-            // Refresh failed, trigger logout
-            if (this.onAuthFailure) {
-              this.onAuthFailure()
-            }
-          }
+          return { kind: 'retry', delay }
         }
 
         // Create axios-like error structure for better frontend compatibility
@@ -672,6 +733,17 @@ export class BaseApiClient {
           statusText: response.statusText,
           data: errorData,
         }
+
+        // 401: attempt one token refresh before triggering logout. Skip it
+        // for endpoints where 401 is expected.
+        const skipAuthFailureEndpoints = ['/auth/refresh', '/auth/logout']
+        const shouldSkipAuthFailure = skipAuthFailureEndpoints.some((path) =>
+          endpoint.includes(path),
+        )
+        if (response.status === 401 && !isRetry && !shouldSkipAuthFailure) {
+          return { kind: 'refresh', error }
+        }
+
         throw error
       }
 
@@ -684,7 +756,7 @@ export class BaseApiClient {
             `Cache invalidated after ${method} to ${endpoint} (204 response)`,
           )
         }
-        return undefined
+        return { kind: 'done', value: undefined }
       }
 
       const contentType = response.headers.get('content-type')
@@ -709,65 +781,38 @@ export class BaseApiClient {
         logger.debug(
           `Returning blob response with content-type: ${contentType}, content-disposition: ${contentDisposition}`,
         )
-        return blob
+        return { kind: 'done', value: blob }
       }
 
-      // Handle JSON responses
+      let result: any
       if (contentType && contentType.includes('application/json')) {
+        // Handle JSON responses
         const text = await response.text()
         if (!text) {
-          return null
+          return { kind: 'done', value: null }
         }
         try {
-          const jsonResult = JSON.parse(text)
-
-          // Cache successful GET responses with user validation
-          if (method === 'GET' && response.ok) {
-            // Get the current user ID at cache time to ensure consistency
-            const currentUserId =
-              typeof window !== 'undefined'
-                ? localStorage.getItem('benger_last_session_user')
-                : null
-            this.responseCache.set(cacheKey, {
-              data: jsonResult,
-              timestamp: Date.now(),
-              userId: currentUserId,
-            })
-            logger.debug(
-              `Cached JSON response for ${cacheKey} (user: ${currentUserId})`,
-            )
-          }
-
-          // Invalidate related cache after successful mutations
-          if (
-            ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
-            response.ok
-          ) {
-            this.invalidateRelatedCache(endpoint)
-            logger.debug(`Cache invalidated after ${method} to ${endpoint}`)
-          }
-
-          return jsonResult
+          result = JSON.parse(text)
         } catch (jsonError) {
           logger.error('Failed to parse JSON response:', jsonError)
           throw new Error(
             translate('errors.api.invalidJson', { error: String(jsonError) }),
           )
         }
+      } else {
+        // Handle text responses
+        result = await response.text()
       }
 
-      // Handle text responses
-      const textResult = await response.text()
-
       // Cache successful GET responses with user validation
-      if (method === 'GET' && response.ok) {
+      if (method === 'GET' && !bypassCache) {
         // Get the current user ID at cache time to ensure consistency
         const currentUserId =
           typeof window !== 'undefined'
             ? localStorage.getItem('benger_last_session_user')
             : null
         this.responseCache.set(cacheKey, {
-          data: textResult,
+          data: result,
           timestamp: Date.now(),
           userId: currentUserId,
         })
@@ -775,34 +820,22 @@ export class BaseApiClient {
       }
 
       // Invalidate related cache after successful mutations
-      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && response.ok) {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
         this.invalidateRelatedCache(endpoint)
         logger.debug(`Cache invalidated after ${method} to ${endpoint}`)
       }
 
-      return textResult
+      return { kind: 'done', value: result }
     } catch (error) {
-      // Handle network errors and other fetch failures with retry logic
-      if (
-        error instanceof TypeError &&
-        error.message.includes('fetch') &&
-        retryCount < 2
-      ) {
-        const delay = (retryCount + 1) * 1000 // 1s, 2s delays
-        // Network error, retrying...
-        await new Promise((resolve) => setTimeout(resolve, delay))
-        return this.request(endpoint, options, isRetry, retryCount + 1)
-      }
-
+      // Network errors and other fetch failures: retry with 1 s, 2 s backoff
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        if (retryCount < 2) {
+          return { kind: 'retry', delay: (retryCount + 1) * 1000 }
+        }
         throw networkError(url)
       }
       // Re-throw other errors as-is
       throw error
-    } finally {
-      // Always clean up request tracking
-      this.activeRequests.delete(requestId)
-      this.processRequestQueue()
     }
   }
 

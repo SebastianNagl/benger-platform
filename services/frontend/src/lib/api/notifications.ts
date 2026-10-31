@@ -84,18 +84,27 @@ export class NotificationsClient extends BaseApiClient {
   /**
    * Get user's notifications
    */
-  async getNotifications(queryString?: string): Promise<Notification[]> {
+  async getNotifications(
+    queryString?: string,
+    options?: { cache?: RequestCache },
+  ): Promise<Notification[]> {
     const url = queryString
       ? `/notifications/?${queryString}`
       : '/notifications/'
-    return this.get(url)
+    return options?.cache
+      ? this.get(url, { cache: options.cache })
+      : this.get(url)
   }
 
   /**
    * Get unread notifications count
    */
-  async getUnreadCount(): Promise<UnreadCountResponse> {
-    return this.get('/notifications/unread-count')
+  async getUnreadCount(options?: {
+    cache?: RequestCache
+  }): Promise<UnreadCountResponse> {
+    return options?.cache
+      ? this.get('/notifications/unread-count', { cache: options.cache })
+      : this.get('/notifications/unread-count')
   }
 
   /**

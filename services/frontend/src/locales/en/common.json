@@ -7538,7 +7538,8 @@
     },
     "api": {
       "invalidJson": "Invalid JSON response: {error}",
-      "networkUnreachable": "Network error: Unable to connect to API at {url}"
+      "networkUnreachable": "Network error: Unable to connect to API at {url}",
+      "requestQueueTimeout": "The app is waiting on too many requests at once. Please try again in a moment."
     }
   },
   "invitation": {

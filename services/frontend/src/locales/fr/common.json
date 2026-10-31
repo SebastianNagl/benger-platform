@@ -7657,7 +7657,8 @@
     },
     "api": {
       "invalidJson": "Réponse JSON non valide : {error}",
-      "networkUnreachable": "Erreur réseau : impossible de joindre l'API à l'adresse {url}"
+      "networkUnreachable": "Erreur réseau : impossible de joindre l'API à l'adresse {url}",
+      "requestQueueTimeout": "L'application attend trop de requêtes à la fois. Veuillez réessayer dans un instant."
     }
   },
   "invitation": {

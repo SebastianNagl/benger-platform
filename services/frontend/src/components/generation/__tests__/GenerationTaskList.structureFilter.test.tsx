@@ -159,6 +159,7 @@ describe('GenerationTaskList structure filter', () => {
     await waitFor(() =>
       expect(mockGet).toHaveBeenCalledWith(
         expect.stringContaining('/task-status'),
+        { cache: 'no-store' },
       ),
     )
     await openFilterPanel(user)
@@ -175,6 +176,7 @@ describe('GenerationTaskList structure filter', () => {
     await waitFor(() =>
       expect(mockGet).toHaveBeenCalledWith(
         expect.stringContaining('/task-status'),
+        { cache: 'no-store' },
       ),
     )
     await openFilterPanel(user)
@@ -205,6 +207,7 @@ describe('GenerationTaskList structure filter', () => {
     await waitFor(() =>
       expect(mockGet).toHaveBeenCalledWith(
         expect.stringContaining('/task-status'),
+        { cache: 'no-store' },
       ),
     )
     await openFilterPanel(user)

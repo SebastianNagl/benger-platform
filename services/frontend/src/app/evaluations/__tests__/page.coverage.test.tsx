@@ -148,10 +148,6 @@ jest.mock('@/components/evaluation/EvaluationResultsTable', () => ({
   EvaluationResultsTable: () => <div data-testid="evaluation-results-table" />,
 }))
 
-jest.mock('@/components/evaluation/FieldPairSelector', () => ({
-  FieldPairSelector: () => <div data-testid="field-pair-selector" />,
-}))
-
 jest.mock('@/components/evaluation/EvaluationResults', () => ({
   EvaluationResults: ({ onHasResults, onChartData }: any) => {
     // Simulate having results
