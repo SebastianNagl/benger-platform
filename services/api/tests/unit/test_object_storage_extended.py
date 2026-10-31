@@ -447,13 +447,27 @@ class TestUploadFileS3:
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
         result = service.upload_file(  # noqa: F841
+            file_data=b"a,b\n1,2\n",
+            filename="table.csv",
+            file_type="uploads",
+        )
+
+        call_kwargs = mock_client.put_object.call_args[1]
+        assert call_kwargs["ContentType"] == "text/csv"
+
+    def test_upload_to_s3_never_stores_a_guessed_html_type(self):
+        """A guessed scriptable type (page.html) is stored as octet-stream (audit S1)."""
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
+
+        service.upload_file(
             file_data=b"<html>test</html>",
             filename="page.html",
             file_type="uploads",
         )
 
         call_kwargs = mock_client.put_object.call_args[1]
-        assert "html" in call_kwargs["ContentType"]
+        assert call_kwargs["ContentType"] == "application/octet-stream"
 
     def test_upload_to_s3_unknown_content_type_defaults_to_octet_stream(self):
         """Unknown file extensions default to application/octet-stream."""

@@ -285,7 +285,11 @@ metadata:
   annotations:
     # Deliberately NO compression middleware chain: export artifacts are opaque
     # blobs (often already gzipped) and serving large objects via presigned URLs;
-    # double-gzip wastes CPU and can break range/streamed downloads.
+    # double-gzip wastes CPU and can break range/streamed downloads. Only the
+    # storage-headers middleware (nosniff + CSP sandbox) applies here.
+    {{- if .Values.middleware.enabled }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-storage-headers@kubernetescrd
+    {{- end }}
     {{- with .Values.minio.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

@@ -34,8 +34,18 @@ from typing import Any, Dict, List, Optional, Tuple
 # /shared/storage itself on sys.path) — support the sibling import either way.
 try:
     from storage.s3_metadata import ascii_safe_metadata
+    from storage.upload_policy import (
+        DEFAULT_MAX_UPLOAD_BYTES,
+        UploadPolicyError,
+        is_scriptable_content_type,
+    )
 except ImportError:
     from s3_metadata import ascii_safe_metadata
+    from upload_policy import (
+        DEFAULT_MAX_UPLOAD_BYTES,
+        UploadPolicyError,
+        is_scriptable_content_type,
+    )
 
 try:
     import boto3
@@ -336,6 +346,10 @@ class ObjectStorageService:
             content_type, _ = mimetypes.guess_type(filename)
             if not content_type:
                 content_type = "application/octet-stream"
+        # The bucket is served from a public, same-site host: never store an
+        # object under a type a browser would render as a page.
+        if is_scriptable_content_type(content_type):
+            content_type = "application/octet-stream"
 
         # Calculate file hash
         file_hash = hashlib.sha256(file_data).hexdigest()
@@ -443,10 +457,19 @@ class ObjectStorageService:
             content_type, _ = mimetypes.guess_type(filename)
             if not content_type:
                 content_type = "application/octet-stream"
+        # The policy pins the Content-Type the object is stored with; refuse
+        # to sign one a browser would render as a page.
+        if is_scriptable_content_type(content_type):
+            raise UploadPolicyError(f"Content type not allowed: {content_type}")
 
         # Set expiration
         if not expires_in:
             expires_in = self.EXPIRATION_TIMES["upload"]
+
+        # A size condition is always part of the policy; 0 or None no longer
+        # means "unlimited".
+        if not max_size or max_size <= 0:
+            max_size = DEFAULT_MAX_UPLOAD_BYTES
 
         # Prepare conditions for the presigned POST. Every form field sent with
         # the upload must be covered by a policy condition, or S3/MinIO rejects
@@ -461,8 +484,7 @@ class ObjectStorageService:
             {"x-amz-meta-user-id": user_id or ""},
         ]
 
-        if max_size:
-            conditions.append(["content-length-range", 0, max_size])
+        conditions.append(["content-length-range", 0, max_size])
 
         # Generate presigned POST URL
         try:
@@ -527,12 +549,15 @@ class ObjectStorageService:
         if not expires_in:
             expires_in = self.EXPIRATION_TIMES["download"]
 
-        # Prepare response parameters
+        # Prepare response parameters. Without an explicit disposition the
+        # object is sent as an attachment, and a scriptable override type is
+        # never echoed: the storage host is same-site with the app.
         params = {}
         if response_content_type:
+            if is_scriptable_content_type(response_content_type):
+                response_content_type = "application/octet-stream"
             params["ResponseContentType"] = response_content_type
-        if response_content_disposition:
-            params["ResponseContentDisposition"] = response_content_disposition
+        params["ResponseContentDisposition"] = response_content_disposition or "attachment"
 
         try:
             # Sign against the public endpoint so a browser can replay the URL
@@ -815,6 +840,8 @@ class ObjectStorageService:
             content_type, _ = mimetypes.guess_type(filename)
             if not content_type:
                 content_type = "application/octet-stream"
+        if is_scriptable_content_type(content_type):
+            content_type = "application/octet-stream"
 
         try:
             response = self.s3_client.create_multipart_upload(

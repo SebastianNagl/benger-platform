@@ -43,7 +43,7 @@ if shared_dir not in sys.path:
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration
-from app.core.config import docs_url_kwargs, get_settings  # noqa: E402
+from app.core.config import cors_middleware_kwargs, docs_url_kwargs, get_settings  # noqa: E402
 
 install_access_log_redaction()
 
@@ -387,16 +387,12 @@ app = FastAPI(
     **docs_url_kwargs(settings.internal_docs_enabled),
 )
 
-# Configure CORS with regex to support wildcard subdomains
-# Matches: benger.localhost, *.benger.localhost, what-a-benger.net, *.what-a-benger.net, localhost:*
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"https?://(([a-z0-9-]+\.)?benger\.localhost|([a-z0-9-]+\.)?what-a-benger\.net|localhost(:\d+)?)",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
-    expose_headers=["Content-Length"],
-)
+# CORS: production allows only the explicit CORS_ALLOWED_ORIGINS list (empty
+# by default, so no middleware and no cross-origin browser access); dev and
+# test add a localhost-only regex. See cors_middleware_kwargs.
+_cors_kwargs = cors_middleware_kwargs(settings)
+if _cors_kwargs is not None:
+    app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # Access keys outside /api/v1 (core 2.45): route rule, scopes, projects and
 # rate limit, before any handler runs. Added before the usage middleware so
