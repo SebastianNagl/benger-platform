@@ -308,6 +308,33 @@ workers:
   # under the 6Gi limit; raising it lets peak drift back up under embedding
   # loads.
   maxTasksPerChild: 20
+  # Seconds the kubelet waits after SIGTERM before SIGKILL (audit E9). Celery's
+  # warm shutdown finishes the running tasks; killed mid-task, an acks_late
+  # evaluation cell only comes back after the 7200 s Redis visibility timeout
+  # and the judge calls it already made are lost (and billed again). Pools in
+  # workerPools inherit this value unless they set their own
+  # `terminationGracePeriodSeconds`. A pod with no running task exits at once,
+  # so a long grace only slows rollouts that interrupt real work. Mind the
+  # memory: during a rollout the terminating pod keeps its RAM for up to this
+  # long while the surge pod starts.
+  terminationGracePeriodSeconds: 600
+  # Hugging Face model cache (audit E10). The worker image bakes the embedding
+  # models into /opt/hf at build time; HF_HOME points the libraries there and
+  # HF_HUB_OFFLINE=1 forbids any runtime download, so a pod start never
+  # depends on huggingface.co and never writes model files at runtime.
+  # Rendered for the bulk pool and every workerPools entry (a pool may set its
+  # own `modelCache` keys, e.g. `enabled: false`). Skipped per name when
+  # workers.env, workers.extraEnv, the pool's extraEnv or an overlay already
+  # sets HF_HOME / HF_HUB_OFFLINE, so it never renders a duplicate env name.
+  # Set offline: false only for an image built without the baked cache.
+  modelCache:
+    enabled: true
+    hfHome: /opt/hf
+    offline: true
+  # Pod/container securityContext override for the bulk pool, beat and (unless
+  # a pool sets its own) the workerPools; same shape as the top-level
+  # `securityContext` block. Empty = inherit the baseline.
+  securityContext: {}
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -810,6 +837,53 @@ backup:
     limits:
       memory: "512Mi"
       cpu: "500m"
+  # The backup pod stays root: the hostPath (/opt/benger-backups) and the dumps
+  # already on it are root-owned, the kubelet never applies fsGroup to a
+  # hostPath, and `apk add age` writes to root-owned image paths. The baseline
+  # container settings (no privilege escalation, ALL capabilities dropped,
+  # RuntimeDefault seccomp) still apply; root needs no capability for files it
+  # owns. Verified locally: `apk add --no-cache age` succeeds in
+  # postgres:18-alpine with --cap-drop ALL and no-new-privileges.
+  securityContext:
+    pod:
+      runAsNonRoot: false
+      runAsUser: 0
+      runAsGroup: 0
+  # Encrypt every dump with age before it touches the disk. Off by default so
+  # the chart deploys without the Secret; once enabled, a missing Secret fails
+  # the job with an explicit error and writes no backup. Create the key pair
+  # OFF the node, keep the private key offline (password manager / two
+  # operators), and put only the public key into the namespace:
+  #   age-keygen -o benger-backup-key.txt      # prints "Public key: age1..."
+  #   kubectl -n <ns> create secret generic benger-backup-encryption \
+  #     --from-literal=recipient=age1...
+  # Several recipients (e.g. an escrow key): one per line in `recipient`
+  #   kubectl -n <ns> create secret generic benger-backup-encryption \
+  #     --from-file=recipient=./recipients.txt
+  # Restore steps are in templates/cronjob-backup.yaml.
+  encryption:
+    enabled: false
+    secretName: benger-backup-encryption
+    secretKey: recipient
+  # Upload each new (encrypted) dump to an S3 bucket that is NOT on this node.
+  # Requires encryption.enabled (the chart refuses to render otherwise). Keys
+  # land under <prefix>/{daily,weekly,monthly}/; prefix defaults to the
+  # namespace. Retention on the remote side is the bucket's lifecycle rules,
+  # set them there (e.g. daily/ 30 days). Use credentials that can only
+  # PutObject/GetObject on that bucket (no delete), so a compromised node
+  # cannot wipe the offsite copies. A missing Secret or key fails the job
+  # after the local backup was written.
+  #   kubectl -n <ns> create secret generic benger-backup-offsite \
+  #     --from-literal=endpoint=https://<s3-host> \
+  #     --from-literal=bucket=<bucket> \
+  #     --from-literal=access-key=<key-id> \
+  #     --from-literal=secret-key=<secret> \
+  #     --from-literal=prefix=<optional, default the namespace>
+  # image: empty = the pinned mc image from minio.mcImage.
+  offsite:
+    enabled: false
+    secretName: benger-backup-offsite
+    image: ""
 
 # MinIO object storage for async exports/imports (issue #158).
 #
@@ -883,6 +957,18 @@ minio:
     enabled: true
     annotations:
       traefik.ingress.kubernetes.io/router.priority: "200"
+  # MinIO server securityContext: OFF by default. The pinned pgsty/minio image
+  # runs as root (no USER in the image) and the existing PVC data is therefore
+  # root-owned. fsGroup cannot fix that here: the K3s local-path volumes are
+  # hostPath-backed, and the kubelet only applies fsGroup to volume types it
+  # can chown. To move MinIO to uid 1000: scale it to 0, run
+  #   chown -R 1000:1000 /var/lib/rancher/k3s/storage/<pvc-dir>
+  # on the node, then set enabled: true here (the baseline pod/container
+  # settings then apply) and watch the first start.
+  securityContext:
+    enabled: false
+  # The minio-init Job (mc client, writes only /tmp) inherits the baseline.
+  initSecurityContext: {}
 
 # Traefik middleware configuration
 # Creates Middleware CRDs for security headers, compression, etc.
@@ -928,3 +1014,120 @@ vertretbar:
   betaAuth:
     enabled: false  # beta gate dropped 2026-07-27 (open beta); flip true to re-lock (needs benger-beta-auth secret)
     secretName: benger-beta-auth
+
+# Pod and container securityContext baseline (audit 2026-10-31, S5) for every
+# workload this chart templates: api, frontend, the bulk worker pool, every
+# workerPools entry, beat, the migrations Job, the minio-init Job, the backup
+# and demo-reset CronJobs (the last two and MinIO override it, see their
+# blocks). The bitnami postgresql and redis subcharts keep their own settings.
+#
+# A component overrides with `<component>.securityContext` of the same shape
+# (api, frontend, workers, beat, migrations, backup, workerPools.<pool>,
+# minio, minio.initSecurityContext, demoReset). Keys replace the baseline key
+# by key, so `runAsUser: 0` or `runAsNonRoot: false` work as written.
+#
+# Emergency switch (one line, all workloads):
+#   helm upgrade ... --set securityContext.enabled=false
+# or for one workload: --set api.securityContext.enabled=false
+#
+# uid/gid 1000 is the user the api, workers and frontend images run as and
+# own their app directories with. Images built before that change ran as root
+# (api, workers) and 1001 (frontend); do not deploy this baseline with them
+# (or set securityContext.enabled=false for that deploy). fsGroup 1000 makes
+# emptyDir and Secret volumes group-accessible for that user.
+#
+# readOnlyRootFilesystem stays false: the api writes PROMETHEUS_MULTIPROC_DIR
+# and upload spool files under /tmp, the workers spool exports and imports in
+# /tmp, beat keeps its schedule DB in /tmp and Next.js writes .next/cache. None
+# of those paths is a mounted volume yet; turning it on needs an emptyDir for
+# each first.
+securityContext:
+  enabled: true
+  pod:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  container:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    readOnlyRootFilesystem: false
+
+# Ingress NetworkPolicies for the release namespace (templates/networkpolicy.yaml,
+# audit 2026-10-31 S5). Default-deny ingress for every pod, then: everything
+# within the namespace, Traefik to the routed backends only, Prometheus to the
+# scrape targets only. No egress rules. Set enabled: false to remove all of
+# them in one upgrade.
+#
+# First rollout: watch for 30 minutes. Grafana targets (benger-api and
+# celery-exporter up in every namespace), the next backup run, an LTI launch
+# from the ilias-test / moodle-test appliances, a vertretbar.net page load,
+# a presigned MinIO download, and any cert-manager HTTP-01 renewal.
+networkPolicy:
+  enabled: true
+  # Namespace Traefik runs in (K3s bundles it in kube-system).
+  ingressNamespace: kube-system
+  # Optional pod selector inside ingressNamespace. Empty = any pod there.
+  # Tighten to Traefik only with {app.kubernetes.io/name: traefik}
+  # (the label the monitoring chart's own Grafana policy relies on).
+  ingressPodSelector: {}
+  # Namespace of kube-prometheus-stack + benger-monitoring
+  # (benger-extended/infra/monitoring).
+  monitoringNamespace: monitoring
+  # Optional pod selector inside monitoringNamespace. Empty = any pod there.
+  # Tighten with {app.kubernetes.io/name: prometheus}.
+  monitoringPodSelector: {}
+  # Backends Traefik may reach. podLabels values pass through tpl. Ports are
+  # container ports. Entries for pods that do not exist in a namespace are
+  # harmless (they select nothing).
+  ingressTargets:
+    - name: frontend
+      reason: "Traefik routes the main host, the vertretbar apex and the LTI registration pages to the frontend (container port 3000)."
+      podLabels:
+        app: "{{ .Release.Name }}-{{ .Values.frontend.name }}"
+      ports: [3000]
+    - name: api
+      reason: "Traefik routes the api host (incl. LTI launch, AGS and JWKS endpoints) to the api (container port 8000)."
+      podLabels:
+        app: "{{ .Release.Name }}-{{ .Values.api.name }}"
+      ports: [8000]
+    - name: minio
+      reason: "Traefik routes the public storage host (presigned up/downloads) to the MinIO S3 port (9000). The console port 9001 has no Ingress and stays closed."
+      podLabels:
+        app: "{{ .Release.Name }}-minio"
+      ports: [9000]
+    - name: acme-solver
+      reason: "cert-manager HTTP-01 solver pods (vertretbar.net cert via letsencrypt-prod-http01) are created in this namespace and must answer Let's Encrypt through Traefik (port 8089)."
+      podLabels:
+        acme.cert-manager.io/http01-solver: "true"
+      ports: [8089]
+    - name: ilias-test
+      reason: "Test ILIAS appliance in ns benger (benger-extended/infra/lti-dev/k8s-ilias-test.yaml), served at ilias.what-a-benger.net on port 80."
+      podLabels:
+        app: ilias-test
+      ports: [80]
+    - name: moodle-test
+      reason: "Test Moodle appliance in ns benger (benger-extended/infra/lti-dev/k8s-moodle-test.yaml), served at moodle.what-a-benger.net on port 8080."
+      podLabels:
+        app: moodle-test
+      ports: [8080]
+  # What the monitoring namespace scrapes (benger-monitoring PodMonitors). There
+  # is no postgres or redis exporter: postgresql.metrics and redis.metrics are
+  # off, and celery-exporter runs IN this namespace, so its Redis access is
+  # covered by the same-namespace rule.
+  monitoringTargets:
+    - name: api-metrics
+      reason: "Prometheus scrapes /internal/metrics on the api http port (PodMonitor benger-api, container port 8000)."
+      podLabels:
+        app: "{{ .Release.Name }}-{{ .Values.api.name }}"
+      ports: [8000]
+    - name: celery-exporter
+      reason: "Prometheus scrapes the per-namespace celery-exporter (PodMonitor celery-exporter, container port 9808)."
+      podLabels:
+        app.kubernetes.io/name: celery-exporter
+      ports: [9808]
+  # Escape hatch: namespaces given full ingress to every pod here.
+  extraAllowedNamespaces: []

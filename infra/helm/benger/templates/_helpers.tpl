@@ -150,3 +150,112 @@ must therefore be a non-negative integer below 10^8.
 {{- end -}}
 {{- join "\n" $lines -}}
 {{- end -}}
+
+{{/*
+Pod and container securityContext for every workload this chart templates
+(audit 2026-10-31, S5 cluster part).
+
+The baseline lives in .Values.securityContext (enabled, pod, container). A
+component may override it with its own `securityContext` map of the same
+shape; a component without one inherits the baseline unchanged. Call with
+  (dict "root" $ "component" .Values.<component>.securityContext)
+and optionally "defaults" (a map of the same shape) for template-level
+defaults that sit between the baseline and the component override.
+
+Merging is key by key on the `pod` and `container` maps, done by hand on
+purpose: sprig's merge/mergeOverwrite skip "empty" source values, so an
+override such as `runAsUser: 0` or `runAsNonRoot: false` would silently lose
+against the baseline. A key replaces the baseline key wholesale (for example
+`capabilities` or `seccompProfile`).
+
+Emergency switch: `--set securityContext.enabled=false` drops both blocks
+from every workload; `<component>.securityContext.enabled=false` drops them
+from one workload only.
+*/}}
+{{- define "benger.securityContexts" -}}
+{{- $base := .root.Values.securityContext | default dict -}}
+{{- $defaults := .defaults | default dict -}}
+{{- $override := .component | default dict -}}
+{{- $enabled := true -}}
+{{- if hasKey $base "enabled" }}{{- $enabled = $base.enabled -}}{{- end -}}
+{{- if and $enabled (hasKey $defaults "enabled") }}{{- $enabled = $defaults.enabled -}}{{- end -}}
+{{- if and $enabled (hasKey $override "enabled") }}{{- $enabled = $override.enabled -}}{{- end -}}
+{{- $pod := dict -}}
+{{- $container := dict -}}
+{{- if $enabled -}}
+{{- range $layer := list $base $defaults $override -}}
+{{- range $k, $v := ($layer.pod | default dict) }}{{- $_ := set $pod $k $v -}}{{- end -}}
+{{- range $k, $v := ($layer.container | default dict) }}{{- $_ := set $container $k $v -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- toJson (dict "pod" $pod "container" $container) -}}
+{{- end -}}
+
+{{/*
+Renders `securityContext:` for a pod spec (or nothing when disabled).
+Same arguments as benger.securityContexts.
+*/}}
+{{- define "benger.podSecurityContext" -}}
+{{- $sc := include "benger.securityContexts" . | fromJson -}}
+{{- with $sc.pod }}
+securityContext:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Renders `securityContext:` for a container (or nothing when disabled).
+Same arguments as benger.securityContexts.
+*/}}
+{{- define "benger.containerSecurityContext" -}}
+{{- $sc := include "benger.securityContexts" . | fromJson -}}
+{{- with $sc.container }}
+securityContext:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Hugging Face cache environment for the Celery worker containers (audit E10).
+The worker image bakes the embedding models into HF_HOME at build time, and
+HF_HUB_OFFLINE=1 stops the libraries from contacting the Hub at runtime, so a
+pod start or a fork never downloads a model (no runtime egress to the Hub, no
+cold start that depends on huggingface.co being up, no writes into the image).
+
+Call with (dict "root" $ "cfg" <modelCache map> "existing" <list of env lists>).
+`cfg` is workers.modelCache, optionally overridden per pool by
+workerPools.<pool>.modelCache. Any name that already appears in one of the
+`existing` env lists (workers.env, workers.extraEnv, a pool's extraEnv, the
+overlay env) is skipped, so this helper can never render a duplicate env name
+(the 2026-10-15 "The order in patch list" trap). An explicit entry elsewhere
+therefore wins over this default.
+*/}}
+{{- define "benger.workerModelCacheEnv" -}}
+{{- $cfg := .cfg | default dict -}}
+{{- if $cfg.enabled -}}
+{{- $taken := dict -}}
+{{- range $list := .existing -}}
+{{- range $e := ($list | default list) -}}
+{{- if and (kindIs "map" $e) $e.name }}{{- $_ := set $taken $e.name true -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $lines := list -}}
+{{- if and $cfg.hfHome (not (hasKey $taken "HF_HOME")) -}}
+{{- $lines = append $lines (printf "- name: HF_HOME\n  value: %s" ($cfg.hfHome | quote)) -}}
+{{- end -}}
+{{- if not (hasKey $taken "HF_HUB_OFFLINE") -}}
+{{- $lines = append $lines (printf "- name: HF_HUB_OFFLINE\n  value: %s" (ternary "1" "0" (eq (toString $cfg.offline) "true") | quote)) -}}
+{{- end -}}
+{{- join "\n" $lines -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Labels shared by the NetworkPolicies in networkpolicy.yaml.
+*/}}
+{{- define "benger.networkPolicyLabels" -}}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: network-policy
+app.kubernetes.io/part-of: benger
+app.kubernetes.io/managed-by: helm
+{{- end -}}

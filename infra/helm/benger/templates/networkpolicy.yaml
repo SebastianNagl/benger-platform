@@ -1,0 +1,159 @@
+{{- /*
+Ingress NetworkPolicies for the release namespace (audit 2026-10-31, S5).
+
+K3s enforces NetworkPolicy with its embedded kube-router controller. Traffic
+from the node itself (kubelet liveness/readiness/startup probes) is not
+subject to these rules, so probes keep working.
+
+Policies are additive: the default-deny selects every pod, each further
+policy only opens a hole.
+  default-deny-ingress      every pod: no inbound traffic unless allowed below
+  allow-same-namespace      pods of this namespace reach each other freely
+  allow-ingress-<target>    the Traefik namespace reaches one routed backend
+                            on its container port(s) only
+  allow-monitoring-<target> the monitoring namespace reaches one scrape
+                            target on its metrics port only
+  allow-extra-namespaces    escape hatch, full access from listed namespaces
+
+No egress policies on purpose: outbound traffic (LLM providers, mail, the
+public ingress hairpin the LTI test appliances use to reach the API, the
+Alpine mirror the backup job installs age from) stays open.
+
+Ports are CONTAINER ports: NetworkPolicy matches the destination pod after the
+Service translated the port. Named ports are resolved on the selected pod.
+
+These policies apply to EVERY pod in the namespace, including pods this chart
+does not render: celery-exporter (monitoring chart), the ilias-test and
+moodle-test appliances (ns benger), cert-manager HTTP-01 solver pods. Each has
+its own entry in networkPolicy.ingressTargets or networkPolicy.monitoringTargets.
+A new pod reached from outside the namespace needs a new entry, or its
+Ingress answers 502/504.
+*/ -}}
+{{- if .Values.networkPolicy.enabled }}
+{{- $np := .Values.networkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-default-deny-ingress
+  labels:
+    {{- include "benger.networkPolicyLabels" . | nindent 4 }}
+spec:
+  # Empty selector = every pod in the namespace. No rules = deny all inbound
+  # traffic that no other policy allows.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-allow-same-namespace
+  labels:
+    {{- include "benger.networkPolicyLabels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # The namespace is one trust zone (api, workers, beat, jobs, postgres,
+    # redis, minio share credentials anyway; celery-exporter reads redis; the
+    # test LMS appliances talk to their own databases). The point of these
+    # policies is to keep OTHER namespaces (staging, demo, anything
+    # compromised elsewhere on the node) away from postgres, redis, minio and
+    # the internal api endpoints.
+    - from:
+        - podSelector: {}
+{{- range $target := $np.ingressTargets }}
+{{- if or (not (hasKey $target "enabled")) $target.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $.Release.Name }}-allow-ingress-{{ $target.name }}
+  labels:
+    {{- include "benger.networkPolicyLabels" $ | nindent 4 }}
+spec:
+  # {{ $target.reason }}
+  podSelector:
+    matchLabels:
+      {{- range $k, $v := $target.podLabels }}
+      {{ $k }}: {{ tpl (toString $v) $ | quote }}
+      {{- end }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.ingressNamespace | quote }}
+          {{- with $np.ingressPodSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        {{- range $target.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+{{- end }}
+{{- end }}
+{{- range $target := $np.monitoringTargets }}
+{{- if or (not (hasKey $target "enabled")) $target.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $.Release.Name }}-allow-monitoring-{{ $target.name }}
+  labels:
+    {{- include "benger.networkPolicyLabels" $ | nindent 4 }}
+spec:
+  # {{ $target.reason }}
+  podSelector:
+    matchLabels:
+      {{- range $k, $v := $target.podLabels }}
+      {{ $k }}: {{ tpl (toString $v) $ | quote }}
+      {{- end }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.monitoringNamespace | quote }}
+          {{- with $np.monitoringPodSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+      ports:
+        {{- range $target.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+{{- end }}
+{{- end }}
+{{- with $np.extraAllowedNamespaces }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $.Release.Name }}-allow-extra-namespaces
+  labels:
+    {{- include "benger.networkPolicyLabels" $ | nindent 4 }}
+spec:
+  # Operator escape hatch (networkPolicy.extraAllowedNamespaces): full ingress
+  # to every pod from these namespaces, all ports. Use for a temporary debug
+  # pod namespace or a new consumer until it gets a narrow rule.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range . }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+        {{- end }}
+{{- end }}
+{{- end }}

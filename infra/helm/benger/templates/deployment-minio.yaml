@@ -62,10 +62,15 @@ spec:
         app.kubernetes.io/component: object-storage
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- /* Off by default (minio.securityContext.enabled=false), see the
+             values.yaml note: the image runs as root and the existing PVC
+             data is root-owned. */}}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.minio.securityContext) | nindent 6 }}
       containers:
         - name: minio
           image: "{{ .Values.minio.image.repository }}@{{ .Values.minio.image.digest }}"
           imagePullPolicy: {{ .Values.minio.image.pullPolicy | default "IfNotPresent" }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.minio.securityContext) | nindent 10 }}
           args:
             - server
             - /data

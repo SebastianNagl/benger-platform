@@ -24,10 +24,18 @@ spec:
         app: {{ .Release.Name }}-{{ .Values.workers.name }}
     spec:
       {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      {{- include "benger.podSecurityContext" (dict "root" $ "component" .Values.workers.securityContext) | nindent 6 }}
+      # Celery's warm shutdown on SIGTERM lets running tasks finish. If the
+      # kubelet SIGKILLs first (default grace 30 s), an acks_late cell is only
+      # redelivered after the 7200 s Redis visibility timeout and every judge
+      # call it already made is lost and paid for twice. 600 s covers the long
+      # tail of LLM calls; a pod with no running task still exits immediately.
+      terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds | default 600 }}
       containers:
         - name: {{ .Values.workers.name }}
           image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
+          {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.workers.securityContext) | nindent 10 }}
           # THE BULK POOL. The -Q list moved into values.yaml (workers.queues)
           # so the queue<->pool contract is parseable by
           # services/workers/scripts/check_celery_queue_pools.py, which asserts
@@ -96,7 +104,11 @@ spec:
             {{- with .Values.workers.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- with (include "benger.overlayEnv" (dict "root" $ "role" "workers")) }}
+            {{- $overlayEnv := include "benger.overlayEnv" (dict "root" $ "role" "workers") }}
+            {{- with $overlayEnv }}
+            {{- . | nindent 12 }}
+            {{- end }}
+            {{- with (include "benger.workerModelCacheEnv" (dict "root" $ "cfg" .Values.workers.modelCache "existing" (list .Values.workers.env .Values.workers.extraEnv (fromYamlArray (default "[]" $overlayEnv))))) }}
             {{- . | nindent 12 }}
             {{- end }}
           resources:

@@ -31,6 +31,7 @@ job (or `kubectl scale`) to recover.
 */ -}}
 {{- if (.Values.demoReset).enabled }}
 {{- $sa := printf "%s-reset" .Release.Name }}
+{{- $rootDefaults := dict "pod" (dict "runAsNonRoot" false "runAsUser" 0 "runAsGroup" 0) }}
 {{- /* "<deployment>=<replicas>" for everything that talks to the database; the
        api goes first so the rollout wait below targets it. Replica counts come
        from the same values that size the deployments, so a resized demo is
@@ -136,12 +137,16 @@ spec:
         spec:
           restartPolicy: Never
           serviceAccountName: {{ $sa }}
-          securityContext:
-            runAsUser: 0
+          # Root by default (template defaults below, override with
+          # demoReset.securityContext): the golden-dump hostPath is root-owned
+          # and the kubelet never applies fsGroup to a hostPath. Capabilities
+          # are dropped all the same.
+          {{- include "benger.podSecurityContext" (dict "root" $ "defaults" $rootDefaults "component" $.Values.demoReset.securityContext) | nindent 10 }}
           containers:
             - name: {{ $mode }}
               image: {{ $.Values.demoReset.kubectlImage | default "alpine/k8s:1.34.9" | quote }}
               imagePullPolicy: IfNotPresent
+              {{- include "benger.containerSecurityContext" (dict "root" $ "defaults" $rootDefaults "component" $.Values.demoReset.securityContext) | nindent 14 }}
               env:
                 - name: MODE
                   value: {{ $mode | quote }}
