@@ -74,9 +74,48 @@ async def create_annotation(
         # must come from SEB; the server-side timer worker never lands here.
         enforce_seb(db, current_user, project, request, tier=tier)
 
+    # Overlay integrity checks (the strict exam timer) run last, right before
+    # the write. The server-side timer auto-submit never lands here.
+    _run_before_annotation_write(
+        db, task_id=task_id, user_id=current_user.id, project_id=task.project_id
+    )
+
     return persist_annotation_submission(
         db, task=task, project=project, user_id=current_user.id, annotation=annotation
     )
+
+
+def _run_before_annotation_write(
+    db: Session,
+    *,
+    task_id: str,
+    user_id: str,
+    project_id: str,
+    annotation_id: Optional[str] = None,
+    is_update: bool = False,
+) -> None:
+    """Run the ``before_annotation_write`` hook for a client write.
+
+    Sync on purpose: the update handler bridges it through
+    ``AsyncSession.run_sync``. A refusal (``AnnotationWriteRejected``)
+    becomes the HTTP error it names; any other exception propagates and
+    fails the request, so nothing is written either way.
+    """
+    from extension_activation import use_context
+    from extensions import AnnotationWriteRejected, before_annotation_write
+
+    try:
+        with use_context(project_id=project_id):
+            before_annotation_write(
+                db,
+                task_id,
+                user_id,
+                project_id,
+                annotation_id=annotation_id,
+                is_update=is_update,
+            )
+    except AnnotationWriteRejected as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
 
 def persist_annotation_submission(
@@ -528,6 +567,23 @@ async def update_annotation(
     # Check if user owns this annotation or has admin rights
     if db_annotation.completed_by != current_user.id and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Can only update your own annotations")
+
+    # Overlay integrity checks (the strict exam timer) before any write. The
+    # hook is sync and takes a sync session, hence run_sync on this session's
+    # connection (same transaction, same pattern as the eval-config hook).
+    hook_task_id = db_annotation.task_id
+    hook_user_id = current_user.id
+    hook_project_id = db_annotation.project_id
+    await db.run_sync(
+        lambda session: _run_before_annotation_write(
+            session,
+            task_id=hook_task_id,
+            user_id=hook_user_id,
+            project_id=hook_project_id,
+            annotation_id=annotation_id,
+            is_update=True,
+        )
+    )
 
     # Track if was_cancelled status changed for counter updates
     was_cancelled_changed = False

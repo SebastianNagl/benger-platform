@@ -99,6 +99,7 @@ class TestHookGating:
         must keep running while a package is switched off. Moving one to
         GATED needs this test to change on purpose."""
         always = {
+            "before_annotation_write",
             "on_annotation_created",
             "on_draft_saved",
             "after_eval_config_save",
