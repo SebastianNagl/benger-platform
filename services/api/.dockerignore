@@ -1,0 +1,57 @@
+# Keeps test code, local state and secrets out of the production image.
+# The compose test runners (infra/docker-compose.test.yml) bind-mount the
+# source over /app, so nothing excluded here is missing from a test run.
+#
+# Do NOT exclude shared/, benger_extended/ or benger_compliance/: the
+# extended CI copies those into this directory right before `docker build`.
+
+# Tests and test configuration
+tests/
+extended-workspace/
+pytest.ini
+.coveragerc
+requirements-test.txt
+run_tests.sh
+run_tests_enhanced.sh
+test.db
+
+# Secrets and machine-local env files
+.env*
+
+# Caches, coverage output, editor and VCS leftovers
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.hypothesis
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+mutants/
+node_modules/
+.venv/
+venv/
+.git
+.gitignore
+.DS_Store
+*.log
+*.swp
+.idea/
+.vscode/
+
+# Docs and developer tooling
+docs/
+README.md
+.pre-commit-config.yaml
+.flake8
+.bandit
+Makefile
+setup.sh
+rebuild_db.sh
+
+# Build files that are not needed inside the image
+Dockerfile
+.dockerignore

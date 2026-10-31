@@ -341,7 +341,8 @@ services:
     volumes:
       - ../services/workers:/app:ro
       - ../services/shared:/shared:ro
-      - test-model-cache:/root/.cache  # Persist ML model downloads across test runs
+      # No model cache volume: the image bakes every model under HF_HOME=/opt/hf
+      # and runs with HF_HUB_OFFLINE=1 (services/workers/Dockerfile.base).
     networks:
       - benger-test-network
     healthcheck:
@@ -474,6 +475,8 @@ services:
     build:
       context: ../services/api
       dockerfile: Dockerfile
+      # Test stage: production image + the `test` extra, running as root.
+      target: test
     volumes:
       - ../services/api:/app
       # Read-only docs mount so the public-API OpenAPI snapshot test
@@ -513,16 +516,15 @@ services:
     build:
       context: ../services/workers
       dockerfile: Dockerfile
+      # Test stage: production image + the `test` extra, running as root.
+      target: test
     mem_limit: 6g
     volumes:
       - ../services/workers:/app
       - ../services/shared:/shared:ro
-      # Persist ML model downloads (HF/torch cache under /root/.cache) across
-      # `make test-workers` runs — same volume the long-running `test-worker`
-      # service uses. Without it every `--rm` runner re-downloads multilingual
-      # BERT etc., and the German BERTScore test blows its 180s timeout on a cold
-      # cache. First run warms it; subsequent runs load from cache.
-      - test-model-cache:/root/.cache
+      # No model cache volume: the models the tests load (incl. the German
+      # BERTScore model) are baked under HF_HOME=/opt/hf in workers-base and the
+      # image runs with HF_HUB_OFFLINE=1, same as production.
     environment:
       DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
       REDIS_URL: redis://test-redis:6379
@@ -556,7 +558,3 @@ networks:
     ipam:
       config:
         - subnet: 172.23.0.0/16
-
-# ML model cache persists across test runs (avoids 20-min ONNX model downloads)
-volumes:
-  test-model-cache:

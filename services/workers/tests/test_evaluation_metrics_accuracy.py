@@ -259,6 +259,12 @@ class TestBERTScore:
 
     Uses platform-aware backends: ONNX on ARM64, PyTorch on x86_64.
     Reference: Zhang et al. (2020) "BERTScore: Evaluating Text Generation with BERT"
+
+    BERTScore runs with lang="de" here, the only language production scores
+    with: workers-base bakes just that model (bert-base-multilingual-cased) and
+    the image runs with HF_HUB_OFFLINE=1, so lang="en" (roberta-large) would
+    fail to load. mBERT handles the English sentences; the thresholds hold
+    (measured: identical 1.00, unrelated 0.73, paraphrase 0.92).
     """
 
     def test_bertscore_perfect_match(self):
@@ -270,7 +276,7 @@ class TestBERTScore:
         candidates = ["The contract is legally binding."]
         references = ["The contract is legally binding."]
 
-        P, R, F1 = backend.compute(candidates, references, lang="en")
+        P, R, F1 = backend.compute(candidates, references, lang="de")
         assert F1 > 0.9, f"Perfect match should be > 0.9, got {F1}"
 
     def test_bertscore_different_text(self):
@@ -282,7 +288,7 @@ class TestBERTScore:
         candidates = ["The weather is sunny today."]
         references = ["Legal proceedings require documentation."]
 
-        P, R, F1 = backend.compute(candidates, references, lang="en")
+        P, R, F1 = backend.compute(candidates, references, lang="de")
         # BERTScore uses contextual embeddings that can find some similarity
         # even in semantically different text, so threshold is relatively high
         assert F1 < 0.9, f"Different text should be < 0.9, got {F1}"
@@ -296,7 +302,7 @@ class TestBERTScore:
         candidates = ["The lawyer argued the case."]
         references = ["The attorney presented the legal argument."]
 
-        P, R, F1 = backend.compute(candidates, references, lang="en")
+        P, R, F1 = backend.compute(candidates, references, lang="de")
         assert F1 > 0.6, f"Paraphrases should be > 0.6, got {F1}"
 
     @pytest.mark.timeout(180)  # 3 minute timeout - German model download can be slow
@@ -326,8 +332,8 @@ class TestBERTScore:
         similar = ["The accused was convicted."]
         different = ["The weather forecast predicts rain."]
 
-        _, _, F1_similar = backend.compute(similar, reference, lang="en")
-        _, _, F1_different = backend.compute(different, reference, lang="en")
+        _, _, F1_similar = backend.compute(similar, reference, lang="de")
+        _, _, F1_different = backend.compute(different, reference, lang="de")
 
         assert (
             F1_similar > F1_different

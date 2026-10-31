@@ -13,12 +13,10 @@ requires-python = ">=3.13"
 # Single dependency source for the workers images (base + app safety net).
 # The images install the locked set from uv.lock (`uv sync --locked`), never a
 # fresh resolve: after editing this list run `uv lock` here and commit the
-# lock; CI fails on a stale lock (`uv lock --check`). requirements.txt is
-# gone; test-runner extras stay in requirements-test.txt (installed at runtime
-# by the compose test runners).
-# NOTE: runtime and test-adjacent deps are deliberately NOT split yet — this
-# ports the previous requirements.txt 1:1 so the base image contents are
-# byte-compatible; splitting test extras out is a follow-up.
+# lock; CI fails on a stale lock (`uv lock --check`). Test-only packages live
+# in the `test` extra below: only the `test` stage of services/workers/
+# Dockerfile (the compose test runner) installs it, so production images carry
+# no pytest. The runners still add requirements-test.txt at runtime on top.
 dependencies = [
     # ── SHARED RUNTIME DEPS (also declared by services/api) ──────────────────
     # Their bounds live in services/shared/dependency-constraints.txt, copied
@@ -71,8 +69,6 @@ dependencies = [
     # storage singleton falls back to local filesystem (issue #158).
     "boto3>=1.35.0",
     "botocore>=1.43.11",
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
     # AI service dependencies
     "openai==3.31.0",
     "anthropic==1.15.0",
@@ -93,19 +89,24 @@ dependencies = [
     "POT>=0.9.6.post1",  # Earth Mover Distance (works on ARM64, replaces pyemd)
     # Statistics
     "statsmodels>=0.14.0",
-    # Testing dependencies
-    "psutil>=6.1.0",
-    "fakeredis>=2.36.1",
-    "memory-profiler>=0.61.0",
-    "pytest-cov>=4.1.0",
-    "pytest-timeout>=2.4.0",  # Prevent tests from hanging indefinitely
-
     # Anki flashcard import (issue #35): decompresses the newest .apkg form
     # (collection.anki21b = zstd-compressed SQLite). Used by services/shared/anki,
     # imported by both api and workers. arm64 wheels published — normal pin is fine.
     # Keep aligned with the api (services/api/pyproject.toml).
     "zstandard>=0.22,<1.0",
     "stripe>=15.0.0,<17.0.0",  # Vertretbar billing meter reporting (extended-only)
+]
+
+[project.optional-dependencies]
+# Test runner only (Dockerfile `test` stage). Never installed in production.
+test = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.4.0",  # Prevent tests from hanging indefinitely
+    "psutil>=6.1.0",
+    "fakeredis>=2.36.1",
+    "memory-profiler>=0.61.0",
 ]
 
 [tool.hatch.build.targets.wheel]

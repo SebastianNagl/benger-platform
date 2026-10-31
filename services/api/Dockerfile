@@ -17,6 +17,11 @@ RUN apt-get update && apt-get install -y \
 # version that wrote the lock (or newer) must be the one that installs it.
 RUN pip install uv==0.11.28
 
+# Unprivileged runtime user. uid/gid 1000 matches the pod securityContext in
+# infra/helm/benger. Created in `base` so every stage agrees on the ids.
+RUN groupadd --gid 1000 app \
+    && useradd --uid 1000 --gid 1000 --create-home --home-dir /home/app --shell /usr/sbin/nologin app
+
 # Dependencies stage
 FROM base AS deps
 WORKDIR /app
@@ -42,19 +47,43 @@ WORKDIR /app
 COPY --from=deps /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
-# Copy application code
-COPY . .
+# Copy application code, owned by the runtime uid. .dockerignore keeps tests/,
+# env files and local caches out of the image.
+COPY --chown=1000:1000 . .
 
 # If shared directory exists in build context, move it to the right location
-RUN if [ -d "./shared" ]; then \
+# (cp -a keeps the uid 1000 ownership from the COPY above). WORKDIR created
+# /app as root, so hand the directory itself to uid 1000 as well.
+RUN chown 1000:1000 /app && \
+    if [ -d "./shared" ]; then \
       mkdir -p /shared && \
-      cp -r ./shared/* /shared/ && \
+      cp -a ./shared/. /shared/ && \
+      chown 1000:1000 /shared && \
       rm -rf ./shared; \
     fi
+
+# Runtime writes go to /tmp only (startup and LLM seed flags in main.py, the
+# extended PROMETHEUS_MULTIPROC_DIR), which is world-writable in the base image.
+USER 1000
 
 # Exponiere Port
 EXPOSE 8000
 
 # Starte Anwendung
 # Production setup: No reload for stability, development uses override
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log"] 
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log"]
+
+# Test runner image (infra/docker-compose.test.yml test-api-runner, built with
+# `target: test`). Adds the `test` extra and stays root: the runner bind-mounts
+# the source over /app, writes coverage files into it from hosts with
+# arbitrary uids, and pip-installs requirements-test.txt at start.
+FROM runner AS test
+USER root
+# Same locked set as the stage above plus the `test` extra; --inexact keeps
+# pip and uv for the runtime requirements-test.txt install.
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --extra test --no-install-project --inexact --no-cache
+
+# Production image: the default (last) stage, identical to `runner`. Keep it
+# last so a plain `docker build` (extended cicd.yml) never produces the test
+# image.
+FROM runner AS production

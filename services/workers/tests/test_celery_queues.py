@@ -295,6 +295,25 @@ def test_mail_tasks_survive_a_worker_kill():
         assert task.reject_on_worker_lost is True, name
 
 
+def test_generation_trials_survive_a_worker_kill():
+    """A generation trial must ack late and requeue when its worker dies.
+
+    With the default early ack, an OOM kill or eviction mid-call dropped the
+    message and left the ResponseGeneration `running` with nothing to finish it.
+    """
+    import tasks  # noqa: F401
+
+    from worker_celery import app
+
+    task = app.tasks["tasks.generate_response"]
+    assert task.acks_late is True
+    assert task.reject_on_worker_lost is True
+    # Redelivery semantics only hold while the hard limit stays below the
+    # broker visibility timeout; past it a healthy call is delivered twice.
+    _, hard = celery_queues.time_limits_for("tasks.generate_response")
+    assert hard < app.conf.broker_transport_options["visibility_timeout"]
+
+
 def test_declared_queues_include_legacy_for_the_drain_window():
     """Legacy names must stay declared until the cleanup PR removes them."""
     declared = {q.name for q in celery_queues.celery_queue_defs()}

@@ -5,6 +5,10 @@
 # Python 3.13, unblocked by moving to numpy 2.x + spaCy 3.8 / thinc 8.3.x
 # (see pyproject.toml). The spacy.load() + NER assertion at the end of this
 # file is the ABI guard — it fails the build if that stack ever regresses.
+#
+# The image ends as the unprivileged uid 1000 with HF_HOME=/opt/hf and
+# HF_HUB_OFFLINE=1. Images built FROM it switch to root for their own install
+# steps and back to 1000 at the end (see Dockerfile).
 FROM python:3.13-slim
 
 # System dependencies (procps for health checks, gcc/g++ for C extensions)
@@ -32,18 +36,43 @@ RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-pro
 # Set PYTHONPATH so local modules can be imported
 ENV PYTHONPATH=/app
 
+# Unprivileged runtime user. uid/gid 1000 matches the pod securityContext in
+# infra/helm/benger, so files baked here are owned by the uid the pods run as.
+RUN groupadd --gid 1000 app \
+    && useradd --uid 1000 --gid 1000 --create-home --home-dir /home/app --shell /usr/sbin/nologin app
+
+# Model caches live outside any home directory so they do not depend on which
+# uid runs the container. HF_HOME matches the Helm worker pool env. NLTK data
+# goes to /usr/local/share/nltk_data, which is on nltk's default search path
+# (sys.prefix/share/nltk_data), so no NLTK_DATA variable is needed. It stays
+# root-owned and not group/world-writable: nltk 3.10 refuses a data root owned
+# by any account other than the current one or root, so root ownership is the
+# one layout that both uid 1000 (pods) and root (test runner) accept.
+ENV HF_HOME=/opt/hf
+
 # Pre-download ALL ML models and NLTK data.
 # This layer is cached and only invalidated when the dependency layer changes.
+#
+# BERTScore: the code always scores with lang="de" (ml_evaluation/metrics/
+# semantic.py, ml_evaluation/sample_evaluator.py), and bert_score maps "de" to
+# bert-base-multilingual-cased (bert_score.utils.lang2model), which the ONNX
+# backend uses as well. roberta-large is only the lang="en" model and is not
+# baked any more. Warming the cache with a real score() call fetches exactly
+# the files bert_score loads, so the offline runtime below finds all of them.
+#
+# The chown runs in the same layer as the downloads; a separate RUN would copy
+# the multi-GB cache into a second layer.
 RUN python -c "\
 import nltk; \
-nltk.download('punkt'); \
-nltk.download('punkt_tab'); \
-nltk.download('averaged_perceptron_tagger'); \
-nltk.download('averaged_perceptron_tagger_eng'); \
-nltk.download('maxent_ne_chunker'); \
-nltk.download('words'); \
-nltk.download('wordnet'); \
-nltk.download('omw-1.4'); \
+d = '/usr/local/share/nltk_data'; \
+nltk.download('punkt', download_dir=d); \
+nltk.download('punkt_tab', download_dir=d); \
+nltk.download('averaged_perceptron_tagger', download_dir=d); \
+nltk.download('averaged_perceptron_tagger_eng', download_dir=d); \
+nltk.download('maxent_ne_chunker', download_dir=d); \
+nltk.download('words', download_dir=d); \
+nltk.download('wordnet', download_dir=d); \
+nltk.download('omw-1.4', download_dir=d); \
 \
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering, AutoModel, AutoModelForSequenceClassification, T5Tokenizer, T5ForConditionalGeneration; \
 \
@@ -53,9 +82,11 @@ AutoModelForQuestionAnswering.from_pretrained('distilbert-base-cased-distilled-s
 T5Tokenizer.from_pretrained('t5-small'); \
 T5ForConditionalGeneration.from_pretrained('t5-small'); \
 \
-print('Downloading BERTScore model (roberta-large)...'); \
-AutoTokenizer.from_pretrained('roberta-large'); \
-AutoModel.from_pretrained('roberta-large'); \
+print('Downloading BERTScore model for lang=de...'); \
+from bert_score import score as bert_score; \
+from bert_score.utils import lang2model; \
+print('bert_score lang2model[de] =', lang2model['de']); \
+bert_score(['Der Vertrag ist wirksam.'], ['Der Vertrag ist gueltig.'], lang='de', rescale_with_baseline=True, verbose=False); \
 \
 print('Downloading sentence-transformers model...'); \
 from sentence_transformers import SentenceTransformer; \
@@ -76,4 +107,12 @@ assert any(label in ('PER', 'LOC', 'ORG', 'MISC') for _, label in ents), \
     f'spaCy de_core_news_md NER produced no entities on canonical legal-DE input: {ents}'; \
 print('spaCy de_core_news_md NER OK:', ents); \
 \
-print('All models downloaded successfully.')"
+print('All models downloaded successfully.')" \
+    && chown -R 1000:1000 /opt/hf
+
+# Pods never reach out to the Hugging Face Hub at runtime: every model the code
+# loads is baked above, and a missing one fails loudly instead of downloading
+# gigabytes on the first evaluation.
+ENV HF_HUB_OFFLINE=1
+
+USER 1000

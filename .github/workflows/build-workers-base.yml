@@ -81,10 +81,12 @@ env:
   # same commit as the base content.
   #
   # BUMP THIS whenever Dockerfile.base or uv.lock changes the base materially
+  # (r2, 2026-10-31: non-root uid 1000, HF_HOME=/opt/hf with the German
+  # BERTScore model baked and HF_HUB_OFFLINE=1, NLTK data under /usr/local/share)
   # (Python version, torch variant, ML stack), and bump the matching default
   # in services/workers/Dockerfile in the SAME commit. A routine lock refresh
   # does not need a bump: the app image syncs the lock on top of the base.
-  CONTENT_TAG: py313-cpu
+  CONTENT_TAG: py313-cpu-r2
   # Same uv as the Dockerfiles (and the version the locks are written with).
   UV_VERSION: 0.11.28
   # Branch the lock refresh PR targets and the branch it is pushed from.
