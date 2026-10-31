@@ -21,6 +21,50 @@ import pytest
 # time. Mirrors what the API conftest does via JWT_SECRET_KEY / SECRET_KEY.
 os.environ.setdefault("BENGER_TEST_MODE", "1")
 
+# pytest-xdist (`pytest -n auto`, set in pytest.ini): give every xdist worker
+# its own Postgres database, the same pattern the API suite uses. The
+# integration harness (tests/integration/conftest.py) commits real rows and
+# runs `create_all` plus `ALTER TYPE ... ADD VALUE` once per session, so
+# several workers sharing one database would race on that DDL and see each
+# other's rows in the leaderboard aggregation tests. The worker database is
+# derived from DATABASE_URI (or DATABASE_URL) as `<name>_workers_gwN`
+# (distinct from the API suite's `<name>_gwN`, so both suites can run against
+# the same test-db at once), created empty if missing, and the env var is rewritten BEFORE anything imports the
+# workers `database` module, which builds its engine from the env at import
+# time. When Postgres is unreachable (bare host runs without the test stack)
+# the URL is left alone, so DB-free tests still run and the integration
+# harness reports the missing database exactly as before.
+#
+# Redis stays shared on purpose: every key the suite writes is scoped by a
+# fresh UUID (chord results by Celery task id, poison-cell counters by
+# run id + cell id), nothing flushes or counts keys, and Redis only has 16
+# logical databases, too few for one pair per worker on large machines.
+_xdist_worker = os.environ.get("PYTEST_XDIST_WORKER")
+_db_env_key = next(
+    (k for k in ("DATABASE_URI", "DATABASE_URL") if os.environ.get(k)), None
+)
+if _xdist_worker and _db_env_key:
+    from urllib.parse import urlsplit, urlunsplit
+
+    _parts = urlsplit(os.environ[_db_env_key])
+    _worker_db = f"{_parts.path.lstrip('/')}_workers_{_xdist_worker}"
+    import psycopg2
+
+    try:
+        _admin = psycopg2.connect(
+            urlunsplit(_parts._replace(path="/postgres")), connect_timeout=5
+        )
+    except psycopg2.OperationalError:
+        _admin = None
+    if _admin is not None:
+        _admin.autocommit = True
+        with _admin.cursor() as _cur:
+            _cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (_worker_db,))
+            if not _cur.fetchone():
+                _cur.execute(f'CREATE DATABASE "{_worker_db}"')
+        _admin.close()
+        os.environ[_db_env_key] = urlunsplit(_parts._replace(path=f"/{_worker_db}"))
+
 # Point Celery's broker + result backend at the reachable test Redis BEFORE
 # anything imports `tasks` (this root conftest is the FIRST thing pytest
 # loads in the workers suite, so it precedes every `import tasks`). The

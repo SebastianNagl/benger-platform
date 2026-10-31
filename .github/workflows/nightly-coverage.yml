@@ -41,35 +41,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+      # Postgres + Redis and the API runner image are all the API suite
+      # uses (same recipe and the same buildx cache scope as ci.yml's
+      # integration-tests; see the comments there). No npm ci, no frontend
+      # build, no seed: each xdist worker builds its own empty database.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - name: Build API test runner image (GHA layer cache)
+        uses: docker/build-push-action@v7
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: services/frontend/package-lock.json
+          context: services/api
+          file: services/api/Dockerfile
+          load: true
+          push: false
+          tags: benger-test-test-api-runner:latest
+          cache-from: type=gha,scope=api-test-runner
+          cache-to: type=gha,mode=max,scope=api-test-runner,ignore-error=true
 
-      - name: Install frontend dependencies
-        uses: nick-fields/retry@v4
-        with:
-          timeout_minutes: 10
-          max_attempts: 2
-          retry_wait_seconds: 30
-          command: cd services/frontend && npm ci
-
-      - name: Build test infrastructure
-        uses: nick-fields/retry@v4
-        with:
-          timeout_minutes: 30
-          max_attempts: 2
-          retry_wait_seconds: 30
-          command: make test-build
-
-      - name: Seed test database
-        run: make test-seed
+      - name: Start Postgres + Redis
+        run: make test-start-lite
 
       - name: Run ${{ matrix.shard }} with coverage
         run: make test-api FILE="${{ matrix.glob }}" COVERAGE=1

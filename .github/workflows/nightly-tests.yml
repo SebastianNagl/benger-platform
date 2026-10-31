@@ -4,9 +4,15 @@ name: Nightly Tests
 # PR CI only runs frontend Jest + Python lint for fast feedback.
 # This nightly suite catches regressions within 24 hours.
 #
-# Each slice runs in its own matrix shard so a single slow suite
-# (typically API at ~36 min on real Postgres) doesn't starve the others
-# or trip the per-step timeout. Frontend Jest skips Docker entirely.
+# Each slice runs in its own matrix shard so a single slow suite doesn't
+# starve the others or trip the per-step timeout. Frontend Jest skips Docker
+# entirely.
+#
+# The API suite is NOT a shard here: nightly-coverage.yml runs the same API
+# tests every night (sharded, with COVERAGE=1), and a failing test fails its
+# coverage shard just as it would fail a plain run, so a second unsharded API
+# run an hour earlier only repeated the work. The per-merge gate (ci.yml)
+# runs it on every push to main as well.
 
 on:
   schedule:
@@ -32,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [api, workers, frontend, e2e]
+        shard: [workers, frontend, e2e]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -43,13 +49,17 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
       - name: Set up Node.js
+        if: matrix.shard != 'workers'
         uses: actions/setup-node@v6
         with:
           node-version: '24'  # Next 16 + jest-dom 7 need Node >=22; Playwright >=1.56 needs 20+
           cache: 'npm'
           cache-dependency-path: services/frontend/package-lock.json
 
+      # Only the frontend and e2e shards use node_modules; the workers shard
+      # runs entirely inside its Docker runner.
       - name: Install frontend dependencies
+        if: matrix.shard != 'workers'
         # One retry covers the transient registry-side ECONNRESET observed
         # on 2026-04-30 (npm error code ECONNRESET during fetch from
         # registry.npmjs.org). A persistent registry outage will still
@@ -70,8 +80,12 @@ jobs:
         if: matrix.shard == 'e2e'
         run: echo "127.0.0.1 benger-test.localhost api-test.localhost" | sudo tee -a /etc/hosts
 
+      # The complete stack (API, Celery worker, MinIO, traefik, the frontend
+      # production build) plus the seed is only needed by Playwright. The
+      # workers shard needs just Postgres + Redis and its runner image (see
+      # the integration-tests comment in ci.yml).
       - name: Build test infrastructure
-        if: matrix.shard != 'frontend'
+        if: matrix.shard == 'e2e'
         # `make test-build` swallows docker-build failures (it pipes the
         # output through `grep -v ... || true`), so wrap with retry to
         # absorb transient build crashes (e.g. @swc/core SIGBUS during
@@ -84,7 +98,7 @@ jobs:
           command: make test-build
 
       - name: Verify test infrastructure is up
-        if: matrix.shard != 'frontend'
+        if: matrix.shard == 'e2e'
         # Fail loudly if the silent build above didn't actually start the
         # api container, instead of cascading into a confusing seed error.
         run: |
@@ -95,8 +109,21 @@ jobs:
           fi
 
       - name: Seed test database
-        if: matrix.shard != 'frontend'
+        if: matrix.shard == 'e2e'
         run: make test-seed
+
+      - name: Build workers test runner image
+        if: matrix.shard == 'workers'
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: make test-build-runners RUNNERS=workers
+
+      - name: Start Postgres + Redis
+        if: matrix.shard == 'workers'
+        run: make test-start-lite
 
       - name: Run ${{ matrix.shard }} tests
         # html reporter writes services/frontend/playwright-report/ for the
@@ -105,7 +132,6 @@ jobs:
           E2E_REPORTER: html,line
         run: |
           case "${{ matrix.shard }}" in
-            api)      make test-api ;;
             workers)  make test-workers ;;
             frontend) make test-frontend ;;
             e2e)      make test-e2e ;;
