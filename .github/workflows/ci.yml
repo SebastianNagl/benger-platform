@@ -257,6 +257,11 @@ jobs:
         with:
           context: services/api
           file: services/api/Dockerfile
+          # The runner stage: production image + the `test` extra, as root
+          # (the compose file's test-api-runner uses the same target). The
+          # Dockerfile's last stage is the non-root production image, which
+          # has no pytest.
+          target: test
           load: true
           push: false
           tags: benger-test-test-api-runner:latest
@@ -269,6 +274,11 @@ jobs:
         with:
           context: services/api
           file: services/api/Dockerfile
+          # The runner stage: production image + the `test` extra, as root
+          # (the compose file's test-api-runner uses the same target). The
+          # Dockerfile's last stage is the non-root production image, which
+          # has no pytest.
+          target: test
           load: true
           push: false
           tags: benger-test-test-api-runner:latest
