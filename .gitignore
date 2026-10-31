@@ -199,6 +199,10 @@ targeted_fix.py
 # Unignore frontend translation files
 !services/frontend/src/locales/*/*.json
 
+# Unignore the pinned extended-overlay import contract (tests/contracts)
+!services/api/tests/contracts/*.json
+!services/workers/tests/contracts/*.json
+
 # Unignore root-level JSON files that are meant to be tracked
 !package.json
 !package-lock.json
