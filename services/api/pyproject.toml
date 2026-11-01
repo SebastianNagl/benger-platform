@@ -11,7 +11,7 @@ description = "BenGER API Gateway"
 # spaCy<3.8 ceiling was lifted (numpy 2.x + spaCy 3.8 / thinc 8.3.x).
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi==0.143.2",
+    "fastapi==0.162.0",
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.1",
     "python-multipart==0.0.32",
@@ -34,7 +34,7 @@ dependencies = [
     # (database.async_engine). 0.30.x verified against PG 18.3 on prod
     # (Bitnami/Broadcom Photon rebuild) via 2026-05-18 pre-flight.
     "asyncpg==0.32.0",
-    "alembic==1.20.0",
+    "alembic==1.20.1",
     "email-validator==2.3.0",
     # starlette version is managed by fastapi
     "anyio==4.15.1",
@@ -72,7 +72,7 @@ dependencies = [
     "numpy>=2.1.0",
     "scipy>=1.17.1",
     # SSE for real-time streaming
-    "sse-starlette==3.5.0",
+    "sse-starlette==3.6.0",
     # zstandard decodes the newest Anki .apkg form (collection.anki21b is a
     # zstd-compressed SQLite collection) for the flashcard import IR
     # (services/shared/anki, issue #35). The api Dockerfile installs from
