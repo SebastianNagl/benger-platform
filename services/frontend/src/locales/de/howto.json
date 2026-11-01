@@ -71,9 +71,9 @@
     },
     "first-steps": {
       "title": "Was richte ich als Erstes ein?",
-      "summary": "In dieser Reihenfolge: in die richtige Organisation wechseln, einen API-Schlüssel klären (eigener oder Organisation), ein Projekt anlegen, Daten hochladen, dann annotieren, generieren und auswerten.",
+      "summary": "In dieser Reihenfolge: Mitgliedschaft in der richtigen Organisation prüfen, einen API-Schlüssel klären (eigener oder Organisation), ein Projekt anlegen, Daten hochladen, dann annotieren, generieren und auswerten.",
       "steps": [
-        "**Kontext prüfen**: Oben rechts im Kontomenü unter *Kontext wechseln* deine Organisation wählen. Im Kontext *Privat* siehst du keine Organisationsprojekte.",
+        "**Mitgliedschaften prüfen**: Oben rechts im Kontomenü stehen unter *Meine Organisationen* deine Organisationen. Du siehst die Projekte aller Organisationen, denen du angehörst.",
         "**API-Schlüssel**: Stellt deine Organisation Schlüssel bereit, musst du nichts tun. Sonst hinterlegst du unter [Profil](/profile) → *API-Schlüssel-Verwaltung* einen Schlüssel des KI-Anbieters, den du nutzen willst.",
         "**Projekt anlegen**: [Projekte](/projects) → *Neues Projekt*, Projekttyp und Funktionen wählen.",
         "**Daten hochladen**: im Assistenten oder später über *Projektdaten* (JSON, CSV, TSV, TXT).",
@@ -86,7 +86,7 @@
       "title": "Wo finde ich was in der Navigation?",
       "summary": "Die Seitenleiste hat drei Gruppen. **Schnellstart**: Dashboard, Berichte, Lernstatistik, Bestenlisten. **Projekte & Daten**: Projekte, Datenverwaltung, Generierung, Evaluation. **Wissen**: Anleitungen, Modelle, Architektur. Alles Persönliche liegt oben rechts im Kontomenü.",
       "steps": [
-        "**Kontomenü** (oben rechts, dein Name): Profil-Einstellungen, Benachrichtigungs-Einstellungen, *Kontext wechseln* (Privat oder Organisation), Läufe, Benutzer & Organisationen, Studierendenansicht, Abmelden.",
+        "**Kontomenü** (oben rechts, dein Name): Profil-Einstellungen, Benachrichtigungs-Einstellungen, *Meine Organisationen* (mit deiner Rolle), Läufe, Benutzer & Organisationen, Studierendenansicht, Abmelden.",
         "**Suche** (Lupe in der Kopfzeile): findet Seiten, Projekte und diese Anleitungen. Deutsch und Englisch, auch bei Tippfehlern.",
         "**Läufe** zeigt alle Generierungs- und Evaluationsläufe mit Status. **Benachrichtigungen** (Glocke) informiert über abgeschlossene Läufe und Einladungen.",
         "**Modelle** ist der Modellkatalog mit Preisen und der Stelle, an der du eigene Modelle registrierst."
@@ -101,24 +101,24 @@
       ]
     },
     "org-context": {
-      "title": "Warum sehe ich keine Projekte? Privater Kontext vs. Organisation",
-      "summary": "Projekte gehören zu Organisationen. Im Kontext **Privat** siehst du nur deine privaten Projekte. Wechsle oben rechts im Kontomenü unter **Kontext wechseln** zur Organisation.",
+      "title": "Warum sehe ich ein Projekt nicht? Organisationen und Sichtbarkeit",
+      "summary": "Ein Projekt gehört einer Organisation oder ist privat. Du siehst jedes Projekt, auf das du über eine deiner Mitgliedschaften Zugriff hast, alle auf einer Liste und ohne Umschalten. Fehlt eines, fehlt meist die Mitgliedschaft oder die Gruppe.",
       "steps": [
-        "Klick oben rechts auf deinen Namen. In Klammern steht der aktuelle Kontext, z.B. *(Privat)* oder *(Lehrstuhl X)*.",
-        "Unter **Kontext wechseln** die Organisation anklicken. Die Seite lädt neu unter der Adresse der Organisation (`organisation.what-a-benger.net`).",
-        "Zurück zu deinen privaten Projekten über **Privat**."
+        "Klick oben rechts auf deinen Namen. Unter **Meine Organisationen** stehen deine Mitgliedschaften mit deiner Rolle.",
+        "Fehlt dort die Organisation des Projekts, bitte einen Admin der Organisation um eine Einladung.",
+        "Beim Anlegen eines Projekts wählst du im Assistenten, in welcher Organisation es entsteht. Ohne Organisation bleibt es privat."
       ],
       "tips": [
-        "Der zuletzt gewählte Kontext wird gemerkt. Lesezeichen auf die Organisationsadresse führen direkt in den richtigen Kontext."
+        "Ist ein Projekt auf eine Gruppe beschränkt, siehst du es nur als Mitglied dieser Gruppe."
       ],
       "keywords": [
-        "Kontext",
-        "Privat",
         "Organisation",
+        "Mitgliedschaft",
+        "Privat",
         "keine Projekte",
         "leer",
-        "Subdomain",
-        "Organisationswechsler"
+        "Sichtbarkeit",
+        "Meine Organisationen"
       ]
     },
     "org-roles": {
@@ -1283,7 +1283,7 @@
     },
     "ts-no-projects": {
       "title": "„Ich sehe keine Projekte“ oder „mein Projekt ist verschwunden“",
-      "summary": "Fast immer der Kontext: oben rechts im Kontomenü unter **Kontext wechseln** die Organisation wählen. Danach: Ist das Projekt archiviert (*Mehr → Archiviert*) oder auf eine Gruppe beschränkt, der du nicht angehörst?",
+      "summary": "Fast immer eine fehlende Mitgliedschaft: Oben rechts im Kontomenü unter **Meine Organisationen** prüfen, ob du der Organisation des Projekts angehörst. Danach: Ist das Projekt archiviert (*Mehr → Archiviert*) oder auf eine Gruppe beschränkt, der du nicht angehörst?",
       "keywords": [
         "verschwunden",
         "nicht sichtbar",
@@ -1291,7 +1291,7 @@
         "fehlt",
         "keine Projekte"
       ],
-      "links": ["Privater Kontext vs. Organisation", "Gruppen"]
+      "links": ["Organisationen und Sichtbarkeit", "Gruppen"]
     },
     "ts-no-models": {
       "title": "„Keine API-Schlüssel konfiguriert“ oder es fehlen Modelle in der Auswahl",

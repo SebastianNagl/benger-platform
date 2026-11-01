@@ -327,7 +327,7 @@
             "contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
           },
           "assignedOrganizations": "Zugewiesene Organisationen",
-          "assignedOrganizationsHelp": "Wähle die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können. Unabhängig von der aktuellen Subdomain.",
+          "assignedOrganizationsHelp": "Wähle die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können.",
           "orgPreselectedHint": "Vorausgewählt: deine Organisation {name}. Wähle „Privat“, wenn nur du Zugriff haben sollst.",
           "noOrganizationsAvailable": "Keine Organisationen verfügbar.",
           "groupScopeLabel": "Gruppe",
@@ -11419,12 +11419,12 @@
           "Erweiterungspunkte: ein Slot-System (`registerSlot`/`useSlot`) für ganze Seiten und Karten, Registries für Metriken, Metrik-Editoren und Zellen-Renderer, Wizard-Vorlagen, Projekttyp-Presets, Post-Create-Hooks, Changelog- und Anleitungs-Einträge.",
           "Drei Sprachen (Deutsch, Englisch, Französisch) über eine zentrale Übersetzungsschicht; Dark Mode; responsive Layouts.",
           "Echtzeit: Server-Sent Events für Benachrichtigungen und Evaluationsfortschritt, WebSockets für laufende Generierungen.",
-          "Der Next-Server proxyt API-Aufrufe und setzt Sitzungs-Cookies pro Basisdomain, sodass Organisations-Subdomains die Sitzung teilen."
+          "Der Next-Server proxyt API-Aufrufe und setzt die Sitzungs-Cookies nur für die aufgerufene Adresse."
         ]
       },
       "api": {
         "title": "API",
-        "intro": "**FastAPI** mit Pydantic v2 und SQLAlchemy 2. Die API kennt zwei Datenbank-Lanes gegen dieselbe PostgreSQL-Instanz: die synchrone (psycopg2) für bestehenden Code und die asynchrone (asyncpg), in die neue Handler geschrieben werden. Authentifizierung über JWT mit Refresh-Tokens, der Organisationskontext kommt aus der Subdomain.",
+        "intro": "**FastAPI** mit Pydantic v2 und SQLAlchemy 2. Die API kennt zwei Datenbank-Lanes gegen dieselbe PostgreSQL-Instanz: die synchrone (psycopg2) für bestehenden Code und die asynchrone (asyncpg), in die neue Handler geschrieben werden. Authentifizierung über JWT mit Refresh-Tokens; Anfragen, die eine Organisation brauchen, nennen sie ausdrücklich.",
         "bullets": [
           "Rund 36 Router-Module: Projekte und Aufgaben, Import/Export, Generierung, Evaluation und Sofort-Evaluation, Organisationen mit Gruppen und Einladungen, API-Schlüssel (persönlich, Organisation, Gruppe), eigene Modelle, Prompt-Strukturen, Bestenlisten, Berichte, Läufe, Benachrichtigungen, Objektspeicher, LTI-Administration, Health.",
           "Alembic-Migrationen laufen beim Start unter einem Advisory-Lock; ein Schema-Validator prüft danach Modell und Datenbank gegeneinander.",
@@ -11464,7 +11464,7 @@
       },
       "organizations": {
         "title": "Organisationen, Gruppen und Zugriff",
-        "intro": "Nutzer:innen können mehreren **Organisationen** angehören; jede Organisation hat eine eigene Subdomain (`{slug}.what-a-benger.net`) und die Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden. Jede Gruppenmitgliedschaft hat eine eigene Rolle, unabhängig von der Rolle in der Organisation: Auf einem Gruppenprojekt entscheidet die Rolle in der Gruppe, auf organisationsweiten Projekten die Rolle in der Organisation. Org-Admins sind in jeder Gruppe Admin; Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.",
+        "intro": "Nutzer:innen können mehreren **Organisationen** angehören, jeweils mit einer der Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden. Jede Gruppenmitgliedschaft hat eine eigene Rolle, unabhängig von der Rolle in der Organisation: Auf einem Gruppenprojekt entscheidet die Rolle in der Gruppe, auf organisationsweiten Projekten die Rolle in der Organisation. Org-Admins sind in jeder Gruppe Admin; Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.",
         "bullets": [
           "Sichtbarkeit von Projekten: privat, Organisation (optional eine Gruppe) oder öffentlich; zusätzlich Freigabe-Links mit Passwort und ein Verzeichnis (*Entdecken*) für Studierende. Wer über Link oder Verzeichnis beitritt, bekommt die schmale Teilnehmer-Stufe ohne Referenzdaten.",
           "API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person. Bei Klausuren, die mit einer Lernplattform verknüpft sind, zahlt die Organisation der Anbindung die KI-Korrektur ihrer Studierenden aus der Lernplattform und ihres Personals. Fehlt ihr ein Schlüssel, läuft keine Korrektur.",
@@ -11482,7 +11482,7 @@
       },
       "deployment": {
         "title": "Betrieb, Deployment und CI",
-        "intro": "Produktion läuft auf **Kubernetes (K3s)** mit Helm, getrennt in eine Produktions- und eine Staging-Umgebung. Traefik terminiert TLS mit Wildcard-Zertifikaten für beide Adressen und leitet Organisations-Subdomains an dieselbe Frontend-Instanz.",
+        "intro": "Produktion läuft auf **Kubernetes (K3s)** mit Helm, getrennt in eine Produktions- und eine Staging-Umgebung. Traefik terminiert TLS mit Wildcard-Zertifikaten für beide Adressen und leitet `www.` auf die Hauptadresse um.",
         "bullets": [
           "Deployments: API und Frontend mit je zwei Replikas und Rolling Updates, Worker-Pools pro Warteschlange, Celery Beat, MinIO, PostgreSQL, Redis, ein Migrations-Job vor jedem Rollout und ein nächtlicher Backup-CronJob. Autoscaling ist vorbereitet, aber ausgeschaltet.",
           "CI/CD: Pull Requests auf das Platform-Repository laufen Jest und Lint; ein Merge auf `main` läuft zusätzlich die vollständigen API- und Worker-Suiten (sechs parallele Shards) und löst danach den Build im Extended-Repository aus, der die Images nach GHCR pusht und Produktion ausrollt. Pull Requests im Extended-Repository deployen nach Staging.",

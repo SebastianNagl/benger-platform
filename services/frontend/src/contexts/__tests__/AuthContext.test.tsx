@@ -103,7 +103,6 @@ jest.mock('@/lib/auth/sessionExpired', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  getPrivateUrl: jest.fn(() => 'http://benger.localhost'),
   getCookieDomain: jest.fn(() => ''),
 }))
 
@@ -508,8 +507,7 @@ describe('AuthContext', () => {
       expect(mockApiClient.logout).toHaveBeenCalled()
       expect(sessionManager.clearSession).toHaveBeenCalled()
       expect(devAuthHelper.markManualLogout).toHaveBeenCalled()
-      expect(window.location.href).toContain('/')
-      expect(window.location.href).not.toContain('/login')
+      expect(window.location.href).toBe('http://benger.localhost/')
       expect(result.current.user).toBeNull()
     })
 

@@ -66,9 +66,9 @@
     },
     "first-steps": {
       "title": "What should I set up first?",
-      "summary": "In this order: switch to the right organization, sort out an API key (your own or the organization’s), create a project, upload data, then annotate, generate and evaluate.",
+      "summary": "In this order: check your membership in the right organization, sort out an API key (your own or the organization’s), create a project, upload data, then annotate, generate and evaluate.",
       "steps": [
-        "**Check the context**: top right in the account menu under *Switch context* pick your organization. In the *Private* context you do not see organization projects.",
+        "**Check your memberships**: top right in the account menu, *My organizations* lists your organizations. You see the projects of every organization you belong to.",
         "**API key**: if your organization provides keys, nothing to do. Otherwise store a key of the AI provider you want to use under [Profile](/profile) → *API key management*.",
         "**Create a project**: [Projects](/projects) → *New project*, pick type and functions.",
         "**Upload data**: in the wizard or later via *Project data* (JSON, CSV, TSV, TXT).",
@@ -81,7 +81,7 @@
       "title": "Where do I find what in the navigation?",
       "summary": "The sidebar has three groups. **Quick start**: dashboard, reports, learning statistics, leaderboards. **Projects & data**: projects, data management, generation, evaluation. **Knowledge**: guides, models, architecture. Everything personal sits top right in the account menu.",
       "steps": [
-        "**Account menu** (top right, your name): profile settings, notification settings, *Switch context* (private or organization), runs, users & organizations, student view, sign out.",
+        "**Account menu** (top right, your name): profile settings, notification settings, *My organizations* (with your role), runs, users & organizations, student view, sign out.",
         "**Search** (magnifier in the header): finds pages, projects and these guides. German and English, typos tolerated.",
         "**Runs** lists every generation and evaluation run with status. **Notifications** (bell) reports finished runs and invitations.",
         "**Models** is the model catalog with prices and the place to register your own models."
@@ -96,23 +96,24 @@
       ]
     },
     "org-context": {
-      "title": "Why do I see no projects? Private context vs. organization",
-      "summary": "Projects belong to organizations. In the **Private** context you only see your private projects. Switch to the organization top right in the account menu under **Switch context**.",
+      "title": "Why can't I see a project? Organizations and visibility",
+      "summary": "A project belongs to an organization or is private. You see every project you can access through any of your memberships, all in one list and without switching. If one is missing, usually the membership or the group is missing.",
       "steps": [
-        "Click your name top right. The current context is shown in brackets, e.g. *(Private)* or *(Chair X)*.",
-        "Under **Switch context** click the organization. The page reloads under the organization’s address (`organization.what-a-benger.net`).",
-        "Back to your private projects via **Private**."
+        "Click your name top right. **My organizations** lists your memberships with your role.",
+        "If the project's organization is missing there, ask an admin of that organization for an invitation.",
+        "When you create a project, the wizard asks which organization it belongs to. Without one it stays private."
       ],
       "tips": [
-        "The last chosen context is remembered. Bookmarks on the organization address lead straight into the right context."
+        "If a project is restricted to a group, you only see it as a member of that group."
       ],
       "keywords": [
-        "context",
+        "organization",
+        "membership",
         "private",
         "no projects",
         "empty",
-        "subdomain",
-        "org switcher"
+        "visibility",
+        "my organizations"
       ]
     },
     "org-roles": {
@@ -1169,7 +1170,7 @@
     },
     "ts-no-projects": {
       "title": "“I see no projects” or “my project has disappeared”",
-      "summary": "Almost always the context: top right in the account menu under **Switch context** pick the organization. Then: is the project archived (*More → Archived*) or restricted to a group you do not belong to?",
+      "summary": "Almost always a missing membership: top right in the account menu, check under **My organizations** that you belong to the project's organization. Then: is the project archived (*More → Archived*) or restricted to a group you do not belong to?",
       "keywords": [
         "disappeared",
         "not visible",
@@ -1177,7 +1178,7 @@
         "missing",
         "no projects"
       ],
-      "links": ["Private context vs. organization", "Groups"]
+      "links": ["Organizations and visibility", "Groups"]
     },
     "ts-no-models": {
       "title": "“No API keys configured” or models are missing from the picker",

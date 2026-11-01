@@ -6,7 +6,6 @@ import { devAuthHelper } from '@/lib/auth/devAuthHelper'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { logger } from '@/lib/utils/logger'
-import { getPrivateUrl } from '@/lib/utils/subdomain'
 import { authRedirect, publicRoutes } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
 import React, {
@@ -313,9 +312,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logger.debug('[AuthContext] Setting user and organizations in state')
         setUser(currentUser)
         setOrganizations(orgs)
-        // The host the page was opened on (apex or an org subdomain) does
-        // not matter: every page shows what the user may see through any
-        // membership, so no redirect between hosts takes place.
+        // Every page shows what the user may see through any membership,
+        // so no redirect between hosts takes place.
 
         logger.debug('[AuthContext] Auth initialization successful')
       } catch (error) {
@@ -503,9 +501,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       devAuthHelper.markManualLogout()
     }
 
-    // Full page navigation to base domain landing page to reset all React state
-    // Use getPrivateUrl to strip org subdomain (e.g., benchathon.what-a-benger.net → what-a-benger.net)
-    window.location.href = getPrivateUrl('/')
+    // Full page navigation to the landing page to reset all React state
+    // (a router push would keep it)
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = '/'
   }, [apiClient])
 
   const signup = useCallback(
