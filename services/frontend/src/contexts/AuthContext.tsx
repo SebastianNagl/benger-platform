@@ -502,6 +502,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Full page navigation to the landing page to reset all React state
+    // (a router push would keep it)
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/'
   }, [apiClient])
 
