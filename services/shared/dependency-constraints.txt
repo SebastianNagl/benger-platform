@@ -19,6 +19,10 @@
 # version inside the range, and the --check agreement test catches the rare
 # case where one side's other dependencies hold it back.
 #
+# Dependabot ignores every package listed here (the sync script writes them
+# into .github/dependabot.yml): it would move a bound in one service only.
+# Check these by hand now and then and bump them here.
+#
 # After editing this file:
 #   python3 scripts/sync_shared_constraints.py
 #   (cd services/api && uv lock) && (cd services/workers && uv lock)
