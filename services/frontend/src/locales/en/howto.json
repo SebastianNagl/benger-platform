@@ -101,7 +101,7 @@
       "steps": [
         "Click your name top right. **My organizations** lists your memberships with your role.",
         "If the project's organization is missing there, ask an admin of that organization for an invitation.",
-        "When you create a project, the wizard asks which organization it belongs to. Without one it stays private and only you can see it."
+        "When you create a project, the wizard asks which organization it belongs to. Without one it stays private."
       ],
       "tips": [
         "If a project is restricted to a group, you only see it as a member of that group."

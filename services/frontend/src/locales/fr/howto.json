@@ -71,7 +71,7 @@
       "steps": [
         "Cliquez en haut à droite sur votre nom. **Mes organisations** liste vos adhésions avec votre rôle.",
         "Si l'organisation du projet n'y figure pas, demandez une invitation à un administrateur de cette organisation.",
-        "Lors de la création d'un projet, l'assistant vous demande dans quelle organisation le créer. Sans organisation, il reste privé et vous seul le voyez."
+        "Lors de la création d'un projet, l'assistant vous demande dans quelle organisation le créer. Sans organisation, il reste privé."
       ],
       "tips": [
         "Si un projet est limité à un groupe, vous ne le voyez qu'en tant que membre de ce groupe."

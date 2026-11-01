@@ -106,7 +106,7 @@
       "steps": [
         "Klick oben rechts auf deinen Namen. Unter **Meine Organisationen** stehen deine Mitgliedschaften mit deiner Rolle.",
         "Fehlt dort die Organisation des Projekts, bitte einen Admin der Organisation um eine Einladung.",
-        "Beim Anlegen eines Projekts wählst du im Assistenten, in welcher Organisation es entsteht. Ohne Organisation bleibt es privat und nur für dich sichtbar."
+        "Beim Anlegen eines Projekts wählst du im Assistenten, in welcher Organisation es entsteht. Ohne Organisation bleibt es privat."
       ],
       "tips": [
         "Ist ein Projekt auf eine Gruppe beschränkt, siehst du es nur als Mitglied dieser Gruppe."
