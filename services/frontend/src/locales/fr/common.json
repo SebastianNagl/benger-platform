@@ -327,7 +327,7 @@
             "contributorDescription": "Les visiteurs peuvent en plus ajouter des tâches et lancer la génération/l'évaluation. Les paramètres du projet restent verrouillés."
           },
           "assignedOrganizations": "Organisations attribuées",
-          "assignedOrganizationsHelp": "Choisissez les organisations dont les membres peuvent accéder à ce projet. Indépendamment du sous-domaine actuel.",
+          "assignedOrganizationsHelp": "Choisissez les organisations dont les membres peuvent accéder à ce projet.",
           "orgPreselectedHint": "Présélectionnée : votre organisation {name}. Choisissez « Privé » si vous seul devez y avoir accès.",
           "noOrganizationsAvailable": "Aucune organisation disponible.",
           "groupScopeLabel": "Groupe",
@@ -11419,12 +11419,12 @@
           "Points d'extension : un système de slots (`registerSlot`/`useSlot`) pour des pages et des cartes entières, des registres pour les métriques, les éditeurs de métriques et les rendus de cellules, les modèles de l'assistant, les préréglages de types de projet, les hooks après création, les entrées du journal des modifications et des guides.",
           "Trois langues (allemand, anglais, français) via une couche de traduction centrale ; mode sombre ; mises en page responsives.",
           "Temps réel : Server-Sent Events pour les notifications et la progression des évaluations, WebSockets pour les générations en cours.",
-          "Le serveur Next sert de proxy aux appels API et définit les cookies de session par domaine de base, de sorte que les sous-domaines des organisations partagent la session."
+          "Le serveur Next sert de proxy aux appels API et définit les cookies de session uniquement pour l'adresse appelée."
         ]
       },
       "api": {
         "title": "API",
-        "intro": "**FastAPI** avec Pydantic v2 et SQLAlchemy 2. L'API dispose de deux voies d'accès à la même instance PostgreSQL : la voie synchrone (psycopg2) pour le code existant et la voie asynchrone (asyncpg) pour les nouveaux handlers. Authentification par JWT avec jetons de rafraîchissement ; le contexte d'organisation provient du sous-domaine.",
+        "intro": "**FastAPI** avec Pydantic v2 et SQLAlchemy 2. L'API dispose de deux voies d'accès à la même instance PostgreSQL : la voie synchrone (psycopg2) pour le code existant et la voie asynchrone (asyncpg) pour les nouveaux handlers. Authentification par JWT avec jetons de rafraîchissement ; les requêtes qui ont besoin d'une organisation la nomment explicitement.",
         "bullets": [
           "Environ 36 modules de routeurs : projets et tâches, import/export, génération, évaluation et évaluation immédiate, organisations avec groupes et invitations, clés API (personnelles, d'organisation, de groupe), modèles personnalisés, structures de prompts, classements, rapports, exécutions, notifications, stockage objet, administration LTI, état de santé.",
           "Les migrations Alembic s'exécutent au démarrage sous un verrou consultatif ; un validateur de schéma vérifie ensuite les modèles par rapport à la base de données.",
@@ -11464,7 +11464,7 @@
       },
       "organizations": {
         "title": "Organisations, groupes et accès",
-        "intro": "Un utilisateur peut appartenir à plusieurs **organisations** ; chaque organisation a son propre sous-domaine (`{slug}.what-a-benger.net`) et les rôles administrateur, contributeur et annotateur. Les **groupes** (par exemple des chaires) subdivisent une organisation : l'attribution de projets et les clés API peuvent être limitées à un groupe. Chaque appartenance à un groupe a son propre rôle, indépendant du rôle dans l'organisation : sur un projet de groupe, c'est le rôle dans le groupe qui compte, sur les projets de toute l'organisation, le rôle dans l'organisation. Les administrateurs de l'organisation sont administrateurs de chaque groupe ; les administrateurs de groupe gèrent leur groupe sans droits sur toute l'organisation.",
+        "intro": "Un utilisateur peut appartenir à plusieurs **organisations**, chaque fois avec l'un des rôles administrateur, contributeur et annotateur. Les **groupes** (par exemple des chaires) subdivisent une organisation : l'attribution de projets et les clés API peuvent être limitées à un groupe. Chaque appartenance à un groupe a son propre rôle, indépendant du rôle dans l'organisation : sur un projet de groupe, c'est le rôle dans le groupe qui compte, sur les projets de toute l'organisation, le rôle dans l'organisation. Les administrateurs de l'organisation sont administrateurs de chaque groupe ; les administrateurs de groupe gèrent leur groupe sans droits sur toute l'organisation.",
         "bullets": [
           "Visibilité des projets : privée, organisation (éventuellement un seul groupe) ou publique ; en plus, des liens de partage protégés par mot de passe et un annuaire (*Découvrir*) pour les étudiants. Qui rejoint via un lien ou l'annuaire obtient le niveau restreint de participant, sans données de référence.",
           "Les clés API sont stockées chiffrées. Résolution à chaque appel : si l'organisation fournit des clés, elle paie (clé du groupe avant clé de l'organisation), sinon la clé personnelle s'applique. Les modèles personnalisés (BYOM) utilisent toujours la clé de l'utilisateur appelant. Pour les examens liés à une plateforme d'apprentissage, l'organisation de la connexion paie la correction par IA de ses étudiants venant de la plateforme d'apprentissage et de son personnel. Sans sa clé, aucune correction n'a lieu.",
@@ -11482,7 +11482,7 @@
       },
       "deployment": {
         "title": "Exploitation, déploiement et CI",
-        "intro": "La production tourne sur **Kubernetes (K3s)** avec Helm, répartie entre un environnement de production et un environnement de staging. Traefik termine le TLS avec des certificats wildcard pour les deux adresses et route les sous-domaines des organisations vers la même instance du frontend.",
+        "intro": "La production tourne sur **Kubernetes (K3s)** avec Helm, répartie entre un environnement de production et un environnement de staging. Traefik termine le TLS avec des certificats wildcard pour les deux adresses et redirige `www.` vers l'adresse principale.",
         "bullets": [
           "Déploiements : API et frontend avec deux réplicas chacun et mises à jour progressives, pools de workers par file d'attente, Celery beat, MinIO, PostgreSQL, Redis, un job de migration avant chaque déploiement et un CronJob de sauvegarde nocturne. L'autoscaling est préparé mais désactivé.",
           "CI/CD : les pull requests sur le dépôt de la plateforme exécutent Jest et le lint ; une fusion dans `main` exécute en plus les suites complètes de l'API et des workers (six shards en parallèle), puis déclenche le build dans le dépôt étendu, qui publie les images sur GHCR et déploie en production. Les pull requests du dépôt étendu sont déployées en staging.",

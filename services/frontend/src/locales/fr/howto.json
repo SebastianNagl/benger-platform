@@ -28,9 +28,9 @@
     },
     "first-steps": {
       "title": "Que dois-je configurer en premier ?",
-      "summary": "Dans cet ordre : passer dans la bonne organisation, régler la question de la clé API (personnelle ou de l'organisation), créer un projet, téléverser des données, puis annoter, générer et évaluer.",
+      "summary": "Dans cet ordre : vérifier votre adhésion à la bonne organisation, régler la question de la clé API (personnelle ou de l'organisation), créer un projet, téléverser des données, puis annoter, générer et évaluer.",
       "steps": [
-        "**Vérifier le contexte** : en haut à droite, dans le menu du compte, choisissez votre organisation sous *Mes organisations*. Dans le contexte *Privé*, vous ne voyez pas les projets de l'organisation.",
+        "**Vérifier vos adhésions** : en haut à droite, dans le menu du compte, *Mes organisations* liste vos organisations. Vous voyez les projets de toutes les organisations dont vous êtes membre.",
         "**Clé API** : si votre organisation fournit des clés, vous n'avez rien à faire. Sinon, enregistrez sous [Profil](/profile) → *Gestion des clés API* une clé du fournisseur d'IA que vous voulez utiliser.",
         "**Créer un projet** : [Projets](/projects) → *Nouveau projet*, choisir le type de projet et les fonctions.",
         "**Téléverser des données** : dans l'assistant ou plus tard via *Données du projet* (JSON, CSV, TSV, TXT).",
@@ -50,7 +50,7 @@
       "title": "Où trouver quoi dans la navigation ?",
       "summary": "La barre latérale comporte trois groupes. **Démarrage rapide** : tableau de bord, rapports, statistiques d'apprentissage, classements. **Projets et données** : projets, gestion des données, génération, évaluation. **Connaissances** : guides, modèles, architecture. Tout ce qui est personnel se trouve en haut à droite dans le menu du compte.",
       "steps": [
-        "**Menu du compte** (en haut à droite, votre nom) : paramètres du profil, paramètres de notification, *Changer de contexte* (privé ou organisation), exécutions, utilisateurs et organisations, vue étudiant, se déconnecter.",
+        "**Menu du compte** (en haut à droite, votre nom) : paramètres du profil, paramètres de notification, *Mes organisations* (avec votre rôle), exécutions, utilisateurs et organisations, vue étudiant, se déconnecter.",
         "**Recherche** (loupe dans l'en-tête) : trouve des pages, des projets et ces guides. En allemand et en anglais, même avec des fautes de frappe.",
         "**Exécutions** affiche toutes les exécutions de génération et d'évaluation avec leur statut. **Notifications** (cloche) vous informe des exécutions terminées et des invitations.",
         "**Modèles** est le catalogue de modèles, avec les prix et l'endroit où vous enregistrez vos propres modèles."
@@ -66,24 +66,23 @@
       ]
     },
     "org-context": {
-      "title": "Pourquoi je ne vois aucun projet ? Contexte privé ou organisation",
-      "summary": "Les projets appartiennent à des organisations. Dans le contexte **Privé**, vous ne voyez que vos projets privés. Passez à l'organisation en haut à droite, dans le menu du compte, sous **Mes organisations**.",
+      "title": "Pourquoi je ne vois pas un projet ? Organisations et visibilité",
+      "summary": "Un projet appartient à une organisation ou est privé. Vous voyez tous les projets auxquels l'une de vos adhésions vous donne accès, dans une seule liste et sans rien changer. S'il en manque un, il manque généralement l'adhésion ou le groupe.",
       "steps": [
-        "Cliquez en haut à droite sur votre nom. Le contexte actuel figure entre parenthèses, p. ex. *(Privé)* ou *(Chaire X)*.",
-        "Sous **Mes organisations**, cliquez sur l'organisation. La page se recharge à l'adresse de l'organisation (`organisation.what-a-benger.net`).",
-        "Pour revenir à vos projets privés, utilisez **Privé**."
+        "Cliquez en haut à droite sur votre nom. **Mes organisations** liste vos adhésions avec votre rôle.",
+        "Si l'organisation du projet n'y figure pas, demandez une invitation à un administrateur de cette organisation.",
+        "Lors de la création d'un projet, l'assistant vous demande dans quelle organisation le créer. Sans organisation, il reste privé et vous seul le voyez."
       ],
       "tips": [
-        "Le dernier contexte choisi est mémorisé. Les favoris pointant vers l'adresse de l'organisation mènent directement au bon contexte."
+        "Si un projet est limité à un groupe, vous ne le voyez qu'en tant que membre de ce groupe."
       ],
       "keywords": [
-        "contexte",
-        "privé",
         "organisation",
+        "adhésion",
+        "privé",
         "aucun projet",
         "vide",
-        "sous-domaine",
-        "changer d'organisation",
+        "visibilité",
         "mes organisations"
       ]
     },
@@ -1312,7 +1311,7 @@
     },
     "ts-no-projects": {
       "title": "« Je ne vois aucun projet » ou « mon projet a disparu »",
-      "summary": "C'est presque toujours le contexte : en haut à droite, dans le menu du compte, choisissez l'organisation sous **Changer de contexte**. Ensuite : le projet est-il archivé (*Plus → Archivés*) ou limité à un groupe dont vous ne faites pas partie ?",
+      "summary": "C'est presque toujours une adhésion manquante : en haut à droite, dans le menu du compte, vérifiez sous **Mes organisations** que vous appartenez à l'organisation du projet. Ensuite : le projet est-il archivé (*Plus → Archivés*) ou limité à un groupe dont vous ne faites pas partie ?",
       "keywords": [
         "disparu",
         "invisible",
@@ -1321,7 +1320,7 @@
         "manquant",
         "aucun projet"
       ],
-      "links": ["Contexte privé ou organisation", "Groupes"]
+      "links": ["Organisations et visibilité", "Groupes"]
     },
     "ts-no-models": {
       "title": "« Aucune clé API configurée » ou des modèles manquent dans la sélection",

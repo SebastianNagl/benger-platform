@@ -9,7 +9,6 @@ import {
   getBaseDomain,
   getBaseDomainFromHost,
   getCookieDomain,
-  getPrivateUrl,
   getSisterHostUrl,
   isDemoHost,
   isStudentLockedHost,
@@ -222,20 +221,6 @@ describe('parseSubdomain', () => {
     expect(result).toHaveProperty('orgSlug')
     expect(result).toHaveProperty('isPrivateMode')
     expect(typeof result.isPrivateMode).toBe('boolean')
-  })
-})
-
-describe('getPrivateUrl', () => {
-  it('builds URL without org subdomain', () => {
-    const url = getPrivateUrl('/dashboard')
-    expect(url).toContain('/dashboard')
-    expect(typeof url).toBe('string')
-  })
-
-  it('uses current path when no path specified', () => {
-    const url = getPrivateUrl()
-    expect(typeof url).toBe('string')
-    expect(url.length).toBeGreaterThan(0)
   })
 })
 

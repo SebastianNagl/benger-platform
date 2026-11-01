@@ -174,22 +174,6 @@ export function parseSubdomain(): {
 }
 
 /**
- * Build a full URL for private mode (no subdomain), preserving the current path.
- */
-export function getPrivateUrl(path?: string): string {
-  const baseDomain = getBaseDomain()
-  const protocol =
-    typeof window !== 'undefined' ? window.location.protocol : 'http:'
-  const port =
-    typeof window !== 'undefined' && window.location.port
-      ? `:${window.location.port}`
-      : ''
-  const targetPath =
-    path || (typeof window !== 'undefined' ? window.location.pathname : '/')
-  return `${protocol}//${baseDomain}${port}${targetPath}`
-}
-
-/**
  * Get the cookie domain for cross-subdomain auth.
  * Returns '.benger.localhost' or '.what-a-benger.net'.
  */

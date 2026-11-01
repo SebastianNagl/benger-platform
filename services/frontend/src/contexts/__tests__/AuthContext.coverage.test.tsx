@@ -86,7 +86,6 @@ jest.mock('@/lib/auth/sessionExpired', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  getPrivateUrl: jest.fn((path = '') => `http://benger.localhost${path}`),
   getCookieDomain: jest.fn(() => ''),
 }))
 

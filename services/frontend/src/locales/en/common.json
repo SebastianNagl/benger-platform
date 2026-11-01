@@ -327,7 +327,7 @@
             "contributorDescription": "Visitors can also add tasks and run generation/evaluation. Project settings remain locked."
           },
           "assignedOrganizations": "Assigned organizations",
-          "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
+          "assignedOrganizationsHelp": "Pick the organizations whose members can access this project.",
           "orgPreselectedHint": "Preselected: your organization {name}. Choose Private if only you should have access.",
           "noOrganizationsAvailable": "No organizations available.",
           "groupScopeLabel": "Group",
@@ -11419,12 +11419,12 @@
           "Extension points: a slot system (`registerSlot`/`useSlot`) for whole pages and cards, registries for metrics, metric editors and cell renderers, wizard templates, project-type presets, post-create hooks, changelog and guide entries.",
           "Three languages (German, English, French) through one translation layer; dark mode; responsive layouts.",
           "Real time: Server-Sent Events for notifications and evaluation progress, WebSockets for running generations.",
-          "The Next server proxies API calls and sets session cookies per base domain, so organization subdomains share the session."
+          "The Next server proxies API calls and sets the session cookies for the requested host only."
         ]
       },
       "api": {
         "title": "API",
-        "intro": "**FastAPI** with Pydantic v2 and SQLAlchemy 2. The API has two database lanes against the same PostgreSQL instance: the synchronous one (psycopg2) for existing code and the asynchronous one (asyncpg) that new handlers are written against. Authentication via JWT with refresh tokens; the organization context comes from the subdomain.",
+        "intro": "**FastAPI** with Pydantic v2 and SQLAlchemy 2. The API has two database lanes against the same PostgreSQL instance: the synchronous one (psycopg2) for existing code and the asynchronous one (asyncpg) that new handlers are written against. Authentication via JWT with refresh tokens; requests that need an organization name it explicitly.",
         "bullets": [
           "Around 36 router modules: projects and tasks, import/export, generation, evaluation and immediate evaluation, organizations with groups and invitations, API keys (personal, organization, group), custom models, prompt structures, leaderboards, reports, runs, notifications, object storage, LTI administration, health.",
           "Alembic migrations run at startup under an advisory lock; a schema validator then checks models against the database.",
@@ -11464,7 +11464,7 @@
       },
       "organizations": {
         "title": "Organizations, groups and access",
-        "intro": "Users can belong to several **organizations**; each organization has its own subdomain (`{slug}.what-a-benger.net`) and the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group. Every group membership carries its own role, independent of the organization role: on a group project the group role decides, on organization-wide projects the organization role. Org admins are admin in every group; group admins manage their group without organization-wide rights.",
+        "intro": "Users can belong to several **organizations**, each time with one of the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group. Every group membership carries its own role, independent of the organization role: on a group project the group role decides, on organization-wide projects the organization role. Org admins are admin in every group; group admins manage their group without organization-wide rights.",
         "bullets": [
           "Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.",
           "API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.",
@@ -11482,7 +11482,7 @@
       },
       "deployment": {
         "title": "Operations, deployment and CI",
-        "intro": "Production runs on **Kubernetes (K3s)** with Helm, split into a production and a staging environment. Traefik terminates TLS with wildcard certificates for both hosts and routes organization subdomains to the same frontend instance.",
+        "intro": "Production runs on **Kubernetes (K3s)** with Helm, split into a production and a staging environment. Traefik terminates TLS with wildcard certificates for both hosts and redirects `www.` to the main address.",
         "bullets": [
           "Deployments: API and frontend with two replicas each and rolling updates, worker pools per queue, Celery beat, MinIO, PostgreSQL, Redis, a migration job before every rollout and a nightly backup CronJob. Autoscaling is prepared but switched off.",
           "CI/CD: pull requests on the platform repository run Jest and lint; a merge to `main` additionally runs the full API and worker suites (six parallel shards) and then triggers the build in the extended repository, which pushes the images to GHCR and rolls out production. Pull requests in the extended repository deploy to staging.",

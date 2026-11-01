@@ -81,7 +81,6 @@ jest.mock('@/utils/authRedirect', () => ({
 jest.mock('@/lib/utils/subdomain', () => ({
   parseSubdomain: jest.fn(() => ({ orgSlug: null, isPrivateMode: true })),
   getOrgUrl: jest.fn((slug: string) => `http://${slug}.benger.localhost`),
-  getPrivateUrl: jest.fn(() => 'http://benger.localhost'),
   getLastOrgSlug: jest.fn(() => null),
   setLastOrgSlug: jest.fn(),
   clearLastOrgSlug: jest.fn(),
