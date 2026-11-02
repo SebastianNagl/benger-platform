@@ -9,6 +9,11 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-block-external-paste',
+    date: '2026-11-02',
+    audience: 'both',
+  },
+  {
     id: '2026-10-30-full-api-access-keys',
     date: '2026-10-30',
     audience: 'benger',

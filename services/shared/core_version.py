@@ -684,11 +684,25 @@ whenever one is added, renamed or removed):
   that status and detail; any other exception propagates and fails the
   write. The server-side timer auto-submit and other callers of
   ``persist_annotation_submission`` do not call it.
+
+2.47 (2026-11-02): project setting ``allow_external_paste`` (migration 123,
+  ``projects.allow_external_paste`` NOT NULL, default TRUE; on
+  ``ProjectResponse`` / ``ProjectUpdate`` and in project export/import).
+  False forbids pasting text copied outside BenGER while annotating. The
+  frontend hook ``@/hooks/useExternalPasteGuard`` (``useExternalPasteGuard(
+  enabled, onBlocked)``) enforces it; the labeling interface mounts it, and
+  overlays with their own answer surfaces mount it there. Also project
+  setting ``allow_solution_upload`` (migration 124, NOT NULL, default TRUE,
+  same schemas and round trip): persistence only, the overlay that offers
+  answer uploads enforces it. Slot ``project-settings-interface-extra``
+  (props ``settings``, ``onSettingsChange``, ``editing``) renders overlay
+  checkboxes directly below the paste switch in Annotationsablauf &
+  -verhalten.
 """
 
 import os
 
-CORE_API_VERSION = "2.46"
+CORE_API_VERSION = "2.47"
 
 
 def extended_required() -> bool:

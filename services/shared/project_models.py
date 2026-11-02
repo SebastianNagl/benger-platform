@@ -95,6 +95,20 @@ class Project(Base):
     # ``solution_reveal.step_detail_revealed`` (migration 116).
     annotator_step_detail_after_submit = Column(Boolean, nullable=True)
 
+    # Whether annotators may paste text copied outside BenGER into the
+    # annotation interface. Default True; False makes the labeling UI reject
+    # pastes and drops whose text was not copied inside the app (mig 123).
+    allow_external_paste = Column(
+        Boolean, default=True, server_default=sa.true(), nullable=False
+    )
+    # Whether annotators may hand in their answer as a file (the overlay's
+    # solution upload, itself behind a feature flag). Default True; False
+    # hides the upload for the writer, uploads on someone's behalf stay
+    # possible (mig 124).
+    allow_solution_upload = Column(
+        Boolean, default=True, server_default=sa.true(), nullable=False
+    )
+
     # Annotation time limit (Issue #1043)
     annotation_time_limit_enabled = Column(Boolean, default=False, nullable=False)
     annotation_time_limit_seconds = Column(

@@ -1347,6 +1347,8 @@
         "showSkipButtonHelp": "Annotatoren erlauben, schwierige Aufgaben zu überspringen",
         "requireCommentOnSkip": "Kommentar beim Überspringen erforderlich",
         "requireCommentOnSkipHelp": "Erklärung beim Überspringen von Aufgaben erforderlich",
+        "allowExternalPaste": "Einfügen von Text aus anderen Programmen erlauben",
+        "allowExternalPasteHelp": "Wenn deaktiviert, kann beim Annotieren nur Text eingefügt werden, der innerhalb der Plattform kopiert wurde.",
         "skipQueue": "Verhalten beim Überspringen",
         "skipQueueHelp": "Bestimmt, was passiert, wenn ein Annotator eine Aufgabe überspringt",
         "skipQueueRequeueForMe": "Erneut für mich einreihen",
@@ -7950,7 +7952,8 @@
     },
     "clipboard": {
       "copied": "In Zwischenablage kopiert",
-      "copyFailed": "Kopieren in Zwischenablage fehlgeschlagen"
+      "copyFailed": "Kopieren in Zwischenablage fehlgeschlagen",
+      "externalPasteBlocked": "Einfügen von Text aus anderen Programmen ist in diesem Projekt deaktiviert."
     },
     "operation": {
       "generation": "Antwortgenerierung",

@@ -1347,6 +1347,8 @@
         "showSkipButtonHelp": "Allow annotators to skip difficult tasks",
         "requireCommentOnSkip": "Require Comment on Skip",
         "requireCommentOnSkipHelp": "Require explanation when skipping tasks",
+        "allowExternalPaste": "Allow pasting text from other programs",
+        "allowExternalPasteHelp": "When disabled, annotators can only paste text that was copied inside the platform.",
         "skipQueue": "Skip Behavior",
         "skipQueueHelp": "Controls what happens when an annotator skips a task",
         "skipQueueRequeueForMe": "Re-queue for me",
@@ -7831,7 +7833,8 @@
     },
     "clipboard": {
       "copied": "Copied to clipboard",
-      "copyFailed": "Failed to copy to clipboard"
+      "copyFailed": "Failed to copy to clipboard",
+      "externalPasteBlocked": "Pasting text from other programs is disabled in this project."
     },
     "operation": {
       "generation": "Response Generation",

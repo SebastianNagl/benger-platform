@@ -1486,3 +1486,36 @@ describe('Read-only gating for non-editors', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+// ── Annotation card: paste from outside BenGER ────────────────────────────
+describe('Annotation card — allow_external_paste', () => {
+  it('defaults to allowed for older payloads and auto-saves the switch', async () => {
+    const store = setStore()
+    render(<ProjectDetailPage params={params()} />)
+    const checkbox = (await screen.findByTestId(
+      'allow-external-paste-checkbox',
+    )) as HTMLInputElement
+    expect(checkbox.checked).toBe(true)
+
+    jest.useFakeTimers()
+    await act(async () => {
+      fireEvent.click(checkbox)
+    })
+    await flushAutosave()
+    expect(store.updateProject).toHaveBeenCalledWith(
+      'proj-1',
+      expect.objectContaining({ allow_external_paste: false }),
+    )
+  })
+
+  it('hydrates a project that blocks external pastes', async () => {
+    setStore({
+      currentProject: { ...baseProject, allow_external_paste: false },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    const checkbox = (await screen.findByTestId(
+      'allow-external-paste-checkbox',
+    )) as HTMLInputElement
+    expect(checkbox.checked).toBe(false)
+  })
+})

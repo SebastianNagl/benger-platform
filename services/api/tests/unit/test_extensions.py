@@ -153,7 +153,8 @@ class TestExtensionLoader:
         # 2.44 adds the korrektur_feedback human metric (migration 122).
         # 2.45 opens the full API to access keys (key_routes, key gate).
         # 2.46 adds the before_annotation_write hook (exam timer on writes).
-        assert CORE_API_VERSION == "2.46"
+        # 2.47 adds projects.allow_external_paste + useExternalPasteGuard.
+        assert CORE_API_VERSION == "2.47"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

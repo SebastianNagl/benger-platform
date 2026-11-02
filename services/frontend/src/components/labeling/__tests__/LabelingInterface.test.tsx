@@ -544,6 +544,40 @@ describe('LabelingInterface', () => {
     })
   })
 
+  describe('Paste from outside BenGER', () => {
+    const firePaste = (text: string) => {
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          getData: (type: string) => (type === 'text/plain' ? text : ''),
+          files: [],
+          types: ['text/plain'],
+        },
+      })
+      document.body.dispatchEvent(event)
+      return event
+    }
+
+    it('blocks external pastes when the project forbids them', async () => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...mockStoreState,
+        currentProject: { ...mockProject, allow_external_paste: false },
+      })
+      render(<LabelingInterface projectId="project-1" />)
+      await waitFor(() => {
+        expect(firePaste('prepared elsewhere').defaultPrevented).toBe(true)
+      })
+    })
+
+    it('leaves pasting alone by default', async () => {
+      render(<LabelingInterface projectId="project-1" />)
+      await waitFor(() => {
+        expect(screen.getByTestId('mock-skip')).toBeInTheDocument()
+      })
+      expect(firePaste('prepared elsewhere').defaultPrevented).toBe(false)
+    })
+  })
+
   describe('Label Configuration', () => {
     it('should show error when no label config', async () => {
       const noConfigStore = {

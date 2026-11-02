@@ -35,6 +35,10 @@ export interface AdvancedSettings {
   show_submit_button: boolean
   require_comment_on_skip: boolean
   require_confirm_before_submit: boolean
+  // false = annotators can only paste text they copied inside BenGER
+  allow_external_paste: boolean
+  // false = the writer cannot hand in a file as the answer (overlay upload)
+  allow_solution_upload: boolean
   skip_queue: 'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped'
   questionnaire_enabled: boolean
   questionnaire_config: string
@@ -69,6 +73,8 @@ interface AdvancedSettingsCardProps {
   setAdvancedSettings: Dispatch<SetStateAction<AdvancedSettings>>
   editing: boolean
   ProjectSettingsExtended: ComponentType<any> | null
+  // Overlay checkboxes rendered directly below the paste switch.
+  ProjectSettingsInterfaceExtra?: ComponentType<any> | null
 }
 
 export function AdvancedSettingsCard({
@@ -79,6 +85,7 @@ export function AdvancedSettingsCard({
   setAdvancedSettings,
   editing,
   ProjectSettingsExtended,
+  ProjectSettingsInterfaceExtra = null,
 }: AdvancedSettingsCardProps) {
   return (
     <div className="bg-white dark:bg-zinc-900">
@@ -623,6 +630,38 @@ export function AdvancedSettingsCard({
                     className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                   />
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>
+                      {t('project.settings.interface.allowExternalPaste')}
+                    </Label>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('project.settings.interface.allowExternalPasteHelp')}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    data-testid="allow-external-paste-checkbox"
+                    checked={advancedSettings.allow_external_paste}
+                    onChange={(e) =>
+                      setAdvancedSettings((prev: any) => ({
+                        ...prev,
+                        allow_external_paste: e.target.checked,
+                      }))
+                    }
+                    disabled={!editing}
+                    className="ml-4 h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                </div>
+
+                {ProjectSettingsInterfaceExtra && (
+                  <ProjectSettingsInterfaceExtra
+                    settings={advancedSettings}
+                    onSettingsChange={setAdvancedSettings}
+                    editing={editing}
+                  />
+                )}
 
                 <div className="flex items-center justify-between">
                   <div>

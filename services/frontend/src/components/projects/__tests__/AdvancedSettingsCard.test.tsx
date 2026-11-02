@@ -39,6 +39,8 @@ function makeSettings(
     show_submit_button: true,
     require_comment_on_skip: false,
     require_confirm_before_submit: false,
+    allow_external_paste: true,
+    allow_solution_upload: true,
     skip_queue: 'requeue_for_others',
     questionnaire_enabled: false,
     questionnaire_config: '',
@@ -65,6 +67,7 @@ interface HarnessProps {
   editing?: boolean
   canEdit?: boolean
   ProjectSettingsExtended?: ComponentType<any> | null
+  ProjectSettingsInterfaceExtra?: ComponentType<any> | null
   onChange?: (s: AdvancedSettings) => void
 }
 
@@ -78,6 +81,7 @@ function Harness({
   editing = true,
   canEdit = true,
   ProjectSettingsExtended = null,
+  ProjectSettingsInterfaceExtra = null,
   onChange,
 }: HarnessProps) {
   const [settings, setSettings] = useState<AdvancedSettings>(
@@ -106,6 +110,7 @@ function Harness({
       setAdvancedSettings={set}
       editing={editing}
       ProjectSettingsExtended={ProjectSettingsExtended}
+      ProjectSettingsInterfaceExtra={ProjectSettingsInterfaceExtra}
     />
   )
 }
@@ -427,6 +432,7 @@ describe('AdvancedSettingsCard', () => {
       [/Always show instructions/i, 'instructions_always_visible', false],
       [/^Show Skip Button$/i, 'show_skip_button', true],
       [/^Require Comment on Skip$/i, 'require_comment_on_skip', false],
+      [/Allow pasting text from other programs/i, 'allow_external_paste', true],
       [/^Show Submit Button$/i, 'show_submit_button', true],
       [
         /Require confirmation before submit/i,
@@ -691,6 +697,49 @@ describe('AdvancedSettingsCard', () => {
       await user.click(screen.getByTestId('ext-btn'))
       expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({ review_enabled: true }),
+      )
+    })
+  })
+
+  describe('project-settings-interface-extra slot', () => {
+    it('renders nothing extra without an overlay', () => {
+      render(<Harness />)
+      expect(screen.queryByTestId('interface-extra')).not.toBeInTheDocument()
+    })
+
+    it('renders the overlay checkbox right below the paste switch and passes the setter', async () => {
+      const user = userEvent.setup()
+      const onChange = jest.fn()
+      const Extra: ComponentType<any> = ({
+        settings,
+        onSettingsChange,
+        editing,
+      }: any) => (
+        <input
+          type="checkbox"
+          data-testid="interface-extra"
+          data-editing={String(editing)}
+          checked={settings.allow_solution_upload !== false}
+          onChange={(e) =>
+            onSettingsChange((prev: AdvancedSettings) => ({
+              ...prev,
+              allow_solution_upload: e.target.checked,
+            }))
+          }
+        />
+      )
+      render(
+        <Harness ProjectSettingsInterfaceExtra={Extra} onChange={onChange} />,
+      )
+
+      const extra = screen.getByTestId('interface-extra')
+      const paste = screen.getByTestId('allow-external-paste-checkbox')
+      // Next sibling block of the paste switch's row.
+      expect(paste.closest('div.flex')!.nextElementSibling).toBe(extra)
+      expect(extra).toHaveAttribute('data-editing', 'true')
+      await user.click(extra)
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ allow_solution_upload: false }),
       )
     })
   })
