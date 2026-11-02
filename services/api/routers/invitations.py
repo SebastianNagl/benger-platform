@@ -205,7 +205,9 @@ class InvitationAccept(BaseModel):
 
 
 # Bulk invite caps a single request so a pasted blob can't fan out unbounded.
-MAX_BULK_INVITES = 100
+# Was 100, which forced course-sized lists into several pastes; the mail
+# fan-out is already spaced by INVITATION_FANOUT_SPACING_SECONDS + rate limit.
+MAX_BULK_INVITES = 5000
 
 
 class BulkInvitationCreate(_GroupScopedInvite):

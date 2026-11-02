@@ -401,7 +401,9 @@ class TestBulkInvitations:
         )
 
     def test_bulk_over_cap_400(self, client, test_db, test_users, test_org, auth_headers):
-        emails = [f"user{i}@example.com" for i in range(101)]
+        from routers.invitations import MAX_BULK_INVITES
+
+        emails = [f"user{i}@example.com" for i in range(MAX_BULK_INVITES + 1)]
         with patch("routers.invitations.celery_app"):
             resp = client.post(
                 f"/api/invitations/organizations/{test_org.id}/invitations/bulk",
