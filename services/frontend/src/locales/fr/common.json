@@ -4605,7 +4605,8 @@
       },
       "editOrganization": "Modifier l'organisation",
       "deleteOrganization": "Supprimer l'organisation",
-      "ocrModel": "Reconnaissance de l'écriture manuscrite"
+      "ocrModel": "Reconnaissance de l'écriture manuscrite",
+      "toolProviders": "Fournisseurs d'outils d'examen"
     },
     "usersPage": {
       "breadcrumb": {

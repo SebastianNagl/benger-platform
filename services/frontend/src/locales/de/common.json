@@ -4605,7 +4605,8 @@
       },
       "editOrganization": "Organisation bearbeiten",
       "deleteOrganization": "Organisation löschen",
-      "ocrModel": "Handschrift-Erkennung"
+      "ocrModel": "Handschrift-Erkennung",
+      "toolProviders": "Hilfsmittel-Anbieter"
     },
     "usersPage": {
       "breadcrumb": {

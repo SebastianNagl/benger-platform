@@ -507,6 +507,9 @@ export function DynamicAnnotationInterface({
   // Render dynamic interface
   const interfaceContent = (
     <div className="dynamic-annotation-interface space-y-6">
+      {/* Exam tools (extended ExamToolDock slot via the host). A state
+          interface renders them in its own chrome instead. */}
+      {!useStateRender && examChrome?.renderTools?.('default')}
       {/* Render parsed configuration. Modern exam layout: the slot arranges
           the SAME nodes (via renderComponent, which closes over the live
           state and memoized handlers) into sheet + side panels. It must call

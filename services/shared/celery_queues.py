@@ -109,6 +109,7 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.sweep_missing_immediate_evals": MAINTENANCE,
     "tasks.reconcile_grading_usage": MAINTENANCE,  # extended
     "tasks.lti_grade_sync_sweep": MAINTENANCE,  # extended
+    "tasks.exam_tools_sync_law_texts": MAINTENANCE,  # extended (core 2.50)
     "tasks.cleanup_project_data": MAINTENANCE,
     "tasks.cleanup_api_key_usage_events": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
@@ -179,6 +180,7 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.generate_synthetic_project",
         "tasks.ocr_handwritten_submission",
         "tasks.ocr_finalize_submission",
+        "tasks.exam_tools_sync_law_texts",
     }
 )
 

@@ -511,6 +511,9 @@ class ProjectResponse(ProjectBase):
     # Safe Exam Browser gate (read-only here; the extended edition owns the
     # settings endpoint that also computes the accepted Config Key).
     seb_required: bool = False
+    # Exam tools (read-only here; the extended edition owns the endpoint
+    # that validates and writes them). Shape in /shared/exam_tools.py.
+    exam_tools: Optional[Dict[str, Any]] = None
     review_enabled: bool = False
     review_mode: Optional[str] = "in_place"
     allow_self_review: bool = False

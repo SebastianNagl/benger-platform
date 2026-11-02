@@ -157,7 +157,9 @@ class TestExtensionLoader:
         # provider attachments, shared.page_documents).
         # 2.49 adds pending_submission_uploads, the after_invitation_accepted
         # hook and the reusable invitation helpers.
-        assert CORE_API_VERSION == "2.49"
+        # 2.50 adds exam tools (projects.exam_tools, tool providers, the
+        # ExamToolDock / project-exam-tools / OrgToolProvidersPanel slots).
+        assert CORE_API_VERSION == "2.50"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

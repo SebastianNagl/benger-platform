@@ -817,6 +817,108 @@ class OrgStorageConnection(Base):
         )
 
 
+class ToolProvider(Base):
+    """A content provider for an exam tool kind (migration 127).
+
+    BenGER calls providers server-side and renders their content itself, so
+    exam pages never contact a provider (Safe Exam Browser URL filters stay
+    untouched). ``kinds`` lists the tool kinds served (first: ``law_texts``).
+    Built-in providers (``is_builtin``) run inside BenGER and need no
+    ``base_url``; external ones implement the BenGER Tool Provider API at
+    ``base_url``. Persistence only: the provider logic lives in the extended
+    edition.
+    """
+
+    __tablename__ = "tool_providers"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    slug = Column(String(64), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
+    kinds = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
+    base_url = Column(String(500), nullable=True)
+    api_version = Column(Integer, nullable=False, server_default="1", default=1)
+    status = Column(String(16), nullable=False, server_default="active", default="active")
+    is_builtin = Column(Boolean, nullable=False, server_default=sa.false(), default=False)
+    contact = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "is_builtin OR base_url IS NOT NULL",
+            name="ck_tool_providers_external_has_base_url",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ToolProvider(slug={self.slug}, kinds={self.kinds})>"
+
+
+class OrgToolProviderConnection(Base):
+    """An organization's access to a tool provider (migration 127).
+
+    ``encrypted_credential`` is the credential the provider issued to the
+    organization, Fernet-encrypted via ``encryption_service`` like
+    :class:`OrgStorageConnection`; it is never returned by an API. NULL for
+    providers that need none (built-in ones).
+    """
+
+    __tablename__ = "org_tool_provider_connections"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider_id = Column(
+        String, ForeignKey("tool_providers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    encrypted_credential = Column(Text, nullable=True)
+    status = Column(String(16), nullable=False, server_default="active", default="active")
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    organization = relationship("Organization")
+    provider = relationship("ToolProvider")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "provider_id", name="uq_org_tool_provider_connection"
+        ),
+    )
+
+
+class LawTextNorm(Base):
+    """One norm of a law code as a law-text provider serves it (migration 127).
+
+    Filled by built-in providers (ingest) and as a cache of external
+    providers, so a running exam keeps its law texts while a provider is
+    down. ``blocks`` holds the structured content (paragraphs, sentences,
+    references; never HTML), ``plain_text`` the same as text for search
+    (GIN full-text index created by the migration), ``ordinal`` the order
+    within the code.
+    """
+
+    __tablename__ = "law_text_norms"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_slug = Column(String(64), nullable=False)
+    code = Column(String(64), nullable=False)
+    norm_id = Column(String(128), nullable=False)
+    label = Column(String(255), nullable=False)
+    title = Column(Text, nullable=True)
+    blocks = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
+    plain_text = Column(Text, nullable=False, server_default="", default="")
+    as_of = Column(String(32), nullable=True)
+    ordinal = Column(Integer, nullable=False, server_default="0", default=0)
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider_slug", "code", "norm_id", name="uq_law_text_norms_norm"),
+        Index("ix_law_text_norms_code_order", "provider_slug", "code", "ordinal"),
+    )
+
+
 class StudentSubscription(Base):
     """A student's paid subscription for AI exam grading (Vertretbar).
 

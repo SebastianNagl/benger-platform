@@ -48,6 +48,7 @@ import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationP
 import { Menu } from '@headlessui/react'
 import {
   AcademicCapIcon,
+  BookOpenIcon,
   BuildingOfficeIcon,
   ChevronDownIcon,
   CloudIcon,
@@ -109,6 +110,10 @@ export function OrganizationsTab() {
   // Default vision model for handwritten uploads (extended slot + flag).
   const OrgOcrModelPanel = useSlot('OrgOcrModelPanel')
   const handwritingOcrEnabled = useFeatureFlag('handwriting_ocr')
+  // Exam tool providers (e.g. law texts) the org has access to (extended
+  // slot + flag).
+  const OrgToolProvidersPanel = useSlot('OrgToolProvidersPanel')
+  const examToolsEnabled = useFeatureFlag('exam_tools')
 
   // Combine user with organizations for permissions system
   const userWithOrganizations = useMemo(
@@ -148,6 +153,7 @@ export function OrganizationsTab() {
   const [showGroupsModal, setShowGroupsModal] = useState(false)
   const [showLtiPanel, setShowLtiPanel] = useState(false)
   const [showOcrModelPanel, setShowOcrModelPanel] = useState(false)
+  const [showToolProvidersPanel, setShowToolProvidersPanel] = useState(false)
   const [showJurisdictionModal, setShowJurisdictionModal] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
@@ -875,6 +881,9 @@ export function OrganizationsTab() {
   const showOcrModelMenuItem = Boolean(
     OrgOcrModelPanel && handwritingOcrEnabled && canManageOrg,
   )
+  const showToolProvidersMenuItem = Boolean(
+    OrgToolProvidersPanel && examToolsEnabled && canManageOrg,
+  )
   // Access keys (bgr_...) for scripts and the API: org admins, and group
   // admins for their groups, while the public_api feature is on.
   const showAccessKeysMenuItem = Boolean(
@@ -1210,6 +1219,22 @@ export function OrganizationsTab() {
                         >
                           <DocumentMagnifyingGlassIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                           {t('admin.organizations.ocrModel')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {showToolProvidersMenuItem && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowToolProvidersPanel(true)}
+                          data-testid="org-tool-providers-button"
+                        >
+                          <BookOpenIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.toolProviders')}
                         </button>
                       )}
                     </Menu.Item>
@@ -1739,6 +1764,22 @@ export function OrganizationsTab() {
               }}
             />
           )}
+
+          {/* Exam tool providers the org connects to (extended slot) */}
+          {selectedOrganization &&
+            showToolProvidersMenuItem &&
+            OrgToolProvidersPanel && (
+              <OrgToolProvidersPanel
+                organizationId={selectedOrganization.id}
+                organizationName={selectedOrganization.name}
+                settings={selectedOrganization.settings}
+                open={showToolProvidersPanel}
+                onOpenChange={setShowToolProvidersPanel}
+                onSaved={async () => {
+                  await refreshOrganizations()
+                }}
+              />
+            )}
 
           {/* Default model for handwritten uploads (extended slot) */}
           {selectedOrganization && showOcrModelMenuItem && OrgOcrModelPanel && (

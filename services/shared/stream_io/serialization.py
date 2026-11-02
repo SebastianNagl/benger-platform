@@ -30,6 +30,7 @@ Scope note (what is and isn't here):
 """
 
 import seb
+from exam_tools import portable_exam_tools
 from user_display import masked_name
 
 
@@ -112,6 +113,8 @@ def build_project_export_data(project, organization_id) -> dict:
         # the gate off (see import_stream).
         "seb_required": project.seb_required,
         "seb_config": seb.portable_seb_config(project.seb_config),
+        # Exam tools travel without their deployment-bound connection ids.
+        "exam_tools": portable_exam_tools(project.exam_tools),
         # Project kind + per-project settings. Without these a re-imported
         # exam came back as a plain project (kind NULL drops it from student
         # discovery) with its timer / checkpoint / feature toggles reset.

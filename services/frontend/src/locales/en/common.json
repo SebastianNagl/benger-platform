@@ -4605,7 +4605,8 @@
       },
       "editOrganization": "Edit organization",
       "deleteOrganization": "Delete organization",
-      "ocrModel": "Handwriting recognition"
+      "ocrModel": "Handwriting recognition",
+      "toolProviders": "Exam tool providers"
     },
     "usersPage": {
       "breadcrumb": {

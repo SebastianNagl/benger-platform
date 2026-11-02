@@ -134,6 +134,11 @@ export interface ExamChrome {
   title?: string
   /** Extra host controls (e.g. restorable checkpoints) to place in the bar. */
   extra?: ReactNode
+  /** Renders the project's exam tools (calculator, law texts, ...; the
+   *  ExamToolDock slot) in the given visual variant. A state interface places
+   *  the 'state' variant in its own chrome; every other render shows the
+   *  'default' variant. Undefined when the host offers no tools. */
+  renderTools?: (variant: 'default' | 'state') => ReactNode
   /** Supplied by DynamicAnnotationInterface: its merged submit. */
   onSubmit?: () => void
   canSubmit?: boolean
@@ -143,7 +148,7 @@ export interface ExamChrome {
 /** What a host passes to DynamicAnnotationInterface (examChrome prop). */
 export type HostExamChrome = Pick<
   ExamChrome,
-  'renderTimer' | 'onLeave' | 'extra' | 'title'
+  'renderTimer' | 'onLeave' | 'extra' | 'title' | 'renderTools'
 >
 
 export type ModernExamLayoutComponent = ComponentType<ModernExamLayoutProps>

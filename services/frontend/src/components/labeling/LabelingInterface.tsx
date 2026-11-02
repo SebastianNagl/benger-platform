@@ -58,6 +58,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // DraftCheckpointPanel slot; null in the community edition, so the community
   // labeling page carries no checkpoint save/restore logic.
   const CheckpointPanel = useSlot('DraftCheckpointPanel')
+  // Exam tools (calculator, calendar, law texts, ...) are an extended
+  // feature; null in the community edition.
+  const ExamToolDock = useSlot('ExamToolDock')
   // Wraps the labeling interface so the Klausurlösung Angabe / Notizen /
   // Gliederung / Loesung input components see a real LegalMarkdownContext
   // (heading sync, modal navigation). Falls back to React.Fragment in
@@ -953,6 +956,21 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       />
     )
 
+  // The project's exam tools, one instance: the classic and modern renders
+  // show the 'default' variant, a state-specific interface places the
+  // 'state' variant in its own chrome (examChrome.renderTools).
+  const renderTools =
+    ExamToolDock && currentProject && currentTask && !readOnlyView
+      ? (variant: 'default' | 'state') => (
+          <ExamToolDock
+            variant={variant}
+            projectId={currentProject.id}
+            taskId={currentTask.id}
+            examTools={currentProject.exam_tools ?? null}
+          />
+        )
+      : undefined
+
   // The header timer: the TimerIntegration slot (server session, pause,
   // strict auto-submit) or, without a limit, the elapsed-time readout. A
   // state-specific exam interface renders it inside its own bar instead
@@ -1203,6 +1221,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     onLeave: () => router.push(`/projects/${projectId}`),
                     extra: checkpointPanel || undefined,
                     title: currentProject?.title,
+                    renderTools,
                   }}
                   onChange={(results) => setAnnotations(results)}
                   onSubmit={async (results) => {

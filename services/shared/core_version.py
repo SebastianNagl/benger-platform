@@ -753,11 +753,30 @@ whenever one is added, renamed or removed):
   ``pending_invitation(db, organization_id, email)``,
   ``queue_invitation_mail(...)``; invitations are valid for
   ``INVITATION_VALIDITY_DAYS`` = 90 days (was 7).
+
+2.50 (2026-11-02): exam tools (Hilfsmittel) and tool providers.
+  Migration 127 adds ``projects.exam_tools`` (JSONB, NULL = never chosen;
+  read-only on ``ProjectResponse``, travels through export/import via
+  ``exam_tools.portable_exam_tools`` which drops ``connection_id``) and the
+  tables ``tool_providers`` (``models.ToolProvider``),
+  ``org_tool_provider_connections`` (``models.OrgToolProviderConnection``,
+  Fernet ``encrypted_credential``) and ``law_text_norms``
+  (``models.LawTextNorm``, GIN full-text index ``ix_law_text_norms_search``)
+  and ``exam_tool_notes`` (``project_models.ExamToolNote``, one per task and
+  user, cascades with the task; not exported).
+  Frontend: ``ExamChrome.renderTools(variant)`` (host-supplied like
+  ``renderTimer``; DynamicAnnotationInterface shows the 'default' variant in
+  the classic and modern renders, a state interface places the 'state'
+  variant itself). Slots: ``ExamToolDock`` (props ``variant``,
+  ``projectId``, ``taskId``, ``examTools``), ``project-exam-tools`` (props
+  ``project``, ``onRefresh``; project page after ``project-exam-security``)
+  and ``OrgToolProvidersPanel`` (same props as ``OrgOcrModelPanel``, behind
+  flag ``exam_tools``).
 """
 
 import os
 
-CORE_API_VERSION = "2.49"
+CORE_API_VERSION = "2.50"
 
 
 def extended_required() -> bool:
