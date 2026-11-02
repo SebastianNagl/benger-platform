@@ -43,6 +43,7 @@ import type {
   OrganizationRole,
 } from '@/lib/api/types'
 import { useSlot } from '@/lib/extensions/slots'
+import { useFeatureFlag } from '@/lib/featureFlags'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import { Menu } from '@headlessui/react'
 import {
@@ -51,6 +52,7 @@ import {
   ChevronDownIcon,
   CloudIcon,
   CommandLineIcon,
+  DocumentMagnifyingGlassIcon,
   EnvelopeIcon,
   KeyIcon,
   PencilIcon,
@@ -104,6 +106,9 @@ export function OrganizationsTab() {
   const confirmDelete = useDeleteConfirm()
   const searchParams = useSearchParams()
   const OrgLtiPanel = useSlot('OrgLtiPanel')
+  // Default vision model for handwritten uploads (extended slot + flag).
+  const OrgOcrModelPanel = useSlot('OrgOcrModelPanel')
+  const handwritingOcrEnabled = useFeatureFlag('handwriting_ocr')
 
   // Combine user with organizations for permissions system
   const userWithOrganizations = useMemo(
@@ -142,6 +147,7 @@ export function OrganizationsTab() {
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
   const [showLtiPanel, setShowLtiPanel] = useState(false)
+  const [showOcrModelPanel, setShowOcrModelPanel] = useState(false)
   const [showJurisdictionModal, setShowJurisdictionModal] = useState(false)
   const [isEditingOrg, setIsEditingOrg] = useState(false)
 
@@ -866,6 +872,9 @@ export function OrganizationsTab() {
   const showLtiMenuItem = Boolean(
     OrgLtiPanel && (canManageOrg || adminGroupIds.length > 0),
   )
+  const showOcrModelMenuItem = Boolean(
+    OrgOcrModelPanel && handwritingOcrEnabled && canManageOrg,
+  )
   // Access keys (bgr_...) for scripts and the API: org admins, and group
   // admins for their groups, while the public_api feature is on.
   const showAccessKeysMenuItem = Boolean(
@@ -1185,6 +1194,22 @@ export function OrganizationsTab() {
                         >
                           <ScaleIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                           {t('admin.organizations.jurisdiction.label')}
+                        </button>
+                      )}
+                    </Menu.Item>
+                  )}
+                  {showOcrModelMenuItem && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                          } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
+                          onClick={() => setShowOcrModelPanel(true)}
+                          data-testid="org-ocr-model-button"
+                        >
+                          <DocumentMagnifyingGlassIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          {t('admin.organizations.ocrModel')}
                         </button>
                       )}
                     </Menu.Item>
@@ -1709,6 +1734,31 @@ export function OrganizationsTab() {
               onSaved={async (jurisdiction) => {
                 setSelectedOrganization((prev) =>
                   prev ? { ...prev, jurisdiction } : prev,
+                )
+                await refreshOrganizations()
+              }}
+            />
+          )}
+
+          {/* Default model for handwritten uploads (extended slot) */}
+          {selectedOrganization && showOcrModelMenuItem && OrgOcrModelPanel && (
+            <OrgOcrModelPanel
+              organizationId={selectedOrganization.id}
+              organizationName={selectedOrganization.name}
+              settings={selectedOrganization.settings}
+              open={showOcrModelPanel}
+              onOpenChange={setShowOcrModelPanel}
+              onSaved={async (modelId: string | null) => {
+                setSelectedOrganization((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        settings: {
+                          ...(prev.settings || {}),
+                          handwriting_ocr_model: modelId,
+                        },
+                      }
+                    : prev,
                 )
                 await refreshOrganizations()
               }}

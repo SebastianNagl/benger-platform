@@ -75,6 +75,10 @@ updates:
       - dependency-name: "ijson"
       - dependency-name: "zstandard"
       - dependency-name: "stripe"
+      - dependency-name: "pdfplumber"
+      - dependency-name: "pypdfium2"
+      - dependency-name: "pillow"
+      - dependency-name: "pillow-heif"
       # END shared constraints
 
   # "uv" (not "pip"): the images install from uv.lock, so an update has to
@@ -131,6 +135,10 @@ updates:
       - dependency-name: "ijson"
       - dependency-name: "zstandard"
       - dependency-name: "stripe"
+      - dependency-name: "pdfplumber"
+      - dependency-name: "pypdfium2"
+      - dependency-name: "pillow"
+      - dependency-name: "pillow-heif"
       # END shared constraints
 
   - package-ecosystem: "github-actions"

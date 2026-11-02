@@ -132,6 +132,8 @@ def build_project_export_data(project, organization_id) -> dict:
         "strict_timer_enabled": project.strict_timer_enabled,
         "allow_external_paste": project.allow_external_paste,
         "allow_solution_upload": project.allow_solution_upload,
+        "handwriting_ocr_enabled": project.handwriting_ocr_enabled,
+        "handwriting_ocr_model": project.handwriting_ocr_model,
         "restorable_checkpoints_enabled": project.restorable_checkpoints_enabled,
         "checkpoint_interval_seconds": project.checkpoint_interval_seconds,
         "skip_queue": project.skip_queue,

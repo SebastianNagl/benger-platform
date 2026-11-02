@@ -698,11 +698,49 @@ whenever one is added, renamed or removed):
   (props ``settings``, ``onSettingsChange``, ``editing``) renders overlay
   checkboxes directly below the paste switch in Annotationsablauf &
   -verhalten.
+
+2.48 (2026-11-02): handwritten solution uploads (migration 125).
+  - ``shared.ai_services.attachments``: ``Attachment(mime_type, data,
+    filename)`` and ``generate_with_attachments(service, prompt, attachments,
+    *, model_name, ...)``. Anthropic, OpenAI (chat completions) and Google
+    read images and PDFs (``SUPPORTS_ATTACHMENTS``); any other provider is
+    refused with ``UnsupportedAttachmentError`` instead of silently dropping
+    the pages.
+  - ``shared.page_documents``: ``sniff_page_format``, ``classify_pdf_pages``
+    (text-layer vs scanned pages), ``pdf_subset``, ``pdf_page_count``,
+    ``normalize_photo`` (HEIC, EXIF rotation, downsizing). Workers now ship
+    pdfplumber, pypdfium2, Pillow and pillow-heif.
+  - Table ``submission_ocr_jobs`` (model ``SubmissionOcrJob``; mode own |
+    on_behalf | pending, ``user_id`` NULL only for pending; ordered
+    ``page_keys``), ``submission_files.ocr_job_id`` + ``page_index``, and
+    ``projects.handwriting_ocr_enabled`` (NOT NULL, default FALSE) +
+    ``projects.handwriting_ocr_model`` (override, NULL = the organization's
+    default); both on ``ProjectResponse`` / ``ProjectUpdate`` and in
+    export/import.
+  - ``shared.org_ocr``: the organization default lives in
+    ``organizations.settings.handwriting_ocr_model``, set by
+    ``PUT /organizations/{id}/ocr-model`` (org admins; active official
+    multimodal model or null); ``effective_ocr_model(db, project)``.
+  - ``shared.annotation_submission``: ``persist_submission(db, *, task,
+    project, user_id, fields, was_cancelled=False, auto_submitted=None)``,
+    the persistence core of ``persist_annotation_submission`` (advisory
+    lock, update in place, maximum-annotations limit as
+    ``MaximumAnnotationsReached``, counters, draft cleanup, race fallback),
+    now usable from workers; ``complete_assignment(...)``.
+  - Frontend slot ``OrgOcrModelPanel`` (props ``organizationId``,
+    ``organizationName``, ``settings``, ``open``, ``onOpenChange``,
+    ``onSaved``), opened from the organization's "Mehr" menu for org admins.
+  - ``project_models.attach_ocr_job_to_user(db, job, user_id)`` gives a
+    pending job its person (creates the ``submission_files`` rows, mode
+    becomes on_behalf; does not commit or persist the annotation).
+  - Celery: new queue ``ocr`` (own worker pool ``workerPools.ocr``, compose
+    ``worker-ocr``) for ``tasks.ocr_handwritten_submission`` and
+    ``tasks.ocr_finalize_submission``, 600/660 s.
 """
 
 import os
 
-CORE_API_VERSION = "2.47"
+CORE_API_VERSION = "2.48"
 
 
 def extended_required() -> bool:

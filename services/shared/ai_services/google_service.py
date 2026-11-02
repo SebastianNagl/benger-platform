@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 from google import genai
 from google.genai import types
 
+from .attachments import google_contents
 from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
@@ -57,6 +58,7 @@ def retry_with_exponential_backoff(
 
 
 class GoogleService(BaseAIService):
+    SUPPORTS_ATTACHMENTS = True
     """Service for handling Google Gemini API interactions using the new google.genai SDK"""
 
     def __init__(self, api_key: Optional[str] = None):
@@ -213,7 +215,10 @@ class GoogleService(BaseAIService):
             # Make Google Gemini API call using new client-based approach
             response = self.client.models.generate_content(
                 model=model_name,
-                contents=prompt,
+                contents=(
+                    google_contents(prompt, kwargs["attachments"])
+                    if kwargs.get("attachments") else prompt
+                ),
                 config=config,
             )
 

@@ -39,6 +39,10 @@ export interface AdvancedSettings {
   allow_external_paste: boolean
   // false = the writer cannot hand in a file as the answer (overlay upload)
   allow_solution_upload: boolean
+  // handwritten uploads (overlay setting): switch + model override
+  // (null = the organization's default)
+  handwriting_ocr_enabled: boolean
+  handwriting_ocr_model: string | null
   skip_queue: 'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped'
   questionnaire_enabled: boolean
   questionnaire_config: string

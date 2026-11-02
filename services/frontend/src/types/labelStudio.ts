@@ -74,6 +74,11 @@ export interface Project {
   // false = the writer cannot hand in a file as the answer (overlay upload)
   allow_solution_upload?: boolean
 
+  // Handwritten solution uploads (extended): switch + model override
+  // (null = the organization's default)
+  handwriting_ocr_enabled?: boolean
+  handwriting_ocr_model?: string | null
+
   // Safe Exam Browser gate (extended feature; read-only on the project)
   seb_required?: boolean
 
@@ -198,6 +203,8 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   instructions_always_visible?: boolean
   allow_external_paste?: boolean
   allow_solution_upload?: boolean
+  handwriting_ocr_enabled?: boolean
+  handwriting_ocr_model?: string | null
   conditional_instructions?: Array<{
     id: string
     content: string

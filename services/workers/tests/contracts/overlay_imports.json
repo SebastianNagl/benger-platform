@@ -1,5 +1,5 @@
 {
-  "generated_from": "a315a693e995a714613cce4836b2646e094b7515",
+  "generated_from": "82b1c3970c471dfef0aa22333ea20c921e099d2f",
   "api_shared": [
     {
       "module": "account_activation",
@@ -66,11 +66,47 @@
       ]
     },
     {
+      "module": "ai_services.attachments",
+      "name": "Attachment",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "ai_services.attachments",
+      "name": "UnsupportedAttachmentError",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "ai_services.attachments",
+      "name": "generate_with_attachments",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "ai_services.attachments",
+      "name": "service_supports_attachments",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "ai_services.provider_capabilities",
+      "name": "calculate_cost",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
       "module": "ai_services.provider_capabilities",
       "name": "get_provider_from_model",
       "importers": [
         "benger_extended/lti/billing.py",
-        "benger_extended/workers/judge_resolution.py"
+        "benger_extended/workers/judge_resolution.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -130,6 +166,20 @@
       ]
     },
     {
+      "module": "annotation_submission",
+      "name": "complete_assignment",
+      "importers": [
+        "benger_extended/ocr_submission.py"
+      ]
+    },
+    {
+      "module": "annotation_submission",
+      "name": "persist_submission",
+      "importers": [
+        "benger_extended/ocr_submission.py"
+      ]
+    },
+    {
       "module": "app.core.authorization",
       "name": "Permission",
       "importers": [
@@ -160,6 +210,7 @@
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/grading_feedback.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/judge_prompts.py",
         "benger_extended/api/routers/korrektur.py",
@@ -211,6 +262,7 @@
       "importers": [
         "benger_extended/api/routers/billing.py",
         "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/judge_prompts.py",
         "benger_extended/api/routers/korrektur.py",
@@ -266,6 +318,7 @@
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/synthetic.py",
         "benger_extended/api/routers/timer.py",
@@ -318,6 +371,7 @@
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/billing.py",
         "benger_extended/api/routers/feedback_review.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
@@ -675,6 +729,7 @@
       "name": "ensure_immediate_evaluation",
       "importers": [
         "benger_extended/api/hooks.py",
+        "benger_extended/ocr_submission.py",
         "benger_extended/workers/auto_submit_timer.py"
       ]
     },
@@ -810,6 +865,7 @@
         "benger_extended/api/routers/synthetic.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/judge_resolution.py",
+        "benger_extended/workers/ocr_tasks.py",
         "benger_extended/workers/synthetic_tasks.py"
       ]
     },
@@ -950,7 +1006,8 @@
         "benger_extended/api/routers/lti_pending.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/config.py",
-        "benger_extended/lti/dynamic_registration.py"
+        "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1057,6 +1114,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/leaderboards_human.py",
@@ -1110,6 +1168,7 @@
       "module": "object_storage",
       "name": "object_storage",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
     },
@@ -1203,6 +1262,22 @@
       ]
     },
     {
+      "module": "org_jurisdiction",
+      "name": "org_jurisdiction",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "org_ocr",
+      "name": "effective_ocr_model",
+      "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
       "module": "org_resolution",
       "name": "resolve_dispatch_org_for_project",
       "importers": [
@@ -1214,6 +1289,50 @@
       "name": "resolve_dispatch_org_for_project_async",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "PageDocumentError",
+      "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "classify_pdf_pages",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "normalize_photo",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "pdf_page_count",
+      "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "pdf_subset",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "page_documents",
+      "name": "sniff_page_format",
+      "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1253,6 +1372,7 @@
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/ocr_submission.py",
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1263,6 +1383,7 @@
       "importers": [
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/timer.py",
+        "benger_extended/ocr_submission.py",
         "benger_extended/workers/auto_submit_timer.py"
       ]
     },
@@ -1355,6 +1476,7 @@
         "benger_extended/api/routers/billing.py",
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
@@ -1380,7 +1502,8 @@
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/falloesung_tasks.py",
-        "benger_extended/workers/lti_grade_push.py"
+        "benger_extended/workers/lti_grade_push.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1396,7 +1519,8 @@
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
-        "benger_extended/marketplace/service.py"
+        "benger_extended/marketplace/service.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1426,7 +1550,18 @@
       "module": "project_models",
       "name": "SubmissionFile",
       "importers": [
-        "benger_extended/api/routers/submission_uploads.py"
+        "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/ocr_submission.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "SubmissionOcrJob",
+      "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/ocr_submission.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1438,6 +1573,7 @@
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
@@ -1459,7 +1595,8 @@
         "benger_extended/workers/auto_submit_timer.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/flashcard_tasks.py",
-        "benger_extended/workers/lti_grade_push.py"
+        "benger_extended/workers/lti_grade_push.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1478,7 +1615,9 @@
       "importers": [
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py",
-        "benger_extended/workers/auto_submit_timer.py"
+        "benger_extended/ocr_submission.py",
+        "benger_extended/workers/auto_submit_timer.py",
+        "benger_extended/workers/ocr_tasks.py"
       ]
     },
     {
@@ -1527,6 +1666,7 @@
       "module": "project_schemas",
       "name": "AnnotationCreate",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
     },
@@ -1577,6 +1717,7 @@
       "module": "project_window",
       "name": "project_writes_allowed",
       "importers": [
+        "benger_extended/ocr_submission.py",
         "benger_extended/workers/auto_submit_timer.py"
       ]
     },
@@ -1690,6 +1831,7 @@
       "module": "routers.projects.annotations",
       "name": "persist_annotation_submission",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
     },
@@ -1771,6 +1913,7 @@
       "module": "routers.projects.helpers",
       "name": "check_task_assigned_to_user",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py"
       ]
@@ -1831,6 +1974,7 @@
       "module": "routers.projects.helpers",
       "name": "enforce_project_write_window",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
     },
@@ -1838,6 +1982,7 @@
       "module": "routers.projects.helpers",
       "name": "enforce_seb",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py"
@@ -1869,6 +2014,7 @@
       "module": "routers.projects.helpers",
       "name": "get_project_access_tier",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/submission_uploads.py",
@@ -1905,6 +2051,7 @@
       "module": "routers.projects.helpers",
       "name": "require_write_tier",
       "importers": [
+        "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
@@ -2269,6 +2416,13 @@
       ]
     },
     {
+      "module": "storage.object_storage",
+      "name": "object_storage",
+      "importers": [
+        "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
       "module": "task_rubric_service",
       "name": "RubricValidationError",
       "importers": [
@@ -2397,6 +2551,7 @@
         "benger_extended/workers/billing_tasks.py",
         "benger_extended/workers/flashcard_tasks.py",
         "benger_extended/workers/lti_grade_push.py",
+        "benger_extended/workers/ocr_tasks.py",
         "benger_extended/workers/synthetic_tasks.py"
       ]
     },
@@ -2426,6 +2581,7 @@
       "name": null,
       "importers": [
         "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/ocr_tasks.py",
         "benger_extended/workers/synthetic_tasks.py"
       ]
     },
@@ -2456,6 +2612,7 @@
       "name": "_clamp_temperature_to_constraint",
       "importers": [
         "benger_extended/workers/bewertungsbogen_tasks.py",
+        "benger_extended/workers/ocr_tasks.py",
         "benger_extended/workers/synthetic_tasks.py"
       ]
     },

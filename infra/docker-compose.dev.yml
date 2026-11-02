@@ -180,6 +180,29 @@ services:
       # guard); local dev points them at the compose MinIO.
       ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS: "true"
 
+  # OCR pool, same dev treatment as worker-fast.
+  worker-ocr:
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../services/workers:/app:rw
+      - ../services/shared:/shared:rw
+    environment:
+      LOG_LEVEL: DEBUG
+      ENVIRONMENT: development
+      STORAGE_TYPE: minio
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-bengerdev}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-bengerdevsecret}
+      S3_BUCKET_NAME: benger-exports
+      S3_REGION: us-east-1
+      S3_USE_SSL: "false"
+      STORAGE_BASE_URL: http://localhost:9000
+      # Org storage connections deny private endpoints by default (SSRF
+      # guard); local dev points them at the compose MinIO.
+      ORG_STORAGE_ALLOW_PRIVATE_ENDPOINTS: "true"
+
   # Disable production frontend in development to avoid conflicts
   frontend:
     deploy:

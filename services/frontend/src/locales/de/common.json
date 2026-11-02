@@ -4593,7 +4593,8 @@
         "groupHelp": "Projekte, die in dieser Gruppe erstellt werden, bekommen im Projekt-Assistenten die Projekttypen dieser Rechtsordnung."
       },
       "editOrganization": "Organisation bearbeiten",
-      "deleteOrganization": "Organisation löschen"
+      "deleteOrganization": "Organisation löschen",
+      "ocrModel": "Handschrift-Erkennung"
     },
     "usersPage": {
       "breadcrumb": {

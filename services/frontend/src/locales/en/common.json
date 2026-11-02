@@ -4593,7 +4593,8 @@
         "groupHelp": "Projects created in this group get this jurisdiction's project types in the project wizard."
       },
       "editOrganization": "Edit organization",
-      "deleteOrganization": "Delete organization"
+      "deleteOrganization": "Delete organization",
+      "ocrModel": "Handwriting recognition"
     },
     "usersPage": {
       "breadcrumb": {

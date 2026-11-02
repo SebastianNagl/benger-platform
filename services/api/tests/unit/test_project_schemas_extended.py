@@ -135,6 +135,20 @@ class TestProjectUpdate:
         }
         assert "allow_solution_upload" not in ProjectUpdate().dict(exclude_unset=True)
 
+    def test_handwriting_ocr_is_off_by_default(self):
+        """handwriting_ocr_enabled is off by default; handwriting_ocr_model
+        null = the organization's default, a cleared select ("") too; a model
+        id is stored trimmed."""
+        from project_schemas import ProjectResponse, ProjectUpdate
+
+        assert ProjectResponse.model_fields["handwriting_ocr_enabled"].default is False
+        assert ProjectResponse.model_fields["handwriting_ocr_model"].default is None
+        assert ProjectUpdate(handwriting_ocr_model="  ").handwriting_ocr_model is None
+        assert ProjectUpdate(handwriting_ocr_model=" gpt-5 ").handwriting_ocr_model == "gpt-5"
+        assert ProjectUpdate(handwriting_ocr_model=None).dict(exclude_unset=True) == {
+            "handwriting_ocr_model": None
+        }
+
 
 class TestPaginatedResponse:
     def test_empty_response(self):
