@@ -31,15 +31,27 @@ export interface ChangelogEntry {
    * (feature flag `public_api`).
    */
   requires?: 'publicApi'
+  /**
+   * Feature flag the entry announces (e.g. `handwriting_ocr`). The entry is
+   * hidden while the flag is off for the current user, so it can ship with
+   * a dark feature and shows up once the flag is switched on.
+   */
+  featureFlag?: string
 }
 
 /** The entries the current user may see, given what is switched on. */
 export function filterAvailableChangelogEntries(
   entries: ChangelogEntry[],
-  availability: { publicApi: boolean },
+  availability: {
+    publicApi: boolean
+    /** Flags of the current user by name; missing = off. */
+    flags?: Readonly<Record<string, boolean>>
+  },
 ): ChangelogEntry[] {
   return entries.filter(
-    (e) => e.requires !== 'publicApi' || availability.publicApi,
+    (e) =>
+      (e.requires !== 'publicApi' || availability.publicApi) &&
+      (!e.featureFlag || availability.flags?.[e.featureFlag] === true),
   )
 }
 

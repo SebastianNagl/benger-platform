@@ -300,6 +300,21 @@ export function useFeatureFlag(name: FeatureFlagName): boolean {
   return useFeatureFlagStatus(name) === 'on'
 }
 
+const NO_FLAGS: Readonly<Record<string, boolean>> = Object.freeze({})
+
+/**
+ * Every flag of the current viewer by name (empty while loading or after an
+ * error), for lists that hide items per flag, e.g. changelog entries.
+ */
+export function useFeatureFlagMap(): Readonly<Record<string, boolean>> {
+  const { user, isLoading } = useAuth()
+  const subject = user?.id != null ? String(user.id) : ANONYMOUS
+  useFeatureFlagsSync()
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => INITIAL)
+  if (isLoading || snapshot.subject !== subject) return NO_FLAGS
+  return snapshot.flags ?? NO_FLAGS
+}
+
 const serverActive = (): readonly string[] => []
 
 /** The extension packages active for the current viewer, sorted. */
