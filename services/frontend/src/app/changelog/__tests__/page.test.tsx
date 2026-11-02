@@ -38,6 +38,11 @@ jest.mock('@/hooks/usePublicApiEnabled', () => ({
   usePublicApiEnabled: () => mockPublicApi,
 }))
 
+let mockFlags: Record<string, boolean> = {}
+jest.mock('@/lib/featureFlags', () => ({
+  useFeatureFlagMap: () => mockFlags,
+}))
+
 let mockStudentLockedHost = false
 jest.mock('@/lib/utils/subdomain', () => ({
   isStudentLockedHost: () => mockStudentLockedHost,
@@ -80,6 +85,7 @@ describe('ChangelogPage', () => {
     mockUser = null
     mockStudentLockedHost = false
     mockPublicApi = false
+    mockFlags = {}
     PLATFORM_CHANGELOG.length = 0
     PLATFORM_CHANGELOG.push(
       {
@@ -126,6 +132,24 @@ describe('ChangelogPage', () => {
       audience: 'benger',
       requires: 'publicApi',
     })
+    render(<ChangelogPage />)
+    expect(screen.getByText('Öffentliche API')).toBeInTheDocument()
+  })
+
+  it('hides an entry while its feature flag is off and shows it once on', () => {
+    mockPublicApi = false
+    PLATFORM_CHANGELOG.push({
+      id: 't-public-api',
+      date: '2026-08-24',
+      audience: 'benger',
+      featureFlag: 'some_flag',
+    })
+    mockFlags = { other_flag: true }
+    const { unmount } = render(<ChangelogPage />)
+    expect(screen.queryByText('Öffentliche API')).not.toBeInTheDocument()
+    expect(screen.getByText('Nur BenGER')).toBeInTheDocument()
+    unmount()
+    mockFlags = { some_flag: true }
     render(<ChangelogPage />)
     expect(screen.getByText('Öffentliche API')).toBeInTheDocument()
   })

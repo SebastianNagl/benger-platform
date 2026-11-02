@@ -13,6 +13,7 @@ import {
   filterAvailableChangelogEntries,
   useChangelogEntries,
 } from '@/lib/extensions/changelog'
+import { useFeatureFlagMap } from '@/lib/featureFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { filterAndGroup } from '@/lib/utils/changelog'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
@@ -33,6 +34,7 @@ export default function ChangelogPage() {
   const extendedEntries = useChangelogEntries()
   const studentLockedHost = useStudentLockedHost()
   const publicApi = usePublicApiEnabled() === true
+  const flags = useFeatureFlagMap()
 
   // Which product the visitor is experiencing. useResolvedUiMode is the
   // single source of truth (host default + superadmin view switch); the
@@ -47,7 +49,7 @@ export default function ChangelogPage() {
   const groups = filterAndGroup(
     filterAvailableChangelogEntries(
       [...PLATFORM_CHANGELOG, ...extendedEntries],
-      { publicApi },
+      { publicApi, flags },
     ),
     brand,
   )

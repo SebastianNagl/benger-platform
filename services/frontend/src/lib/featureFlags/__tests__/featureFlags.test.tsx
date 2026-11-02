@@ -25,6 +25,7 @@ import {
   useActiveExtensionsReady,
   useExtensionActive,
   useFeatureFlag,
+  useFeatureFlagMap,
   useFeatureFlagStatus,
 } from '..'
 import { reportFeatureDisabled } from '../disabled'
@@ -324,4 +325,26 @@ it('seeds the last viewer of this browser at module load', () => {
     require('..')
     expect(active.getActiveExtensions()).toEqual(['compliance'])
   })
+})
+
+it("lists the viewer's flags by name, empty while loading and after errors", async () => {
+  function MapProbe() {
+    const flags = useFeatureFlagMap()
+    return <span data-testid="map">{JSON.stringify(flags)}</span>
+  }
+  const answer = deferred<unknown>()
+  mockGet.mockReturnValueOnce(answer.promise)
+  mockAuth = { user: { id: 'u1' }, isLoading: false }
+  render(<MapProbe />)
+  await flush()
+  expect(text('map')).toBe('{}')
+  answer.resolve({ flags: { a: true, b: false }, extensions: {} })
+  await flush()
+  expect(JSON.parse(text('map') ?? '')).toEqual({ a: true, b: false })
+
+  mockGet.mockRejectedValueOnce(new Error('down'))
+  await act(async () => {
+    await refreshFeatureFlags()
+  })
+  expect(text('map')).toBe('{}')
 })

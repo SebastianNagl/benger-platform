@@ -61,7 +61,7 @@ module.exports = {
             // Base typography matching protocol-ts
             fontSize: theme('fontSize.sm')[0],
             lineHeight: theme('lineHeight.7'),
-            color: theme('colors.zinc.700'),
+            color: 'var(--tw-prose-body)',
 
             // Prose styling
             '--tw-prose-body': theme('colors.zinc.700'),
@@ -178,7 +178,7 @@ module.exports = {
             },
             'h2 small, h3 small, h4 small': {
               fontFamily: [].concat(theme('fontFamily.mono')).join(', '),
-              color: theme('colors.zinc.500'),
+              color: 'var(--tw-prose-captions)',
               fontWeight: 500,
             },
             'h2 small': {
