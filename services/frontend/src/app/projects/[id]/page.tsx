@@ -357,6 +357,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   //  settings
   const [expanded, setExpanded] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
+  // Overlay checkboxes shown right below the paste switch (e.g. file upload).
+  const ProjectSettingsInterfaceExtra = useSlot(
+    'project-settings-interface-extra',
+  )
   const ProjectStatisticsExtended = useSlot('project-statistics-extended')
   // Exam-level Notenschlüssel editor inside the evaluation card. The slot
   // owns its own save (a minimal `{ grade_scale }` PUT against the
@@ -383,6 +387,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     require_comment_on_skip: false,
     require_confirm_before_submit: false,
     allow_external_paste: true,
+    allow_solution_upload: true,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
     questionnaire_enabled: false,
@@ -748,6 +753,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         require_confirm_before_submit:
           currentProject.require_confirm_before_submit || false,
         allow_external_paste: currentProject.allow_external_paste !== false,
+        allow_solution_upload: currentProject.allow_solution_upload !== false,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
         questionnaire_enabled: currentProject.questionnaire_enabled || false,
         questionnaire_config: currentProject.questionnaire_config || '',
@@ -2325,6 +2331,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       setAdvancedSettings={handleAdvancedSettingsChange}
                       editing={canEditProject()}
                       ProjectSettingsExtended={ProjectSettingsExtended}
+                      ProjectSettingsInterfaceExtra={
+                        ProjectSettingsInterfaceExtra
+                      }
                     />
                   </SubSection>
                 </ConfigCard>

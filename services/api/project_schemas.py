@@ -351,6 +351,8 @@ class ProjectUpdate(BaseModel):
     annotator_step_detail_after_submit: Optional[bool] = None
     # False blocks pasting text copied outside BenGER in the labeling UI.
     allow_external_paste: Optional[bool] = None
+    # False hides the writer's own file upload (overlay solution upload).
+    allow_solution_upload: Optional[bool] = None
     # Per-project feature visibility (controls which configuration cards
     # render on the project detail page; pure UI gate)
     enable_annotation: Optional[bool] = None
@@ -507,6 +509,7 @@ class ProjectResponse(ProjectBase):
     # null = follows annotator_full_visibility_after_submit
     annotator_step_detail_after_submit: Optional[bool] = None
     allow_external_paste: bool = True
+    allow_solution_upload: bool = True
     enable_annotation: bool = True
     enable_generation: bool = True
     enable_evaluation: bool = True

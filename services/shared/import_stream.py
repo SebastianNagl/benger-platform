@@ -2533,6 +2533,7 @@ def _create_imported_project(
         annotation_time_limit_seconds=project_data.get("annotation_time_limit_seconds"),
         strict_timer_enabled=_setting(project_data, "strict_timer_enabled", False),
         allow_external_paste=_setting(project_data, "allow_external_paste", True),
+        allow_solution_upload=_setting(project_data, "allow_solution_upload", True),
         restorable_checkpoints_enabled=_setting(
             project_data, "restorable_checkpoints_enabled", True
         ),

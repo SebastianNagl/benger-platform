@@ -131,6 +131,7 @@ def build_project_export_data(project, organization_id) -> dict:
         "annotation_time_limit_seconds": project.annotation_time_limit_seconds,
         "strict_timer_enabled": project.strict_timer_enabled,
         "allow_external_paste": project.allow_external_paste,
+        "allow_solution_upload": project.allow_solution_upload,
         "restorable_checkpoints_enabled": project.restorable_checkpoints_enabled,
         "checkpoint_interval_seconds": project.checkpoint_interval_seconds,
         "skip_queue": project.skip_queue,

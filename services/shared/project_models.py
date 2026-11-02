@@ -101,6 +101,13 @@ class Project(Base):
     allow_external_paste = Column(
         Boolean, default=True, server_default=sa.true(), nullable=False
     )
+    # Whether annotators may hand in their answer as a file (the overlay's
+    # solution upload, itself behind a feature flag). Default True; False
+    # hides the upload for the writer, uploads on someone's behalf stay
+    # possible (mig 124).
+    allow_solution_upload = Column(
+        Boolean, default=True, server_default=sa.true(), nullable=False
+    )
 
     # Annotation time limit (Issue #1043)
     annotation_time_limit_enabled = Column(Boolean, default=False, nullable=False)

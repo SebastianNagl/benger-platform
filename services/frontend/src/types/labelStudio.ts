@@ -71,6 +71,8 @@ export interface Project {
 
   // false = the labeling UI blocks pasting text copied outside BenGER
   allow_external_paste?: boolean
+  // false = the writer cannot hand in a file as the answer (overlay upload)
+  allow_solution_upload?: boolean
 
   // Safe Exam Browser gate (extended feature; read-only on the project)
   seb_required?: boolean
@@ -195,6 +197,7 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   organization_ids?: string[]
   instructions_always_visible?: boolean
   allow_external_paste?: boolean
+  allow_solution_upload?: boolean
   conditional_instructions?: Array<{
     id: string
     content: string

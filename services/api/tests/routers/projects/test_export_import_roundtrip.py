@@ -1237,6 +1237,7 @@ class TestRoundtripExtensions:
         project.enable_evaluation = False
         project.enable_prompts = False
         project.allow_external_paste = False
+        project.allow_solution_upload = False
         db_session.commit()
 
         export = _export_project_dict(db_session, project.id)
@@ -1248,6 +1249,7 @@ class TestRoundtripExtensions:
         assert proj["annotator_step_detail_after_submit"] is False
         assert proj["enable_generation"] is False
         assert proj["allow_external_paste"] is False
+        assert proj["allow_solution_upload"] is False
         for key in ("is_private", "is_public", "public_role", "origin"):
             assert key not in proj, f"visibility/origin key exported: {key}"
 
@@ -1277,6 +1279,7 @@ class TestRoundtripExtensions:
         assert imported.enable_evaluation is False
         assert imported.enable_prompts is False
         assert imported.allow_external_paste is False
+        assert imported.allow_solution_upload is False
         # Unknown model ids are reconciled away like generation_config models.
         assert imported.llm_model_ids == [official_id]
         # Visibility is reset (the org named in the request owns the copy) and
@@ -1324,6 +1327,7 @@ class TestRoundtripExtensions:
         proj["enable_evaluation"] = None
         proj["enable_prompts"] = None
         proj.pop("allow_external_paste")
+        proj["allow_solution_upload"] = None
 
         result = run_full_project_import(
             db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
@@ -1338,6 +1342,7 @@ class TestRoundtripExtensions:
         assert imported.enable_evaluation is True
         assert imported.enable_prompts is True
         assert imported.allow_external_paste is True
+        assert imported.allow_solution_upload is True
 
 
 class TestTaskRubricRoundtrip:

@@ -691,7 +691,13 @@ whenever one is added, renamed or removed):
   False forbids pasting text copied outside BenGER while annotating. The
   frontend hook ``@/hooks/useExternalPasteGuard`` (``useExternalPasteGuard(
   enabled, onBlocked)``) enforces it; the labeling interface mounts it, and
-  overlays with their own answer surfaces mount it there.
+  overlays with their own answer surfaces mount it there. Also project
+  setting ``allow_solution_upload`` (migration 124, NOT NULL, default TRUE,
+  same schemas and round trip): persistence only, the overlay that offers
+  answer uploads enforces it. Slot ``project-settings-interface-extra``
+  (props ``settings``, ``onSettingsChange``, ``editing``) renders overlay
+  checkboxes directly below the paste switch in Annotationsablauf &
+  -verhalten.
 """
 
 import os

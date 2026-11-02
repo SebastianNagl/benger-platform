@@ -126,6 +126,15 @@ class TestProjectUpdate:
         }
         assert "allow_external_paste" not in ProjectUpdate().dict(exclude_unset=True)
 
+    def test_allow_solution_upload_defaults_to_allowed(self):
+        from project_schemas import ProjectResponse, ProjectUpdate
+
+        assert ProjectResponse.model_fields["allow_solution_upload"].default is True
+        assert ProjectUpdate(allow_solution_upload=False).dict(exclude_unset=True) == {
+            "allow_solution_upload": False
+        }
+        assert "allow_solution_upload" not in ProjectUpdate().dict(exclude_unset=True)
+
 
 class TestPaginatedResponse:
     def test_empty_response(self):
