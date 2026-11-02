@@ -53,6 +53,11 @@ jobs:
         with:
           context: services/api
           file: services/api/Dockerfile
+          # The test stage (test extra, root), like ci.yml and the compose
+          # test-api-runner. The Dockerfile's last stage is the non-root
+          # production image without pytest, which made every shard fail
+          # with "pytest: not found" once the images went uid 1000.
+          target: test
           load: true
           push: false
           tags: benger-test-test-api-runner:latest
