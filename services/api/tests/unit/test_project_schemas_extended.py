@@ -115,6 +115,17 @@ class TestProjectUpdate:
             is None
         )
 
+    def test_allow_external_paste_defaults_to_allowed(self):
+        """allow_external_paste: pasting is allowed unless a project opts
+        out; a PATCH carries the switch only when it was set."""
+        from project_schemas import ProjectResponse, ProjectUpdate
+
+        assert ProjectResponse.model_fields["allow_external_paste"].default is True
+        assert ProjectUpdate(allow_external_paste=False).dict(exclude_unset=True) == {
+            "allow_external_paste": False
+        }
+        assert "allow_external_paste" not in ProjectUpdate().dict(exclude_unset=True)
+
 
 class TestPaginatedResponse:
     def test_empty_response(self):

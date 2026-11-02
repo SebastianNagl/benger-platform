@@ -1347,6 +1347,8 @@
         "showSkipButtonHelp": "Permettre aux annotateurs de passer les tâches difficiles",
         "requireCommentOnSkip": "Commentaire obligatoire pour passer",
         "requireCommentOnSkipHelp": "Exiger une explication lorsqu'une tâche est passée",
+        "allowExternalPaste": "Autoriser le collage de texte provenant de l'extérieur de BenGER",
+        "allowExternalPasteHelp": "Si cette option est désactivée, seul le texte copié dans BenGER peut être collé lors de l'annotation.",
         "skipQueue": "Comportement lors d'un passage",
         "skipQueueHelp": "Détermine ce qui se passe lorsqu'un annotateur passe une tâche",
         "skipQueueRequeueForMe": "Remettre dans ma file",
@@ -7950,7 +7952,8 @@
     },
     "clipboard": {
       "copied": "Copié dans le presse-papiers",
-      "copyFailed": "Échec de la copie dans le presse-papiers"
+      "copyFailed": "Échec de la copie dans le presse-papiers",
+      "externalPasteBlocked": "Le collage de texte provenant de l'extérieur de BenGER est désactivé dans ce projet."
     },
     "operation": {
       "generation": "Génération de réponses",

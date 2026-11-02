@@ -16,6 +16,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useActivityTracker } from '@/hooks/useActivityTracker'
+import { useExternalPasteGuard } from '@/hooks/useExternalPasteGuard'
 import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
@@ -502,6 +503,14 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // View-only rendering: closed window or attempted tier. Both hide submit /
   // skip and stop every draft write (local and server).
   const readOnlyView = windowReadOnly || attemptedReadOnly
+
+  // Project setting allow_external_paste: when switched off, only text copied
+  // inside BenGER can be pasted (or dropped) while annotating. The listeners
+  // sit on document, so overlay editors and portalled modals are covered.
+  useExternalPasteGuard(
+    currentProject?.allow_external_paste === false && !readOnlyView,
+    () => addToast(t('toasts.clipboard.externalPasteBlocked'), 'warning'),
+  )
 
   // Periodic server draft sync for all projects (shared with the student exam
   // attempt via useServerDraftSync — one implementation, no duplicate logic).

@@ -39,6 +39,7 @@ function makeSettings(
     show_submit_button: true,
     require_comment_on_skip: false,
     require_confirm_before_submit: false,
+    allow_external_paste: true,
     skip_queue: 'requeue_for_others',
     questionnaire_enabled: false,
     questionnaire_config: '',
@@ -427,6 +428,7 @@ describe('AdvancedSettingsCard', () => {
       [/Always show instructions/i, 'instructions_always_visible', false],
       [/^Show Skip Button$/i, 'show_skip_button', true],
       [/^Require Comment on Skip$/i, 'require_comment_on_skip', false],
+      [/Allow pasting text from outside BenGER/i, 'allow_external_paste', true],
       [/^Show Submit Button$/i, 'show_submit_button', true],
       [
         /Require confirmation before submit/i,

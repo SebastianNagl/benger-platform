@@ -349,6 +349,8 @@ class ProjectUpdate(BaseModel):
     # submitting. null = follow annotator_full_visibility_after_submit;
     # an explicit null in a PATCH resets the project to that default.
     annotator_step_detail_after_submit: Optional[bool] = None
+    # False blocks pasting text copied outside BenGER in the labeling UI.
+    allow_external_paste: Optional[bool] = None
     # Per-project feature visibility (controls which configuration cards
     # render on the project detail page; pure UI gate)
     enable_annotation: Optional[bool] = None
@@ -504,6 +506,7 @@ class ProjectResponse(ProjectBase):
     annotator_full_visibility_after_submit: bool = False
     # null = follows annotator_full_visibility_after_submit
     annotator_step_detail_after_submit: Optional[bool] = None
+    allow_external_paste: bool = True
     enable_annotation: bool = True
     enable_generation: bool = True
     enable_evaluation: bool = True

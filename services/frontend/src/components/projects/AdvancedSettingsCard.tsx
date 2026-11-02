@@ -35,6 +35,8 @@ export interface AdvancedSettings {
   show_submit_button: boolean
   require_comment_on_skip: boolean
   require_confirm_before_submit: boolean
+  // false = annotators can only paste text they copied inside BenGER
+  allow_external_paste: boolean
   skip_queue: 'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped'
   questionnaire_enabled: boolean
   questionnaire_config: string
@@ -617,6 +619,30 @@ export function AdvancedSettingsCard({
                       setAdvancedSettings((prev: any) => ({
                         ...prev,
                         require_comment_on_skip: e.target.checked,
+                      }))
+                    }
+                    disabled={!editing}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>
+                      {t('project.settings.interface.allowExternalPaste')}
+                    </Label>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('project.settings.interface.allowExternalPasteHelp')}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    data-testid="allow-external-paste-checkbox"
+                    checked={advancedSettings.allow_external_paste}
+                    onChange={(e) =>
+                      setAdvancedSettings((prev: any) => ({
+                        ...prev,
+                        allow_external_paste: e.target.checked,
                       }))
                     }
                     disabled={!editing}

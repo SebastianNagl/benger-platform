@@ -382,6 +382,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     show_submit_button: true,
     require_comment_on_skip: false,
     require_confirm_before_submit: false,
+    allow_external_paste: true,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
     questionnaire_enabled: false,
@@ -746,6 +747,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           currentProject.require_comment_on_skip || false,
         require_confirm_before_submit:
           currentProject.require_confirm_before_submit || false,
+        allow_external_paste: currentProject.allow_external_paste !== false,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
         questionnaire_enabled: currentProject.questionnaire_enabled || false,
         questionnaire_config: currentProject.questionnaire_config || '',
