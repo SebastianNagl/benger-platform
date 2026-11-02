@@ -1,5 +1,5 @@
 {
-  "generated_from": "82b1c3970c471dfef0aa22333ea20c921e099d2f",
+  "generated_from": "03b2e4684d59583eabff8368ce8d26b1c07c4a68",
   "api_shared": [
     {
       "module": "account_activation",
@@ -643,6 +643,7 @@
       "module": "feature_flags.service",
       "name": "is_enabled_for_sync",
       "importers": [
+        "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/feature_flags/service.py"
       ]
     },
@@ -860,6 +861,13 @@
     },
     {
       "module": "models",
+      "name": "Invitation",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "models",
       "name": "LLMModel",
       "importers": [
         "benger_extended/api/routers/synthetic.py",
@@ -1004,6 +1012,7 @@
         "benger_extended/api/routers/billing.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti_pending.py",
+        "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/config.py",
         "benger_extended/lti/dynamic_registration.py",
@@ -1274,6 +1283,7 @@
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/student_exams.py",
+        "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/workers/ocr_tasks.py"
       ]
     },
@@ -1469,6 +1479,20 @@
     },
     {
       "module": "project_models",
+      "name": "PENDING_UPLOAD_OPEN_STATUSES",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "PendingSubmissionUpload",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "project_models",
       "name": "Project",
       "importers": [
         "benger_extended/api/hooks.py",
@@ -1560,6 +1584,7 @@
       "name": "SubmissionOcrJob",
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
+        "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/ocr_submission.py",
         "benger_extended/workers/ocr_tasks.py"
       ]
@@ -1606,6 +1631,7 @@
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py",
+        "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/lti/name_visibility.py"
       ]
     },
@@ -1646,6 +1672,13 @@
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "attach_ocr_job_to_user",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
       ]
     },
     {
@@ -1825,6 +1858,34 @@
       "importers": [
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "routers.invitations",
+      "name": "add_existing_user",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.invitations",
+      "name": "invite_or_reuse",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.invitations",
+      "name": "pending_invitation",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
+      ]
+    },
+    {
+      "module": "routers.organizations",
+      "name": "can_manage_organization",
+      "importers": [
+        "benger_extended/api/routers/submission_uploads.py"
       ]
     },
     {
