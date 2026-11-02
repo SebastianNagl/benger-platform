@@ -108,6 +108,7 @@ class EmailVerificationService:
 
         messages = []
         joined: list[tuple[str, str]] = []
+        accepted: list = []
 
         # Find pending invitations for this user (by email or pending_user_id)
         filters = [
@@ -153,6 +154,7 @@ class EmailVerificationService:
                     invitation.accepted = True
                     invitation.accepted_at = now
                     changed = True
+                    accepted.append(invitation)
                     continue
 
                 if existing_membership is not None:
@@ -182,6 +184,7 @@ class EmailVerificationService:
 
                 ensure_invitation_group_membership(db, invitation, user_id)
                 changed = True
+                accepted.append(invitation)
 
                 # Log successful invitation acceptance
                 self._log_email_event(
@@ -217,6 +220,12 @@ class EmailVerificationService:
         if changed:
             db.commit()
             logger.info(f"Auto-accepted {len(messages)} invitations for user {user_id}")
+            # Extension work that waits for the person to join (solutions
+            # uploaded for them before they had an account). Isolated: a
+            # failure is logged and never undoes the acceptance.
+            from extensions import run_after_invitations_accepted
+
+            run_after_invitations_accepted(db, accepted, user_id)
 
         # Tell the org admins, as the accept endpoint does.
         if joined:

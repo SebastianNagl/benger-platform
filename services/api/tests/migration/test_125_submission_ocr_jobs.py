@@ -26,8 +26,8 @@ MIGRATION_PATH = os.path.normpath(
 )
 
 
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_125", MIGRATION_PATH)
+def _load_migration(path=MIGRATION_PATH, name="mig_125"):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -91,7 +91,14 @@ class TestMigration125Shape:
     def test_downgrade_then_upgrade_rebuilds(self, test_db: Session):
         conn = test_db.get_bind()
         mig = _load_migration()
+        # 126 (pending_submission_uploads) references submission_ocr_jobs, so
+        # it goes first, as in a real downgrade, and comes back last.
+        later = _load_migration(
+            MIGRATION_PATH.replace("125_submission_ocr_jobs", "126_pending_submission_uploads"),
+            "mig_126",
+        )
         with _op_context(conn):
+            later.downgrade()
             mig.downgrade()
         assert "submission_ocr_jobs" not in inspect(conn).get_table_names()
         assert "ocr_job_id" not in _columns(conn, "submission_files")
@@ -99,8 +106,10 @@ class TestMigration125Shape:
         assert "handwriting_ocr_enabled" not in _columns(conn, "projects")
         with _op_context(conn):
             mig.upgrade()
+            later.upgrade()
         assert "submission_ocr_jobs" in inspect(conn).get_table_names()
         assert "page_index" in _columns(conn, "submission_files")
+        assert "pending_submission_uploads" in inspect(conn).get_table_names()
 
     def test_only_pending_jobs_may_lack_a_user(self, test_db: Session):
         _, project, task = _project_and_task(test_db)

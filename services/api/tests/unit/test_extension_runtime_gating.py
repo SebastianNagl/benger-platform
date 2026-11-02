@@ -113,6 +113,7 @@ class TestHookGating:
             "dispatch_lti_grade_sync",
             "resend_all_lti_grades",
             "public_api_enabled",
+            "after_invitation_accepted",
         }
         policy_global = {"validate_signup", "after_user_signup"}
         for key, gating in extensions.HOOK_GATING.items():

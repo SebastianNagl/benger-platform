@@ -291,6 +291,10 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
             db.commit()
 
+            from extensions import after_invitation_accepted
+
+            after_invitation_accepted(db, invitation, user.id)
+
             # Mark user as email verified since they came from invitation
             user.email_verified = True
             user.profile_completed = True

@@ -736,11 +736,28 @@ whenever one is added, renamed or removed):
   - Celery: new queue ``ocr`` (own worker pool ``workerPools.ocr``, compose
     ``worker-ocr``) for ``tasks.ocr_handwritten_submission`` and
     ``tasks.ocr_finalize_submission``, 600/660 s.
+
+2.49 (2026-11-02): solutions for people who are not on BenGER yet.
+  Migration 126 adds ``pending_submission_uploads``
+  (``project_models.PendingSubmissionUpload``, ``PENDING_UPLOAD_OPEN_STATUSES``):
+  an upload parked until the invitee joins. Hook key
+  ``after_invitation_accepted`` (CALL_ALL_ISOLATED, gating class ALWAYS,
+  ``extensions.after_invitation_accepted(db, invitation, user_id)``), called
+  after the commit on every invitation consumption path (accept endpoint,
+  signup with token, automatic acceptance on verification); implementations
+  own their commit, failures are logged and rolled back. Invitation helpers
+  in ``routers.invitations``: ``invite_or_reuse(db, *, inviter,
+  organization, email, group_id=None, host=None) -> (Invitation, created)``,
+  ``add_existing_user(db, *, actor, organization, user_id, group_id=None)
+  -> 'member' | 'added_to_group' | 'added_to_org' | 'needs_invitation'``,
+  ``pending_invitation(db, organization_id, email)``,
+  ``queue_invitation_mail(...)``; invitations are valid for
+  ``INVITATION_VALIDITY_DAYS`` = 90 days (was 7).
 """
 
 import os
 
-CORE_API_VERSION = "2.48"
+CORE_API_VERSION = "2.49"
 
 
 def extended_required() -> bool:

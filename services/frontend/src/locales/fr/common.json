@@ -11472,7 +11472,7 @@
         "bullets": [
           "Visibilité des projets : privée, organisation (éventuellement un seul groupe) ou publique ; en plus, des liens de partage protégés par mot de passe et un annuaire (*Découvrir*) pour les étudiants. Qui rejoint via un lien ou l'annuaire obtient le niveau restreint de participant, sans données de référence.",
           "Les clés API sont stockées chiffrées. Résolution à chaque appel : si l'organisation fournit des clés, elle paie (clé du groupe avant clé de l'organisation), sinon la clé personnelle s'applique. Les modèles personnalisés (BYOM) utilisent toujours la clé de l'utilisateur appelant. Pour les examens liés à une plateforme d'apprentissage, l'organisation de la connexion paie la correction par IA de ses étudiants venant de la plateforme d'apprentissage et de son personnel. Sans sa clé, aucune correction n'a lieu.",
-          "Invitations par e-mail avec un jeton valable sept jours, éventuellement limitées à un groupe avec un rôle dans le groupe (les membres existants sont ajoutés directement au groupe) ; notifications dans l'application et par e-mail (SendGrid) avec heures de silence et récapitulatifs."
+          "Invitations par e-mail avec un jeton valable trois mois, éventuellement limitées à un groupe avec un rôle dans le groupe (les membres existants sont ajoutés directement au groupe) ; notifications dans l'application et par e-mail (SendGrid) avec heures de silence et récapitulatifs."
         ]
       },
       "integrations": {

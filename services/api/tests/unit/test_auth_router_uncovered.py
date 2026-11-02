@@ -555,6 +555,38 @@ class TestSignup:
         assert result.id == "user-123"
 
     @pytest.mark.asyncio
+    @patch("extensions.after_invitation_accepted")
+    @patch("routers.auth.verification.email_verification_service")
+    @patch("routers.auth.session.create_user")
+    async def test_signup_invitation_runs_acceptance_hook(
+        self, mock_create, mock_email_svc, mock_hook
+    ):
+        """Core 2.49: signup with a token consumes the invitation, so the
+        after_invitation_accepted hook runs once for it."""
+        from routers.auth import signup
+
+        new_user = _mock_user()
+        mock_create.return_value = new_user
+
+        invitation = Mock()
+        invitation.token = "inv-token"
+        invitation.email = "new@test.com"
+        invitation.accepted = False
+        invitation.expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+        invitation.organization_id = "org-1"
+        invitation.role = "ANNOTATOR"
+        invitation.group_id = None
+
+        db = _mock_db()
+        db.query.return_value.filter.return_value.first.return_value = invitation
+
+        user_create = _make_user_create()
+        user_create.invitation_token = "inv-token"
+
+        await signup(user_data=user_create, request=_mock_request(), db=db)
+        mock_hook.assert_called_once_with(db, invitation, new_user.id)
+
+    @pytest.mark.asyncio
     @patch("routers.auth.session.create_user")
     async def test_signup_invitation_invalid(self, mock_create):
         from routers.auth import signup
