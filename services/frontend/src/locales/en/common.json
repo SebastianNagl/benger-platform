@@ -11472,7 +11472,7 @@
         "bullets": [
           "Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.",
           "API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.",
-          "Invitations by email with a seven-day token, optionally group-scoped with a group role (existing members are added to the group directly); notifications in-app and by email (SendGrid) with quiet hours and digests."
+          "Invitations by email with a token valid for three months, optionally group-scoped with a group role (existing members are added to the group directly); notifications in-app and by email (SendGrid) with quiet hours and digests."
         ]
       },
       "integrations": {

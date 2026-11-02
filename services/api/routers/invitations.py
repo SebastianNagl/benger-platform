@@ -171,6 +171,16 @@ RESEND_MIN_INTERVAL_SECONDS = 60
 # Keeps a pathological provider message out of the row and off the screen.
 INVITATION_ERROR_MAX_CHARS = 500
 
+# How long an invitation link stays valid. Course-wide solution uploads invite
+# whole classes, and students open the mail weeks later, so this is three
+# months (it was seven days). Existing invitations keep their expiry.
+INVITATION_VALIDITY_DAYS = 90
+
+
+def invitation_expiry() -> datetime:
+    """The ``expires_at`` of an invitation created now."""
+    return datetime.now(timezone.utc) + timedelta(days=INVITATION_VALIDITY_DAYS)
+
 
 def _stamp_queued(invitation: Invitation, error: Optional[str] = None) -> None:
     """Record that an invitation mail was handed to (or refused by) Celery.
@@ -380,6 +390,216 @@ def _active_member_id(db: Session, organization_id: str, email_key: str) -> Opti
     return existing_user.id if membership is not None else None
 
 
+def queue_invitation_mail(
+    db: Session,
+    invitation: Invitation,
+    *,
+    inviter_name: Optional[str],
+    organization_name: str,
+    host: Optional[str],
+) -> None:
+    """Queue the invitation mail for one committed invitation and record the
+    queue state on the row (commits).
+
+    The mail is branded from the request host, so a vertretbar.net invite
+    links to vertretbar and sends from the Vertretbar sender
+    (``resolve_email_brand``); benger hosts are unchanged.
+    """
+    brand = resolve_email_brand(host)
+    invitation_url = f"{brand.frontend_url}/accept-invitation/{invitation.token}"
+    try:
+        celery_app.send_task(
+            "emails.send_invitation",
+            args=[
+                invitation.id,
+                invitation.email,
+                inviter_name,
+                organization_name,
+                invitation_url,
+                invitation.role.value,
+            ],
+            kwargs={"host": host},
+            retry=True,
+            retry_policy={
+                'max_retries': 3,
+                'interval_start': 0,
+                'interval_step': 0.2,
+                'interval_max': 0.2,
+            },
+        )
+        logger.info(f"📮 Queued invitation email for invitation {invitation.id}")
+        _stamp_queued(invitation)
+    except Exception as e:
+        # Log error but don't fail the invitation creation. The row records the
+        # queue failure so the admin list shows "failed" instead of claiming
+        # the invite went out.
+        logger.error(f"Failed to queue invitation email: {e}")
+        _stamp_queued(invitation, error=f"Failed to queue mail: {e}")
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to record invitation mail queue state: {e}")
+        db.rollback()
+
+
+def pending_invitation(db: Session, organization_id: str, email: str) -> Optional[Invitation]:
+    """The unaccepted, unexpired invitation for ``email`` into the org, if any."""
+    return (
+        db.query(Invitation)
+        .filter(
+            Invitation.organization_id == organization_id,
+            func.lower(Invitation.email) == email.strip().lower(),
+            Invitation.accepted == False,  # noqa: E712
+            Invitation.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(Invitation.created_at.desc())
+        .first()
+    )
+
+
+def invite_or_reuse(
+    db: Session,
+    *,
+    inviter: User,
+    organization: Organization,
+    email: str,
+    group_id: Optional[str] = None,
+    host: Optional[str] = None,
+) -> tuple:
+    """Invite ``email`` into the org (and group) as ANNOTATOR, or reuse the
+    pending invitation that is already out. Returns ``(invitation, created)``.
+
+    For callers outside this router that invite on the side of another action
+    (extended: a solution uploaded for someone who is not on BenGER yet).
+    Uses the same gate as the invite endpoints (:func:`_authorize_invitation`,
+    raises 403/404/400). A reused invitation keeps its role, group and
+    expiry; its mail is not sent again. Commits.
+    """
+    _authorize_invitation(
+        db, inviter, organization.id, OrganizationRole.ANNOTATOR, group_id
+    )
+    existing = pending_invitation(db, organization.id, email)
+    if existing is not None:
+        return existing, False
+    invitation = Invitation(
+        id=str(uuid4()),
+        organization_id=organization.id,
+        email=email.strip(),
+        role=OrganizationRole.ANNOTATOR,
+        group_id=group_id,
+        group_role=OrganizationRole.ANNOTATOR if group_id else None,
+        token=generate_invitation_token(),
+        invited_by=inviter.id,
+        expires_at=invitation_expiry(),
+        accepted=False,
+    )
+    db.add(invitation)
+    db.commit()
+    db.refresh(invitation)
+    queue_invitation_mail(
+        db,
+        invitation,
+        inviter_name=inviter.name,
+        organization_name=organization.name,
+        host=host,
+    )
+    try:
+        notify_organization_invitation_sent(
+            db=db,
+            organization_id=organization.id,
+            organization_name=organization.name,
+            invitee_email=invitation.email,
+            inviter_name=inviter.name,
+            inviter_user_id=inviter.id,
+            organization_group_id=invitation.group_id,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send invitation notification: {e}")
+    return invitation, True
+
+
+def add_existing_user(
+    db: Session,
+    *,
+    actor: User,
+    organization: Organization,
+    user_id: str,
+    group_id: Optional[str] = None,
+) -> str:
+    """Make an existing account a member of the org (and group), as far as
+    ``actor`` may do that without the person's consent. Commits.
+
+    Returns:
+    - ``'member'``: already an active member (and in the group).
+    - ``'added_to_group'``: an active org member put into the group (what a
+      group-scoped invitation does for members, so group admins may too).
+    - ``'added_to_org'``: added to (or restored in) the org as ANNOTATOR and
+      to the group; org admins and superadmins only, as on the members
+      endpoint.
+    - ``'needs_invitation'``: not a member and ``actor`` is no org admin; the
+      person has to accept an invitation.
+
+    Raises like :func:`_authorize_invitation` when ``actor`` may not invite
+    into this org/group at all.
+    """
+    _authorize_invitation(
+        db, actor, organization.id, OrganizationRole.ANNOTATOR, group_id
+    )
+    membership = (
+        db.query(OrganizationMembership)
+        .filter(
+            OrganizationMembership.user_id == user_id,
+            OrganizationMembership.organization_id == organization.id,
+        )
+        .first()
+    )
+    if membership is not None and membership.is_active:
+        if not group_id:
+            return "member"
+        outcome = _add_existing_member_to_group(
+            db, actor, organization, user_id, group_id, OrganizationRole.ANNOTATOR
+        )
+        db.commit()
+        if outcome == "added_to_group":
+            _notify_added_to_group(
+                db, actor, organization, [user_id], group_id, OrganizationRole.ANNOTATOR
+            )
+            return "added_to_group"
+        return "member"
+
+    if not can_manage_organization(actor, organization.id, db):
+        return "needs_invitation"
+    if membership is not None:
+        membership.is_active = True
+        membership.role = OrganizationRole.ANNOTATOR
+        membership.updated_at = datetime.now(timezone.utc)
+    else:
+        db.add(
+            OrganizationMembership(
+                id=str(uuid4()),
+                user_id=user_id,
+                organization_id=organization.id,
+                role=OrganizationRole.ANNOTATOR,
+                is_active=True,
+            )
+        )
+    db.flush()
+    added_to_group = False
+    if group_id:
+        added_to_group = (
+            _add_existing_member_to_group(
+                db, actor, organization, user_id, group_id, OrganizationRole.ANNOTATOR
+            )
+            == "added_to_group"
+        )
+    db.commit()
+    if added_to_group:
+        _notify_added_to_group(
+            db, actor, organization, [user_id], group_id, OrganizationRole.ANNOTATOR
+        )
+    return "added_to_org"
+
+
 @router.post(
     "/organizations/{organization_id}/invitations",
     response_model=InvitationResponse,
@@ -484,7 +704,7 @@ def create_invitation(
         group_role=invitation_data.group_role,
         token=generate_invitation_token(),
         invited_by=current_user.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),  # 7 days to accept
+        expires_at=invitation_expiry(),
         accepted=False,
     )
 
@@ -492,50 +712,18 @@ def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    # Queue invitation email via Celery. Brand it from the request host so a
-    # vertretbar.net invite links to vertretbar + sends from the Vertretbar
-    # sender (resolve_email_brand); benger hosts are unchanged.
     invite_host = (
         (request.headers.get("x-forwarded-host") or request.headers.get("host"))
         if request
         else None
     )
-    brand = resolve_email_brand(invite_host)
-    invitation_url = f"{brand.frontend_url}/accept-invitation/{invitation.token}"
-
-    try:
-        celery_app.send_task(
-            "emails.send_invitation",
-            args=[
-                invitation.id,
-                invitation.email,
-                current_user.name,
-                organization.name,
-                invitation_url,
-                invitation.role.value,
-            ],
-            kwargs={"host": invite_host},
-            retry=True,
-            retry_policy={
-                'max_retries': 3,
-                'interval_start': 0,
-                'interval_step': 0.2,
-                'interval_max': 0.2,
-            },
-        )
-        logger.info(f"📮 Queued invitation email for invitation {invitation.id}")
-        _stamp_queued(invitation)
-    except Exception as e:
-        # Log error but don't fail the invitation creation. The row records the
-        # queue failure so the admin list shows "failed" instead of claiming
-        # the invite went out.
-        logger.error(f"Failed to queue invitation email: {e}")
-        _stamp_queued(invitation, error=f"Failed to queue mail: {e}")
-    try:
-        db.commit()
-    except Exception as e:
-        logger.error(f"Failed to record invitation mail queue state: {e}")
-        db.rollback()
+    queue_invitation_mail(
+        db,
+        invitation,
+        inviter_name=current_user.name,
+        organization_name=organization.name,
+        host=invite_host,
+    )
 
     # Notify organization admins about invitation sent
     try:
@@ -670,7 +858,7 @@ def create_bulk_invitations(
             group_role=bulk_data.group_role,
             token=generate_invitation_token(),
             invited_by=current_user.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            expires_at=invitation_expiry(),
             accepted=False,
         )
         db.add(invitation)
@@ -990,6 +1178,9 @@ def accept_invitation(
         invitation.accepted = True
         invitation.accepted_at = datetime.now(timezone.utc)
         db.commit()
+        from extensions import after_invitation_accepted
+
+        after_invitation_accepted(db, invitation, current_user.id)
         return {
             "message": "Invitation accepted successfully",
             "organization_id": invitation.organization_id,
@@ -1039,6 +1230,10 @@ def accept_invitation(
     ensure_invitation_group_membership(db, invitation, current_user.id)
 
     db.commit()
+
+    from extensions import after_invitation_accepted
+
+    after_invitation_accepted(db, invitation, current_user.id)
 
     # Get organization name for notification
     organization = (

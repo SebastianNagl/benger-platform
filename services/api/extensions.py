@@ -75,6 +75,7 @@ HOOK_SPECS = {
     "validate_signup": CALL_ALL,
     "after_user_signup": CALL_ALL,
     "after_user_login": CALL_ALL,
+    "after_invitation_accepted": CALL_ALL_ISOLATED,
     "on_ops_event": CALL_ALL_ISOLATED,
     "tasks_with_feedback_for_user": UNION,
     "tasks_with_evaluation_for_user": UNION,
@@ -117,6 +118,9 @@ HOOK_GATING = {
     "validate_signup": activation.POLICY_GLOBAL,
     "after_user_signup": activation.POLICY_GLOBAL,
     "after_user_login": activation.GATED,
+    # Attaches solutions an admin uploaded for the invitee before they joined.
+    # Switching a package off must never strand such a submission.
+    "after_invitation_accepted": activation.ALWAYS,
     "on_ops_event": activation.ALWAYS,
     "tasks_with_feedback_for_user": activation.GATED,
     "tasks_with_evaluation_for_user": activation.GATED,
@@ -750,6 +754,41 @@ def after_user_signup(db, user, signup_context):
     """
     for _name, hook in _hook_impls("after_user_signup"):
         hook(db, user, signup_context)
+
+
+def after_invitation_accepted(db, invitation, user_id):
+    """Hook called after an invitation was consumed and committed
+    (CALL_ALL_ISOLATED).
+
+    Runs on every consumption path: the accept endpoint, signup with the
+    invitation token and the automatic acceptance when an address gets
+    verified. ``invitation`` is the ``Invitation`` row (accepted), ``user_id``
+    the member it was accepted for. Implementations own their commit. A
+    failing implementation is logged and its work rolled back; acceptance
+    itself never fails because of it.
+
+    benger_extended uses this to hand in solutions an admin uploaded for the
+    invitee before they had an account.
+    """
+    for name, hook in _hook_impls("after_invitation_accepted"):
+        try:
+            hook(db, invitation, user_id)
+        except Exception:  # noqa: BLE001 - isolated by contract
+            logger.exception(
+                "after_invitation_accepted hook of %s failed for invitation %s",
+                name,
+                getattr(invitation, "id", None),
+            )
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def run_after_invitations_accepted(db, invitations, user_id):
+    """:func:`after_invitation_accepted` for each of ``invitations``."""
+    for invitation in invitations:
+        after_invitation_accepted(db, invitation, user_id)
 
 
 def after_user_login(db, user, login_context):

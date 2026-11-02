@@ -155,7 +155,9 @@ class TestExtensionLoader:
         # 2.46 adds the before_annotation_write hook (exam timer on writes).
         # 2.48 adds handwritten solution uploads (submission_ocr_jobs,
         # provider attachments, shared.page_documents).
-        assert CORE_API_VERSION == "2.48"
+        # 2.49 adds pending_submission_uploads, the after_invitation_accepted
+        # hook and the reusable invitation helpers.
+        assert CORE_API_VERSION == "2.49"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

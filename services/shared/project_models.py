@@ -1840,6 +1840,79 @@ def attach_ocr_job_to_user(db, job: "SubmissionOcrJob", user_id: str, *, file_id
     return rows
 
 
+#: Statuses of a parked upload that still waits for its person.
+PENDING_UPLOAD_OPEN_STATUSES = ("extracting", "waiting")
+
+
+class PendingSubmissionUpload(Base):
+    """A solution uploaded for someone who is not on BenGER yet (migration 126).
+
+    An admin uploads the file and enters the person's email; the person is
+    invited and the upload waits here until they accept. Then
+    ``benger_extended`` (hook ``after_invitation_accepted``) hands it in as
+    their submission and fills the ``attached_*`` columns.
+
+    ``status``: ``extracting`` (handwriting OCR still reads the scan,
+    ``ocr_job_id``), ``waiting`` (text ready, person not joined yet),
+    ``attached``, ``superseded`` (the person handed in their own answer
+    first, which wins), ``failed`` (``error_code``), ``cancelled``.
+
+    Platform owns the table; who may park what and the attach logic live in
+    ``benger_extended.api.routers.submission_uploads``.
+    """
+
+    __tablename__ = "pending_submission_uploads"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    invitation_id = Column(
+        String, ForeignKey("invitations.id", ondelete="SET NULL"), nullable=True
+    )
+    # Lower-cased.
+    email = Column(String, nullable=False)
+    invitee_name = Column(String, nullable=True)
+    uploaded_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    storage_key = Column(String, nullable=True)
+    original_filename = Column(String, nullable=False)
+    content_type = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=False, default=0, server_default="0")
+    sha256 = Column(String(64), nullable=True)
+    source_format = Column(String(16), nullable=False)
+    extracted_text = Column(Text, nullable=True)
+    ocr_job_id = Column(
+        String, ForeignKey("submission_ocr_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+
+    status = Column(String(16), nullable=False, default="waiting", server_default="waiting")
+    error_code = Column(String(64), nullable=True)
+    attached_user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    attached_annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="SET NULL"), nullable=True
+    )
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    attached_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "status IN ('extracting','waiting','attached','superseded','failed','cancelled')",
+            name="ck_pending_submission_uploads_status",
+        ),
+        sa.Index(
+            "uq_pending_submission_uploads_open",
+            "task_id",
+            "email",
+            unique=True,
+            postgresql_where=sa.text("status IN ('extracting','waiting')"),
+        ),
+        sa.Index("ix_pending_submission_uploads_email", "email"),
+        sa.Index("ix_pending_submission_uploads_invitation", "invitation_id"),
+        sa.Index("ix_pending_submission_uploads_project", "project_id"),
+    )
+
+
 def project_not_deleted():
     """Soft-delete predicate (migration 093): every visibility query excludes
     stamped projects; superadmin surfaces opt back in explicitly. Lives in

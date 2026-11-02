@@ -456,6 +456,7 @@ class TestHookOwnership:
             "validate_signup",
             "after_user_signup",
             "after_user_login",
+            "after_invitation_accepted",
             "on_ops_event",
             "tasks_with_feedback_for_user",
             "tasks_with_evaluation_for_user",
