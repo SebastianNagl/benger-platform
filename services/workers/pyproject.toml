@@ -95,6 +95,12 @@ dependencies = [
     # Keep aligned with the api (services/api/pyproject.toml).
     "zstandard>=0.22,<1.0",
     "stripe>=15.0.0,<17.0.0",  # Vertretbar billing meter reporting (extended-only)
+    # Handwritten-solution OCR (shared/page_documents.py, extended OCR task):
+    # per-page PDF text layer, page split + render, photo normalisation.
+    "pdfplumber>=0.10,<1.0",
+    "pypdfium2>=5.0,<6",
+    "pillow>=11.0,<14",
+    "pillow-heif>=1.0,<2",
 ]
 
 [project.optional-dependencies]
@@ -148,6 +154,10 @@ constraint-dependencies = [
     "ijson>=3.5.0,<4",
     "zstandard>=0.22,<1.0",
     "stripe>=15.0.0,<17.0.0",
+    "pdfplumber>=0.10,<1.0",
+    "pypdfium2>=5.0,<6",
+    "pillow>=11.0,<14",
+    "pillow-heif>=1.0,<2",
 ]
 # END shared constraints
 

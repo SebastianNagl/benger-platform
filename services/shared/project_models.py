@@ -109,6 +109,16 @@ class Project(Base):
         Boolean, default=True, server_default=sa.true(), nullable=False
     )
 
+    # Handwritten solution uploads (photos, scans) transcribed by a vision
+    # model (mig 125). ``handwriting_ocr_enabled`` switches them on for the
+    # project; ``handwriting_ocr_model`` overrides the model, NULL = the
+    # organization's default (``organizations.settings.handwriting_ocr_model``,
+    # see ``shared/org_ocr.py``). The OCR flow itself is an extended feature.
+    handwriting_ocr_enabled = Column(
+        Boolean, default=False, server_default=sa.false(), nullable=False
+    )
+    handwriting_ocr_model = Column(String(255), nullable=True)
+
     # Annotation time limit (Issue #1043)
     annotation_time_limit_enabled = Column(Boolean, default=False, nullable=False)
     annotation_time_limit_seconds = Column(
@@ -1683,17 +1693,151 @@ class SubmissionFile(Base):
     content_type = Column(String, nullable=True)
     size_bytes = Column(Integer, nullable=False)
     sha256 = Column(String(64), nullable=False)
-    # 'pdf' | 'docx' | 'text' (text_extraction.extract_text source_format)
+    # 'pdf' | 'docx' | 'text' (text_extraction.extract_text source_format),
+    # 'image' for a handwritten page photo (OCR upload, mig 125)
     source_format = Column(String(16), nullable=False)
     extracted_chars = Column(Integer, nullable=False, default=0, server_default="0")
     replaced_result = Column(JSONB, nullable=True)
+    # Handwritten uploads: the OCR job this page belongs to and its position.
+    ocr_job_id = Column(
+        String, ForeignKey("submission_ocr_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+    page_index = Column(Integer, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
         sa.Index("ix_submission_files_task_user", "task_id", "user_id", "created_at"),
         sa.Index("ix_submission_files_project", "project_id"),
+        sa.Index("ix_submission_files_ocr_job", "ocr_job_id"),
     )
+
+
+OCR_JOB_MODES = ("own", "on_behalf", "pending")
+OCR_JOB_STATUSES = ("queued", "running", "done", "failed")
+
+
+class SubmissionOcrJob(Base):
+    """One transcription of handwritten solution pages (photos or scans).
+
+    Created by the upload endpoint, filled by an async worker task that sends
+    the pages to the project's ``handwriting_ocr_model`` and writes ``text``.
+
+    ``mode``:
+    - ``own``: a person uploaded their own pages. The transcript goes back to
+      their editor; they check it and ``confirmed_at`` is stamped when they
+      accept it. The answer is then submitted the normal way.
+    - ``on_behalf``: staff uploaded for a person; the worker stores the text
+      as that person's submission (``annotation_id``).
+    - ``pending``: staff uploaded for someone without an account yet
+      (``user_id`` NULL). The worker only stores the text; it is attached
+      when the person joins (:func:`attach_ocr_job_to_user`).
+
+    ``page_keys`` is the ordered list of stored uploads, one entry per file (a
+    photo is one page, a PDF may hold several):
+    ``{storage_key, original_filename, content_type, size_bytes, sha256}``.
+    ``page_count`` counts pages across them. ``submission_files`` rows exist
+    only once a user is known.
+
+    Platform owns the table (migration 125); the flow lives in
+    ``benger_extended.api.routers.submission_uploads`` and the OCR task in
+    ``benger_extended.workers.ocr_tasks``.
+    """
+
+    __tablename__ = "submission_ocr_jobs"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    requested_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    mode = Column(String(16), nullable=False)
+    status = Column(String(16), nullable=False, default="queued", server_default="queued")
+
+    page_keys = Column(JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb"))
+    page_count = Column(Integer, nullable=False, default=0, server_default="0")
+    pages_ocr = Column(Integer, nullable=False, default=0, server_default="0")
+    text = Column(Text, nullable=True)
+
+    model_id = Column(String(255), nullable=True)
+    billed_org_id = Column(
+        String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    cost_usd = Column(sa.Numeric(12, 6), nullable=True)
+    error_code = Column(String(64), nullable=True)
+    # Set when the worker saved the transcript itself (staff upload, or the
+    # writing time ended before the person could check it).
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="SET NULL"), nullable=True
+    )
+    auto_persisted = Column(Boolean, nullable=False, default=False, server_default=sa.false())
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "mode IN ('own', 'on_behalf', 'pending')", name="ck_submission_ocr_jobs_mode"
+        ),
+        sa.CheckConstraint(
+            "status IN ('queued', 'running', 'done', 'failed')",
+            name="ck_submission_ocr_jobs_status",
+        ),
+        sa.CheckConstraint(
+            "user_id IS NOT NULL OR mode = 'pending'",
+            name="ck_submission_ocr_jobs_user_unless_pending",
+        ),
+        sa.Index("ix_submission_ocr_jobs_task_user", "task_id", "user_id", "created_at"),
+        sa.Index("ix_submission_ocr_jobs_project", "project_id"),
+    )
+
+
+def attach_ocr_job_to_user(db, job: "SubmissionOcrJob", user_id: str, *, file_id_factory=None):
+    """Give a ``pending`` OCR job its person and create their ``submission_files``.
+
+    Called when someone an admin uploaded pages for joins (extended invitee
+    flow). Sets ``user_id``, switches the job to ``on_behalf`` and adds one
+    ``SubmissionFile`` per stored upload (``source_format`` from the page's
+    content type, ``ocr_job_id`` + ``page_index`` set). Persisting the text as
+    an annotation stays with the caller. Idempotent for the same user;
+    attaching to a different user raises ``ValueError``. Does not commit.
+    Returns the new ``SubmissionFile`` rows.
+    """
+    import uuid
+
+    if job.user_id is not None:
+        if job.user_id != user_id:
+            raise ValueError("OCR job already belongs to another user")
+        return []
+    if job.mode != "pending":
+        raise ValueError("only pending OCR jobs can be attached")
+    make_id = file_id_factory or (lambda: str(uuid.uuid4()))
+    job.user_id = user_id
+    job.mode = "on_behalf"
+    rows = []
+    for index, page in enumerate(job.page_keys or []):
+        ctype = page.get("content_type") or ""
+        row = SubmissionFile(
+            id=make_id(),
+            project_id=job.project_id,
+            task_id=job.task_id,
+            user_id=user_id,
+            uploaded_by=job.requested_by,
+            storage_key=page["storage_key"],
+            original_filename=page.get("original_filename") or f"page-{index + 1}",
+            content_type=ctype or None,
+            size_bytes=int(page.get("size_bytes") or 0),
+            sha256=page.get("sha256") or "",
+            source_format="pdf" if ctype == "application/pdf" else "image",
+            extracted_chars=0,
+            ocr_job_id=job.id,
+            page_index=index,
+        )
+        db.add(row)
+        rows.append(row)
+    return rows
 
 
 def project_not_deleted():

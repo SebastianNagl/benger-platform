@@ -612,6 +612,28 @@ workerPools:
         cpu: 50m
         memory: 256Mi
 
+  # Handwritten-solution OCR (extended feature handwriting_ocr): vision LLM
+  # calls over uploaded page photos/scans, minutes per job, no local ML. Own
+  # pool so an end-of-exam burst of uploads never occupies the `fast` slots
+  # that instant grading needs. Page decoding (Pillow/pdfium) is the memory
+  # peak: one 12 MP photo is ~40 MB decoded, a job decodes one page at a time.
+  # Budget: 200 + 3 * (350 + 50) + 360 = ~1760 MB against 2Gi.
+  ocr:
+    enabled: true
+    queues: [ocr]
+    replicaCount: 1
+    concurrency: 3
+    prefetchMultiplier: 1
+    maxTasksPerChild: 100
+    maxMemoryPerChildKb: 350000
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 50m
+        memory: 256Mi
+
   # Periodic housekeeping (recompute_aggregates, the immediate-eval sweep, the
   # LTI and billing sweeps). Its own pool since 2026-09-17: the hourly
   # recompute_aggregates run OOM-killed the shared emails+maintenance pod

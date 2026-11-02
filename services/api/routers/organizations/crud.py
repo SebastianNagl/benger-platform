@@ -442,6 +442,69 @@ async def update_organization_jurisdiction(
     return {"id": organization_id, "jurisdiction": body.jurisdiction}
 
 
+class OrganizationOcrModelUpdate(BaseModel):
+    model_id: Optional[str] = None
+
+
+@router.put("/{organization_id}/ocr-model")
+async def update_organization_ocr_model(
+    organization_id: str,
+    body: OrganizationOcrModelUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Set the organization's default model for handwritten uploads (org
+    admin or superadmin). ``model_id`` null or blank removes the default.
+
+    The model must be an active official catalog model that can read page
+    images here (``ai_services.attachments.catalog_model_reads_attachments``).
+    Merges into the stored settings like the jurisdiction endpoint.
+    """
+    from models import LLMModel
+    from org_ocr import org_ocr_model, with_ocr_model
+
+    model_id = (body.model_id or "").strip() or None
+    if model_id is not None:
+        row = (
+            await db.execute(
+                select(LLMModel).where(
+                    LLMModel.id == model_id,
+                    LLMModel.is_active.is_(True),
+                    LLMModel.is_official.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+        from ai_services.attachments import catalog_model_reads_attachments
+
+        if row is None or not catalog_model_reads_attachments(
+            row.provider, row.id, row.capabilities
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="model_id must be an active model that can read images",
+            )
+    organization = (
+        await db.execute(
+            select(Organization).where(Organization.id == organization_id)
+        )
+    ).scalar_one_or_none()
+    if not organization:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+    can_manage = await db.run_sync(
+        lambda sync_db: can_manage_organization(current_user, organization_id, sync_db)
+    )
+    if not can_manage:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organization admins or superadmins can update organization settings",
+        )
+    new_settings = with_ocr_model(organization.settings, model_id)
+    organization.settings = new_settings
+    organization.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"id": organization_id, "model_id": org_ocr_model(new_settings)}
+
+
 @router.delete("/{organization_id}")
 async def delete_organization(
     organization_id: str,

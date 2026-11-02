@@ -2534,6 +2534,8 @@ def _create_imported_project(
         strict_timer_enabled=_setting(project_data, "strict_timer_enabled", False),
         allow_external_paste=_setting(project_data, "allow_external_paste", True),
         allow_solution_upload=_setting(project_data, "allow_solution_upload", True),
+        handwriting_ocr_enabled=_setting(project_data, "handwriting_ocr_enabled", False),
+        handwriting_ocr_model=project_data.get("handwriting_ocr_model"),
         restorable_checkpoints_enabled=_setting(
             project_data, "restorable_checkpoints_enabled", True
         ),

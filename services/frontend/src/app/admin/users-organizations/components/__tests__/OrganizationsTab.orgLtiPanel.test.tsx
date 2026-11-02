@@ -31,6 +31,11 @@ jest.mock('next/navigation', () => ({
 
 // Mock the slot registry (extension point)
 const mockUseSlot = jest.fn()
+const mockFlags: Record<string, boolean> = {}
+jest.mock('@/lib/featureFlags', () => ({
+  ...jest.requireActual('@/lib/featureFlags'),
+  useFeatureFlag: (name: string) => mockFlags[name] === true,
+}))
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => mockUseSlot(name),
 }))
@@ -386,5 +391,54 @@ describe('OrganizationsTab OrgLtiPanel slot host', () => {
         'true',
       ),
     )
+  })
+})
+
+describe('OrganizationsTab OrgOcrModelPanel slot host (handwriting_ocr)', () => {
+  const OcrStub = ({ organizationId, open }: any) => (
+    <div data-testid="org-ocr-panel" data-open={String(open)}>
+      {organizationId}
+    </div>
+  )
+
+  const withOcrSlot = (flagOn: boolean, user = regularUser) => {
+    setupMocks({ user })
+    mockFlags.handwriting_ocr = flagOn
+    mockUseSlot.mockImplementation((name: string) =>
+      name === 'OrgOcrModelPanel'
+        ? OcrStub
+        : name === 'OrgLtiPanel'
+          ? OrgLtiPanelStub
+          : null,
+    )
+  }
+
+  afterEach(() => {
+    delete mockFlags.handwriting_ocr
+  })
+
+  it('offers the default model to org admins while the flag is on', async () => {
+    withOcrSlot(true)
+    render(<OrganizationsTab />)
+    await waitForOrg()
+    fireEvent.click(screen.getByTestId('org-more-button'))
+    fireEvent.click(await screen.findByTestId('org-ocr-model-button'))
+    await waitFor(() =>
+      expect(screen.getByTestId('org-ocr-panel')).toHaveAttribute(
+        'data-open',
+        'true',
+      ),
+    )
+    expect(screen.getByTestId('org-ocr-panel')).toHaveTextContent('org-1')
+  })
+
+  it('hides the entry while the flag is off', async () => {
+    withOcrSlot(false)
+    render(<OrganizationsTab />)
+    await waitForOrg()
+    fireEvent.click(screen.getByTestId('org-more-button'))
+    await screen.findByTestId('org-jurisdiction-button')
+    expect(screen.queryByTestId('org-ocr-model-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('org-ocr-panel')).not.toBeInTheDocument()
   })
 })

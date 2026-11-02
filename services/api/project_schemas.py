@@ -353,6 +353,18 @@ class ProjectUpdate(BaseModel):
     allow_external_paste: Optional[bool] = None
     # False hides the writer's own file upload (overlay solution upload).
     allow_solution_upload: Optional[bool] = None
+    # Handwritten solution uploads: the switch, and the vision model
+    # (null = the organization's default).
+    handwriting_ocr_enabled: Optional[bool] = None
+    handwriting_ocr_model: Optional[str] = Field(default=None, max_length=255)
+
+    @field_validator("handwriting_ocr_model", mode="before")
+    @classmethod
+    def _blank_ocr_model_is_off(cls, v):
+        # "" from a cleared select means "organization default", same as null.
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v.strip() if isinstance(v, str) else v
     # Per-project feature visibility (controls which configuration cards
     # render on the project detail page; pure UI gate)
     enable_annotation: Optional[bool] = None
@@ -510,6 +522,8 @@ class ProjectResponse(ProjectBase):
     annotator_step_detail_after_submit: Optional[bool] = None
     allow_external_paste: bool = True
     allow_solution_upload: bool = True
+    handwriting_ocr_enabled: bool = False
+    handwriting_ocr_model: Optional[str] = None
     enable_annotation: bool = True
     enable_generation: bool = True
     enable_evaluation: bool = True

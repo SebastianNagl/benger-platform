@@ -388,6 +388,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     require_confirm_before_submit: false,
     allow_external_paste: true,
     allow_solution_upload: true,
+    // Handwritten uploads (extended slot): switch + model override
+    // (null = the organization's default)
+    handwriting_ocr_enabled: false,
+    handwriting_ocr_model: null as string | null,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
     questionnaire_enabled: false,
@@ -754,6 +758,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           currentProject.require_confirm_before_submit || false,
         allow_external_paste: currentProject.allow_external_paste !== false,
         allow_solution_upload: currentProject.allow_solution_upload !== false,
+        handwriting_ocr_enabled:
+          currentProject.handwriting_ocr_enabled === true,
+        handwriting_ocr_model: currentProject.handwriting_ocr_model ?? null,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
         questionnaire_enabled: currentProject.questionnaire_enabled || false,
         questionnaire_config: currentProject.questionnaire_config || '',

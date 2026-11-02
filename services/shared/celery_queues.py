@@ -63,8 +63,13 @@ MAINTENANCE = "maintenance"
 GENERATION = "generation"
 EVALUATION = "evaluation"
 BULK = "bulk"
+# Served by the `ocr` pool: handwritten-solution transcription (vision LLM
+# calls, up to a few minutes per job, no local ML). Its own pool so a burst of
+# uploads at the end of an exam never holds up instant grading on
+# `interactive`, and never waits behind bulk generation.
+OCR = "ocr"
 
-QUEUES = (INTERACTIVE, EMAILS, MAINTENANCE, GENERATION, EVALUATION, BULK)
+QUEUES = (INTERACTIVE, EMAILS, MAINTENANCE, GENERATION, EVALUATION, BULK, OCR)
 
 # Retired queue names kept as consumers only while their Redis lists drain.
 # The pool-split names ("celery", "default") were dropped 2026-07-30 after
@@ -117,6 +122,10 @@ TASK_QUEUES: dict[str, str] = {
     # so it belongs with the other minutes-long generation work, NOT on
     # `interactive` — the student polls for it and is not holding a slot.
     "tasks.generate_synthetic_project": GENERATION,  # extended
+    # Handwriting OCR of uploaded solution pages, and the end-of-time hand-in
+    # of a transcript that sits in a draft (extended).
+    "tasks.ocr_handwritten_submission": OCR,  # extended
+    "tasks.ocr_finalize_submission": OCR,  # extended
     # --- evaluation: orchestrator + the big chord fan-out ---
     "tasks.run_evaluation": EVALUATION,
     "tasks.run_multi_field_evaluation": EVALUATION,  # back-compat alias of the above
@@ -168,6 +177,8 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.lti_grade_sync_sweep",
         "tasks.generate_bewertungsbogen",
         "tasks.generate_synthetic_project",
+        "tasks.ocr_handwritten_submission",
+        "tasks.ocr_finalize_submission",
     }
 )
 
@@ -195,6 +206,8 @@ QUEUE_TIME_LIMITS: dict[str, tuple[int, int]] = {
     # visibility_timeout (7200) so acks_late redelivery semantics hold.
     EVALUATION: (3300, 3600),
     BULK: (5100, 5400),
+    # A 30-page job is ~8 vision calls, three at a time.
+    OCR: (600, 660),
 }
 
 # The orchestrator enumerates up to ~6940 cells before dispatching the chord and

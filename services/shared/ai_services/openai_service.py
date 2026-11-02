@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
+from .attachments import openai_chat_content
 from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import (
     is_openai_gpt5_or_later,
@@ -98,6 +99,13 @@ _get_retry_history_snapshot = get_retry_history_snapshot
 
 
 class OpenAIService(BaseAIService):
+    SUPPORTS_ATTACHMENTS = True
+
+    def model_supports_attachments(self, model_name: str) -> bool:
+        # Attachments are wired for Chat Completions only; the
+        # responses-API-only ``*-pro`` tiers would need input_image parts.
+        return not self._is_responses_api_only_model(model_name)
+
     """Service for handling OpenAI API interactions"""
 
     def __init__(self, api_key: Optional[str] = None):
@@ -232,7 +240,10 @@ class OpenAIService(BaseAIService):
                 "model": model_name,
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": (
+                        openai_chat_content(prompt, kwargs["attachments"])
+                        if kwargs.get("attachments") else prompt
+                    )},
                 ],
                 "top_p": 1.0,
                 "frequency_penalty": 0.0,

@@ -81,3 +81,11 @@ zstandard>=0.22,<1.0
 # Vertretbar billing (extended-only code in both images). stripe 15 made
 # StripeObject non-dict: extended reads fields via _stripe_compat.get.
 stripe>=15.0.0,<17.0.0
+
+# Page documents for handwritten-solution OCR (shared/page_documents.py, run
+# by the extended OCR worker). pdfplumber brings pypdfium2 and Pillow;
+# pillow-heif decodes iPhone HEIC photos.
+pdfplumber>=0.10,<1.0
+pypdfium2>=5.0,<6
+pillow>=11.0,<14
+pillow-heif>=1.0,<2

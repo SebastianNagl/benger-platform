@@ -41,6 +41,8 @@ function makeSettings(
     require_confirm_before_submit: false,
     allow_external_paste: true,
     allow_solution_upload: true,
+    handwriting_ocr_enabled: false,
+    handwriting_ocr_model: null,
     skip_queue: 'requeue_for_others',
     questionnaire_enabled: false,
     questionnaire_config: '',

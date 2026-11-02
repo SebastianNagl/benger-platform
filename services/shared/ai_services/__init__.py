@@ -4,6 +4,12 @@ Contains base implementations of AI service integrations used by both API and Wo
 """
 
 from .base_service import BaseAIService
+from .attachments import (
+    Attachment,
+    UnsupportedAttachmentError,
+    generate_with_attachments,
+    service_supports_attachments,
+)
 from .openai_service import OpenAIService
 from .anthropic_service import AnthropicService
 from .google_service import GoogleService
@@ -39,6 +45,10 @@ from .response_validator import (
 
 __all__ = [
     "BaseAIService",
+    "Attachment",
+    "UnsupportedAttachmentError",
+    "generate_with_attachments",
+    "service_supports_attachments",
     "OpenAIService",
     "AnthropicService",
     "GoogleService",

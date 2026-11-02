@@ -261,6 +261,7 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/organizations/{organization_id}/members/{user_id}` | `org:manage` | any |
 | PUT | `/api/organizations/{organization_id}/members/{user_id}/role` | `org:manage` | any |
 | POST | `/api/organizations/{organization_id}/members/{user_id}/verify-email` | `org:manage` | any |
+| PUT | `/api/organizations/{organization_id}/ocr-model` | `org:manage` | any |
 | GET | `/api/projects/` | `projects:read` | bound |
 | POST | `/api/projects/` | `projects:write` | bound |
 | PATCH | `/api/projects/annotations/{annotation_id}` | `annotations:write` | bound |

@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 import anthropic
 
+from .attachments import anthropic_content
 from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import calculate_cost
 
@@ -64,6 +65,7 @@ def _extract_text(content_blocks) -> str:
 
 
 class AnthropicService(BaseAIService):
+    SUPPORTS_ATTACHMENTS = True
     """Service for handling Anthropic Claude API interactions"""
 
     def __init__(self, api_key: Optional[str] = None):
@@ -168,7 +170,10 @@ class AnthropicService(BaseAIService):
                 # makes benchmark generations reproducible).
                 "extra_body": {"temperature": temperature},
                 "system": system_prompt,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [{"role": "user", "content": (
+                    anthropic_content(prompt, kwargs["attachments"])
+                    if kwargs.get("attachments") else prompt
+                )}],
             }
 
             # Check if model supports extended thinking (Claude 3.7+, Claude 4+)

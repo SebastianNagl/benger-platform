@@ -417,6 +417,59 @@ services:
           memory: 256M
 
   # Frontend Application (Production Build)
+  # Handwritten-solution OCR pool (mirrors workerPools.ocr in the Helm values).
+  worker-ocr:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: worker-ocr
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - tasks
+      - worker
+      - --loglevel=info
+      - -n
+      - ocr@%h
+      # Pinned: the prefork default is one fork per CPU (16 on a dev box),
+      # which idles at ~0.8G of the 1G limit below. 4 forks mirror the prod
+      # pool shape and leave real headroom.
+      - --concurrency=3
+      - --prefetch-multiplier=1
+      - -Q
+      - ocr
+    env_file:
+      - ../services/workers/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Same env as the bulk worker -- anchored above so the ~40 vars stay in one
+    # place and cannot drift between the two pools.
+    environment: *worker-environment
+    volumes:
+      - ../services/workers:/app:ro
+      - ../services/shared:/shared:ro
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d fast@$$HOSTNAME"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # Frontend Application (Production Build)
   frontend:
     build:
       context: ../services/frontend
