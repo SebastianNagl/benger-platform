@@ -46,6 +46,23 @@ export interface ExamStateUiPrefs {
 export type ExamPanelSide = 'left' | 'right'
 export type ExamPanelPosition = ExamPanelSide | 'none'
 
+/** Where an exam tool (calculator, law texts, ...) sits in the modern
+ *  layout: a bookmark on a side rail, a floating in-page window, or hidden. */
+export type ExamToolZone = 'left' | 'right' | 'float' | 'hidden'
+
+/** A tool's placement, keyed by tool id in `tool_placements`. `order` sorts
+ *  tools within a rail. `width` is the rail panel width (px); `x`, `y`, `w`,
+ *  `h` the floating window box in percent of the viewport. */
+export interface ExamToolPlacement {
+  zone: ExamToolZone
+  order?: number
+  width?: number
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+}
+
 /**
  * Canonical layout preference object, exactly as stored in
  * users.exam_layout_prefs and validated by the API (ExamLayoutPrefs in
@@ -66,12 +83,23 @@ export interface ExamLayoutPrefs {
    *  across mode switches so switching back restores it. */
   state_code?: BundeslandCode
   state_ui?: ExamStateUiPrefs
+  /** Mode 'modern': where each exam tool sits, by tool id. Tools without an
+   *  entry use the interface's defaults. */
+  tool_placements?: Record<string, ExamToolPlacement>
 }
 
 /** Server-validated bounds for the drag-resizable panel widths (px). */
 export const PANEL_WIDTH_MIN = 260
 export const PANEL_WIDTH_MAX = 720
 export const PANEL_WIDTH_DEFAULT = 384
+
+/** Server-validated bounds of `tool_placements` (ExamToolPlacement in
+ *  auth_schemas.py). */
+export const TOOL_ID_PATTERN = /^[a-z_]{1,40}$/
+export const TOOL_PLACEMENTS_MAX = 20
+export const TOOL_ORDER_MAX = 50
+/** Smallest floating window, percent of the viewport per axis. */
+export const TOOL_FLOAT_MIN = 10
 
 /**
  * The resolved default: what every user gets until they configure the
@@ -113,7 +141,8 @@ export interface ModernExamLayoutProps {
   prefs: ExamLayoutPrefs
   readOnly?: boolean
   taskId?: string
-  /** Mode 'state' only: host chrome the state interface renders itself. */
+  /** Mode 'state': host chrome the state interface renders itself. Mode
+   *  'modern' (core 2.50): only `renderTools`, rendered inside the layout. */
   chrome?: ExamChrome
 }
 
@@ -124,6 +153,9 @@ export interface ModernExamLayoutProps {
  * (same session, same expiry handling incl. strict auto-submit), onSubmit is
  * the host's own submit path.
  */
+/** Visual variants of the exam tools (ExamChrome.renderTools). */
+export type ExamToolsVariant = 'default' | 'state' | 'modern'
+
 export interface ExamChrome {
   /** Renders the host's timer in the given visual variant; null when the
    *  attempt has no time limit. */
@@ -136,9 +168,11 @@ export interface ExamChrome {
   extra?: ReactNode
   /** Renders the project's exam tools (calculator, law texts, ...; the
    *  ExamToolDock slot) in the given visual variant. A state interface places
-   *  the 'state' variant in its own chrome; every other render shows the
-   *  'default' variant. Undefined when the host offers no tools. */
-  renderTools?: (variant: 'default' | 'state') => ReactNode
+   *  the 'state' variant in its own chrome and the modern layout the
+   *  'modern' variant inside its own layout context (core 2.50); the classic
+   *  render shows the 'default' variant. Undefined when the host offers no
+   *  tools. */
+  renderTools?: (variant: ExamToolsVariant) => ReactNode
   /** Supplied by DynamicAnnotationInterface: its merged submit. */
   onSubmit?: () => void
   canSubmit?: boolean
@@ -192,6 +226,56 @@ function resolvePanelWidth(raw: unknown): number | undefined {
   return Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, Math.round(raw)))
 }
 
+const TOOL_ZONES: ReadonlySet<string> = new Set([
+  'left',
+  'right',
+  'float',
+  'hidden',
+])
+
+function finiteNumber(raw: unknown): number | undefined {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/** Safe-parse of `tool_placements`: invalid entries are dropped, numbers are
+ *  clamped to the server bounds, a floating box always fits the viewport. */
+export function resolveToolPlacements(
+  raw: unknown,
+): Record<string, ExamToolPlacement> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined
+  }
+  const out: Record<string, ExamToolPlacement> = {}
+  for (const [id, entry] of Object.entries(raw as Record<string, unknown>)) {
+    if (Object.keys(out).length >= TOOL_PLACEMENTS_MAX) break
+    if (!TOOL_ID_PATTERN.test(id)) continue
+    if (typeof entry !== 'object' || entry === null) continue
+    const value = entry as Record<string, unknown>
+    if (!TOOL_ZONES.has(value.zone as string)) continue
+    const placement: ExamToolPlacement = { zone: value.zone as ExamToolZone }
+    const order = finiteNumber(value.order)
+    if (order !== undefined) {
+      placement.order = clamp(Math.round(order), 0, TOOL_ORDER_MAX)
+    }
+    const width = resolvePanelWidth(value.width)
+    if (width !== undefined) placement.width = width
+    const w = finiteNumber(value.w)
+    const h = finiteNumber(value.h)
+    if (w !== undefined) placement.w = clamp(w, TOOL_FLOAT_MIN, 100)
+    if (h !== undefined) placement.h = clamp(h, TOOL_FLOAT_MIN, 100)
+    const x = finiteNumber(value.x)
+    const y = finiteNumber(value.y)
+    if (x !== undefined) placement.x = clamp(x, 0, 100 - (placement.w ?? 0))
+    if (y !== undefined) placement.y = clamp(y, 0, 100 - (placement.h ?? 0))
+    out[id] = placement
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return CLASSIC_LAYOUT
@@ -203,6 +287,7 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
     ? value.state_code
     : undefined
   const stateUi = resolveStateUi(value.state_ui)
+  const toolPlacements = resolveToolPlacements(value.tool_placements)
   // 'state' without a valid state_code has nothing to render -> classic.
   const mode: ExamLayoutMode =
     value.mode === 'modern'
@@ -227,6 +312,7 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
     ...(rightWidth !== undefined ? { right_panel_width: rightWidth } : {}),
     ...(stateCode ? { state_code: stateCode } : {}),
     ...(stateUi ? { state_ui: stateUi } : {}),
+    ...(toolPlacements ? { tool_placements: toolPlacements } : {}),
   }
 }
 

@@ -1241,15 +1241,16 @@ class TestRoundtripExtensions:
         project.handwriting_ocr_enabled = True
         project.handwriting_ocr_model = "gemini-3-flash"
         project.exam_tools = {
-            "version": 1,
             "tools": [
                 {"id": "calculator"},
                 {
                     "id": "law_texts",
                     "config": {
-                        "provider": "gii",
-                        "connection_id": "conn-on-this-deployment",
                         "codes": ["BGB", "StGB"],
+                        "sources": [
+                            {"provider": "lexmea", "mode": "org", "connection_id": "conn-on-this-deployment"},
+                            {"provider": "gii", "mode": "builtin"},
+                        ],
                     },
                 },
             ],
@@ -1270,10 +1271,18 @@ class TestRoundtripExtensions:
         assert proj["handwriting_ocr_model"] == "gemini-3-flash"
         # Exam tools travel without the deployment-bound connection id.
         assert proj["exam_tools"] == {
-            "version": 1,
             "tools": [
                 {"id": "calculator"},
-                {"id": "law_texts", "config": {"provider": "gii", "codes": ["BGB", "StGB"]}},
+                {
+                    "id": "law_texts",
+                    "config": {
+                        "codes": ["BGB", "StGB"],
+                        "sources": [
+                            {"provider": "lexmea", "mode": "org"},
+                            {"provider": "gii", "mode": "builtin"},
+                        ],
+                    },
+                },
             ],
         }
         for key in ("is_private", "is_public", "public_role", "origin"):

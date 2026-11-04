@@ -1,9 +1,11 @@
-"""Shape tests for migration 127: exam tools and tool providers.
+"""Shape tests for migration 127: exam tools, tool providers, synced
+bundles, student links and pins.
 
-The shared test DB already carries the column and tables (created from the
-models by ``Base.metadata.create_all``), so ``upgrade()`` must be a clean
-no-op through its guards, twice. ``downgrade()`` removes everything; a
-re-run ``upgrade()`` rebuilds it, incl. the full-text search index.
+The shared test DB already carries the schema (created from the models by
+``Base.metadata.create_all``), so ``upgrade()`` must be a clean no-op through
+its guards, twice, and still create the expression indexes the models don't
+declare. ``downgrade()`` removes everything; a re-run ``upgrade()`` rebuilds
+it.
 """
 
 from __future__ import annotations
@@ -17,21 +19,34 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 MIGRATION_PATH = os.path.normpath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "alembic",
-        "versions",
-        "127_exam_tools.py",
-    )
+    os.path.join(os.path.dirname(__file__), "..", "..", "alembic", "versions", "127_exam_tools.py")
 )
 
 TABLES = (
     "tool_providers",
     "org_tool_provider_connections",
-    "law_text_norms",
+    "user_tool_provider_links",
+    "tool_bundles",
+    "tool_bundle_items",
+    "tool_entitlements",
+    "exam_tool_pins",
     "exam_tool_notes",
+)
+PROVIDER_COLUMNS = (
+    "oauth_client_id",
+    "encrypted_oauth_client_secret",
+    "oauth_authorize_url",
+    "oauth_token_url",
+    "oauth_revoke_url",
+    "oauth_scopes",
+    "supports_student_links",
+)
+SYNC_COLUMNS = (
+    "last_sync_started_at",
+    "last_sync_finished_at",
+    "last_sync_status",
+    "last_sync_error",
+    "last_success_at",
 )
 
 
@@ -53,11 +68,22 @@ def _op_context(connection):
         yield
 
 
-def _exam_tools_column(conn):
-    return next(
-        (c for c in inspect(conn).get_columns("projects") if c["name"] == "exam_tools"),
-        None,
-    )
+def _columns(conn, table):
+    return {c["name"] for c in inspect(conn).get_columns(table)}
+
+
+def _assert_full_schema(conn):
+    insp = inspect(conn)
+    for table in TABLES:
+        assert insp.has_table(table), table
+    assert "exam_tools" in _columns(conn, "projects")
+    assert set(PROVIDER_COLUMNS) <= _columns(conn, "tool_providers")
+    assert "api_version" not in _columns(conn, "tool_providers")
+    assert set(SYNC_COLUMNS) <= _columns(conn, "org_tool_provider_connections")
+    assert set(SYNC_COLUMNS) <= _columns(conn, "user_tool_provider_links")
+    index_names = {i["name"] for i in insp.get_indexes("tool_bundle_items")}
+    assert "ix_tool_bundle_items_search" in index_names
+    assert "ix_tool_bundle_items_order" in index_names
 
 
 class TestMigration127Shape:
@@ -72,11 +98,7 @@ class TestMigration127Shape:
         with _op_context(conn):
             mig.upgrade()
             mig.upgrade()
-        column = _exam_tools_column(conn)
-        assert column is not None and column["nullable"] is True
-        insp = inspect(conn)
-        for table in TABLES:
-            assert insp.has_table(table)
+        _assert_full_schema(conn)
 
     def test_downgrade_then_upgrade_rebuilds(self, test_db: Session):
         conn = test_db.get_bind()
@@ -84,19 +106,12 @@ class TestMigration127Shape:
         with _op_context(conn):
             mig.downgrade()
         insp = inspect(conn)
-        assert _exam_tools_column(conn) is None
         for table in TABLES:
             assert not insp.has_table(table)
-
+        assert "exam_tools" not in _columns(conn, "projects")
         with _op_context(conn):
             mig.upgrade()
-        insp = inspect(conn)
-        assert _exam_tools_column(conn) is not None
-        for table in TABLES:
-            assert insp.has_table(table)
-        index_names = {i["name"] for i in insp.get_indexes("law_text_norms")}
-        assert "ix_law_text_norms_search" in index_names
-        assert "ix_law_text_norms_code_order" in index_names
+        _assert_full_schema(conn)
 
     def test_external_provider_needs_base_url(self, test_db: Session):
         conn = test_db.get_bind()
@@ -122,3 +137,36 @@ class TestMigration127Shape:
         finally:
             savepoint.rollback()
         assert raised, "an external provider without base_url must be refused"
+
+    def test_entitlement_needs_exactly_one_owner(self, test_db: Session):
+        conn = test_db.get_bind()
+        bundle_id = str(uuid.uuid4())
+        conn.execute(
+            text(
+                "INSERT INTO tool_bundles (id, provider_slug, kind, code, content_hash) "
+                "VALUES (:id, 'gii', 'law_texts', 'BGB', :hash)"
+            ),
+            {"id": bundle_id, "hash": uuid.uuid4().hex},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO tool_entitlements (id, builtin_provider_slug, kind, code, bundle_id) "
+                "VALUES (:id, 'gii', 'law_texts', 'BGB', :bundle)"
+            ),
+            {"id": str(uuid.uuid4()), "bundle": bundle_id},
+        )
+        savepoint = conn.begin_nested()
+        try:
+            conn.execute(
+                text(
+                    "INSERT INTO tool_entitlements (id, kind, code, bundle_id) "
+                    "VALUES (:id, 'law_texts', 'StGB', :bundle)"
+                ),
+                {"id": str(uuid.uuid4()), "bundle": bundle_id},
+            )
+            raised = False
+        except Exception:
+            raised = True
+        finally:
+            savepoint.rollback()
+        assert raised, "an entitlement without an owner must be refused"

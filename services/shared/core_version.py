@@ -754,24 +754,36 @@ whenever one is added, renamed or removed):
   ``queue_invitation_mail(...)``; invitations are valid for
   ``INVITATION_VALIDITY_DAYS`` = 90 days (was 7).
 
-2.50 (2026-11-02): exam tools (Hilfsmittel) and tool providers.
+2.50 (2026-11-02): exam tools (Hilfsmittel), tool providers, synced content.
   Migration 127 adds ``projects.exam_tools`` (JSONB, NULL = never chosen;
-  read-only on ``ProjectResponse``, travels through export/import via
-  ``exam_tools.portable_exam_tools`` which drops ``connection_id``) and the
-  tables ``tool_providers`` (``models.ToolProvider``),
+  read-only on ``ProjectResponse``; travels through export/import via
+  ``exam_tools.portable_exam_tools``, which drops ``connection_id`` at any
+  depth) and the tables ``tool_providers`` (``models.ToolProvider``, incl.
+  OAuth client columns and ``supports_student_links``),
   ``org_tool_provider_connections`` (``models.OrgToolProviderConnection``,
-  Fernet ``encrypted_credential``) and ``law_text_norms``
-  (``models.LawTextNorm``, GIN full-text index ``ix_law_text_norms_search``)
-  and ``exam_tool_notes`` (``project_models.ExamToolNote``, one per task and
-  user, cascades with the task; not exported).
+  Fernet ``encrypted_credential``, ``last_sync_*``),
+  ``user_tool_provider_links`` (``models.UserToolProviderLink``, Fernet OAuth
+  tokens, ``last_sync_*``), ``tool_bundles`` / ``tool_bundle_items``
+  (``models.ToolBundle`` / ``models.ToolBundleItem``, deduplicated by content
+  hash, GIN full-text index ``ix_tool_bundle_items_search``),
+  ``tool_entitlements`` (``models.ToolEntitlement``, exactly one owner: link,
+  org connection or built-in provider), ``exam_tool_pins``
+  (``models.ExamToolPin``) and ``exam_tool_notes``
+  (``project_models.ExamToolNote``, one per task and user, not exported).
+  ``ExamLayoutPrefs.tool_placements`` (per tool id: zone left / right /
+  float / hidden, order, float box in viewport percent).
   Frontend: ``ExamChrome.renderTools(variant)`` (host-supplied like
-  ``renderTimer``; DynamicAnnotationInterface shows the 'default' variant in
-  the classic and modern renders, a state interface places the 'state'
-  variant itself). Slots: ``ExamToolDock`` (props ``variant``,
-  ``projectId``, ``taskId``, ``examTools``), ``project-exam-tools`` (props
-  ``project``, ``onRefresh``; project page after ``project-exam-security``)
-  and ``OrgToolProvidersPanel`` (same props as ``OrgOcrModelPanel``, behind
-  flag ``exam_tools``).
+  ``renderTimer``; the classic render shows the 'default' variant, the
+  modern layout renders the 'modern' variant inside its own layout context,
+  a state interface places the 'state' variant itself). Slots:
+  ``ExamToolDock`` (props ``variant``, ``projectId``, ``taskId``,
+  ``examTools``), ``project-exam-tools`` (props ``project``, ``onRefresh``;
+  project page after ``project-exam-security``), ``OrgToolProvidersPanel``
+  (same props as ``OrgOcrModelPanel``, behind flag ``exam_tools``) and
+  ``profile-tools-extended`` (profile page). Celery tasks
+  ``tasks.exam_tools_sync_law_texts``, ``tasks.exam_tools_sync_link``,
+  ``tasks.exam_tools_sync_org_connection``, ``tasks.exam_tools_nightly_sync``
+  and ``tasks.exam_tools_gc_bundles`` route to maintenance.
 """
 
 import os

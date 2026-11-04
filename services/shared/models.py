@@ -836,10 +836,20 @@ class ToolProvider(Base):
     name = Column(String(255), nullable=False)
     kinds = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
     base_url = Column(String(500), nullable=True)
-    api_version = Column(Integer, nullable=False, server_default="1", default=1)
     status = Column(String(16), nullable=False, server_default="active", default="active")
     is_builtin = Column(Boolean, nullable=False, server_default=sa.false(), default=False)
     contact = Column(String(255), nullable=True)
+    # Student linking: OAuth 2.0 client settings; the client
+    # secret is Fernet-encrypted and never returned.
+    supports_student_links = Column(
+        Boolean, nullable=False, server_default=sa.false(), default=False
+    )
+    oauth_client_id = Column(String(255), nullable=True)
+    encrypted_oauth_client_secret = Column(Text, nullable=True)
+    oauth_authorize_url = Column(String(500), nullable=True)
+    oauth_token_url = Column(String(500), nullable=True)
+    oauth_revoke_url = Column(String(500), nullable=True)
+    oauth_scopes = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -877,6 +887,12 @@ class OrgToolProviderConnection(Base):
     created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # Latest content sync.
+    last_sync_started_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_finished_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_status = Column(String(32), nullable=True)
+    last_sync_error = Column(String(500), nullable=True)
+    last_success_at = Column(DateTime(timezone=True), nullable=True)
 
     organization = relationship("Organization")
     provider = relationship("ToolProvider")
@@ -888,34 +904,179 @@ class OrgToolProviderConnection(Base):
     )
 
 
-class LawTextNorm(Base):
-    """One norm of a law code as a law-text provider serves it (migration 127).
+class UserToolProviderLink(Base):
+    """A user's own account at a tool provider (migration 127).
 
-    Filled by built-in providers (ingest) and as a cache of external
-    providers, so a running exam keeps its law texts while a provider is
-    down. ``blocks`` holds the structured content (paragraphs, sentences,
-    references; never HTML), ``plain_text`` the same as text for search
-    (GIN full-text index created by the migration), ``ordinal`` the order
-    within the code.
+    Created when a student links their account (OAuth 2.0 authorization code
+    + PKCE). Tokens are Fernet-encrypted via ``encryption_service`` and never
+    returned by an API; ``account_label`` is shown to that user only. The
+    ``last_sync_*`` columns describe the latest content sync (at linking,
+    nightly, or on "sync now"; never during an exam).
     """
 
-    __tablename__ = "law_text_norms"
+    __tablename__ = "user_tool_provider_links"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(
+        String, ForeignKey("tool_providers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    encrypted_refresh_token = Column(Text, nullable=True)
+    encrypted_access_token = Column(Text, nullable=True)
+    access_expires_at = Column(DateTime(timezone=True), nullable=True)
+    account_label = Column(String(255), nullable=True)
+    status = Column(String(16), nullable=False, server_default="active", default="active")
+    linked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_sync_started_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_finished_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_status = Column(String(32), nullable=True)
+    last_sync_error = Column(String(500), nullable=True)
+    last_success_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    provider = relationship("ToolProvider")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider_id", name="uq_user_tool_provider_link"),
+    )
+
+
+class ToolBundle(Base):
+    """One code (law texts) or work (commentary) of a provider in one version
+    (migration 127).
+
+    Deduplicated by ``content_hash`` (sha256 of the canonical JSON), so many
+    users holding the same version share one row. ``toc`` is the table of
+    contents tree; the items live in :class:`ToolBundleItem`.
+    ``last_referenced_at`` drives garbage collection of unreferenced bundles.
+    """
+
+    __tablename__ = "tool_bundles"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     provider_slug = Column(String(64), nullable=False)
+    kind = Column(String(32), nullable=False)
     code = Column(String(64), nullable=False)
-    norm_id = Column(String(128), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    title = Column(Text, nullable=True)
+    as_of = Column(String(32), nullable=True)
+    toc = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
+    item_count = Column(Integer, nullable=False, server_default="0", default=0)
+    size_bytes = Column(BigInteger, nullable=False, server_default="0", default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_referenced_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_slug", "kind", "code", "content_hash", name="uq_tool_bundle_version"
+        ),
+        Index("ix_tool_bundles_provider_kind_code", "provider_slug", "kind", "code"),
+    )
+
+
+class ToolBundleItem(Base):
+    """One norm or commentary entry of a :class:`ToolBundle` (migration 127).
+
+    ``blocks`` holds the structured content (never HTML), ``plain_text`` the
+    same as text for search (GIN full-text index created by the migration),
+    ``refs`` the norms a commentary entry comments.
+    """
+
+    __tablename__ = "tool_bundle_items"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    bundle_id = Column(String, ForeignKey("tool_bundles.id", ondelete="CASCADE"), nullable=False)
+    item_id = Column(String(128), nullable=False)
     label = Column(String(255), nullable=False)
     title = Column(Text, nullable=True)
     blocks = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
+    refs = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), default=list)
     plain_text = Column(Text, nullable=False, server_default="", default="")
-    as_of = Column(String(32), nullable=True)
     ordinal = Column(Integer, nullable=False, server_default="0", default=0)
-    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    previous_id = Column(String(128), nullable=True)
+    next_id = Column(String(128), nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("provider_slug", "code", "norm_id", name="uq_law_text_norms_norm"),
-        Index("ix_law_text_norms_code_order", "provider_slug", "code", "ordinal"),
+        UniqueConstraint("bundle_id", "item_id", name="uq_tool_bundle_item"),
+        Index("ix_tool_bundle_items_order", "bundle_id", "ordinal"),
+    )
+
+
+class ToolEntitlement(Base):
+    """Which bundle an owner currently holds per kind and code (migration 127).
+
+    Exactly one owner: a user's link, an organization's connection, or a
+    built-in provider (``builtin_provider_slug``). ``version``/``etag`` are
+    the provider's markers so an unchanged bundle is not downloaded again.
+    """
+
+    __tablename__ = "tool_entitlements"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    link_id = Column(
+        String,
+        ForeignKey("user_tool_provider_links.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    org_connection_id = Column(
+        String,
+        ForeignKey("org_tool_provider_connections.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    builtin_provider_slug = Column(String(64), nullable=True)
+    kind = Column(String(32), nullable=False)
+    code = Column(String(64), nullable=False)
+    bundle_id = Column(
+        String, ForeignKey("tool_bundles.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    version = Column(String(256), nullable=True)
+    etag = Column(String(256), nullable=True)
+    synced_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "(link_id IS NOT NULL)::int + (org_connection_id IS NOT NULL)::int"
+            " + (builtin_provider_slug IS NOT NULL)::int = 1",
+            name="ck_tool_entitlements_one_owner",
+        ),
+        UniqueConstraint("link_id", "kind", "code", name="uq_tool_entitlement_link"),
+        UniqueConstraint("org_connection_id", "kind", "code", name="uq_tool_entitlement_org"),
+        UniqueConstraint(
+            "builtin_provider_slug", "kind", "code", name="uq_tool_entitlement_builtin"
+        ),
+    )
+
+
+class ExamToolPin(Base):
+    """The bundle a writer saw for a kind and code in a project (migration 127).
+
+    Set on the writer's first read of that content in the project and kept
+    until the attempt ends (``released_at``), so synced content never changes
+    under a running exam and graders can see which version the writer had.
+    ``source_mode`` is ``student``, ``org`` or ``builtin``.
+    """
+
+    __tablename__ = "exam_tool_pins"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String(32), nullable=False)
+    code = Column(String(64), nullable=False)
+    provider_slug = Column(String(64), nullable=False)
+    bundle_id = Column(
+        String, ForeignKey("tool_bundles.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    source_mode = Column(String(16), nullable=False)
+    pinned_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    released_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "user_id", "kind", "code", name="uq_exam_tool_pin"),
     )
 
 

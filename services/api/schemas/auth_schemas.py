@@ -2,9 +2,9 @@
 Authentication-related Pydantic models for API requests and responses
 """
 
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 # Import existing auth models for consistency
 from auth_module import Token, TokenData, User, UserCreate, UserLogin
@@ -94,6 +94,39 @@ class ExamStateUiPrefs(BaseModel):
     spellcheck: Optional[bool] = None
 
 
+#: Bounds of ``ExamLayoutPrefs.tool_placements`` (mirrored in the frontend
+#: contract ``lib/labelConfig/examLayout.ts``).
+TOOL_ID_PATTERN = r"^[a-z_]{1,40}$"
+TOOL_PLACEMENTS_MAX = 20
+TOOL_FLOAT_MIN = 10.0
+
+
+class ExamToolPlacement(BaseModel):
+    """Where one exam tool sits in the modern layout (core 2.50).
+
+    ``zone`` is a side rail, a floating in-page window or hidden; ``order``
+    sorts tools within a rail; ``width`` is the rail panel width (px);
+    ``x``/``y``/``w``/``h`` the floating window box in percent of the
+    viewport (a box that would leave the viewport is refused).
+    """
+
+    zone: Literal["left", "right", "float", "hidden"]
+    order: Optional[int] = Field(None, ge=0, le=50)
+    width: Optional[int] = Field(None, ge=260, le=720)
+    x: Optional[float] = Field(None, ge=0, le=100)
+    y: Optional[float] = Field(None, ge=0, le=100)
+    w: Optional[float] = Field(None, ge=TOOL_FLOAT_MIN, le=100)
+    h: Optional[float] = Field(None, ge=TOOL_FLOAT_MIN, le=100)
+
+    @model_validator(mode="after")
+    def _box_fits(self):
+        if self.x is not None and self.w is not None and self.x + self.w > 100.0001:
+            raise ValueError("floating window leaves the viewport horizontally")
+        if self.y is not None and self.h is not None and self.y + self.h > 100.0001:
+            raise ValueError("floating window leaves the viewport vertically")
+        return self
+
+
 class ExamLayoutPrefs(BaseModel):
     """Canonical exam-interface layout object stored in users.exam_layout_prefs.
 
@@ -118,6 +151,23 @@ class ExamLayoutPrefs(BaseModel):
     # switches to another mode so a later switch back restores them.
     state_code: Optional[Bundesland] = None
     state_ui: Optional[ExamStateUiPrefs] = None
+    # Modern layout: where each exam tool sits, by tool id (core 2.50).
+    # Display preference only; the project decides which tools exist.
+    tool_placements: Optional[Dict[str, ExamToolPlacement]] = None
+
+    @field_validator("tool_placements")
+    @classmethod
+    def _tool_ids(cls, value):
+        import re
+
+        if value is None:
+            return None
+        if len(value) > TOOL_PLACEMENTS_MAX:
+            raise ValueError(f"at most {TOOL_PLACEMENTS_MAX} tool placements")
+        for tool_id in value:
+            if not re.match(TOOL_ID_PATTERN, tool_id):
+                raise ValueError(f"not a tool id: {tool_id!r}")
+        return value
 
     @model_validator(mode="after")
     def _state_mode_needs_code(self):

@@ -110,6 +110,10 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.reconcile_grading_usage": MAINTENANCE,  # extended
     "tasks.lti_grade_sync_sweep": MAINTENANCE,  # extended
     "tasks.exam_tools_sync_law_texts": MAINTENANCE,  # extended (core 2.50)
+    "tasks.exam_tools_sync_link": MAINTENANCE,  # extended (core 2.50)
+    "tasks.exam_tools_sync_org_connection": MAINTENANCE,  # extended (core 2.50)
+    "tasks.exam_tools_nightly_sync": MAINTENANCE,  # extended (core 2.50)
+    "tasks.exam_tools_gc_bundles": MAINTENANCE,  # extended (core 2.50)
     "tasks.cleanup_project_data": MAINTENANCE,
     "tasks.cleanup_api_key_usage_events": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
@@ -181,6 +185,10 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.ocr_handwritten_submission",
         "tasks.ocr_finalize_submission",
         "tasks.exam_tools_sync_law_texts",
+        "tasks.exam_tools_sync_link",
+        "tasks.exam_tools_sync_org_connection",
+        "tasks.exam_tools_nightly_sync",
+        "tasks.exam_tools_gc_bundles",
     }
 )
 

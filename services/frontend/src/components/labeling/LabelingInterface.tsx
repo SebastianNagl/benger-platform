@@ -22,6 +22,7 @@ import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale, intlTag } from '@/lib/i18n/locales'
+import type { ExamToolsVariant } from '@/lib/labelConfig/examLayout'
 import { logger } from '@/lib/utils/logger'
 import { selectVariant } from '@/lib/utils/variantHash'
 import { useProjectStore } from '@/stores/projectStore'
@@ -956,12 +957,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       />
     )
 
-  // The project's exam tools, one instance: the classic and modern renders
-  // show the 'default' variant, a state-specific interface places the
-  // 'state' variant in its own chrome (examChrome.renderTools).
+  // The project's exam tools, one instance: the classic render shows the
+  // 'default' variant, the modern layout the 'modern' variant and a
+  // state-specific interface the 'state' variant (examChrome.renderTools).
   const renderTools =
     ExamToolDock && currentProject && currentTask && !readOnlyView
-      ? (variant: 'default' | 'state') => (
+      ? (variant: ExamToolsVariant) => (
           <ExamToolDock
             variant={variant}
             projectId={currentProject.id}

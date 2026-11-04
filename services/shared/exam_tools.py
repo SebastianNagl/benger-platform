@@ -1,13 +1,15 @@
 """Data shape of ``projects.exam_tools`` (migration 127).
 
 A project lists the tools (Hilfsmittel) its writers may use in the exam
-interface, e.g. a calculator, a calendar or law texts::
+interface and, for content tools, the whitelist of providers and codes::
 
-    {"version": 1,
-     "tools": [{"id": "calculator"},
+    {"tools": [{"id": "calculator"},
                {"id": "law_texts",
-                "config": {"provider": "gii", "connection_id": null,
-                           "codes": ["BGB", "StGB"], "search": true}}]}
+                "config": {"codes": ["BGB", "StGB"], "search": true,
+                           "sources": [{"provider": "lexmea", "mode": "student"},
+                                       {"provider": "lexmea", "mode": "org",
+                                        "connection_id": "..."},
+                                       {"provider": "gii", "mode": "builtin"}]}}]}
 
 NULL means the project never chose (the interfaces keep their built-in
 defaults). The tools themselves, the validation of each tool's ``config`` and
@@ -20,12 +22,24 @@ from __future__ import annotations
 import copy
 from typing import Any, Optional
 
-EXAM_TOOLS_VERSION = 1
-
 # Keys of a tool config that point at rows of this deployment (an org's
 # connection to a tool provider). They are dropped when the project leaves
 # the deployment; the importer re-selects a connection in the settings.
 _DEPLOYMENT_BOUND_CONFIG_KEYS = ("connection_id",)
+
+
+def _without_bound_keys(value: Any) -> Any:
+    """Deep copy of ``value`` without deployment-bound keys at any depth
+    (v2 keeps ``connection_id`` inside the ``sources`` list)."""
+    if isinstance(value, dict):
+        return {
+            k: _without_bound_keys(v)
+            for k, v in value.items()
+            if k not in _DEPLOYMENT_BOUND_CONFIG_KEYS
+        }
+    if isinstance(value, list):
+        return [_without_bound_keys(v) for v in value]
+    return copy.deepcopy(value)
 
 
 def portable_exam_tools(value: Any) -> Optional[dict]:
@@ -47,14 +61,6 @@ def portable_exam_tools(value: Any) -> Optional[dict]:
         entry: dict = {"id": tool["id"]}
         config = tool.get("config")
         if isinstance(config, dict):
-            entry["config"] = {
-                k: copy.deepcopy(v)
-                for k, v in config.items()
-                if k not in _DEPLOYMENT_BOUND_CONFIG_KEYS
-            }
+            entry["config"] = _without_bound_keys(config)
         portable.append(entry)
-    version = value.get("version")
-    return {
-        "version": version if isinstance(version, int) else EXAM_TOOLS_VERSION,
-        "tools": portable,
-    }
+    return {"tools": portable}

@@ -7,7 +7,12 @@ import {
   CLASSIC_LAYOUT,
   isExamShapedConfig,
   MODERN_EXAM_LAYOUT_SLOT,
+  PANEL_WIDTH_MAX,
   resolveExamLayoutPrefs,
+  resolveToolPlacements,
+  TOOL_FLOAT_MIN,
+  TOOL_ORDER_MAX,
+  TOOL_PLACEMENTS_MAX,
 } from '../examLayout'
 import type { ParsedComponent } from '../parser'
 
@@ -243,5 +248,70 @@ describe('isExamShapedConfig', () => {
 describe('MODERN_EXAM_LAYOUT_SLOT', () => {
   it('is the frozen slot-name contract with the extended edition', () => {
     expect(MODERN_EXAM_LAYOUT_SLOT).toBe('ModernExamLayout')
+  })
+})
+
+describe('resolveToolPlacements (core 2.50)', () => {
+  it('keeps valid placements and drops invalid ones', () => {
+    expect(
+      resolveToolPlacements({
+        law_texts: { zone: 'right', order: 1, width: 500 },
+        calculator: { zone: 'float', x: 10, y: 20, w: 30, h: 40 },
+        notes: { zone: 'nowhere' },
+        'Bad-Id': { zone: 'left' },
+        calendar: 'left',
+      }),
+    ).toEqual({
+      law_texts: { zone: 'right', order: 1, width: 500 },
+      calculator: { zone: 'float', x: 10, y: 20, w: 30, h: 40 },
+    })
+  })
+
+  it('clamps numbers so a floating window fits the viewport', () => {
+    expect(
+      resolveToolPlacements({
+        calculator: { zone: 'float', x: 95, y: -5, w: 2, h: 400, order: 99 },
+        law_texts: { zone: 'left', width: 5000 },
+      }),
+    ).toEqual({
+      calculator: {
+        zone: 'float',
+        order: TOOL_ORDER_MAX,
+        x: 100 - TOOL_FLOAT_MIN,
+        y: 0,
+        w: TOOL_FLOAT_MIN,
+        h: 100,
+      },
+      law_texts: { zone: 'left', width: PANEL_WIDTH_MAX },
+    })
+  })
+
+  it('returns undefined for non-objects and empty results', () => {
+    for (const raw of [null, undefined, 'x', [], {}, { a: { zone: 'x' } }]) {
+      expect(resolveToolPlacements(raw)).toBeUndefined()
+    }
+  })
+
+  it('caps the number of placements', () => {
+    const raw: Record<string, unknown> = {}
+    for (let i = 0; i < TOOL_PLACEMENTS_MAX + 5; i++) {
+      raw[`tool_${'a'.repeat((i % 20) + 1)}${i < 20 ? '' : 'b'}`] = {
+        zone: 'hidden',
+      }
+    }
+    expect(
+      Object.keys(resolveToolPlacements(raw) ?? {}).length,
+    ).toBeLessThanOrEqual(TOOL_PLACEMENTS_MAX)
+  })
+
+  it('is carried by resolveExamLayoutPrefs', () => {
+    const prefs = resolveExamLayoutPrefs({
+      mode: 'modern',
+      tool_placements: { notes: { zone: 'left', order: 0 } },
+    })
+    expect(prefs.tool_placements).toEqual({ notes: { zone: 'left', order: 0 } })
+    expect(
+      'tool_placements' in resolveExamLayoutPrefs({ mode: 'modern' }),
+    ).toBe(false)
   })
 })

@@ -14,7 +14,6 @@ export interface ExamToolEntry {
 
 /** Shape of `projects.exam_tools` (migration 127, /shared/exam_tools.py). */
 export interface ExamToolsConfig {
-  version: number
   tools: ExamToolEntry[]
 }
 
