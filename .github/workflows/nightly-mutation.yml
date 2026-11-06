@@ -12,7 +12,7 @@ name: Nightly Mutation
 
 on:
   schedule:
-    - cron: '0 3 * * *' # 03:00 UTC (after the 01:00 full-suite + 02:00 coverage nightlies)
+    - cron: '0 20 * * *' # 20:00 UTC (after the 17:00 full-suite + 18:00 coverage nightlies)
   workflow_dispatch:
 
 permissions:

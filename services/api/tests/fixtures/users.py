@@ -10,6 +10,7 @@ Four test users cover all permission levels:
 """
 
 from datetime import datetime
+from functools import lru_cache
 from typing import Dict, List
 
 import pytest
@@ -17,7 +18,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import User
-from auth_module.user_service import get_password_hash
+from auth_module.user_service import get_password_hash as _real_password_hash
+
+
+@lru_cache(maxsize=None)
+def get_password_hash(password: str) -> str:
+    """The real bcrypt hash, computed once per password. test_users runs for
+    thousands of tests and each hash costs about 0.3 s; login tests still
+    verify against a real hash."""
+    return _real_password_hash(password)
 
 
 @pytest.fixture(scope="function")

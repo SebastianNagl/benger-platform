@@ -11,7 +11,7 @@ name: Nightly API Coverage
 
 on:
   schedule:
-    - cron: '0 2 * * *' # 02:00 UTC nightly
+    - cron: '0 18 * * *' # 18:00 UTC, after the 17:00 full-suite nightly
   workflow_dispatch:
 
 permissions:

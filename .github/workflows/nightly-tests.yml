@@ -16,7 +16,9 @@ name: Nightly Tests
 
 on:
   schedule:
-    - cron: "0 1 * * *"
+    # Evening, because scheduled runs start 5-7 h late at this load and red
+    # should be known before morning exams.
+    - cron: "0 17 * * *"
   workflow_dispatch:
 
 concurrency:
