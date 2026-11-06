@@ -8,7 +8,7 @@ here lets both the API (which has /shared on sys.path) and the worker
 package surface.
 """
 
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 # Metric-key noise stripped out of the "scored (subject, metric) pairs" tally.
 # Mirrors the dropdown filter in routers/evaluations/metadata.py so the tile
@@ -103,6 +103,25 @@ HEAVY_METRICS = frozenset(
         "coherence",
     }
 )
+
+
+def is_unreleased_feedback(blob: Any) -> bool:
+    """Whether a metric blob is a feedback-only judge result still waiting for
+    its release (``details.feedback_only``, core 2.41).
+
+    Such a blob is a draft for the teacher, not a score, so no attempt score
+    or student-facing number may read it. A judge that releases on writing, or
+    a teacher who released later, stores ``details.review.status = "released"``
+    on the row. The overlay owns the review workflow; this only reads the
+    stored shape, because the attempt-score surfaces live in the platform.
+    """
+    if not isinstance(blob, dict):
+        return False
+    details = blob.get("details")
+    if not isinstance(details, dict) or details.get("feedback_only") is not True:
+        return False
+    review = details.get("review")
+    return not (isinstance(review, dict) and review.get("status") == "released")
 
 
 def is_heavy_metric(metric_name: Optional[str]) -> bool:

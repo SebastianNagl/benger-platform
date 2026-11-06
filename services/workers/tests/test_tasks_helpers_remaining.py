@@ -39,9 +39,6 @@ Targets (tasks.py), all genuinely uncovered before this file:
   - export_project — the ``project is None`` → mark-failed branch (6392-6396),
         uncovered by ``test_export_task.py``.
 
-  - auto_submit_expired_timer — the partial branches where the task row exists
-        but the drafted ``result`` is empty (so the counter bump is skipped,
-        861->876) and where the project row is missing (864->876).
 """
 
 import os
@@ -58,7 +55,6 @@ if workers_root not in sys.path:
 import tasks as tasks_module  # noqa: E402
 from tasks import (  # noqa: E402
     _evaluate_llm_judge_single,
-    auto_submit_expired_timer,
     export_project,
     run_single_sample_evaluation,
 )
@@ -625,120 +621,6 @@ class TestExportProjectProjectNotFound:
         # Never reached the upload machinery.
         fake_storage.create_multipart_upload.assert_not_called()
         db.close.assert_called_once()
-
-
-# ===========================================================================
-# auto_submit_expired_timer — task-counter partial branches
-# ===========================================================================
-
-
-class _AutoSubmitDB:
-    """Model-class-keyed fake session for auto_submit_expired_timer (idiom from
-    test_tasks_handlers_coverage.py). Drives the timer-session lookup, the
-    'annotation already exists' check (here: None → proceed), the task-counter
-    lookup, and the project lookup independently."""
-
-    def __init__(self, *, session_row, task_row, project_row):
-        self._session = session_row
-        self._task = task_row
-        self._project = project_row
-        self.committed = False
-        self.rolled_back = False
-        self.added = []
-
-    def query(self, model):
-        name = getattr(model, "__name__", "")
-        q = MagicMock()
-        if name == "TimerSession":
-            q.filter.return_value.first.return_value = self._session
-        elif name == "Annotation":
-            # 'existing annotation' check → None so we proceed to auto-submit;
-            # the non-cancelled count uses .count(), kept at 0.
-            q.filter.return_value.first.return_value = None
-            q.filter.return_value.count.return_value = 0
-        elif name == "TaskDraft":
-            q.filter.return_value.first.return_value = None
-        elif name == "Task":
-            q.filter.return_value.first.return_value = self._task
-        elif name == "Project":
-            q.filter.return_value.first.return_value = self._project
-        else:
-            q.filter.return_value.first.return_value = None
-        return q
-
-    def execute(self, *args, **kwargs):
-        # advisory-lock acquisition (SELECT pg_advisory_xact_lock(...)) — no-op.
-        return None
-
-    def add(self, obj):
-        self.added.append(obj)
-
-    def commit(self):
-        self.committed = True
-
-    def rollback(self):
-        self.rolled_back = True
-
-    def close(self):
-        pass
-
-
-def _timer_session(**overrides):
-    s = types.SimpleNamespace(
-        id="ts-1",
-        completed_at=None,
-        target_type="task",
-        task_id="t1",
-        project_id="p1",
-        user_id="u1",
-        draft_result=None,
-        time_limit_seconds=600,
-        auto_submitted=False,
-    )
-    for k, v in overrides.items():
-        setattr(s, k, v)
-    return s
-
-
-class TestAutoSubmitExpiredTimerCounterBranches:
-    def test_empty_draft_result_skips_counter_bump(self):
-        """The drafted result is empty, so the annotation is still created but
-        the ``task.total_annotations`` / ``is_labeled`` counter block is skipped
-        (the ``result and len(result) > 0`` guard, 861->876). The session is
-        completed + auto_submitted and 'submitted' is returned."""
-        session = _timer_session(draft_result=[])  # empty draft → empty result
-        task = types.SimpleNamespace(total_annotations=5, is_labeled=False)
-        db = _AutoSubmitDB(session_row=session, task_row=task, project_row=None)
-
-        with patch.object(tasks_module, "HAS_DATABASE", True):
-            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
-                out = auto_submit_expired_timer("ts-1")
-
-        assert out["status"] == "submitted"
-        # Counter block skipped → task counters untouched.
-        assert task.total_annotations == 5
-        assert task.is_labeled is False
-        assert session.completed_at is not None
-        assert session.auto_submitted is True
-        assert db.committed is True
-
-    def test_nonempty_result_but_missing_project_bumps_count_only(self):
-        """Result is non-empty so ``total_annotations`` bumps, but the project
-        row is missing so the ``is_labeled`` recompute is skipped (864->876).
-        """
-        session = _timer_session(draft_result=[{"value": {"text": ["x"]}}])
-        task = types.SimpleNamespace(total_annotations=2, is_labeled=False)
-        db = _AutoSubmitDB(session_row=session, task_row=task, project_row=None)
-
-        with patch.object(tasks_module, "HAS_DATABASE", True):
-            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
-                out = auto_submit_expired_timer("ts-1")
-
-        assert out["status"] == "submitted"
-        # Count bumped (result non-empty), but is_labeled untouched (no project).
-        assert task.total_annotations == 3
-        assert task.is_labeled is False
-        assert db.committed is True
 
 
 # ===========================================================================

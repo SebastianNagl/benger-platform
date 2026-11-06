@@ -70,6 +70,7 @@ from metric_filters import (  # noqa: F401 — re-exported for legacy callers
     _METRIC_EXCLUDED_KEYS,
     _METRIC_NOISE_SUFFIXES,
     _metric_key_is_real,
+    is_unreleased_feedback,
     metric_key_counts_as_evaluation,
 )
 
@@ -84,7 +85,8 @@ def attempt_score_from_metrics(metrics: Any) -> Optional[float]:
     future flat writer keeps working. A row normally carries exactly one
     real metric; if several are present the largest non-null value wins
     (order-independent). Returns ``None`` for rows without a usable score
-    (e.g. judge-error rows, where ``value`` is null).
+    (e.g. judge-error rows, where ``value`` is null) and for an unreleased
+    feedback-only draft, whose note is not the student's yet.
     """
     if not isinstance(metrics, dict):
         return None
@@ -94,6 +96,8 @@ def attempt_score_from_metrics(metrics: Any) -> Optional[float]:
     best: Optional[float] = None
     for key, sub in metrics.items():
         if not _metric_key_is_real(key) or not isinstance(sub, dict):
+            continue
+        if is_unreleased_feedback(sub):
             continue
         value = sub.get("value")
         if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -112,7 +116,7 @@ def attempt_grade_points_from_metrics(metrics: Any) -> Optional[float]:
     if not isinstance(metrics, dict):
         return None
     for key, sub in metrics.items():
-        if not _metric_key_is_real(key):
+        if not _metric_key_is_real(key) or is_unreleased_feedback(sub):
             continue
         candidates = []
         if isinstance(sub, dict) and isinstance(sub.get("details"), dict):

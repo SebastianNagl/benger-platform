@@ -95,6 +95,22 @@ def test_extended_task_names_are_still_routed():
     assert not missing, f"extended tasks dropped from the routing table: {sorted(missing)}"
 
 
+def test_platform_registers_no_extended_task_name():
+    """A name has one owner. The platform registering an extended name gives
+    Celery two bodies for it, and which one runs depends on the memory layout
+    of the process (extended issue #194, the strict-timer auto-submit)."""
+    import tasks  # noqa: F401
+
+    from worker_celery import app
+
+    registered_here = {
+        name: app.tasks[name].__module__
+        for name in celery_queues.EXTENDED_TASK_NAMES & set(app.tasks)
+        if not app.tasks[name].__module__.startswith("benger_")
+    }
+    assert not registered_here, f"extended task names registered by the platform: {registered_here}"
+
+
 def test_no_task_routes_to_an_undeclared_queue():
     """Every routed queue must be a real queue name in QUEUES."""
     bad = {
