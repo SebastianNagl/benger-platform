@@ -491,7 +491,11 @@ async def get_task_generation_status(
         offset = (page - 1) * page_size
         tasks = (
             await db.execute(
-                select(Task).where(*task_where).offset(offset).limit(page_size)
+                select(Task)
+                .where(*task_where)
+                .order_by(Task.inner_id, Task.id)
+                .offset(offset)
+                .limit(page_size)
             )
         ).scalars().all()
     elif status_filter == "not_generated":
@@ -500,7 +504,9 @@ async def get_task_generation_status(
         # tasks once, bulk-fetch their latest rows, filter, paginate. Single
         # bulk query instead of per-cell SELECTs.
         tasks = (
-            await db.execute(select(Task).where(*task_where))
+            await db.execute(
+                select(Task).where(*task_where).order_by(Task.inner_id, Task.id)
+            )
         ).scalars().all()
     else:
         total = (
@@ -511,7 +517,11 @@ async def get_task_generation_status(
         offset = (page - 1) * page_size
         tasks = (
             await db.execute(
-                select(Task).where(*task_where).offset(offset).limit(page_size)
+                select(Task)
+                .where(*task_where)
+                .order_by(Task.inner_id, Task.id)
+                .offset(offset)
+                .limit(page_size)
             )
         ).scalars().all()
 
