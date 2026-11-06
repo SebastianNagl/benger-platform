@@ -253,18 +253,20 @@ make test-e2e GREP="annotation"
 
 ### GitHub Actions
 
-**File:** `.github/workflows/cicd.yml`
+**File:** `.github/workflows/ci.yml`
 
-Runs on PRs to master and direct pushes. Uses the same Docker-based test infrastructure.
+Runs on PRs to `main` and on pushes to `main`, with the same jobs on both and a budget of 5 minutes per job. A job above budget prints a warning. The gate measures no coverage, so a merge never waits on instrumentation.
 
-**Always run `make test` locally before pushing** to avoid wasting CI minutes.
+- **Frontend:** Jest in three shards, plus Prettier, ESLint and the e2e type check
+- **API:** the full suite in five shards
+- **Workers:** the full suite
+- **Lint:** ruff, lockfiles, the Celery queue and workers-base contracts
 
-### CI Test Stages
+### Nightly
 
-1. **Frontend tests** — Jest with coverage (15 min timeout)
-2. **Database migrations** — Alembic on clean DB (5 min timeout)
-3. **API tests** — pytest with coverage (10 min timeout)
-4. **Workers tests** — pytest with memory backend
+`nightly-tests.yml` and `nightly-coverage.yml` run the same suites with coverage and enforce the floors, and add the Playwright E2E run. `nightly-mutation.yml` runs mutation testing. A red night sends a mail through Alertmanager and shows in Grafana; it does not block deploys.
+
+Before merging, run the suites you touched locally. The coverage floors are only checked at night, or locally with `make test-frontend` and the `COVERAGE=1` API run.
 
 ---
 
