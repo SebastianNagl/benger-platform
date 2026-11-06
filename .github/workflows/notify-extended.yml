@@ -3,11 +3,10 @@ name: Notify Extended
 # MANUAL EMERGENCY BYPASS — fires the core-updated dispatch at the
 # downstream extended repo immediately, with no CI gate at all. The normal
 # path is the notify-extended job at the end of ci.yml, which dispatches
-# only after the full API + workers suites pass on main (or after the fast
-# checks for a "[hotfix]"-tagged commit).
+# only after the whole gate passes on main.
 #
 # Use this workflow when:
-#   - a hotfix can't wait even for the fast checks, or
+#   - a hotfix can't wait for the gate, or
 #   - you need to re-trigger a prod build/deploy without a new commit
 #     (e.g. after a transient build failure).
 #

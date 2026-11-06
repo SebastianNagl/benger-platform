@@ -1,10 +1,11 @@
 name: CI
 
-# PRs: fast feedback only (Jest + lint). Push to main additionally runs the
-# full API + workers suites and, when everything is green, dispatches the
-# core-updated event that triggers the extended repo's build + prod deploy.
-# Nothing reaches production without passing the heavy suites, except via
-# the two explicit hotfix bypasses (see the notify-extended job comment).
+# PRs and pushes to main run the same gate: Jest, lint, the full API suite and
+# the workers suite, with a budget of 5 minutes per job. Coverage is not part of
+# the gate; it runs at night (nightly-tests.yml, nightly-coverage.yml). On a push
+# to main a green gate dispatches the core-updated event that triggers the
+# extended repo's build + prod deploy. The one bypass is the manual
+# notify-extended.yml, for emergencies.
 
 on:
   push:
@@ -26,7 +27,7 @@ jobs:
     # the job to ~5 min. Jest's --shard splits by suite, deterministically.
     name: Frontend Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -61,50 +62,12 @@ jobs:
         if: matrix.shard == 1
         run: cd services/frontend && npx tsc -p e2e/tsconfig.json
 
-      # Thresholds are evaluated per shard by Jest, which cannot work for a
-      # global floor; disable them here and enforce them once on the merged
-      # map in frontend-coverage-gate (scripts/coverage-gate.mjs).
+      # Coverage and its thresholds run at night (make test-frontend in
+      # nightly-tests.yml), so a merge never waits on instrumentation.
       - name: Run Jest tests
         run: |
           cd services/frontend && npm test -- --ci --passWithNoTests \
-            --shard=${{ matrix.shard }}/3 \
-            --coverageReporters=json --coverageThreshold='{}'
-
-      - name: Upload shard coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: jest-coverage-${{ matrix.shard }}
-          path: services/frontend/coverage/coverage-final.json
-          if-no-files-found: error
-          retention-days: 3
-
-  frontend-coverage-gate:
-    name: Frontend coverage gate
-    needs: frontend-tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: services/frontend/package-lock.json
-
-      - name: Install dependencies
-        run: cd services/frontend && npm ci --no-audit
-
-      - name: Download shard coverage
-        uses: actions/download-artifact@v8
-        with:
-          pattern: jest-coverage-*
-          path: services/frontend/coverage-shards
-
-      - name: Enforce jest.config.js coverageThreshold on the merged map
-        run: |
-          cd services/frontend && node scripts/coverage-gate.mjs coverage-shards/*/coverage-final.json
+            --shard=${{ matrix.shard }}/3 --coverage=false
 
   python-checks:
     name: Python Lint
@@ -168,10 +131,8 @@ jobs:
       - name: Check workers-base tag lockstep
         run: python services/api/scripts/check_workers_base_tag.py
 
-  # Full Dockerized suites — the prod gate. Run on push to main (and manual
-  # dispatch), NOT on PRs, so PR iteration stays fast. A commit message
-  # containing [hotfix] skips them; the notify-extended job below treats
-  # skipped gates as passing, so a hotfix dispatches after the fast checks.
+  # Full Dockerized suites, the prod gate. They run on PRs too, so a merge can
+  # no longer pass its PR and fail only on main.
   #
   # Each shard starts only Postgres + Redis (`make test-start-lite`). The
   # pytest suites never talk to the API container, the Celery worker, MinIO
@@ -184,17 +145,12 @@ jobs:
   integration-tests:
     name: ${{ matrix.shard }} tests (prod gate)
     runs-on: ubuntu-latest
-    timeout-minutes: 100
-    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[hotfix]')
+    # Budget 5 min; the limit only catches a hung run.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
-      # The full api suite alone takes well over an hour on GitHub-hosted
-      # runners (the "~36 min" folklore is stale — an unsharded gate run
-      # timed out at 60 min having reached 37%). Shard it so gate
-      # wall-clock stays ~35 min. Measured 2026-06-10: unit-mz 9m,
-      # unit-al 23m, workers 16m, unsplit "everything else" ~65m — the
-      # integration dir is the slow tail, so it gets its own [a-l]/[m-z]
-      # halves (791/662 tests). Globs expand inside the test container;
+      # Measured 2026-11-06 per job: unit-al 2.7 min, unit-mz 2.4, integration-al
+      # 3.6, integration-mz 3.5, rest 2.1. Globs expand inside the test container;
       # new test files land in a shard automatically.
       matrix:
         include:
@@ -215,7 +171,7 @@ jobs:
             cmd: make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"
           - shard: workers
             suite: workers
-            cmd: make test-workers
+            cmd: make test-workers-gate
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -302,8 +258,13 @@ jobs:
         run: make test-start-lite
 
       - name: Run ${{ matrix.shard }} tests
-        run: ${{ matrix.cmd }}
-        timeout-minutes: 80
+        run: |
+          START=$SECONDS
+          ${{ matrix.cmd }}
+          MINUTES=$(( (SECONDS - START) / 60 ))
+          if [ "$MINUTES" -ge 5 ]; then
+            echo "::warning::${{ matrix.shard }} took $MINUTES min of tests alone, above the 5 min budget"
+          fi
 
       - name: Cleanup
         if: always()
@@ -319,13 +280,10 @@ jobs:
 
   # Cross-repo dispatch: tells the private extended repo to rebuild against
   # this commit and deploy to production. Fires only on push to main, and
-  # only when no gate job FAILED — skipped gates (a [hotfix] commit) pass.
+  # only when every gate job passed.
   #
-  # Hotfix bypasses:
-  #   1. "[hotfix]" in the commit message — integration-tests skip
-  #      themselves, dispatch fires after Jest + lint (~10 min).
-  #   2. Manual: `gh workflow run notify-extended.yml` — dispatches
-  #      immediately with no CI at all (emergencies / re-deploys).
+  # The one bypass: `gh workflow run notify-extended.yml` dispatches immediately
+  # with no CI at all (emergencies / re-deploys).
   #
   # The downstream repo is named via the EXTENDED_REPO secret (owner/repo)
   # and EXTENDED_REPO_NAME secret (repo name, used as the App token scope)
@@ -339,11 +297,8 @@ jobs:
   # passes CI.
   notify-extended:
     name: Trigger downstream rebuild
-    needs: [frontend-tests, frontend-coverage-gate, python-checks, integration-tests]
-    if: >-
-      always() && github.event_name == 'push' &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+    needs: [frontend-tests, python-checks, integration-tests]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
