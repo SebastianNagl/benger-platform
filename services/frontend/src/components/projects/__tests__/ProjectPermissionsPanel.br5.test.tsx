@@ -364,12 +364,10 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       ).toBeInTheDocument()
       expect(screen.getByText('Org A')).toBeInTheDocument()
       expect(screen.getByText('Org B')).toBeInTheDocument()
-      expect(
-        screen.queryByTestId('project-permissions-panel'),
-      ).not.toBeInTheDocument()
+      expect(screen.queryByTestId('save-button')).not.toBeInTheDocument()
     })
 
-    it('renders the public + contributor summary line', () => {
+    it('shows the public + contributor choice greyed out', () => {
       render(
         <ProjectPermissionsPanel
           projectId="p1"
@@ -379,10 +377,12 @@ describe('ProjectPermissionsPanel — organization branches', () => {
         />,
       )
 
-      expect(screen.getByText(/Public · Contributor/)).toBeInTheDocument()
+      expect(screen.getByTestId('public-radio')).toBeChecked()
+      expect(screen.getByTestId('public-role-contributor-radio')).toBeChecked()
+      expect(screen.getByTestId('public-role-contributor-radio')).toBeDisabled()
     })
 
-    it('renders the public + annotator summary line', () => {
+    it('shows the public + annotator choice greyed out', () => {
       render(
         <ProjectPermissionsPanel
           projectId="p1"
@@ -392,7 +392,9 @@ describe('ProjectPermissionsPanel — organization branches', () => {
         />,
       )
 
-      expect(screen.getByText(/Public · Annotator/)).toBeInTheDocument()
+      expect(screen.getByTestId('public-radio')).toBeChecked()
+      expect(screen.getByTestId('public-role-annotator-radio')).toBeChecked()
+      expect(screen.getByTestId('public-role-annotator-radio')).toBeDisabled()
     })
 
     it('returns false from canEditPermissions when projectCreatorId is null', () => {

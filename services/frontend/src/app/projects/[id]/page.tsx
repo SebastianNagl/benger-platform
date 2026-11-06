@@ -381,6 +381,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Learning-platform (LMS) activities linked to this project, shown under the
   // quick actions. The slot renders nothing for projects outside an LMS.
   const ProjectLmsActivities = useSlot('project-lms-activities')
+  const ProjectLmsLinking = useSlot('project-lms-linking')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -2872,10 +2873,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 )}
 
                 {/* Visibility — collapsible sub-section, danger-zone styled
-              because flipping to public exposes the project platform-wide. */}
+              because flipping to public exposes the project platform-wide.
+              Everyone who may edit the project sees it, with the setting
+              greyed out unless they may change it (the panel decides), and
+              the learning platform link below it. */}
                 {currentProject &&
                   (user?.is_superadmin ||
-                    String(user?.id) === String(currentProject.created_by)) && (
+                    String(user?.id) === String(currentProject.created_by) ||
+                    canEditProject()) && (
                     <div data-testid="project-visibility-danger-zone">
                       <SubSection
                         title={t('project.settings.visibilityDangerZone.title')}
@@ -2894,6 +2899,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <ProjectPermissionsPanel
                             projectId={projectId}
                             projectCreatorId={currentProject.created_by}
+                            effectiveRole={currentProject.effective_role}
                             initialVisibility={
                               currentProject.is_public
                                 ? 'public'
@@ -2912,6 +2918,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             onSave={() => fetchProject(projectId)}
                           />
                         </div>
+                        {ProjectLmsLinking &&
+                          currentProject.kind === 'exam' && (
+                            <div className="mt-4">
+                              <ProjectLmsLinking projectId={projectId} />
+                            </div>
+                          )}
                       </SubSection>
                     </div>
                   )}

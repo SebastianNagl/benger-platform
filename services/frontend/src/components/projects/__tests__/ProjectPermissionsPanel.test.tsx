@@ -120,6 +120,50 @@ describe('ProjectPermissionsPanel', () => {
       })
     })
 
+    it('lets an org admin of an attached org edit', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: 'user-2',
+          email: 'user@test.com',
+          is_superadmin: false,
+        },
+      })
+
+      render(
+        <ProjectPermissionsPanel
+          projectId="project-1"
+          projectCreatorId="someone-else"
+          effectiveRole="ORG_ADMIN"
+          initialVisibility="organization"
+        />,
+      )
+
+      expect(screen.getByTestId('private-radio')).toBeEnabled()
+      expect(screen.getByTestId('save-button')).toBeInTheDocument()
+    })
+
+    it('stays read-only for a contributor', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: 'user-2',
+          email: 'user@test.com',
+          is_superadmin: false,
+        },
+      })
+
+      render(
+        <ProjectPermissionsPanel
+          projectId="project-1"
+          projectCreatorId="someone-else"
+          effectiveRole="CONTRIBUTOR"
+          initialVisibility="organization"
+        />,
+      )
+
+      expect(screen.getByTestId('private-radio')).toBeDisabled()
+      expect(screen.queryByTestId('save-button')).not.toBeInTheDocument()
+    })
+
     it('renders read-only view for non-creator non-superadmin', () => {
       mockUseAuth.mockReturnValue({
         user: {
@@ -140,9 +184,13 @@ describe('ProjectPermissionsPanel', () => {
       expect(
         screen.getByText('You can only view these permissions'),
       ).toBeInTheDocument()
-      expect(
-        screen.queryByTestId('project-permissions-panel'),
-      ).not.toBeInTheDocument()
+      // The whole setting stays visible, greyed out and without a way to save.
+      expect(screen.getByTestId('organization-radio')).toBeDisabled()
+      expect(screen.getByTestId('organization-radio')).toBeChecked()
+      expect(screen.getByTestId('private-radio')).toBeDisabled()
+      expect(screen.getByTestId('public-radio')).toBeDisabled()
+      expect(screen.queryByTestId('save-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('cancel-button')).not.toBeInTheDocument()
     })
 
     it('renders editable view for the project creator (non-superadmin)', async () => {

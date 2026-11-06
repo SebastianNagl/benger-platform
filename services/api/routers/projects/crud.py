@@ -1250,7 +1250,7 @@ async def update_project_visibility(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Change project visibility (creator or superadmin).
+    """Change project visibility (creator, the attached orgs' admins, superadmin).
 
     Request body shapes:
     - Make private: {"is_private": true, "owner_user_id": "user-uuid"}
@@ -1271,10 +1271,25 @@ async def update_project_visibility(
     if project.deleted_at is not None and not current_user.is_superadmin:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not current_user.is_superadmin and str(project.created_by) != str(current_user.id):
+    # ORG_ADMIN here means superadmin, creator or an admin of an org the project
+    # is attached to (group admin on a grouped attachment), per the access rules.
+    if await get_effective_project_role_async(db, current_user, project) != "ORG_ADMIN":
         raise HTTPException(
             status_code=403,
-            detail="Only the project creator or a superadmin can change project visibility",
+            detail=(
+                "Only the project creator, an organization admin or a superadmin "
+                "can change project visibility"
+            ),
+        )
+    # Handing the project over stays with its creator and superadmins.
+    if (
+        visibility.get("owner_user_id")
+        and not current_user.is_superadmin
+        and str(project.created_by) != str(current_user.id)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the project creator or a superadmin can change the owner",
         )
 
     make_private = visibility.get("is_private", False)
