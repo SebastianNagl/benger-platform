@@ -287,6 +287,31 @@ class TestGenerationRouter:
             )
         assert resp.status_code in (200, 403, 404)
 
+    async def test_tasks_come_in_task_number_order(
+        self, async_test_client, async_test_db
+    ):
+        """Pages need a fixed order: without ORDER BY, tasks can repeat or go
+        missing between pages. The numbers run against the insertion order, so
+        only a real sort passes."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        config = {"selected_configuration": {"models": ["gpt-4o"]}}
+        project, tasks, _ = await _setup_async(
+            async_test_db, admin, org, generation_config=config, num_tasks=3
+        )
+        for number, task in zip((13, 12, 11), tasks):
+            task.inner_id = number
+        await async_test_db.commit()
+        lowest_number_first = [t.id for t in reversed(tasks)]
+
+        with _as_user(admin):
+            for query in ("", "?status_filter=not_generated"):
+                resp = await async_test_client.get(
+                    f"/api/generation-tasks/projects/{project.id}/task-status{query}",
+                )
+                assert resp.status_code == 200
+                assert [t["id"] for t in resp.json()["tasks"]] == lowest_number_first
+
     async def test_legacy_null_structure_key_visible_with_configured_structures(
         self, async_test_client, async_test_db
     ):
