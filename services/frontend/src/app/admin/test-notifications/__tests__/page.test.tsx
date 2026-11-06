@@ -297,7 +297,7 @@ describe('TestNotificationsPage', () => {
 
     it('should disable buttons while generating', async () => {
       mockApiNotifications.createTestNotification.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise(() => {}),
       )
 
       const user = userEvent.setup()
@@ -464,7 +464,7 @@ describe('TestNotificationsPage', () => {
 
     it('should disable buttons during bulk generation', async () => {
       mockApiNotifications.generateTestNotifications.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise(() => {}),
       )
 
       const user = userEvent.setup()
@@ -554,7 +554,7 @@ describe('TestNotificationsPage', () => {
     it('should disable buttons during clear operation', async () => {
       window.confirm = jest.fn(() => true)
       mockApi.markAllNotificationsAsRead.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise(() => {}),
       )
 
       const user = userEvent.setup()
@@ -675,7 +675,7 @@ describe('TestNotificationsPage', () => {
   describe('Loading States', () => {
     it('should show individual loading state for specific notification', async () => {
       mockApiNotifications.createTestNotification.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () => new Promise(() => {}),
       )
 
       const user = userEvent.setup()
