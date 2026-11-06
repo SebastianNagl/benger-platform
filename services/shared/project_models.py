@@ -222,6 +222,12 @@ class Project(Base):
     seb_required = Column(Boolean, default=False, server_default="false", nullable=False)
     seb_config = Column(JSONB, nullable=True)
 
+    # Exam tools (Hilfsmittel) the writers may use in the exam interface:
+    # calculator, calendar, law texts, ... (migration 127; shape in
+    # /shared/exam_tools.py). NULL = never chosen, the interfaces keep their
+    # built-in defaults. Written only by the extended edition's endpoint.
+    exam_tools = Column(JSONB, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -776,6 +782,29 @@ class TaskDraft(Base):
     __table_args__ = (
         sa.UniqueConstraint("task_id", "user_id", name="unique_task_draft"),
         sa.Index("ix_task_drafts_project_user", "project_id", "user_id"),
+    )
+
+
+class ExamToolNote(Base):
+    """A writer's scratch notes for one task from the notes exam tool
+    (migration 127). One row per (task, user), overwritten in place; never
+    graded and not part of exports. Written by the extended edition."""
+
+    __tablename__ = "exam_tool_notes"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    text = Column(Text, nullable=False, default="", server_default="")
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("task_id", "user_id", name="uq_exam_tool_notes_task_user"),
     )
 
 

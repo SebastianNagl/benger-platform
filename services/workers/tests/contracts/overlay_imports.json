@@ -1,5 +1,5 @@
 {
-  "generated_from": "03b2e4684d59583eabff8368ce8d26b1c07c4a68",
+  "generated_from": "b2582c9d34cf202ba058daccb7b80d3284fbfd7b",
   "api_shared": [
     {
       "module": "account_activation",
@@ -207,6 +207,9 @@
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/grading_feedback.py",
@@ -317,6 +320,9 @@
       "name": "send_task_safe",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/immediate_evaluation.py",
@@ -336,6 +342,7 @@
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/synthetic.py",
         "benger_extended/billing/policy.py",
+        "benger_extended/exam_tools/sync.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py"
@@ -354,6 +361,9 @@
       "name": "get_async_db",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/live_activity.py",
@@ -388,7 +398,9 @@
       "module": "encryption_service",
       "name": "encryption_service",
       "importers": [
-        "benger_extended/api/routers/seb.py"
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/exam_tools/sync_bundles.py"
       ]
     },
     {
@@ -636,6 +648,7 @@
       "module": "feature_flags.service",
       "name": "is_enabled_for",
       "importers": [
+        "benger_extended/api/routers/student_exams.py",
         "benger_extended/feature_flags/service.py"
       ]
     },
@@ -844,6 +857,16 @@
     },
     {
       "module": "models",
+      "name": "ExamToolPin",
+      "importers": [
+        "benger_extended/api/routers/exam_tools.py",
+        "benger_extended/exam_tools/bundles.py",
+        "benger_extended/exam_tools/content.py",
+        "benger_extended/exam_tools/exam_lock.py"
+      ]
+    },
+    {
+      "module": "models",
       "name": "Generation",
       "importers": [
         "benger_extended/api/routers/korrektur.py",
@@ -1007,9 +1030,21 @@
     },
     {
       "module": "models",
+      "name": "OrgToolProviderConnection",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/exam_tools.py",
+        "benger_extended/exam_tools/content.py",
+        "benger_extended/exam_tools/sync_bundles.py",
+        "benger_extended/exam_tools/validation.py"
+      ]
+    },
+    {
+      "module": "models",
       "name": "Organization",
       "importers": [
         "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti_pending.py",
         "benger_extended/api/routers/submission_uploads.py",
@@ -1054,6 +1089,7 @@
       "name": "OrganizationMembership",
       "importers": [
         "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur_items.py",
@@ -1076,6 +1112,7 @@
       "module": "models",
       "name": "OrganizationRole",
       "importers": [
+        "benger_extended/api/routers/exam_tool_providers.py",
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/marketplace.py",
         "benger_extended/api/routers/submission_uploads.py",
@@ -1118,10 +1155,51 @@
     },
     {
       "module": "models",
+      "name": "ToolBundle",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/exam_tools/bundles.py",
+        "benger_extended/exam_tools/content.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "ToolBundleItem",
+      "importers": [
+        "benger_extended/exam_tools/bundles.py",
+        "benger_extended/exam_tools/content.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "ToolEntitlement",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tools.py",
+        "benger_extended/exam_tools/bundles.py",
+        "benger_extended/exam_tools/content.py",
+        "benger_extended/exam_tools/exam_lock.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "ToolProvider",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/api/routers/exam_tools.py",
+        "benger_extended/exam_tools/content.py",
+        "benger_extended/exam_tools/sync_bundles.py",
+        "benger_extended/exam_tools/validation.py"
+      ]
+    },
+    {
+      "module": "models",
       "name": "User",
       "importers": [
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/korrektur.py",
@@ -1143,6 +1221,16 @@
         "benger_extended/lti/provisioning.py",
         "benger_extended/marketplace/service.py",
         "benger_extended/workers/lti_grade_push.py"
+      ]
+    },
+    {
+      "module": "models",
+      "name": "UserToolProviderLink",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_links.py",
+        "benger_extended/api/routers/exam_tool_providers.py",
+        "benger_extended/exam_tools/content.py",
+        "benger_extended/exam_tools/sync_bundles.py"
       ]
     },
     {
@@ -1399,6 +1487,13 @@
     },
     {
       "module": "project_models",
+      "name": "ExamToolNote",
+      "importers": [
+        "benger_extended/api/routers/exam_tools.py"
+      ]
+    },
+    {
+      "module": "project_models",
       "name": "FlashcardReview",
       "importers": [
         "benger_extended/api/routers/flashcards.py",
@@ -1498,6 +1593,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/billing.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/handwriting_ocr.py",
@@ -1514,6 +1610,7 @@
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py",
         "benger_extended/billing/policy.py",
+        "benger_extended/exam_tools/exam_lock.py",
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/consent.py",
@@ -1541,6 +1638,7 @@
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/student_sharing.py",
         "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/exam_tools/validation.py",
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
         "benger_extended/marketplace/service.py",
@@ -1596,6 +1694,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/key_routes.py",
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/handwriting_ocr.py",
@@ -1611,6 +1710,7 @@
         "benger_extended/api/routers/student_sharing.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py",
+        "benger_extended/exam_tools/access.py",
         "benger_extended/lti/exam_gate.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
@@ -1628,6 +1728,7 @@
       "module": "project_models",
       "name": "TaskAssignment",
       "importers": [
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py",
@@ -1671,7 +1772,8 @@
       "importers": [
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/live_activity.py",
-        "benger_extended/api/routers/seb.py"
+        "benger_extended/api/routers/seb.py",
+        "benger_extended/exam_tools/exam_lock.py"
       ]
     },
     {
@@ -1803,6 +1905,7 @@
       "name": "main_frontend_url",
       "importers": [
         "benger_extended/api/routers/seb.py",
+        "benger_extended/exam_tools/links.py",
         "benger_extended/lti/hosts.py"
       ]
     },
@@ -1811,6 +1914,13 @@
       "name": "public_host",
       "importers": [
         "benger_extended/lti/hosts.py"
+      ]
+    },
+    {
+      "module": "public_hosts",
+      "name": "student_locked_frontend_url",
+      "importers": [
+        "benger_extended/exam_tools/links.py"
       ]
     },
     {
@@ -1840,6 +1950,7 @@
       "name": "get_redis_client",
       "importers": [
         "benger_extended/billing/personal_key.py",
+        "benger_extended/exam_tools/links.py",
         "benger_extended/lti/identity.py",
         "benger_extended/lti/oidc.py",
         "benger_extended/lti/pending.py"
@@ -1983,7 +2094,8 @@
       "module": "routers.projects.helpers",
       "name": "check_task_assigned_to_user_async",
       "importers": [
-        "benger_extended/api/routers/live_activity.py"
+        "benger_extended/api/routers/live_activity.py",
+        "benger_extended/exam_tools/access.py"
       ]
     },
     {
@@ -1997,6 +2109,7 @@
       "module": "routers.projects.helpers",
       "name": "check_user_can_edit_project_async",
       "importers": [
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py"
@@ -2041,6 +2154,13 @@
     },
     {
       "module": "routers.projects.helpers",
+      "name": "enforce_project_write_window_async",
+      "importers": [
+        "benger_extended/exam_tools/access.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
       "name": "enforce_seb",
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
@@ -2054,7 +2174,8 @@
       "name": "enforce_seb_async",
       "importers": [
         "benger_extended/api/routers/live_activity.py",
-        "benger_extended/api/routers/student_exams.py"
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/exam_tools/access.py"
       ]
     },
     {
@@ -2086,11 +2207,13 @@
       "module": "routers.projects.helpers",
       "name": "get_project_access_tier_async",
       "importers": [
+        "benger_extended/api/routers/exam_tools.py",
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
-        "benger_extended/api/routers/student_exams.py"
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/exam_tools/access.py"
       ]
     },
     {
@@ -2114,7 +2237,8 @@
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
         "benger_extended/api/routers/live_activity.py",
-        "benger_extended/api/routers/submission_uploads.py"
+        "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/exam_tools/access.py"
       ]
     },
     {
@@ -2549,6 +2673,13 @@
       "name": "resolve_and_validate",
       "importers": [
         "benger_extended/lti/dynamic_registration.py"
+      ]
+    },
+    {
+      "module": "url_guard",
+      "name": "validate_custom_model_url",
+      "importers": [
+        "benger_extended/api/routers/exam_tool_providers.py"
       ]
     },
     {

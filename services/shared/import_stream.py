@@ -78,6 +78,7 @@ from project_models import (
     TaskRubric,
 )
 import seb
+from exam_tools import portable_exam_tools
 from serializers import _parse_iso
 
 # Shared batch helper extracted alongside the export side. See
@@ -2511,6 +2512,7 @@ def _create_imported_project(
         # the source host, so a re-enable (which regenerates it) is required.
         seb_required=False,
         seb_config=imported_seb_config(project_data.get("seb_config")),
+        exam_tools=portable_exam_tools(project_data.get("exam_tools")),
         # Kind + per-project settings. Older exports lack these keys, so every
         # read falls back to the column default (also for an explicit null on
         # a NOT NULL column).

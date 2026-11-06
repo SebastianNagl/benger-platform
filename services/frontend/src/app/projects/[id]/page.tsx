@@ -372,6 +372,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectSharing = useSlot('project-sharing')
   // Safe Exam Browser requirement for exams (extended): its own save.
   const ProjectExamSecurity = useSlot('project-exam-security')
+  // Exam tools (calculator, calendar, law texts, ...) the writers may use.
+  const ProjectExamTools = useSlot('project-exam-tools')
   const ProjectDeckWorkspace = useSlot('project-deck-workspace')
   const ProjectSolverActions = useSlot('project-solver-actions')
   // Extended Quick Actions for the project's editors only.
@@ -2936,6 +2938,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   currentProject.enable_annotation !== false &&
                   canEditProject() && (
                     <ProjectExamSecurity
+                      project={currentProject}
+                      onRefresh={() => fetchProject(projectId)}
+                    />
+                  )}
+
+                {/* Exam tools (extended): which aids (Hilfsmittel) the
+              writers get in the exam interface. Saves on its own like the
+              SEB section. */}
+                {ProjectExamTools &&
+                  currentProject &&
+                  currentProject.enable_annotation !== false &&
+                  canEditProject() && (
+                    <ProjectExamTools
                       project={currentProject}
                       onRefresh={() => fetchProject(projectId)}
                     />

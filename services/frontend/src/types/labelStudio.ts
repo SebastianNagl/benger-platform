@@ -6,6 +6,17 @@
  */
 
 // Project types
+/** One exam tool a project enables (`projects.exam_tools.tools[]`). */
+export interface ExamToolEntry {
+  id: string
+  config?: Record<string, unknown>
+}
+
+/** Shape of `projects.exam_tools` (migration 127, /shared/exam_tools.py). */
+export interface ExamToolsConfig {
+  tools: ExamToolEntry[]
+}
+
 export interface Project {
   id: string
   title: string
@@ -73,6 +84,10 @@ export interface Project {
   allow_external_paste?: boolean
   // false = the writer cannot hand in a file as the answer (overlay upload)
   allow_solution_upload?: boolean
+
+  // Exam tools (Hilfsmittel) the writers may use; null = never chosen.
+  // Written by the extended edition's endpoint only.
+  exam_tools?: ExamToolsConfig | null
 
   // Handwritten solution uploads (extended): switch + model override
   // (null = the organization's default)

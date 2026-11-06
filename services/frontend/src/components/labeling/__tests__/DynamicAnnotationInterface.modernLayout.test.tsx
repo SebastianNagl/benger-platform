@@ -315,5 +315,27 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
         screen.getByText('annotation.interface.submit'),
       ).toBeInTheDocument()
     })
+
+    it('hands only renderTools to a modern layout and never renders the default dock (core 2.50)', async () => {
+      const renderTools = jest.fn((variant: string) => (
+        <span data-testid={`tools-${variant}`} />
+      ))
+      renderInterface({
+        allowModernLayout: true,
+        examChrome: { onLeave: jest.fn(), renderTools },
+      })
+      await screen.findByTestId('modern-shell')
+      expect(lastSlotProps()!.chrome).toEqual({ renderTools })
+      expect(renderTools).not.toHaveBeenCalledWith('default')
+      expect(screen.queryByTestId('tools-default')).not.toBeInTheDocument()
+    })
+
+    it('renders the default dock in the classic render', async () => {
+      const renderTools = jest.fn((variant: string) => (
+        <span data-testid={`tools-${variant}`} />
+      ))
+      renderInterface({ examChrome: { renderTools } })
+      expect(await screen.findByTestId('tools-default')).toBeInTheDocument()
+    })
   })
 })

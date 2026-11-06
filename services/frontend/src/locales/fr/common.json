@@ -3441,6 +3441,13 @@
       "readMore": "Lire la suite",
       "items": [
         {
+          "title": "SoK : comment évaluer les réponses juridiques rédigées ?",
+          "description": "Notre article de systématisation des connaissances compare huit paradigmes d'évaluation, de la correction des examens de droit aux juges LLM, à huit exigences issues de la mesure en éducation et du droit des examens, et en déduit le juge à grille digne de confiance. Soumis à ACM CSLAW '27.",
+          "date": "2026-10-26",
+          "type": "publication",
+          "url": "https://legalplusplus.net/articles/sok-grading-legal-answers"
+        },
+        {
           "title": "BenGER : jeu de données et benchmark publiés",
           "description": "Notre premier benchmark ouvert et à grande échelle pour le raisonnement par subsomption en droit allemand : 12 systèmes LLM, une véritable référence humaine, des données de co-création humain-IA et un juge LLM validé par rapport à sept évaluateurs humains. Ouvert sous licence CC BY 4.0.",
           "date": "2026-06-07",
@@ -3693,6 +3700,10 @@
         {
           "label": "Jeu de données du benchmark BenGER",
           "bibtex": "@inproceedings{nagl2026bengerbench,\n  title={{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in German Law},\n  author={Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin and Ko{\\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},\n  booktitle={Findings of the Association for Computational Linguistics: EMNLP 2026},\n  publisher={Association for Computational Linguistics},\n  year={2026},\n  eprint={2605.28183},\n  archivePrefix={arXiv},\n  primaryClass={cs.CL},\n  doi={10.5281/zenodo.23366269}\n}"
+        },
+        {
+          "label": "SoK : évaluation des réponses juridiques rédigées",
+          "bibtex": "@misc{nagl2026sok,\n  title={{SoK}: Grading Open-Text Legal Answers, from Law School Exams to Trustworthy Rubric Judges},\n  author={Nagl, Sebastian},\n  year={2026},\n  eprint={2610.19992},\n  archivePrefix={arXiv},\n  primaryClass={cs.CL},\n  note={Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27)}\n}"
         }
       ]
     },
@@ -4594,7 +4605,8 @@
       },
       "editOrganization": "Modifier l'organisation",
       "deleteOrganization": "Supprimer l'organisation",
-      "ocrModel": "Reconnaissance de l'écriture manuscrite"
+      "ocrModel": "Reconnaissance de l'écriture manuscrite",
+      "toolProviders": "Fournisseurs d'outils d'examen"
     },
     "usersPage": {
       "breadcrumb": {

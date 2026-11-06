@@ -507,6 +507,10 @@ export function DynamicAnnotationInterface({
   // Render dynamic interface
   const interfaceContent = (
     <div className="dynamic-annotation-interface space-y-6">
+      {/* Exam tools (extended ExamToolDock slot via the host). The modern
+          and state layouts render them themselves (renderTools 'modern' /
+          'state' via chrome), so only the classic render shows them here. */}
+      {!useModernRender && examChrome?.renderTools?.('default')}
       {/* Render parsed configuration. Modern exam layout: the slot arranges
           the SAME nodes (via renderComponent, which closes over the live
           state and memoized handlers) into sheet + side panels. It must call
@@ -531,7 +535,9 @@ export function DynamicAnnotationInterface({
                         annotations.size > 0 || componentValues.size > 0,
                       requireConfirmBeforeSubmit,
                     }
-                  : undefined
+                  : examChrome?.renderTools
+                    ? { renderTools: examChrome.renderTools }
+                    : undefined
               }
             />
           </Suspense>

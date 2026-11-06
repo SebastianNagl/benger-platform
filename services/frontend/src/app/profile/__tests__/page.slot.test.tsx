@@ -141,6 +141,24 @@ describe('profile page profile-settings-extended slot', () => {
       ).toBeInTheDocument(),
     )
   })
+
+  it('renders the registered exam tools section after it', async () => {
+    mockSlots['profile-settings-extended'] = () => (
+      <div data-testid="profile-settings-extended-content" />
+    )
+    mockSlots['profile-tools-extended'] = () => (
+      <div data-testid="profile-tools-extended-content" />
+    )
+
+    render(<ProfilePage />)
+
+    const tools = await screen.findByTestId('profile-tools-extended-content')
+    const settings = screen.getByTestId('profile-settings-extended-content')
+    expect(
+      settings.compareDocumentPosition(tools) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
 })
 
 describe('profile page personal access keys (public_api flag)', () => {

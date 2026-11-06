@@ -38,6 +38,8 @@ export default function ProfilePage() {
   // their persistence via dedicated endpoints (no profile-history side
   // effects). Community edition: slot never registers -> nothing renders.
   const ProfileSettingsExtended = useSlot('profile-settings-extended')
+  // Extended (core 2.50): the student's own exam tool provider accounts.
+  const ProfileToolsExtended = useSlot('profile-tools-extended')
   const publicApiEnabled = usePublicApiEnabled()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -361,6 +363,7 @@ export default function ProfilePage() {
                 dedicated endpoints; the profile-update button below does not
                 touch them) */}
             {ProfileSettingsExtended && <ProfileSettingsExtended />}
+            {ProfileToolsExtended && <ProfileToolsExtended />}
 
             {/* Research Profile - Collapsible Section */}
             <ProfileResearchSection
