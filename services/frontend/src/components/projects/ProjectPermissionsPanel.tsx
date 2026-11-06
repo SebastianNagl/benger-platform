@@ -8,6 +8,9 @@
  *                   picks a sub-role (ANNOTATOR / CONTRIBUTOR) that controls
  *                   what visitors are allowed to do beyond just reading.
  *
+ * Creator, org admins of the attached orgs and superadmins may change it;
+ * everyone else sees it greyed out.
+ *
  * Edit access (settings, label config) stays with creator + superadmins
  * regardless of visibility — the public CONTRIBUTOR role grants task/data
  * interactions only.
@@ -71,6 +74,8 @@ export type PublicRole = 'ANNOTATOR' | 'CONTRIBUTOR'
 interface ProjectPermissionsPanelProps {
   projectId: string
   projectCreatorId?: string | number
+  /** The viewer's role on the project (`project.effective_role`). */
+  effectiveRole?: string | null
   initialVisibility?: ProjectVisibility
   initialPublicRole?: PublicRole
   initialOrganizations?: Organization[]
@@ -85,6 +90,7 @@ interface ProjectPermissionsPanelProps {
 export function ProjectPermissionsPanel({
   projectId,
   projectCreatorId,
+  effectiveRole,
   initialVisibility = 'private',
   initialPublicRole = 'ANNOTATOR',
   initialOrganizations = [],
@@ -134,11 +140,23 @@ export function ProjectPermissionsPanel({
   const canEditPermissions = () => {
     if (!user) return false
     if (user.is_superadmin) return true
+    if (effectiveRole === 'ORG_ADMIN') return true
     if (projectCreatorId == null) return false
     return String(user.id) === String(projectCreatorId)
   }
+  const isCreator =
+    user != null &&
+    projectCreatorId != null &&
+    String(user.id) === String(projectCreatorId)
+  // Everyone else sees the whole setting greyed out.
+  const readOnly = !canEditPermissions()
+  // A read-only viewer sees what the project is attached to, not their orgs.
+  const organizationsToList = readOnly
+    ? initialOrganizations
+    : availableOrganizations
 
   useEffect(() => {
+    if (readOnly) return
     let cancelled = false
     const fetchOrgs = async () => {
       try {
@@ -163,7 +181,7 @@ export function ProjectPermissionsPanel({
     return () => {
       cancelled = true
     }
-  }, [addToast, t])
+  }, [addToast, t, readOnly])
 
   // Lazily fetch the group list of every checked org (cached per org id;
   // failures degrade to "no groups", keeping the legacy org-wide behavior).
@@ -332,44 +350,17 @@ export function ProjectPermissionsPanel({
     }
   }
 
-  if (!canEditPermissions()) {
-    return (
-      <div className="rounded-lg bg-zinc-50 p-6 dark:bg-zinc-800/50">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {t('project.permissions.viewOnly')}
-        </p>
-        <div className="mt-4">
-          <Label>{t('project.permissions.visibility')}</Label>
-          <div className="mt-2 text-sm text-zinc-900 dark:text-white">
-            {visibility === 'public'
-              ? `${t('project.permissions.public')} · ${
-                  publicRole === 'CONTRIBUTOR'
-                    ? t('project.permissions.publicRole.contributor')
-                    : t('project.permissions.publicRole.annotator')
-                }`
-              : visibility === 'private'
-                ? t('project.permissions.private')
-                : t('project.permissions.organization')}
-          </div>
-          {visibility === 'organization' && initialOrganizations.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {initialOrganizations.map((org) => (
-                <span
-                  key={org.id}
-                  className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                >
-                  {org.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6" data-testid="project-permissions-panel">
+      {readOnly && (
+        <p
+          className="text-sm text-zinc-600 dark:text-zinc-400"
+          data-testid="project-permissions-readonly"
+        >
+          {t('project.permissions.viewOnly')}
+        </p>
+      )}
+
       {error && (
         <div
           className="rounded-md bg-red-50 p-4 dark:bg-red-900/20"
@@ -379,288 +370,301 @@ export function ProjectPermissionsPanel({
         </div>
       )}
 
-      <div>
-        <Label htmlFor="visibility-toggle">
-          {t('project.permissions.visibility')}
-        </Label>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {t('project.permissions.visibilityDescription')}
-        </p>
-        <div className="mt-3 space-y-3">
-          <label
-            className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-            data-testid="private-option"
-          >
-            <input
-              type="radio"
-              name="visibility"
-              checked={visibility === 'private'}
-              onChange={() => setVisibility('private')}
-              className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              data-testid="private-radio"
-            />
-            <div className="flex-1">
-              <span className="font-medium text-zinc-900 dark:text-white">
-                {t('project.permissions.private')}
-              </span>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {t('project.permissions.privateDescription')}
-              </p>
-            </div>
-          </label>
-
-          <label
-            className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-            data-testid="organization-option"
-          >
-            <input
-              type="radio"
-              name="visibility"
-              checked={visibility === 'organization'}
-              onChange={() => setVisibility('organization')}
-              className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              data-testid="organization-radio"
-            />
-            <div className="flex-1">
-              <span className="font-medium text-zinc-900 dark:text-white">
-                {t('project.permissions.organization')}
-              </span>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {t('project.permissions.organizationDescription')}
-              </p>
-            </div>
-          </label>
-
-          <label
-            className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-            data-testid="public-option"
-          >
-            <input
-              type="radio"
-              name="visibility"
-              checked={visibility === 'public'}
-              onChange={() => setVisibility('public')}
-              className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              data-testid="public-radio"
-            />
-            <div className="flex-1">
-              <span className="font-medium text-zinc-900 dark:text-white">
-                {t('project.permissions.public')}
-              </span>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {t('project.permissions.publicDescription')}
-              </p>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      {lmsOrganizations.length > 0 && (
-        <div
-          className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
-          data-testid="project-permissions-lms-note"
-        >
-          {t('project.permissions.lmsNote', {
-            organizations: lmsOrganizations.map((org) => org.name).join(', '),
-          })}
-        </div>
-      )}
-
-      {visibility === 'organization' && (
-        <div data-testid="organization-section">
-          <Label>
-            {t('project.permissions.organizations')}
-            <span className="ml-2 text-sm text-red-600 dark:text-red-400">
-              *
-            </span>
+      <fieldset
+        disabled={readOnly}
+        className={
+          readOnly
+            ? 'space-y-6 opacity-60 [&_label]:cursor-not-allowed'
+            : 'space-y-6'
+        }
+      >
+        <div>
+          <Label htmlFor="visibility-toggle">
+            {t('project.permissions.visibility')}
           </Label>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {t('project.permissions.organizationsDescription')}
-          </p>
-          {loadingOrgs ? (
-            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-              {t('project.permissions.loadingOrganizations')}
-            </p>
-          ) : availableOrganizations.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-              {t('project.permissions.noOrganizationsAvailable')}
-            </p>
-          ) : (
-            <div className="mt-3 space-y-2" data-testid="organization-list">
-              {availableOrganizations.map((org) => {
-                const locked = lmsOrgIds.has(org.id)
-                const isChecked = locked || selectedOrgIds.includes(org.id)
-                const groupOptions = isChecked ? groupOptionsFor(org) : []
-                // Org-wide needs org role Contributor/Admin; an existing
-                // org-wide attachment keeps the option so the select shows
-                // what is stored.
-                const orgWideAllowed =
-                  canScopeOrgWide(org.role, Boolean(user?.is_superadmin)) ||
-                  initialOrganizations.some(
-                    (o) => o.id === org.id && !o.group_id,
-                  )
-                return (
-                  <div key={org.id}>
-                    <label
-                      className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-                      data-testid={`organization-item-${org.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        disabled={locked}
-                        onChange={() => toggleOrg(org.id)}
-                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                        data-testid={`organization-checkbox-${org.id}`}
-                      />
-                      <div className="flex-1">
-                        <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                          {org.name}
-                        </span>
-                        {org.slug && (
-                          <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                            ({org.slug})
-                          </span>
-                        )}
-                        {locked && (
-                          <span
-                            className="ml-2 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                            data-testid={`organization-lms-badge-${org.id}`}
-                          >
-                            {t('project.permissions.lmsBadge')}
-                          </span>
-                        )}
-                      </div>
-                    </label>
-                    {isChecked && groupOptions.length > 0 && (
-                      <div
-                        className="mt-2 ml-7"
-                        data-testid={`organization-group-section-${org.id}`}
-                      >
-                        <label
-                          htmlFor={`organization-group-${org.id}`}
-                          className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
-                        >
-                          {t('project.permissions.groupScopeLabel')}
-                        </label>
-                        <Select
-                          disabled={locked}
-                          value={
-                            selectedGroupByOrg[org.id] ||
-                            (orgWideAllowed ? ORG_WIDE : '')
-                          }
-                          onValueChange={(v) =>
-                            setSelectedGroupByOrg((prev) => ({
-                              ...prev,
-                              [org.id]: v === ORG_WIDE ? null : v,
-                            }))
-                          }
-                        >
-                          <SelectTrigger
-                            id={`organization-group-${org.id}`}
-                            data-testid={`organization-group-select-${org.id}`}
-                            className="mt-1"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {orgWideAllowed && (
-                              <SelectItem value={ORG_WIDE}>
-                                {t('project.permissions.groupScopeOrgWide')}
-                              </SelectItem>
-                            )}
-                            {groupOptions.map((group) => (
-                              <SelectItem key={group.id} value={group.id}>
-                                {group.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t('project.permissions.groupScopeHelp')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {visibility === 'public' && (
-        <div data-testid="public-role-section">
-          <Label>{t('project.permissions.publicRoleLabel')}</Label>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {t('project.permissions.publicRoleDescription')}
+            {t('project.permissions.visibilityDescription')}
           </p>
           <div className="mt-3 space-y-3">
             <label
-              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-              data-testid="public-role-annotator-option"
+              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+              data-testid="private-option"
             >
               <input
                 type="radio"
-                name="public-role"
-                checked={publicRole === 'ANNOTATOR'}
-                onChange={() => setPublicRole('ANNOTATOR')}
+                name="visibility"
+                checked={visibility === 'private'}
+                onChange={() => setVisibility('private')}
                 className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                data-testid="public-role-annotator-radio"
+                data-testid="private-radio"
               />
               <div className="flex-1">
                 <span className="font-medium text-zinc-900 dark:text-white">
-                  {t('project.permissions.publicRole.annotator')}
+                  {t('project.permissions.private')}
                 </span>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('project.permissions.publicRole.annotatorDescription')}
+                  {isCreator || readOnly
+                    ? t('project.permissions.privateDescription')
+                    : t('project.permissions.privateDescriptionOthers')}
                 </p>
               </div>
             </label>
+
             <label
-              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
-              data-testid="public-role-contributor-option"
+              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+              data-testid="organization-option"
             >
               <input
                 type="radio"
-                name="public-role"
-                checked={publicRole === 'CONTRIBUTOR'}
-                onChange={() => setPublicRole('CONTRIBUTOR')}
+                name="visibility"
+                checked={visibility === 'organization'}
+                onChange={() => setVisibility('organization')}
                 className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                data-testid="public-role-contributor-radio"
+                data-testid="organization-radio"
               />
               <div className="flex-1">
                 <span className="font-medium text-zinc-900 dark:text-white">
-                  {t('project.permissions.publicRole.contributor')}
+                  {t('project.permissions.organization')}
                 </span>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('project.permissions.publicRole.contributorDescription')}
+                  {t('project.permissions.organizationDescription')}
+                </p>
+              </div>
+            </label>
+
+            <label
+              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+              data-testid="public-option"
+            >
+              <input
+                type="radio"
+                name="visibility"
+                checked={visibility === 'public'}
+                onChange={() => setVisibility('public')}
+                className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                data-testid="public-radio"
+              />
+              <div className="flex-1">
+                <span className="font-medium text-zinc-900 dark:text-white">
+                  {t('project.permissions.public')}
+                </span>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                  {t('project.permissions.publicDescription')}
                 </p>
               </div>
             </label>
           </div>
         </div>
-      )}
 
-      <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-        <Button
-          onClick={handleCancel}
-          variant="outline"
-          disabled={saving}
-          data-testid="cancel-button"
-        >
-          {t('project.permissions.cancel')}
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          data-testid="save-button"
-        >
-          {saving
-            ? t('project.permissions.saving')
-            : t('project.permissions.save')}
-        </Button>
-      </div>
+        {lmsOrganizations.length > 0 && (
+          <div
+            className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
+            data-testid="project-permissions-lms-note"
+          >
+            {t('project.permissions.lmsNote', {
+              organizations: lmsOrganizations.map((org) => org.name).join(', '),
+            })}
+          </div>
+        )}
+
+        {visibility === 'organization' && (
+          <div data-testid="organization-section">
+            <Label>
+              {t('project.permissions.organizations')}
+              <span className="ml-2 text-sm text-red-600 dark:text-red-400">
+                *
+              </span>
+            </Label>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {t('project.permissions.organizationsDescription')}
+            </p>
+            {loadingOrgs ? (
+              <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                {t('project.permissions.loadingOrganizations')}
+              </p>
+            ) : organizationsToList.length === 0 ? (
+              <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                {t('project.permissions.noOrganizationsAvailable')}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2" data-testid="organization-list">
+                {organizationsToList.map((org) => {
+                  const locked = lmsOrgIds.has(org.id)
+                  const isChecked = locked || selectedOrgIds.includes(org.id)
+                  const groupOptions = isChecked ? groupOptionsFor(org) : []
+                  // Org-wide needs org role Contributor/Admin; an existing
+                  // org-wide attachment keeps the option so the select shows
+                  // what is stored.
+                  const orgWideAllowed =
+                    canScopeOrgWide(org.role, Boolean(user?.is_superadmin)) ||
+                    initialOrganizations.some(
+                      (o) => o.id === org.id && !o.group_id,
+                    )
+                  return (
+                    <div key={org.id}>
+                      <label
+                        className="flex cursor-pointer items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                        data-testid={`organization-item-${org.id}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={locked}
+                          onChange={() => toggleOrg(org.id)}
+                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                          data-testid={`organization-checkbox-${org.id}`}
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                            {org.name}
+                          </span>
+                          {org.slug && (
+                            <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
+                              ({org.slug})
+                            </span>
+                          )}
+                          {locked && (
+                            <span
+                              className="ml-2 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                              data-testid={`organization-lms-badge-${org.id}`}
+                            >
+                              {t('project.permissions.lmsBadge')}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                      {isChecked && groupOptions.length > 0 && (
+                        <div
+                          className="mt-2 ml-7"
+                          data-testid={`organization-group-section-${org.id}`}
+                        >
+                          <label
+                            htmlFor={`organization-group-${org.id}`}
+                            className="block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                          >
+                            {t('project.permissions.groupScopeLabel')}
+                          </label>
+                          <Select
+                            disabled={locked || readOnly}
+                            value={
+                              selectedGroupByOrg[org.id] ||
+                              (orgWideAllowed ? ORG_WIDE : '')
+                            }
+                            onValueChange={(v) =>
+                              setSelectedGroupByOrg((prev) => ({
+                                ...prev,
+                                [org.id]: v === ORG_WIDE ? null : v,
+                              }))
+                            }
+                          >
+                            <SelectTrigger
+                              id={`organization-group-${org.id}`}
+                              data-testid={`organization-group-select-${org.id}`}
+                              className="mt-1"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {orgWideAllowed && (
+                                <SelectItem value={ORG_WIDE}>
+                                  {t('project.permissions.groupScopeOrgWide')}
+                                </SelectItem>
+                              )}
+                              {groupOptions.map((group) => (
+                                <SelectItem key={group.id} value={group.id}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t('project.permissions.groupScopeHelp')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {visibility === 'public' && (
+          <div data-testid="public-role-section">
+            <Label>{t('project.permissions.publicRoleLabel')}</Label>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {t('project.permissions.publicRoleDescription')}
+            </p>
+            <div className="mt-3 space-y-3">
+              <label
+                className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                data-testid="public-role-annotator-option"
+              >
+                <input
+                  type="radio"
+                  name="public-role"
+                  checked={publicRole === 'ANNOTATOR'}
+                  onChange={() => setPublicRole('ANNOTATOR')}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  data-testid="public-role-annotator-radio"
+                />
+                <div className="flex-1">
+                  <span className="font-medium text-zinc-900 dark:text-white">
+                    {t('project.permissions.publicRole.annotator')}
+                  </span>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {t('project.permissions.publicRole.annotatorDescription')}
+                  </p>
+                </div>
+              </label>
+              <label
+                className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                data-testid="public-role-contributor-option"
+              >
+                <input
+                  type="radio"
+                  name="public-role"
+                  checked={publicRole === 'CONTRIBUTOR'}
+                  onChange={() => setPublicRole('CONTRIBUTOR')}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  data-testid="public-role-contributor-radio"
+                />
+                <div className="flex-1">
+                  <span className="font-medium text-zinc-900 dark:text-white">
+                    {t('project.permissions.publicRole.contributor')}
+                  </span>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {t('project.permissions.publicRole.contributorDescription')}
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+      </fieldset>
+
+      {!readOnly && (
+        <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+          <Button
+            onClick={handleCancel}
+            variant="outline"
+            disabled={saving}
+            data-testid="cancel-button"
+          >
+            {t('project.permissions.cancel')}
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            data-testid="save-button"
+          >
+            {saving
+              ? t('project.permissions.saving')
+              : t('project.permissions.save')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

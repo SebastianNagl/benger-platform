@@ -402,6 +402,82 @@ class TestListProjectsArchivedAnnotatorHardening:
 
 
 @pytest.mark.integration
+class TestVisibilityPermissions:
+    async def _world(self, db, role):
+        creator, org = await _seed_admin_org(db)
+        project = await _make_project(db, creator, org)
+        viewer = await _make_user(db, name="Viewer")
+        await _make_membership(db, viewer.id, org.id, role=role)
+        await db.commit()
+        return project, viewer
+
+    @pytest.mark.asyncio
+    async def test_org_admin_of_an_attached_org_may_change_it(
+        self, async_test_client, async_test_db
+    ):
+        project, viewer = await self._world(async_test_db, "ORG_ADMIN")
+
+        with _as_user(viewer):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_public": True, "public_role": "ANNOTATOR"},
+            )
+
+        assert resp.status_code == 200
+        assert (await _get_project(async_test_db, project.id)).is_public is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("role", ["CONTRIBUTOR", "ANNOTATOR"])
+    async def test_other_roles_may_not(
+        self, async_test_client, async_test_db, role
+    ):
+        project, viewer = await self._world(async_test_db, role)
+
+        with _as_user(viewer):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_public": True, "public_role": "ANNOTATOR"},
+            )
+
+        assert resp.status_code == 403
+        assert (await _get_project(async_test_db, project.id)).is_public is not True
+
+    @pytest.mark.asyncio
+    async def test_admin_of_an_unrelated_org_may_not(
+        self, async_test_client, async_test_db
+    ):
+        project, _ = await self._world(async_test_db, "ANNOTATOR")
+        other_admin = await _make_user(async_test_db, name="Other Admin")
+        other_org = await _make_org(async_test_db, name="Unrelated Org")
+        await _make_membership(async_test_db, other_admin.id, other_org.id, "ORG_ADMIN")
+        await async_test_db.commit()
+
+        with _as_user(other_admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": True},
+            )
+
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_org_admin_may_not_hand_the_project_over(
+        self, async_test_client, async_test_db
+    ):
+        project, viewer = await self._world(async_test_db, "ORG_ADMIN")
+        creator_id = project.created_by
+
+        with _as_user(viewer):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": True, "owner_user_id": viewer.id},
+            )
+
+        assert resp.status_code == 403
+        assert (await _get_project(async_test_db, project.id)).created_by == creator_id
+
+
+@pytest.mark.integration
 class TestVisibilityTransitions:
     @pytest.mark.asyncio
     async def test_make_public_drops_orgs_and_sets_flags(
