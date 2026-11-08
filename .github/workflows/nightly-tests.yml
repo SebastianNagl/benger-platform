@@ -109,6 +109,21 @@ jobs:
             docker compose -f infra/docker-compose.test.yml ps
             exit 1
           fi
+          # make test-build swallows compose errors, so an unhealthy worker
+          # (and the scheduler waiting on it) used to go unnoticed. Give a
+          # container that is still "starting" up to 2 minutes.
+          for svc in test-worker test-scheduler; do
+            for _ in $(seq 1 24); do
+              state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "benger-test-$svc-1" 2>/dev/null || echo missing)
+              [ "$state" = "running starting" ] || break
+              sleep 5
+            done
+            if [ "$state" != "running healthy" ]; then
+              echo "::error::$svc is not up after make test-build: $state"
+              docker compose -f infra/docker-compose.test.yml ps
+              exit 1
+            fi
+          done
 
       - name: Seed test database
         if: matrix.shard == 'e2e'
