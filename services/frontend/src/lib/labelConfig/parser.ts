@@ -236,3 +236,39 @@ export function extractRequiredDataFields(config: ParsedComponent): string[] {
   extractFromComponent(config)
   return Array.from(fields)
 }
+
+/**
+ * Split the config's task-data bindings into the fields imported data is
+ * expected to carry and the optional ones.
+ *
+ * Expected: a tag's main `value="$x"` binding (the data the tag displays)
+ * and every `$` prop of a `required="true"` component. Optional: any other
+ * `$` prop, e.g. the exam Angabe's `bearbeitervermerk="$bearbeitervermerk"`
+ * side sections, which render only when the task has them.
+ */
+export function extractImportDataFields(config: ParsedComponent): {
+  required: string[]
+  optional: string[]
+} {
+  const required = new Set<string>()
+  const all = new Set<string>()
+
+  function visit(component: ParsedComponent) {
+    const isRequired =
+      component.props.required === 'true' || component.props.required === true
+    for (const [key, value] of Object.entries(component.props)) {
+      if (typeof value !== 'string' || !value.startsWith('$')) continue
+      const field = value.substring(1)
+      if (!field) continue
+      all.add(field)
+      if (key === 'value' || isRequired) required.add(field)
+    }
+    component.children.forEach(visit)
+  }
+
+  visit(config)
+  return {
+    required: Array.from(required),
+    optional: Array.from(all).filter((field) => !required.has(field)),
+  }
+}
