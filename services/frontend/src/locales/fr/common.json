@@ -2060,6 +2060,7 @@
       "fieldRequirements": "Exigences relatives aux données",
       "fieldRequirementsDescription": "Vos données importées doivent contenir ces champs pour correspondre à la configuration d'étiquetage :",
       "missingFieldsWarning": "Les champs manquants provoquent une erreur de validation lors de l'importation.",
+      "optionalFields": "Facultatifs, peuvent être omis : {fields}",
       "validationError": "Erreur de validation de l'importation",
       "validationErrorDescription": "L'erreur de validation suivante s'est produite lors de l'importation :",
       "importAnyway": "Importer quand même",

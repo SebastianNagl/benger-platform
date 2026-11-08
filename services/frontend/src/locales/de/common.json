@@ -2060,6 +2060,7 @@
       "fieldRequirements": "Datenanforderungen",
       "fieldRequirementsDescription": "Deine importierten Daten müssen diese Felder enthalten, um der Labeling-Konfiguration zu entsprechen:",
       "missingFieldsWarning": "Fehlende Felder verursachen einen Validierungsfehler beim Import.",
+      "optionalFields": "Optional, darf fehlen: {fields}",
       "validationError": "Import-Validierungsfehler",
       "validationErrorDescription": "Der folgende Validierungsfehler ist beim Import aufgetreten:",
       "importAnyway": "Trotzdem importieren",

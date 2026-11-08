@@ -31,7 +31,10 @@ import {
   parseImportData,
 } from '@/lib/import/parseImportData'
 import { isExamShapedConfig } from '@/lib/labelConfig/examLayout'
-import { parseLabelConfig } from '@/lib/labelConfig/parser'
+import {
+  extractImportDataFields,
+  parseLabelConfig,
+} from '@/lib/labelConfig/parser'
 import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import {
@@ -60,6 +63,22 @@ function isExamShapedLabelConfig(labelConfig: string | null): boolean {
   return isExamShapedConfig(parsed)
 }
 
+/** Fields imported data is expected to carry, and the optional ones (side
+ * bindings such as the exam Angabe's Bearbeitervermerk / Zusatzmaterial). */
+function importFieldsFor(labelConfig: string): {
+  required: string[]
+  optional: string[]
+} {
+  const parsed = parseLabelConfig(labelConfig)
+  if (!('message' in parsed)) return extractImportDataFields(parsed)
+  // Unparseable config: fall back to every $name it mentions.
+  const matches = labelConfig.matchAll(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g)
+  return {
+    required: [...new Set(Array.from(matches, (m) => m[1]))],
+    optional: [],
+  }
+}
+
 function isLinkedExamTaskLimit(error: any): boolean {
   const detail = error?.response?.data?.detail
   if (detail && typeof detail === 'object') {
@@ -86,7 +105,10 @@ export function ImportDataModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [pastedData, setPastedData] = useState('')
   const [showFieldMapping, setShowFieldMapping] = useState(false)
+  // Fields the data is checked for, and optional bindings the data may
+  // leave out. The field mapping offers both as targets.
   const [templateFields, setTemplateFields] = useState<string[]>([])
+  const [optionalFields, setOptionalFields] = useState<string[]>([])
   const [parsedData, setParsedData] = useState<any[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [labelConfig, setLabelConfig] = useState<string | null>(null)
@@ -119,12 +141,11 @@ export function ImportDataModal({
       const project = await fetchProject(projectId)
       setLabelConfig((project as any)?.label_config ?? null)
       if ((project as any)?.label_config) {
-        // Extract required fields from label config
-        const fieldRegex = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g
-        const matches = (project as any).label_config.matchAll(fieldRegex)
-        const fields = Array.from(matches, (m: any) => m[1])
-        const uniqueFields = [...new Set(fields)]
-        setTemplateFields(uniqueFields)
+        const { required, optional } = importFieldsFor(
+          (project as any).label_config,
+        )
+        setTemplateFields(required)
+        setOptionalFields(optional)
       }
     } catch (error) {
       console.error('Failed to fetch project template:', error)
@@ -165,6 +186,24 @@ export function ImportDataModal({
     return { valid: errors.length === 0, errors }
   }
 
+  // The field mapping reads a file; pasted data (incl. the structured exam
+  // entry) gets one built from the paste buffer.
+  const mappingFile = useMemo(() => {
+    if (selectedFile) return selectedFile
+    if (!pastedData.trim()) return undefined
+    const trimmed = pastedData.trim()
+    const ext =
+      trimmed.startsWith('[') || trimmed.startsWith('{') ? 'json' : 'csv'
+    return new File([trimmed], `pasted-data.${ext}`, {
+      type: ext === 'json' ? 'application/json' : 'text/csv',
+    })
+  }, [selectedFile, pastedData])
+
+  /**
+   * @param mappedData rows that already went through the validation screen
+   *   ("Trotzdem importieren" or the field mapping): imported as they are,
+   *   without checking them against the template again.
+   */
   const handleImport = async (mappedData?: any[]) => {
     const progressId = `import-${Date.now()}`
 
@@ -230,11 +269,14 @@ export function ImportDataModal({
         throw new Error(t('projects.import.noData'))
       }
 
-      // Show validation warnings but don't block import (Label Studio style)
+      // Missing expected fields open the validation screen, from which the
+      // user can import anyway or map fields (Label Studio style).
       updateProgress(progressId, 50, t('projects.import.progress.validating'))
-      const validation = validateDataAgainstTemplate(data)
+      const validation = mappedData
+        ? { valid: true, errors: [] }
+        : validateDataAgainstTemplate(data)
 
-      if (!validation.valid && templateFields.length > 0) {
+      if (!validation.valid) {
         // Show field mapping as an option, not a blocker
         addToast(t('projects.import.fieldMismatch'), 'error')
         setValidationErrors(validation.errors)
@@ -383,8 +425,8 @@ export function ImportDataModal({
           )}
 
           <ImportPreviewWithMapping
-            file={selectedFile || undefined}
-            templateFields={templateFields}
+            file={mappingFile}
+            templateFields={[...templateFields, ...optionalFields]}
             onImport={handleImport}
             onCancel={() => {
               setShowFieldMapping(false)
@@ -409,7 +451,7 @@ export function ImportDataModal({
           {t('tasks.importModal.description')}
         </p>
 
-        {templateFields.length > 0 && (
+        {(templateFields.length > 0 || optionalFields.length > 0) && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
             <div className="flex items-start space-x-2">
               <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -420,7 +462,10 @@ export function ImportDataModal({
                 <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
                   {t('tasks.importModal.fieldRequirementsDescription')}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div
+                  className="mt-2 flex flex-wrap gap-2"
+                  data-testid="import-required-fields"
+                >
                   {templateFields.map((field) => (
                     <code
                       key={field}
@@ -430,6 +475,16 @@ export function ImportDataModal({
                     </code>
                   ))}
                 </div>
+                {optionalFields.length > 0 && (
+                  <p
+                    className="mt-2 text-xs text-amber-700 dark:text-amber-300"
+                    data-testid="import-optional-fields"
+                  >
+                    {t('tasks.importModal.optionalFields', {
+                      fields: optionalFields.map((f) => `$${f}`).join(', '),
+                    })}
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                   {t('tasks.importModal.missingFieldsWarning')}
                 </p>
