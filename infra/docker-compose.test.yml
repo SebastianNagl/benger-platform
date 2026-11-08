@@ -346,11 +346,14 @@ services:
     networks:
       - benger-test-network
     healthcheck:
+      # The ping imports the whole tasks module first: about 4 s on a dev
+      # machine, more on a GitHub runner, so a 5 s timeout made test-worker
+      # unhealthy in every nightly and test-scheduler never started.
       test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 30s
       retries: 5
-      start_period: 20s
+      start_period: 60s
     deploy:
       resources:
         limits:
