@@ -142,6 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     steps:
@@ -218,7 +219,7 @@ jobs:
               echo
             done
             echo
-            echo "Opened by GITHUB_TOKEN, so CI does not start on its own: close and reopen this PR to run the checks."
+            echo "A GITHUB_TOKEN push starts no pull_request run, and ci.yml only runs on pull requests to main, so this job dispatches ci.yml on \`$REFRESH_BRANCH\` (the full gate, no deploy: notify-extended runs on push only). Its checks appear on the head commit; re-run with \`gh workflow run ci.yml --ref $REFRESH_BRANCH\`."
           } > "$RUNNER_TEMP/pr-body.md"
 
           if gh pr view "$REFRESH_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
@@ -228,3 +229,5 @@ jobs:
               --title "Refresh uv.lock (api + workers)" \
               --body-file "$RUNNER_TEMP/pr-body.md"
           fi
+
+          gh workflow run ci.yml --ref "$REFRESH_BRANCH"
