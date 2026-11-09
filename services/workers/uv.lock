@@ -16,6 +16,7 @@ resolution-markers = [
 constraints = [
     { name = "aiohttp", specifier = "==3.14.5" },
     { name = "anthropic", specifier = "==1.15.0" },
+    { name = "anyio", specifier = "==4.16.0" },
     { name = "asyncpg", specifier = "==0.32.0" },
     { name = "boto3", specifier = ">=1.35.0,<2" },
     { name = "botocore", specifier = ">=1.43.11,<2" },
