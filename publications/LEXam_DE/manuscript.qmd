@@ -73,7 +73,7 @@ German correction accepts alternative solution paths. An answer can deviate from
 
 Benchmarks need human anchors and living curation. BenGER's platform keeps legal experts in the loop. They curate cases, contribute answers, and audit gradings. The 37 Benchathon participants and the platform's anonymised student cohorts give every machine number a human reference point.
 
-None of this replaces LEXam. It builds on it. The replication gave us a validated external yardstick. That yardstick makes the comparison in the next two sections possible.
+None of this replaces LEXam. It builds on it. The replication gave us a validated external reference. That reference makes the comparison in the next two sections possible.
 
 # What the machines can and cannot do
 
