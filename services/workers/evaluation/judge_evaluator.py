@@ -135,7 +135,13 @@ def _evaluate_llm_judge_single_impl(
             raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
         # Criteria + rubric mode (fixed roles, tagged inputs, verified
         # evidence), exactly as the bulk cell paths bind them.
-        llm_judge.bind_task_rubric(task_rubric, margin_notes=judge_notes_enabled(params))
+        from evaluation.cell_evaluator import _rubric_score_unit_kwargs
+
+        llm_judge.bind_task_rubric(
+            task_rubric,
+            margin_notes=judge_notes_enabled(params),
+            **_rubric_score_unit_kwargs(params),
+        )
         # Grade against the Musterlösung when the task carries one — mirrors
         # the bulk cell path's ground-truth swap.
         muster = tasks._get_insensitive(
@@ -160,7 +166,7 @@ def _evaluate_llm_judge_single_impl(
             _build_judge_context,
             _multidim_row_passed,
             _project_eval_config,
-            _render_rubric_text,
+            _rubric_text_for,
             _stamp_rubric_result,
         )
 
@@ -172,7 +178,7 @@ def _evaluate_llm_judge_single_impl(
             # {bewertungsbogen} placeholder resolves (mirror of the bulk path).
             task_data = {
                 **task_data,
-                "bewertungsbogen": _render_rubric_text(task_rubric),
+                "bewertungsbogen": _rubric_text_for(llm_judge, task_rubric),
             }
 
         # Flatten the model/annotation output so the prompt can reference

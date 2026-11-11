@@ -12,6 +12,14 @@ implementation:
   an optional ``note``; ``step`` nodes carry a schema ``key``, ``max_score``
   (Bewertungseinheiten, multiples of 0.5), an optional ``emphasis``
   (``"schwerpunkt"``) and guidance ``hints``.
+- A step may list ``requirements`` (Anforderungen): the single performances
+  it is made of, each with its own Bewertungseinheiten on the half-point
+  grid. They add up to the step's ``max_score``. A requirement may be marked
+  as judged on the candidate's own earlier decision (``standard:
+  "folgerichtig"``) or as a definition (``element: "definition"``). A sheet
+  whose steps all carry requirements can be graded per requirement
+  (:func:`checklist_spec_from_structure`); the key is optional, and a step
+  without it is graded as one number, as before.
 - ``criteria`` is DERIVED from ``structure`` on every write
   (``criteria_from_structure``); legacy rows without a structure keep their
   hand-written criteria and can be lifted with ``structure_from_flat_criteria``.
@@ -42,6 +50,12 @@ STEP_KEY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 MAX_NODES = 500
 MAX_HINTS_PER_STEP = 20
+MAX_REQUIREMENTS_PER_STEP = 12
+# How a requirement is judged when not against the correct law: on the
+# candidate's own earlier decision (the Folgefehler principle).
+REQUIREMENT_STANDARDS = ("folgerichtig",)
+# The one marked kind of requirement: the definition a step subsumes under.
+REQUIREMENT_ELEMENTS = ("definition",)
 MAX_STEP_POINTS = 1000
 MAX_LABEL_LEN = 20
 MAX_TITLE_LEN = 500
@@ -165,6 +179,129 @@ def total_points_from_structure(structure: Optional[Dict[str, Any]]) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Requirements of a step
+# ---------------------------------------------------------------------------
+
+
+def step_requirements(node: Any) -> List[Dict[str, Any]]:
+    """The requirement objects of a step node (``[]`` for any other shape)."""
+    requirements = node.get("requirements") if isinstance(node, dict) else None
+    if not isinstance(requirements, list):
+        return []
+    return [r for r in requirements if isinstance(r, dict)]
+
+
+def _requirement_errors(where: str, requirements: Any, max_score: Any) -> List[str]:
+    """Contract violations of one step's ``requirements``."""
+    if not isinstance(requirements, list):
+        return [f"{where}: requirements must be a list"]
+    if len(requirements) > MAX_REQUIREMENTS_PER_STEP:
+        return [f"{where}: more than {MAX_REQUIREMENTS_PER_STEP} requirements"]
+    errors: List[str] = []
+    doubled = 0
+    for position, requirement in enumerate(requirements, start=1):
+        at = f"{where}, requirement {position}"
+        if not isinstance(requirement, dict):
+            errors.append(f"{at}: must be an object")
+            continue
+        text = requirement.get("text")
+        if not isinstance(text, str) or not text.strip():
+            errors.append(f"{at}: text must be a non-empty string")
+        elif len(text.strip()) > MAX_HINT_LEN:
+            errors.append(f"{at}: text exceeds {MAX_HINT_LEN} characters")
+        points = requirement.get("points")
+        if not _is_number(points) or not math.isfinite(float(points)) or float(points) <= 0:
+            errors.append(f"{at}: points must be a number > 0")
+        elif not _is_half_multiple(float(points)):
+            errors.append(f"{at}: points must be a multiple of 0.5")
+        else:
+            doubled += int(round(float(points) * 2))
+        standard = requirement.get("standard")
+        if standard is not None and standard not in REQUIREMENT_STANDARDS:
+            errors.append(
+                f"{at}: standard must be null or one of {', '.join(REQUIREMENT_STANDARDS)}"
+            )
+        element = requirement.get("element")
+        if element is not None and element not in REQUIREMENT_ELEMENTS:
+            errors.append(
+                f"{at}: element must be null or one of {', '.join(REQUIREMENT_ELEMENTS)}"
+            )
+    if (
+        requirements
+        and not errors
+        and _is_number(max_score)
+        and math.isfinite(float(max_score))
+        and doubled != int(round(float(max_score) * 2))
+    ):
+        errors.append(
+            f"{where}: the requirements add up to {format_points(doubled / 2)} BE, "
+            f"the step carries {format_points(max_score)} BE"
+        )
+    return errors
+
+
+def _normalized_requirements(requirements: Any) -> List[Dict[str, Any]]:
+    """Canonical copies of a step's requirements; anything unusable is left out."""
+    out: List[Dict[str, Any]] = []
+    if not isinstance(requirements, list):
+        return out
+    for requirement in requirements:
+        if not isinstance(requirement, dict):
+            continue
+        text = _clean_text(requirement.get("text"))
+        points = requirement.get("points")
+        if not text or not _is_number(points):
+            continue
+        standard = requirement.get("standard")
+        element = requirement.get("element")
+        out.append(
+            {
+                "text": text,
+                "points": _coerce_points(points),
+                "standard": standard if standard in REQUIREMENT_STANDARDS else None,
+                "element": element if element in REQUIREMENT_ELEMENTS else None,
+            }
+        )
+    return out
+
+
+def requirement_lines(requirements: Any) -> List[str]:
+    """One line per requirement with what it is worth and its marks:
+    ``- [1] Text (1.5 BE; Definition; folgerichtig)``. The number is the
+    requirement's position in its step, which is also its answer key
+    (``b1``) when the sheet is graded per requirement."""
+    lines: List[str] = []
+    for position, requirement in enumerate(_normalized_requirements(requirements), start=1):
+        marks = [f"{format_points(requirement['points'])} BE"]
+        if requirement["element"] == "definition":
+            marks.append("Definition")
+        if requirement["standard"] == "folgerichtig":
+            marks.append("folgerichtig")
+        lines.append(f"- [{position}] {requirement['text']} ({'; '.join(marks)})")
+    return lines
+
+
+def has_requirements(structure: Any) -> bool:
+    """Whether every step of ``structure`` lists requirements (and there is a
+    step at all): such a sheet can be graded per requirement."""
+    steps = list(iter_steps(structure))
+    return bool(steps) and all(_normalized_requirements(step.get("requirements")) for step in steps)
+
+
+# How the two requirement marks are read. A sheet rendered from its outline
+# ends with the sentences its marks need.
+REQUIREMENT_STANDARD_RULE = (
+    'Anforderungen mit dem Vermerk "folgerichtig" werden auf der Grundlage der eigenen früheren '
+    "Entscheidungen der Bearbeitung beurteilt, alle übrigen nach der zutreffenden Rechtslage."
+)
+REQUIREMENT_DEFINITION_RULE = (
+    'Anforderungen mit dem Vermerk "Definition" sind erfüllt, wenn die Bearbeitung alle nummerierten '
+    "Kernelemente wiedergibt, gleich in welcher Formulierung. Der Wortlaut der Musterlösung wird nicht verlangt, "
+    "und eine anerkannte andere Fassung genügt."
+)
+
+
+# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
@@ -267,7 +404,11 @@ def validate_structure(structure: Any) -> List[str]:
             key = node.get("key")
             if key is not None and not isinstance(key, str):
                 errors.append(f"{where}: key must be a string")
+            if node.get("requirements") is not None:
+                errors.extend(_requirement_errors(where, node.get("requirements"), score))
         elif kind == "section":
+            if node.get("requirements"):
+                errors.append(f"{where}: section nodes carry no requirements")
             if node.get("max_score") is not None:
                 errors.append(f"{where}: section nodes carry no max_score")
             if node.get("key") is not None:
@@ -433,7 +574,9 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
     hints, assigns ids ``n1..nN`` and ALWAYS regenerates the step keys from
     (title, step ordinal). Client-supplied keys are ignored: keys are a
     server-side derivation and editors must not assume key stability across
-    edits (old gradings keep their own ``details.scores`` snapshot).
+    edits (old gradings keep their own ``details.scores`` snapshot). A step
+    keeps a ``requirements`` key only when it lists some, so a sheet without
+    requirements normalizes to what it always did.
     """
     nodes_out: List[Dict[str, Any]] = []
     step_ordinal = 0
@@ -464,6 +607,9 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
             out["hints"] = [
                 _clean_text(hint) for hint in hints if isinstance(hint, str) and hint.strip()
             ]
+            requirements = _normalized_requirements(node.get("requirements"))
+            if requirements:
+                out["requirements"] = requirements
         nodes_out.append(out)
     return {"version": STRUCTURE_VERSION, "nodes": nodes_out}
 
@@ -501,7 +647,8 @@ def criteria_from_structure(structure: Dict[str, Any]) -> Dict[str, Dict[str, An
     Depth-first order; ``name`` is the step title, ``description`` the hint
     bullets, ``rubric`` factual prose the judge reads: the ancestor context
     (section notes in parentheses), the Gliederungspunkt with its BE budget,
-    the Schwerpunkt marker and the hints.
+    the Schwerpunkt marker, the hints and the step's requirements with their
+    BE.
     """
     nodes = [n for n in (structure.get("nodes") or []) if isinstance(n, dict)]
     criteria: Dict[str, Dict[str, Any]] = {}
@@ -533,6 +680,10 @@ def criteria_from_structure(structure: Dict[str, Any]) -> Dict[str, Dict[str, An
         if hints:
             lines.append("Hinweise:")
             lines.extend(f"- {h}" for h in hints)
+        requirements = requirement_lines(node.get("requirements"))
+        if requirements:
+            lines.append(f"Anforderungen (volle {budget} BE, wenn alle erfüllt):")
+            lines.extend(requirements)
         criteria[key] = {
             "name": title,
             "description": "\n".join(hints),
@@ -545,10 +696,12 @@ def criteria_from_structure(structure: Dict[str, Any]) -> Dict[str, Dict[str, An
 def structure_without_guidance(structure: Any) -> Any:
     """A copy of ``structure`` without the guidance text of its nodes.
 
-    Drops every step's ``hints`` and every node's ``note``: that text spells
-    out the expected solution, so it is reference content. Titles, labels,
-    levels, keys, budgets and the Schwerpunkt marker stay, so a filled sheet
-    still renders step by step. Non-dict input is returned untouched.
+    Drops every step's ``hints``, every node's ``note`` and the text of every
+    requirement: that text spells out the expected solution, so it is
+    reference content. Titles, labels, levels, keys, budgets and the
+    Schwerpunkt marker stay, and so do the requirements' BE and marks, so a
+    filled sheet still renders step by step and requirement by requirement.
+    Non-dict input is returned untouched.
     """
     if not isinstance(structure, dict):
         return structure
@@ -559,6 +712,8 @@ def structure_without_guidance(structure: Any) -> Any:
         out = {**node, "note": None}
         if "hints" in out:
             out["hints"] = []
+        if "requirements" in out:
+            out["requirements"] = [{**r, "text": ""} for r in step_requirements(node)]
         nodes.append(out)
     return {**structure, "nodes": nodes}
 
@@ -726,7 +881,10 @@ def render_structure_text(
     """Indented outline for prompt injection and the task.data mirror.
 
     Two spaces per level; steps end in ``(N BE) [Schlüssel: key]`` with a
-    ``SCHWERPUNKT`` marker when emphasised and ``– Hinweis:`` lines below.
+    ``SCHWERPUNKT`` marker when emphasised and ``– Hinweis:`` lines below,
+    then the step's requirements, one numbered line each with its BE. Where a
+    requirement carries a mark (``folgerichtig``, ``Definition``), the sheet
+    ends with the sentence that says how the mark is read.
     Dot decimals on purpose: the judge emits JSON numbers. The optional
     trailing Notenschlüssel block is for the task.data mirror only; the judge
     prompt omits it because the grade is derived server-side.
@@ -741,6 +899,7 @@ def render_structure_text(
         else f"BEWERTUNGSBOGEN (insgesamt {total} BE; halbe BE zulässig)"
     )
     lines = [header]
+    marks: set = set()
     for node in structure.get("nodes") or []:
         if not isinstance(node, dict):
             continue
@@ -758,8 +917,25 @@ def render_structure_text(
                 hint = _clean_text(hint)
                 if hint:
                     lines.append(f"{indent}  – Hinweis: {hint}")
+            requirements = _normalized_requirements(node.get("requirements"))
+            if requirements:
+                lines.append(f"{indent}  Anforderungen:")
+                lines.extend(f"{indent}  {line}" for line in requirement_lines(requirements))
+                marks.update(r["standard"] for r in requirements if r["standard"])
+                marks.update(r["element"] for r in requirements if r["element"])
         else:
             lines.append(f"{indent}{_heading(node, with_note=True)}")
+    closing = [
+        rule
+        for mark, rule in (
+            ("folgerichtig", REQUIREMENT_STANDARD_RULE),
+            ("definition", REQUIREMENT_DEFINITION_RULE),
+        )
+        if mark in marks
+    ]
+    if closing:
+        lines.append("")
+        lines.extend(closing)
     if include_grade_scale:
         lines.append("")
         lines.append(render_grade_scale_text(effective_grade_scale(grade_scale, total_points)))
@@ -767,7 +943,10 @@ def render_structure_text(
 
 
 def rubric_prompt_text(
-    rubric: Any, include_grade_scale: bool = False, project_config: Any = None
+    rubric: Any,
+    include_grade_scale: bool = False,
+    project_config: Any = None,
+    alternatives: str = "branch",
 ) -> str:
     """Judge-facing text of a rubric row (or row-like object).
 
@@ -776,13 +955,26 @@ def rubric_prompt_text(
     → the structure outline → the flat criteria. A malformed structure falls
     through to the flat rendering instead of raising.
 
+    ``alternatives`` picks between the two texts a generated sheet with
+    alternative solution paths (Weichenstellungen) is stored with:
+    ``"branch"`` (``rendered_text``) lists every path's steps under their own
+    keys, for a judge that scores each path; ``"replace"``
+    (``rendered_text_replace``) tells the judge to score another path's work
+    on the steps it replaces, for a judge whose answer holds the regular
+    steps only. A row without the second text has one text for both.
+
     With ``include_grade_scale`` the outline ends in the Notenschlüssel that
     grades this rubric (``resolve_grade_scale``: the exam's key in
     ``project_config``, else the rubric's own, else the standard key).
     """
     metadata = getattr(rubric, "generation_metadata", None) or {}
-    rendered = metadata.get("rendered_text") if isinstance(metadata, dict) else None
+    if not isinstance(metadata, dict):
+        metadata = {}
+    rendered = metadata.get("rendered_text")
     if isinstance(rendered, str) and rendered.strip():
+        replace = metadata.get("rendered_text_replace")
+        if alternatives == "replace" and isinstance(replace, str) and replace.strip():
+            return replace
         return rendered
 
     structure = getattr(rubric, "structure", None)
@@ -798,6 +990,119 @@ def rubric_prompt_text(
         except Exception:  # pragma: no cover - defensive, falls through to flat
             pass
     return render_flat_criteria_text(getattr(rubric, "criteria", None))
+
+
+# ---------------------------------------------------------------------------
+# Grading per requirement
+# ---------------------------------------------------------------------------
+
+# The work result a sheet without declared work results is filed under.
+_DEFAULT_WORK_RESULT = {"id": "P1", "bezeichnung": "Gutachten", "art": "gutachten", "fundstelle_aufgabe": None}
+
+
+def checklist_spec_from_structure(structure: Any) -> Optional[Dict[str, Any]]:
+    """The requirement-level scoring data of an outline, or ``None``.
+
+    The shape ``ml_evaluation.checklist_scoring`` grades against (its
+    ``checklist_spec``): the steps in outline order, each with its
+    requirements and their share of the step. Only a sheet whose steps ALL
+    list requirements has one; any other sheet is graded as one number per
+    step. An outline knows no alternative solution paths
+    (Weichenstellungen) and no parts owed in an auxiliary opinion, so the
+    spec carries none. Requirement keys are the step key plus ``__b<n>``,
+    the position being the requirement's answer key ``b<n>``.
+    """
+    if not isinstance(structure, dict) or validate_structure(structure) or not has_requirements(structure):
+        return None
+    steps: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
+    step_ordinal = 0
+    for node in iter_steps(structure):
+        step_ordinal += 1
+        title = _clean_text(node.get("title"))
+        key = node.get("key") or slugify_step_key(title, step_ordinal)
+        max_score = float(node.get("max_score"))
+        steps[key] = {
+            "step_id": str(node.get("id") or key),
+            "name": title,
+            "max_score": max_score,
+            "anforderungen": [
+                {
+                    "key": f"{key}__b{position}",
+                    "id": None,
+                    "text": requirement["text"],
+                    "share": float(requirement["points"]) / max_score,
+                    "punkte": requirement["points"],
+                    "massstab": requirement["standard"] or "richtig",
+                    "element": requirement["element"],
+                }
+                for position, requirement in enumerate(
+                    _normalized_requirements(node.get("requirements")), start=1
+                )
+            ],
+            "keine_punkte": None,
+            "weichenstellung": None,
+            "arbeitsergebnis_id": _DEFAULT_WORK_RESULT["id"],
+            "hilfsgutachten": None,
+        }
+        order.append(key)
+    return {
+        "version": 1,
+        "source": "structure",
+        "total_points": float(total_points_from_structure(structure)),
+        "order": order,
+        "steps": steps,
+        "loesungsweg_steps": {},
+        "weichenstellungen": [],
+        "arbeitsergebnisse": [{**_DEFAULT_WORK_RESULT, "step_keys": list(order)}],
+        "hilfsgutachten": {"verlangt": False, "wortlaut": None},
+    }
+
+
+def stored_checklist_spec(rubric: Any) -> Optional[Dict[str, Any]]:
+    """The scoring data a generator stored with a rubric row
+    (``generation_metadata.checklist_spec``, written next to
+    ``rendered_text``), or ``None``.
+
+    It counts only while the row still carries the text it was rendered
+    with: an edit of the outline drops both
+    (``task_rubric_service.edit_task_rubric``), and a row edited before that
+    rule holds a spec that no longer describes the outline."""
+    metadata = getattr(rubric, "generation_metadata", None)
+    if not isinstance(metadata, dict):
+        return None
+    spec = metadata.get("checklist_spec")
+    rendered = metadata.get("rendered_text")
+    if (
+        isinstance(spec, dict)
+        and isinstance(rendered, str)
+        and rendered.strip()
+        and not metadata.get("rendered_text_invalidated_by_edit")
+    ):
+        return spec
+    return None
+
+
+def rubric_checklist_spec(rubric: Any) -> Optional[Dict[str, Any]]:
+    """The requirement-level scoring data of a rubric row, or ``None`` for a
+    sheet that is graded as one number per step.
+
+    A sheet is graded per requirement when every step of its OUTLINE lists
+    requirements (:func:`has_requirements`). A sheet without them keeps one
+    number per step, as before core 2.51, also when an earlier generator
+    version stored scoring data beside an outline that carries its
+    requirements as hint lines only.
+
+    For a sheet with requirements the generator's own spec comes first
+    (:func:`stored_checklist_spec`): it also knows the sheet's alternative
+    solution paths and the parts owed in an auxiliary opinion. Without one
+    the spec is built from the outline
+    (:func:`checklist_spec_from_structure`).
+    """
+    structure = getattr(rubric, "structure", None)
+    if not has_requirements(structure):
+        return None
+    return stored_checklist_spec(rubric) or checklist_spec_from_structure(structure)
 
 
 def _loaded_project_config(task: Any) -> Any:

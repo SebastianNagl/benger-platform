@@ -92,6 +92,12 @@ def _preprocess_jinja_placeholders(template: str) -> str:
 RUBRIC_SCHEMA_MAX_ENUM_VALUES = 1000
 RUBRIC_SCHEMA_MAX_PROPERTIES = 5000
 
+# How the Bewertungsbogen judge marks a sheet that lists requirements, unless
+# the config says otherwise (``metric_parameters.rubric_score_unit``): one
+# state per requirement, points from met requirements only.
+RUBRIC_REQUIREMENT_UNIT = "binary"
+RUBRIC_REQUIREMENT_UNITS = ("binary", "bullet")
+
 
 def _half_point_enum(max_score: float) -> List[float]:
     """Produce the half-point enum [0, 0.5, 1.0, ..., max_score] for a dimension.
@@ -501,6 +507,27 @@ def _finalize_rubric_margin_notes(
     )
 
 
+def _finalize_checklist_margin_notes(
+    notes: Any,
+    parsed: Dict[str, Any],
+    scores: Dict[str, Dict[str, Any]],
+    answer: str,
+    evidence_index: Optional[EvidenceIndex],
+) -> List[Dict[str, Any]]:
+    """The notes of a requirement-level judgment. Refs are the scored step
+    keys. A step counts as zeroed for the provider when the judge credited
+    requirements of it and the evidence check kept none of them."""
+    zeroed = []
+    for key, entry in scores.items():
+        items = list((entry.get("anforderungen") or {}).values())
+        credited = [i for i in items if i.get("model_status") in (1, 2, "erfuellt")]
+        if credited and not any(i.get("evidence_verified") for i in credited):
+            zeroed.append(key)
+    return notes.finalize(
+        parsed.get("annotations"), answer, scores, index=evidence_index, zeroed_refs=zeroed
+    )
+
+
 # Default evaluation criteria and prompts
 DEFAULT_CRITERIA = {
     "helpfulness": {
@@ -750,7 +777,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
         else:
             self.criteria = ["helpfulness", "correctness"]
 
-    def bind_task_rubric(self, rubric, margin_notes: bool = True) -> None:
+    def bind_task_rubric(
+        self, rubric, margin_notes: bool = True, score_unit: Optional[str] = None
+    ) -> None:
         """Grade against a task's Bewertungsbogen (``llm_judge_rubric``).
 
         The rubric's criteria replace the config's, which flips
@@ -764,8 +793,32 @@ class LLMJudgeEvaluator(BaseEvaluator):
         length, then bytes, not in outline order. The response schema and the
         score vector follow the dict order, so the steps are put back into
         Bewertungsbogen order (structure first, then the ``sNN_`` ordinals).
+
+        A sheet whose outline lists requirements for every step is graded
+        per requirement. The judge then marks every requirement, code
+        computes the points, and at a Weichenstellung the path the answer
+        declares is counted (:meth:`configure_checklist`, alternatives
+        ``branch``, total mode ``declared``). The scoring data is the
+        generator's own spec where the row still carries one
+        (``rubric_structure.stored_checklist_spec``: it knows the sheet's
+        alternative paths), else the one built from the outline. A sheet
+        without requirements in its outline keeps one number per step, as
+        before core 2.51.
+
+        ``score_unit`` is the config's
+        ``metric_parameters.rubric_score_unit``: unset means
+        :data:`RUBRIC_REQUIREMENT_UNIT`; ``"bullet"`` is the three-step
+        status; ``"step"`` keeps one number per step for every sheet.
+        Scoring data that cannot be used is logged and the next choice is
+        taken (the outline's spec, then one number per step), so broken data
+        never blocks a grading. :meth:`rubric_text_alternatives` says which
+        text of the sheet fits the lane chosen here.
         """
-        from rubric_structure import order_criteria_keys
+        from rubric_structure import (
+            checklist_spec_from_structure,
+            order_criteria_keys,
+            stored_checklist_spec,
+        )
 
         criteria = rubric.criteria or {}
         ordered = order_criteria_keys(criteria, getattr(rubric, "structure", None))
@@ -773,6 +826,54 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
         self.margin_notes = margin_notes
+        self.checklist = None
+
+        unit = score_unit or RUBRIC_REQUIREMENT_UNIT
+        if unit == "step":
+            return
+        rubric_id = getattr(rubric, "id", None)
+        try:
+            from_outline = checklist_spec_from_structure(getattr(rubric, "structure", None))
+        except Exception as exc:  # an odd stored outline: never a reason to fail the grading
+            logger.warning("Bewertungsbogen %s: the outline's requirements cannot be read (%s)", rubric_id, exc)
+            from_outline = None
+        if from_outline is None:
+            return
+        if unit not in RUBRIC_REQUIREMENT_UNITS:
+            logger.warning(
+                "Bewertungsbogen %s: requirement-level grading is not possible (rubric_score_unit must be one "
+                "of %s, got %r); grading per step",
+                rubric_id, RUBRIC_REQUIREMENT_UNITS + ("step",), unit,
+            )
+            return
+        for origin, spec in (("the stored scoring data", stored_checklist_spec(rubric)), ("the outline", from_outline)):
+            if spec is None:
+                continue
+            try:
+                if list(spec.get("order") or []) != list(self.custom_criteria):
+                    # The spec scores other steps than the sheet lists: it
+                    # does not describe this row (any more).
+                    raise ValueError("the scoring data and the sheet's steps differ")
+                self.configure_checklist(spec, score_unit=unit, alternatives="branch", total_mode="declared")
+                return
+            except Exception as exc:
+                # ValueError for a spec the scoring refuses, anything else
+                # for one whose shape is broken (a number where a list
+                # belongs, say). Neither may block the grading.
+                logger.warning(
+                    "Bewertungsbogen %s: %s cannot be used for requirement-level grading (%s: %s)",
+                    rubric_id, origin, type(exc).__name__, exc,
+                )
+                self.checklist = None
+        logger.warning("Bewertungsbogen %s: requirement-level grading is not possible; grading per step", rubric_id)
+
+    def rubric_text_alternatives(self) -> str:
+        """How the sheet's text must present alternative solution paths for
+        the lane this judge runs in: ``"branch"`` when it scores every path
+        under its own keys (the requirement-level lane), ``"replace"`` when
+        it scores the sheet's regular steps only, so another path's work
+        lands on the steps it replaces."""
+        return "branch" if self.checklist else "replace"
 
     def configure_checklist(
         self,
@@ -1593,11 +1694,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         rubric_mode = self.rubric_mode is True
         # Notes beside the scores come from an overlay (ml_evaluation.judge_notes);
         # none, or the binding switched off, means no notes.
-        notes = (
-            resolve_judge_notes()
-            if rubric_mode and self.margin_notes is True and not self.checklist
-            else None
-        )
+        notes = resolve_judge_notes() if rubric_mode and self.margin_notes is True else None
 
         # Built-ins first. No aliases — Issue #107.
         template_vars: Dict[str, str] = {
@@ -1675,9 +1772,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 system_prompt = opts["system_prompt"]
             else:
                 prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-                if notes is not None:
-                    prompt = f"{prompt}\n\n{notes.rubric_rules()}"
                 system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+            if notes is not None:
+                prompt = f"{prompt}\n\n{notes.rubric_rules()}"
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
                 for value in (field_outputs or {}).values()
@@ -1689,9 +1786,27 @@ class LLMJudgeEvaluator(BaseEvaluator):
         if self.checklist:
             from . import checklist_scoring
 
-            json_schema = checklist_scoring.build_schema(
-                self.checklist["spec"], self.checklist["score_unit"], self.checklist["alternatives"]
+            checklist_keys = [
+                key
+                for key, _step in checklist_scoring.scored_steps(
+                    self.checklist["spec"], self.checklist["alternatives"]
+                )
+            ]
+            note_properties, note_enum_values = (
+                notes.schema_cost(len(checklist_keys)) if notes is not None else (0, 0)
             )
+            json_schema, checklist_enums = checklist_scoring.build_schema_within(
+                self.checklist["spec"],
+                self.checklist["score_unit"],
+                self.checklist["alternatives"],
+                extra_enum_values=note_enum_values,
+                extra_properties=note_properties,
+            )
+            if notes is not None:
+                json_schema["properties"]["annotations"] = notes.schema(
+                    checklist_keys, use_enum=checklist_enums
+                )
+                json_schema["required"] = list(json_schema["properties"])
         else:
             json_schema = _build_rubric_json_schema(
                 self.custom_criteria, require_evidence=rubric_mode, notes=notes
@@ -1739,6 +1854,50 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # quotes the start of the answer, and the body runs through the same
         # verification as a real response.
         import os
+
+        if os.environ.get("E2E_TEST_MODE") == "true" and self.checklist:
+            # The requirement-level lane: the same seam, a deterministic
+            # judgment in the lane's own answer shape, finalized like a
+            # real one.
+            from . import checklist_scoring
+
+            opts = self.checklist
+            mock_evidence = (prediction or "").strip()
+            if len(mock_evidence) > 80:
+                mock_evidence = mock_evidence[:80].rsplit(None, 1)[0]
+            mock_body = checklist_scoring.mock_judgment(
+                opts["spec"],
+                opts["score_unit"],
+                opts["alternatives"],
+                evidence=mock_evidence,
+                seed_text=f"{str(context)[:50]}:{str(prediction)[:50]}",
+            )
+            mock_result = checklist_scoring.finalize(
+                mock_body,
+                opts["spec"],
+                opts["score_unit"],
+                opts["alternatives"],
+                opts["total_mode"],
+                lambda quote: verify_evidence(quote, evidence_index),
+                grade_scale=opts.get("grade_scale"),
+            )
+            if notes is not None:
+                first = next(iter(mock_result["scores"]), None)
+                mock_body["annotations"] = (
+                    [{"ref": first, "kind": "mangel", "quote": mock_evidence,
+                      "comment": "Mock evaluation (E2E test mode)"}]
+                    if first
+                    else []
+                )
+                mock_result["annotations"] = _finalize_checklist_margin_notes(
+                    notes, mock_body, mock_result["scores"], answer_text, evidence_index
+                )
+            return {
+                **mock_result,
+                "_call_metadata": {"e2e_test_mode": True, "finish_reason": "stop", "truncated": False},
+                "_raw_output": json.dumps(mock_body, ensure_ascii=False),
+                "_judge_prompts_used": provenance,
+            }
 
         if os.environ.get("E2E_TEST_MODE") == "true" and not self.checklist:
             import hashlib
@@ -1950,6 +2109,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "_judge_prompts_used": provenance,
                         }
                     if not result.get("missing"):
+                        if notes is not None:
+                            result["annotations"] = _finalize_checklist_margin_notes(
+                                notes, parsed, result["scores"], answer_text, evidence_index
+                            )
                         return {
                             **result,
                             "_call_metadata": call_meta(_extract_call_metadata(response)),

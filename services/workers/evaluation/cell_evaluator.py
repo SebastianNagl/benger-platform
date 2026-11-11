@@ -67,7 +67,16 @@ _NO_RUBRIC_ERROR = (
 )
 
 
-def _render_rubric_text(rubric) -> str:
+def _rubric_score_unit_kwargs(metric_parameters) -> Dict[str, Any]:
+    """``{"score_unit": …}`` for ``LLMJudgeEvaluator.bind_task_rubric`` when
+    the Bewertungsbogen judge config sets
+    ``metric_parameters.rubric_score_unit``; empty otherwise, so the judge
+    applies its own default."""
+    unit = metric_parameters.get("rubric_score_unit") if isinstance(metric_parameters, dict) else None
+    return {"score_unit": unit.strip()} if isinstance(unit, str) and unit.strip() else {}
+
+
+def _render_rubric_text(rubric, alternatives: str = "branch") -> str:
     """Plain-text rendering of a rubric for prompt injection.
 
     The multi-dim JSON schema carries only step keys and score bounds — the
@@ -85,10 +94,28 @@ def _render_rubric_text(rubric) -> str:
     The Notenschlüssel is deliberately NOT rendered: the grade is derived
     server-side (``grade_for_rubric``), and a scale in the prompt would only
     bias the model.
+
+    ``alternatives`` is what the judge that reads the text says it needs
+    (``LLMJudgeEvaluator.rubric_text_alternatives``): a generated sheet with
+    alternative solution paths is stored with one text per judge lane.
     """
     from rubric_structure import rubric_prompt_text
 
-    return rubric_prompt_text(rubric, include_grade_scale=False)
+    return rubric_prompt_text(
+        rubric,
+        include_grade_scale=False,
+        alternatives=alternatives if alternatives in ("branch", "replace") else "branch",
+    )
+
+
+def _rubric_text_for(evaluator, rubric) -> str:
+    """The rubric's text for the lane ``evaluator`` grades in: a judge that
+    scores every solution path under its own keys reads another text of a
+    generated sheet than one that scores the regular steps only
+    (``LLMJudgeEvaluator.rubric_text_alternatives``). An evaluator that
+    cannot say reads the stored default."""
+    alternatives = getattr(evaluator, "rubric_text_alternatives", None)
+    return _render_rubric_text(rubric, alternatives() if callable(alternatives) else "branch")
 
 
 def _build_judge_context(
@@ -667,6 +694,7 @@ def evaluate_generation_cell_impl(
                                     jr_evaluator.bind_task_rubric(
                                         task_rubric,
                                         margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
+                                        **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                     )
 
                                 inline_judge = resolve_inline_judge(metric)
@@ -765,8 +793,8 @@ def evaluate_generation_cell_impl(
                                         # placeholder resolves per task.
                                         multidim_task_data = {
                                             **(task.data or {}),
-                                            "bewertungsbogen": _render_rubric_text(
-                                                task_rubric
+                                            "bewertungsbogen": _rubric_text_for(
+                                                jr_evaluator, task_rubric
                                             ),
                                         }
                                     result = jr_evaluator._evaluate_multidim_single_call(
@@ -1334,6 +1362,7 @@ def evaluate_annotation_cell_impl(
                                         jr_evaluator.bind_task_rubric(
                                             task_rubric,
                                             margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
+                                            **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                         )
 
                                     inline_judge = resolve_inline_judge(metric)
@@ -1422,8 +1451,8 @@ def evaluate_annotation_cell_impl(
                                             # {bewertungsbogen} resolves.
                                             multidim_task_data = {
                                                 **(task.data or {}),
-                                                "bewertungsbogen": _render_rubric_text(
-                                                    task_rubric
+                                                "bewertungsbogen": _rubric_text_for(
+                                                    jr_evaluator, task_rubric
                                                 ),
                                             }
                                         result = jr_evaluator._evaluate_multidim_single_call(

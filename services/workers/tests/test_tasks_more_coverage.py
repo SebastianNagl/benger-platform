@@ -318,32 +318,28 @@ class TestSendNotificationBatch:
         assert out["sent"] == 0
 
     def test_sent_and_failed_counts(self):
-        session = _NotifFakeSession([_user("a"), _user("b")])
+        session = _NotifFakeSession([_user("a", "a@example.com"), _user("b", "b@example.com")])
         data = [
             {"user_id": "a", "type": "t", "title": "T", "message": "M"},
             {"user_id": "b", "type": "t", "title": "T", "message": "M"},
         ]
         # `from email_service import email_service` resolves to the module
         # conftest force-loaded into sys.modules; patch its instance method.
-        # The task wraps the call in `asyncio.run(...)`, so the patched
-        # send_notification_email just needs to return a (dummy) awaitable-free
-        # value — we patch `asyncio.run` to yield our True/False results and
-        # absorb the coroutine arg so no "never awaited" warning fires.
+        # The task runs the coroutine with the real `asyncio.run`, and the
+        # staged results come from the patched method itself, per recipient.
+        # `asyncio.run` is deliberately not patched: a patch of the module
+        # attribute is global, so any other caller in the process during this
+        # test (a thread left by an earlier test) would take a staged result,
+        # which made this test fail now and then (sent 0, and an empty
+        # StopIteration logged for the second recipient).
         import email_service as email_service_module
 
-        results = iter([True, False])
-
-        def fake_run(coro):
-            # Close the coroutine to avoid a RuntimeWarning, then return the
-            # next staged result.
-            try:
-                coro.close()
-            except Exception:
-                pass
-            return next(results)
+        results = {"a@example.com": True, "b@example.com": False}
+        sent_to = []
 
         async def _fake_send(**kwargs):
-            return True
+            sent_to.append(kwargs["user_email"])
+            return results[kwargs["user_email"]]
 
         with patch.object(tasks_module, "SessionLocal", return_value=session), patch.object(
             tasks_module, "HAS_NOTIFICATION_SERVICE", False
@@ -351,8 +347,9 @@ class TestSendNotificationBatch:
             email_service_module.email_service,
             "send_notification_email",
             side_effect=_fake_send,
-        ), patch("asyncio.run", side_effect=fake_run):
+        ):
             out = send_notification_batch_task(data)
+        assert sent_to == ["a@example.com", "b@example.com"]
         assert out["sent"] == 1
         assert out["failed"] == 1
         assert out["skipped"] == 0
