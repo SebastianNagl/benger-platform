@@ -6303,8 +6303,8 @@
       "usageDataText": "We automatically collect certain information when you use our website, including your IP address, browser type, operating system, access times, and pages visited. This data helps us maintain and improve our service. The legal basis is Article 6(1)(f) GDPR (legitimate interests).",
       "apiKeys": "API Keys",
       "apiKeysText": "If you store API keys for LLM providers in your account, these are encrypted and stored securely on our servers. We do not have access to your unencrypted API keys. This processing is based on Article 6(1)(b) GDPR (performance of a contract).",
-      "lmsData": "Learning Platform Integration (Moodle, ILIAS)",
-      "lmsDataText": "If your university has connected a learning platform such as Moodle or ILIAS and you open an activity from it, the learning platform sends an identifier, your name, your email address, your role in the course, and the course and activity.\nBefore an account is created, we ask for two consents: to the processing of this data and to the use of your data for research. Without both consents, the application cannot be used from the learning platform. Until you decide, we keep the transmitted data for at most 30 minutes.\nYour account holds the name and email address from the learning platform. In the application you appear under a pseudonym. Your name is visible to the administration of your organization, to your teachers, to the people who may grade your exam and to the administration of this platform.\nIf an account with your email address already exists, we link it only after you sign in or confirm a link sent by email. If you request this link, we keep it together with a copy of the transmitted data for at most 24 hours. A new account with a deliverable address receives an email to set a password.\nFor AI grading, we send your solution to the AI provider whose API key your organization has stored. We send grades from AI grading and from grading by teachers to your learning platform.\nThe administration of your organization can anonymize an account created through the learning platform. This deletes the name, the email address and the link to the learning platform. Submissions and grades remain without personal reference. Grades already sent to the learning platform remain there.\nThe legal basis is your consent under Article 6(1)(a) GDPR.",
+      "lmsData": "Learning Platform Integration (Moodle, ILIAS, OpenOlat)",
+      "lmsDataText": "If your university has connected a learning platform such as Moodle, ILIAS or OpenOlat and you open an activity from it, the learning platform sends an identifier, your name, your email address, your role in the course, and the course and activity. From ILIAS only your name arrives. OpenOlat passes on your name and email address only if your teachers have switched this on in the activity, and always your OpenOlat login name.\nBefore an account is created, we ask for two consents: to the processing of this data and to the use of your data for research. Without both consents, the application cannot be used from the learning platform. Until you decide, we keep the transmitted data for at most 30 minutes.\nYour account holds the name and email address from the learning platform. In the application you appear under a pseudonym. Your name is visible to the administration of your organization, to your teachers, to the people who may grade your exam and to the administration of this platform.\nIf an account with your email address already exists, we link it only after you sign in or confirm a link sent by email. If you request this link, we keep it together with a copy of the transmitted data for at most 24 hours. A new account with a deliverable address receives an email to set a password.\nFor AI grading, we send your solution to the AI provider whose API key your organization has stored. We send grades from AI grading and from grading by teachers to your learning platform. When your teachers open the overview of an activity, we read the course participant list from the learning platform to show them who has not opened the activity yet. We do not store this list.\nThe administration of your organization can anonymize an account created through the learning platform. This deletes the name, the email address and the link to the learning platform. Submissions and grades remain without personal reference. Grades already sent to the learning platform remain there.\nThe legal basis is your consent under Article 6(1)(a) GDPR.",
       "cookies": "Cookies and Similar Technologies",
       "cookiesText": "We use essential cookies that are necessary for the operation of our website. These cookies enable basic functions like page navigation and access to secure areas. We do not use tracking cookies or third-party analytics tools. The legal basis is Article 6(1)(f) GDPR (legitimate interests).",
       "dataSharing": "Data Sharing",
@@ -6466,7 +6466,7 @@
       },
       "lti": {
         "title": "LTI integrations",
-        "description": "Register and check Moodle and ILIAS connections"
+        "description": "Register and check Moodle, ILIAS and OpenOlat connections"
       },
       "emailVerification": {
         "title": "Email verification",
@@ -7047,7 +7047,8 @@
       "notOpenDescription": "This project opens at {date}. Come back then to start.",
       "closedReadOnly": "This project has closed — view only, no further changes.",
       "attemptedReadOnly": "Past submission. View only, no further changes."
-    }
+    },
+    "textAreaPlaceholder": "Enter your answer ..."
   },
   "annotationTab": {
     "columns": {
@@ -10719,7 +10720,7 @@
     "ltiAccess": {
       "alreadyActivated": "Your account is already activated. You can sign in directly.",
       "changeAddress": "Change address / resend",
-      "description": "So far you have used your account only through your university's learning platform (e.g. Moodle or ILIAS). Add your email address to also get a direct login with a password. Your exams and results are kept.",
+      "description": "So far you have used your account only through your university's learning platform (e.g. Moodle, ILIAS or OpenOlat). Add your email address to also get a direct login with a password. Your exams and results are kept.",
       "emailPlaceholder": "your@university-mail.com",
       "emailTaken": "This email address is already in use. Please use a different address.",
       "genericError": "That didn't work. Please try again later.",
@@ -11529,7 +11530,7 @@
       },
       "integrations": {
         "title": "Integrations",
-        "intro": "**LTI 1.3** connects BenGER with Moodle and ILIAS. Org and group admins set up connections themselves, through a one-time invitation link (dynamic registration) or by hand, and the connection is active at once. The first launch asks for consent, once per connection, and only then creates an account or, after sign-in or email confirmation, links an existing one. Teachers link the activity to an exam. Grades (0 to 18 grade points) go back via the Assignment and Grade Service: the final grade to the activity column and, in Moodle, the AI grade to a column of its own.",
+        "intro": "**LTI 1.3** connects BenGER with Moodle, ILIAS and OpenOlat. Org and group admins set up connections themselves, through a one-time invitation link (dynamic registration) or by hand, and the connection is active at once. The first launch asks for consent, once per connection, and only then creates an account or, after sign-in or email confirmation, links an existing one. Teachers link the activity to an exam, if they like already when they select the content in the learning platform (deep linking). The course participant list (Names and Role Provisioning) shows them who has not opened the activity yet. Grades (0 to 18 grade points) go back via the Assignment and Grade Service: the final grade to the activity column and, in Moodle, the AI grade to a column of its own.",
         "bullets": [
           "AI providers: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi and more), Grok, Mistral, Cohere. Custom OpenAI-compatible endpoints can be registered and shared; an SSRF guard blocks calls into internal networks.",
           "Email via SendGrid, with a branded sender per host.",

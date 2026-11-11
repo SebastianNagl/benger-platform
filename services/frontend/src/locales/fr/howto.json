@@ -323,7 +323,7 @@
       "summary": "Avec **Safe Exam Browser requis**, les étudiants passent l'examen dans le Safe Exam Browser (SEB). Pendant l'examen, SEB bloque les autres programmes et sites web, y compris sur les appareils personnels. BenGER génère lui-même la configuration SEB. La correction se déroule ensuite comme d'habitude.",
       "steps": [
         "Page du projet → **Paramètres du projet** → **Safe Exam Browser** → cocher **Safe Exam Browser requis**.",
-        "Pour les examens issus de Moodle ou d'ILIAS, saisir la page du cours comme **URL de démarrage** (obligatoire), afin que les étudiants s'y connectent dans SEB. Saisir les pages supplémentaires autorisées (p. ex. une base de données législative) sous **Autres domaines autorisés**.",
+        "Pour les examens issus de Moodle, d'ILIAS ou d'OpenOlat, saisir la page du cours comme **URL de démarrage** (obligatoire), afin que les étudiants s'y connectent dans SEB. Saisir les pages supplémentaires autorisées (p. ex. une base de données législative) sous **Autres domaines autorisés**.",
         "Facultatif : définir un **Mot de passe de sortie**, que les surveillants communiquent dans la salle.",
         "Facultatif : définir un **Mot de passe d'examen pour le fichier de configuration**. Le fichier est alors chiffré, SEB demande le mot de passe à l'ouverture, et les surveillants le communiquent dans la salle au début de l'examen.",
         "**Enregistrer**. Le lien pour démarrer dans SEB, le fichier de configuration et les domaines autorisés sont ensuite prêts à être copiés pour le service informatique.",
@@ -1009,11 +1009,11 @@
       ]
     },
     "lti-manage": {
-      "title": "Comment gérer une connexion à Moodle ou ILIAS ?",
+      "title": "Comment gérer une connexion à Moodle, ILIAS ou OpenOlat ?",
       "summary": "Dans le panneau **Plateforme d'apprentissage (LTI)**, chaque connexion a sa propre carte. Vous y activez et désactivez la connexion et ses déploiements, définissez le rôle des enseignants et consultez les activités, les comptes LMS, les transmissions de notes et l'historique. Le panneau est ouvert aux administrateurs de l'organisation, et aux administrateurs de groupe pour les connexions de leurs groupes.",
       "steps": [
         "**Activer et désactiver** : un clic sur l'interrupteur **Connexion active** désactive la connexion après confirmation. Cela bloque immédiatement tous les lancements, les pages de la connexion dans l'application et la transmission des notes pour cette plateforme d'apprentissage. L'interrupteur affiche alors **Connexion désactivée** et la carte porte le badge **Désactivée**. Un nouveau clic la réactive après confirmation.",
-        "**Déploiements** : ajouter ou supprimer des Deployment IDs. L'interrupteur **Déploiement actif** à côté d'un ID le bloque individuellement et affiche alors **Déploiement désactivé**. Les autres déploiements continuent de fonctionner. Dans ILIAS, le Deployment ID est l'ID numérique du fournisseur.",
+        "**Déploiements** : ajouter ou supprimer des Deployment IDs. L'interrupteur **Déploiement actif** à côté d'un ID le bloque individuellement et affiche alors **Déploiement désactivé**. Les autres déploiements continuent de fonctionner. Dans ILIAS, le Deployment ID est l'ID numérique du fournisseur. Dans OpenOlat, c'est l'*Identifiant de déploiement* qu'OpenOlat affiche pour l'outil.",
         "**Modifier** : le **Rôle dans l'organisation pour les enseignants** est contributeur (contributor), administrateur de l'organisation (org_admin) ou aucun rôle dans l'organisation (none). Pour une connexion de groupe, il s'agit du rôle dans le groupe : contributeur ou administrateur de l'organisation (= administrateur du groupe). Les nouveaux enseignants deviennent annotateurs dans l'organisation ; ceux qui y ont déjà un rôle plus élevé le conservent. Les administrateurs de groupe attribuent, sur les connexions de leur groupe, au plus le rôle d'administrateur du groupe. C'est aussi ici que vous modifiez l'adresse, le groupe, le **Rôle dans l'organisation pour les étudiants** et **Proposer la liaison avec des comptes existants**.",
         "**Activités** : chaque activité avec son cours, l'examen lié, les participants, l'état des transmissions et l'état de la colonne **Évaluation par IA**. **Ouvrir l'aperçu des notes** mène à l'aperçu de l'activité.",
         "**Comptes LMS** : toutes les personnes de la connexion avec nom, adresse e-mail, pseudonyme, rôle, consentement et dernier lancement, avec une recherche. **Supprimer la liaison** sépare l'identifiant de la plateforme d'apprentissage du compte. Les comptes créés par la plateforme d'apprentissage peuvent être anonymisés avec **Anonymiser**.",
@@ -1034,7 +1034,8 @@
         "Si la colonne **Évaluation par IA** manque dans Moodle, c'est que Moodle n'autorise pas l'outil à créer sa propre colonne. L'administration Moodle règle l'outil *IMS LTI Aufgaben und Bewertung* sur **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Rouvrez ensuite l'activité.",
         "Ne modifiez plus l'*Identifikation der Person* dans ILIAS après le lancement. Elle détermine l'identifiant des personnes, et un changement rompt toutes les liaisons. Seule exception, le mode *E-Mail-Adresse* : avec lui, chaque transmission de notes échoue dans ILIAS 10.9. L'administration ILIAS passe alors à **ID des ILIAS-Kontos …**. Ensuite, chaque personne donne à nouveau son consentement et reçoit un nouveau compte. Les remises précédentes restent sur l'ancien compte.",
         "L'anonymisation est irréversible. Si la personne relance l'activité, un nouveau compte vide est créé.",
-        "Si vous modifiez l'adresse d'une connexion, adaptez aussi les URL de l'outil dans la plateforme d'apprentissage. D'ici là, les lancements continuent de fonctionner et l'historique affiche un avertissement."
+        "Si vous modifiez l'adresse d'une connexion, adaptez aussi les URL de l'outil dans la plateforme d'apprentissage. D'ici là, les lancements continuent de fonctionner et l'historique affiche un avertissement.",
+        "Dans OpenOlat, *Avec déploiement partagé* ne peut plus être modifié après la création de l'outil. Sans ce réglage, chaque page LTI reçoit son propre identifiant de client et son propre identifiant de déploiement, que la connexion ne connaît pas, et les lancements depuis les autres pages LTI échouent avec `registration_not_found`. L'administration d'OpenOlat crée alors à nouveau l'outil avec ce réglage, et la connexion est configurée à nouveau avec les nouvelles valeurs."
       ],
       "keywords": [
         "gérer la connexion",
@@ -1056,7 +1057,10 @@
         "Moodle",
         "ILIAS",
         "LTI",
-        "User not available"
+        "User not available",
+        "OpenOlat",
+        "identifiant de déploiement",
+        "déploiement partagé"
       ],
       "links": [
         "Configurer la connexion",
@@ -1066,11 +1070,11 @@
       ]
     },
     "lti-teacher": {
-      "title": "Comment relier une activité Moodle ou ILIAS à un examen ?",
-      "summary": "Dans le cours, créez une activité *Externes Tool* (outil externe, Moodle) ou un *LTI-Konsument* (consommateur LTI, ILIAS) avec évaluation, puis ouvrez-la. Au **premier lancement**, vous donnez une fois votre consentement, puis vous choisissez l'examen. Ensuite, l'activité ouvre la page de l'examen. La carte **Activités de plateforme d'apprentissage** y mène à l'**Aperçu de l'activité**, avec toutes les remises et les notes.",
+      "title": "Comment relier une activité Moodle, ILIAS ou OpenOlat à un examen ?",
+      "summary": "Dans le cours, créez une activité *Externes Tool* (outil externe, Moodle), un *LTI-Konsument* (consommateur LTI, ILIAS) ou une *Page LTI* (OpenOlat) avec évaluation, puis ouvrez-la. Au **premier lancement**, vous donnez une fois votre consentement, puis vous choisissez l'examen. Ensuite, l'activité ouvre la page de l'examen. La carte **Activités de plateforme d'apprentissage** y mène à l'**Aperçu de l'activité**, avec toutes les remises et les notes.",
       "steps": [
-        "Moodle : *Aktivität anlegen* → choisir l'outil dans le sélecteur d'activités → laisser l'évaluation active. Si l'activité n'affiche pas d'évaluation, cochez d'abord **… erlauben, Bewertungen hinzuzufügen** (précédé du nom de l'outil). Sans cette case, l'activité n'a pas d'évaluation. Un maximum de 100 convient : l'outil fournit de 0 à 18 points de note et Moodle effectue la conversion. Dans Moodle, c'est l'administration qui définit le conteneur de lancement de l'outil. ILIAS : créer un *LTI-Konsument* avec le fournisseur et choisir **Neues Fenster** sous *Optionen für den Start*. Sous *Optionen für den Lernfortschritt*, le *Mastery Score* doit être de **22**.",
-        "Ouvrez l'activité. Au premier lancement, la connexion vous demande votre consentement, y compris pour l'utilisation à des fins de recherche. S'il existe déjà un compte avec votre adresse e-mail, vous le reliez en vous connectant ou via un lien envoyé par e-mail. Vous pouvez aussi choisir **Continuer avec un compte distinct**. ILIAS ne transmet pas d'adresse e-mail. Cette étape n'existe donc pas et un compte distinct est toujours créé. La page vous demande alors une fois votre adresse e-mail. Le lien que vous recevez ensuite vous permet de définir un mot de passe. Vous pouvez aussi ignorer cette étape.",
+        "Moodle : *Aktivität anlegen* → choisir l'outil dans le sélecteur d'activités → laisser l'évaluation active. Si l'activité n'affiche pas d'évaluation, cochez d'abord **… erlauben, Bewertungen hinzuzufügen** (précédé du nom de l'outil). Sans cette case, l'activité n'a pas d'évaluation. Un maximum de 100 convient : l'outil fournit de 0 à 18 points de note et Moodle effectue la conversion. Dans Moodle, c'est l'administration qui définit le conteneur de lancement de l'outil. ILIAS : créer un *LTI-Konsument* avec le fournisseur et choisir **Neues Fenster** sous *Optionen für den Start*. Sous *Optionen für den Lernfortschritt*, le *Mastery Score* doit être de **22**. OpenOlat : insérer une *Page LTI*, choisir l'outil sous *Version LTI* dans l'onglet *Contenu page* et enregistrer une fois. Activer *Transmettre le nom au fournisseur* et *Transmettre l'adresse e-mail au fournisseur*, et choisir *Ouvrir dans une nouvelle fenêtre* sous *Affichage*. Dans la configuration de l'évaluation, activer *Transfert du score*, laisser le *Facteur d'échelle* à 1 et régler le *Score nécessaire pour « passé »* sur 4, ou sur 10 pour les examens notés sur 20. Publier ensuite le cours.",
+        "Ouvrez l'activité. Au premier lancement, la connexion vous demande votre consentement, y compris pour l'utilisation à des fins de recherche. S'il existe déjà un compte avec votre adresse e-mail, vous le reliez en vous connectant ou via un lien envoyé par e-mail. Vous pouvez aussi choisir **Continuer avec un compte distinct**. ILIAS ne transmet pas d'adresse e-mail. Cette étape n'existe donc pas et un compte distinct est toujours créé. La page vous demande alors une fois votre adresse e-mail. Le lien que vous recevez ensuite vous permet de définir un mot de passe. Vous pouvez aussi ignorer cette étape. OpenOlat ne transmet le nom et l'adresse e-mail que si la page LTI l'autorise. Sans adresse e-mail, tout se passe comme avec ILIAS.",
         "Le sélecteur porte le titre de votre activité. Il affiche vos propres examens (*Personnel*) et ceux des contributeurs et administrateurs de votre organisation, chacun avec son auteur. Pour une connexion de groupe, seuls comptent les contributeurs du groupe, les administrateurs du groupe et les administrateurs de l'organisation. Les examens privés peuvent aussi être reliés. Sous la liste, **Ou créer un examen** permet d'en créer un nouveau. S'il n'existe encore aucun examen, le bouton s'appelle **Créer un examen**.",
         "Peuvent être reliés les examens avec résolution de cas et les examens avec une grille d'évaluation active. Les examens sans tâche ou sans grille d'évaluation active ne peuvent pas être choisis ; la raison est indiquée. Si l'examen a une seule tâche, l'activité est reliée automatiquement à celle-ci. Pour une collection d'examens à plusieurs tâches, vous choisissez une tâche ou, dans Moodle, toute la collection, voir [Relier une collection d'examens](/how-to#lti-collection).",
         "**Relier**. La correction humaine est alors activée pour l'examen, et les collaborateurs de votre organisation peuvent consulter et corriger les remises.",
@@ -1081,13 +1085,14 @@
       "tips": [
         "Le consentement vaut pour chaque connexion. Les autres cours et activités de la même plateforme d'apprentissage ne le redemandent pas.",
         "Sur la page du projet de l'examen, les **Activités de plateforme d'apprentissage** se trouvent à droite sous les actions rapides, avec un lien vers l'aperçu.",
-        "La correction par IA est payée par l'organisation de la connexion. S'il lui manque une clé, le sélecteur et l'aperçu affichent un avertissement."
+        "La correction par IA est payée par l'organisation de la connexion. S'il lui manque une clé, le sélecteur et l'aperçu affichent un avertissement.",
+        "Dans OpenOlat, vous pouvez choisir l'examen dès l'éditeur de cours : après le premier enregistrement, la sélection de contenu (Deep Linking) dans l'onglet *Contenu page* ouvre le sélecteur d'examens directement dans OpenOlat. La page LTI est alors reliée dès son premier lancement, et un cours copié conserve ce lien. Vous reliez à nouveau toutes les autres activités d'un cours copié lors de leur premier lancement."
       ],
       "pitfalls": [
         "Dès qu'une note a été transmise à la plateforme d'apprentissage, la liaison ne peut plus être modifiée. Pour un autre examen ou une autre tâche, créez une nouvelle activité.",
-        "*Cette activité ne peut pas recevoir de notes* : la transmission des notes n'est pas active. Activez l'évaluation dans Moodle, si nécessaire avec la case *… erlauben, Bewertungen hinzuzufügen*. Dans ILIAS, l'administration active *Erweiterte Benotungsdienste* chez le fournisseur. Rouvrez ensuite l'activité.",
+        "*Cette activité ne peut pas recevoir de notes* : la transmission des notes n'est pas active. Activez l'évaluation dans Moodle, si nécessaire avec la case *… erlauben, Bewertungen hinzuzufügen*. Dans ILIAS, l'administration active *Erweiterte Benotungsdienste* chez le fournisseur. Dans OpenOlat, activez *Transfert du score* dans la page LTI. Rouvrez ensuite l'activité.",
         "Si une activité plus ancienne est reliée à l'examen entier comme une seule note, l'examen n'accepte pas de deuxième tâche, même par import. Reliez alors l'activité à la tâche de l'examen. C'est toujours possible, même après la transmission de notes.",
-        "Si l'outil se lance intégré (iframe), vous arrivez sur la page de connexion. Dans Moodle 4.5, cela ne se modifie pas dans l'activité. L'administration Moodle règle le *Standard-Startcontainer* de l'outil sur **Neues Fenster**. Dans ILIAS, choisissez **Neues Fenster** pour l'objet.",
+        "Si l'outil se lance intégré (iframe), il affiche d'abord une page avec un bouton qui l'ouvre dans une nouvelle fenêtre. Les navigateurs plus anciens (Safari avant 16.4) arrivent à la place sur la page de connexion. Réglez donc l'activité sur une nouvelle fenêtre. Dans Moodle 4.5, cela ne se modifie pas dans l'activité. L'administration Moodle règle le *Standard-Startcontainer* de l'outil sur **Neues Fenster**. Dans ILIAS, choisissez **Neues Fenster** pour l'objet, dans OpenOlat *Ouvrir dans une nouvelle fenêtre* sous *Affichage*.",
         "Si vous ne trouvez pas l'outil dans le sélecteur d'activités de Moodle, demandez à l'administration Moodle de régler *Verwendung der Toolkonfiguration* de l'outil sur **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**."
       ],
       "keywords": [
@@ -1103,7 +1108,11 @@
         "cours Moodle",
         "évaluation",
         "Kurs gesamt",
-        "Setup für Bewertungen"
+        "Setup für Bewertungen",
+        "OpenOlat",
+        "Page LTI",
+        "sélection de contenu",
+        "Transfert du score"
       ],
       "links": [
         "Relier une collection d'examens",
@@ -1115,9 +1124,9 @@
     },
     "lti-collection": {
       "title": "Comment lier un recueil d'examens comportant plusieurs tâches ?",
-      "summary": "Il existe deux façons de faire. **Une activité par tâche** fonctionne dans Moodle et ILIAS : chaque activité reçoit la note de sa tâche. **Le recueil entier dans une activité** ne fonctionne que dans Moodle : chaque tâche reçoit sa propre colonne, et la colonne de l'activité reçoit la moyenne des notes finales dès que chaque tâche a une note finale.",
+      "summary": "Il existe deux façons de faire. **Une activité par tâche** fonctionne dans Moodle, ILIAS et OpenOlat : chaque activité reçoit la note de sa tâche. **Le recueil entier dans une activité** ne fonctionne que dans Moodle : chaque tâche reçoit sa propre colonne, et la colonne de l'activité reçoit la moyenne des notes finales dès que chaque tâche a une note finale.",
       "steps": [
-        "**Une activité par tâche (Moodle et ILIAS)** : créez une activité distincte pour chaque tâche, de préférence avec la tâche dans le titre. Ouvrez l'activité, dépliez le recueil dans la sélection, choisissez la tâche et cliquez sur **Relier**. Répétez l'opération pour chaque tâche. Chaque activité ne reçoit que la note de sa tâche. Les étudiants ont néanmoins accès à toutes les tâches du recueil.",
+        "**Une activité par tâche (Moodle, ILIAS et OpenOlat)** : créez une activité distincte pour chaque tâche, de préférence avec la tâche dans le titre. Dans OpenOlat, il s'agit d'une page LTI par tâche, et vous pouvez aussi y choisir la tâche directement avec la sélection de contenu. Ouvrez l'activité, dépliez le recueil dans la sélection, choisissez la tâche et cliquez sur **Relier**. Répétez l'opération pour chaque tâche. Chaque activité ne reçoit que la note de sa tâche. Les étudiants ont néanmoins accès à toutes les tâches du recueil.",
         "**Le recueil entier dans une activité (Moodle uniquement)** : créez une activité, ouvrez-la et, dans la sélection, choisissez le recueil entier au lieu d'une tâche. Cliquez sur **Relier**.",
         "BenGER crée alors dans le carnet de notes Moodle une colonne *Aufgabe N: Titel der Aktivität* par tâche. Elle reçoit la note finale de la tâche : la correction, sinon la note de l'IA si l'activité transmet les notes de l'IA. Tant que des notes de l'IA sont transmises, une colonne *KI-Bewertung: Aufgabe N* s'ajoute pour chaque tâche. Les colonnes apparaissent avec la première note de la tâche.",
         "La colonne de l'activité reçoit la **moyenne des notes finales de toutes les tâches**. Elle n'est envoyée que lorsque chaque tâche a une note finale. D'ici là, la colonne de l'activité reste vide pour cette personne.",
@@ -1130,7 +1139,7 @@
         "Le recueil entier nécessite dans Moodle, pour l'outil *IMS LTI Aufgaben und Bewertung*, le réglage **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Sinon, la sélection ne le propose pas."
       ],
       "pitfalls": [
-        "Dans ILIAS, seule la méthode avec une activité par tâche est possible. ILIAS ne permet pas à l'outil de créer des colonnes et n'accepte qu'une valeur par objet et par personne, la note finale.",
+        "Dans ILIAS et OpenOlat, seule la méthode avec une activité par tâche est possible. ILIAS ne permet pas à l'outil de créer des colonnes et n'accepte qu'une valeur par objet et par personne, la note finale. OpenOlat refuse lui aussi d'autres colonnes et n'accepte que la note finale par page LTI et par personne.",
         "La liaison peut être modifiée (autre examen, autre tâche, passage d'une tâche au recueil entier) jusqu'à ce que la première note de l'activité soit arrivée dans la plateforme d'apprentissage. Ensuite, BenGER refuse la modification, car une colonne mélangerait sinon les notes de différentes tâches. Créez alors une nouvelle activité. Exception : une ancienne activité liée à l'examen entier peut toujours être liée à l'unique tâche de son examen.",
         "Si vous supprimez une colonne de tâche dans Moodle, BenGER ne la recrée pas de lui-même. Si vous supprimez une tâche dans BenGER, sa colonne reste dans Moodle. BenGER ne supprime jamais de colonne dans la plateforme d'apprentissage.",
         "Si la tâche d'une activité par tâche est supprimée, l'activité ne reçoit plus de notes. Liez-la à une autre tâche ou créez une nouvelle activité."
@@ -1148,7 +1157,9 @@
         "carnet de notes",
         "importation",
         "Moodle",
-        "ILIAS"
+        "ILIAS",
+        "OpenOlat",
+        "Page LTI"
       ],
       "links": [
         "Lier un examen à une activité",
@@ -1171,11 +1182,13 @@
       "tips": [
         "Moodle reçoit deux colonnes. La colonne de l'activité contient la note finale (la correction, sinon la note IA), convertie sur le maximum de l'activité. La colonne **KI-Bewertung** contient toujours la note IA sur l'échelle de 0 à 18. Elle s'appelle *KI-Bewertung: Titel der Aktivität* (avec le titre de l'activité), ce qui permet de distinguer plusieurs activités d'un même cours. Les colonnes plus anciennes s'appellent seulement *KI-Bewertung*. Pour cela, l'outil doit avoir *IMS LTI Aufgaben und Bewertung* réglé sur **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**, sinon Moodle ne reçoit que la note finale.",
         "ILIAS reçoit une valeur par personne, la note finale. ILIAS l'affiche comme progression d'apprentissage. ILIAS n'affiche pas le commentaire de la note.",
+        "OpenOlat reçoit une valeur par personne, la note finale. OpenOlat reprend les points tels quels et les multiplie par le *Facteur d'échelle* de la page LTI, qui reste donc à 1. OpenOlat n'affiche pas le commentaire de la note. Sans *Transfert du score* dans la page LTI, aucune note n'arrive.",
+        "Dans Moodle et OpenOlat, l'aperçu indique sous **Pas encore ouverte** qui, dans le cours, n'a pas encore ouvert l'activité. L'aperçu lit la liste dans la plateforme d'apprentissage à son ouverture et ne l'enregistre pas. OpenOlat ne fournit que les participants, sans les propriétaires ni les coachs du cours. ILIAS ne fournit pas de liste.",
         "Si, dans Moodle, toute une collection d'examens est reliée à l'activité, les colonnes *Aufgabe N* et *KI-Bewertung: Aufgabe N* s'ajoutent pour chaque tâche. La colonne de l'activité reçoit alors la moyenne des notes finales, seulement une fois que chaque tâche a une note finale. Voir [Relier une collection d'examens](/how-to#lti-collection).",
         "Une correction ne supprime rien. La note IA reste dans l'aperçu et dans la colonne KI-Bewertung. En cas de plusieurs corrections, c'est la dernière modifiée qui compte.",
         "Si une note change après coup, par exemple à cause d'un nouveau barème de notation, la nouvelle valeur part vers la plateforme d'apprentissage au plus tard après environ une heure.",
         "Pendant la correction, la note IA est masquée par défaut jusqu'à ce que vous ayez soumis votre propre note.",
-        "Si vous avez écrasé ou verrouillé une note dans le carnet de notes de Moodle, Moodle ne la modifie pas, même après **Renvoyer toutes les notes**. Dans la colonne **KI-Bewertung**, en revanche, la valeur envoyée remplace une modification manuelle. ILIAS reprend toujours la dernière valeur envoyée.",
+        "Si vous avez écrasé ou verrouillé une note dans le carnet de notes de Moodle, Moodle ne la modifie pas, même après **Renvoyer toutes les notes**. Dans la colonne **KI-Bewertung**, en revanche, la valeur envoyée remplace une modification manuelle. ILIAS et OpenOlat reprennent toujours la dernière valeur envoyée.",
         "Les noms réels sont visibles ici par les enseignants des cours qui relient cet examen, par les collaborateurs autorisés à noter cet examen, par les administrateurs de l'organisation et par l'administration de la plateforme. Les comptes anonymisés apparaissent comme *Anonymisé*."
       ],
       "pitfalls": [
@@ -1201,7 +1214,12 @@
         "barème de notation",
         "Kurs gesamt",
         "total du cours",
-        "pondération"
+        "pondération",
+        "OpenOlat",
+        "Transfert du score",
+        "facteur d'échelle",
+        "Pas encore ouverte",
+        "liste des participants"
       ],
       "links": [
         "Relier un examen à une activité",
@@ -1213,20 +1231,20 @@
     },
     "lti-privacy": {
       "title": "Que dois-je savoir sur la protection des données de la connexion à la plateforme d'apprentissage ?",
-      "summary": "La connexion demande **le consentement avant chaque compte**, une fois par connexion, aux étudiants comme aux enseignants. Les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage, et seulement le nom pour ILIAS. Dans l'application, un pseudonyme apparaît. La correction par IA s'exécute uniquement avec les clés de votre organisation. L'hébergement se fait en **Allemagne**. Nous sommes sous-traitant et satisfaisons aux exigences de votre service de protection des données. Indiquez-nous concrètement ce dont vous avez besoin.",
+      "summary": "La connexion demande **le consentement avant chaque compte**, une fois par connexion, aux étudiants comme aux enseignants. Les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage, seulement le nom pour ILIAS et, pour OpenOlat, uniquement ce que transmet la page LTI. Dans l'application, un pseudonyme apparaît. La correction par IA s'exécute uniquement avec les clés de votre organisation. L'hébergement se fait en **Allemagne**. Nous sommes sous-traitant et satisfaisons aux exigences de votre service de protection des données. Indiquez-nous concrètement ce dont vous avez besoin.",
       "steps": [
         "**Le consentement d'abord** : au premier lancement, la personne voit ce que la plateforme d'apprentissage a transmis et consent à deux points : le traitement (compte avec nom et adresse e-mail, pseudonyme, transmission des notes) et l'utilisation à des fins de recherche. Aucun compte n'est créé avant. Le lancement vérifié attend au plus 30 minutes sur le serveur. Si la personne demande un lien de confirmation, une copie du lancement avec le lien reste enregistrée jusqu'à 24 heures.",
         "**L'utilisation à des fins de recherche est obligatoire** : sans ce consentement, l'outil ne peut pas être utilisé depuis la plateforme d'apprentissage. Un accès subordonné à un consentement soulève la question de l'art. 7, paragraphe 4, du RGPD. C'est votre service de protection des données qui juge si cela convient à votre cours.",
-        "**Vrai nom et pseudonyme** : les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage. ILIAS ne fournit que le nom. Dans l'application, le pseudonyme apparaît. Les vrais noms sont visibles par les administrateurs de l'organisation, par les administrateurs de groupe pour leur groupe, par les enseignants du cours, par les collaborateurs autorisés à noter l'examen lié et par l'administration de la plateforme. Les enseignants du cours sont les enseignants de chaque cours de la connexion qui lie l'examen. Par défaut, les enseignants de la connexion peuvent aussi noter, car ils deviennent contributeurs dans l'organisation.",
+        "**Vrai nom et pseudonyme** : les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage. ILIAS ne fournit que le nom. OpenOlat ne transmet le nom et l'adresse e-mail que si les enseignants l'activent dans la page LTI, et demande lui-même aux participants de confirmer la transmission des données avant leur premier lancement. Dans l'application, le pseudonyme apparaît. Les vrais noms sont visibles par les administrateurs de l'organisation, par les administrateurs de groupe pour leur groupe, par les enseignants du cours, par les collaborateurs autorisés à noter l'examen lié et par l'administration de la plateforme. Les enseignants du cours sont les enseignants de chaque cours de la connexion qui lie l'examen. Par défaut, les enseignants de la connexion peuvent aussi noter, car ils deviennent contributeurs dans l'organisation.",
         "**Indiquer vos exigences** : contrat de sous-traitance (AVV) selon votre modèle ou le nôtre, annexe sur les mesures techniques et organisationnelles (TOM), entrée pour votre registre des activités de traitement, contribution à une analyse d'impact (DSFA), sous-traitants ultérieurs, délais de suppression. La liste complète des demandes figure dans la référence technique.",
         "**Le contrat avant le lien d'invitation** : une connexion est active dès que la plateforme d'apprentissage utilise le lien. Concluez donc le contrat avant que l'administrateur de votre organisation ne crée le lien. Il appartient à l'université d'y veiller.",
-        "**Désigner des interlocuteurs** : une personne pour le volet juridique (généralement le service juridique ou la coordination de la protection des données, pas l'enseignant individuel) et une pour l'administration de Moodle ou d'ILIAS."
+        "**Désigner des interlocuteurs** : une personne pour le volet juridique (généralement le service juridique ou la coordination de la protection des données, pas l'enseignant individuel) et une pour l'administration de Moodle, d'ILIAS ou d'OpenOlat."
       ],
       "tips": [
         "La correction par IA des examens liés s'exécute uniquement avec les **clés API de votre organisation**, jamais avec une clé à nous. Si la clé manque, aucune correction n'a lieu. C'est donc vous qui décidez quel fournisseur traite les textes des copies.",
-        "Aucune liste de participants n'est lue. La connexion utilise au plus trois autorisations liées aux notes (deux pour ILIAS) et pas de Names and Role Provisioning.",
+        "La connexion utilise au plus trois autorisations liées aux notes (deux pour ILIAS) et la liste des participants du cours (Names and Role Provisioning). L'outil ne lit la liste que lorsque les enseignants ouvrent l'aperçu de l'activité, pour montrer qui n'a pas encore ouvert l'activité. Elle n'est pas enregistrée et ne crée aucun compte. ILIAS ne fournit pas de liste.",
         "Un compte existant n'est lié que si la personne se connecte ou confirme un lien reçu par e-mail. Les comptes de l'administration de la plateforme ne sont jamais liés.",
-        "Les nouveaux comptes avec une adresse joignable reçoivent après le consentement un e-mail pour définir un mot de passe. Pour les comptes sans adresse joignable, par exemple tous les comptes issus d'ILIAS, la page demande une fois une adresse e-mail directement après le consentement. Cette étape peut être ignorée. L'adresse ne s'applique qu'une fois que la personne a ouvert le lien de confirmation. Ce lien sert aussi d'e-mail pour définir le mot de passe. Une adresse qui appartient déjà à un autre compte est refusée. Qui ignore l'étape renseigne l'adresse plus tard dans l'application.",
+        "Les nouveaux comptes avec une adresse joignable reçoivent après le consentement un e-mail pour définir un mot de passe. Pour les comptes sans adresse joignable, par exemple tous les comptes issus d'ILIAS et les comptes issus d'OpenOlat sans *Transmettre l'adresse e-mail au fournisseur*, la page demande une fois une adresse e-mail directement après le consentement. Cette étape peut être ignorée. L'adresse ne s'applique qu'une fois que la personne a ouvert le lien de confirmation. Ce lien sert aussi d'e-mail pour définir le mot de passe. Une adresse qui appartient déjà à un autre compte est refusée. Qui ignore l'étape renseigne l'adresse plus tard dans l'application.",
         "Les administrateurs de votre organisation anonymisent les comptes créés par la plateforme d'apprentissage. Le nom, l'adresse e-mail et l'identifiant de la plateforme d'apprentissage sont supprimés ; les remises et les notes sont conservées sans lien avec la personne. La suppression complète d'un compte est possible sur demande.",
         "La note de l'IA et la correction figurent côte à côte, et la correction constitue la note finale. Jusqu'à la correction, c'est la note de l'IA qui figure dans la plateforme d'apprentissage."
       ],
@@ -1254,7 +1272,10 @@
         "anonymisation",
         "hébergement",
         "suppression",
-        "Identifikation der Person"
+        "Identifikation der Person",
+        "OpenOlat",
+        "liste des participants",
+        "Names and Role Provisioning"
       ],
       "links": [
         "Référence complète sur la protection des données et la technique",
@@ -1440,20 +1461,20 @@
       "summary": "La page d'erreur indique un **code d'erreur** et, en cas d'erreur serveur inattendue, une **référence**. Cherchez le code dans la liste ci-dessous. Chaque entrée indique la cause, la solution et qui peut vous aider. Les étudiants s'adressent à leurs enseignants, les enseignants aux administrateurs de leur organisation. Certaines erreurs sont affichées directement par la page de consentement ou de confirmation, avec seulement un titre. La liste indique ces titres.",
       "steps": [
         "`invalid_request` : la plateforme d'apprentissage a envoyé une demande de lancement incomplète. Rouvrez l'activité. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",
-        "`registration_not_found` : aucune connexion ne correspond à la plateforme d'apprentissage. Le plus souvent, l'ID de plateforme (Issuer) ou le Client ID dans les paramètres de l'outil ne correspond pas à la connexion, ou la connexion a été supprimée. Deux connexions actives impossibles à distinguer mènent aussi à ce code. Les administrateurs de votre organisation vérifient la connexion, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",
+        "`registration_not_found` : aucune connexion ne correspond à la plateforme d'apprentissage. Le plus souvent, l'ID de plateforme (Issuer) ou le Client ID dans les paramètres de l'outil ne correspond pas à la connexion, ou la connexion a été supprimée. Deux connexions actives impossibles à distinguer mènent aussi à ce code. Dans OpenOlat, le code apparaît aussi lorsque l'outil a été créé sans *Avec déploiement partagé*. Chaque page LTI a alors son propre identifiant de client. Les administrateurs de votre organisation vérifient la connexion, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",
         "`registration_disabled` : l'organisation a désactivé la connexion. Une connexion désactivée affiche ce code à chaque lancement. Dans le panneau, sa carte porte le badge **Désactivée** et l'interrupteur indique **Connexion désactivée**. Les administrateurs de votre organisation la réactivent d'un clic sur l'interrupteur.",
         "`org_inactive` : l'organisation à laquelle appartient la connexion est désactivée. Seul l'exploitant de la plateforme peut changer cela. Les enseignants s'adressent à lui.",
-        "`unknown_deployment` : la plateforme d'apprentissage envoie un Deployment ID qui n'est pas enregistré dans la connexion. Dans ILIAS, le Deployment ID est l'ID du fournisseur (Provider-ID). L'administration de la plateforme d'apprentissage communique l'ID, les administrateurs de votre organisation l'ajoutent dans la connexion sous **Déploiements**.",
+        "`unknown_deployment` : la plateforme d'apprentissage envoie un Deployment ID qui n'est pas enregistré dans la connexion. Dans ILIAS, le Deployment ID est l'ID du fournisseur (Provider-ID). Dans OpenOlat, l'outil l'affiche comme *Identifiant de déploiement*. L'administration de la plateforme d'apprentissage communique l'ID, les administrateurs de votre organisation l'ajoutent dans la connexion sous **Déploiements**.",
         "`deployment_disabled` : le Deployment ID est enregistré dans la connexion, mais désactivé. À côté de l'ID, l'interrupteur indique **Déploiement désactivé**. Les administrateurs de votre organisation le réactivent sous **Déploiements** d'un clic sur l'interrupteur.",
         "`tool_not_configured` : la clé de signature de l'outil ne peut pas être chargée sur le serveur. Seul l'exploitant de la plateforme peut corriger cela. Les enseignants s'adressent à lui.",
         "`state_unavailable` : un problème temporaire du serveur. Le serveur n'a pas pu enregistrer ou lire la connexion. Le navigateur n'y est pour rien. Réessayez dans quelques minutes. Si cela persiste, les enseignants transmettent le code à l'exploitant de la plateforme.",
         "`invalid_state` : la connexion datait de plus de 5 minutes ou avait déjà été utilisée, par exemple après *Retour*, après un rechargement ou après un double envoi. Rouvrez l'activité dans la plateforme d'apprentissage.",
         "`invalid_token` : les identifiants envoyés par la plateforme d'apprentissage n'ont pas pu être vérifiés. Causes possibles : un Client ID erroné dans la connexion, de nouvelles clés de la plateforme d'apprentissage ou une horloge serveur déréglée. Rouvrez l'activité. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil avec les administrateurs de votre organisation.",
-        "`jwks_unreachable` : la plateforme n'a pas pu charger les clés de la plateforme d'apprentissage qui servent à vérifier la connexion. Le plus souvent, un pare-feu devant la plateforme d'apprentissage bloque cette plateforme ; plus rarement, l'URL des clés (JWKS) dans la connexion est erronée ou la plateforme d'apprentissage est momentanément injoignable. Les paramètres de l'outil peuvent pourtant être parfaitement corrects. Réessayez dans quelques minutes. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage ouvre l'URL des clés (pour ILIAS `lticerts.php`) et l'URL du jeton (`ltitoken.php`, pour le transfert des notes) à cette plateforme.",
+        "`jwks_unreachable` : la plateforme n'a pas pu charger les clés de la plateforme d'apprentissage qui servent à vérifier la connexion. Le plus souvent, un pare-feu devant la plateforme d'apprentissage bloque cette plateforme ; plus rarement, l'URL des clés (JWKS) dans la connexion est erronée ou la plateforme d'apprentissage est momentanément injoignable. Les paramètres de l'outil peuvent pourtant être parfaitement corrects. Réessayez dans quelques minutes. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage ouvre l'URL des clés (pour ILIAS `lticerts.php`, pour OpenOlat `/lti/keys`) et l'URL du jeton (pour ILIAS `ltitoken.php`, pour OpenOlat `/lti/token`, pour le transfert des notes) à cette plateforme.",
         "`nonce_mismatch` : la réponse de la plateforme d'apprentissage ne correspond pas à la connexion entamée. Rouvrez l'activité dans la plateforme d'apprentissage.",
         "`nonce_reused` : la même connexion est arrivée une deuxième fois. Rouvrez l'activité dans la plateforme d'apprentissage.",
-        "`unsupported_message` : la plateforme d'apprentissage envoie une requête que l'outil ne prend pas en charge, par exemple Deep Linking. L'administration de la plateforme d'apprentissage désactive Deep Linking dans les paramètres de l'outil.",
-        "`not_linked` : l'activité n'est encore liée à aucun examen. Les enseignants ouvrent eux-mêmes l'activité dans la plateforme d'apprentissage et choisissent un examen. Les étudiants s'adressent à leurs enseignants.",
+        "`unsupported_message` : la plateforme d'apprentissage envoie une requête que l'outil ne prend pas en charge. L'outil prend en charge la sélection de contenu (Deep Linking), mais la plateforme d'apprentissage doit alors accepter les liens LTI. L'administration de la plateforme d'apprentissage vérifie dans les paramètres de l'outil quelles requêtes elle envoie à l'outil.",
+        "`not_linked` : l'activité n'est encore liée à aucun examen. Les enseignants ouvrent eux-mêmes l'activité dans la plateforme d'apprentissage et choisissent un examen. Dans OpenOlat, cela fonctionne aussi à l'avance avec la sélection de contenu dans la page LTI. Un cours OpenOlat copié démarre sans lien, sauf pour les pages LTI reliées par la sélection de contenu. Les étudiants s'adressent à leurs enseignants.",
         "`exam_unavailable` : l'examen lié a été supprimé. Les enseignants ouvrent l'activité et lient un autre examen. Si des notes ont déjà été transférées, ils créent une nouvelle activité dans la plateforme d'apprentissage. Les étudiants s'adressent à leurs enseignants.",
         "`user_inactive` : le compte de la personne est désactivé sur cette plateforme. Seul l'exploitant de la plateforme peut le réactiver. Les enseignants s'adressent à lui. Un compte anonymisé ne revient pas : lors de l'anonymisation, il perd sa liaison avec la plateforme d'apprentissage, si bien qu'un nouveau compte est créé au prochain lancement après le consentement.",
         "`membership_removed` : un administrateur a retiré la personne de l'organisation ou du groupe de la connexion. Un lancement depuis la plateforme d'apprentissage ne rétablit pas l'adhésion. Pour que la personne retrouve l'accès, les administrateurs de votre organisation l'invitent avec **Inviter un membre** à l'adresse e-mail de son compte. Si la personne accepte l'invitation en étant connectée, l'adhésion est de nouveau active. Si le compte n'a pas encore de mot de passe, la personne en définit d'abord un avec **Mot de passe oublié ?**. Si le compte n'a qu'une adresse fictive (la plateforme d'apprentissage n'a envoyé aucune adresse ou une adresse déjà utilisée), ni l'invitation ni l'e-mail de mot de passe n'arrivent. L'exploitant de la plateforme rétablit alors l'adhésion avec **Ajouter un utilisateur existant**. Les administrateurs rétablissent une adhésion à un groupe en ajoutant la personne au groupe.",
@@ -1465,10 +1486,10 @@
       ],
       "tips": [
         "Les administrateurs de votre organisation gèrent la connexion sous [Utilisateurs et organisations](/users-organizations) → organisation → **Plus** → **Plateforme d'apprentissage (LTI)**. Ils y activent et désactivent la connexion et les déploiements, ajoutent des Deployment IDs et suppriment les liaisons des comptes LMS.",
-        "Les paramètres de l'outil, comme le conteneur de lancement et l'acceptation des notes, le Deployment ID, la confidentialité (dans Moodle la transmission du nom et de l'e-mail, dans ILIAS l'*Identifikation der Person*) ainsi que le transfert des notes (dans Moodle *IMS LTI Aufgaben und Bewertung*, dans ILIAS *Erweiterte Benotungsdienste*), ne peuvent être modifiés que par l'administration de la plateforme d'apprentissage."
+        "Les paramètres de l'outil, comme le conteneur de lancement et l'acceptation des notes, le Deployment ID, la confidentialité (dans Moodle la transmission du nom et de l'e-mail, dans ILIAS l'*Identifikation der Person*) ainsi que le transfert des notes (dans Moodle *IMS LTI Aufgaben und Bewertung*, dans ILIAS *Erweiterte Benotungsdienste*), ne peuvent être modifiés que par l'administration de la plateforme d'apprentissage. Dans OpenOlat, les enseignants règlent eux-mêmes l'affichage, la transmission du nom et de l'adresse e-mail et le *Transfert du score* dans la page LTI."
       ],
       "pitfalls": [
-        "Si l'outil se lance intégré dans le cours (iframe), les personnes arrivent sur la page de connexion au lieu de l'examen ou voient **La connexion ne correspond pas** (`launch_mismatch`). Le navigateur ne transmet pas les cookies de connexion dans le cadre intégré. Réglez l'outil sur **Nouvelle fenêtre** dans la plateforme d'apprentissage. Après un enregistrement par lien, Moodle règle l'outil sur « intégré ». L'administration Moodle modifie alors le *conteneur de lancement par défaut* de l'outil. Dans Moodle 4.5, les enseignants ne peuvent pas le modifier activité par activité.",
+        "Si l'outil se lance intégré dans le cours (iframe), il affiche d'abord une page avec un bouton qui l'ouvre dans une nouvelle fenêtre. Le navigateur ne transmet pas les cookies de connexion dans le cadre intégré. Les navigateurs plus anciens (Safari avant 16.4) arrivent à la place sur la page de connexion ou voient **La connexion ne correspond pas** (`launch_mismatch`). Réglez l'outil sur **Nouvelle fenêtre** dans la plateforme d'apprentissage, et cette étape disparaît. Dans OpenOlat, les enseignants choisissent *Ouvrir dans une nouvelle fenêtre* sous *Affichage* dans la page LTI. Après un enregistrement par lien, Moodle règle l'outil sur « intégré ». L'administration Moodle modifie alors le *conteneur de lancement par défaut* de l'outil. Dans Moodle 4.5, les enseignants ne peuvent pas le modifier activité par activité.",
         "`state_unavailable` n'a rien à voir avec les cookies ou le navigateur. Changer de navigateur n'aide pas, réessayer quelques minutes plus tard, si.",
         "*Retour*, un rechargement ou un favori vers une page du lancement mènent à `invalid_state`. Lancez toujours depuis la plateforme d'apprentissage.",
         "`unknown_deployment` et `deployment_disabled` ne sont pas la même chose. Dans le premier cas, l'ID manque dans la connexion ; dans le second, il est enregistré mais désactivé."
@@ -1493,7 +1514,11 @@
         "la connexion ne correspond pas",
         "échec de la confirmation",
         "LTI Fehler",
-        "Fehlercode"
+        "Fehlercode",
+        "lancement OpenOlat",
+        "Page LTI",
+        "Ouvrir dans une nouvelle fenêtre",
+        "sélection de contenu"
       ],
       "links": [
         "Configurer la connexion",
@@ -1503,13 +1528,15 @@
       ]
     },
     "ts-lti-grades": {
-      "title": "Les notes n'arrivent pas dans Moodle ou ILIAS",
-      "summary": "Ouvrez l'**Aperçu de l'activité** ou, dans le panneau de la connexion, les **Transmissions de notes**. Vous y trouvez le statut et le texte d'erreur de chaque transmission. Les causes les plus fréquentes sont une activité sans évaluation, une transmission des notes désactivée dans la plateforme d'apprentissage, une clé API manquante et, dans ILIAS, l'*Identifikation der Person* par *E-Mail-Adresse*. ILIAS signale alors « User not available ».",
+      "title": "Les notes n'arrivent pas dans Moodle, ILIAS ou OpenOlat",
+      "summary": "Ouvrez l'**Aperçu de l'activité** ou, dans le panneau de la connexion, les **Transmissions de notes**. Vous y trouvez le statut et le texte d'erreur de chaque transmission. Les causes les plus fréquentes sont une activité sans évaluation (dans OpenOlat sans *Transfert du score*), une transmission des notes désactivée dans la plateforme d'apprentissage, une clé API manquante et, dans ILIAS, l'*Identifikation der Person* par *E-Mail-Adresse*. ILIAS signale alors « User not available ».",
       "steps": [
         "**ILIAS : « ILIAS kennt die Person nicht » ou « User not available »** : le fournisseur ILIAS identifie les personnes par *E-Mail-Adresse*. Dans ILIAS 10.9, chaque transmission de notes échoue dans ce mode. La carte de la connexion affiche alors l'avertissement **La transmission des notes vers ILIAS échoue**. L'administration ILIAS règle *Identifikation der Person* sur **ID des ILIAS-Kontos …** chez le fournisseur. L'identifiant de chaque personne change alors. Au lancement suivant, chaque personne donne à nouveau son consentement, reçoit un nouveau compte et se voit demander une fois son adresse e-mail. Les remises précédentes restent sur l'ancien compte.",
         "**ILIAS : aucune valeur n'arrive** : *Erweiterte Benotungsdienste* doit être activé chez le fournisseur. Rouvrez ensuite l'activité.",
         "**ILIAS : un examen réussi reste « in Bearbeitung » (en cours)** : le *Mastery Score* de l'objet est encore à 80. Réglez-le sur **22** sous *Optionen für den Lernfortschritt*. Si le champ est absent, l'administration ILIAS coche *Provider unterstützt Outcome Service* chez le fournisseur. ILIAS n'affiche la progression d'apprentissage que si elle est activée dans l'administration ILIAS.",
         "**Moodle : l'activité n'a pas d'évaluation** : sans évaluation, il n'y a pas de colonne de notes. Activez l'évaluation dans l'activité, si nécessaire avec la case *… erlauben, Bewertungen hinzuzufügen*.",
+        "**OpenOlat : aucune note n'arrive** : *Transfert du score* est désactivé dans la page LTI. Sans ce réglage, OpenOlat ne donne à l'outil aucune colonne de notes. Activez-le dans la configuration de l'évaluation, publiez le cours et rouvrez l'activité.",
+        "**OpenOlat : score erroné ou examen non réussi** : OpenOlat reprend les points tels quels et les multiplie par le *Facteur d'échelle*. Laissez-le à 1 et réglez le *Score nécessaire pour « passé »* sur 4, ou sur 10 pour les examens notés sur 20.",
         "**Statut Échec avec 400, 401, 403 ou 404** : la plateforme d'apprentissage refuse définitivement la note. L'outil ne réessaie donc pas immédiatement. Corrigez la cause indiquée dans le texte de l'erreur, puis cliquez sur **Renvoyer** ou, dans le panneau, sur **Réessayer**.",
         "**Statut Transmission en cours ou En attente avec texte d'erreur** : la plateforme d'apprentissage était brièvement injoignable ou a renvoyé une erreur serveur. L'outil réessaie après 10, 30 et 90 secondes, puis à intervalles croissants jusqu'à six heures.",
         "**Pas encore de note** : la correction par IA est encore en cours ou n'a pas pu démarrer. S'il manque une clé API à l'organisation, l'aperçu affiche *En attente d'une clé API de l'organisation*.",
@@ -1518,7 +1545,7 @@
       ],
       "tips": [
         "Si une note change après coup, par exemple à cause d'une correction ou d'un nouveau barème de notation, la nouvelle valeur part vers la plateforme d'apprentissage au plus tard après environ une heure.",
-        "ILIAS ne reçoit que la note finale de chaque personne. La colonne **KI-Bewertung** n'existe que dans Moodle.",
+        "ILIAS et OpenOlat ne reçoivent que la note finale de chaque personne. La colonne **KI-Bewertung** n'existe que dans Moodle.",
         "Si Moodle affiche toujours une autre valeur après **Renvoyer toutes les notes**, la note a été écrasée ou verrouillée dans le carnet de notes de Moodle. Moodle ne modifie pas ces notes. Annulez l'écrasement dans Moodle ; Moodle affiche alors la valeur envoyée."
       ],
       "pitfalls": [
@@ -1537,7 +1564,10 @@
         "Erweiterte Benotungsdienste",
         "Renvoyer",
         "Renvoyer toutes les notes",
-        "panne"
+        "panne",
+        "OpenOlat",
+        "Transfert du score",
+        "facteur d'échelle"
       ],
       "links": [
         "Notes depuis la plateforme d'apprentissage",
@@ -1551,14 +1581,14 @@
       "summary": "Un recueil d'examens comporte plusieurs tâches. Dans la sélection, choisissez une tâche ou, dans Moodle, le recueil entier. Le recueil entier nécessite dans Moodle la gestion des colonnes. Sa colonne principale, celle de l'activité, ne reçoit la moyenne que lorsque chaque tâche a une note finale.",
       "steps": [
         "**La sélection exige une tâche (`task_required`)** : l'examen comporte plusieurs tâches. Dépliez le recueil et choisissez la tâche dont la note sera attribuée à l'activité. Dans Moodle, vous pouvez à la place choisir le recueil entier.",
-        "**Le recueil entier ne peut pas être choisi (`collection_unsupported`)** : la connexion est ILIAS, ou Moodle n'a pas le droit de créer des colonnes. Dans ILIAS, créez une activité distincte par tâche. Dans Moodle, l'administration règle pour l'outil *IMS LTI Aufgaben und Bewertung* l'option **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Rouvrez ensuite l'activité pour que la plateforme d'apprentissage transmette les nouveaux droits.",
+        "**Le recueil entier ne peut pas être choisi (`collection_unsupported`)** : la connexion est ILIAS ou OpenOlat, ou Moodle n'a pas le droit de créer des colonnes. Dans ILIAS et OpenOlat, créez une activité distincte par tâche, dans OpenOlat une page LTI par tâche. Dans Moodle, l'administration règle pour l'outil *IMS LTI Aufgaben und Bewertung* l'option **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Rouvrez ensuite l'activité pour que la plateforme d'apprentissage transmette les nouveaux droits.",
         "**La colonne principale reste vide** : pour le recueil entier, la colonne de l'activité ne reçoit la moyenne que lorsque chaque tâche de la personne a une note finale. Vérifiez dans les colonnes *Aufgabe N* quelle tâche manque encore et notez-la. Si l'activité ne transfère pas les notes de l'IA, chaque tâche a besoin d'une correction. Si une tâche a été ajoutée au recueil, la moyenne attend aussi cette tâche.",
         "**Une colonne de tâche manque dans Moodle** : la colonne apparaît avec la première note de la tâche. Si elle a été supprimée dans Moodle, BenGER ne la recrée pas de lui-même.",
         "**La liaison ne peut pas être modifiée (`relink_blocked`)** : une note de l'activité est déjà arrivée dans la plateforme d'apprentissage. Créez une nouvelle activité pour l'autre examen, l'autre tâche ou l'autre mode.",
         "**Import refusé (`multi_task_unsupported`)** : une ancienne activité reçoit l'examen entier comme une seule note. Liez-la à la tâche de l'examen. Les imports sont ensuite possibles."
       ],
       "tips": [
-        "Une activité par tâche fonctionne dans Moodle et dans ILIAS. Le recueil entier dans une seule activité n'existe que dans Moodle."
+        "Une activité par tâche fonctionne dans Moodle, ILIAS et OpenOlat. Le recueil entier dans une seule activité n'existe que dans Moodle."
       ],
       "keywords": [
         "recueil d'examens",
@@ -1571,11 +1601,12 @@
         "relink_blocked",
         "multi_task_unsupported",
         "gestion des colonnes",
-        "Klausurensammlung"
+        "Klausurensammlung",
+        "OpenOlat"
       ],
       "links": [
         "Lier un recueil d'examens",
-        "Les notes n'arrivent pas dans Moodle ou ILIAS",
+        "Les notes n'arrivent pas dans Moodle, ILIAS ou OpenOlat",
         "Notes depuis la plateforme d'apprentissage"
       ]
     }

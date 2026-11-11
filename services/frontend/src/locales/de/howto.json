@@ -345,7 +345,7 @@
       "summary": "Mit **Safe Exam Browser erforderlich** schreiben Studierende die Prüfung im Safe Exam Browser (SEB). SEB sperrt während der Prüfung andere Programme und Webseiten, auch auf eigenen Geräten. BenGER erzeugt die SEB-Konfiguration selbst. Die Korrektur läuft danach wie gewohnt.",
       "steps": [
         "Projektseite → **Projekteinstellungen** → **Safe Exam Browser** → **Safe Exam Browser erforderlich** anhaken.",
-        "Bei Prüfungen aus Moodle oder ILIAS die Kursseite als **Start-URL** eintragen (Pflicht), damit sich Studierende dort in SEB anmelden. Erlaubte Zusatzseiten (z.B. eine Gesetzesdatenbank) unter **Weitere erlaubte Domains** eintragen.",
+        "Bei Prüfungen aus Moodle, ILIAS oder OpenOlat die Kursseite als **Start-URL** eintragen (Pflicht), damit sich Studierende dort in SEB anmelden. Erlaubte Zusatzseiten (z.B. eine Gesetzesdatenbank) unter **Weitere erlaubte Domains** eintragen.",
         "Optional: ein **Beenden-Passwort** setzen, das die Aufsicht im Raum nennt.",
         "Optional: ein **Prüfungspasswort für die Konfigurationsdatei** setzen. Die Datei ist dann verschlüsselt, SEB fragt beim Öffnen nach dem Passwort, und die Aufsicht nennt es zu Beginn im Raum.",
         "**Speichern**. Danach stehen der Link zum Starten in SEB, die Konfigurationsdatei und die freigegebenen Domains für die IT zum Kopieren bereit.",
@@ -1000,11 +1000,11 @@
       ]
     },
     "lti-manage": {
-      "title": "Wie verwalte ich eine Anbindung an Moodle oder ILIAS?",
+      "title": "Wie verwalte ich eine Anbindung an Moodle, ILIAS oder OpenOlat?",
       "summary": "Im Panel **Lernplattform (LTI)** hat jede Anbindung eine eigene Karte. Dort schaltest du die Anbindung und ihre Deployments ein und aus, legst die Rolle der Lehrenden fest und siehst Aktivitäten, LMS-Konten, Notenübertragungen und den Verlauf. Das Panel steht Org-Admins offen, Gruppen-Admins für die Anbindungen ihrer Gruppen.",
       "steps": [
         "**Ein- und ausschalten**: Ein Klick auf den Schalter **Anbindung aktiv** schaltet die Anbindung nach einer Rückfrage aus. Das sperrt sofort alle Starts, die Seiten der Anbindung in der App und die Notenübertragung für diese Lernplattform. Der Schalter zeigt dann **Anbindung aus**, und die Karte trägt das Zeichen **Ausgeschaltet**. Ein weiterer Klick schaltet sie nach einer Rückfrage wieder ein.",
-        "**Deployments**: Deployment-IDs hinzufügen oder entfernen. Der Schalter **Deployment aktiv** neben einer ID sperrt sie einzeln und zeigt dann **Deployment aus**. Die anderen Deployments laufen weiter. In ILIAS ist die Deployment-ID die numerische Provider-ID.",
+        "**Deployments**: Deployment-IDs hinzufügen oder entfernen. Der Schalter **Deployment aktiv** neben einer ID sperrt sie einzeln und zeigt dann **Deployment aus**. Die anderen Deployments laufen weiter. In ILIAS ist die Deployment-ID die numerische Provider-ID. In OpenOlat ist es die *Deployment ID*, die OpenOlat beim Tool anzeigt.",
         "**Bearbeiten**: Die **Org-Rolle für Lehrende** ist Mitwirkender (contributor), Org-Admin (org_admin) oder keine Org-Rolle (none). Bei einer Gruppen-Anbindung ist es die Rolle in der Gruppe: Mitwirkender oder Org-Admin (= Admin der Gruppe). Neue Lehrende werden in der Organisation Annotator; wer dort schon eine höhere Rolle hat, behält sie. Gruppen-Admins vergeben auf den Anbindungen ihrer Gruppe bis zu Admin der Gruppe. Hier änderst du auch Adresse, Gruppe, **Org-Rolle für Studierende** und **Verknüpfung mit bestehenden Konten anbieten**.",
         "**Aktivitäten**: jede Aktivität mit Kurs, verknüpfter Klausur, Teilnehmenden, Stand der Übertragungen und dem Stand der Spalte **KI-Bewertung**. **Notenübersicht öffnen** führt zur Aktivitätsübersicht.",
         "**LMS-Konten**: alle Personen der Anbindung mit Name, E-Mail-Adresse, Pseudonym, Rolle, Einwilligung und letztem Start, mit Suche. **Verknüpfung lösen** trennt die Kennung der Lernplattform vom Konto. Konten, die die Lernplattform angelegt hat, lassen sich mit **Anonymisieren** anonymisieren.",
@@ -1025,7 +1025,8 @@
         "Fehlt in Moodle die Spalte **KI-Bewertung**, erlaubt Moodle dem Tool keine eigene Spalte. Die Moodle-Administration stellt beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Danach die Aktivität erneut öffnen.",
         "Die *Identifikation der Person* in ILIAS nach dem Start nicht mehr ändern. Sie bestimmt die Kennung der Personen, ein Wechsel trennt alle Verknüpfungen. Einzige Ausnahme ist der Modus *E-Mail-Adresse*: Damit scheitert in ILIAS 10.9 jede Notenübertragung. Die ILIAS-Administration stellt dann auf **ID des ILIAS-Kontos …** um. Danach stimmt jede Person erneut zu und erhält ein neues Konto. Bisherige Abgaben bleiben beim alten Konto.",
         "Anonymisieren lässt sich nicht rückgängig machen. Startet die Person die Aktivität erneut, entsteht ein neues, leeres Konto.",
-        "Änderst du die Adresse einer Anbindung, pass auch die Tool-URLs in der Lernplattform an. Bis dahin funktionieren die Starts weiter, und der Verlauf zeigt eine Warnung."
+        "Änderst du die Adresse einer Anbindung, pass auch die Tool-URLs in der Lernplattform an. Bis dahin funktionieren die Starts weiter, und der Verlauf zeigt eine Warnung.",
+        "In OpenOlat lässt sich *Mit Shared Deployment* nach dem Anlegen des Tools nicht mehr ändern. Ohne die Einstellung bekommt jede LTI-Seite eine eigene Client-ID und Deployment ID, die die Anbindung nicht kennt, und Starts aus weiteren LTI-Seiten scheitern mit `registration_not_found`. Die OpenOlat-Administration legt das Tool dann mit der Einstellung neu an, und die Anbindung wird mit den neuen Werten neu eingerichtet."
       ],
       "keywords": [
         "Anbindung verwalten",
@@ -1042,7 +1043,10 @@
         "Anbindung aktiv",
         "Anbindung aus",
         "Ausgeschaltet",
-        "User not available"
+        "User not available",
+        "OpenOlat",
+        "Deployment ID",
+        "Shared Deployment"
       ],
       "links": [
         "Anbindung einrichten",
@@ -1052,11 +1056,11 @@
       ]
     },
     "lti-teacher": {
-      "title": "Wie verknüpfe ich eine Moodle- oder ILIAS-Aktivität mit einer Klausur?",
-      "summary": "Leg im Kurs eine Aktivität *Externes Tool* (Moodle) oder einen *LTI-Konsumenten* (ILIAS) mit Bewertung an und öffne sie. Beim **ersten Start** stimmst du einmal zu und wählst dann die Klausur. Danach öffnet die Aktivität die Seite der Klausur. Dort führt die Karte **Lernplattform-Aktivitäten** zur **Aktivitätsübersicht** mit allen Abgaben und Noten.",
+      "title": "Wie verknüpfe ich eine Aktivität in Moodle, ILIAS oder OpenOlat mit einer Klausur?",
+      "summary": "Leg im Kurs eine Aktivität *Externes Tool* (Moodle), einen *LTI-Konsumenten* (ILIAS) oder eine *LTI-Seite* (OpenOlat) mit Bewertung an und öffne sie. Beim **ersten Start** stimmst du einmal zu und wählst dann die Klausur. Danach öffnet die Aktivität die Seite der Klausur. Dort führt die Karte **Lernplattform-Aktivitäten** zur **Aktivitätsübersicht** mit allen Abgaben und Noten.",
       "steps": [
-        "Moodle: *Aktivität anlegen* → das Tool in der Aktivitätsauswahl wählen → Bewertung aktiv lassen. Zeigt die Aktivität keine Bewertung, setz zuerst den Haken **… erlauben, Bewertungen hinzuzufügen** (vorne steht der Name des Tools). Ohne den Haken hat die Aktivität keine Bewertung. Ein Maximum von 100 ist in Ordnung, das Tool liefert 0 bis 18 Notenpunkte und Moodle rechnet um. Den Startcontainer legt in Moodle die Administration für das Tool fest. ILIAS: *LTI-Konsument* mit dem Provider anlegen und bei *Optionen für den Start* **Neues Fenster** wählen. Unter *Optionen für den Lernfortschritt* sollte der *Mastery Score* **22** sein.",
-        "Aktivität öffnen. Beim ersten Start bittet die Anbindung um deine Zustimmung, auch zur Forschungsnutzung. Gibt es schon ein Konto mit deiner E-Mail-Adresse, verknüpfst du es durch Anmelden oder über einen Link per E-Mail. Oder du wählst **Mit separatem Konto fortfahren**. ILIAS übermittelt keine E-Mail-Adresse. Dort entfällt dieser Schritt, und es entsteht immer ein eigenes Konto. Die Seite fragt dich dann einmal nach deiner E-Mail-Adresse. Mit dem Link, den du daraufhin erhältst, legst du ein Passwort fest. Du kannst den Schritt auch überspringen.",
+        "Moodle: *Aktivität anlegen* → das Tool in der Aktivitätsauswahl wählen → Bewertung aktiv lassen. Zeigt die Aktivität keine Bewertung, setz zuerst den Haken **… erlauben, Bewertungen hinzuzufügen** (vorne steht der Name des Tools). Ohne den Haken hat die Aktivität keine Bewertung. Ein Maximum von 100 ist in Ordnung, das Tool liefert 0 bis 18 Notenpunkte und Moodle rechnet um. Den Startcontainer legt in Moodle die Administration für das Tool fest. ILIAS: *LTI-Konsument* mit dem Provider anlegen und bei *Optionen für den Start* **Neues Fenster** wählen. Unter *Optionen für den Lernfortschritt* sollte der *Mastery Score* **22** sein. OpenOlat: Baustein *LTI-Seite* einfügen, im Reiter *Seiteninhalt* bei *LTI Version* das Tool wählen und einmal speichern. *Vorname/Name übertragen* und *E-Mail-Adresse übertragen* einschalten und bei *Anzeige* *Neues Fenster öffnen* wählen. Unter *Konfiguration Bewertung* *Punkte übertragen* einschalten, den *Skalierungsfaktor* bei 1 lassen und *Notwendige Punktzahl für bestanden* auf 4 setzen, bei französischen Klausuren mit Note auf 20 auf 10. Danach den Kurs publizieren.",
+        "Aktivität öffnen. Beim ersten Start bittet die Anbindung um deine Zustimmung, auch zur Forschungsnutzung. Gibt es schon ein Konto mit deiner E-Mail-Adresse, verknüpfst du es durch Anmelden oder über einen Link per E-Mail. Oder du wählst **Mit separatem Konto fortfahren**. ILIAS übermittelt keine E-Mail-Adresse. Dort entfällt dieser Schritt, und es entsteht immer ein eigenes Konto. Die Seite fragt dich dann einmal nach deiner E-Mail-Adresse. Mit dem Link, den du daraufhin erhältst, legst du ein Passwort fest. Du kannst den Schritt auch überspringen. OpenOlat übermittelt Name und E-Mail-Adresse nur, wenn die LTI-Seite es erlaubt. Ohne E-Mail-Adresse läuft es dort wie bei ILIAS.",
         "Die Auswahl trägt den Titel deiner Aktivität. Sie zeigt deine eigenen Klausuren (*Eigene*) und die Klausuren der Mitwirkenden und Admins deiner Organisation, jeweils mit Autorin oder Autor. Bei einer Gruppen-Anbindung zählen nur die Mitwirkenden der Gruppe, die Gruppen-Admins und die Org-Admins. Auch private Klausuren lassen sich verknüpfen. Unter der Liste legst du mit **Oder neue Klausur anlegen** eine neue an. Gibt es noch keine Klausur, heißt die Schaltfläche **Neue Klausur anlegen**.",
         "Verknüpfbar sind Klausuren mit Falllösung und Klausuren mit aktivem Bewertungsbogen. Klausuren ohne Aufgabe oder ohne aktiven Bewertungsbogen lassen sich nicht wählen. Der Grund steht dabei. Hat die Klausur eine Aufgabe, wird die Aktivität automatisch mit ihr verknüpft. Bei einer Klausurensammlung mit mehreren Aufgaben wählst du eine Aufgabe oder in Moodle die ganze Sammlung, siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).",
         "**Verknüpfen**. Damit ist die menschliche Korrektur für die Klausur eingeschaltet, und die Mitarbeitenden deiner Organisation können die Abgaben ansehen und korrigieren.",
@@ -1067,13 +1071,14 @@
       "tips": [
         "Die Zustimmung gilt je Anbindung. Weitere Kurse und Aktivitäten derselben Lernplattform fragen nicht erneut.",
         "Auf der Projektseite der Klausur stehen die **Lernplattform-Aktivitäten** rechts unter den Schnellaktionen, mit einem Link zur Übersicht.",
-        "Die KI-Korrektur bezahlt die Organisation der Anbindung. Fehlt ihr ein Schlüssel, zeigen die Auswahl und die Übersicht einen Hinweis."
+        "Die KI-Korrektur bezahlt die Organisation der Anbindung. Fehlt ihr ein Schlüssel, zeigen die Auswahl und die Übersicht einen Hinweis.",
+        "In OpenOlat wählst du die Klausur schon im Kurseditor: Nach dem ersten Speichern öffnet *Inhalt auswählen* im Reiter *Seiteninhalt* die Auswahl der Klausuren direkt in OpenOlat. Die LTI-Seite ist dann mit ihrem ersten Start verknüpft, und ein kopierter Kurs behält diese Verknüpfung. Alle anderen Aktivitäten eines kopierten Kurses verknüpfst du beim ersten Start neu."
       ],
       "pitfalls": [
         "Sobald eine Note an die Lernplattform übertragen wurde, lässt sich die Verknüpfung nicht mehr ändern. Leg für eine andere Klausur oder Aufgabe eine neue Aktivität an.",
-        "*Diese Aktivität kann keine Noten empfangen*: Die Notenübertragung ist nicht aktiv. Schalte in Moodle die Bewertung ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*. In ILIAS schaltet die Administration beim Provider *Erweiterte Benotungsdienste* ein. Öffne die Aktivität dann neu.",
+        "*Diese Aktivität kann keine Noten empfangen*: Die Notenübertragung ist nicht aktiv. Schalte in Moodle die Bewertung ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*. In ILIAS schaltet die Administration beim Provider *Erweiterte Benotungsdienste* ein. In OpenOlat schaltest du in der LTI-Seite *Punkte übertragen* ein. Öffne die Aktivität dann neu.",
         "Ist eine ältere Aktivität mit der ganzen Klausur als einer Note verknüpft, nimmt die Klausur keine zweite Aufgabe an, auch nicht per Import. Verknüpfe die Aktivität dann mit der Aufgabe der Klausur. Das geht immer, auch nach übertragenen Noten.",
-        "Startet das Tool eingebettet (iframe), landest du auf der Anmeldeseite. In Moodle 4.5 änderst du das nicht in der Aktivität. Die Moodle-Administration stellt den *Standard-Startcontainer* des Tools auf **Neues Fenster**. In ILIAS wählst du beim Objekt **Neues Fenster**.",
+        "Startet das Tool eingebettet (iframe), zeigt es zuerst eine Seite mit einer Schaltfläche, die es in einem neuen Fenster öffnet. Ältere Browser (Safari vor 16.4) landen stattdessen auf der Anmeldeseite. Stell die Aktivität deshalb auf ein neues Fenster. In Moodle 4.5 änderst du das nicht in der Aktivität. Die Moodle-Administration stellt den *Standard-Startcontainer* des Tools auf **Neues Fenster**. In ILIAS wählst du beim Objekt **Neues Fenster**, in OpenOlat bei *Anzeige* *Neues Fenster öffnen*.",
         "Findest du das Tool nicht in der Moodle-Aktivitätsauswahl, bitte die Moodle-Administration, beim Tool *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen** zu stellen."
       ],
       "keywords": [
@@ -1087,7 +1092,11 @@
         "Moodle Kurs",
         "Bewertung",
         "Kurs gesamt",
-        "Setup für Bewertungen"
+        "Setup für Bewertungen",
+        "OpenOlat",
+        "LTI-Seite",
+        "Inhalt auswählen",
+        "Punkte übertragen"
       ],
       "links": [
         "Klausurensammlung verknüpfen",
@@ -1099,9 +1108,9 @@
     },
     "lti-collection": {
       "title": "Wie verknüpfe ich eine Klausurensammlung mit mehreren Aufgaben?",
-      "summary": "Es gibt zwei Wege. **Eine Aktivität je Aufgabe** geht in Moodle und ILIAS: Jede Aktivität erhält die Note ihrer Aufgabe. **Die ganze Sammlung in einer Aktivität** geht nur in Moodle: Jede Aufgabe erhält eine eigene Spalte, und die Spalte der Aktivität erhält den Mittelwert der Endnoten, sobald jede Aufgabe eine Endnote hat.",
+      "summary": "Es gibt zwei Wege. **Eine Aktivität je Aufgabe** geht in Moodle, ILIAS und OpenOlat: Jede Aktivität erhält die Note ihrer Aufgabe. **Die ganze Sammlung in einer Aktivität** geht nur in Moodle: Jede Aufgabe erhält eine eigene Spalte, und die Spalte der Aktivität erhält den Mittelwert der Endnoten, sobald jede Aufgabe eine Endnote hat.",
       "steps": [
-        "**Eine Aktivität je Aufgabe (Moodle und ILIAS)**: Leg für jede Aufgabe eine eigene Aktivität an, am besten mit der Aufgabe im Titel. Öffne die Aktivität, klapp in der Auswahl die Sammlung auf, wähle die Aufgabe und klick auf **Verknüpfen**. Wiederhole das für jede Aufgabe. Jede Aktivität erhält nur die Note ihrer Aufgabe. Die Studierenden erreichen trotzdem alle Aufgaben der Sammlung.",
+        "**Eine Aktivität je Aufgabe (Moodle, ILIAS und OpenOlat)**: Leg für jede Aufgabe eine eigene Aktivität an, am besten mit der Aufgabe im Titel. In OpenOlat ist das eine LTI-Seite je Aufgabe, und die Aufgabe wählst du dort auch gleich mit *Inhalt auswählen*. Öffne die Aktivität, klapp in der Auswahl die Sammlung auf, wähle die Aufgabe und klick auf **Verknüpfen**. Wiederhole das für jede Aufgabe. Jede Aktivität erhält nur die Note ihrer Aufgabe. Die Studierenden erreichen trotzdem alle Aufgaben der Sammlung.",
         "**Die ganze Sammlung in einer Aktivität (nur Moodle)**: Leg eine Aktivität an, öffne sie und wähle in der Auswahl statt einer Aufgabe die ganze Sammlung. Klick auf **Verknüpfen**.",
         "BenGER legt dann im Moodle-Notenbuch je Aufgabe eine Spalte *Aufgabe N: Titel der Aktivität* an. Sie erhält die Endnote der Aufgabe: die Korrektur, sonst die KI-Note, wenn die Aktivität KI-Noten überträgt. Solange KI-Noten übertragen werden, kommt je Aufgabe eine Spalte *KI-Bewertung: Aufgabe N* dazu. Die Spalten erscheinen mit der ersten Note der Aufgabe.",
         "Die Spalte der Aktivität erhält den **Mittelwert der Endnoten aller Aufgaben**. Er wird erst gesendet, wenn jede Aufgabe eine Endnote hat. Bis dahin bleibt die Spalte der Aktivität für diese Person leer.",
@@ -1114,7 +1123,7 @@
         "Die ganze Sammlung braucht in Moodle beim Tool *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Sonst bietet die Auswahl sie nicht an."
       ],
       "pitfalls": [
-        "In ILIAS gibt es nur den Weg mit einer Aktivität je Aufgabe. ILIAS lässt das Tool keine Spalten anlegen und nimmt je Objekt und Person nur einen Wert an, die Endnote.",
+        "In ILIAS und OpenOlat gibt es nur den Weg mit einer Aktivität je Aufgabe. ILIAS lässt das Tool keine Spalten anlegen und nimmt je Objekt und Person nur einen Wert an, die Endnote. OpenOlat lehnt weitere Spalten ebenfalls ab und nimmt je LTI-Seite und Person nur die Endnote an.",
         "Die Verknüpfung lässt sich ändern (andere Klausur, andere Aufgabe, Wechsel zwischen einer Aufgabe und der ganzen Sammlung), bis die erste Note der Aktivität in der Lernplattform angekommen ist. Danach lehnt BenGER die Änderung ab, weil eine Spalte sonst Noten verschiedener Aufgaben mischt. Leg dann eine neue Aktivität an. Ausnahme: Eine ältere Aktivität, die die ganze Klausur verknüpft, lässt sich immer mit der einzigen Aufgabe ihrer Klausur verknüpfen.",
         "Löschst du eine Aufgabenspalte in Moodle, legt BenGER sie nicht von selbst wieder an. Löschst du eine Aufgabe in BenGER, bleibt ihre Spalte in Moodle stehen. BenGER löscht nie eine Spalte in der Lernplattform.",
         "Wird die Aufgabe einer Aktivität je Aufgabe gelöscht, erhält die Aktivität keine Noten mehr. Verknüpfe sie mit einer anderen Aufgabe oder leg eine neue Aktivität an."
@@ -1129,7 +1138,9 @@
         "Hauptspalte",
         "Aufgabenspalte",
         "Notenbuch",
-        "Import"
+        "Import",
+        "OpenOlat",
+        "LTI-Seite"
       ],
       "links": [
         "Klausur mit einer Aktivität verknüpfen",
@@ -1152,11 +1163,13 @@
       "tips": [
         "Moodle erhält zwei Spalten. Die Aktivitätsspalte hat die Endnote (die Korrektur, sonst die KI-Note), umgerechnet auf das Maximum der Aktivität. Die Spalte **KI-Bewertung** hat immer die KI-Note auf der Skala 0 bis 18. Sie heißt *KI-Bewertung: Titel der Aktivität*, so lassen sich mehrere Aktivitäten eines Kurses unterscheiden. Ältere Spalten heißen nur *KI-Bewertung*. Dafür muss beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen** stehen, sonst erhält Moodle nur die Endnote.",
         "ILIAS erhält je Person einen Wert, die Endnote. ILIAS zeigt sie als Lernfortschritt. Den Kommentar zur Note zeigt ILIAS nicht an.",
+        "OpenOlat erhält je Person einen Wert, die Endnote. OpenOlat übernimmt die Punkte unverändert und multipliziert sie mit dem *Skalierungsfaktor* der LTI-Seite, deshalb bleibt er bei 1. Den Kommentar zur Note zeigt OpenOlat nicht an. Ohne *Punkte übertragen* in der LTI-Seite kommt keine Note an.",
+        "In Moodle und OpenOlat zeigt die Übersicht unter **Noch nicht geöffnet**, wer aus dem Kurs die Aktivität noch nicht geöffnet hat. Die Übersicht liest die Liste beim Öffnen aus der Lernplattform und speichert sie nicht. OpenOlat liefert nur die Teilnehmenden, keine Besitzer und Betreuer des Kurses. ILIAS stellt keine Liste bereit.",
         "Ist in Moodle eine ganze Klausurensammlung mit der Aktivität verknüpft, kommen je Aufgabe die Spalten *Aufgabe N* und *KI-Bewertung: Aufgabe N* dazu. Die Aktivitätsspalte erhält dann den Mittelwert der Endnoten, erst wenn jede Aufgabe eine Endnote hat. Siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).",
         "Eine Korrektur löscht nichts. Die KI-Note bleibt in der Übersicht und in der Spalte KI-Bewertung. Bei mehreren Korrekturen gilt die zuletzt bearbeitete.",
         "Ändert sich eine Note nachträglich, etwa durch einen neuen Notenschlüssel, geht der neue Wert spätestens nach etwa einer Stunde an die Lernplattform.",
         "Während der Korrektur ist die KI-Note standardmäßig ausgeblendet, bis du deine eigene Note abgegeben hast.",
-        "Hast du eine Note in Moodle im Notenbuch überschrieben oder gesperrt, ändert Moodle sie auch nach **Alle Noten erneut senden** nicht. In der Spalte **KI-Bewertung** ersetzt der gesendete Wert dagegen eine Änderung von Hand. ILIAS übernimmt immer den zuletzt gesendeten Wert.",
+        "Hast du eine Note in Moodle im Notenbuch überschrieben oder gesperrt, ändert Moodle sie auch nach **Alle Noten erneut senden** nicht. In der Spalte **KI-Bewertung** ersetzt der gesendete Wert dagegen eine Änderung von Hand. ILIAS und OpenOlat übernehmen immer den zuletzt gesendeten Wert.",
         "Klarnamen sehen hier die Lehrenden der Kurse, die diese Klausur verknüpfen, Mitarbeitende, die diese Klausur bewerten dürfen, die Admins der Organisation und die Administration der Plattform. Anonymisierte Konten erscheinen als *Anonymisiert*."
       ],
       "pitfalls": [
@@ -1179,7 +1192,12 @@
         "Grade Sync",
         "Notenschlüssel",
         "Kurs gesamt",
-        "Gewichtung"
+        "Gewichtung",
+        "OpenOlat",
+        "Punkte übertragen",
+        "Skalierungsfaktor",
+        "Noch nicht geöffnet",
+        "Teilnehmerliste"
       ],
       "links": [
         "Klausur mit einer Aktivität verknüpfen",
@@ -1191,20 +1209,20 @@
     },
     "lti-privacy": {
       "title": "Was muss ich zum Datenschutz der Lernplattform-Anbindung wissen?",
-      "summary": "Die Anbindung bittet **vor jedem Konto um Zustimmung**, einmal je Anbindung, bei Studierenden und Lehrenden. Konten tragen Name und E-Mail-Adresse aus der Lernplattform, aus ILIAS nur den Namen. In der App erscheint ein Pseudonym. Die KI-Korrektur läuft nur auf den Schlüsseln deiner Organisation. Gehostet wird in **Deutschland**. Wir sind Auftragsverarbeiter und erfüllen die Anforderungen deiner Datenschutzstelle. Sag uns bitte konkret, was du brauchst.",
+      "summary": "Die Anbindung bittet **vor jedem Konto um Zustimmung**, einmal je Anbindung, bei Studierenden und Lehrenden. Konten tragen Name und E-Mail-Adresse aus der Lernplattform, aus ILIAS nur den Namen, aus OpenOlat nur, was die LTI-Seite überträgt. In der App erscheint ein Pseudonym. Die KI-Korrektur läuft nur auf den Schlüsseln deiner Organisation. Gehostet wird in **Deutschland**. Wir sind Auftragsverarbeiter und erfüllen die Anforderungen deiner Datenschutzstelle. Sag uns bitte konkret, was du brauchst.",
       "steps": [
         "**Zustimmung zuerst**: Beim ersten Start sieht die Person, was die Lernplattform übermittelt hat, und stimmt zwei Punkten zu. Das sind die Verarbeitung (Konto mit Name und E-Mail-Adresse, Pseudonym, Notenübertragung) und die Forschungsnutzung. Vorher entsteht kein Konto. Der geprüfte Start wartet höchstens 30 Minuten auf dem Server. Fordert die Person einen Bestätigungslink an, bleibt eine Kopie des Starts mit dem Link bis zu 24 Stunden gespeichert.",
         "**Forschungsnutzung ist Pflicht**: Ohne diese Zustimmung lässt sich das Tool aus der Lernplattform nicht nutzen. Ein Zugang, der von einer Einwilligung abhängt, wirft die Frage nach Art. 7 Abs. 4 DSGVO auf. Ob das für deinen Kurs passt, beurteilt deine Datenschutzstelle.",
-        "**Klarname und Pseudonym**: Konten tragen Name und E-Mail-Adresse aus der Lernplattform. Aus ILIAS kommt nur der Name. In der App erscheint das Pseudonym. Klarnamen sehen die Admins der Organisation, Gruppen-Admins für ihre Gruppe, die Lehrenden des Kurses, Mitarbeitende, die die verknüpfte Klausur bewerten dürfen, und die Administration der Plattform. Lehrende des Kurses sind die Lehrenden jedes Kurses der Anbindung, der die Klausur verknüpft. Bewerten dürfen standardmäßig auch die Lehrenden der Anbindung, weil sie in der Organisation Mitwirkende werden.",
+        "**Klarname und Pseudonym**: Konten tragen Name und E-Mail-Adresse aus der Lernplattform. Aus ILIAS kommt nur der Name. OpenOlat übermittelt Name und E-Mail-Adresse nur, wenn Lehrende das in der LTI-Seite einschalten, und lässt Teilnehmende vor dem ersten Start selbst die Datenübermittlung bestätigen. In der App erscheint das Pseudonym. Klarnamen sehen die Admins der Organisation, Gruppen-Admins für ihre Gruppe, die Lehrenden des Kurses, Mitarbeitende, die die verknüpfte Klausur bewerten dürfen, und die Administration der Plattform. Lehrende des Kurses sind die Lehrenden jedes Kurses der Anbindung, der die Klausur verknüpft. Bewerten dürfen standardmäßig auch die Lehrenden der Anbindung, weil sie in der Organisation Mitwirkende werden.",
         "**Anforderungen nennen**: AVV nach deiner Vorlage oder unserer, TOM-Anlage, Eintrag für dein Verarbeitungsverzeichnis, Zuarbeit für eine DSFA, Unterauftragsverarbeiter, Löschfristen. Die vollständige Abfrageliste steht in der technischen Referenz.",
         "**Vertrag vor dem Einladungslink**: Eine Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließ den Vertrag deshalb ab, bevor dein Organisations-Admin den Link erstellt. Darauf zu achten, ist Aufgabe der Hochschule.",
-        "**Ansprechpersonen benennen**: je eine Person für die rechtliche Seite (meist Justiziariat oder Datenschutzkoordination, nicht die einzelne Lehrkraft) und für die Moodle- oder ILIAS-Administration."
+        "**Ansprechpersonen benennen**: je eine Person für die rechtliche Seite (meist Justiziariat oder Datenschutzkoordination, nicht die einzelne Lehrkraft) und für die Administration von Moodle, ILIAS oder OpenOlat."
       ],
       "tips": [
         "Die KI-Korrektur verknüpfter Klausuren läuft nur auf den **API-Schlüsseln deiner Organisation**, nie auf einem Schlüssel von uns. Fehlt der Schlüssel, wird nicht korrigiert. Du entscheidest also, welcher Anbieter Lösungstexte verarbeitet.",
-        "Es wird kein Teilnehmerverzeichnis gelesen. Die Anbindung nutzt höchstens drei notenbezogene Berechtigungen (bei ILIAS zwei) und kein Names and Role Provisioning.",
+        "Die Anbindung nutzt höchstens drei notenbezogene Berechtigungen (bei ILIAS zwei) und die Teilnehmerliste des Kurses (Names and Role Provisioning). Die Liste liest das Tool nur, wenn Lehrende die Aktivitätsübersicht öffnen, um zu zeigen, wer die Aktivität noch nicht geöffnet hat. Sie wird nicht gespeichert und legt kein Konto an. ILIAS stellt keine Liste bereit.",
         "Ein bestehendes Konto wird nur verknüpft, wenn sich die Person anmeldet oder einen Link per E-Mail bestätigt. Konten der Plattform-Administration werden nie verknüpft.",
-        "Neue Konten mit zustellbarer Adresse erhalten nach der Zustimmung eine E-Mail zum Festlegen eines Passworts. Konten ohne zustellbare Adresse, etwa alle Konten aus ILIAS, fragt die Seite direkt nach der Zustimmung einmal nach einer E-Mail-Adresse. Der Schritt lässt sich überspringen. Die Adresse gilt erst, wenn die Person den Bestätigungslink öffnet. Dieser Link ist zugleich die E-Mail zum Festlegen des Passworts. Eine Adresse, die schon zu einem anderen Konto gehört, wird abgelehnt. Wer den Schritt überspringt, hinterlegt die Adresse später in der App.",
+        "Neue Konten mit zustellbarer Adresse erhalten nach der Zustimmung eine E-Mail zum Festlegen eines Passworts. Konten ohne zustellbare Adresse, etwa alle Konten aus ILIAS und Konten aus OpenOlat ohne *E-Mail-Adresse übertragen*, fragt die Seite direkt nach der Zustimmung einmal nach einer E-Mail-Adresse. Der Schritt lässt sich überspringen. Die Adresse gilt erst, wenn die Person den Bestätigungslink öffnet. Dieser Link ist zugleich die E-Mail zum Festlegen des Passworts. Eine Adresse, die schon zu einem anderen Konto gehört, wird abgelehnt. Wer den Schritt überspringt, hinterlegt die Adresse später in der App.",
         "Die Admins deiner Organisation anonymisieren Konten, die die Lernplattform angelegt hat. Name, E-Mail-Adresse und die Kennung der Lernplattform werden gelöscht, Abgaben und Noten bleiben ohne Personenbezug erhalten. Die vollständige Löschung eines Kontos gibt es auf Anfrage.",
         "KI-Note und Korrektur stehen nebeneinander, und die Korrektur ist die Endnote. Bis zur Korrektur steht die KI-Note in der Lernplattform."
       ],
@@ -1228,7 +1246,10 @@
         "Anonymisierung",
         "Hosting",
         "Löschung",
-        "Identifikation der Person"
+        "Identifikation der Person",
+        "OpenOlat",
+        "Teilnehmerliste",
+        "Names and Role Provisioning"
       ],
       "links": [
         "Vollständige Datenschutz- und Technikreferenz",
@@ -1404,20 +1425,20 @@
       "summary": "Die Fehlerseite nennt einen **Fehlercode**, bei unerwarteten Serverfehlern auch eine **Referenz**. Such den Code in der Liste unten. Jeder Eintrag nennt Ursache, Lösung und wer helfen kann. Studierende wenden sich an ihre Lehrenden, Lehrende an die Admins ihrer Organisation. Einige Fehler zeigt die Zustimmungs- oder Bestätigungsseite selbst, nur mit einer Überschrift. Die Liste nennt diese Überschriften.",
       "steps": [
         "`invalid_request`: Die Lernplattform hat eine unvollständige Startanfrage geschickt. Öffne die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen.",
-        "`registration_not_found`: Zur Lernplattform passt keine Anbindung. Meist stimmen Plattform-ID (Issuer) oder Client-ID in den Tool-Einstellungen nicht mit der Anbindung überein, oder die Anbindung wurde gelöscht. Auch zwei aktive Anbindungen, die sich nicht unterscheiden lassen, führen zu diesem Code. Die Admins deiner Organisation prüfen die Anbindung, die Administration der Lernplattform prüft die Tool-Einstellungen.",
+        "`registration_not_found`: Zur Lernplattform passt keine Anbindung. Meist stimmen Plattform-ID (Issuer) oder Client-ID in den Tool-Einstellungen nicht mit der Anbindung überein, oder die Anbindung wurde gelöscht. Auch zwei aktive Anbindungen, die sich nicht unterscheiden lassen, führen zu diesem Code. In OpenOlat kommt der Code auch, wenn das Tool ohne *Mit Shared Deployment* angelegt wurde. Dann hat jede LTI-Seite eine eigene Client-ID. Die Admins deiner Organisation prüfen die Anbindung, die Administration der Lernplattform prüft die Tool-Einstellungen.",
         "`registration_disabled`: Die Organisation hat die Anbindung abgeschaltet. Eine abgeschaltete Anbindung zeigt bei jedem Start diesen Code. Im Panel trägt ihre Karte das Zeichen **Ausgeschaltet**, und der Schalter zeigt **Anbindung aus**. Die Admins deiner Organisation schalten sie mit einem Klick auf den Schalter wieder ein.",
         "`org_inactive`: Die Organisation, der die Anbindung gehört, ist deaktiviert. Das kann nur der Betreiber der Plattform ändern. Lehrende wenden sich an ihn.",
-        "`unknown_deployment`: Die Lernplattform schickt eine Deployment-ID, die in der Anbindung nicht eingetragen ist. In ILIAS ist die Deployment-ID die Provider-ID. Die Administration der Lernplattform nennt die ID, die Admins deiner Organisation tragen sie in der Anbindung unter **Deployments** ein.",
+        "`unknown_deployment`: Die Lernplattform schickt eine Deployment-ID, die in der Anbindung nicht eingetragen ist. In ILIAS ist die Deployment-ID die Provider-ID. In OpenOlat zeigt das Tool sie als *Deployment ID*. Die Administration der Lernplattform nennt die ID, die Admins deiner Organisation tragen sie in der Anbindung unter **Deployments** ein.",
         "`deployment_disabled`: Die Deployment-ID ist in der Anbindung eingetragen, aber abgeschaltet. Neben der ID zeigt der Schalter **Deployment aus**. Die Admins deiner Organisation schalten sie unter **Deployments** mit einem Klick auf den Schalter wieder ein.",
         "`tool_not_configured`: Der Signaturschlüssel des Tools lässt sich auf dem Server nicht laden. Das behebt nur der Betreiber der Plattform. Lehrende wenden sich an ihn.",
         "`state_unavailable`: Ein vorübergehendes Serverproblem. Der Server konnte die Anmeldung nicht speichern oder lesen. Das liegt nicht am Browser. Versuch es in ein paar Minuten erneut. Hält es an, geben Lehrende den Code an den Betreiber der Plattform weiter.",
         "`invalid_state`: Die Anmeldung war älter als 5 Minuten oder wurde schon verwendet, etwa nach *Zurück*, nach dem Neuladen oder nach doppeltem Absenden. Öffne die Aktivität erneut in der Lernplattform.",
         "`invalid_token`: Die Anmeldedaten der Lernplattform ließen sich nicht prüfen. Mögliche Ursachen sind eine falsche Client-ID in der Anbindung, neue Schlüssel der Lernplattform oder eine falsch gehende Serveruhr. Öffne die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen gemeinsam mit den Admins deiner Organisation.",
-        "`jwks_unreachable`: Die Plattform konnte die Schlüssel der Lernplattform nicht laden, mit denen sie die Anmeldung prüft. Meist lässt eine Firewall vor der Lernplattform diese Plattform nicht durch, seltener ist die Schlüssel-URL (JWKS) in der Anbindung falsch oder die Lernplattform gerade nicht erreichbar. Die Tool-Einstellungen können dabei vollständig richtig sein. Versuch es in ein paar Minuten erneut. Kommt der Fehler jedes Mal, gibt die Administration der Lernplattform die Schlüssel-URL (bei ILIAS `lticerts.php`) und die Token-URL (`ltitoken.php`, für die Notenübertragung) für diese Plattform frei.",
+        "`jwks_unreachable`: Die Plattform konnte die Schlüssel der Lernplattform nicht laden, mit denen sie die Anmeldung prüft. Meist lässt eine Firewall vor der Lernplattform diese Plattform nicht durch, seltener ist die Schlüssel-URL (JWKS) in der Anbindung falsch oder die Lernplattform gerade nicht erreichbar. Die Tool-Einstellungen können dabei vollständig richtig sein. Versuch es in ein paar Minuten erneut. Kommt der Fehler jedes Mal, gibt die Administration der Lernplattform die Schlüssel-URL (bei ILIAS `lticerts.php`, bei OpenOlat `/lti/keys`) und die Token-URL (bei ILIAS `ltitoken.php`, bei OpenOlat `/lti/token`, für die Notenübertragung) für diese Plattform frei.",
         "`nonce_mismatch`: Die Antwort der Lernplattform passt nicht zur begonnenen Anmeldung. Öffne die Aktivität erneut in der Lernplattform.",
         "`nonce_reused`: Dieselbe Anmeldung kam ein zweites Mal an. Öffne die Aktivität erneut in der Lernplattform.",
-        "`unsupported_message`: Die Lernplattform schickt eine Anfrage, die das Tool nicht unterstützt, zum Beispiel Deep Linking. Die Administration der Lernplattform schaltet Deep Linking in den Tool-Einstellungen ab.",
-        "`not_linked`: Die Aktivität ist noch mit keiner Klausur verknüpft. Lehrende öffnen die Aktivität selbst in der Lernplattform und wählen eine Klausur aus. Studierende wenden sich an ihre Lehrenden.",
+        "`unsupported_message`: Die Lernplattform schickt eine Anfrage, die das Tool nicht unterstützt. Die Auswahl von Inhalten (Deep Linking, in OpenOlat *Inhalt auswählen*) unterstützt das Tool, dafür muss die Lernplattform aber LTI-Links annehmen. Die Administration der Lernplattform prüft in den Tool-Einstellungen, welche Anfragen sie an das Tool schickt.",
+        "`not_linked`: Die Aktivität ist noch mit keiner Klausur verknüpft. Lehrende öffnen die Aktivität selbst in der Lernplattform und wählen eine Klausur aus. In OpenOlat geht das auch vorab mit *Inhalt auswählen* in der LTI-Seite. Ein kopierter OpenOlat-Kurs startet unverknüpft, außer bei LTI-Seiten, die mit *Inhalt auswählen* verknüpft wurden. Studierende wenden sich an ihre Lehrenden.",
         "`exam_unavailable`: Die verknüpfte Klausur wurde gelöscht. Lehrende öffnen die Aktivität und verknüpfen eine andere Klausur. Wurden schon Noten übertragen, legen sie in der Lernplattform eine neue Aktivität an. Studierende wenden sich an ihre Lehrenden.",
         "`user_inactive`: Das Konto der Person ist in dieser Plattform deaktiviert. Nur der Betreiber der Plattform kann es wieder freischalten. Lehrende wenden sich an ihn. Ein anonymisiertes Konto kommt nicht zurück. Beim Anonymisieren verliert es die Verknüpfung mit der Lernplattform, deshalb entsteht beim nächsten Start nach der Zustimmung ein neues Konto.",
         "`membership_removed`: Ein Admin hat die Person aus der Organisation oder der Gruppe der Anbindung entfernt. Ein Start aus der Lernplattform stellt die Mitgliedschaft nicht wieder her. Soll die Person wieder Zugang haben, laden die Admins deiner Organisation sie mit **Mitglied einladen** an die E-Mail-Adresse ihres Kontos ein. Nimmt die Person die Einladung angemeldet an, ist die Mitgliedschaft wieder aktiv. Hat das Konto noch kein Passwort, legt die Person vorher mit **Passwort vergessen?** eines fest. Hat das Konto nur eine Platzhalter-Adresse (die Lernplattform hat keine oder eine schon vergebene Adresse geschickt), kommen weder Einladung noch Passwort-Mail an. Dann stellt der Betreiber der Plattform die Mitgliedschaft mit **Bestehenden Benutzer hinzufügen** wieder her. Eine Gruppenmitgliedschaft stellen die Admins wieder her, indem sie die Person der Gruppe hinzufügen.",
@@ -1429,10 +1450,10 @@
       ],
       "tips": [
         "Die Admins deiner Organisation verwalten die Anbindung unter [Benutzer & Organisationen](/users-organizations) → Organisation → **Mehr** → **Lernplattform (LTI)**. Dort schalten sie Anbindung und Deployments ein und aus, tragen Deployment-IDs ein und lösen Verknüpfungen von LMS-Konten.",
-        "Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (in Moodle die Übermittlung von Name und E-Mail, in ILIAS die *Identifikation der Person*) sowie die Notenübertragung (in Moodle *IMS LTI Aufgaben und Bewertung*, in ILIAS *Erweiterte Benotungsdienste*) ändert nur die Administration der Lernplattform."
+        "Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (in Moodle die Übermittlung von Name und E-Mail, in ILIAS die *Identifikation der Person*) sowie die Notenübertragung (in Moodle *IMS LTI Aufgaben und Bewertung*, in ILIAS *Erweiterte Benotungsdienste*) ändert nur die Administration der Lernplattform. In OpenOlat stellen Lehrende die Anzeige, die Übertragung von Name und E-Mail-Adresse und *Punkte übertragen* selbst in der LTI-Seite ein."
       ],
       "pitfalls": [
-        "Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Stell das Tool in der Lernplattform auf **Neues Fenster**. Moodle stellt nach einer Registrierung per Link „eingebettet“ ein. Dort ändert die Moodle-Administration den *Standard-Startcontainer* des Tools. Lehrende können das in Moodle 4.5 nicht je Aktivität ändern.",
+        "Startet das Tool eingebettet im Kurs (iframe), zeigt es zuerst eine Seite mit einer Schaltfläche, die es in einem neuen Fenster öffnet. Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Ältere Browser (Safari vor 16.4) landen stattdessen auf der Anmeldeseite oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Stell das Tool in der Lernplattform auf **Neues Fenster**, dann entfällt der Zwischenschritt. In OpenOlat wählen Lehrende dafür in der LTI-Seite bei *Anzeige* *Neues Fenster öffnen*. Moodle stellt nach einer Registrierung per Link „eingebettet“ ein. Dort ändert die Moodle-Administration den *Standard-Startcontainer* des Tools. Lehrende können das in Moodle 4.5 nicht je Aktivität ändern.",
         "`state_unavailable` hat nichts mit Cookies oder dem Browser zu tun. Ein anderer Browser hilft nicht, ein neuer Versuch nach einigen Minuten schon.",
         "*Zurück*, Neuladen oder ein Lesezeichen auf eine Seite des Starts führen zu `invalid_state`. Starte immer aus der Lernplattform.",
         "`unknown_deployment` und `deployment_disabled` sind nicht dasselbe. Im ersten Fall fehlt die ID in der Anbindung, im zweiten ist sie eingetragen und abgeschaltet."
@@ -1454,7 +1475,11 @@
         "Anmeldeseite",
         "Anmeldung abgelaufen",
         "Anmeldung passt nicht",
-        "Bestätigung fehlgeschlagen"
+        "Bestätigung fehlgeschlagen",
+        "OpenOlat Start",
+        "LTI-Seite",
+        "Neues Fenster öffnen",
+        "Inhalt auswählen"
       ],
       "links": [
         "Anbindung einrichten",
@@ -1464,13 +1489,15 @@
       ]
     },
     "ts-lti-grades": {
-      "title": "Noten kommen nicht in Moodle oder ILIAS an",
-      "summary": "Öffne die **Aktivitätsübersicht** oder im Panel der Anbindung die **Notenübertragungen**. Dort stehen Status und Fehlertext jeder Übertragung. Die häufigsten Ursachen sind eine Aktivität ohne Bewertung, eine ausgeschaltete Notenübertragung in der Lernplattform, ein fehlender API-Schlüssel und in ILIAS die *Identifikation der Person* per *E-Mail-Adresse*. Dann meldet ILIAS „User not available“.",
+      "title": "Noten kommen nicht in Moodle, ILIAS oder OpenOlat an",
+      "summary": "Öffne die **Aktivitätsübersicht** oder im Panel der Anbindung die **Notenübertragungen**. Dort stehen Status und Fehlertext jeder Übertragung. Die häufigsten Ursachen sind eine Aktivität ohne Bewertung (in OpenOlat ohne *Punkte übertragen*), eine ausgeschaltete Notenübertragung in der Lernplattform, ein fehlender API-Schlüssel und in ILIAS die *Identifikation der Person* per *E-Mail-Adresse*. Dann meldet ILIAS „User not available“.",
       "steps": [
         "**ILIAS: „ILIAS kennt die Person nicht“ oder „User not available“**: Der ILIAS-Provider identifiziert die Personen per *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung. Die Karte der Anbindung warnt dann mit **Notenübertragung nach ILIAS scheitert**. Die ILIAS-Administration stellt beim Provider *Identifikation der Person* auf **ID des ILIAS-Kontos …** um. Danach ändert sich die Kennung jeder Person. Beim nächsten Start stimmt jede Person erneut zu, erhält ein neues Konto und wird einmal nach ihrer E-Mail-Adresse gefragt. Bisherige Abgaben bleiben beim alten Konto.",
         "**ILIAS: kein Wert kommt an**: Beim Provider muss *Erweiterte Benotungsdienste* eingeschaltet sein. Öffne die Aktivität danach neu.",
         "**ILIAS: bestandene Klausur steht auf „in Bearbeitung“**: Der *Mastery Score* des Objekts steht noch auf 80. Setz ihn unter *Optionen für den Lernfortschritt* auf **22**. Fehlt das Feld, hakt die ILIAS-Administration beim Provider *Provider unterstützt Outcome Service* an. Den Lernfortschritt zeigt ILIAS nur, wenn er in der ILIAS-Administration eingeschaltet ist.",
         "**Moodle: die Aktivität hat keine Bewertung**: Ohne Bewertung gibt es keine Notenspalte. Schalte die Bewertung in der Aktivität ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*.",
+        "**OpenOlat: keine Note kommt an**: In der LTI-Seite ist *Punkte übertragen* aus. Ohne die Einstellung gibt OpenOlat dem Tool keine Notenspalte. Schalte sie unter *Konfiguration Bewertung* ein, publiziere den Kurs und öffne die Aktivität neu.",
+        "**OpenOlat: falsche Punktzahl oder nicht bestanden**: OpenOlat übernimmt die Punkte unverändert und multipliziert sie mit dem *Skalierungsfaktor*. Lass ihn bei 1 und setz *Notwendige Punktzahl für bestanden* auf 4, bei französischen Klausuren mit Note auf 20 auf 10.",
         "**Status Fehlgeschlagen mit 400, 401, 403 oder 404**: Die Lernplattform lehnt die Note endgültig ab. Das Tool versucht es deshalb nicht sofort erneut. Behebe die Ursache aus dem Fehlertext und klick dann auf **Erneut senden** oder im Panel auf **Erneut versuchen**.",
         "**Status Wird übertragen oder Ausstehend mit Fehlertext**: Die Lernplattform war kurz nicht erreichbar oder hatte einen Serverfehler. Das Tool versucht es nach 10, 30 und 90 Sekunden erneut, danach in wachsenden Abständen bis zu sechs Stunden.",
         "**Noch keine Note**: Die KI-Korrektur läuft noch oder konnte nicht starten. Fehlt der Organisation ein API-Schlüssel, zeigt die Übersicht *Wartet auf einen API-Schlüssel der Organisation*.",
@@ -1479,7 +1506,7 @@
       ],
       "tips": [
         "Ändert sich eine Note nachträglich, etwa durch eine Korrektur oder einen neuen Notenschlüssel, geht der neue Wert spätestens nach etwa einer Stunde an die Lernplattform.",
-        "ILIAS erhält je Person nur die Endnote. Eine Spalte **KI-Bewertung** gibt es nur in Moodle.",
+        "ILIAS und OpenOlat erhalten je Person nur die Endnote. Eine Spalte **KI-Bewertung** gibt es nur in Moodle.",
         "Zeigt Moodle nach **Alle Noten erneut senden** weiter einen anderen Wert, wurde die Note im Moodle-Notenbuch überschrieben oder gesperrt. Moodle ändert solche Noten nicht. Heb das Überschreiben in Moodle auf, dann zeigt Moodle den gesendeten Wert."
       ],
       "pitfalls": [
@@ -1497,7 +1524,10 @@
         "Erweiterte Benotungsdienste",
         "Erneut senden",
         "Alle Noten erneut senden",
-        "Ausfall"
+        "Ausfall",
+        "OpenOlat",
+        "Punkte übertragen",
+        "Skalierungsfaktor"
       ],
       "links": [
         "Noten aus der Lernplattform",
@@ -1511,14 +1541,14 @@
       "summary": "Eine Klausurensammlung hat mehrere Aufgaben. Wähle in der Auswahl eine Aufgabe, oder in Moodle die ganze Sammlung. Die ganze Sammlung braucht in Moodle die Spaltenverwaltung. Ihre Hauptspalte, die Spalte der Aktivität, erhält den Mittelwert erst, wenn jede Aufgabe eine Endnote hat.",
       "steps": [
         "**Die Auswahl verlangt eine Aufgabe (`task_required`)**: Die Klausur hat mehrere Aufgaben. Klapp die Sammlung auf und wähle die Aufgabe, deren Note die Aktivität erhält. In Moodle kannst du stattdessen die ganze Sammlung wählen.",
-        "**Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`)**: Die Anbindung ist ILIAS, oder Moodle darf keine Spalten anlegen. In ILIAS legst du je Aufgabe eine eigene Aktivität an. In Moodle stellt die Administration beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Öffne die Aktivität danach neu, damit die Lernplattform die neuen Rechte mitschickt.",
+        "**Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`)**: Die Anbindung ist ILIAS oder OpenOlat, oder Moodle darf keine Spalten anlegen. In ILIAS und OpenOlat legst du je Aufgabe eine eigene Aktivität an, in OpenOlat also eine LTI-Seite je Aufgabe. In Moodle stellt die Administration beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Öffne die Aktivität danach neu, damit die Lernplattform die neuen Rechte mitschickt.",
         "**Die Hauptspalte bleibt leer**: Bei der ganzen Sammlung erhält die Spalte der Aktivität den Mittelwert erst, wenn jede Aufgabe der Person eine Endnote hat. Prüf in den Spalten *Aufgabe N*, welche Aufgabe noch fehlt, und bewerte sie. Überträgt die Aktivität keine KI-Noten, braucht jede Aufgabe eine Korrektur. Wurde der Sammlung eine Aufgabe hinzugefügt, wartet der Mittelwert auch auf diese Aufgabe.",
         "**Eine Aufgabenspalte fehlt in Moodle**: Die Spalte erscheint mit der ersten Note der Aufgabe. Wurde sie in Moodle gelöscht, legt BenGER sie nicht von selbst wieder an.",
         "**Die Verknüpfung lässt sich nicht ändern (`relink_blocked`)**: Eine Note der Aktivität ist schon in der Lernplattform angekommen. Leg für die andere Klausur, die andere Aufgabe oder den anderen Weg eine neue Aktivität an.",
         "**Import abgelehnt (`multi_task_unsupported`)**: Eine ältere Aktivität erhält die ganze Klausur als eine Note. Verknüpfe sie mit der Aufgabe der Klausur. Danach sind Importe möglich."
       ],
       "tips": [
-        "Eine Aktivität je Aufgabe funktioniert in Moodle und ILIAS. Die ganze Sammlung in einer Aktivität gibt es nur in Moodle."
+        "Eine Aktivität je Aufgabe funktioniert in Moodle, ILIAS und OpenOlat. Die ganze Sammlung in einer Aktivität gibt es nur in Moodle."
       ],
       "keywords": [
         "Klausurensammlung",
@@ -1530,11 +1560,12 @@
         "collection_unsupported",
         "relink_blocked",
         "multi_task_unsupported",
-        "Spaltenverwaltung"
+        "Spaltenverwaltung",
+        "OpenOlat"
       ],
       "links": [
         "Klausurensammlung verknüpfen",
-        "Noten kommen nicht in Moodle oder ILIAS an",
+        "Noten kommen nicht in Moodle, ILIAS oder OpenOlat an",
         "Noten aus der Lernplattform"
       ]
     }

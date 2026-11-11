@@ -99,14 +99,21 @@ describe('ProjectBillingCard', () => {
     expect(mockGetSettings).not.toHaveBeenCalled()
   })
 
-  it('hosts the project-billing-extended slot with the project prop', async () => {
+  it('hands its line to the project-billing-extended slot instead of showing it', async () => {
     mockGetSettings.mockResolvedValue({ require_private_keys: true })
-    const Extra = ({ project }: any) => (
-      <div data-testid="billing-extra">{project.id}</div>
+    const Extra = ({ project, fallback }: any) => (
+      <div data-testid="billing-extra">
+        {project.id}|{fallback}
+      </div>
     )
     registerSlot('project-billing-extended', Extra)
     render(<ProjectBillingCard project={orgProject} />)
-    expect(screen.getByTestId('billing-extra')).toHaveTextContent('p1')
-    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.getByTestId('billing-extra')).toHaveTextContent(
+        'p1|project.billing.personalKey',
+      ),
+    )
+    // One line only: the slot decides, so the two can never contradict.
+    expect(screen.getAllByText(/project\.billing\.personalKey/)).toHaveLength(1)
   })
 })

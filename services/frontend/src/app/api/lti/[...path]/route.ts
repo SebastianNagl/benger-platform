@@ -30,7 +30,13 @@ const HOP_BY_HOP_REQUEST_HEADERS = ['host', 'connection', 'content-length']
  * API (for example during a rolling deploy) ends on the error page, never
  * on raw JSON. The pages' JSON calls keep the JSON 502.
  */
-const BROWSER_PATHS = new Set(['login', 'launch', 'register/init', 'deep-link'])
+const BROWSER_PATHS = new Set([
+  'login',
+  'launch',
+  'continue',
+  'register/init',
+  'deep-link',
+])
 const UNREACHABLE_ERROR_PATH = '/lti/error?code=internal'
 
 async function proxyLti(request: NextRequest): Promise<NextResponse> {

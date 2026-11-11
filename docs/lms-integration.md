@@ -182,8 +182,10 @@ These are properties of ILIAS 10, not of BenGER.
     whole installation: *Administration → Lernerfolge → Zugriffsstatistiken
     und Lernfortschritt → Einstellungen*, *Lernfortschritt* (English ILIAS:
     *Achievements → Statistics and Learning Progress*).
-- **No Names and Role Provisioning Service (NRPS)** before ILIAS 12. Accounts
-  are created at launch only. Moodle is used the same way.
+- **No Names and Role Provisioning Service (NRPS)** before ILIAS 12, so the
+  activity overview cannot list who has not opened the activity yet. Moodle
+  and OpenOlat offer the roster (see [Scopes requested](#scopes-requested)).
+  On every LMS, accounts are created at launch only.
 
 ### OpenOlat limitations to plan around
 
@@ -292,8 +294,10 @@ one-time ticket instead of a session cookie, and returns one
 note) and a signed custom parameter `benger_target`. The first launch of the
 new activity, by anyone, binds it to that exam with the same checks as the
 teacher's picker. Without deep linking the teacher binds the exam at the
-first launch ([§7](#7-course-setup-teacher)). Validated on OpenOlat 21.1.2;
-on Moodle and ILIAS the same flow is not yet validated on a live system.
+first launch ([§7](#7-course-setup-teacher)). Validated on OpenOlat 21.1.2
+and Moodle 4.5 (a tool registered by link announces deep linking, Moodle then
+switches on *Supports Deep Linking* by itself); on ILIAS not yet validated on
+a live system, so its setup keeps deep linking off.
 
 ### Scopes requested
 
@@ -900,7 +904,7 @@ data protection officer to assess.
 |---|---|
 | Consent first | Nothing about the person is stored before consent. The checked launch waits on the server for at most 30 minutes. See [§8.4](#84-consent). |
 | Names only where needed | The app shows a pseudonym. Real names are for admins, course teachers and grading staff. See [§8.1](#81-accounts-and-names). |
-| Data minimisation on the wire | At most three AGS scopes (two on ILIAS), all about grades. No Names and Role Provisioning, so course rosters are never read. See [Scopes requested](#scopes-requested). |
+| Data minimisation on the wire | At most three AGS scopes (two on ILIAS), all about grades, and the course roster (NRPS), read live only for the teacher who opens the activity overview and never stored. See [Scopes requested](#scopes-requested). |
 | Minimal storage | Eight tables, [itemised](#83-what-is-persisted). No raw `id_token`. The login state expires after 5 minutes, the nonce marker after 10. |
 | Linking only with proof | An existing account is linked only after sign-in or email confirmation. Platform administrator accounts are never linked. |
 | Purpose limitation | Grades go to your LMS only. Nothing is shared with third parties to run the integration. |
@@ -1040,7 +1044,8 @@ fixed retention period instead, name it and we record it in the contract.
   transfer.
 - **New window.** The tool's pages and session cookies need a top-level
   window. An embedded launch (iframe) gets a page with a button that opens
-  the tool in a new window; nothing is written before that. To skip the
+  the tool in a new window, where the same launch continues (a single-use
+  ticket, valid for two minutes); nothing is written before that. To skip the
   click, Moodle: set the tool's *Default launch container* to **New window**
   (Moodle 4.5 sets *Embed, without blocks* for every tool registered by
   link, and teachers cannot change it per activity); OpenOlat: set the

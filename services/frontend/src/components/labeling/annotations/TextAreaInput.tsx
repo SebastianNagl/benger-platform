@@ -30,7 +30,8 @@ export default function TextAreaInput({
   // Get configuration
   const name = config.props.name || config.name || 'textarea'
   const toName = config.props.toName
-  const placeholder = config.props.placeholder || 'Enter your annotation...'
+  const placeholder =
+    config.props.placeholder || t('annotation.textAreaPlaceholder')
   const rows = parseInt(config.props.rows || '4')
   const maxSubmissions = parseInt(config.props.maxSubmissions || '1')
   const required = config.props.required === 'true'

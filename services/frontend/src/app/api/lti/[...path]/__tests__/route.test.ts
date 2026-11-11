@@ -526,6 +526,8 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
   describe('upstream failure', () => {
     it.each([
       ['POST', 'http://benger.localhost/api/lti/launch', 'id_token=abc'],
+      ['POST', 'http://benger.localhost/api/lti/continue', 'ticket=abc'],
+      ['GET', 'http://benger.localhost/api/lti/deep-link?t=abc', undefined],
       ['POST', 'http://benger.localhost/api/lti/login', 'iss=x'],
       ['GET', 'http://benger.localhost/api/lti/login?iss=x', undefined],
       [

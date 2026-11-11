@@ -25,8 +25,9 @@ type BillingMessage =
  * "Abrechnung" sidebar card on the project detail page: says whose API key
  * pays for AI evaluations in this project. For a project scoped to a group,
  * the group's effective "who pays" setting decides. Community-edition-safe — it only
- * reads the generic org api-key settings endpoint; the extended edition adds
- * the authoritative per-user line via the `project-billing-extended` slot.
+ * reads the generic org api-key settings endpoint; the extended edition
+ * replaces it with the authoritative line via the `project-billing-extended`
+ * slot, which gets the generic line as `fallback`.
  *
  * Fail-closed: when the org settings request fails (e.g. a non-member 403),
  * the card quietly says the answer depends on the viewer's access.
@@ -87,11 +88,17 @@ export function ProjectBillingCard({ project }: Props) {
       <h3 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
         {t('project.billing.title')}
       </h3>
-      {line && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{line}</p>
+      {/* The extended slot knows who really pays (its authoritative line
+          replaces the generic one, which it shows as long as it has no
+          answer); two lines could contradict each other. */}
+      {Extra ? (
+        // eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot
+        <Extra project={project} fallback={line} />
+      ) : (
+        line && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{line}</p>
+        )
       )}
-      {/* eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot */}
-      {Extra && <Extra project={project} />}
     </div>
   )
 }

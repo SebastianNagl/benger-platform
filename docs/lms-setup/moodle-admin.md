@@ -53,7 +53,7 @@ aktiv** sieht. Weiter mit der [Anleitung für Lehrende](teacher.md).
 | Was Sie sehen | Ursache | Lösung |
 |---|---|---|
 | Lehrende finden das Tool nicht | Verwendung der Toolkonfiguration | Auf „In Aktivitätsauswahl …“ stellen |
-| Personen landen auf einer Anmeldeseite | Tool startet eingebettet | Standard-Startcontainer „Neues Fenster“ |
+| Personen sehen erst eine Seite „BenGER öffnet sich in einem neuen Fenster“ | Tool startet eingebettet | Standard-Startcontainer „Neues Fenster“ |
 | Aktivitäten haben keine Bewertung | Bewertungen werden an Lehrende delegiert | „Bewertungen aus dem Tool akzeptieren“ auf „Immer“ |
 | Nur die Endnote, keine Spalte „KI-Bewertung“ | AGS nur für die Synchronisation | „… und die Verwaltung der Spalten nutzen“ |
 | Lehrende können die ganze Klausurensammlung nicht wählen (`collection_unsupported`) | AGS nur für die Synchronisation | „… und die Verwaltung der Spalten nutzen“, dann die Aktivität neu öffnen |
