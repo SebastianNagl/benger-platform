@@ -101,6 +101,15 @@ wildcard, so the value cannot capture another namespace's host.
 {{- end -}}
 
 {{/*
+The LTI pages an LMS may frame, as a JSON array (fromJsonArray). Must match
+FRAMEABLE_PATHS in services/frontend/next.config.js; the API answers each with
+a CSP frame-ancestors limited to the LMS origin.
+*/}}
+{{- define "benger.ltiFrameablePaths" -}}
+["/api/lti/register/init","/api/lti/launch","/api/lti/deep-link"]
+{{- end -}}
+
+{{/*
 Extension overlay environment (platform core 2.37). Call with
 (dict "root" $ "role" "api"|"workers"). Renders, for every enabled entry of
 .Values.overlays in ascending `order` (ties broken by name), the entry's

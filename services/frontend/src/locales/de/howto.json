@@ -839,8 +839,8 @@
       ]
     },
     "lti-setup": {
-      "title": "Wie verbinde ich unsere Organisation mit Moodle oder ILIAS (LTI)?",
-      "summary": "Über **LTI 1.3**. Als **Admin deiner Organisation** bereitest du hier die Anbindung vor: API-Schlüssel, Panel, Adresse. Die Schritte in der Lernplattform stehen getrennt in **Moodle anbinden** und **ILIAS anbinden**. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.",
+      "title": "Wie verbinde ich unsere Organisation mit Moodle, ILIAS oder OpenOlat (LTI)?",
+      "summary": "Über **LTI 1.3**. Als **Admin deiner Organisation** bereitest du hier die Anbindung vor: API-Schlüssel, Panel, Adresse. Die Schritte in der Lernplattform stehen getrennt in **Moodle anbinden**, **ILIAS anbinden** und **OpenOlat anbinden**. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.",
       "steps": [
         "**API-Schlüssel vorbereiten**: [Benutzer & Organisationen](/users-organizations) → Organisation → **API-Schlüssel** → **Organisation stellt API-Schlüssel bereit** einschalten und einen Schlüssel für das Bewertungsmodell hinterlegen. Standard sind Modelle von OpenAI. Ohne Schlüssel gibt es keine KI-Korrektur und keinen Rückfall auf einen anderen Schlüssel.",
         "**Panel öffnen**: [Benutzer & Organisationen](/users-organizations) → Organisation wählen → **Mehr** → **Lernplattform (LTI)**. Oben zeigt **KI-Bewertung und API-Schlüssel**, ob die KI-Korrektur eingerichtet ist.",
@@ -859,6 +859,7 @@
         "LTI",
         "Moodle",
         "ILIAS",
+        "OpenOlat",
         "Lernplattform",
         "Integration",
         "Anbindung",
@@ -870,10 +871,11 @@
       "links": [
         "Moodle anbinden",
         "ILIAS anbinden",
+        "OpenOlat anbinden",
         "Anbindung verwalten",
         "Klausur mit einer Aktivität verknüpfen",
         "Datenschutz bei der Anbindung",
-        "Start aus Moodle oder ILIAS schlägt fehl",
+        "Start aus der Lernplattform schlägt fehl",
         "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
@@ -911,7 +913,7 @@
         "Anbindung vorbereiten",
         "Klausur mit einer Aktivität verknüpfen",
         "Noten aus der Lernplattform",
-        "Start aus Moodle oder ILIAS schlägt fehl",
+        "Start aus der Lernplattform schlägt fehl",
         "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
@@ -950,7 +952,50 @@
         "Anbindung vorbereiten",
         "Klausur mit einer Aktivität verknüpfen",
         "Datenschutz bei der Anbindung",
-        "Start aus Moodle oder ILIAS schlägt fehl",
+        "Start aus der Lernplattform schlägt fehl",
+        "Technische Referenz für deine IT (LTI 1.3)"
+      ]
+    },
+    "lti-setup-openolat": {
+      "title": "Wie binde ich OpenOlat an?",
+      "summary": "Die OpenOlat-Administration legt BenGER einmal als *externes Tool* an. Du gibst ihr drei URLs, sie meldet *Client-ID*, *Deployment ID* und *Plattform-ID* zurück, die du im Panel einträgst. Danach ist die Anbindung sofort aktiv, und Lehrende nutzen sie in jedem Kurs über den Baustein *LTI-Seite*.",
+      "steps": [
+        "URLs an OpenOlat geben: Im Panel *Lernplattform verbinden* → *OpenOlat*. Adresse und bei Bedarf eine Gruppe wählen. Schritt 1 zeigt die Start-URL, die Login-URL und die JWKS-URL. Schick sie an die OpenOlat-Administration.",
+        "Tool anlegen: In OpenOlat *Administration → Externe Werkzeuge → LTI*, im Reiter *Konfiguration* das Modul *LTI 1.3* einschalten. Im Reiter *Externe Tools* → *Neues Tool hinzufügen*: *Tool URL* und *Umleitungs-URI(s)* bekommen die Start-URL, *URL der Authentifizierungsanforderung* die Login-URL. Bei *Öffentlicher Schlüsseltyp* *Schlüsselsatz-URL* wählen und die JWKS-URL eintragen. *Mit Shared Deployment* und *Deep-Linking aktivieren* einschalten.",
+        "Werte zurückmelden: Nach dem Speichern zeigt OpenOlat *Client-ID*, *Deployment ID* und *Plattform-ID*. Im Panel *Weiter*, dann die Plattform-ID als Adresse, die Client-ID und die Deployment ID eintragen und *Verbinden* klicken. Die drei OpenOlat-Endpunkte füllt das Panel selbst aus.",
+        "Baustein im Kurs: Im Kurseditor *LTI-Seite* einfügen, im Reiter *Seiteninhalt* bei *LTI Version* das Tool wählen und einmal speichern. Mit *Inhalt auswählen* wählen Lehrende die Klausur direkt aus BenGER, sonst verknüpfen sie sie beim ersten Start. *Vorname/Name übertragen* und *E-Mail-Adresse übertragen* einschalten und bei *Anzeige* *Neues Fenster öffnen* wählen.",
+        "Noten: Unter *Konfiguration Bewertung* *Punkte übertragen* einschalten, den *Skalierungsfaktor* bei 1 lassen und *Notwendige Punktzahl für bestanden* auf 4 setzen, bei französischen Klausuren mit Note auf 20 auf 10. OpenOlat übernimmt die Notenpunkte unverändert. Danach den Kurs publizieren und weiter wie in [Klausur mit einer Aktivität verknüpfen](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "OpenOlat überträgt Name und E-Mail-Adresse nur, wenn die LTI-Seite es erlaubt. Ohne E-Mail-Adresse fragt die Seite jede Person nach der Zustimmung einmal nach ihrer Adresse. Teilnehmende bestätigen in OpenOlat außerdem vor dem ersten Start die Datenübermittlung.",
+        "Die Lehransicht einer Aktivität zeigt, wer aus dem Kurs sie noch nicht geöffnet hat. Die Liste kommt live aus OpenOlat, BenGER speichert sie nicht.",
+        "Ein kopierter Kurs bekommt neue Aktivitäten. Bausteine, die mit *Inhalt auswählen* verknüpft wurden, bringen ihre Klausur mit, alle anderen verknüpfen Lehrende beim ersten Start neu."
+      ],
+      "pitfalls": [
+        "*Mit Shared Deployment* lässt sich nach dem Anlegen nicht mehr ändern. Ohne die Einstellung legt OpenOlat für jede LTI-Seite eine eigene Client-ID und Deployment ID an, und jede bräuchte eine eigene Anbindung.",
+        "OpenOlat lässt das Tool keine weiteren Notenspalten anlegen. Die Spalte KI-Bewertung und die Sammlung mit einer Spalte je Aufgabe gibt es deshalb nur in Moodle. In OpenOlat bekommt jede Aufgabe eine eigene LTI-Seite.",
+        "Bei einer eingebetteten Anzeige öffnet BenGER erst nach einem Klick ein eigenes Fenster. Mit *Neues Fenster öffnen* entfällt dieser Schritt."
+      ],
+      "keywords": [
+        "OpenOlat",
+        "OLAT",
+        "LTI",
+        "LTI-Seite",
+        "Externe Tools",
+        "Client-ID",
+        "Deployment ID",
+        "Plattform-ID",
+        "Shared Deployment",
+        "Deep Linking",
+        "Inhalt auswählen",
+        "Punkte übertragen",
+        "Skalierungsfaktor"
+      ],
+      "links": [
+        "Anbindung vorbereiten",
+        "Klausur mit einer Aktivität verknüpfen",
+        "Datenschutz bei der Anbindung",
+        "Start aus der Lernplattform schlägt fehl",
         "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
@@ -1003,7 +1048,7 @@
         "Anbindung einrichten",
         "Noten aus der Lernplattform",
         "Datenschutz bei der Anbindung",
-        "Start aus Moodle oder ILIAS schlägt fehl"
+        "Start aus der Lernplattform schlägt fehl"
       ]
     },
     "lti-teacher": {
@@ -1355,7 +1400,7 @@
       ]
     },
     "ts-lti-errors": {
-      "title": "Start aus Moodle oder ILIAS schlägt fehl",
+      "title": "Start aus der Lernplattform schlägt fehl",
       "summary": "Die Fehlerseite nennt einen **Fehlercode**, bei unerwarteten Serverfehlern auch eine **Referenz**. Such den Code in der Liste unten. Jeder Eintrag nennt Ursache, Lösung und wer helfen kann. Studierende wenden sich an ihre Lehrenden, Lehrende an die Admins ihrer Organisation. Einige Fehler zeigt die Zustimmungs- oder Bestätigungsseite selbst, nur mit einer Überschrift. Die Liste nennt diese Überschriften.",
       "steps": [
         "`invalid_request`: Die Lernplattform hat eine unvollständige Startanfrage geschickt. Öffne die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen.",

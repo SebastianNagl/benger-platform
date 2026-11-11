@@ -1,5 +1,5 @@
 {
-  "generated_from": "5be4e7c4ad7547be4da7ea570d98cb77fec050e7",
+  "generated_from": "5c8c5a5335984def768dd1d44f4d289fcab63d4a",
   "api_shared": [
     {
       "module": "account_activation",
@@ -257,6 +257,13 @@
       "name": "REFRESH_TOKEN_EXPIRE_DAYS",
       "importers": [
         "benger_extended/lti/consent.py"
+      ]
+    },
+    {
+      "module": "auth_module.config",
+      "name": "SECRET_KEY",
+      "importers": [
+        "benger_extended/lti/deep_linking.py"
       ]
     },
     {
@@ -987,6 +994,7 @@
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/nrps.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1011,6 +1019,7 @@
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/identity.py",
         "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/nrps.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/workers/__init__.py",
@@ -1947,6 +1956,7 @@
       "module": "redis_cache",
       "name": "cache",
       "importers": [
+        "benger_extended/lti/deep_linking.py",
         "benger_extended/lti/oidc.py"
       ]
     },

@@ -9,6 +9,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
     links: [
       '/how-to#lti-setup-moodle',
       '/how-to#lti-setup-ilias',
+      '/how-to#lti-setup-openolat',
       '/how-to#lti-manage',
       '/how-to#lti-teacher',
       '/how-to#lti-privacy',
@@ -36,6 +37,17 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
       '/how-to#lti-privacy',
       '/how-to#ts-lti-errors',
       'https://github.com/SebastianNagl/benger-platform/blob/main/docs/lms-integration.md',
+    ],
+  },
+  {
+    id: 'lti-setup-openolat',
+    category: 'integrations',
+    links: [
+      '/how-to#lti-setup',
+      '/how-to#lti-teacher',
+      '/how-to#lti-privacy',
+      '/how-to#ts-lti-errors',
+      'https://github.com/SebastianNagl/benger-platform/blob/main/docs/lms-setup/openolat-admin.md',
     ],
   },
   {

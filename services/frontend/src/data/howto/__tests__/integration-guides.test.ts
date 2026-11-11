@@ -224,6 +224,7 @@ describe('LTI guides: structure', () => {
       'lti-setup',
       'lti-setup-moodle',
       'lti-setup-ilias',
+      'lti-setup-openolat',
       'lti-manage',
       'lti-teacher',
       'lti-collection',
@@ -1279,5 +1280,52 @@ describe('related guides and pages', () => {
         expect(text).not.toMatch(EM_DASH)
       }
     }
+  })
+})
+
+// OpenOlat 21 labels of the external tool form and the course element "LTI
+// page", checked against the OpenOlat 21.1.2 LocalStrings (de/en) and a
+// harness instance (2026-11-11).
+describe('LTI guides: OpenOlat', () => {
+  const LABELS: Record<'de' | 'en', string[]> = {
+    de: [
+      'Mit Shared Deployment',
+      'Deep-Linking aktivieren',
+      'Schlüsselsatz-URL',
+      'Punkte übertragen',
+      'Skalierungsfaktor',
+      'Neues Fenster öffnen',
+    ],
+    en: [
+      'With shared deployment',
+      'Activate Deep-Linking',
+      'Transfer score',
+      'Scaling factor',
+      'Open in new window',
+    ],
+  }
+
+  it.each(['de', 'en'] as Locale[])(
+    'quotes the OpenOlat labels in %s',
+    (locale) => {
+      const text = body('lti-setup-openolat', locale)
+      for (const label of LABELS[locale]) expect(text).toContain(label)
+    },
+  )
+
+  it.each(['de', 'en'] as Locale[])(
+    'keeps the scaling factor at 1 and names the pass marks (%s)',
+    (locale) => {
+      const text = body('lti-setup-openolat', locale)
+      expect(text).toMatch(/\b1\b/)
+      expect(text).toMatch(/\b4\b/)
+      expect(text).toMatch(/\b10\b/)
+    },
+  )
+
+  it('is linked from the common setup entry', () => {
+    expect(guide('lti-setup').links.map((l) => l.href)).toContain(
+      '/how-to#lti-setup-openolat',
+    )
   })
 })

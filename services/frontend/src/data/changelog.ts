@@ -9,6 +9,21 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-lti-openolat',
+    date: '2026-11-11',
+    audience: 'both',
+  },
+  {
+    id: '2026-11-11-lti-deep-linking',
+    date: '2026-11-11',
+    audience: 'both',
+  },
+  {
+    id: '2026-11-11-lti-course-roster',
+    date: '2026-11-11',
+    audience: 'both',
+  },
+  {
     id: '2026-11-06-link-lms-activities-project-page',
     date: '2026-11-06',
     audience: 'benger',

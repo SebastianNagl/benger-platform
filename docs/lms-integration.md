@@ -1,4 +1,4 @@
-# LMS integration (LTI 1.3) for Moodle and ILIAS
+# LMS integration (LTI 1.3) for Moodle, ILIAS and OpenOlat
 
 BenGER connects to a university's learning management system (LMS) as an
 **LTI 1.3 Advantage tool**. Students open an exam from a course activity, and
@@ -6,7 +6,8 @@ grades go back to the LMS gradebook.
 
 **Setting it up?** Start with the short step-by-step guides in
 [`lms-setup/`](lms-setup/README.md) (German): one each for organization
-admins, the ILIAS administration, the Moodle administration and teachers.
+admins, the ILIAS administration, the Moodle administration, the OpenOlat
+administration and teachers.
 This document is the reference behind them.
 
 This document is for the people who evaluate and run the integration: LMS
@@ -64,6 +65,7 @@ migrations add columns:
 | `084` | the organization role for LMS students |
 | `085` | a parked activation address on `users` |
 | `089` | the LMS type of a connection (Moodle, ILIAS) |
+| `129` | OpenOlat as an LMS type, the roster URL (NRPS) of an activity |
 | `097` | the group scope of connections and invites |
 | `105` | the tool address of connections and invites, the research consent, link method and unlink marker of LMS identities, the AI grade column of activities, one grade transfer row per column |
 | `106` | the anonymization marker and the email state of LMS accounts, the change time of gradings, the origin of an exam's organization attachment |
@@ -115,12 +117,13 @@ Klausurensammlung with one gradebook column per task. See
 | Moodle | 5.x | Reviewed against the 5.2 source. Not validated on a live system. |
 | ILIAS | 10 | Validated end to end on 10.9 |
 | ILIAS | 9 | Expected to work. Not validated on a live system. |
+| OpenOlat | 21 | Validated end to end on 21.1.2: launch, grades, deep linking, roster |
 
 ILIAS 8 reached end of life on 2025-12-31 and is not supported. ILIAS 11 is
 expected to change AGS behaviour and will be validated when it ships.
 
 Other LTI 1.3 certified platforms may work, because nothing in the tool is
-Moodle or ILIAS specific on the wire. They are not validated and not
+Moodle, ILIAS or OpenOlat specific on the wire. They are not validated and not
 supported. See [§10](#10-conformance) for what has been tested.
 
 ### ILIAS limitations to plan around
@@ -182,6 +185,41 @@ These are properties of ILIAS 10, not of BenGER.
 - **No Names and Role Provisioning Service (NRPS)** before ILIAS 12. Accounts
   are created at launch only. Moodle is used the same way.
 
+### OpenOlat limitations to plan around
+
+These are properties of OpenOlat 21, verified on 21.1.2.
+
+- **Manual registration only.** OpenOlat has no Dynamic Registration. The
+  OpenOlat administration creates BenGER once under *Administration →
+  Externe Werkzeuge → LTI → Externe Tools* and switches on *Mit Shared
+  Deployment*. That setting cannot be changed later; without it every
+  course element "LTI-Seite" gets its own client id and deployment id.
+- **Issuer without the port.** The *Plattform-ID* (issuer) is
+  `https://<server domain>`, built from the configured domain. The
+  endpoints are `<base>/lti/auth`, `<base>/lti/token` and `<base>/lti/keys`.
+- **One grade column per element.** The token grants the `lineitem` scope,
+  but OpenOlat answers every line item POST with 403. The tool therefore
+  sends the final grade only, as for ILIAS: no "KI-Bewertung" column and
+  no whole-collection activity.
+- **Raw points.** OpenOlat ignores `scoreMaximum` and stores `scoreGiven`
+  times the element's *Skalierungsfaktor*. Keep the factor at 1 and set
+  *Notwendige Punktzahl für „bestanden"* to 4 (Notenpunkte) or 10 (note /20).
+  The score comment is dropped.
+- **No `name` claim.** OpenOlat sends `given_name` and `family_name` (and
+  the email) only when the element's *Vorname/Name übertragen* and
+  *E-Mail-Adresse übertragen* are on. The tool joins the two parts.
+  `custom.username` (the OpenOlat login) is always sent.
+- **The resource link title is the course title**, not the element's title.
+- **Roles.** Owners arrive as Instructor, Administrator, TeachingAssistant,
+  ContentDeveloper and Mentor, coaches as Instructor, TeachingAssistant and
+  Mentor, participants as Learner (OpenOlat's defaults, adjustable per
+  element).
+- **Embedded by default.** A new element shows the tool in an iframe. The
+  tool then offers a new window ([§9](#9-requirements-on-your-lms)); set
+  *Anzeige* to *Neues Fenster öffnen* to skip that click.
+- **Course copies** get new resource link and context ids, so a copied
+  course never shares an activity binding with the original.
+
 ## 4. Architecture and data flow
 
 ```
@@ -227,8 +265,10 @@ These are properties of ILIAS 10, not of BenGER.
                                                  management)
 ```
 
-Server to server calls use HTTPS. The tool never runs inside an LMS iframe.
-See [§9](#9-requirements-on-your-lms).
+Server to server calls use HTTPS. The tool's pages never run inside an LMS
+iframe: an embedded launch gets a small page with a button that continues in
+a new window. Only the deep-linking picker runs inside the LMS frame. See
+[§9](#9-requirements-on-your-lms).
 
 ## 5. Tool endpoints and scopes
 
@@ -236,6 +276,7 @@ See [§9](#9-requirements-on-your-lms).
 |---|---|
 | Login initiation (OIDC third-party login) | `https://<tool-host>/api/lti/login` |
 | Launch and redirect URI | `https://<tool-host>/api/lti/launch` |
+| Deep linking (content selection) | `https://<tool-host>/api/lti/launch` (the same route answers `LtiDeepLinkingRequest`) |
 | Public keyset (JWKS) | `https://<tool-host>/api/lti/jwks` |
 | Dynamic Registration | `https://<tool-host>/api/lti/register/init?token=<token>` (one-time invite link) |
 
@@ -243,10 +284,16 @@ See [§9](#9-requirements-on-your-lms).
 [§6](#6-registering-your-lms)). The tool sheet in the admin panel always shows
 the URLs of the connection's address, never the address of the browser.
 
-There is **no deep-linking URL**, on purpose. The tool rejects
-`LtiDeepLinkingRequest` launches. The exam is bound through the teacher's
-picker instead ([§7](#7-course-setup-teacher)). Do not configure deep linking
-in your LMS.
+**Deep linking.** A teacher can pick the exam from inside the LMS (Moodle
+and OpenOlat: *Inhalt auswählen*). The tool answers the
+`LtiDeepLinkingRequest` with a picker in the LMS frame, authorized by a
+one-time ticket instead of a session cookie, and returns one
+`ltiResourceLink` with a `lineItem` (score maximum 18, or 20 for the French
+note) and a signed custom parameter `benger_target`. The first launch of the
+new activity, by anyone, binds it to that exam with the same checks as the
+teacher's picker. Without deep linking the teacher binds the exam at the
+first launch ([§7](#7-course-setup-teacher)). Validated on OpenOlat 21.1.2;
+on Moodle and ILIAS the same flow is not yet validated on a live system.
 
 ### Scopes requested
 
@@ -255,20 +302,26 @@ in your LMS.
 | `https://purl.imsglobal.org/spec/lti-ags/scope/score` | Send a grade to a line item |
 | `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly` | Read line items |
 | `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column per activity, "KI-Bewertung: <activity title>", and on a whole-collection activity the columns of the tasks |
+| `https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly` | Show the teacher which course participants have not opened the activity yet |
 
 The tool uses `lineitem` only to find or create its own columns: the
 "KI-Bewertung" column and, on an activity that carries a whole
 Klausurensammlung, one column per task ("Aufgabe N: <activity title>") and
 its AI column ("KI-Bewertung: Aufgabe N"). It finds its columns by a tag
 (`benger-task-<task id>`, `benger-ai-<task id>`). It never changes or deletes
-the activity's own column, and it never deletes a line item. Dynamic Registration asks Moodle for all three scopes and ILIAS for
-`score` and `lineitem.readonly` only. When the LMS does not grant `lineitem`,
+the activity's own column, and it never deletes a line item. Dynamic Registration asks Moodle for all four scopes and ILIAS for
+`score`, `lineitem.readonly` and the roster scope only. OpenOlat (manual
+registration) grants all scopes but refuses line item writes, so the tool
+never tries them there. When the LMS does not grant `lineitem`,
 the tool sends the final grade only, a whole Klausurensammlung cannot be
 linked to one activity, and the activity overview and the admin panel say
 why.
 
-The tool does not request `result.readonly` and does not use NRPS. It never
-reads course rosters.
+The tool does not request `result.readonly`. It reads the course roster
+(NRPS) only live, for the teacher who opens the activity overview, and only
+to list learners who have not launched yet. The roster is never stored and
+creates no account; consent still happens at each person's own launch.
+ILIAS 10 offers no roster, so the overview shows none there.
 
 Token exchange uses the `client_credentials` grant with `private_key_jwt`
 client authentication, signed RS256. Access tokens are cached for their stated
@@ -985,12 +1038,13 @@ fixed retention period instead, name it and we record it in the contract.
   enter the keyset URL. ILIAS checks our client assertion only through the
   keyset URL. A pasted RSA key passes the launch and then breaks the grade
   transfer.
-- **New window.** Embedded iframe launches are not supported. The session
-  cookies need a top-level window. Inside an iframe, people land on the login
-  page or see *Sign-in does not match* (`launch_mismatch`). Moodle: set the
-  tool's *Default launch container* to **New window**. Moodle 4.5 sets
-  *Embed, without blocks* for every tool registered by link, and teachers
-  cannot change it per activity.
+- **New window.** The tool's pages and session cookies need a top-level
+  window. An embedded launch (iframe) gets a page with a button that opens
+  the tool in a new window; nothing is written before that. To skip the
+  click, Moodle: set the tool's *Default launch container* to **New window**
+  (Moodle 4.5 sets *Embed, without blocks* for every tool registered by
+  link, and teachers cannot change it per activity); OpenOlat: set the
+  element's *Anzeige* to *Neues Fenster öffnen*.
 - **Tool visible to teachers.** Moodle: set *Tool configuration usage* to
   **Show in activity chooser and as a preconfigured tool**. A tool
   registered by link is only a preconfigured tool at first.
@@ -1222,7 +1276,7 @@ fail unexpectedly carry the reference in their message.
 | `jwks_unreachable` | The tool could not load the LMS key set from the JWKS URL, usually because a firewall in front of the LMS blocks the tool server (the tool settings can be correct). | Try again later. If it repeats, the LMS admin opens the JWKS and token URLs to the tool server, or the org admin fixes the JWKS URL. |
 | `nonce_mismatch` | The LMS answer does not match the started sign-in. | Reopen the activity. |
 | `nonce_reused` | The same sign-in arrived twice. | Reopen the activity. |
-| `unsupported_message` | The LMS sent a request type the tool does not support, for example Deep Linking. | LMS admin switches Deep Linking off. |
+| `unsupported_message` | The LMS sent a request type the tool does not support, or a deep-linking request that accepts no LTI links. | LMS admin checks the tool's message types. |
 | `not_linked` | The activity is not linked to an exam yet. | Teacher opens the activity and picks an exam. |
 | `exam_unavailable` | The linked exam was deleted. | Teacher links another exam, or creates a new activity if grades were sent. |
 | `user_inactive` | The account is deactivated. An anonymized account never comes back: anonymizing removes its LMS link, so a later launch creates a new account. | Platform operator. |
@@ -1298,7 +1352,8 @@ we can reply with the documents instead of another round of questions.
 >      Feld „URL“ `https://<tool-host>/api/lti/jwks`. Bitte unbedingt die
 >      URL-Variante wählen und **keinen RSA-Schlüssel einfügen**, sonst
 >      scheitert die Notenübertragung.
->    - „Unterstützung für Deep Linking“: **aus**
+>    - „Unterstützung für Deep Linking“: **aus** (mit ILIAS noch nicht
+>      geprüft; Lehrende verknüpfen die Klausur beim ersten Start)
 >    - „Erweiterte Benotungsdienste“: **aktivieren**
 > 3. **Datenschutzeinstellungen:**
 >    - „Identifikation der Person“: **„ID des ILIAS-Kontos kombiniert mit
@@ -1401,7 +1456,8 @@ we can reply with the documents instead of another round of questions.
 > - Bewertungen aus dem Tool akzeptieren: **Immer**
 > - IMS LTI Aufgaben und Bewertung: **Service für die Synchronisation von
 >   Bewertungen und die Verwaltung der Spalten nutzen**
-> - Deep Linking: **aus**
+> - Deep Linking (Inhaltsauswahl): **an**, dann wählen Lehrende die Klausur
+>   schon beim Anlegen der Aktivität über „Inhalt auswählen“
 > - Datenschutz: „Anwendername an Tool übergeben“ und „E-Mail des Anwenders
 >   an Tool übergeben“ auf **Immer**, für alle Personen. Die Konten tragen
 >   Name und E-Mail-Adresse aus Moodle, in der Anwendung erscheint ein

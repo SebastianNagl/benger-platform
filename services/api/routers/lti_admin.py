@@ -1478,10 +1478,8 @@ async def get_tool_config(
 
     Built from the connection's tool host; a ``base_url`` query parameter
     from older clients is ignored. The ``/api/lti/*`` routes themselves are
-    served by the extended edition. No deep-linking URL is advertised — the
-    tool rejects deep-linking launches (binding happens via the
-    instructor-launch picker), so publishing one would point LMS admins at a
-    route that does not exist.
+    served by the extended edition, which also answers deep-linking
+    requests on the launch route (``deep_link_url``).
     """
     reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
     try:
@@ -1491,6 +1489,7 @@ async def get_tool_config(
     return LtiToolConfigRead(
         login_url=f"{base}/api/lti/login",
         launch_url=f"{base}/api/lti/launch",
+        deep_link_url=f"{base}/api/lti/launch",
         jwks_url=f"{base}/api/lti/jwks",
         tool_host=reg.tool_host,
         base_url=base,

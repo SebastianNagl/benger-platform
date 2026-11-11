@@ -1298,9 +1298,9 @@ class MarketplaceOrder(Base):
 
 
 # ===================================================================
-# LTI 1.3 (Moodle integration) Models
+# LTI 1.3 (Moodle, ILIAS and OpenOlat integration) Models
 # ===================================================================
-# Persistence for the LTI 1.3 / Moodle integration. The schema is
+# Persistence for the LTI 1.3 integration (Moodle, ILIAS, OpenOlat). The schema is
 # platform-owned (split rule: ALL DB tables live in benger-platform);
 # the proprietary protocol logic — OIDC third-party login, id_token
 # validation, deep linking, AGS grade passback — lives in
@@ -1362,9 +1362,10 @@ class LtiPlatformRegistration(Base):
     status = Column(
         String(16), nullable=False, default="active", server_default="active", index=True
     )
-    # Advisory LMS-vendor tag: 'moodle' | 'ilias' | NULL (generic). Drives
-    # admin-UI presets/warnings and diagnostics only — protocol code never
-    # branches on it.
+    # Advisory LMS-vendor tag: 'moodle' | 'ilias' | 'openolat' | NULL
+    # (generic). Drives admin-UI presets/warnings, diagnostics and the
+    # extended edition's per-LMS capability table (which LMS lets the tool
+    # manage line items or keeps a score comment); launches never branch on it.
     lms_family = Column(String(16), nullable=True)
     # Public host the connection's tool URLs use: 'student_locked' | 'main'
     # (base URLs resolved from the environment by shared/public_hosts.py).
@@ -1387,7 +1388,7 @@ class LtiPlatformRegistration(Base):
         UniqueConstraint("issuer", "client_id", name="uq_lti_registration_issuer_client"),
         Index("ix_lti_platform_registrations_issuer", "issuer"),
         CheckConstraint(
-            "lms_family IN ('moodle', 'ilias')",
+            "lms_family IN ('moodle', 'ilias', 'openolat')",
             name="ck_lti_platform_registrations_lms_family",
         ),
         CheckConstraint(
@@ -1492,6 +1493,10 @@ class LtiResourceLink(Base):
     lineitem_url = Column(Text, nullable=True)
     lineitems_url = Column(Text, nullable=True)
     ags_scopes = Column(JSON, nullable=True)
+    # NRPS 2.0 membership URL from the launch claim
+    # (``namesroleservice.context_memberships_url``); the roster is read live
+    # from it and never stored.
+    context_memberships_url = Column(Text, nullable=True)
     sync_ai_grades = Column(Boolean, nullable=False, default=True, server_default="true")
     linked_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     linked_at = Column(DateTime(timezone=True), nullable=True)

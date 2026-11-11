@@ -730,8 +730,8 @@
       ]
     },
     "lti-setup": {
-      "title": "How do I connect our organization to Moodle or ILIAS (LTI)?",
-      "summary": "Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle** and **Connecting ILIAS**. The connection is **active at once**. Group admins can do this for their groups.",
+      "title": "How do I connect our organization to Moodle, ILIAS or OpenOlat (LTI)?",
+      "summary": "Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle**, **Connecting ILIAS** and **Connecting OpenOlat**. The connection is **active at once**. Group admins can do this for their groups.",
       "steps": [
         "**Prepare the API keys**: [Users & organizations](/users-organizations) → organization → **API keys** → switch on **Organization provides API keys** and store a key for the grading model. The default models are from OpenAI. Without a key there is no AI grading and no fallback to another key.",
         "**Open the panel**: [Users & organizations](/users-organizations) → pick the organization → **More** → **Learning platform (LTI)**. At the top, **AI grading and API keys** shows whether AI grading is set up.",
@@ -750,6 +750,7 @@
         "lti",
         "moodle",
         "ilias",
+        "openolat",
         "lms",
         "integration",
         "registration",
@@ -760,10 +761,11 @@
       "links": [
         "Connecting Moodle",
         "Connecting ILIAS",
+        "Connecting OpenOlat",
         "Managing a connection",
         "Linking an exam to an activity",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
@@ -801,7 +803,7 @@
         "Preparing the connection",
         "Linking an exam to an activity",
         "Grades and the learning platform",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
@@ -840,7 +842,50 @@
         "Preparing the connection",
         "Linking an exam to an activity",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-setup-openolat": {
+      "title": "How do I connect OpenOlat?",
+      "summary": "The OpenOlat administration adds BenGER once as an *external tool*. You give them three URLs, they send back the *Client ID*, the *Deployment ID* and the *Platform ISS*, which you enter in the panel. The connection is then active at once, and teachers use it in any course through the *LTI page* course element.",
+      "steps": [
+        "Give the URLs to OpenOlat: in the panel, *Connect learning platform* → *OpenOlat*. Choose the address and, if needed, a group. Step 1 shows the launch URL, the login URL and the JWKS URL. Send them to the OpenOlat administration.",
+        "Create the tool: in OpenOlat, *Administration → External tools → LTI*, switch on the module *LTI 1.3* in the *Configuration* tab. In the *External tools* tab → *Create a new tool*: *Tool URL* and *Redirection URI(s)* get the launch URL, *Initiate login URL* the login URL. For *Public Key Type* choose *URL* and enter the JWKS URL. Switch on *With shared deployment* and *Activate Deep-Linking*.",
+        "Send the values back: after saving, OpenOlat shows the *Client ID*, the *Deployment ID* and the *Platform ISS*. In the panel click *Next*, enter the Platform ISS as the address, the Client ID and the Deployment ID, and click *Connect*. The panel fills in the three OpenOlat endpoints itself.",
+        "Course element: in the course editor insert an *LTI page*, choose the tool under *LTI Version* in the *Page content* tab and save once. With *Select content* teachers pick the exam right from BenGER, otherwise they link it at the first launch. Switch on *Transmit firstname/name* and *Transmit e-mail address* and choose *Open in new window* under *Display*.",
+        "Grades: under the assessment configuration switch on *Transfer score*, keep the *Scaling factor* at 1 and set *Score needed to pass* to 4, or to 10 for French exams graded out of 20. OpenOlat takes the points as they are. Then publish the course and go on as in [Linking an exam to an activity](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "OpenOlat sends the name and the email address only when the LTI page allows it. Without an email address the page asks each person once for theirs after the consent. In OpenOlat participants also confirm the data transfer before their first launch.",
+        "The teacher view of an activity shows who in the course has not opened it yet. The list comes live from OpenOlat; BenGER does not store it.",
+        "A copied course gets new activities. Elements linked with *Select content* bring their exam along; teachers link all others again at the first launch."
+      ],
+      "pitfalls": [
+        "*With shared deployment* cannot be changed after the tool is created. Without it OpenOlat creates a Client ID and a Deployment ID for every LTI page, and each would need a connection of its own.",
+        "OpenOlat does not let the tool create further grade columns. The AI grade column and the collection with one column per task are therefore only available in Moodle. In OpenOlat each task gets its own LTI page.",
+        "With an embedded display BenGER opens its own window only after a click. With *Open in new window* this step is skipped."
+      ],
+      "keywords": [
+        "openolat",
+        "olat",
+        "lti",
+        "lti page",
+        "external tools",
+        "client id",
+        "deployment id",
+        "platform iss",
+        "shared deployment",
+        "deep linking",
+        "select content",
+        "transfer score",
+        "scaling factor"
+      ],
+      "links": [
+        "Preparing the connection",
+        "Linking an exam to an activity",
+        "Data protection for the integration",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
@@ -893,7 +938,7 @@
         "Setting up a connection",
         "Grades and the learning platform",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails"
+        "Launch from the learning platform fails"
       ]
     },
     "lti-teacher": {
@@ -1236,7 +1281,7 @@
       ]
     },
     "ts-lti-errors": {
-      "title": "Launch from Moodle or ILIAS fails",
+      "title": "Launch from the learning platform fails",
       "summary": "The error page shows an **error code**, and a **reference** for unexpected server errors. Find the code in the list below. Each entry gives the cause, the fix and who can help. Students contact their teachers, teachers contact the admins of their organization. The consent or confirmation page shows some errors itself, with a heading only. The list names these headings.",
       "steps": [
         "`invalid_request`: the learning platform sent an incomplete launch request. Open the activity again. If the error comes every time, the learning platform administration checks the tool settings.",

@@ -843,8 +843,8 @@
       ]
     },
     "lti-setup": {
-      "title": "Comment connecter notre organisation à Moodle ou ILIAS (LTI) ?",
-      "summary": "Via **LTI 1.3**. En tant qu'**administrateur de votre organisation**, vous préparez ici la connexion : clés API, panneau, adresse. Les étapes dans la plateforme d'apprentissage sont décrites séparément dans **Connecter Moodle** et **Connecter ILIAS**. La connexion est **active immédiatement**. Les administrateurs de groupe peuvent le faire pour leurs groupes.",
+      "title": "Comment connecter notre organisation à Moodle, ILIAS ou OpenOlat (LTI) ?",
+      "summary": "Via **LTI 1.3**. En tant qu'**administrateur de votre organisation**, vous préparez ici la connexion : clés API, panneau, adresse. Les étapes dans la plateforme d'apprentissage sont décrites séparément dans **Connecter Moodle**, **Connecter ILIAS** et **Connecter OpenOlat**. La connexion est **active immédiatement**. Les administrateurs de groupe peuvent le faire pour leurs groupes.",
       "steps": [
         "**Préparer les clés API** : [Utilisateurs et organisations](/users-organizations) → organisation → **Clés API** → activer **L'organisation fournit les clés API** et enregistrer une clé pour le modèle d'évaluation. Par défaut, ce sont des modèles d'OpenAI. Sans clé, il n'y a pas de correction par IA ni de repli sur une autre clé.",
         "**Ouvrir le panneau** : [Utilisateurs et organisations](/users-organizations) → choisir l'organisation → **Plus** → **Plateforme d'apprentissage (LTI)**. En haut, **Évaluation par IA et clés API** indique si la correction par IA est configurée.",
@@ -863,6 +863,7 @@
         "LTI",
         "Moodle",
         "ILIAS",
+        "OpenOlat",
         "plateforme d'apprentissage",
         "LMS",
         "intégration",
@@ -875,10 +876,11 @@
       "links": [
         "Connecter Moodle",
         "Connecter ILIAS",
+        "Connecter OpenOlat",
         "Gérer la connexion",
         "Lier un examen à une activité",
         "Protection des données de la connexion",
-        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Le lancement depuis la plateforme d'apprentissage échoue",
         "Référence technique pour votre service informatique (LTI 1.3)"
       ]
     },
@@ -917,7 +919,7 @@
         "Préparer la connexion",
         "Relier un examen à une activité",
         "Notes depuis la plateforme d'apprentissage",
-        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Le lancement depuis la plateforme d'apprentissage échoue",
         "Référence technique pour votre service informatique (LTI 1.3)"
       ]
     },
@@ -959,7 +961,50 @@
         "Préparer la connexion",
         "Lier un examen à une activité",
         "Confidentialité de la connexion",
-        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Le lancement depuis la plateforme d'apprentissage échoue",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-setup-openolat": {
+      "title": "Comment connecter OpenOlat ?",
+      "summary": "L'administration d'OpenOlat ajoute BenGER une seule fois comme *outil externe*. Vous lui transmettez trois URL, elle vous renvoie l'*Identifiant de client*, l'*Identifiant de déploiement* et l'identifiant de la plateforme (ISS), que vous saisissez dans le panneau. La connexion est alors active immédiatement, et les enseignants l'utilisent dans chaque cours avec l'élément de cours *Page LTI*.",
+      "steps": [
+        "Transmettre les URL à OpenOlat : dans le panneau, *Connecter une plateforme d'apprentissage* → *OpenOlat*. Choisissez l'adresse et, si besoin, un groupe. L'étape 1 affiche l'URL de lancement, l'URL de connexion et l'URL JWKS. Envoyez-les à l'administration d'OpenOlat.",
+        "Créer l'outil : dans OpenOlat, *Administration → Outils externes → LTI*, activez le *Module « LTI 1.3 »* dans l'onglet de configuration. Dans l'onglet des outils externes → *Créer un nouvel outil* : *URL de l'outil* et *URIs de redirection* reçoivent l'URL de lancement, *URL de requête d'authentification* l'URL de connexion. Pour le *Type de clé publique*, choisissez *Jeu de clés publiques* et saisissez l'URL JWKS. Activez *Avec déploiement partagé* et *Activer le Deep-Linking*.",
+        "Renvoyer les valeurs : après l'enregistrement, OpenOlat affiche l'*Identifiant de client*, l'*Identifiant de déploiement* et l'identifiant de la plateforme (ISS). Dans le panneau, cliquez sur *Suivant*, saisissez l'ISS comme adresse, l'identifiant de client et l'identifiant de déploiement, puis cliquez sur *Connecter*. Le panneau remplit lui-même les trois points d'accès d'OpenOlat.",
+        "Élément de cours : dans l'éditeur de cours, insérez une *Page LTI*, choisissez l'outil sous *Version LTI* dans l'onglet *Contenu page* et enregistrez une fois. Avec la sélection de contenu (Deep Linking), les enseignants choisissent l'examen directement dans BenGER, sinon ils le relient au premier lancement. Activez *Transmettre le nom au fournisseur* et *Transmettre l'adresse e-mail au fournisseur*, et choisissez *Ouvrir dans une nouvelle fenêtre* sous *Affichage*.",
+        "Notes : dans la configuration de l'évaluation, activez *Transfert du score*, laissez le *Facteur d'échelle* à 1 et réglez le *Score nécessaire pour « passé »* sur 10 pour les examens notés sur 20, ou sur 4 pour les examens allemands. OpenOlat reprend les points tels quels. Publiez ensuite le cours et poursuivez comme dans [Lier un examen à une activité](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "OpenOlat ne transmet le nom et l'adresse e-mail que si la page LTI l'autorise. Sans adresse e-mail, la page demande une fois à chaque personne son adresse après le consentement. Dans OpenOlat, les participants confirment aussi la transmission des données avant leur premier lancement.",
+        "La vue enseignant d'une activité indique qui, dans le cours, ne l'a pas encore ouverte. La liste vient en direct d'OpenOlat, BenGER ne l'enregistre pas.",
+        "Un cours copié reçoit de nouvelles activités. Les éléments reliés par la sélection de contenu emportent leur examen, les enseignants relient tous les autres au premier lancement."
+      ],
+      "pitfalls": [
+        "*Avec déploiement partagé* ne peut plus être modifié après la création de l'outil. Sans ce réglage, OpenOlat crée un identifiant de client et un identifiant de déploiement pour chaque page LTI, et chacun demanderait sa propre connexion.",
+        "OpenOlat ne laisse pas l'outil créer d'autres colonnes de notes. La colonne de note IA et la collection avec une colonne par tâche n'existent donc que dans Moodle. Dans OpenOlat, chaque tâche reçoit sa propre page LTI.",
+        "Avec un affichage intégré, BenGER n'ouvre sa propre fenêtre qu'après un clic. Avec *Ouvrir dans une nouvelle fenêtre*, cette étape disparaît."
+      ],
+      "keywords": [
+        "OpenOlat",
+        "OLAT",
+        "LTI",
+        "Page LTI",
+        "outils externes",
+        "identifiant de client",
+        "identifiant de déploiement",
+        "ISS",
+        "déploiement partagé",
+        "Deep Linking",
+        "sélection de contenu",
+        "Transfert du score",
+        "facteur d'échelle"
+      ],
+      "links": [
+        "Préparer la connexion",
+        "Lier un examen à une activité",
+        "Protection des données de la connexion",
+        "Le lancement depuis la plateforme d'apprentissage échoue",
         "Référence technique pour votre service informatique (LTI 1.3)"
       ]
     },
@@ -1017,7 +1062,7 @@
         "Configurer la connexion",
         "Notes depuis la plateforme d'apprentissage",
         "Protection des données de la connexion",
-        "Le lancement depuis Moodle ou ILIAS échoue"
+        "Le lancement depuis la plateforme d'apprentissage échoue"
       ]
     },
     "lti-teacher": {
@@ -1391,7 +1436,7 @@
       ]
     },
     "ts-lti-errors": {
-      "title": "Le lancement depuis Moodle ou ILIAS échoue",
+      "title": "Le lancement depuis la plateforme d'apprentissage échoue",
       "summary": "La page d'erreur indique un **code d'erreur** et, en cas d'erreur serveur inattendue, une **référence**. Cherchez le code dans la liste ci-dessous. Chaque entrée indique la cause, la solution et qui peut vous aider. Les étudiants s'adressent à leurs enseignants, les enseignants aux administrateurs de leur organisation. Certaines erreurs sont affichées directement par la page de consentement ou de confirmation, avec seulement un titre. La liste indique ces titres.",
       "steps": [
         "`invalid_request` : la plateforme d'apprentissage a envoyé une demande de lancement incomplète. Rouvrez l'activité. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",

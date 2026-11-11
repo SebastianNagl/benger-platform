@@ -1,5 +1,8 @@
 {
   "changelogEntries": {
+    "2026-11-11-lti-openolat": "You can now connect OpenOlat too: the “Connect learning platform” panel lists OpenOlat as a learning platform of its own, and the guide “How do I connect OpenOlat?” walks you through the setup.",
+    "2026-11-11-lti-deep-linking": "Teachers now pick the exam while creating the activity in the learning platform (“Select content” in Moodle and OpenOlat). The activity is linked when it is first opened.",
+    "2026-11-11-lti-course-roster": "The teacher view of an activity now shows who in the course has not opened it yet. When the learning platform embeds the activity, a click opens it in a window of its own instead of an empty frame.",
     "2026-11-06-link-lms-activities-project-page": "You can now link exams to learning platform activities right on the project page: \"Project visibility\" lists the unlinked activities of your connection. If the learning platform sends you as a student, the notice page takes you to linking through your BenGER account.",
     "2026-11-02-block-external-paste": "In “Annotation workflow & behavior” you can now decide whether text from other programs may be pasted while annotating. With pasting switched off, only text copied inside the platform can be pasted. It stays allowed by default.",
     "2026-10-30-full-api-access-keys": "Access keys now work on the whole BenGER API, not only under /api/v1. With the new \"Full API for research pipelines\" preset you register your own models and start generation and evaluation from your scripts. Organization keys can get the Admin role, and the full reference is at /api/v1/reference.",

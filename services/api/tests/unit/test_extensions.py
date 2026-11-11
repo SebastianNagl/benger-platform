@@ -159,7 +159,7 @@ class TestExtensionLoader:
         # hook and the reusable invitation helpers.
         # 2.50 adds exam tools (projects.exam_tools, tool providers, the
         # ExamToolDock / project-exam-tools / OrgToolProvidersPanel slots).
-        assert CORE_API_VERSION == "2.51"
+        assert CORE_API_VERSION == "2.52"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

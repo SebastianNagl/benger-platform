@@ -104,10 +104,13 @@ spec:
 {{- fail "frontend.ingress router.priority must stay below the LTI registration priority (benger.ltiRegisterPriority)" }}
 {{- end }}
 ---
-# IMS LTI Dynamic Registration on the main host(s). Moodle's "Add LTI
-# Advantage" shows /api/lti/register/init in an iframe, so this one path uses
-# the frameable header chain (no X-Frame-Options; the API answer carries a
-# CSP frame-ancestors for the LMS origin). Exact path, exact hosts only: a
+# The LTI pages an LMS frames, on the main host(s) (benger.ltiFrameablePaths):
+# IMS Dynamic Registration (Moodle's "Add LTI Advantage" shows
+# /api/lti/register/init in an iframe), the launch that turns an embedded
+# launch into a new window (and passes deep-linking requests to the picker),
+# and the deep-linking picker. These paths use the
+# frameable header chain (no X-Frame-Options; the API answer carries a CSP
+# frame-ancestors for the LMS origin). Exact path, exact hosts only: a
 # wildcard host at this priority would also catch other namespaces' hosts
 # (staging.<domain>, demo.<domain>). TLS is the frontend Ingress's.
 apiVersion: networking.k8s.io/v1
@@ -143,13 +146,15 @@ spec:
     - host: {{ . | quote }}
       http:
         paths:
-          - path: /api/lti/register/init
+          {{- range (include "benger.ltiFrameablePaths" $ | fromJsonArray) }}
+          - path: {{ . }}
             pathType: Exact
             backend:
               service:
                 name: {{ $.Release.Name }}-{{ $.Values.frontend.name }}
                 port:
                   number: {{ $.Values.frontend.service.port }}
+          {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}
@@ -287,8 +292,8 @@ spec:
                 port:
                   number: {{ .Values.frontend.service.port }}
 ---
-# IMS LTI Dynamic Registration on the vertretbar host: the one path an LMS
-# frames (see the lti-register Ingress above). Beats vertretbar-lti (110) and
+# The frameable LTI pages on the vertretbar host (see the lti-register
+# Ingress above). Beats vertretbar-lti (110) and
 # swaps its chain for the frameable one. No beta BasicAuth either.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -316,13 +321,15 @@ spec:
     - host: {{ .Values.vertretbar.host | quote }}
       http:
         paths:
-          - path: /api/lti/register/init
+          {{- range (include "benger.ltiFrameablePaths" . | fromJsonArray) }}
+          - path: {{ . }}
             pathType: Exact
             backend:
               service:
-                name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+                name: {{ $.Release.Name }}-{{ $.Values.frontend.name }}
                 port:
-                  number: {{ .Values.frontend.service.port }}
+                  number: {{ $.Values.frontend.service.port }}
+          {{- end }}
 {{- end }}
 ---
 {{- if and .Values.minio.enabled .Values.minio.ingress.enabled }}

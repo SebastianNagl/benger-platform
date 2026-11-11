@@ -18,7 +18,7 @@ resolves to the name the handler actually calls.
 # NOTE: most names below are imported here purely to be re-exported through
 # ``from ._common import *`` into the concern submodules (and patched by tests
 # at ``routers.auth.<submodule>.<name>``). They are therefore flagged F401 by
-# static analysis but are deliberately kept — hence the blanket ``# noqa: F401``.
+# static analysis but are deliberately kept, hence the blanket noqa for F401.
 import logging
 import traceback
 from datetime import datetime, timezone  # noqa: F401
