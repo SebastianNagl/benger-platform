@@ -784,11 +784,54 @@ whenever one is added, renamed or removed):
   ``tasks.exam_tools_sync_law_texts``, ``tasks.exam_tools_sync_link``,
   ``tasks.exam_tools_sync_org_connection``, ``tasks.exam_tools_nightly_sync``
   and ``tasks.exam_tools_gc_bundles`` route to maintenance.
+
+2.51 (2026-11-11): requirements of a step, and grading per requirement.
+  A step node of a Bewertungsbogen structure may list ``requirements``
+  (``{text, points, standard, element}``; half-point BE that add up to the
+  step's ``max_score``; ``standard`` null or ``"folgerichtig"``, ``element``
+  null or ``"definition"``). ``rubric_structure``: ``step_requirements``,
+  ``requirement_lines``, ``has_requirements``,
+  ``checklist_spec_from_structure``, ``stored_checklist_spec``,
+  ``rubric_checklist_spec``,
+  ``REQUIREMENT_STANDARD_RULE`` / ``REQUIREMENT_DEFINITION_RULE`` (the
+  closing sentences of an outline rendering) and
+  ``rubric_prompt_text(..., alternatives="branch" | "replace")``. The
+  Bewertungsbogen judge grades a sheet per requirement in every lane when
+  every step of its outline lists requirements
+  (``LLMJudgeEvaluator.bind_task_rubric(rubric, margin_notes, score_unit)``;
+  ``metric_parameters.rubric_score_unit``: ``"binary"`` by default,
+  ``"bullet"``, or ``"step"`` for one number per step). The scoring data is
+  the generator's own (``generation_metadata.checklist_spec``) while the row
+  still carries the text it was rendered with, else the one built from the
+  outline; a sheet without requirements in its outline keeps one number per
+  step. ``ml_evaluation.checklist_scoring`` gains the score unit
+  ``"binary"`` (states ``erfuellt``, ``nicht_erfuellt``,
+  ``nicht_einschlaegig``, ``unsicher``; ``zitat_nicht_belegt`` set by code;
+  a status word that names no state reads as ``unsicher``),
+  ``binary_state``, ``requirement_worth``, ``build_schema_within`` and
+  ``mock_judgment``; the judge's notes
+  (``judge_notes``) and the end-to-end test mode now cover that lane too.
+  Evaluation rows of such a grading carry ``details.checklist`` (with
+  ``unsettled_be`` and ``not_applicable_be``; either can set
+  ``assessment_status`` to ``review_required``) and
+  ``details.assessment``, and each step of ``details.scores`` its
+  ``anforderungen``. A row without scores keeps ``details.assessment`` when
+  the judge wrote one. An edit of a generated sheet's outline drops
+  ``generation_metadata.checklist_spec`` and ``rendered_text_replace``
+  together with ``rendered_text``; an edit that leaves the outline as it is
+  keeps them, and every new version keeps ``contract_version`` and
+  ``review``. The requirement lane owns its prompts
+  (the grading template of a project's config is not used there);
+  ``rubric_judge_prompts.requirement_judge_prompts()`` serves them to
+  readers outside the worker from ``rubric_requirement_prompts.json``, a
+  file written from the worker code
+  (``services/workers/scripts/write_rubric_requirement_prompts.py``, pinned
+  by the workers suite).
 """
 
 import os
 
-CORE_API_VERSION = "2.50"
+CORE_API_VERSION = "2.51"
 
 
 def extended_required() -> bool:

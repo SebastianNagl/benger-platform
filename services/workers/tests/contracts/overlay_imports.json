@@ -1,5 +1,5 @@
 {
-  "generated_from": "b2582c9d34cf202ba058daccb7b80d3284fbfd7b",
+  "generated_from": "5be4e7c4ad7547be4da7ea570d98cb77fec050e7",
   "api_shared": [
     {
       "module": "account_activation",
@@ -843,6 +843,7 @@
       "name": "EvaluationRun",
       "importers": [
         "benger_extended/api/grade_headline.py",
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
@@ -940,6 +941,7 @@
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/launch.py",
         "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/project_linking.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -968,6 +970,7 @@
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
+        "benger_extended/lti/project_linking.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -1103,6 +1106,7 @@
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/dynamic_registration.py",
+        "benger_extended/lti/project_linking.py",
         "benger_extended/lti/provisioning.py",
         "benger_extended/lti/teacher_access.py",
         "benger_extended/marketplace/service.py"
@@ -1641,6 +1645,7 @@
         "benger_extended/exam_tools/validation.py",
         "benger_extended/live_activity/presence.py",
         "benger_extended/lti/billing.py",
+        "benger_extended/lti/project_linking.py",
         "benger_extended/marketplace/service.py",
         "benger_extended/workers/ocr_tasks.py"
       ]
@@ -2119,6 +2124,7 @@
       "module": "routers.projects.helpers",
       "name": "check_user_can_edit_task_data_async",
       "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/student_decks.py"
       ]
     },
@@ -2269,6 +2275,13 @@
       "name": "select_due_counts_by_project",
       "importers": [
         "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "rubric_judge_prompts",
+      "name": "requirement_judge_prompts",
+      "importers": [
+        "benger_extended/api/routers/judge_prompts.py"
       ]
     },
     {

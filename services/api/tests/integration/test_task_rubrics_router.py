@@ -388,6 +388,75 @@ class TestUpdate:
         assert task.data["bewertungsbogen"].startswith("BEWERTUNGSBOGEN: Bearbeitet")
 
     @pytest.mark.asyncio
+    async def test_edit_of_a_generated_sheet_drops_its_scoring_data_and_keeps_its_requirements(
+        self, async_test_client, async_test_db
+    ):
+        """A generated sheet is stored with two rendered texts and the scoring
+        data of the requirement-level judge. After an edit of the outline all
+        three describe another sheet: they go together, and the judge grades
+        by the requirements the edited outline lists (core 2.51)."""
+        from rubric_structure import rubric_checklist_spec
+
+        owner = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, owner)
+        task = await _make_task(async_test_db, project)
+        stored_spec = {"version": 1, "total_points": 100.0, "order": ["alt"], "steps": {"alt": {"max_score": 100}}}
+        rubric = await _seed_rubric(
+            async_test_db, project, task, status="candidate", source="llm",
+            metadata={
+                "rendered_text": "BEWERTUNGSBOGEN (100 BE)", "rendered_text_replace": "BEWERTUNGSBOGEN (100 BE) …",
+                "checklist_spec": stored_spec, "contract_version": "checklist-8",
+                "full_document": {"abschnitte": []}, "review": {"to_confirm": []},
+            },
+        )
+        await async_test_db.commit()
+
+        edited = {
+            "version": 1,
+            "nodes": [
+                {"id": "a", "level": 0, "kind": "section", "label": "A.", "title": "Anspruch"},
+                {"id": "s", "level": 1, "kind": "step", "label": "I.", "title": "Kaufvertrag", "max_score": 3,
+                 "requirements": [
+                     {"text": "Definiert den Kaufvertrag: (1) Einigung, (2) Kaufsache", "points": 1, "element": "definition"},
+                     {"text": "Subsumiert die Erklärungen", "points": 2, "standard": "folgerichtig"},
+                 ]},
+            ],
+        }
+        with _as_user(owner):
+            resp = await async_test_client.put(
+                f"/api/projects/{project.id}/task-rubrics/{rubric.id}", json={"structure": edited}
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        meta = body["generation_metadata"]
+        assert not {"rendered_text", "rendered_text_replace", "checklist_spec"} & set(meta)
+        assert meta["rendered_text_invalidated_by_edit"] is True
+        # Provenance and the review notes stay.
+        assert meta["contract_version"] == "checklist-8" and meta["full_document"] == {"abschnitte": []}
+        assert meta["review"] == {"to_confirm": []}
+        step = body["structure"]["nodes"][1]
+        assert step["requirements"] == [
+            {"text": "Definiert den Kaufvertrag: (1) Einigung, (2) Kaufsache", "points": 1, "standard": None,
+             "element": "definition"},
+            {"text": "Subsumiert die Erklärungen", "points": 2, "standard": "folgerichtig", "element": None},
+        ]
+        assert "- [2] Subsumiert die Erklärungen (2 BE; folgerichtig)" in body["criteria"][step["key"]]["rubric"]
+
+        await async_test_db.refresh(rubric)
+        spec = rubric_checklist_spec(rubric)
+        assert spec["source"] == "structure" and spec["order"] == [step["key"]]
+        assert [b["punkte"] for b in spec["steps"][step["key"]]["anforderungen"]] == [1, 2]
+
+        # Requirements that do not add up to their step are refused, and the row stays.
+        broken = {"version": 1, "nodes": [dict(edited["nodes"][1], level=0, max_score=5)]}
+        with _as_user(owner):
+            resp = await async_test_client.put(
+                f"/api/projects/{project.id}/task-rubrics/{rubric.id}", json={"structure": broken}
+            )
+        assert resp.status_code == 422
+        assert "the requirements add up to 3 BE, the step carries 5 BE" in resp.text
+
+    @pytest.mark.asyncio
     async def test_edit_referenced_rubric_clones(self, async_test_client, async_test_db):
         owner = await _make_user(async_test_db)
         project = await _make_project(async_test_db, owner)
@@ -428,6 +497,55 @@ class TestUpdate:
         await async_test_db.refresh(task)
         assert "[Schlüssel: s02_obersatz]" in task.data["bewertungsbogen"]
         assert "8 BE" in task.data["bewertungsbogen"]  # custom scale rendered in the mirror
+
+    @pytest.mark.asyncio
+    async def test_a_clone_keeps_what_still_describes_it(self, async_test_client, async_test_db):
+        """A sheet that gradings reference is cloned on edit. A new
+        Notenschlüssel leaves the outline as it is, so the rendered texts and
+        the scoring data (with the sheet's alternative paths) go to the
+        clone, as they stay after the same edit in place; an edit of the
+        outline drops them. The review notes and their confirmation go to
+        the clone either way."""
+        owner = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, owner)
+        task = await _make_task(async_test_db, project)
+        review = {"to_confirm": [{"typ": "angabe_zu_bestaetigen", "beschreibung": "x", "schritt_ids": []}],
+                  "confirmed": {"by": "u1", "at": "2026-11-11T00:00:00+00:00"}}
+        spec = {"version": 1, "order": ["s01_alt"], "weichenstellungen": [{"id": "W1"}]}
+        rubric = await _seed_rubric(
+            async_test_db, project, task, status="active", source="llm",
+            metadata={"rendered_text": "R", "rendered_text_replace": "RR", "checklist_spec": spec,
+                      "contract_version": "checklist-8", "review": review, "full_document": {"a": 1}},
+        )
+        await _seed_grading(async_test_db, project, task, rubric, owner)
+        await async_test_db.commit()
+
+        scale_100 = {**SCALE_72, "thresholds": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96]}
+        with _as_user(owner):
+            scale_only = await async_test_client.put(
+                f"/api/projects/{project.id}/task-rubrics/{rubric.id}", json={"grade_scale": scale_100},
+            )
+        assert scale_only.status_code == 200, scale_only.text
+        body = scale_only.json()
+        assert body["id"] != rubric.id and body["status"] == "active"
+        assert body["generation_metadata"] == {
+            "cloned_from": rubric.id, "contract_version": "checklist-8", "review": review,
+            "rendered_text": "R", "rendered_text_replace": "RR", "checklist_spec": spec,
+        }
+
+        clone = await _reload_rubric(async_test_db, body["id"])
+        await _seed_grading(async_test_db, project, task, clone, owner)
+        await async_test_db.commit()
+        with _as_user(owner):
+            outline = await async_test_client.put(
+                f"/api/projects/{project.id}/task-rubrics/{clone.id}", json={"structure": _structure()},
+            )
+        assert outline.status_code == 200, outline.text
+        second = outline.json()
+        assert second["id"] not in (rubric.id, clone.id)
+        assert second["generation_metadata"] == {
+            "cloned_from": clone.id, "contract_version": "checklist-8", "review": review,
+        }
 
     @pytest.mark.asyncio
     async def test_noop_edit_of_referenced_rubric_does_not_clone(self, async_test_client, async_test_db):

@@ -240,6 +240,12 @@ def _build_multidim_judge_row_metrics(
                             (multidim or {}).get("_raw_output", "")
                         ),
                         "call_metadata": (multidim or {}).get("_call_metadata", {}),
+                        # A judge that found the inputs not evaluable says why.
+                        **(
+                            {"assessment": _scrub_control_chars(multidim["assessment"])}
+                            if isinstance((multidim or {}).get("assessment"), dict)
+                            else {}
+                        ),
                     },
                     "error": _strip_control_chars(
                         error_msg
@@ -268,6 +274,14 @@ def _build_multidim_judge_row_metrics(
     # anchored to passages of the answer.
     if multidim.get("annotations") is not None:
         details["annotations"] = _scrub_control_chars(multidim["annotations"])
+    # A sheet graded per requirement (ml_evaluation.checklist_scoring): how it
+    # was scored (unit, totals of every reading, the path counted at each
+    # Weichenstellung) and the judge's findings beside the points (status,
+    # review reasons, error chains, improvements). The requirement marks
+    # themselves are part of ``scores``.
+    for key in ("checklist", "assessment"):
+        if isinstance(multidim.get(key), dict):
+            details[key] = _scrub_control_chars(multidim[key])
     # llm_judge_rubric provenance: which task_rubrics row produced the
     # criteria this row was scored against.
     if multidim.get("rubric_id"):

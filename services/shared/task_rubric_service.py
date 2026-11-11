@@ -130,6 +130,10 @@ def _node_signature(node: Dict[str, Any]) -> tuple:
         node.get("max_score"),
         node.get("emphasis"),
         tuple(node.get("hints") or []),
+        tuple(
+            (r.get("text"), r.get("points"), r.get("standard"), r.get("element"))
+            for r in node.get("requirements") or []
+        ),
     )
 
 
@@ -263,11 +267,16 @@ async def edit_task_rubric(
         rubric.structure = normalized
         rubric.criteria = criteria_from_structure(normalized)
         rubric.total_points = float(total_points_from_structure(normalized))
-        # The pre-rendered document text now disagrees with the edited
-        # outline — drop it so the judge renders the structure (the full
-        # generator document stays as provenance).
+        # The pre-rendered document text and the scoring data written with
+        # it now disagree with the edited outline. Drop them, so the judge
+        # renders the structure and grades by the requirements the outline
+        # itself lists (the full generator document stays as provenance).
         metadata = dict(rubric.generation_metadata or {})
-        if metadata.pop("rendered_text", None) is not None:
+        dropped = [
+            metadata.pop(key, None)
+            for key in ("rendered_text", "rendered_text_replace", "checklist_spec")
+        ]
+        if any(value is not None for value in dropped):
             metadata["rendered_text_invalidated_by_edit"] = True
             rubric.generation_metadata = metadata
     if scale_changed:
@@ -296,8 +305,21 @@ async def _clone_for_edit(
 ) -> TaskRubric:
     old_meta = dict(old.generation_metadata or {})
     clone_meta: Dict[str, Any] = {"cloned_from": old.id}
-    if "contract_version" in old_meta:
-        clone_meta["contract_version"] = old_meta["contract_version"]
+    # The contract version, and the review notes of a generated sheet with
+    # the record of who confirmed them: an overlay asks for the confirmation
+    # before a sheet with open notes is activated, and an edit must neither
+    # lose the notes nor the confirmation (the edit in place keeps both).
+    for key in ("contract_version", "review"):
+        if key in old_meta:
+            clone_meta[key] = old_meta[key]
+    if structure is UNSET:
+        # Only the Notenschlüssel changed: the rendered texts and the scoring
+        # data written for the outline still describe the clone, as they do
+        # after the same edit in place. Without them the clone would lose
+        # the sheet's alternative solution paths.
+        for key in ("rendered_text", "rendered_text_replace", "checklist_spec"):
+            if key in old_meta:
+                clone_meta[key] = old_meta[key]
 
     if structure is not UNSET:
         clone_structure = structure

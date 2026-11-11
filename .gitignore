@@ -203,6 +203,10 @@ targeted_fix.py
 !services/api/tests/contracts/*.json
 !services/workers/tests/contracts/*.json
 
+# Unignore the prompts of the requirement-level rubric judge, written from the
+# worker code (services/workers/scripts/write_rubric_requirement_prompts.py)
+!services/shared/rubric_requirement_prompts.json
+
 # Unignore root-level JSON files that are meant to be tracked
 !package.json
 !package-lock.json

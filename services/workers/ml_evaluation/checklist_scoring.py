@@ -13,6 +13,13 @@ Score units (what the judge returns per step):
 
 ``bullet``  status per requirement: 0 not met, 1 partly met, 2 met.
             Step points = max * sum(share * credit), credit 0 / 0.5 / 1.
+``binary``  one state per requirement: met, not met, not applicable or
+            uncertain, with a short reason for every state but met. Points
+            come from met requirements only, each worth its share of the
+            step. A met requirement whose quote does not verify becomes a
+            fifth state set by code (``zitat_nicht_belegt``); the judge's
+            own state stays beside it, and the proposed totals (the
+            judge's states as written) stand next to the verified ones.
 ``step``    one score per step on the half-point grid (the classic sheet).
 ``rating``  one grade per step on the 0-18 Notenpunkte scale (JurPrNotSkV
             anchors). Two aggregations: (a) the mean of the grades
@@ -43,10 +50,24 @@ import math
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-SCORE_UNITS = ("bullet", "step", "rating")
+SCORE_UNITS = ("bullet", "binary", "step", "rating")
+# The units in which the judge marks each requirement of a step.
+REQUIREMENT_UNITS = ("bullet", "binary")
 ALTERNATIVES = ("branch", "replace")
 TOTAL_MODES = ("declared", "best")
 STATUS_CREDIT = {0: 0.0, 1: 0.5, 2: 1.0}
+# The binary unit: the states the judge writes, and the one code sets when a
+# met requirement's quote is not found in the answer.
+STATE_MET = "erfuellt"
+STATE_NOT_MET = "nicht_erfuellt"
+STATE_NOT_APPLICABLE = "nicht_einschlaegig"
+STATE_UNCERTAIN = "unsicher"
+STATE_CHECK_FAILED = "zitat_nicht_belegt"
+BINARY_STATES = (STATE_MET, STATE_NOT_MET, STATE_NOT_APPLICABLE, STATE_UNCERTAIN)
+# A script is flagged for review when the requirements the judge could not
+# settle (uncertain, or met without a quote that verifies) carry more than
+# this share of the sheet's points.
+UNSETTLED_REVIEW_SHARE = 0.10
 RATING_MAX = 18
 PRIMARY = "musterloesung"
 
@@ -196,10 +217,10 @@ def validate_options(score_unit: str, alternatives: str, total_mode: str) -> Non
         raise ValueError(f"alternatives must be one of {ALTERNATIVES}, got {alternatives!r}")
     if total_mode not in TOTAL_MODES:
         raise ValueError(f"total_mode must be one of {TOTAL_MODES}, got {total_mode!r}")
-    if alternatives == "replace" and score_unit == "bullet":
+    if alternatives == "replace" and score_unit in REQUIREMENT_UNITS:
         # The bullets of a replaced step are that step's own requirements;
         # another path's performance has no bullet to land on.
-        raise ValueError("alternatives='replace' needs score_unit 'step' or 'rating', not 'bullet'")
+        raise ValueError(f"alternatives='replace' needs score_unit 'step' or 'rating', not {score_unit!r}")
 
 
 class ChecklistSpecError(ValueError):
@@ -244,10 +265,14 @@ def _step_problems(where: str, step: Any, score_unit: str) -> List[str]:
     problems = []
     if not _is_finite_number(step.get("max_score")) or float(step["max_score"]) < 0:
         problems.append(f"{where}.max_score must be a number >= 0 (got {step.get('max_score')!r})")
-    if score_unit == "bullet":
+    if score_unit in REQUIREMENT_UNITS:
         bullets = step.get("anforderungen")
         if bullets is not None and not isinstance(bullets, list):
             problems.append(f"{where}.anforderungen must be a list")
+        elif score_unit == "binary" and not bullets:
+            # Points come from met requirements only: a step without any
+            # could never earn its points.
+            problems.append(f"{where}.anforderungen must list at least one requirement")
         for i, bullet in enumerate(bullets if isinstance(bullets, list) else [], start=1):
             if not isinstance(bullet, dict):
                 problems.append(f"{where}.anforderungen[b{i}] must be an object")
@@ -507,6 +532,20 @@ _UNIT_RULES = {
         "Bearbeitung, auf die sich der Status stützt.",
         "Gibt es keine solche Stelle, bleibt \"evidence\" leer und die Anforderung erhält den Status 0.",
     ),
+    "binary": (
+        "Bewerte jede Anforderung eines Schritts einzeln im Feld \"status\": \"erfuellt\" = die Bearbeitung "
+        "erbringt die beschriebene Teilleistung vollständig; \"nicht_erfuellt\" = sie erbringt sie nicht oder nur "
+        "zum Teil; \"nicht_einschlaegig\" = die Anforderung entfällt, weil eine vertretbare eigene Entscheidung "
+        "der Bearbeitung sie abschneidet; \"unsicher\" = die Bearbeitung lässt sich für diese Anforderung nicht "
+        "sicher beurteilen. Eine Zwischenstufe gibt es nicht. Das bloße Nennen eines Stichworts, einer Norm oder "
+        "eines Ergebnisses ist \"nicht_erfuellt\", wenn die Anforderung mehr verlangt. Punkte gibt es nur für "
+        "erfüllte Anforderungen; die Maschine rechnet sie aus.",
+        "Zitiere für jede erfüllte Anforderung im Feld \"evidence\" wörtlich die Stelle der Bearbeitung, auf die "
+        "sich der Status stützt.",
+        "Gibt es keine solche Stelle, bleibt \"evidence\" leer und die Anforderung ist nicht erfüllt. Nenne für "
+        "jeden anderen Status als \"erfuellt\" im Feld \"grund\" in wenigen Worten den Grund; bei \"erfuellt\" "
+        "bleibt \"grund\" leer.",
+    ),
     "step": (
         "Vergib für jeden Schritt im Feld \"score\" Punkte nach seinen Anforderungen und danach, wie "
         "vollständig und richtig die Bearbeitung ihn behandelt. Halbe Bewertungseinheiten sind zulässig. "
@@ -700,6 +739,42 @@ def closing_rules(score_unit: str, alternatives: str, weichenstellungen: bool = 
 
 MISSING_KEYS_SHOWN = 40
 
+_STATE_SEPARATORS = re.compile(r"[\s\-]+")
+_UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
+
+
+def binary_state(value: Any) -> Tuple[str, str]:
+    """``(state, the judge's status as kept in the row)`` for one requirement
+    of the binary unit.
+
+    The schema holds the judge to the four states where the provider
+    enforces enums and the sheet is small enough for them
+    (:func:`build_schema_within`). Elsewhere a judge may write "erfüllt" or
+    "Nicht erfüllt": such spellings are read as the state they name. A word
+    that names no state is not a judgment the code can count either way, so
+    the requirement is uncertain (it earns nothing and counts toward the
+    review flag), and the row keeps the word the judge wrote."""
+    if isinstance(value, str):
+        if value in BINARY_STATES:
+            return value, value
+        folded = _STATE_SEPARATORS.sub("_", value.strip().casefold().translate(_UMLAUTS))
+        if folded in BINARY_STATES:
+            return folded, folded
+        return STATE_UNCERTAIN, value.strip()[:60]
+    return STATE_UNCERTAIN, "" if value is None else str(value)[:60]
+
+
+def requirement_worth(bullet: Dict[str, Any], step_max: float) -> float:
+    """The BE of one requirement: its own points where the spec states them
+    (half points since checklist-6 and in every spec built from an outline),
+    else its share of the step. Stated points keep the stored marks on the
+    half-point grid, which a product of step maximum and share does not
+    always do (7.5 of 11 BE comes back as 7.499999999999999)."""
+    punkte = bullet.get("punkte")
+    if isinstance(punkte, (int, float)) and not isinstance(punkte, bool) and math.isfinite(punkte) and punkte >= 0:
+        return float(punkte)
+    return step_max * float(bullet.get("share") or 0)
+
 
 def missing_keys_note(missing: List[str]) -> str:
     """The retry note after a judgment that lacks keys (``finalize`` returned
@@ -754,11 +829,25 @@ def build_schema(spec: Dict[str, Any], score_unit: str, alternatives: str) -> Di
 
     Scores are enums when the whole schema stays within the strict-mode
     caps; otherwise they fall back to numeric ranges."""
+    return build_schema_within(spec, score_unit, alternatives)[0]
+
+
+def build_schema_within(
+    spec: Dict[str, Any],
+    score_unit: str,
+    alternatives: str,
+    extra_enum_values: int = 0,
+    extra_properties: int = 0,
+) -> Tuple[Dict[str, Any], bool]:
+    """:func:`build_schema` for a caller that adds properties of its own to
+    the top level (the judge's notes): ``(schema, enums used)``. The extra
+    enum values and properties count against the strict-mode caps, and the
+    caller builds its part with or without enums as the second value says."""
     schema = _schema(spec, score_unit, alternatives, use_enum=True)
     enums, properties = schema_budget(schema)
-    if enums > _MAX_ENUM_VALUES or properties > _MAX_PROPERTIES:
-        schema = _schema(spec, score_unit, alternatives, use_enum=False)
-    return schema
+    if enums + extra_enum_values > _MAX_ENUM_VALUES or properties + extra_properties > _MAX_PROPERTIES:
+        return _schema(spec, score_unit, alternatives, use_enum=False), False
+    return schema, True
 
 
 def _schema(spec: Dict[str, Any], score_unit: str, alternatives: str, use_enum: bool) -> Dict[str, Any]:
@@ -771,6 +860,16 @@ def _schema(spec: Dict[str, Any], score_unit: str, alternatives: str, use_enum: 
                 status = ({"type": "integer", "enum": [0, 1, 2]} if use_enum
                           else {"type": "integer", "minimum": 0, "maximum": 2})
                 bullets[f"b{i}"] = _closed({"evidence": {"type": "string"}, "status": status})
+            body = {"anforderungen": _closed(bullets)}
+        elif score_unit == "binary":
+            bullets = {}
+            for i, _ in enumerate(step.get("anforderungen") or [], start=1):
+                # Without the enum (a sheet too large for the strict-mode
+                # caps) any other word is read as not met.
+                status = {"type": "string", "enum": list(BINARY_STATES)} if use_enum else {"type": "string"}
+                bullets[f"b{i}"] = _closed(
+                    {"evidence": {"type": "string"}, "status": status, "grund": {"type": "string"}}
+                )
             body = {"anforderungen": _closed(bullets)}
         elif score_unit == "step":
             mx = float(step["max_score"])
@@ -808,7 +907,7 @@ def expected_output_note(spec: Dict[str, Any], score_unit: str, alternatives: st
     for key, step in scored_steps(spec, alternatives):
         n = len(step.get("anforderungen") or [])
         parts = []
-        if score_unit == "bullet" and n:
+        if score_unit in REQUIREMENT_UNITS and n:
             parts.append(f"Anforderungen b1 bis b{n}")
             folge = [f"b{i}" for i, b in enumerate(step.get("anforderungen") or [], start=1)
                      if b.get("massstab") == "folgerichtig"]
@@ -822,8 +921,76 @@ def expected_output_note(spec: Dict[str, Any], score_unit: str, alternatives: st
 
 
 # ---------------------------------------------------------------------------
+# A judgment without a judge (end-to-end test mode)
+# ---------------------------------------------------------------------------
+
+
+def mock_judgment(
+    spec: Dict[str, Any], score_unit: str, alternatives: str, evidence: str, seed_text: str = ""
+) -> Dict[str, Any]:
+    """A deterministic answer in the shape of :func:`build_schema`, for the
+    evaluator's end-to-end test mode (no provider call). Every credited item
+    quotes ``evidence``; which items are credited follows a hash of the key
+    and ``seed_text``, so the same input always gives the same sheet. At a
+    Weichenstellung the Musterlösung's path is declared."""
+    import hashlib
+
+    def draw(key: str) -> int:
+        return int(hashlib.sha256(f"{key}:{seed_text}".encode()).hexdigest()[:8], 16)
+
+    reason = "Mock evaluation (E2E test mode)"
+    scores: Dict[str, Any] = {}
+    for key, step in scored_steps(spec, alternatives):
+        entry: Dict[str, Any] = {}
+        if score_unit in REQUIREMENT_UNITS:
+            bullets = {}
+            for i, _ in enumerate(step.get("anforderungen") or [], start=1):
+                credited = draw(f"{key}.b{i}") % 10 < 7
+                if score_unit == "binary":
+                    bullets[f"b{i}"] = {
+                        "evidence": evidence if credited else "",
+                        "status": STATE_MET if credited else STATE_NOT_MET,
+                        "grund": "" if credited else reason,
+                    }
+                else:
+                    bullets[f"b{i}"] = {"evidence": evidence if credited else "", "status": 2 if credited else 0}
+            entry["anforderungen"] = bullets
+        elif score_unit == "step":
+            mx = float(step["max_score"])
+            entry.update(evidence=evidence, score=round_half_up(mx * (0.6 + draw(key) % 40 / 100)))
+        else:
+            entry.update(evidence=evidence, note=7 + draw(key) % 9)
+        entry.update(abweichender_weg=False, fehlplatziert=False, reason=reason)
+        scores[key] = entry
+    body: Dict[str, Any] = {"scores": scores}
+    if alternatives == "branch" and spec.get("weichenstellungen"):
+        body["weichenstellungen"] = {
+            w["id"]: {"gefolgter_loesungsweg": PRIMARY, "evidence": evidence, "reason": reason}
+            for w in spec["weichenstellungen"]
+        }
+    body.update(
+        overall_assessment=reason,
+        assessment_status="scored",
+        work_products=[],
+        supplementary_reviews=[
+            {"subject": "Hilfsgutachten", "requirement_basis": "Bewertungsbogen", "status": "not_required",
+             "assumption": None, "reason": reason}
+        ],
+        error_chains=[],
+        review_reasons=[],
+        improvements=[],
+    )
+    return body
+
+
+# ---------------------------------------------------------------------------
 # Finalization
 # ---------------------------------------------------------------------------
+
+
+def _fmt_be(value: float) -> str:
+    """BE for a German sentence: one decimal at most, decimal comma."""
+    return f"{round(float(value), 1):g}".replace(".", ",")
 
 
 def _coerce_int(value: Any, lo: int, hi: int) -> int:
@@ -863,7 +1030,16 @@ def finalize(
     exam's key for the rating unit (:func:`rating_percent_table`; ``None`` is
     the platform default).
 
-    Malformed values of the answer are coerced (to 0, or to the
+    The binary unit adds to ``checklist``: ``states`` (count and BE of the
+    requirements per final state on the counted path), ``totals_proposed``
+    (the judge's states before the quote check, same modes as ``totals``)
+    and ``unsettled_be`` (uncertain or met without a verified quote). Its
+    requirements carry ``status``, ``model_status``, ``grund``, ``max`` and
+    ``score``. More than :data:`UNSETTLED_REVIEW_SHARE` of the sheet's
+    points unsettled, or a declared other path that fell back, sets
+    ``review_required``; no point changes.
+
+    Malformed values of the answer are coerced (to 0, to not met, or to the
     Musterlösung's path), never raised on. An exception from here therefore
     comes from the spec, the key or the code and repeats for the same
     input, so the evaluator reports it at once instead of paying for a
@@ -877,7 +1053,7 @@ def finalize(
         if not isinstance(entry, dict):
             missing.append(key)
             continue
-        if score_unit == "bullet":
+        if score_unit in REQUIREMENT_UNITS:
             bullets = entry.get("anforderungen") if isinstance(entry.get("anforderungen"), dict) else {}
             for i, _ in enumerate(step.get("anforderungen") or [], start=1):
                 if not isinstance(bullets.get(f"b{i}"), dict):
@@ -894,6 +1070,9 @@ def finalize(
     rating_table = rating_percent_table(grade_scale, total_points) if score_unit == "rating" else None
     out: Dict[str, Dict[str, Any]] = {}
     raw_points: Dict[str, float] = {}
+    # Binary unit only: per step, the points of the judge's own states
+    # (before the quote check).
+    proposed_points: Dict[str, float] = {}
     zeroed = 0
     deviating = 0
     misplaced = 0
@@ -917,6 +1096,35 @@ def finalize(
                 bullets_out[f"b{i}"] = {"status": status, "model_status": model_status,
                                         "evidence": evidence, "evidence_verified": verified}
             detail["anforderungen"] = bullets_out
+        elif score_unit == "binary":
+            bullets_out = {}
+            points = 0.0
+            proposed = 0.0
+            for i, bullet in enumerate(step.get("anforderungen") or [], start=1):
+                raw = entry["anforderungen"][f"b{i}"]
+                model_state, model_status = binary_state(raw.get("status"))
+                evidence = raw.get("evidence") if isinstance(raw.get("evidence"), str) else ""
+                verified = verify(evidence) if evidence.strip() else False
+                worth = requirement_worth(bullet, mx)
+                grund = raw.get("grund").strip() if isinstance(raw.get("grund"), str) else ""
+                if model_status != model_state and not grund:
+                    grund = f"Status nicht erkannt: {model_status}" if model_status else "Kein Status angegeben"
+                state = model_state
+                if model_state == STATE_MET:
+                    proposed += worth
+                    if verified:
+                        points += worth
+                    else:
+                        state = STATE_CHECK_FAILED
+                        zeroed += 1
+                bullets_out[f"b{i}"] = {
+                    "status": state, "model_status": model_status,
+                    "evidence": evidence, "evidence_verified": verified,
+                    "grund": grund,
+                    "max": worth, "score": worth if state == STATE_MET else 0.0,
+                }
+            detail["anforderungen"] = bullets_out
+            proposed_points[key] = max(0.0, min(mx, proposed))
         elif score_unit == "step":
             try:
                 model_score = max(0.0, min(mx, round_half_up(float(entry.get("score") or 0))))
@@ -991,6 +1199,30 @@ def finalize(
     # and the review flags follow it.
     counted = counted_by_mode[total_mode]
 
+    # Binary unit: the proposed totals (the judge's states as written) next
+    # to the verified ones above, and what the requirements of each final
+    # state are worth on the counted path.
+    binary: Optional[Dict[str, Any]] = None
+    if score_unit == "binary":
+        states: Dict[str, Dict[str, float]] = {}
+        for k in counted:
+            for item in out[k]["anforderungen"].values():
+                bucket = states.setdefault(item["status"], {"count": 0, "be": 0.0})
+                bucket["count"] += 1
+                bucket["be"] += item["max"]
+        proposed_unrounded = {
+            mode: sum(proposed_points.get(k, 0.0) for k in keys) for mode, keys in counted_by_mode.items()
+        }
+        binary = {
+            "states": states,
+            "totals_proposed": {mode: round_half_up(value) for mode, value in proposed_unrounded.items()},
+            "totals_proposed_unrounded": proposed_unrounded,
+            "unsettled_be": sum(
+                states.get(state, {}).get("be", 0.0) for state in (STATE_UNCERTAIN, STATE_CHECK_FAILED)
+            ),
+            "not_applicable_be": states.get(STATE_NOT_APPLICABLE, {}).get("be", 0.0),
+        }
+
     # The step scores shown add up to the total shown.
     shown = [k for k in counted_by_mode[total_mode] if k in raw_points]
     shown_scores = distribute_half_points(
@@ -1035,6 +1267,35 @@ def finalize(
             if assessment["assessment_status"] == "scored":
                 assessment["assessment_status"] = "review_required"
             reasons.append(f"Arbeitsergebnis {pid} als fehlend eingestuft, seine Schritte tragen aber Punkte.")
+    if binary is not None:
+        # What the judge could not settle, and a declared other path that
+        # was not counted, go to a person. Neither changes a point.
+        if binary["unsettled_be"] > UNSETTLED_REVIEW_SHARE * total_points + _ROUND_EPS:
+            if assessment["assessment_status"] == "scored":
+                assessment["assessment_status"] = "review_required"
+            reasons.append(
+                "Unsichere oder nicht belegte Anforderungen tragen zusammen "
+                f"{_fmt_be(binary['unsettled_be'])} BE."
+            )
+        if binary["not_applicable_be"] > _ROUND_EPS:
+            # A requirement the answer's own decision cut off earns nothing
+            # here. Whether that decision is defensible, and what the BE are
+            # worth then, is the examiner's call. The sentence uses the word
+            # the result view shows for this state ("entfällt").
+            if assessment["assessment_status"] == "scored":
+                assessment["assessment_status"] = "review_required"
+            reasons.append(
+                "Als entfallen eingestufte Anforderungen tragen zusammen "
+                f"{_fmt_be(binary['not_applicable_be'])} BE; sie bringen in dieser Bewertung keine Punkte."
+            )
+        fallbacks = [wid for wid, decision in decisions.items() if decision["declared_fallback"]]
+        if fallbacks:
+            if assessment["assessment_status"] == "scored":
+                assessment["assessment_status"] = "review_required"
+            reasons.append(
+                "Erklärter anderer Lösungsweg ohne belegtes Zitat, gewertet wurde der Lösungsweg der "
+                "Musterlösung: " + ", ".join(fallbacks)
+            )
     if assessment["assessment_status"] != "scored":
         assessment["score_status"] = "provisional" if assessment["assessment_status"] == "review_required" else "unavailable"
         assessment["aggregation_eligible"] = False
@@ -1067,5 +1328,6 @@ def finalize(
             ),
             # Aggregation (b): percent of a step's maximum per grade 0-18.
             "rating_key_percent": rating_table,
+            **(binary or {}),
         },
     }
