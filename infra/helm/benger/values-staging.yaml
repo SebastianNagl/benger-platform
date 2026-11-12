@@ -166,9 +166,11 @@ workers:
   # the same cgroup). Requests stay at 512Mi on purpose: the node's memory
   # REQUESTS are the scheduling bottleneck, the limit only caps bursts.
   concurrency: 1
+  # CPU limit 1000m like every other pool (the floor of the exec probes, see
+  # the workerPools block below; demo has had 1000m here all along).
   resources:
     limits:
-      cpu: 500m
+      cpu: 1000m
       memory: 2Gi
     requests:
       cpu: 100m
@@ -317,7 +319,10 @@ workers:
 # 512Mi/300m attempt OOMKilled both pools on the probe alone (2026-07-28) —
 # the worker booted to `ready.` and then died exit 137. Keep limits at
 # probe-import + worker parent, and CPU high enough that the import beats the
-# probe timeout.
+# probe timeout: 1000m for every pool. At 500m the aux and maintenance pods of
+# this namespace were restarted by their liveness probe after most deploys
+# (about 7 and 5 restarts in the week before 2026-11-11, none in the pools at
+# 1000m). Requests stay small, so the node reserves nothing more.
 workerPools:
   fast:
     replicaCount: 1
@@ -332,7 +337,7 @@ workerPools:
     replicaCount: 1
     resources:
       limits:
-        cpu: 500m
+        cpu: 1000m
         memory: 768Mi
       requests:
         cpu: 50m
@@ -341,7 +346,7 @@ workerPools:
     replicaCount: 1
     resources:
       limits:
-        cpu: 500m
+        cpu: 1000m
         memory: 768Mi
       requests:
         cpu: 50m
