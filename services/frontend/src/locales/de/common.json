@@ -213,6 +213,7 @@
       "actions": "Aktionen"
     },
     "noProjects": "Keine Projekte gefunden",
+    "noArchivedProjects": "Keine archivierten Projekte.",
     "noProjectsDescription": "Erstelle dein erstes Projekt, um zu beginnen",
     "noProjectsMatchFilters": "Keine Projekte entsprechen deinen Filtern",
     "adjustFilters": "Versuche, deine Suchkriterien anzupassen",
@@ -700,6 +701,7 @@
       "windowOpen": "Offen",
       "participantBadge": "Teilnehmer",
       "attemptedBadge": "Frühere Abgabe",
+      "archivedBadge": "Archiviert",
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
@@ -943,15 +945,16 @@
       "title": "Gelöschte Projekte",
       "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.",
       "empty": "Keine gelöschten Projekte.",
-      "project": "Projekt",
-      "deletedAt": "Gelöscht am",
-      "actions": "Aktionen",
       "badge": "Gelöscht",
+      "deletedColumn": "Gelöscht",
       "restore": "Wiederherstellen",
       "restored": "Projekt wiederhergestellt.",
       "purge": "Endgültig löschen",
       "purged": "Projekt endgültig gelöscht.",
-      "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden."
+      "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden.",
+      "bannerTitle": "Dieses Projekt wurde am {date} gelöscht.",
+      "bannerBody": "Nur Superadmins können es öffnen, für alle anderen ist es ausgeblendet. Stelle es wieder her, um wieder darin zu arbeiten.",
+      "bannerBackToList": "Zu den gelöschten Projekten"
     },
     "archivedTitle": "Archivierte Projekte"
   },
@@ -974,6 +977,8 @@
       "title": "Projektdetails",
       "status": "Status",
       "active": "Aktiv",
+      "archived": "Archiviert",
+      "deleted": "Gelöscht",
       "createdBy": "Erstellt von",
       "projectId": "Projekt-ID",
       "created": "Erstellt",

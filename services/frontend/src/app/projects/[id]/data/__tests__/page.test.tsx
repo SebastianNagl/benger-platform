@@ -165,6 +165,39 @@ describe('ProjectDataPage', () => {
       })
     })
 
+    it('shows not found instead of loading forever when the project fetch fails', async () => {
+      // A project the caller may not see (e.g. a deleted one): the API
+      // answers 404 and fetchProject resolves to null.
+      mockFetchProject.mockResolvedValueOnce(null)
+      ;(useProjectStore as jest.Mock).mockReturnValue({
+        currentProject: null,
+        fetchProject: mockFetchProject,
+      })
+
+      const params = Promise.resolve({ id: 'test-project-id' })
+      render(<ProjectDataPage params={params} />)
+
+      expect(
+        await screen.findByTestId('project-data-not-found'),
+      ).toHaveTextContent('project.notFound')
+      expect(screen.queryByTestId('annotation-tab')).not.toBeInTheDocument()
+      await userEvent.click(screen.getByText('project.backToProjects'))
+      expect(mockRouter.push).toHaveBeenCalledWith('/projects')
+    })
+
+    it('does not show another project still in the store while loading', async () => {
+      ;(useProjectStore as jest.Mock).mockReturnValue({
+        currentProject: { ...mockProject, id: 'different-id' },
+        fetchProject: mockFetchProject,
+      })
+
+      const params = Promise.resolve({ id: 'test-project-id' })
+      render(<ProjectDataPage params={params} />)
+
+      expect(await screen.findByText('project.loading')).toBeInTheDocument()
+      expect(screen.queryByTestId('annotation-tab')).not.toBeInTheDocument()
+    })
+
     it('should show loading spinner while checking permissions', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         user: null,

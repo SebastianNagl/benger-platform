@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-11-12-open-deleted-projects": "Gelöschte Projekte lassen sich jetzt öffnen: Superadmins sehen in der Liste der gelöschten Projekte dieselbe Tabelle wie bei aktiven und archivierten Projekten, öffnen ein Projekt per Klick und sehen seinen Inhalt, ohne es vorher wiederherzustellen. Ein Hinweis oben auf der Seite zeigt, dass es gelöscht ist, und bietet die Wiederherstellung an.",
     "2026-11-11-lti-openolat": "Du kannst jetzt auch OpenOlat anbinden: Im Panel „Lernplattform verbinden“ gibt es OpenOlat als eigene Lernplattform, die Anleitung „Wie binde ich OpenOlat an?“ führt durch die Einrichtung.",
     "2026-11-11-lti-deep-linking": "Lehrende wählen die Klausur jetzt schon beim Anlegen der Aktivität in der Lernplattform aus („Inhalt auswählen“ in Moodle und OpenOlat). Die Aktivität ist dann beim ersten Öffnen verknüpft.",
     "2026-11-11-lti-course-roster": "Die Lehransicht einer Aktivität zeigt jetzt, wer aus dem Kurs sie noch nicht geöffnet hat. Bettet die Lernplattform die Aktivität ein, öffnet sie sich per Klick in einem eigenen Fenster statt als leerer Rahmen.",

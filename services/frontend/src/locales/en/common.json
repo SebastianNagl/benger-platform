@@ -213,6 +213,7 @@
       "actions": "Actions"
     },
     "noProjects": "No projects found",
+    "noArchivedProjects": "No archived projects.",
     "noProjectsDescription": "Create your first project to get started",
     "noProjectsMatchFilters": "No projects match your filters",
     "adjustFilters": "Try adjusting your search criteria",
@@ -700,6 +701,7 @@
       "windowOpen": "Open",
       "participantBadge": "Participant",
       "attemptedBadge": "Past submission",
+      "archivedBadge": "Archived",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
@@ -943,15 +945,16 @@
       "title": "Deleted projects",
       "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only here can they be restored or destroyed for good.",
       "empty": "No deleted projects.",
-      "project": "Project",
-      "deletedAt": "Deleted at",
-      "actions": "Actions",
       "badge": "Deleted",
+      "deletedColumn": "Deleted",
       "restore": "Restore",
       "restored": "Project restored.",
       "purge": "Delete permanently",
       "purged": "Project permanently deleted.",
-      "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone."
+      "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone.",
+      "bannerTitle": "This project was deleted on {date}.",
+      "bannerBody": "Only superadmins can open it; it is hidden from everyone else. Restore it to work in it again.",
+      "bannerBackToList": "Go to deleted projects"
     },
     "archivedTitle": "Archived projects"
   },
@@ -974,6 +977,8 @@
       "title": "Project Details",
       "status": "Status",
       "active": "Active",
+      "archived": "Archived",
+      "deleted": "Deleted",
       "createdBy": "Created by",
       "projectId": "Project ID",
       "created": "Created",

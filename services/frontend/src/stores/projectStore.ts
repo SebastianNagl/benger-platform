@@ -161,7 +161,11 @@ export const useProjectStore = create<ProjectStore>()(
         const isArchivedToUse = isArchived ?? get().lastIsArchived
         const includeAllPrivateToUse =
           includeAllPrivate ?? get().lastIncludeAllPrivate
-        const onlyDeletedToUse = onlyDeleted ?? get().lastOnlyDeleted
+        // The deleted-projects lens is never inherited: only pagination
+        // (which passes lastOnlyDeleted on) keeps it, so a later plain fetch
+        // (dashboard, model pickers, the active list) cannot pull deleted
+        // projects into the store.
+        const onlyDeletedToUse = onlyDeleted ?? false
         const search = get().searchQuery
 
         set({
@@ -176,7 +180,8 @@ export const useProjectStore = create<ProjectStore>()(
             currentPageToUse,
             pageSizeToUse,
             search,
-            isArchivedToUse,
+            // Deleted projects are listed whatever their archive state.
+            onlyDeletedToUse ? undefined : isArchivedToUse,
             includeAllPrivateToUse,
             onlyDeletedToUse,
           )
@@ -870,12 +875,24 @@ export const useProjectStore = create<ProjectStore>()(
 
       setCurrentPage: (page: number) => {
         set({ currentPage: page })
-        get().fetchProjects(page)
+        get().fetchProjects(
+          page,
+          undefined,
+          undefined,
+          undefined,
+          get().lastOnlyDeleted,
+        )
       },
 
       setPageSize: (size: number) => {
         set({ pageSize: size, currentPage: 1 }) // Reset to page 1 on size change
-        get().fetchProjects(1, size)
+        get().fetchProjects(
+          1,
+          size,
+          undefined,
+          undefined,
+          get().lastOnlyDeleted,
+        )
       },
 
       clearError: () => {

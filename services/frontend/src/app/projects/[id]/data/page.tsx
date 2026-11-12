@@ -13,7 +13,7 @@ import { parseSubdomain } from '@/lib/utils/subdomain'
 import { useProjectStore } from '@/stores/projectStore'
 import { canAccessProjectData } from '@/utils/permissions'
 import { useRouter } from 'next/navigation'
-import { use, useEffect } from 'react'
+import { use, useEffect, useState } from 'react'
 
 interface ProjectDataPageProps {
   params: Promise<{
@@ -57,15 +57,49 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
     organizations,
   ])
 
+  // The project id whose fetch failed (404 for a project the caller cannot
+  // see, e.g. a deleted one): show "not found" instead of loading forever.
+  const [failedId, setFailedId] = useState<string | null>(null)
+
   // Load project if not already loaded
   useEffect(() => {
     if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId)
+      let cancelled = false
+      // fetchProject resolves to null when the API refused the project.
+      Promise.resolve(fetchProject(projectId)).then((project) => {
+        if (!cancelled && project === null) setFailedId(projectId)
+      })
+      return () => {
+        cancelled = true
+      }
     }
   }, [projectId, currentProject, fetchProject])
 
-  // Show loading state while checking permissions or loading project
-  if (isLoading || !currentProject) {
+  if (failedId === projectId && currentProject?.id !== projectId) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-4">
+        <div className="text-center" data-testid="project-data-not-found">
+          <h2 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-white">
+            {t('project.notFound')}
+          </h2>
+          <p className="mb-6 text-zinc-600 dark:text-zinc-400">
+            {t('project.notFoundDescription')}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/projects')}
+            className="inline-flex h-8 items-center rounded-full bg-zinc-900 px-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+          >
+            {t('project.backToProjects')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state while checking permissions or loading project (a
+  // different project still in the store counts as not loaded yet).
+  if (isLoading || !currentProject || currentProject.id !== projectId) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">

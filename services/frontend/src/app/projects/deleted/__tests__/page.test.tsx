@@ -1,103 +1,71 @@
 /**
  * @jest-environment jsdom
  *
- * /projects/deleted — superadmin-only soft-delete recovery view: lists
- * deleted projects, restores, and (only here) purges for good.
+ * /projects/deleted - superadmin-only soft-delete recovery view. It is the
+ * shared project list in its deleted mode (ProjectListTable.deleted.test
+ * covers the rows, restore and purge); this page only gates the route.
  */
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import DeletedProjectsPage from '../page'
 
 const mockReplace = jest.fn()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn() }),
 }))
-const mockUser = { current: { id: 'a', is_superadmin: true } as any }
+const mockAuth = {
+  current: { user: { id: 'a', is_superadmin: true } as any, isLoading: false },
+}
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser.current, isLoading: false }),
+  useAuth: () => mockAuth.current,
 }))
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    locale: 'de',
-    t: (key: string, vars?: Record<string, unknown>) =>
-      require('@/lib/i18n/catalog').translateKey('de', key, vars),
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: () => <nav />,
 }))
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
-const mockAddToast = jest.fn()
-jest.mock('@/components/shared/Toast', () => ({
-  useToast: () => ({ addToast: mockAddToast }),
-}))
-const mockConfirm = jest.fn()
-jest.mock('@/hooks/useDialogs', () => ({ useConfirm: () => mockConfirm }))
-const mockList = jest.fn()
-const mockRestore = jest.fn()
-const mockPurge = jest.fn()
-jest.mock('@/lib/api/projects', () => ({
-  projectsAPI: {
-    list: (...a: any[]) => mockList(...a),
-    restoreProject: (...a: any[]) => mockRestore(...a),
-    purgeProject: (...a: any[]) => mockPurge(...a),
+const mockTable = jest.fn()
+jest.mock('@/components/projects/ProjectListTable', () => ({
+  ProjectListTable: (props: any) => {
+    mockTable(props)
+    return <div data-testid="project-list-table" />
   },
 }))
-
-const row = {
-  id: 'p1',
-  title: 'Alte Klausur',
-  kind: 'exam',
-  deleted_at: '2026-08-24T10:00:00Z',
-}
 
 describe('DeletedProjectsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUser.current = { id: 'a', is_superadmin: true }
-    mockList.mockResolvedValue({ items: [row] })
+    mockAuth.current = {
+      user: { id: 'a', is_superadmin: true },
+      isLoading: false,
+    }
   })
 
-  it('lists deleted projects with only_deleted and restores', async () => {
-    mockRestore.mockResolvedValue(undefined)
+  it('renders the shared project list in its deleted mode for superadmins', () => {
     render(<DeletedProjectsPage />)
-    expect(await screen.findByTestId('deleted-row-p1')).toHaveTextContent(
-      'Alte Klausur',
-    )
-    expect(mockList).toHaveBeenCalledWith(
-      1,
-      200,
-      undefined,
-      undefined,
-      undefined,
-      true,
-    )
-    mockList.mockResolvedValue({ items: [] })
-    fireEvent.click(screen.getByTestId('deleted-restore-p1'))
-    await waitFor(() => expect(mockRestore).toHaveBeenCalledWith('p1'))
-    expect(await screen.findByTestId('deleted-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('project-list-table')).toBeInTheDocument()
+    expect(mockTable).toHaveBeenCalledWith({ showDeletedOnly: true })
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('purge asks a danger confirm and only proceeds on yes', async () => {
-    mockConfirm.mockResolvedValueOnce(false)
-    render(<DeletedProjectsPage />)
-    fireEvent.click(await screen.findByTestId('deleted-purge-p1'))
-    await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
-    expect(mockConfirm.mock.calls[0][0]).toMatchObject({ variant: 'danger' })
-    expect(mockConfirm.mock.calls[0][0].message).toContain('Alte Klausur')
-    expect(mockPurge).not.toHaveBeenCalled()
-    mockConfirm.mockResolvedValueOnce(true)
-    mockPurge.mockResolvedValue(undefined)
-    fireEvent.click(screen.getByTestId('deleted-purge-p1'))
-    await waitFor(() => expect(mockPurge).toHaveBeenCalledWith('p1'))
-  })
-
-  it('non-superadmins are redirected away', async () => {
-    mockUser.current = { id: 'b', is_superadmin: false }
+  it('non-superadmins are redirected away and never load the list', async () => {
+    mockAuth.current = {
+      user: { id: 'b', is_superadmin: false },
+      isLoading: false,
+    }
     render(<DeletedProjectsPage />)
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/projects'))
-    expect(mockList).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('project-list-table')).not.toBeInTheDocument()
+  })
+
+  it('renders nothing while the session loads', () => {
+    mockAuth.current = { user: null, isLoading: true }
+    render(<DeletedProjectsPage />)
+    expect(screen.queryByTestId('project-list-table')).not.toBeInTheDocument()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 })

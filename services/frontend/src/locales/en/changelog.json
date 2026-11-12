@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-11-12-open-deleted-projects": "Deleted projects can now be opened: the deleted projects list shows superadmins the same table as the active and archived lists, and a click opens a project so you can see its contents without restoring it first. A notice at the top of the page says it is deleted and offers the restore.",
     "2026-11-11-lti-openolat": "You can now connect OpenOlat too: the “Connect learning platform” panel lists OpenOlat as a learning platform of its own, and the guide “How do I connect OpenOlat?” walks you through the setup.",
     "2026-11-11-lti-deep-linking": "Teachers now pick the exam while creating the activity in the learning platform (“Select content” in Moodle and OpenOlat). The activity is linked when it is first opened.",
     "2026-11-11-lti-course-roster": "The teacher view of an activity now shows who in the course has not opened it yet. When the learning platform embeds the activity, a click opens it in a window of its own instead of an empty frame.",
