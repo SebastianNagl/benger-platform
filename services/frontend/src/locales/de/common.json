@@ -943,7 +943,7 @@
     "more": "Mehr",
     "deleted": {
       "title": "Gelöschte Projekte",
-      "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.",
+      "subtitle": "Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur Superadmins können sie wiederherstellen oder endgültig löschen.",
       "empty": "Keine gelöschten Projekte.",
       "badge": "Gelöscht",
       "deletedColumn": "Gelöscht",

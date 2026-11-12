@@ -943,7 +943,7 @@
     "more": "Plus",
     "deleted": {
       "title": "Projets supprimés",
-      "subtitle": "Les projets supprimés sont masqués pour tout le monde, mais leurs données sont conservées. C'est uniquement ici qu'ils peuvent être restaurés ou supprimés définitivement.",
+      "subtitle": "Les projets supprimés sont masqués pour tout le monde, mais leurs données sont conservées. Seuls les superadministrateurs peuvent les restaurer ou les supprimer définitivement.",
       "empty": "Aucun projet supprimé.",
       "badge": "Supprimé",
       "deletedColumn": "Supprimé",

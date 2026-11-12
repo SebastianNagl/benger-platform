@@ -943,7 +943,7 @@
     "more": "More",
     "deleted": {
       "title": "Deleted projects",
-      "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only here can they be restored or destroyed for good.",
+      "subtitle": "Deleted projects are hidden from everyone; their data is preserved. Only superadmins can restore them or delete them for good.",
       "empty": "No deleted projects.",
       "badge": "Deleted",
       "deletedColumn": "Deleted",
