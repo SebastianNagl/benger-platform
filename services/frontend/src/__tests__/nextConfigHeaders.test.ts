@@ -5,10 +5,13 @@
 /**
  * next.config.js security headers.
  *
- * Every page sends X-Frame-Options: DENY except the LTI Dynamic Registration
- * page. Moodle's "Add LTI Advantage" loads /api/lti/register/init inside an
- * iframe, so a DENY there hides the success and error pages from the LMS
- * admin. The API answer limits framing with a CSP frame-ancestors instead.
+ * Every page sends X-Frame-Options: DENY except the three LTI pages an LMS
+ * frames: the Dynamic Registration page (Moodle's "Add LTI Advantage" loads
+ * /api/lti/register/init inside an iframe), the launch that answers an
+ * embedded launch with an "open in a new window" page (and passes a
+ * deep-linking request on to the picker), and the deep-linking content
+ * picker. The API answer limits framing with a CSP frame-ancestors
+ * instead.
  *
  * The routes run through Next's own loader (which validates the source
  * syntax) and its own runtime matcher, so the negative lookahead is tested
@@ -30,6 +33,7 @@ type NextConfigModule = {
 }
 
 const REGISTER_PATH = '/api/lti/register/init'
+const FRAMEABLE = [REGISTER_PATH, '/api/lti/launch', '/api/lti/deep-link']
 
 function loadConfig(nodeEnv: string): NextConfigModule {
   const previous = process.env.NODE_ENV
@@ -71,11 +75,15 @@ describe('next.config.js headers', () => {
     '/',
     '/projects',
     '/lti/error',
-    '/api/lti/launch',
     '/api/lti/login',
+    '/api/lti/launchx',
+    '/api/lti/launch/x',
+    '/api/lti/deep-link/x',
+    '/api/lti/deep-linking',
     '/api/lti/register',
     '/api/lti/register/initx',
     '/x/api/lti/register/init',
+    '/x/api/lti/launch',
     '/api/projects/abc',
     '/_next/static/chunk.js',
   ])('denies framing of %s', async (pathname) => {
@@ -84,8 +92,8 @@ describe('next.config.js headers', () => {
     expect(headers['X-Content-Type-Options']).toBe('nosniff')
   })
 
-  it('lets an LMS frame the Dynamic Registration page', async () => {
-    const headers = await headersFor(REGISTER_PATH)
+  it.each(FRAMEABLE)('lets an LMS frame %s', async (pathname) => {
+    const headers = await headersFor(pathname)
     expect(headers).not.toHaveProperty('X-Frame-Options')
     // The other protections stay.
     expect(headers['X-Content-Type-Options']).toBe('nosniff')
@@ -100,7 +108,9 @@ describe('next.config.js headers', () => {
       r.headers.some((h) => h.key === 'X-Frame-Options'),
     )
     expect(denying).toHaveLength(1)
-    expect(denying[0].match(REGISTER_PATH)).toBe(false)
+    for (const pathname of FRAMEABLE) {
+      expect(denying[0].match(pathname)).toBe(false)
+    }
   })
 
   it('sends no custom headers outside production', async () => {

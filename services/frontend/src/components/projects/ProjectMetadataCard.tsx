@@ -1,10 +1,9 @@
 /**
  * Presentational metadata card for the project detail page.
  *
- * Renders the read-only "Project Details" block (status, created-by,
- * project id, created/updated timestamps, organizations). Extracted from
- * the ProjectDetailPage god component as a behavior-preserving sub-component;
- * the rendered DOM/text/classNames are identical to the inline version.
+ * Renders the read-only "Project Details" block: the status (active,
+ * archived or deleted), created-by, project id, created/updated timestamps
+ * and organizations. Extracted from the ProjectDetailPage god component.
  */
 
 'use client'
@@ -59,10 +58,23 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
           <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {t('project.details.status')}
           </dt>
-          <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
-            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
-              {t('project.details.active')}
-            </span>
+          <dd
+            className="mt-1 text-sm text-zinc-900 dark:text-white"
+            data-testid="project-status"
+          >
+            {project.deleted_at ? (
+              <span className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-rose-600/20 ring-inset dark:bg-rose-400/10 dark:text-rose-400 dark:ring-rose-400/30">
+                {t('project.details.deleted')}
+              </span>
+            ) : project.is_archived ? (
+              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-zinc-600/20 ring-inset dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-400/30">
+                {t('project.details.archived')}
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
+                {t('project.details.active')}
+              </span>
+            )}
           </dd>
         </div>
         <div>

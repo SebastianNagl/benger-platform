@@ -212,3 +212,71 @@ async def test_deleted_project_out_of_score_history_and_participant_map(
     with _as_user(owner):
         await async_test_client.delete(f"/api/projects/{p.id}")
     assert p.id not in await get_participant_project_ids_async(db, member.id)
+
+
+async def test_superadmin_opens_deleted_project_contents_without_restoring(
+    async_test_client, async_test_db
+):
+    """The deleted-projects view opens a project like any list: a superadmin
+    reads the project, its tasks and their answers while it stays deleted
+    and out of the active and archived lists. Everyone else, the creator
+    and a share member included, still finds nothing."""
+    db = async_test_db
+    owner, member = await _user(db), await _user(db)
+    admin = await _user(db, superadmin=True)
+    p = await _project(db, owner, tasks=2)
+    await _share_member(db, p, owner, member)
+    task_id = (
+        await db.execute(select(Task.id).where(Task.project_id == p.id))
+    ).scalars().first()
+    db.add(Annotation(id=str(uuid.uuid4()), task_id=task_id, project_id=p.id,
+                      completed_by=member.id, result=[{"v": 1}]))
+    await db.commit()
+    with _as_user(owner):
+        assert (await async_test_client.delete(f"/api/projects/{p.id}")).status_code == 200
+    deleted_at = (
+        await db.execute(select(Project.deleted_at).where(Project.id == p.id))
+    ).scalar_one()
+    assert deleted_at is not None
+
+    reads = [
+        f"/api/projects/{p.id}",
+        f"/api/projects/{p.id}/tasks",
+        f"/api/projects/tasks/{task_id}",
+        f"/api/projects/tasks/{task_id}/annotations?all_users=true",
+    ]
+    with _as_user(admin):
+        r = await async_test_client.get(reads[0])
+        assert r.status_code == 200, r.text
+        assert r.json()["deleted_at"] is not None
+        r = await async_test_client.get(reads[1])
+        assert r.status_code == 200, r.text
+        listed = r.json()
+        items = listed["items"] if isinstance(listed, dict) else listed
+        assert {t["id"] for t in items} >= {task_id}
+        r = await async_test_client.get(reads[2])
+        assert r.status_code == 200, r.text
+        r = await async_test_client.get(reads[3])
+        assert r.status_code == 200, r.text
+        assert [a["result"] for a in r.json()] == [[{"v": 1}]]
+
+        # Looking inside does not bring it back.
+        active = (await async_test_client.get("/api/projects/")).json()["items"]
+        archived = (
+            await async_test_client.get("/api/projects/", params={"is_archived": "true"})
+        ).json()["items"]
+        assert p.id not in {x["id"] for x in active + archived}
+        only_deleted = (
+            await async_test_client.get("/api/projects/", params={"only_deleted": "true"})
+        ).json()["items"]
+        assert p.id in {x["id"] for x in only_deleted}
+    # A column select reads the row as stored, not the session's copy.
+    assert (
+        await db.execute(select(Project.deleted_at).where(Project.id == p.id))
+    ).scalar_one() == deleted_at
+
+    for u in (owner, member):
+        with _as_user(u):
+            for url in reads:
+                r = await async_test_client.get(url)
+                assert r.status_code in (403, 404), (url, r.status_code, r.text)

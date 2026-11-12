@@ -295,7 +295,7 @@
       "summary": "With **Require Safe Exam Browser**, students write the exam in Safe Exam Browser (SEB). SEB locks other apps and websites during the exam, also on students’ own devices. BenGER generates the SEB configuration itself. Grading then works as usual.",
       "steps": [
         "Project page → **Project settings** → **Safe Exam Browser** → tick **Require Safe Exam Browser**.",
-        "For exams from Moodle or ILIAS enter the course page as **Start URL** (required), so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.",
+        "For exams from Moodle, ILIAS or OpenOlat enter the course page as **Start URL** (required), so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.",
         "Optional: set a **quit password** that the supervisors announce in the room.",
         "Optional: set an **exam password for the configuration file**. The file is then encrypted, SEB asks for the password when opening it, and the supervisors announce it in the room at the start.",
         "**Save**. The link to start in SEB, the configuration file and the allowed domains for IT are then ready to copy.",
@@ -331,7 +331,7 @@
       "steps": [
         "**Archive**: [Projects](/projects) → tick projects → **Actions → Archive selected**. Archived projects live under **More → Archived** and can be unarchived there.",
         "**Delete**: project page → quick actions → **Delete project**. The project disappears for everyone, tasks, submissions and evaluations stay stored.",
-        "**Restore** (superadmin): **More → Deleted projects** → *Restore* or *Delete permanently*."
+        "**Restore** (superadmin): **More → Deleted projects** → *Restore* or *Delete permanently*. A click on a row opens the deleted project read-only, so you can check its contents first; the notice at the top offers the restore too."
       ],
       "tips": [
         "Before deleting permanently, keep an export: tick projects → **Actions → Export selected projects**."
@@ -730,8 +730,8 @@
       ]
     },
     "lti-setup": {
-      "title": "How do I connect our organization to Moodle or ILIAS (LTI)?",
-      "summary": "Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle** and **Connecting ILIAS**. The connection is **active at once**. Group admins can do this for their groups.",
+      "title": "How do I connect our organization to Moodle, ILIAS or OpenOlat (LTI)?",
+      "summary": "Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle**, **Connecting ILIAS** and **Connecting OpenOlat**. The connection is **active at once**. Group admins can do this for their groups.",
       "steps": [
         "**Prepare the API keys**: [Users & organizations](/users-organizations) → organization → **API keys** → switch on **Organization provides API keys** and store a key for the grading model. The default models are from OpenAI. Without a key there is no AI grading and no fallback to another key.",
         "**Open the panel**: [Users & organizations](/users-organizations) → pick the organization → **More** → **Learning platform (LTI)**. At the top, **AI grading and API keys** shows whether AI grading is set up.",
@@ -750,6 +750,7 @@
         "lti",
         "moodle",
         "ilias",
+        "openolat",
         "lms",
         "integration",
         "registration",
@@ -760,10 +761,11 @@
       "links": [
         "Connecting Moodle",
         "Connecting ILIAS",
+        "Connecting OpenOlat",
         "Managing a connection",
         "Linking an exam to an activity",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
@@ -801,7 +803,7 @@
         "Preparing the connection",
         "Linking an exam to an activity",
         "Grades and the learning platform",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
@@ -840,16 +842,59 @@
         "Preparing the connection",
         "Linking an exam to an activity",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails",
+        "Launch from the learning platform fails",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-setup-openolat": {
+      "title": "How do I connect OpenOlat?",
+      "summary": "The OpenOlat administration adds BenGER once as an *external tool*. You give them three URLs, they send back the *Client ID*, the *Deployment ID* and the *Platform ISS*, which you enter in the panel. The connection is then active at once, and teachers use it in any course through the *LTI page* course element.",
+      "steps": [
+        "Give the URLs to OpenOlat: in the panel, *Connect learning platform* → *OpenOlat*. Choose the address and, if needed, a group. Step 1 shows the launch URL, the login URL and the JWKS URL. Send them to the OpenOlat administration.",
+        "Create the tool: in OpenOlat, *Administration → External tools → LTI*, switch on the module *LTI 1.3* in the *Configuration* tab. In the *External tools* tab → *Create a new tool*: *Tool URL* and *Redirection URI(s)* get the launch URL, *Initiate login URL* the login URL. For *Public Key Type* choose *URL* and enter the JWKS URL. Switch on *With shared deployment* and *Activate Deep-Linking*.",
+        "Send the values back: after saving, OpenOlat shows the *Client ID*, the *Deployment ID* and the *Platform ISS*. In the panel click *Next*, enter the Platform ISS as the address, the Client ID and the Deployment ID, and click *Connect*. The panel fills in the three OpenOlat endpoints itself.",
+        "Course element: in the course editor insert an *LTI page*, choose the tool under *LTI Version* in the *Page content* tab and save once. With *Select content* teachers pick the exam right from BenGER, otherwise they link it at the first launch. Switch on *Transmit firstname/name* and *Transmit e-mail address* and choose *Open in new window* under *Display*.",
+        "Grades: under the assessment configuration switch on *Transfer score*, keep the *Scaling factor* at 1 and set *Score needed to pass* to 4, or to 10 for French exams graded out of 20. OpenOlat takes the points as they are. Then publish the course and go on as in [Linking an exam to an activity](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "OpenOlat sends the name and the email address only when the LTI page allows it. Without an email address the page asks each person once for theirs after the consent. In OpenOlat participants also confirm the data transfer before their first launch.",
+        "The teacher view of an activity shows who in the course has not opened it yet. The list comes live from OpenOlat; BenGER does not store it.",
+        "A copied course gets new activities. Elements linked with *Select content* bring their exam along; teachers link all others again at the first launch."
+      ],
+      "pitfalls": [
+        "*With shared deployment* cannot be changed after the tool is created. Without it OpenOlat creates a Client ID and a Deployment ID for every LTI page, and each would need a connection of its own.",
+        "OpenOlat does not let the tool create further grade columns. The AI grade column and the collection with one column per task are therefore only available in Moodle. In OpenOlat each task gets its own LTI page.",
+        "With an embedded display BenGER opens its own window only after a click. With *Open in new window* this step is skipped."
+      ],
+      "keywords": [
+        "openolat",
+        "olat",
+        "lti",
+        "lti page",
+        "external tools",
+        "client id",
+        "deployment id",
+        "platform iss",
+        "shared deployment",
+        "deep linking",
+        "select content",
+        "transfer score",
+        "scaling factor"
+      ],
+      "links": [
+        "Preparing the connection",
+        "Linking an exam to an activity",
+        "Data protection for the integration",
+        "Launch from the learning platform fails",
         "Technical reference for your IT (LTI 1.3)"
       ]
     },
     "lti-manage": {
-      "title": "How do I manage a connection to Moodle or ILIAS?",
+      "title": "How do I manage a connection to Moodle, ILIAS or OpenOlat?",
       "summary": "In the **Learning platform (LTI)** panel every connection has its own card. There you switch the connection and its deployments on and off, set the role of teachers and see activities, LMS accounts, grade transfers and the history. The panel is open to org admins, and to group admins for their groups’ connections.",
       "steps": [
         "**Switch on and off**: a click on the **Connection on** switch turns the connection off after a confirmation. This immediately blocks all launches, the connection’s pages in the app and the grade transfer for this learning platform. The switch then reads **Connection off**, and the card shows the badge **Switched off**. Another click turns it back on, again after a confirmation.",
-        "**Deployments**: add or remove deployment IDs. The **Deployment on** switch next to an ID blocks that one ID and then reads **Deployment off**. The other deployments keep working. In ILIAS the deployment ID is the numeric provider ID.",
+        "**Deployments**: add or remove deployment IDs. The **Deployment on** switch next to an ID blocks that one ID and then reads **Deployment off**. The other deployments keep working. In ILIAS the deployment ID is the numeric provider ID. In OpenOlat it is the *Deployment ID* that OpenOlat shows for the tool.",
         "**Edit**: the **Org role for teachers** is contributor, org admin (org_admin) or no org role (none). On a group connection it is the role in the group: contributor or org admin (= admin of the group). New teachers join the organization as annotators; anyone who already has a higher role there keeps it. Group admins grant up to group admin on their group’s connections. Here you also change the address, the group, the **Org role for students** and **Offer linking to existing accounts**.",
         "**Activities**: every activity with course, linked exam, participants, transfer counts and the state of the **KI-Bewertung** column. **Open grade overview** leads to the activity overview.",
         "**LMS accounts**: everyone on the connection with name, email address, pseudonym, role, consent and last launch, with search. **Unlink** separates the learning platform identity from the account. Accounts the learning platform created can be anonymized with **Anonymize**.",
@@ -870,7 +915,8 @@
         "If the **KI-Bewertung** column is missing in Moodle, Moodle does not let the tool add a column. The Moodle administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again.",
         "Do not change the *User identification* in ILIAS after go-live. It decides how people are identified, and a change detaches every link. The one exception is the mode *E-Mail Address*: in ILIAS 10.9 every grade transfer fails with it. The ILIAS administration then switches to **ILIAS user id …**. After that, each person consents again and gets a new account. Earlier submissions stay with the old account.",
         "Anonymizing cannot be undone. If the person opens the activity again, a new, empty account is created.",
-        "If you change a connection’s address, update the tool URLs in the learning platform too. Until then launches keep working, and the history shows a warning."
+        "If you change a connection’s address, update the tool URLs in the learning platform too. Until then launches keep working, and the history shows a warning.",
+        "In OpenOlat, *With shared deployment* cannot be changed after the tool is created. Without it every LTI page gets a Client ID and a Deployment ID of its own that the connection does not know, and launches from further LTI pages fail with `registration_not_found`. The OpenOlat administration then creates the tool again with the setting, and the connection is set up again with the new values."
       ],
       "keywords": [
         "manage connection",
@@ -887,21 +933,23 @@
         "connection on",
         "connection off",
         "switched off",
-        "user not available"
+        "user not available",
+        "openolat",
+        "shared deployment"
       ],
       "links": [
         "Setting up a connection",
         "Grades and the learning platform",
         "Data protection for the integration",
-        "Launch from Moodle or ILIAS fails"
+        "Launch from the learning platform fails"
       ]
     },
     "lti-teacher": {
-      "title": "How do I link a Moodle or ILIAS activity to an exam?",
-      "summary": "Create an *External tool* activity (Moodle) or an *LTI consumer* (ILIAS) with a grade in your course and open it. On the **first launch** you consent once and then pick the exam. After that the activity opens the exam’s page. There the **Learning platform activities** card leads to the **activity overview** with all submissions and grades.",
+      "title": "How do I link a Moodle, ILIAS or OpenOlat activity to an exam?",
+      "summary": "Create an *External tool* activity (Moodle), an *LTI consumer* (ILIAS) or an *LTI page* (OpenOlat) with a grade in your course and open it. On the **first launch** you consent once and then pick the exam. After that the activity opens the exam’s page. There the **Learning platform activities** card leads to the **activity overview** with all submissions and grades.",
       "steps": [
-        "Moodle: *Add an activity* → pick the tool in the activity chooser → keep grading on. If the activity shows no grade settings, first tick **Allow … to add grades in the gradebook** (the tool’s name fills the gap). Without the tick the activity has no grade. A maximum of 100 is fine, the tool sends 0 to 18 grade points and Moodle rescales. In Moodle the administration sets the launch container for the tool. ILIAS: create an *LTI consumer* with the provider and choose **New window** as launch option. Under *Options for Learning Progress* the *Mastery Score* should be **22**.",
-        "Open the activity. On the first launch the connection asks for your consent, including research use. If an account with your email address already exists, link it by signing in or through a link sent by email. Or choose **Continue with a separate account**. ILIAS sends no email address. There this step does not apply, and a separate account is always created. The page then asks you once for your email address. With the link you receive you set a password. You can also skip this step.",
+        "Moodle: *Add an activity* → pick the tool in the activity chooser → keep grading on. If the activity shows no grade settings, first tick **Allow … to add grades in the gradebook** (the tool’s name fills the gap). Without the tick the activity has no grade. A maximum of 100 is fine, the tool sends 0 to 18 grade points and Moodle rescales. In Moodle the administration sets the launch container for the tool. ILIAS: create an *LTI consumer* with the provider and choose **New window** as launch option. Under *Options for Learning Progress* the *Mastery Score* should be **22**. OpenOlat: insert an *LTI page* element, choose the tool under *LTI Version* in the *Page content* tab and save once. Switch on *Transmit firstname/name* and *Transmit e-mail address* and choose *Open in new window* under *Display*. Under the assessment configuration switch on *Transfer score*, keep the *Scaling factor* at 1 and set *Score needed to pass* to 4, or to 10 for French exams graded out of 20. Then publish the course.",
+        "Open the activity. On the first launch the connection asks for your consent, including research use. If an account with your email address already exists, link it by signing in or through a link sent by email. Or choose **Continue with a separate account**. ILIAS sends no email address. There this step does not apply, and a separate account is always created. The page then asks you once for your email address. With the link you receive you set a password. You can also skip this step. OpenOlat sends the name and the email address only when the LTI page allows it. Without an email address it works as with ILIAS.",
         "The picker carries your activity’s title. It lists your own exams (*Own*) and the exams of your organization’s contributors and admins, each with its author. On a group connection only the group’s contributors, the group admins and the org admins count. Private exams can be linked too. Below the list, **Or create a new exam** creates a new one. If there is no exam yet, the button reads **Create new exam**.",
         "Exams with a case solution (Falllösung) and exams with an active grading sheet (Bewertungsbogen) can be linked. Exams without a task or without an active grading sheet cannot be chosen. The reason is shown next to them. If the exam has one task, the activity is linked to it automatically. For an exam collection with several tasks you choose one task or, in Moodle, the whole collection, see [Linking an exam collection](/how-to#lti-collection).",
         "**Link**. This switches on human grading for the exam, and your organization’s staff can view and grade the submissions.",
@@ -912,13 +960,14 @@
       "tips": [
         "Consent applies per connection. Further courses and activities of the same learning platform do not ask again.",
         "On the exam’s project page, the **Learning platform activities** sit on the right below the quick actions, with a link to the overview.",
-        "The organization of the connection pays for AI grading. If it lacks a key, the picker and the overview show a notice."
+        "The organization of the connection pays for AI grading. If it lacks a key, the picker and the overview show a notice.",
+        "In OpenOlat you can pick the exam in the course editor already: after the first save, *Select content* in the *Page content* tab opens the exam picker right inside OpenOlat. The LTI page is then linked at its first launch, and a copied course keeps this link. You link all other activities of a copied course again at their first launch."
       ],
       "pitfalls": [
         "Once a grade has been sent to the learning platform, the link cannot be changed. Create a new activity for another exam or task.",
-        "*This activity cannot receive grades*: grade sync is off. Turn on grading in Moodle, if needed with the tick *Allow … to add grades in the gradebook*. In ILIAS the administration switches on *Advanced Grading Services* on the provider. Then open the activity again.",
+        "*This activity cannot receive grades*: grade sync is off. Turn on grading in Moodle, if needed with the tick *Allow … to add grades in the gradebook*. In ILIAS the administration switches on *Advanced Grading Services* on the provider. In OpenOlat switch on *Transfer score* in the LTI page. Then open the activity again.",
         "If an older activity is linked to the whole exam as one grade, the exam does not accept a second task, not even by import. Then link the activity to the exam’s task. This always works, also after grades were sent.",
-        "If the tool starts embedded (iframe), you land on the login page. In Moodle 4.5 you cannot change this in the activity. The Moodle administration sets the tool’s *Default launch container* to **New window**. In ILIAS, choose **New window** on the object.",
+        "If the tool starts embedded (iframe), it first shows a page with a button that opens it in a new window. Older browsers (Safari before 16.4) land on the login page instead. So set the activity to a new window. In Moodle 4.5 you cannot change this in the activity. The Moodle administration sets the tool’s *Default launch container* to **New window**. In ILIAS, choose **New window** on the object, in OpenOlat *Open in new window* under *Display*.",
         "If you cannot find the tool in the Moodle activity chooser, ask the Moodle administration to set the tool’s *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**."
       ],
       "keywords": [
@@ -931,7 +980,11 @@
         "moodle course",
         "gradebook",
         "course total",
-        "gradebook setup"
+        "gradebook setup",
+        "openolat",
+        "lti page",
+        "select content",
+        "transfer score"
       ],
       "links": [
         "Linking an exam collection",
@@ -943,9 +996,9 @@
     },
     "lti-collection": {
       "title": "How do I link an exam collection with several tasks?",
-      "summary": "There are two ways. **One activity per task** works in Moodle and ILIAS: each activity receives the grade of its task. **The whole collection on one activity** works in Moodle only: each task gets its own column, and the activity column receives the mean of the final grades once every task has a final grade.",
+      "summary": "There are two ways. **One activity per task** works in Moodle, ILIAS and OpenOlat: each activity receives the grade of its task. **The whole collection on one activity** works in Moodle only: each task gets its own column, and the activity column receives the mean of the final grades once every task has a final grade.",
       "steps": [
-        "**One activity per task (Moodle and ILIAS)**: create one activity per task, ideally with the task in its title. Open the activity, expand the collection in the picker, choose the task and click **Link**. Repeat this for every task. Each activity receives only its task’s grade. Students still reach every task of the collection.",
+        "**One activity per task (Moodle, ILIAS and OpenOlat)**: create one activity per task, ideally with the task in its title. In OpenOlat that is one LTI page per task, and you can also pick the task right there with *Select content*. Open the activity, expand the collection in the picker, choose the task and click **Link**. Repeat this for every task. Each activity receives only its task’s grade. Students still reach every task of the collection.",
         "**The whole collection on one activity (Moodle only)**: create one activity, open it and choose the whole collection instead of a task in the picker. Click **Link**.",
         "BenGER then creates one column per task in the Moodle gradebook, *Aufgabe N: activity title*. It receives the task’s final grade: the human grade, otherwise the AI grade if the activity sends AI grades. While AI grades are sent, each task also gets a column *KI-Bewertung: Aufgabe N*. The columns appear with the task’s first grade.",
         "The activity column receives the **mean of the final grades of all tasks**. It is sent only once every task has a final grade. Until then the activity column stays empty for that person.",
@@ -958,7 +1011,7 @@
         "The whole collection needs the Moodle tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**. Otherwise the picker does not offer it."
       ],
       "pitfalls": [
-        "In ILIAS only the way with one activity per task exists. ILIAS does not let the tool create columns and takes only one value per object and person, the final grade.",
+        "In ILIAS and OpenOlat only the way with one activity per task exists. ILIAS does not let the tool create columns and takes only one value per object and person, the final grade. OpenOlat refuses further columns as well and takes only the final grade per LTI page and person.",
         "The link can be changed (another exam, another task, a switch between one task and the whole collection) until the activity’s first grade has reached the learning platform. After that BenGER refuses the change, because a column would otherwise mix grades of different tasks. Then create a new activity. Exception: an older activity that links the whole exam can always be linked to the only task of its exam.",
         "If you delete a task column in Moodle, BenGER does not create it again by itself. If you delete a task in BenGER, its column stays in Moodle. BenGER never deletes a column in the learning platform.",
         "If the task of a one-task activity is deleted, the activity receives no more grades. Link it to another task or create a new activity."
@@ -974,7 +1027,9 @@
         "main column",
         "task column",
         "gradebook",
-        "import"
+        "import",
+        "openolat",
+        "lti page"
       ],
       "links": [
         "Linking an exam to an activity",
@@ -997,11 +1052,13 @@
       "tips": [
         "Moodle gets two columns. The activity column holds the final grade (the human grade, otherwise the AI grade), rescaled to the activity’s maximum. The **KI-Bewertung** column always holds the AI grade on the 0 to 18 scale. It is named *KI-Bewertung: activity title*, so several activities in one course can be told apart. Older columns are named *KI-Bewertung* only. This needs the tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**, otherwise Moodle gets the final grade only.",
         "ILIAS gets one value per person, the final grade. ILIAS shows it as learning progress. ILIAS does not show the comment on the grade.",
+        "OpenOlat gets one value per person, the final grade. OpenOlat takes the points as they are and multiplies them by the LTI page’s *Scaling factor*, so it stays at 1. OpenOlat does not show the comment on the grade. Without *Transfer score* in the LTI page no grade arrives.",
+        "In Moodle and OpenOlat the overview shows under **Not opened yet** who in the course has not opened the activity yet. The overview reads the list from the learning platform when it opens and does not store it. OpenOlat returns the participants only, no owners or coaches of the course. ILIAS provides no list.",
         "If a whole exam collection is linked to the activity in Moodle, each task adds the columns *Aufgabe N* and *KI-Bewertung: Aufgabe N*. The activity column then receives the mean of the final grades, only once every task has a final grade. See [Linking an exam collection](/how-to#lti-collection).",
         "Grading deletes nothing. The AI grade stays in the overview and in the KI-Bewertung column. With several human grades, the most recently edited one counts.",
         "If a grade changes later, for example through a new grading key, the new value reaches the learning platform within about an hour.",
         "By default the AI grade is hidden while you grade, until you have submitted your own grade.",
-        "If you overrode or locked a grade in the Moodle gradebook, Moodle keeps it, also after **Send all grades again**. In the **KI-Bewertung** column, however, the value sent replaces a change made by hand. ILIAS always takes the value sent last.",
+        "If you overrode or locked a grade in the Moodle gradebook, Moodle keeps it, also after **Send all grades again**. In the **KI-Bewertung** column, however, the value sent replaces a change made by hand. ILIAS and OpenOlat always take the value sent last.",
         "Real names are shown here to the teachers of the courses that link this exam, to staff who may grade this exam, to the organization’s admins and to the platform administration. Anonymized accounts show as *Anonymized*."
       ],
       "pitfalls": [
@@ -1023,7 +1080,12 @@
         "grade sync",
         "grading key",
         "course total",
-        "weight"
+        "weight",
+        "openolat",
+        "transfer score",
+        "scaling factor",
+        "not opened yet",
+        "participant list"
       ],
       "links": [
         "Linking an exam to an activity",
@@ -1035,20 +1097,20 @@
     },
     "lti-privacy": {
       "title": "What do I need to know about data protection for the LMS integration?",
-      "summary": "The integration asks for **consent before any account exists**, once per connection, from students and teachers. Accounts carry name and email address from the learning platform, from ILIAS only the name. The app shows a pseudonym. AI grading runs only on your organization’s keys. Hosting is in **Germany**. We act as processor and will meet the requirements your data protection office sets. Please tell us specifically what you need.",
+      "summary": "The integration asks for **consent before any account exists**, once per connection, from students and teachers. Accounts carry name and email address from the learning platform, from ILIAS only the name, from OpenOlat only what the LTI page passes on. The app shows a pseudonym. AI grading runs only on your organization’s keys. Hosting is in **Germany**. We act as processor and will meet the requirements your data protection office sets. Please tell us specifically what you need.",
       "steps": [
         "**Consent first**: on the first launch the person sees what the learning platform sent and agrees to two points. These are the processing (an account with name and email address, the pseudonym, the grade transfer) and research use. No account exists before that. The checked launch waits on the server for at most 30 minutes. If the person requests a confirmation link, a copy of the launch is kept with the link for up to 24 hours.",
         "**Research use is required**: without this consent the tool cannot be used from the learning platform. Access that depends on consent raises the question of Art. 7(4) GDPR. Whether this fits your course is for your data protection office to assess.",
-        "**Real name and pseudonym**: accounts carry name and email address from the learning platform. From ILIAS only the name arrives. The app shows the pseudonym. Real names are visible to the organization’s admins, to group admins for their group, to the course teachers, to staff who may grade the linked exam and to the platform administration. Course teachers are the teachers of any course on the connection that links the exam. By default the connection’s teachers may grade too, because they become contributors in the organization.",
+        "**Real name and pseudonym**: accounts carry name and email address from the learning platform. From ILIAS only the name arrives. OpenOlat passes on the name and the email address only when teachers switch this on in the LTI page, and asks participants itself to confirm the data transfer before their first launch. The app shows the pseudonym. Real names are visible to the organization’s admins, to group admins for their group, to the course teachers, to staff who may grade the linked exam and to the platform administration. Course teachers are the teachers of any course on the connection that links the exam. By default the connection’s teachers may grade too, because they become contributors in the organization.",
         "**State your requirements**: a data processing agreement on your template or ours, a TOMs annex, an entry for your record of processing, input for a DPIA, subprocessors, retention periods. The full prompt list is in the technical reference.",
         "**Contract before the invitation link**: a connection is active as soon as the learning platform redeems the link. Sign the contract before your organization admin creates the link. Making sure of this is the university’s task.",
-        "**Name the contacts**: one for the legal side (usually the legal office or data protection coordination, not the individual teacher) and one for the Moodle or ILIAS administration."
+        "**Name the contacts**: one for the legal side (usually the legal office or data protection coordination, not the individual teacher) and one for the Moodle, ILIAS or OpenOlat administration."
       ],
       "tips": [
         "AI grading of linked exams runs only on **your organization’s API keys**, never on one of ours. Without a key nothing is graded. So you decide which provider processes solution text.",
-        "No course roster is read. The integration uses at most three grade-related permissions (two on ILIAS) and no Names and Role Provisioning.",
+        "The integration uses at most three grade-related permissions (two on ILIAS) and the course participant list (Names and Role Provisioning). The tool reads the list only when teachers open the activity overview, to show who has not opened the activity yet. It is not stored and creates no account. ILIAS provides no list.",
         "An existing account is linked only when the person signs in or confirms a link sent by email. Accounts of the platform administration are never linked.",
-        "New accounts with a deliverable address get an email to set a password after consent. Accounts without a deliverable address, such as every account from ILIAS, are asked once for an email address right after consent. The step can be skipped. The address counts only once the person opens the confirmation link. That link is also the email to set the password. An address that already belongs to another account is refused. Anyone who skips the step adds an address in the app later.",
+        "New accounts with a deliverable address get an email to set a password after consent. Accounts without a deliverable address, such as every account from ILIAS and accounts from OpenOlat without *Transmit e-mail address*, are asked once for an email address right after consent. The step can be skipped. The address counts only once the person opens the confirmation link. That link is also the email to set the password. An address that already belongs to another account is refused. Anyone who skips the step adds an address in the app later.",
         "Your organization’s admins anonymize accounts the learning platform created. Name, email address and the learning platform identity are deleted, while submissions and grades stay without personal reference. Full deletion of an account is available on request.",
         "The AI grade and the human grade are kept side by side, and the human grade is the final grade. Until a teacher grades, the AI grade is the value in the learning platform."
       ],
@@ -1071,7 +1133,10 @@
         "anonymization",
         "hosting",
         "deletion",
-        "user identification"
+        "user identification",
+        "openolat",
+        "participant list",
+        "names and role provisioning"
       ],
       "links": [
         "Full data protection and technical reference",
@@ -1236,24 +1301,24 @@
       ]
     },
     "ts-lti-errors": {
-      "title": "Launch from Moodle or ILIAS fails",
+      "title": "Launch from the learning platform fails",
       "summary": "The error page shows an **error code**, and a **reference** for unexpected server errors. Find the code in the list below. Each entry gives the cause, the fix and who can help. Students contact their teachers, teachers contact the admins of their organization. The consent or confirmation page shows some errors itself, with a heading only. The list names these headings.",
       "steps": [
         "`invalid_request`: the learning platform sent an incomplete launch request. Open the activity again. If the error comes every time, the learning platform administration checks the tool settings.",
-        "`registration_not_found`: no connection matches the learning platform. Usually the platform ID (issuer) or client ID in the tool settings does not match the connection, or the connection was deleted. Two active connections that cannot be told apart also lead to this code. The admins of your organization check the connection, the learning platform administration checks the tool settings.",
+        "`registration_not_found`: no connection matches the learning platform. Usually the platform ID (issuer) or client ID in the tool settings does not match the connection, or the connection was deleted. Two active connections that cannot be told apart also lead to this code. In OpenOlat the code also appears when the tool was created without *With shared deployment*. Then every LTI page has a Client ID of its own. The admins of your organization check the connection, the learning platform administration checks the tool settings.",
         "`registration_disabled`: the organization has switched off the connection. A switched-off connection shows this code on every launch. In the panel its card shows the badge **Switched off**, and the switch reads **Connection off**. The admins of your organization switch it back on with a click on the switch.",
         "`org_inactive`: the organization that owns the connection is deactivated. Only the operator of the platform can change that. Teachers contact the operator.",
-        "`unknown_deployment`: the learning platform sends a deployment ID that is not registered in the connection. In ILIAS the deployment ID is the provider ID. The learning platform administration provides the ID, and the admins of your organization add it to the connection under **Deployments**.",
+        "`unknown_deployment`: the learning platform sends a deployment ID that is not registered in the connection. In ILIAS the deployment ID is the provider ID. In OpenOlat the tool shows it as *Deployment ID*. The learning platform administration provides the ID, and the admins of your organization add it to the connection under **Deployments**.",
         "`deployment_disabled`: the deployment ID is registered in the connection but switched off. Next to the ID the switch reads **Deployment off**. The admins of your organization switch it back on under **Deployments** with a click on the switch.",
         "`tool_not_configured`: the tool signing key cannot be loaded on the server. Only the operator of the platform can fix this. Teachers contact the operator.",
         "`state_unavailable`: a temporary server problem. The server could not store or read the sign-in. This is not caused by the browser. Try again in a few minutes. If it persists, teachers pass the code on to the operator of the platform.",
         "`invalid_state`: the sign-in was older than 5 minutes or was already used, for example after going back, reloading or submitting twice. Open the activity again from the learning platform.",
         "`invalid_token`: the sign-in data from the learning platform could not be verified. Possible causes are a wrong client ID in the connection, new keys on the learning platform, or a server clock that is off. Open the activity again. If the error comes every time, the learning platform administration checks the tool settings together with the admins of your organization.",
-        "`jwks_unreachable`: the platform could not load the keys of the learning platform that it checks the sign-in with. Usually a firewall in front of the learning platform blocks this platform, less often the key URL (JWKS) in the connection is wrong or the learning platform is down. The tool settings can be entirely correct. Try again in a few minutes. If the error comes every time, the learning platform administration opens the key URL (on ILIAS `lticerts.php`) and the token URL (`ltitoken.php`, for sending grades) to this platform.",
+        "`jwks_unreachable`: the platform could not load the keys of the learning platform that it checks the sign-in with. Usually a firewall in front of the learning platform blocks this platform, less often the key URL (JWKS) in the connection is wrong or the learning platform is down. The tool settings can be entirely correct. Try again in a few minutes. If the error comes every time, the learning platform administration opens the key URL (on ILIAS `lticerts.php`, on OpenOlat `/lti/keys`) and the token URL (on ILIAS `ltitoken.php`, on OpenOlat `/lti/token`, for sending grades) to this platform.",
         "`nonce_mismatch`: the response of the learning platform does not match the sign-in that was started. Open the activity again from the learning platform.",
         "`nonce_reused`: the same sign-in arrived a second time. Open the activity again from the learning platform.",
-        "`unsupported_message`: the learning platform sends a request the tool does not support, for example Deep Linking. The learning platform administration switches Deep Linking off in the tool settings.",
-        "`not_linked`: the activity is not linked to an exam yet. Teachers open the activity themselves from the learning platform and pick an exam. Students contact their teachers.",
+        "`unsupported_message`: the learning platform sends a request the tool does not support. The tool supports content selection (Deep Linking, in OpenOlat *Select content*), but the learning platform must accept LTI links for it. The learning platform administration checks in the tool settings which requests it sends to the tool.",
+        "`not_linked`: the activity is not linked to an exam yet. Teachers open the activity themselves from the learning platform and pick an exam. In OpenOlat this also works beforehand with *Select content* in the LTI page. A copied OpenOlat course starts unlinked, except for LTI pages linked with *Select content*. Students contact their teachers.",
         "`exam_unavailable`: the linked exam was deleted. Teachers open the activity and link another exam. If grades were already sent, they create a new activity in the learning platform. Students contact their teachers.",
         "`user_inactive`: the account of the person is deactivated on this platform. Only the operator of the platform can activate it again. Teachers contact the operator. An anonymized account does not come back. Anonymizing removes its link to the learning platform, so the next launch creates a new account after consent.",
         "`membership_removed`: an admin removed the person from the organization or the group of the connection. A launch from the learning platform does not restore the membership. If the person should have access again, the admins of your organization send an invitation with **Invite Member** to the email address of their account. Once the person accepts it while signed in, the membership is active again. If the account has no password yet, the person first sets one with **Forgot your password?**. If the account only has a placeholder address (the learning platform sent no address or one that is already in use), neither the invitation nor the password mail arrives. The operator of the platform then restores the membership with **Add Existing User**. The admins restore a group membership by adding the person to the group again.",
@@ -1265,10 +1330,10 @@
       ],
       "tips": [
         "The admins of your organization manage the connection under [Users & organizations](/users-organizations) → organization → **More** → **Learning platform (LTI)**. There they switch the connection and its deployments on and off, add deployment IDs and unlink LMS accounts.",
-        "Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (in Moodle sending name and email, in ILIAS the *User identification*) and the grade transfer (in Moodle *IMS LTI Assignment and Grade Services*, in ILIAS *Advanced Grading Services*)."
+        "Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (in Moodle sending name and email, in ILIAS the *User identification*) and the grade transfer (in Moodle *IMS LTI Assignment and Grade Services*, in ILIAS *Advanced Grading Services*). In OpenOlat teachers set the display, the transfer of name and email address and *Transfer score* themselves in the LTI page."
       ],
       "pitfalls": [
-        "If the tool starts embedded in the course (iframe), people land on the login page instead of the exam, or see **Sign-in does not match** (`launch_mismatch`). The browser does not pass the sign-in cookies into the embedded frame. Set the tool to **New window** in the learning platform. After a registration by link, Moodle presets embedded. There the Moodle administration changes the tool’s *Default launch container*. Teachers cannot change it per activity in Moodle 4.5.",
+        "If the tool starts embedded in the course (iframe), it first shows a page with a button that opens it in a new window. The browser does not pass the sign-in cookies into the embedded frame. Older browsers (Safari before 16.4) land on the login page instead, or see **Sign-in does not match** (`launch_mismatch`). Set the tool to **New window** in the learning platform, and the extra step goes away. In OpenOlat teachers choose *Open in new window* under *Display* in the LTI page. After a registration by link, Moodle presets embedded. There the Moodle administration changes the tool’s *Default launch container*. Teachers cannot change it per activity in Moodle 4.5.",
         "`state_unavailable` has nothing to do with cookies or the browser. Another browser does not help, a new attempt after a few minutes does.",
         "Going back, reloading or a bookmark on a launch page leads to `invalid_state`. Always start from the learning platform.",
         "`unknown_deployment` and `deployment_disabled` are not the same. In the first case the ID is missing from the connection, in the second it is registered and switched off."
@@ -1290,7 +1355,11 @@
         "login page",
         "sign-in expired",
         "sign-in does not match",
-        "confirmation failed"
+        "confirmation failed",
+        "openolat launch",
+        "lti page",
+        "open in new window",
+        "select content"
       ],
       "links": [
         "Setting up a connection",
@@ -1300,13 +1369,15 @@
       ]
     },
     "ts-lti-grades": {
-      "title": "Grades do not arrive in Moodle or ILIAS",
-      "summary": "Open the **activity overview**, or **Grade transfers** in the connection panel. They show the status and the error text of every transfer. The most common causes are an activity without a grade, grade sync switched off in the learning platform, a missing API key and, in ILIAS, the *User identification* set to *E-Mail Address*. ILIAS then answers “User not available”.",
+      "title": "Grades do not arrive in Moodle, ILIAS or OpenOlat",
+      "summary": "Open the **activity overview**, or **Grade transfers** in the connection panel. They show the status and the error text of every transfer. The most common causes are an activity without a grade (in OpenOlat without *Transfer score*), grade sync switched off in the learning platform, a missing API key and, in ILIAS, the *User identification* set to *E-Mail Address*. ILIAS then answers “User not available”.",
       "steps": [
         "**ILIAS: “ILIAS kennt die Person nicht” or “User not available”**: the ILIAS provider identifies people by *E-Mail Address*. In ILIAS 10.9 every grade transfer fails in this mode. The connection card then warns with **Grade transfer to ILIAS fails**. The ILIAS administration switches the provider’s *User identification* to **ILIAS user id …**. After that, the identifier of every person changes. On the next launch each person consents again, gets a new account and is asked once for their email address. Earlier submissions stay with the old account.",
         "**ILIAS: no value arrives**: *Advanced Grading Services* must be switched on for the provider. Then open the activity again.",
         "**ILIAS: a passed exam shows as “in progress”**: the object’s *Mastery Score* is still 80. Set it to **22** under *Options for Learning Progress*. If the field is missing, the ILIAS administration ticks *Provider supports Outcome Service* on the provider. ILIAS shows learning progress only when it is switched on in the ILIAS administration.",
         "**Moodle: the activity has no grade**: without a grade there is no grade column. Switch on grading in the activity, if needed with the tick *Allow … to add grades in the gradebook*.",
+        "**OpenOlat: no grade arrives**: *Transfer score* is off in the LTI page. Without it OpenOlat gives the tool no grade column. Switch it on in the assessment configuration, publish the course and open the activity again.",
+        "**OpenOlat: wrong score or not passed**: OpenOlat takes the points as they are and multiplies them by the *Scaling factor*. Keep it at 1 and set *Score needed to pass* to 4, or to 10 for French exams graded out of 20.",
         "**Status Failed with 400, 401, 403 or 404**: the learning platform refuses the grade for good. So the tool does not try again right away. Fix the cause from the error text, then click **Send again**, or **Retry** in the panel.",
         "**Status Being transferred or Pending with an error text**: the learning platform was briefly unreachable or had a server error. The tool tries again after 10, 30 and 90 seconds, then at growing intervals of up to six hours.",
         "**No grade yet**: the AI grading is still running or could not start. If the organization lacks an API key, the overview shows *Waiting for an API key of the organization*.",
@@ -1315,7 +1386,7 @@
       ],
       "tips": [
         "If a grade changes later, for example through a human grade or a new grading key, the new value reaches the learning platform within about an hour.",
-        "ILIAS gets only the final grade per person. A **KI-Bewertung** column exists in Moodle only.",
+        "ILIAS and OpenOlat get only the final grade per person. A **KI-Bewertung** column exists in Moodle only.",
         "If Moodle still shows another value after **Send all grades again**, the grade was overridden or locked in the Moodle gradebook. Moodle does not change such grades. Remove the override in Moodle, and Moodle shows the value sent."
       ],
       "pitfalls": [
@@ -1332,7 +1403,10 @@
         "advanced grading services",
         "send again",
         "send all grades again",
-        "outage"
+        "outage",
+        "openolat",
+        "transfer score",
+        "scaling factor"
       ],
       "links": [
         "Grades and the learning platform",
@@ -1346,14 +1420,14 @@
       "summary": "An exam collection has several tasks. Choose one task in the picker, or, in Moodle, the whole collection. The whole collection needs column management in Moodle. Its main column, the activity column, receives the mean only once every task has a final grade.",
       "steps": [
         "**The picker asks for a task (`task_required`)**: the exam has several tasks. Expand the collection and choose the task whose grade the activity receives. In Moodle you can choose the whole collection instead.",
-        "**The whole collection cannot be chosen (`collection_unsupported`)**: the connection is ILIAS, or Moodle does not let the tool create columns. In ILIAS, create one activity per task. In Moodle, the administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again so that the learning platform sends the new rights.",
+        "**The whole collection cannot be chosen (`collection_unsupported`)**: the connection is ILIAS or OpenOlat, or Moodle does not let the tool create columns. In ILIAS and OpenOlat, create one activity per task, in OpenOlat one LTI page per task. In Moodle, the administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again so that the learning platform sends the new rights.",
         "**The main column stays empty**: on the whole collection, the activity column receives the mean only once every task of the person has a final grade. Check in the *Aufgabe N* columns which task is still missing and grade it. If the activity does not send AI grades, every task needs a human grade. If a task was added to the collection, the mean also waits for that task.",
         "**A task column is missing in Moodle**: the column appears with the task’s first grade. If it was deleted in Moodle, BenGER does not create it again by itself.",
         "**The link cannot be changed (`relink_blocked`)**: a grade of the activity has already reached the learning platform. Create a new activity for the other exam, the other task or the other way.",
         "**Import refused (`multi_task_unsupported`)**: an older activity receives the whole exam as one grade. Link it to the exam’s task. After that, imports are possible."
       ],
       "tips": [
-        "One activity per task works in Moodle and ILIAS. The whole collection on one activity exists in Moodle only."
+        "One activity per task works in Moodle, ILIAS and OpenOlat. The whole collection on one activity exists in Moodle only."
       ],
       "keywords": [
         "exam collection",
@@ -1365,11 +1439,12 @@
         "collection_unsupported",
         "relink_blocked",
         "multi_task_unsupported",
-        "column management"
+        "column management",
+        "openolat"
       ],
       "links": [
         "Linking an exam collection",
-        "Grades do not arrive in Moodle or ILIAS",
+        "Grades do not arrive in Moodle, ILIAS or OpenOlat",
         "Grades and the learning platform"
       ]
     }

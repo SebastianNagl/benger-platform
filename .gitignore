@@ -363,6 +363,9 @@ publications/LEXam_DE/manuscript.tex
 publications/LEXam_DE/manuscript.log
 publications/LEXam_DE/manuscript.fdb_latexmk
 publications/LEXam_DE/analysis/data/
+# The publisher's Word template and the manuscript rendered into it stay local.
+publications/LEXam_DE/publisher/
+publications/LEXam_DE/manuscript.docx
 # ...but the generated eval-config payloads are part of the rerun recipe
 # (see LEXam_DE/README.md) and must survive the generic *.json rule.
 !publications/LEXam_DE/configs/generated/*.json

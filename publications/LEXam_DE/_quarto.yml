@@ -1,6 +1,25 @@
 project:
   type: default
 
+# Citations follow the Chicago Manual of Style, notes and bibliography system
+# (18th edition CSL from the Citation Style Language project, CC BY-SA 3.0):
+# every citation becomes a footnote and the bibliography follows the text,
+# as the St.Gallen Publishing conference volume asks. The "classic" variant is
+# the official CMOS 18 style with the variants the manual allows for page
+# ranges of chapters and proceedings papers (14.8), the place of publication
+# (14.30) and a 3-em dash for a repeated author list (13.113).
+csl: chicago-notes-bibliography-classic.csl
+bibliography: references.bib
+# Notes and references print as plain text, like the publisher's template
+# (no links from a note to its bibliography entry).
+link-citations: false
+number-sections: true
+# US English as the citation locale, so the Chicago notes and bibliography get
+# double quotation marks with commas and periods inside and "October 20, 2026"
+# dates. The prose keeps its British spelling; the docx post-processing sets
+# the Word document language back to en-GB.
+lang: en-US
+
 format:
   pdf:
     # One-column article layout, matching the accepted abstract's look.
@@ -9,7 +28,6 @@ format:
     geometry:
       - margin=2.5cm
     fontsize: 11pt
-    number-sections: true
     keep-tex: true
     pdf-engine: xelatex
     include-in-header:
@@ -27,10 +45,13 @@ format:
         % Embed ActualText for ligatures so copy-paste/search extracts
         % "ffi" etc. correctly (fixes the ffi ToUnicode quirk).
         \XeTeXgenerateactualtext=1
+  # Word manuscript for the publisher. `make docx` renders it against the
+  # publisher's template (reference-doc passed on the command line, since the
+  # template itself stays out of the public repo) and then maps Quarto's
+  # paragraph styles onto the template's own styles.
+  docx:
+    toc: false
 
 execute:
   echo: false
   warning: false
-
-bibliography: references.bib
-link-citations: true

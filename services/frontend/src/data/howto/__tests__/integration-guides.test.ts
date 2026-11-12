@@ -224,6 +224,7 @@ describe('LTI guides: structure', () => {
       'lti-setup',
       'lti-setup-moodle',
       'lti-setup-ilias',
+      'lti-setup-openolat',
       'lti-manage',
       'lti-teacher',
       'lti-collection',
@@ -679,9 +680,11 @@ describe('LTI guides: exam collections (#122)', () => {
   it('explains both ways and where each works', () => {
     const de = body('lti-collection', 'de')
     const en = body('lti-collection', 'en')
-    expect(de).toMatch(/Eine Aktivität je Aufgabe \(Moodle und ILIAS\)/)
+    expect(de).toMatch(
+      /Eine Aktivität je Aufgabe \(Moodle, ILIAS und OpenOlat\)/,
+    )
     expect(de).toMatch(/Die ganze Sammlung in einer Aktivität \(nur Moodle\)/)
-    expect(en).toMatch(/One activity per task \(Moodle and ILIAS\)/)
+    expect(en).toMatch(/One activity per task \(Moodle, ILIAS and OpenOlat\)/)
     expect(en).toMatch(/The whole collection on one activity \(Moodle only\)/)
     // The whole collection needs Moodle's column management.
     for (const locale of LOCALES) {
@@ -692,13 +695,13 @@ describe('LTI guides: exam collections (#122)', () => {
       expect(text).toContain(MOODLE.weights[locale])
       expect(text).toContain(label(locale, 'extended.lti.picker.link'))
     }
-    // ILIAS: one activity per task only, and why.
+    // ILIAS and OpenOlat: one activity per task only, and why.
     expect(de).toMatch(
-      /In ILIAS gibt es nur den Weg mit einer Aktivität je Aufgabe/,
+      /In ILIAS und OpenOlat gibt es nur den Weg mit einer Aktivität je Aufgabe/,
     )
     expect(de).toMatch(/ILIAS lässt das Tool keine Spalten anlegen/)
     expect(en).toMatch(
-      /In ILIAS only the way with one activity per task exists/,
+      /In ILIAS and OpenOlat only the way with one activity per task exists/,
     )
     expect(en).toMatch(/ILIAS does not let the tool create columns/)
   })
@@ -1279,5 +1282,106 @@ describe('related guides and pages', () => {
         expect(text).not.toMatch(EM_DASH)
       }
     }
+  })
+})
+
+// OpenOlat 21 labels of the external tool form and the course element "LTI
+// page", checked against the OpenOlat 21.1.2 LocalStrings (de/en) and a
+// harness instance (2026-11-11).
+describe('LTI guides: OpenOlat', () => {
+  const LABELS: Record<'de' | 'en', string[]> = {
+    de: [
+      'Mit Shared Deployment',
+      'Deep-Linking aktivieren',
+      'Schlüsselsatz-URL',
+      'Punkte übertragen',
+      'Skalierungsfaktor',
+      'Neues Fenster öffnen',
+    ],
+    en: [
+      'With shared deployment',
+      'Activate Deep-Linking',
+      'Transfer score',
+      'Scaling factor',
+      'Open in new window',
+    ],
+  }
+
+  it.each(['de', 'en'] as Locale[])(
+    'quotes the OpenOlat labels in %s',
+    (locale) => {
+      const text = body('lti-setup-openolat', locale)
+      for (const label of LABELS[locale]) expect(text).toContain(label)
+    },
+  )
+
+  it.each(['de', 'en'] as Locale[])(
+    'keeps the scaling factor at 1 and names the pass marks (%s)',
+    (locale) => {
+      const text = body('lti-setup-openolat', locale)
+      expect(text).toMatch(/\b1\b/)
+      expect(text).toMatch(/\b4\b/)
+      expect(text).toMatch(/\b10\b/)
+    },
+  )
+
+  // All three UI languages, links and keywords included.
+  const fullText = (id: string, locale: 'de' | 'en' | 'fr') => {
+    const t = guideText(rawGuide(id), locale)
+    return [
+      t.title,
+      t.summary,
+      ...t.steps,
+      ...t.tips,
+      ...t.pitfalls,
+      ...t.keywords,
+      ...t.links.map((l) => l.label),
+    ].join('\n')
+  }
+  const ALL_LOCALES = ['de', 'en', 'fr'] as const
+
+  // The guides that used to speak of Moodle and ILIAS only.
+  const SHARED_LTI_GUIDES = [
+    'lti-teacher',
+    'lti-grades',
+    'lti-manage',
+    'lti-collection',
+    'lti-privacy',
+    'ts-lti-errors',
+    'ts-lti-grades',
+    'ts-lti-collection',
+  ]
+
+  it.each(SHARED_LTI_GUIDES)(
+    '%s covers OpenOlat next to Moodle and ILIAS',
+    (id) => {
+      for (const locale of ALL_LOCALES) {
+        const text = fullText(id, locale)
+        expect(text).toContain('OpenOlat')
+        expect(text).not.toMatch(/Moodle (oder|or|ou) ILIAS/)
+      }
+    },
+  )
+
+  it('names the OpenOlat grade switch where grades are set up or missing', () => {
+    for (const id of ['lti-teacher', 'lti-grades', 'ts-lti-grades']) {
+      expect(fullText(id, 'de')).toContain('*Punkte übertragen*')
+      expect(fullText(id, 'en')).toContain('*Transfer score*')
+      expect(fullText(id, 'fr')).toContain('*Transfert du score*')
+    }
+  })
+
+  it('no longer tells admins to switch deep linking off', () => {
+    for (const locale of ALL_LOCALES) {
+      expect(fullText('ts-lti-errors', locale)).not.toMatch(
+        /Deep Linking (in den Tool-Einstellungen )?ab|switches Deep Linking off|désactive Deep Linking/,
+      )
+    }
+  })
+
+  it('is linked from the common setup entry', () => {
+    expect(guide('lti-setup').links.map((l) => l.href)).toContain(
+      '/how-to#lti-setup-openolat',
+    )
   })
 })

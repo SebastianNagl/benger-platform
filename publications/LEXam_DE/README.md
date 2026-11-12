@@ -7,16 +7,30 @@ artifacts and the `analysis/data/` result dumps stay out via the repo-root
 Full paper (~3,000 words, plain language for a mixed legal/NLP audience) for
 the accepted conference abstract "Replicating LEXam on German First State
 Exam-Style Essay Cases to Probe the 'Statistical' Face of Legal Reasoning"
-(`Replicating_LEXam_on_German_Exams_Abstract.pdf`).
+(`Replicating_LEXam_on_German_Exams_Abstract.pdf`), to appear in the open
+access conference volume of "Legal Reasoning in the Age of AI: Law, Language
+and Computation" (St.Gallen Publishing; final manuscripts due 2026-12-31,
+Chicago notes and bibliography, publisher's Word template).
 
 ## Contents
 
 - `manuscript.qmd` → `make render` → `manuscript.pdf` (one-column article
   layout like the abstract, xelatex, fonts loaded from `fonts/`). Narrative
-  v2 (2026-08-14): BenGER vs the faithful LEXam replication — why German
-  data needed its own instrument, benevolent toward LEXam. Numbers are
-  currently hardcoded in the qmd; wire them to the analysis outputs before
-  submission.
+  v3 (2026-11-12): the faithful LEXam replication, what it showed, where a
+  single-reference correctness score stops matching German correction
+  (alternative solutions, step-by-step grading of the subsumption), why that
+  led to BenGER and on to instance-specific grading sheets; respectful toward
+  LEXam throughout. Citations are footnotes in Chicago style
+  (`chicago-notes-bibliography-classic.csl`, the official CMOS 18 style
+  with page ranges and place of publication); court decisions are cited in the
+  footnotes by court, decision type, date and docket number. Numbers are hardcoded in the qmd and trace to
+  `REPRODUCTION.md`, `analysis/` and the BenGER paper.
+- `make docx` → `manuscript.docx` for the publisher. Copy the publisher's
+  Word template to `publisher/St.Gallen_Publishing_Template.docx` (both
+  gitignored) first; Quarto renders against it and
+  `scripts/apply_publisher_styles.py` maps the paragraph styles onto the
+  template's own styles. Without the template the target renders a plain
+  docx.
 - `REPRODUCTION.md` — full methodology, headline results, and the deviations
   register of the LEXam-DE reproduction runs (2026-08-12→14, prod).
 - `prompts/`, `configs/`, `snapshots/` — the Germanized LEXam templates, the

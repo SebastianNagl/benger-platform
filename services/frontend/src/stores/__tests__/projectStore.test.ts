@@ -284,6 +284,69 @@ describe('ProjectStore', () => {
       )
     })
 
+    it('the deleted lens drops the archive filter, survives pagination and is never inherited', async () => {
+      mockProjectsAPI.list.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 30,
+        pages: 0,
+      })
+
+      // The deleted view lists deleted projects whatever their archive state.
+      await act(async () => {
+        await useProjectStore
+          .getState()
+          .fetchProjects(1, 30, false, false, true)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        1,
+        30,
+        '',
+        undefined,
+        false,
+        true,
+      )
+
+      // Paging inside the deleted view keeps it.
+      await act(async () => {
+        await useProjectStore.getState().setCurrentPage(2)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        2,
+        30,
+        '',
+        undefined,
+        false,
+        true,
+      )
+      await act(async () => {
+        await useProjectStore.getState().setPageSize(50)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        1,
+        50,
+        '',
+        undefined,
+        false,
+        true,
+      )
+
+      // A plain fetch elsewhere (dashboard, model pickers) must not pull
+      // deleted projects into the shared store.
+      await act(async () => {
+        await useProjectStore.getState().fetchProjects(1, 100)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(
+        1,
+        100,
+        '',
+        false,
+        false,
+        false,
+      )
+    })
+
     it('should handle undefined response gracefully', async () => {
       mockProjectsAPI.list.mockResolvedValue(undefined as any)
 

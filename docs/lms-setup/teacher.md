@@ -1,6 +1,6 @@
 # Lehrende: Aktivität anlegen und Klausur verknüpfen
 
-Für: Lehrende eines Kurses in Moodle oder ILIAS. Die Anbindung hat die
+Für: Lehrende eines Kurses in Moodle, ILIAS oder OpenOlat. Die Anbindung hat die
 Administration schon eingerichtet.
 
 ## 1. Aktivität anlegen
@@ -10,6 +10,14 @@ Administration schon eingerichtet.
 - **ILIAS**: **Neues Objekt hinzufügen** → **LTI-Konsument** → den
   BenGER-Provider wählen → **Online** anhaken, **Optionen für den Start**:
   **Neues Fenster**, **Mastery Score** 22 → Speichern.
+- OpenOlat: Kurseditor → *Kursbausteine einfügen* → *LTI-Seite* → Reiter
+  *Seiteninhalt*: bei *LTI Version* BenGER wählen und speichern. Dann
+  *Inhalt auswählen*: die Klausur direkt wählen, so ist Abschnitt 2 schon
+  erledigt. *Vorname/Name übertragen* und *E-Mail-Adresse übertragen* an,
+  *Anzeige* *Neues Fenster öffnen*; unter *Konfiguration Bewertung* *Punkte
+  übertragen* an, *Skalierungsfaktor* 1, *Notwendige Punktzahl für
+  „bestanden"* 4 (bei französischen Klausuren 10) → Speichern und den Kurs
+  publizieren.
 
 ## 2. Klausur verknüpfen (einmal)
 
@@ -60,7 +68,7 @@ erreichen trotzdem alle Aufgaben der Sammlung.
 
 Weg B gibt es nur, wenn die Moodle-Administration beim Tool **Service für
 die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**
-eingestellt hat. In ILIAS gibt es Weg B nicht, dort gilt Weg A.
+eingestellt hat. In ILIAS und OpenOlat gibt es Weg B nicht, dort gilt Weg A.
 
 **Gut zu wissen**
 
@@ -91,8 +99,8 @@ eingestellt hat. In ILIAS gibt es Weg B nicht, dort gilt Weg A.
 |---|---|---|
 | Klausur ist in der Auswahl ausgegraut | Keine Aufgabe, keine Notenpunkte oder kein aktiver Bewertungsbogen | Grund steht daneben |
 | Die Auswahl verlangt eine Aufgabe (`task_required`) | Die Klausur ist eine Klausurensammlung | Aufgabe wählen (Weg A) oder in Moodle die ganze Sammlung (Weg B) |
-| Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`) | ILIAS, oder Moodle darf keine Spalten anlegen | Weg A nutzen, oder die Moodle-Administration stellt die Spaltenverwaltung ein |
+| Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`) | ILIAS oder OpenOlat, oder Moodle darf keine Spalten anlegen | Weg A nutzen, oder die Moodle-Administration stellt die Spaltenverwaltung ein |
 | Spalte der Aktivität bleibt leer (Weg B) | Noch nicht jede Aufgabe hat eine Endnote | Fehlende Aufgaben bewerten; der Mittelwert folgt dann |
 | Studierende sehen „noch nicht verknüpft“ | Noch keine Klausur verknüpft | Schritt 2 |
-| Keine Note in der Lernplattform | Aktivität ohne Bewertung | Moodle: Bewertung einschalten; ILIAS: Administration fragen |
+| Keine Note in der Lernplattform | Aktivität ohne Bewertung | Moodle: Bewertung einschalten; ILIAS: Administration fragen; OpenOlat: *Punkte übertragen* in der LTI-Seite einschalten |
 | Verknüpfung lässt sich nicht ändern | Es wurden schon Noten übertragen | Neue Aktivität anlegen |

@@ -467,6 +467,23 @@ describe('TextAreaInput', () => {
       expect(textarea).toHaveAttribute('placeholder', 'Custom placeholder text')
     })
 
+    it('falls back to the translated placeholder, never inline copy', () => {
+      const { placeholder: _omit, ...withoutPlaceholder } =
+        defaultProps.config.props
+      render(
+        <TextAreaInput
+          {...defaultProps}
+          config={{ ...defaultProps.config, props: withoutPlaceholder }}
+        />,
+      )
+
+      expect(screen.getByTestId('textarea')).toHaveAttribute(
+        'placeholder',
+        // Without a provider t() answers the key: the catalog is used.
+        'annotation.textAreaPlaceholder',
+      )
+    })
+
     it('should use custom rows', () => {
       const customProps = {
         ...defaultProps,

@@ -168,7 +168,7 @@ at stake, and we do not claim that the findings transfer.
 
 *Human graders disagree.* In the 1968 study of 17 US law professors, the mean of all their grades
 reached a reliability of .96 against .58 for one professor, so single graders and panel means are
-different yardsticks [@klein1968nature]. On 15 scripts of a German beginner-level mock exam, each graded by 15 or 16
+different references [@klein1968nature]. On 15 scripts of a German beginner-level mock exam, each graded by 15 or 16
 correctors who had the model solution but no point scheme, the highest and lowest grade for a script
 lay 6.47 points apart on average [@hufeld2024], and in BenGER, a benchmark of German case solutions curated on an open platform
 [@nagl2026benger], three blind reviewers reached a single-rater ICC(2,1) of .63 [@nagl2026bengerdata].
@@ -320,7 +320,7 @@ From the measurement literature and the requirements above we derive eight desid
 Whether a deployment is lawful depends on context and procedure, not on the method alone.
 The desiderata overlap: D3, D4 and D8, where the law adds most, all favour designs that make the
 standard explicit, so a paradigm's count of marks is not a score. Agreement with human
-graders, the usual yardstick in NLP, is evidence for D1 and D2, not proof: humans
+graders, the usual standard in NLP, is evidence for D1 and D2, not proof: humans
 disagree, an automatic grader can match a noisy reference by chance [@elangovan2025beyond], and
 consistency is not validity [@han2026agreement].
 

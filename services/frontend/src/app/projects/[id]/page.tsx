@@ -800,10 +800,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
   }, [currentProject?.id, skipModelReset])
 
+  // A soft-deleted project is open to superadmins only, to look inside: the
+  // page is read-only until it is restored (DeletedProjectBanner).
+  const isDeletedView = Boolean(currentProject?.deleted_at)
+
   // The backend's own edit decision (creator, superadmin or an elevated
   // membership in any of the project's orgs); public visitors get false.
   const canEditProject = () => {
     if (!user || !currentProject) return false
+    if (isDeletedView) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
     return currentProject.can_edit === true
@@ -812,6 +817,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Icon: creator, org admins and superadmins may change it later.
   const canEditIcon = () => {
     if (!user || !currentProject) return false
+    if (isDeletedView) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
     if (String(currentProject.created_by) === String(user.id)) return true
@@ -842,6 +848,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const canDeleteProject = () => {
     if (!user) return false
+    if (isDeletedView) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
     // A private project is its creator's alone, even when a learning
@@ -862,6 +869,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // A private project's creator resolves to ORG_ADMIN on the backend, so
   // the per-project role covers org and private projects alike.
   const canSeeQuickAction = (action: string) => {
+    // Deleted: only the read-only way into the tasks and their answers.
+    if (isDeletedView) return action === 'projectData'
     if (user?.is_superadmin) return true
     if (isAttempted) return action === 'myTasks'
     if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
@@ -2878,6 +2887,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               greyed out unless they may change it (the panel decides), and
               the learning platform link below it. */}
                 {currentProject &&
+                  !isDeletedView &&
                   (user?.is_superadmin ||
                     String(user?.id) === String(currentProject.created_by) ||
                     canEditProject()) && (
@@ -3255,9 +3265,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Project Report - Issue #770 */}
-          {(user?.is_superadmin ||
-            currentProject?.effective_role === 'ORG_ADMIN' ||
-            currentProject?.effective_role === 'CONTRIBUTOR') &&
+          {!isDeletedView &&
+            (user?.is_superadmin ||
+              currentProject?.effective_role === 'ORG_ADMIN' ||
+              currentProject?.effective_role === 'CONTRIBUTOR') &&
             reportStatus && (
               <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <div className="mb-4 flex items-center justify-between">

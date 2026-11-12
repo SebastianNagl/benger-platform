@@ -539,6 +539,7 @@ async def test_org_admin_round_trip(async_test_client, async_test_db):
         assert r.json() == {
             "login_url": f"{MAIN_URL}/api/lti/login",
             "launch_url": f"{MAIN_URL}/api/lti/launch",
+            "deep_link_url": f"{MAIN_URL}/api/lti/launch",
             "jwks_url": f"{MAIN_URL}/api/lti/jwks",
             "tool_host": "main",
             "base_url": MAIN_URL,
@@ -938,11 +939,12 @@ async def test_tool_config_uses_the_connection_host(async_test_client, async_tes
             params={"base_url": "https://attacker.example.com"},
         )
         assert r.status_code == 200, r.text
-        # No deep_linking_url: the tool rejects LtiDeepLinkingRequest, so the
-        # config sheet must not advertise a nonexistent route.
+        # Deep linking goes to the launch route (the extended edition answers
+        # LtiDeepLinkingRequest there).
         assert r.json() == {
             "login_url": f"{STUDENT_URL}/api/lti/login",
             "launch_url": f"{STUDENT_URL}/api/lti/launch",
+            "deep_link_url": f"{STUDENT_URL}/api/lti/launch",
             "jwks_url": f"{STUDENT_URL}/api/lti/jwks",
             "tool_host": "student_locked",
             "base_url": STUDENT_URL,

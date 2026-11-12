@@ -36,6 +36,7 @@ import { computeWindowState } from '@/utils/projectWindow'
 import { Menu } from '@headlessui/react'
 import {
   ArchiveBoxIcon,
+  ArrowUturnLeftIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   ClockIcon,
@@ -64,10 +65,17 @@ const TASK_EXPORT_NOT_PROJECT_CODE = 'task_export_not_project'
 interface ProjectListTableProps {
   /** Show only archived projects and enable unarchive functionality */
   showArchivedOnly?: boolean
+  /**
+   * Superadmin view of soft-deleted projects (migration 093): rows open the
+   * project like any other list, and each row offers restore and the
+   * permanent delete instead of the labeling shortcut.
+   */
+  showDeletedOnly?: boolean
 }
 
 export function ProjectListTable({
   showArchivedOnly = false,
+  showDeletedOnly = false,
 }: ProjectListTableProps) {
   const router = useRouter()
   const { addToast } = useToast()
@@ -164,6 +172,9 @@ export function ProjectListTable({
 
   // Check if user has permissions to create/modify projects
   const userCanCreateProjects = canCreateProjects(user)
+  // Bulk selection serves the active and archived lists; the deleted view
+  // acts per row.
+  const canSelect = userCanCreateProjects && !showDeletedOnly
 
   // Clear selections when page changes
   useEffect(() => {
@@ -185,8 +196,66 @@ export function ProjectListTable({
   // time the page loaded; one effect with the union of deps does the same
   // job without the second round-trip.
   useEffect(() => {
-    fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
-  }, [fetchProjects, searchQuery, showArchivedOnly, includeAllPrivate])
+    fetchProjects(
+      undefined,
+      undefined,
+      showArchivedOnly,
+      includeAllPrivate,
+      showDeletedOnly,
+    )
+  }, [
+    fetchProjects,
+    searchQuery,
+    showArchivedOnly,
+    includeAllPrivate,
+    showDeletedOnly,
+  ])
+
+  // Re-fetch the current view with its own scope after a row action.
+  const refetch = () =>
+    fetchProjects(
+      undefined,
+      undefined,
+      showArchivedOnly,
+      includeAllPrivate,
+      showDeletedOnly,
+    )
+
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const handleRestore = async (project: Project) => {
+    setBusyId(project.id)
+    try {
+      await projectsAPI.restoreProject(project.id)
+      addToast(t('projects.deleted.restored'), 'success')
+      await refetch()
+    } catch (err: any) {
+      addToast(err?.message || t('common.error'), 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handlePurge = async (project: Project) => {
+    const ok = await confirm({
+      title: t('projects.deleted.purge'),
+      message: t('projects.deleted.purgeConfirm', { title: project.title }),
+      variant: 'danger',
+      confirmText: t('projects.deleted.purge'),
+      confirmButtonVariant: 'filled',
+    })
+    if (!ok) return
+    setBusyId(project.id)
+    try {
+      await projectsAPI.purgeProject(project.id)
+      addToast(t('projects.deleted.purged'), 'success')
+      await refetch()
+    } catch (err: any) {
+      addToast(err?.message || t('common.error'), 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -280,7 +349,7 @@ export function ProjectListTable({
 
       setSelectedProjects(new Set())
       // Refresh projects list immediately after deletion completes with correct filter
-      await fetchProjects(undefined, undefined, showArchivedOnly)
+      await refetch()
     } catch (error) {
       console.error('Failed to delete projects:', error)
       addToast(t('toasts.projects.deleteFailed'), 'error')
@@ -461,7 +530,7 @@ export function ProjectListTable({
       }
 
       // Refresh projects list
-      await fetchProjects(undefined, undefined, showArchivedOnly)
+      await refetch()
 
       // Navigate to the imported project (worker back-fills the created id).
       const projectId = job.project_id || result.project_id
@@ -524,7 +593,7 @@ export function ProjectListTable({
       )
       setSelectedProjects(new Set())
       // Refresh projects list immediately after operation completes with correct filter
-      await fetchProjects(undefined, undefined, showArchivedOnly)
+      await refetch()
     } catch (error) {
       console.error('Failed to archive projects:', error)
       addToast(t('toasts.projects.archiveFailed'), 'error')
@@ -557,7 +626,7 @@ export function ProjectListTable({
       )
       setSelectedProjects(new Set())
       // Refresh projects list immediately after operation completes with correct filter
-      await fetchProjects(undefined, undefined, showArchivedOnly)
+      await refetch()
     } catch (error) {
       console.error('Failed to unarchive projects:', error)
       addToast(t('toasts.projects.unarchiveFailed'), 'error')
@@ -577,9 +646,20 @@ export function ProjectListTable({
   const organizationNames = (project: Project): string =>
     (project.organizations ?? []).map((o) => o.name).join(', ')
 
+  // The date column: when the project was created, or in the deleted view
+  // when it was deleted.
+  const listDate = (project: Project): string =>
+    (showDeletedOnly && project.deleted_at) || project.created_at
+
+  // Deleted rows get the same guard: a project opened from the deleted view
+  // lands in the shared store (fetchProject), so the active and archived
+  // lists drop deleted rows and the deleted list keeps only them.
   const sortedProjects = [...(projects || [])]
     .filter((p) =>
-      showArchivedOnly ? p.is_archived !== false : p.is_archived !== true,
+      showDeletedOnly
+        ? Boolean(p.deleted_at)
+        : !p.deleted_at &&
+          (showArchivedOnly ? p.is_archived !== false : p.is_archived !== true),
     )
     .sort((a, b) => {
       let aValue: any
@@ -595,8 +675,8 @@ export function ProjectListTable({
           bValue = organizationNames(b).toLowerCase()
           break
         case 'created_at':
-          aValue = new Date(a.created_at).getTime()
-          bValue = new Date(b.created_at).getTime()
+          aValue = new Date(listDate(a)).getTime()
+          bValue = new Date(listDate(b)).getTime()
           break
         case 'task_count':
           aValue = a.task_count
@@ -626,7 +706,10 @@ export function ProjectListTable({
     )
   }
 
-  if (loading && (!projects || projects.length === 0)) {
+  // Spinner while loading unless rows of THIS view are already there: the
+  // store may still hold the previous view's rows (archived, deleted), which
+  // the filter above drops, and an empty table would claim "no projects".
+  if (loading && sortedProjects.length === 0) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
@@ -641,13 +724,20 @@ export function ProjectListTable({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              {showArchivedOnly
-                ? t('projects.archivedTitle')
-                : t('projects.title')}
+              {showDeletedOnly
+                ? t('projects.deleted.title')
+                : showArchivedOnly
+                  ? t('projects.archivedTitle')
+                  : t('projects.title')}
             </h1>
+            {showDeletedOnly && (
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                {t('projects.deleted.subtitle')}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            {showArchivedOnly && userCanCreateProjects && (
+            {(showArchivedOnly || showDeletedOnly) && userCanCreateProjects && (
               <Button
                 onClick={() => router.push('/projects')}
                 variant="outline"
@@ -657,7 +747,7 @@ export function ProjectListTable({
                 {t('projects.activeProjects')}
               </Button>
             )}
-            {!showArchivedOnly && userCanCreateProjects && (
+            {!showArchivedOnly && !showDeletedOnly && userCanCreateProjects && (
               <Button
                 onClick={() => router.push('/projects/create')}
                 variant="filled"
@@ -668,6 +758,7 @@ export function ProjectListTable({
               </Button>
             )}
             {!showArchivedOnly &&
+              !showDeletedOnly &&
               (ProjectDiscoverModal ||
                 user?.is_superadmin ||
                 userCanCreateProjects) && (
@@ -758,12 +849,7 @@ export function ProjectListTable({
           onClose={() => setDiscoverOpen(false)}
           onJoined={(projectId: string) => {
             setDiscoverOpen(false)
-            fetchProjects(
-              undefined,
-              undefined,
-              showArchivedOnly,
-              includeAllPrivate,
-            )
+            refetch()
             router.push(`/projects/${projectId}`)
           }}
         />
@@ -851,7 +937,7 @@ export function ProjectListTable({
               </SelectContent>
             </Select>
           </FilterToolbar.Field>
-          {user?.is_superadmin && (
+          {user?.is_superadmin && !showDeletedOnly && (
             <FilterToolbar.Field label={t('projects.list.showAllPrivate')}>
               <ToggleSwitch
                 enabled={includeAllPrivate}
@@ -862,7 +948,7 @@ export function ProjectListTable({
         </FilterToolbar>
 
         {/* Bulk Actions */}
-        {selectedProjects.size > 0 && userCanCreateProjects && (
+        {selectedProjects.size > 0 && canSelect && (
           <div className="flex items-center justify-end space-x-3">
             <ProjectBulkActions
               selectedCount={selectedProjects.size}
@@ -885,7 +971,7 @@ export function ProjectListTable({
           >
             <thead className="bg-zinc-50 dark:bg-zinc-800">
               <tr>
-                {userCanCreateProjects && (
+                {canSelect && (
                   <th
                     scope="col"
                     className="w-12 px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
@@ -969,7 +1055,11 @@ export function ProjectListTable({
                     onClick={() => handleSort('created_at')}
                     className="group inline-flex items-center space-x-1 hover:text-zinc-900 dark:hover:text-zinc-100"
                   >
-                    <span>{t('projects.list.created')}</span>
+                    <span>
+                      {showDeletedOnly
+                        ? t('projects.deleted.deletedColumn')
+                        : t('projects.list.created')}
+                    </span>
                     <SortIcon field="created_at" />
                   </button>
                 </th>
@@ -985,14 +1075,22 @@ export function ProjectListTable({
               {sortedProjects.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={userCanCreateProjects ? 8 : 7}
+                    colSpan={canSelect ? 8 : 7}
                     className="px-6 py-12 text-center"
                   >
                     <div
                       className="text-zinc-500 dark:text-zinc-400"
                       data-testid="projects-empty-state"
                     >
-                      {searchQuery ? (
+                      {showDeletedOnly && !searchQuery ? (
+                        <p className="text-sm" data-testid="deleted-empty">
+                          {t('projects.deleted.empty')}
+                        </p>
+                      ) : showArchivedOnly && !searchQuery ? (
+                        <p className="text-sm" data-testid="archived-empty">
+                          {t('projects.noArchivedProjects')}
+                        </p>
+                      ) : searchQuery ? (
                         <>
                           <p className="text-sm">
                             {t('projects.noProjectsMatchFilters')}
@@ -1027,7 +1125,7 @@ export function ProjectListTable({
                       className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       data-testid={`projects-table-row-${project.id}`}
                     >
-                      {userCanCreateProjects && (
+                      {canSelect && (
                         <td
                           className="px-4 py-3"
                           onClick={(e) => e.stopPropagation()}
@@ -1064,6 +1162,24 @@ export function ProjectListTable({
                             >
                               {project.title}
                             </span>
+                            {showDeletedOnly && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-400"
+                                data-testid={`project-deleted-badge-${project.id}`}
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                                {t('projects.deleted.badge')}
+                              </span>
+                            )}
+                            {project.is_archived && !showArchivedOnly && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                                data-testid={`project-archived-badge-${project.id}`}
+                              >
+                                <ArchiveBoxIcon className="h-3.5 w-3.5" />
+                                {t('projects.list.archivedBadge')}
+                              </span>
+                            )}
                             {project.is_public && (
                               <span
                                 className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
@@ -1203,13 +1319,48 @@ export function ProjectListTable({
                         className="cursor-pointer px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400"
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
-                        {formatDistanceToNow(new Date(project.created_at), {
-                          addSuffix: true,
-                          locale: dateFnsLocale(locale),
-                        })}
+                        <span
+                          title={new Date(listDate(project)).toLocaleString(
+                            intlTag(locale),
+                          )}
+                        >
+                          {formatDistanceToNow(new Date(listDate(project)), {
+                            addSuffix: true,
+                            locale: dateFnsLocale(locale),
+                          })}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-medium whitespace-nowrap">
-                        {project.kind === 'flashcard_collection' ? (
+                        {showDeletedOnly ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              className="gap-1.5"
+                              disabled={busyId === project.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRestore(project)
+                              }}
+                              data-testid={`deleted-restore-${project.id}`}
+                            >
+                              <ArrowUturnLeftIcon className="h-4 w-4" />
+                              {t('projects.deleted.restore')}
+                            </Button>
+                            <Button
+                              variant="danger"
+                              className="gap-1.5"
+                              disabled={busyId === project.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handlePurge(project)
+                              }}
+                              data-testid={`deleted-purge-${project.id}`}
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                              {t('projects.deleted.purge')}
+                            </Button>
+                          </div>
+                        ) : project.kind === 'flashcard_collection' ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation()

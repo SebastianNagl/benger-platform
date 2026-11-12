@@ -827,11 +827,22 @@ whenever one is added, renamed or removed):
   file written from the worker code
   (``services/workers/scripts/write_rubric_requirement_prompts.py``, pinned
   by the workers suite).
+
+2.52 (2026-11-11): OpenOlat, deep linking and the course roster (LTI).
+  ``lti_platform_registrations.lms_family`` may be ``'openolat'`` and
+  ``lti_resource_links`` gains ``context_memberships_url`` (the NRPS URL of
+  the launch; migration 129). ``LMS_FAMILY_PATTERN`` allows ``openolat``.
+  ``GET /api/admin/lti/registrations/{id}/tool-config`` returns
+  ``deep_link_url`` (the launch URL; the extended edition answers
+  ``LtiDeepLinkingRequest`` there). The frontend proxy and the Helm ingress
+  let an LMS frame ``/api/lti/launch`` and ``/api/lti/deep-link`` (besides
+  ``/api/lti/register/init``); the API limits framing with CSP
+  ``frame-ancestors``. How-to guide ``lti-setup-openolat``.
 """
 
 import os
 
-CORE_API_VERSION = "2.51"
+CORE_API_VERSION = "2.52"
 
 
 def extended_required() -> bool:

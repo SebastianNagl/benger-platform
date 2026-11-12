@@ -69,10 +69,22 @@ function overlayAlias(name) {
     : `./node_modules/@benger/${name}`
 }
 
-// The only path another site may frame (IMS LTI Dynamic Registration). The
-// ingress (infra/helm/benger/templates/ingress.yaml) exempts the same path
-// from its frameDeny header.
-const FRAMEABLE_PATH = '/api/lti/register/init'
+// The only paths another site may frame, all answered by the LTI tool with a
+// Content-Security-Policy frame-ancestors limited to the LMS origin:
+// - /api/lti/register/init: IMS Dynamic Registration (Moodle "Add LTI
+//   Advantage" shows it in an iframe);
+// - /api/lti/launch: a launch the LMS embeds gets a page with an "open in a
+//   new window" button instead of an empty frame (OpenOlat's default), and
+//   a deep-linking request continues to the picker inside the frame;
+// - /api/lti/deep-link: the content picker of a deep-linking request, which
+//   Moodle and OpenOlat open in a frame of their own.
+// The ingress (infra/helm/benger/templates/ingress.yaml) exempts the same
+// paths from its frameDeny header.
+const FRAMEABLE_PATHS = [
+  '/api/lti/register/init',
+  '/api/lti/launch',
+  '/api/lti/deep-link',
+]
 
 const nextConfig = {
   // Core Next.js settings
@@ -189,10 +201,10 @@ const nextConfig = {
         },
       ]
       headers.push({
-        // Every path except the LTI Dynamic Registration page. The negative
-        // lookahead is path-to-regexp syntax that Next documents for
-        // headers(); see src/__tests__/nextConfigHeaders.test.ts.
-        source: `/:path((?!${FRAMEABLE_PATH.slice(1)}$).*)`,
+        // Every path except the frameable LTI pages. The negative lookahead
+        // is path-to-regexp syntax that Next documents for headers(); see
+        // src/__tests__/nextConfigHeaders.test.ts.
+        source: `/:path((?!(?:${FRAMEABLE_PATHS.map((p) => p.slice(1)).join('|')})$).*)`,
         headers: [
           ...baseHeaders,
           {
@@ -201,13 +213,15 @@ const nextConfig = {
           },
         ],
       })
-      headers.push({
-        // An LMS (Moodle "Add LTI Advantage") loads this page in an iframe.
-        // No X-Frame-Options here: the API answer carries a
-        // Content-Security-Policy frame-ancestors limited to the LMS origin.
-        source: FRAMEABLE_PATH,
-        headers: baseHeaders,
-      })
+      for (const source of FRAMEABLE_PATHS) {
+        headers.push({
+          // An LMS loads this page in an iframe. No X-Frame-Options here: the
+          // API answer carries a Content-Security-Policy frame-ancestors
+          // limited to the LMS origin.
+          source,
+          headers: baseHeaders,
+        })
+      }
     }
 
     return headers

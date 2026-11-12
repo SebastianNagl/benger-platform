@@ -16,7 +16,7 @@ INSTRUCTOR_ORG_ROLE_PATTERN = "^(contributor|org_admin|none)$"
 STUDENT_ORG_ROLE_PATTERN = "^(annotator|none)$"
 REGISTRATION_STATUS_PATTERN = "^(active|disabled)$"
 # Advisory vendor tag; drives admin-UI presets/warnings + diagnostics only.
-LMS_FAMILY_PATTERN = "^(moodle|ilias)$"
+LMS_FAMILY_PATTERN = "^(moodle|ilias|openolat)$"
 
 # Public host a connection's tool URLs use. Base URLs are resolved from the
 # environment by ``shared/public_hosts.py``; existing rows use the
@@ -290,13 +290,13 @@ class LtiToolConfigRead(BaseModel):
     form, derived from the connection's tool host. The routes themselves are
     served by the extended edition (``/api/lti/*``).
 
-    Deliberately does NOT advertise a deep-linking URL: the tool rejects
-    ``LtiDeepLinkingRequest`` launches (content binding happens via the
-    instructor-launch picker instead), so publishing such a URL would point
-    LMS admins at a route that does not exist."""
+    ``deep_link_url`` is where the LMS sends an ``LtiDeepLinkingRequest``
+    (the teacher picks an exam from inside the LMS); the extended edition
+    answers it on the launch route, so it equals ``launch_url``."""
 
     login_url: str
     launch_url: str
+    deep_link_url: str
     jwks_url: str
     tool_host: Optional[ToolHost] = None
     base_url: Optional[str] = None
