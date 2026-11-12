@@ -362,7 +362,7 @@
       "steps": [
         "**Archiver** : [Projets](/projects) → cocher les projets → **Actions → Archiver la sélection**. Les projets archivés se trouvent sous **Plus → Archivés**, où vous pouvez les désarchiver.",
         "**Supprimer** : page du projet → actions rapides → **Supprimer le projet**. Le projet disparaît pour tout le monde ; les tâches, remises et notes restent enregistrées.",
-        "**Restaurer** (superadministrateur) : **Plus → Projets supprimés** → *Restaurer* ou *Supprimer définitivement*."
+        "**Restaurer** (superadministrateur) : **Plus → Projets supprimés** → *Restaurer* ou *Supprimer définitivement*. Un clic sur une ligne ouvre le projet supprimé en lecture seule, pour en vérifier le contenu au préalable ; l'avis en haut de la page propose aussi la restauration."
       ],
       "tips": [
         "Avant une suppression définitive, sauvegardez un export : cocher les projets → **Actions → Exporter les projets sélectionnés**."

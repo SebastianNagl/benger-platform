@@ -41,18 +41,17 @@ The projects table displays:
 
 #### 1. Deleting Multiple Projects
 
-**⚠️ Warning**: This action is permanent and cannot be undone.
+Deleting hides the projects for everyone except superadmins; their data is kept. Only a superadmin can restore them or delete them permanently, under **More → Deleted projects**.
 
 1. Select the projects you want to delete
 2. Click **"Bulk Actions"** → **"Delete"**
 3. Review the confirmation dialog showing:
    - Number of projects to be deleted
-   - Warning about permanent deletion
 4. Click **"Delete Projects"** to confirm
 
 **What happens**:
-- Selected projects are permanently removed
-- All associated tasks and annotations are also deleted
+- Selected projects disappear from the project list
+- Their tasks and annotations stay stored until a superadmin deletes the project permanently
 - You'll see a success message confirming the deletion
 
 #### 2. Exporting Multiple Projects
@@ -194,7 +193,7 @@ The projects table displays:
 A: You can select all projects on the current page (up to 50). For larger operations, process in batches.
 
 **Q: Can I recover deleted projects?**
-A: No, deletion is permanent. Always export important projects before deleting.
+A: Ask a superadmin. Under **More → Deleted projects** they can open a deleted project read-only, restore it, or delete it permanently. Permanent deletion cannot be undone, so export important projects before deleting.
 
 **Q: Do archived projects count against my project limit?**
 A: No, only active projects count against limits.
