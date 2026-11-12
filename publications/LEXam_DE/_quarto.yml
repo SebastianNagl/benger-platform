@@ -1,6 +1,18 @@
 project:
   type: default
 
+# Citations follow the Chicago Manual of Style, notes and bibliography system
+# (18th edition CSL from the Citation Style Language project, CC BY-SA 3.0):
+# every citation becomes a footnote and the bibliography follows the text,
+# as the St.Gallen Publishing conference volume asks.
+csl: chicago-notes-bibliography.csl
+bibliography: references.bib
+link-citations: true
+number-sections: true
+# British English for spelling and for the citation locale (punctuation
+# outside closing quotation marks in the short notes).
+lang: en-GB
+
 format:
   pdf:
     # One-column article layout, matching the accepted abstract's look.
@@ -9,7 +21,6 @@ format:
     geometry:
       - margin=2.5cm
     fontsize: 11pt
-    number-sections: true
     keep-tex: true
     pdf-engine: xelatex
     include-in-header:
@@ -27,10 +38,13 @@ format:
         % Embed ActualText for ligatures so copy-paste/search extracts
         % "ffi" etc. correctly (fixes the ffi ToUnicode quirk).
         \XeTeXgenerateactualtext=1
+  # Word manuscript for the publisher. `make docx` renders it against the
+  # publisher's template (reference-doc passed on the command line, since the
+  # template itself stays out of the public repo) and then maps Quarto's
+  # paragraph styles onto the template's own styles.
+  docx:
+    toc: false
 
 execute:
   echo: false
   warning: false
-
-bibliography: references.bib
-link-citations: true
