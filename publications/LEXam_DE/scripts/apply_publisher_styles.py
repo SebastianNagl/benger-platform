@@ -264,7 +264,7 @@ def use_template_heading_numbers(p: str) -> str:
     """The template's heading styles number themselves (one list, levels 1 to 4).
     Quarto also writes the section number as text, so strip that text from numbered
     headings and switch the style's numbering off on headings Quarto left unnumbered
-    (AI usage disclosure), which otherwise would be numbered by the style."""
+    (Declaration of AI use), which otherwise would be numbered by the style."""
     if HEADING_NUMBER_RE.search(p):
         return HEADING_NUMBER_RE.sub(r"\1", p, count=1)
     return p.replace("</w:pPr>", NO_NUMBERING + "</w:pPr>", 1)

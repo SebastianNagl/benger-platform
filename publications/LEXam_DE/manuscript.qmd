@@ -34,7 +34,7 @@ abstract: |
 <w:p><w:pPr><w:pStyle w:val="03Legende"/></w:pPr><w:r><w:t xml:space="preserve">Sebastian Nagl, Attorney at Law (Rechtsanwalt), Doctoral Researcher at the Technical University of Munich (TUM)</w:t></w:r></w:p>
 ```
 
-# The question
+# Introduction
 
 Large language models write legal prose that looks like the real thing. Asked to solve a German practice exam, a current model produces an Obersatz, defines the elements of § 823 Abs. 1 BGB, subsumes the facts and closes with a confident Ergebnis. Yet these systems were never taught legal method. They were trained to predict the next word, which is a statistical process rather than a doctrinal one.
 
@@ -42,13 +42,13 @@ This raises a question that reaches beyond computer science. If a statistical ma
 
 An empirical answer needs two things that rarely coexist: an established way of scoring machine answers to law exams, and an evaluation that fits the legal system being examined. This paper tells how we tried to have both. We started from LEXam, the Swiss benchmark that set the standard for grading machine answers to law exams, and replicated it as faithfully as we could on German exam cases. The replication succeeded. The same data then showed us where a single correctness score against one reference solution stops matching the way German correctors grade, who must accept defensible alternative solutions and who grade the quality of each step of the subsumption rather than the result alone. At that point we stopped extending the replication and built an instrument of our own, the BenGER benchmark, and we are now taking the next step towards the grading sheets that German examiners use. None of this diminishes LEXam. It is the story of a method that travelled well, and of a jurisdiction whose correction practice asks more of the grader than that method was built to deliver.
 
-# LEXam, and what it gets right
+# The LEXam benchmark
 
 LEXam is a benchmark of 340 law exams from 116 courses at the University of Zurich, with 7,537 questions in English and German: 2,841 long-form open questions and 4,696 multiple-choice questions.[@fan2025lexam] Every open question comes with a reference answer written by the professors and with guidance on the reasoning it expects, whether issue spotting, rule recall or rule application. The evaluation is zero-shot: one prompt, no examples, no other help. For the open questions, an ensemble of three language-model judges scores each answer against the reference answer and keeps the lowest of the three scores, and the authors validated this judge against three legal experts with the alternative annotator test, which asks whether the judge can stand in for one of the experts.[@calderon2025alternative]
 
 Three design choices make LEXam what it is. It is lean, because one prompt and one judging protocol cover hundreds of exams. It is reproducible, because prompts, data and code are public under permissive licences. And it is strict, because the judge rewards what matches the reference and nothing else. These choices fit the Swiss exams well. Most LEXam questions are focused essay questions that call for a bounded answer: identify the issue, state the rule, apply it to the facts. For such questions, correctness against the reference answer is close to what the corrector measures, and a model that scores well has done the legal work the question asks for. LEXam has become the reference point of the field, and rightly so. When we write "correctness judge" below, we mean LEXam's method.
 
-# The replication on German exam cases
+# Replication on German exam cases
 
 We ran LEXam's protocol on the corpus of BenGER, our benchmark for subsumption-based legal reasoning in German law, which legal experts curate on an open platform.[@nagl2026bengerdata; @nagl2026benger] It holds 1,127 German cases in three tiers, each with an official model solution (Musterlösung). Grundprinzipien are 531 short cases on fundamental legal principles that can be answered with a justified Ja or Nein. Benchathon holds 15 curated exam cases from civil, criminal and public law, together with 220 solutions that human participants wrote at a grading event; it is the one tier where humans and machines answered identical questions under identical conditions. ZJS Fälle are 581 full practice exams (Übungsklausuren) from the Zeitschrift für das Juristische Studium, first state exam-style cases that demand a complete, structured solution, with model solutions that average 32,000 characters.
 
@@ -68,7 +68,7 @@ The human baseline under the identical judge is the result we value most. The 22
 
 The replication also agrees with our own instrument on who is better. Across the eleven models that both pipelines cover on the ZJS Fälle, LEXam's correctness judge and BenGER's ten-dimension rubric produce the same ranking.^[After removing superseded duplicate generations so that every model has one answer per case; with the duplicates left in, one adjacent pair of models swaps places.] A single reference-anchored judge, moved to another legal system and to a much longer exam format, sorts models the same way a doctrinal rubric does. For a leaderboard, LEXam's recipe is enough, and a research group can run it on a new jurisdiction within days. That is a credit to how the original was built.
 
-# Where the correctness score stopped matching German correction
+# Limits of reference-based correctness grading
 
 The two pipelines agree on the order and disagree on the level, and that disagreement is where our story turns. The rubric's scores run 1 to 10 points above the correctness judge's, and the gap grows for stronger models. The reason is visible in the rubric's weights: ten of its hundred points reward methodological style and another ten reward structure, terminology and form, credit that a correctness judge excludes by design. For ranking models this is harmless. For telling a German educator what a machine answer is worth, it is a difference in kind, because a German grade is not a degree of agreement with a reference but a decision on the statutory scale from 0 to 18 points, with 4 as the pass mark,^[§ 1 of the Verordnung über eine Noten- und Punkteskala für die erste und zweite juristische Prüfung (JurPrNotSkV) of December 3, 1981, BGBl. I p. 1243.] reached by grading the craft of the Gutachten alongside its substance.
 
@@ -80,7 +80,7 @@ The third limit is granularity. A German corrector does not grade a case solutio
 
 None of these limits is a flaw in LEXam. The correctness judge measures substance against a reference, and it measures it well: the model ranking and the human split come out the same under both graders. But it answers a narrower question than a German corrector asks. We considered one further experiment to isolate the judging protocol from the generation prompt and deliberately did not run it, because another number would not have closed the gap we had found. The replication had served its purpose, and we built the German instrument.
 
-# BenGER: grading the way a German corrector grades
+# The BenGER benchmark
 
 BenGER grades every case solution with a rubric that follows German correction practice.[@nagl2026bengerdata] Ten dimensions carry a hundred raw points: result correctness (20), doctrinal knowledge (15), subsumption quality (15), issue identification (10), legal grounding (10), problem depth (10), methodological style (10), organisation (5), terminology (3) and formal correctness (2). Each maps to a step of the Gutachtenstil scaffold, and the judge may award no points for keywords without definition and subsumption. The raw score converts to the 18-point scale by the correctors' usual key, so that 50 raw points mean the pass grade of 4 and 60 to 63 raw points mean 7. The judge, again GPT-5.4-mini, sees the task, the model solution and the answer, and returns a score with a written reason for every dimension.
 
@@ -90,7 +90,7 @@ The picture of the German exam under this instrument is this. On the 581 ZJS Fä
 
 Where the judge still diverges from the human graders is instructive: on presentation, and on results reached by reasoning paths other than the reference solution's.[@nagl2026bengerdata] The rubric has moved the grader closer to German practice, but general criteria applied against one reference still meet the answer latitude only halfway.
 
-# From general criteria to the examiner's grading sheet
+# Requirements for grading German legal work
 
 What a thorough evaluation of German legal work requires can be stated from examination law and from educational measurement, and we have done so in a systematisation of the field.[@nagl2026sok] A grade must come with reasons that the candidate can contest. A defensible solution that departs from the reference may not be marked wrong, and a follow-on error may not be counted twice. The score must not move with length, surface style or instructions hidden in the answer. And the examiner, not the system, sets the standard, decides and reconsiders. Measured against these requirements, a correctness score against one reference and a rubric of general criteria are steps on one road rather than its end.
 
@@ -98,7 +98,7 @@ The instrument the requirements point to already exists in German practice: the 
 
 This is where the replication led us. LEXam showed that a lean, reference-anchored judge can be validated and can travel. German correction asked for more: credit for alternatives, one penalty per error, a reason per point, and an examiner who decides.
 
-# What this means
+# Discussion
 
 For legal education, fluent structure is now cheap. Any student and any machine can produce a clean Gutachten scaffold, and grading schemes that award substantial credit for form will overvalue machine-assisted work. The discriminating signal has moved into issue spotting, the weighting of problems and the decisive doctrinal step, and examination design should follow it there.
 
@@ -106,13 +106,13 @@ For the question in our title, part of legal reasoning is demonstrably statistic
 
 For benchmarking, legal reasoning does not need one benchmark to win. It needs a common methodological foundation and jurisdiction-specific instruments built on it. LEXam supplies the foundation, a validated grading protocol that travels. BenGER supplies a German instrument, and the grading sheet will supply the next one. The level disagreements between the two pipelines show that whoever configures the grader decides how much fluent form counts, and with it what counts as legal quality. If such systems enter legal education, that configuration deserves the transparency and contestability we demand of human examination regimes.
 
-# Method notes and limitations
+# Reproducibility and limitations
 
 Prompts, configurations, the deviations register and the analysis code are published with the paper, the corpus is the published BenGER dataset, and the runs live on the open platform, where the grading pipeline is inspectable end to end.[@nagl2026bengerdata; @nagl2026benger] Five limitations remain. The graders are themselves language models; LEXam validated its design against human experts and BenGER against blind human reviewers, but machine judges still inherit biases, plausibly including a mild leniency towards machine-typical prose. We used one judge model rather than LEXam's three-judge ensemble, so the published Swiss scores are comparable in ranking and slightly stricter in level, which makes the Klausur deficit in @tbl-swiss conservative. The flagship models appear only in the rubric pipeline, so the comparison of humans with flagships under LEXam's judge remains open. Coverage has gaps: one model lacks 17 per cent of its ZJS cells, judge zeros pool genuine failures with a rare unparseable-answer default, and one provider refused a criminal-law fact pattern on content-policy grounds, itself a finding about general-purpose systems on legal material. And fifteen cases with 220 human solutions in two working modes are a small, if clean, sample.
 
-# AI usage disclosure {.unnumbered}
+# Declaration of AI use {.unnumbered}
 
-Claude Fable 5 and Claude Fable 5.1 (Anthropic) assisted with the coding work behind this study, including the run configuration tooling and the analysis scripts, and with the wording of parts of this text and of its revision for this volume. The experimental design, the interpretation of the results and the text of this paper are the author's own responsibility. All reported numbers were checked against the underlying data.
+Claude Fable 5.1 (Anthropic) assisted with the coding work behind this study, including the run configuration tooling and the analysis scripts, and with the wording of parts of this text and of its revision for this volume. The experimental design, the interpretation of the results and the text of this paper are the author's own responsibility. All reported numbers were checked against the underlying data.
 
 # References {.unnumbered}
 
