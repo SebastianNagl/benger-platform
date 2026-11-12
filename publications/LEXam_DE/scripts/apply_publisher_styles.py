@@ -19,8 +19,21 @@ manuscript opens in Word exactly as the publisher's sample document does:
 
 Footnotes keep Pandoc's "Footnote Text", which the template defines itself
 (Arial 9 pt), and the author legend paragraph (03 Legende, written as raw
-OpenXML in manuscript.qmd) is moved directly under the author line, where the
-template places it. Usage: apply_publisher_styles.py manuscript.docx
+OpenXML in manuscript.qmd) is moved under the author line behind the same two
+empty spacer paragraphs the template has there. Beyond the styles, the script
+makes the rest of the file look like the template's sample:
+
+    hyperlinks (URLs in notes and references, the table cross-reference)
+                               -> plain text, since the template has no
+                                  Hyperlink style and prints notes in black
+    data tables                -> top and bottom rule plus a rule under the
+                                  header row, instead of Pandoc's undefined
+                                  "Table" style (which Word shows without rules)
+    document language          -> en-GB (British prose), while Quarto renders
+                                  with lang en-US so that the Chicago citations
+                                  get US punctuation and dates
+
+Usage: apply_publisher_styles.py manuscript.docx
 """
 
 from __future__ import annotations
@@ -59,11 +72,13 @@ TABLE_CELL_STYLE = "12Beispieltexte"
 REFERENCES_HEADING = "13aLiteratur"
 LEGEND_STYLE = "03Legende"
 AUTHOR_STYLE = "08Autor"
+BODY_STYLE = "05Grundschriftde"
+DOCUMENT_LANGUAGE = "en-GB"
 
 # Self-closing paragraphs (<w:p/>) are matched first and the opening tag may not
 # contain a slash, or an empty cell paragraph would swallow everything up to the
 # next closing paragraph.
-P_RE = re.compile(r"<w:p\b[^>]*/>|<w:p\b[^>/]*>.*?</w:p>", re.S)
+P_RE = re.compile(r"<w:p\b[^>]*/>|<w:p\b[^>/]*>.*?</w:p>", re.DOTALL)
 PSTYLE_RE = re.compile(r'<w:pStyle w:val="([^"]+)"\s*/>')
 NUMFMT_BULLET_RE = re.compile(r'<w:numFmt w:val="bullet"')
 
@@ -78,23 +93,35 @@ def set_style(p: str, new: str) -> str:
         return PSTYLE_RE.sub(f'<w:pStyle w:val="{new}"/>', p, count=1)
     if "<w:pPr>" in p:
         return p.replace("<w:pPr>", f'<w:pPr><w:pStyle w:val="{new}"/>', 1)
-    return re.sub(r"(<w:p\b[^>]*>)", rf'\1<w:pPr><w:pStyle w:val="{new}"/></w:pPr>', p, count=1)
+    return re.sub(
+        r"(<w:p\b[^>]*>)", rf'\1<w:pPr><w:pStyle w:val="{new}"/></w:pPr>', p, count=1
+    )
 
 
 def bullet_num_ids(numbering_xml: str) -> set[str]:
     """numId values whose abstract numbering is a bullet list."""
     abstract_bullets = set()
-    for m in re.finditer(r'<w:abstractNum\b[^>]*w:abstractNumId="(\d+)".*?</w:abstractNum>', numbering_xml, re.S):
+    for m in re.finditer(
+        r'<w:abstractNum\b[^>]*w:abstractNumId="(\d+)".*?</w:abstractNum>',
+        numbering_xml,
+        re.DOTALL,
+    ):
         if NUMFMT_BULLET_RE.search(m.group(0)):
             abstract_bullets.add(m.group(1))
     ids = set()
-    for m in re.finditer(r'<w:num\b[^>]*w:numId="(\d+)".*?<w:abstractNumId w:val="(\d+)"', numbering_xml, re.S):
+    for m in re.finditer(
+        r'<w:num\b[^>]*w:numId="(\d+)".*?<w:abstractNumId w:val="(\d+)"',
+        numbering_xml,
+        re.DOTALL,
+    ):
         if m.group(2) in abstract_bullets:
             ids.add(m.group(1))
     return ids
 
 
-TOKEN_RE = re.compile(r"<w:tbl>|</w:tbl>|<w:p\b[^>]*/>|<w:p\b[^>/]*>.*?</w:p>", re.S)
+TOKEN_RE = re.compile(
+    r"<w:tbl>|</w:tbl>|<w:p\b[^>]*/>|<w:p\b[^>/]*>.*?</w:p>", re.DOTALL
+)
 
 
 def restyle_document(doc: str, bullets: set[str]) -> str:
@@ -115,10 +142,88 @@ def restyle_document(doc: str, bullets: set[str]) -> str:
     doc = drop_abstract_title(doc)
     doc = mark_references_heading(doc)
     doc = move_legend_under_author(doc)
-    return doc
+    doc = rule_tables(doc)
+    return unlink(doc)
 
 
-DOUBLE_PPR_RE = re.compile(r"<w:pPr>(?:(?!</w:pPr>).)*?</w:pPr>(\s*<w:pPr>)", re.S)
+HYPERLINK_TAG_RE = re.compile(r"<w:hyperlink\b[^>]*>|</w:hyperlink>")
+HYPERLINK_RSTYLE_RE = re.compile(r'<w:rStyle w:val="Hyperlink"\s*/>')
+
+
+def unlink(xml: str) -> str:
+    """Unwrap every w:hyperlink and drop the Hyperlink character style, so
+    citations, URLs and cross-references print as plain text in the
+    surrounding paragraph's style, as in the template."""
+    return HYPERLINK_RSTYLE_RE.sub("", HYPERLINK_TAG_RE.sub("", xml))
+
+
+TABLE_STYLE_RE = re.compile(r'<w:tblStyle w:val="Table"\s*/>')
+RULE = '<w:{side} w:val="single" w:sz="{sz}" w:space="0" w:color="000000"/>'
+TABLE_BORDERS = (
+    "<w:tblBorders>"
+    + RULE.format(side="top", sz=8)
+    + RULE.format(side="bottom", sz=8)
+    + "</w:tblBorders>"
+)
+HEADER_CELL_BORDERS = (
+    "<w:tcBorders>" + RULE.format(side="bottom", sz=4) + "</w:tcBorders>"
+)
+HEADER_ROW_RE = re.compile(
+    r"<w:tr>\s*<w:trPr>(?:(?!</w:trPr>).)*<w:tblHeader\b.*?</w:tr>", re.DOTALL
+)
+
+
+def rule_tables(doc: str) -> str:
+    """Pandoc points every table at a "Table" style the template does not
+    define, so Word draws no rules at all. Drop that reference and give each
+    data table (the inner table that has a header row; Quarto wraps it with
+    its caption in a borderless outer table) a top and a bottom rule of 1 pt
+    and a 0.5 pt rule under the header row."""
+    doc = TABLE_STYLE_RE.sub("", doc)
+
+    def rule_header(m: re.Match) -> str:
+        row = m.group(0)
+        row = row.replace("<w:tcPr />", f"<w:tcPr>{HEADER_CELL_BORDERS}</w:tcPr>")
+        return row.replace("<w:tcPr/>", f"<w:tcPr>{HEADER_CELL_BORDERS}</w:tcPr>")
+
+    out, pos = [], 0
+    for m in re.finditer(r"<w:tblPr>(?:(?!</w:tblPr>).)*</w:tblPr>", doc, re.DOTALL):
+        out.append(doc[pos : m.start()])
+        tblpr = m.group(0)
+        tail = doc[m.end() :]
+        first_row_end = tail.find("</w:tr>")
+        first_row = tail[:first_row_end]
+        is_data_table = "<w:tblHeader" in first_row and "<w:tbl>" not in first_row
+        if is_data_table and "<w:tblBorders>" not in tblpr:
+            tblpr = re.sub(
+                r"(<w:tblLayout\b|<w:tblCellMar\b|<w:tblLook\b|</w:tblPr>)",
+                TABLE_BORDERS + r"\1",
+                tblpr,
+                count=1,
+            )
+        out.append(tblpr)
+        pos = m.end()
+    out.append(doc[pos:])
+    return HEADER_ROW_RE.sub(rule_header, "".join(out))
+
+
+DOUBLE_PPR_RE = re.compile(r"<w:pPr>(?:(?!</w:pPr>).)*?</w:pPr>(\s*<w:pPr>)", re.DOTALL)
+JC_RE = re.compile(r'<w:jc w:val="[^"]*"\s*/>')
+
+
+def single_alignment(p: str) -> str:
+    """Pandoc writes table cells with two w:jc elements (the column alignment,
+    then "center"); the schema allows one, so keep the column alignment."""
+    seen = False
+
+    def repl(m: re.Match) -> str:
+        nonlocal seen
+        if seen:
+            return ""
+        seen = True
+        return m.group(0)
+
+    return JC_RE.sub(repl, p)
 
 
 def restyle_paragraph(p: str, bullets: set[str], in_table: bool) -> str:
@@ -129,12 +234,20 @@ def restyle_paragraph(p: str, bullets: set[str], in_table: bool) -> str:
     if st in CAPTION_STYLES:
         return set_style(p, PARAGRAPH_STYLES["Caption"])
     if in_table:
+        p = single_alignment(p)
         if st in (None, "Compact", "BodyText", "FirstParagraph", "Normal"):
             return set_style(p, TABLE_CELL_STYLE)
         return p
-    if st == "Compact" or (st in (None, "BodyText", "FirstParagraph") and "<w:numPr>" in p):
+    if st == "Compact" or (
+        st in (None, "BodyText", "FirstParagraph") and "<w:numPr>" in p
+    ):
         num = re.search(r'<w:numId w:val="(\d+)"', p)
-        return set_style(p, LIST_STYLE_BULLET if num and num.group(1) in bullets else LIST_STYLE_NUMBERED)
+        return set_style(
+            p,
+            LIST_STYLE_BULLET
+            if num and num.group(1) in bullets
+            else LIST_STYLE_NUMBERED,
+        )
     if st in PARAGRAPH_STYLES:
         p = set_style(p, PARAGRAPH_STYLES[st])
         if PARAGRAPH_STYLES[st].startswith("06"):
@@ -160,20 +273,32 @@ def use_template_heading_numbers(p: str) -> str:
 def drop_abstract_title(doc: str) -> str:
     def repl(m: re.Match) -> str:
         return "" if style_of(m.group(0)) in DROP_PARAGRAPH_STYLES else m.group(0)
+
     return P_RE.sub(repl, doc)
 
 
 def mark_references_heading(doc: str) -> str:
     """The heading right before the first bibliography entry becomes 13a Literatur."""
     paras = list(P_RE.finditer(doc))
-    first_bib = next((i for i, m in enumerate(paras) if style_of(m.group(0)) == "13aLiteraturGrundtext"), None)
+    first_bib = next(
+        (
+            i
+            for i, m in enumerate(paras)
+            if style_of(m.group(0)) == "13aLiteraturGrundtext"
+        ),
+        None,
+    )
     if first_bib is None:
         return doc
     for i in range(first_bib - 1, -1, -1):
         st = style_of(paras[i].group(0))
         if st and st.startswith("06"):
             m = paras[i]
-            return doc[:m.start()] + set_style(m.group(0), REFERENCES_HEADING) + doc[m.end():]
+            return (
+                doc[: m.start()]
+                + set_style(m.group(0), REFERENCES_HEADING)
+                + doc[m.end() :]
+            )
         if st is not None:
             break
     return doc
@@ -185,24 +310,58 @@ def move_legend_under_author(doc: str) -> str:
     authors = [m for m in paras if style_of(m.group(0)) == AUTHOR_STYLE]
     if not legends or not authors:
         return doc
-    legend_xml = "".join(m.group(0) for m in legends)
+    # The template separates author line and legend with an empty body paragraph
+    # and an empty legend paragraph.
+    spacers = (
+        f'<w:p><w:pPr><w:pStyle w:val="{BODY_STYLE}"/></w:pPr></w:p>'
+        f'<w:p><w:pPr><w:pStyle w:val="{LEGEND_STYLE}"/></w:pPr></w:p>'
+    )
+    legend_xml = spacers + "".join(m.group(0) for m in legends)
     for m in reversed(legends):
-        doc = doc[:m.start()] + doc[m.end():]
-    last_author = [m for m in P_RE.finditer(doc) if style_of(m.group(0)) == AUTHOR_STYLE][-1]
-    return doc[:last_author.end()] + legend_xml + doc[last_author.end():]
+        doc = doc[: m.start()] + doc[m.end() :]
+    last_author = [
+        m for m in P_RE.finditer(doc) if style_of(m.group(0)) == AUTHOR_STYLE
+    ][-1]
+    return doc[: last_author.end()] + legend_xml + doc[last_author.end() :]
+
+
+LANG_VAL_RE = re.compile(r'(<w:lang\b[^>]*?\bw:val=")[^"]*(")')
+
+
+def set_document_language(styles: str) -> str:
+    """Pandoc writes the metadata language (en-US, for the citations) into the
+    document defaults and into every style that sets a language; the prose is
+    British, so all of them become en-GB for Word's spelling check."""
+    return LANG_VAL_RE.sub(rf"\g<1>{DOCUMENT_LANGUAGE}\g<2>", styles)
 
 
 def main(path: str) -> None:
     src = Path(path)
     with zipfile.ZipFile(src) as zin:
         names = zin.namelist()
-        numbering = zin.read("word/numbering.xml").decode("utf-8") if "word/numbering.xml" in names else ""
+        numbering = (
+            zin.read("word/numbering.xml").decode("utf-8")
+            if "word/numbering.xml" in names
+            else ""
+        )
         document = zin.read("word/document.xml").decode("utf-8")
         new_document = restyle_document(document, bullet_num_ids(numbering))
+        replaced = {"word/document.xml": new_document}
+        if "word/footnotes.xml" in names:
+            replaced["word/footnotes.xml"] = unlink(
+                zin.read("word/footnotes.xml").decode("utf-8")
+            )
+        replaced["word/styles.xml"] = set_document_language(
+            zin.read("word/styles.xml").decode("utf-8")
+        )
         tmp = Path(tempfile.mkstemp(suffix=".docx", dir=src.parent)[1])
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
-                data = new_document.encode("utf-8") if item.filename == "word/document.xml" else zin.read(item.filename)
+                data = (
+                    replaced[item.filename].encode("utf-8")
+                    if item.filename in replaced
+                    else zin.read(item.filename)
+                )
                 zout.writestr(item, data)
     shutil.move(tmp, src)
     counts = {}

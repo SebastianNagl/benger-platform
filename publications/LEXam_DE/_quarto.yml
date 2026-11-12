@@ -4,14 +4,21 @@ project:
 # Citations follow the Chicago Manual of Style, notes and bibliography system
 # (18th edition CSL from the Citation Style Language project, CC BY-SA 3.0):
 # every citation becomes a footnote and the bibliography follows the text,
-# as the St.Gallen Publishing conference volume asks.
-csl: chicago-notes-bibliography.csl
+# as the St.Gallen Publishing conference volume asks. The "classic" variant is
+# the official CMOS 18 style with the variants the manual allows for page
+# ranges of chapters and proceedings papers (14.8), the place of publication
+# (14.30) and a 3-em dash for a repeated author list (13.113).
+csl: chicago-notes-bibliography-classic.csl
 bibliography: references.bib
-link-citations: true
+# Notes and references print as plain text, like the publisher's template
+# (no links from a note to its bibliography entry).
+link-citations: false
 number-sections: true
-# British English for spelling and for the citation locale (punctuation
-# outside closing quotation marks in the short notes).
-lang: en-GB
+# US English as the citation locale, so the Chicago notes and bibliography get
+# double quotation marks with commas and periods inside and "October 20, 2026"
+# dates. The prose keeps its British spelling; the docx post-processing sets
+# the Word document language back to en-GB.
+lang: en-US
 
 format:
   pdf:
