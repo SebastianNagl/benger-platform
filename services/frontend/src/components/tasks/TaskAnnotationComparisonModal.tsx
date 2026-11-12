@@ -34,6 +34,8 @@ interface TaskAnnotationComparisonModalProps {
   onAnnotationAdded?: () => void
   onViewRawData?: () => void
   projectId: string
+  /** Only look at the answers, never add or edit one (deleted project). */
+  readOnly?: boolean
 }
 
 interface AnnotatorTab {
@@ -53,6 +55,7 @@ export function TaskAnnotationComparisonModal({
   onAnnotationAdded,
   onViewRawData,
   projectId,
+  readOnly = false,
 }: TaskAnnotationComparisonModalProps) {
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotatorTabs, setAnnotatorTabs] = useState<AnnotatorTab[]>([])
@@ -98,7 +101,7 @@ export function TaskAnnotationComparisonModal({
         setAnnotatorTabs([])
         // Automatically switch to create mode for empty tasks
         // This follows LabelStudio's pattern of immediate annotation interface
-        if (!justCreatedRef.current) {
+        if (!justCreatedRef.current && !readOnly) {
           setMode('create')
         }
         setIsLoading(false)
@@ -202,7 +205,7 @@ export function TaskAnnotationComparisonModal({
     } finally {
       setIsLoading(false)
     }
-  }, [task, t, usersClient, user?.id])
+  }, [task, t, usersClient, user?.id, readOnly])
 
   const fetchProjectAndAnnotations = useCallback(async () => {
     try {
@@ -746,7 +749,12 @@ export function TaskAnnotationComparisonModal({
                       (tab) => tab.userId === user?.id,
                     )
 
-                    if (!user || mode !== 'view' || showAddAnnotation) {
+                    if (
+                      readOnly ||
+                      !user ||
+                      mode !== 'view' ||
+                      showAddAnnotation
+                    ) {
                       return null
                     }
 

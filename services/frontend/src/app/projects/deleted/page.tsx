@@ -1,193 +1,45 @@
 'use client'
 
-import { ArrowUturnLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
+import { ProjectListTable } from '@/components/projects/ProjectListTable'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
-import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
-import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useConfirm } from '@/hooks/useDialogs'
-import { projectsAPI } from '@/lib/api/projects'
-import { intlTag } from '@/lib/i18n/locales'
-import { projectIcon } from '@/lib/projectKind'
-import type { Project } from '@/types/labelStudio'
 
 /**
  * Superadmin-only view of soft-deleted projects (migration 093). A normal
  * "delete" anywhere on the platform only hides the project; everything can
- * be restored from here, and ONLY here can data really be destroyed.
+ * be restored from here, and ONLY here can data really be destroyed. It is
+ * the shared project list in its deleted mode, so a row opens the project
+ * (read-only while deleted) like the active and archived lists do.
  */
 export default function DeletedProjectsPage() {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { addToast } = useToast()
-  const confirm = useConfirm()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [busyId, setBusyId] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await projectsAPI.list(
-        1,
-        200,
-        undefined,
-        undefined,
-        undefined,
-        true,
-      )
-      setProjects(res.items ?? [])
-    } catch {
-      setProjects([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
     if (!isLoading && user && !user.is_superadmin) router.replace('/projects')
   }, [isLoading, user, router])
 
-  useEffect(() => {
-    if (user?.is_superadmin) load()
-  }, [user?.is_superadmin, load])
-
   if (isLoading || !user?.is_superadmin) return null
 
-  const handleRestore = async (project: Project) => {
-    setBusyId(project.id)
-    try {
-      await projectsAPI.restoreProject(project.id)
-      addToast(t('projects.deleted.restored'), 'success')
-      await load()
-    } catch (err: any) {
-      addToast(err?.message || t('common.error'), 'error')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  const handlePurge = async (project: Project) => {
-    const ok = await confirm({
-      title: t('projects.deleted.purge'),
-      message: t('projects.deleted.purgeConfirm', { title: project.title }),
-      variant: 'danger',
-      confirmText: t('projects.deleted.purge'),
-      confirmButtonVariant: 'filled',
-    })
-    if (!ok) return
-    setBusyId(project.id)
-    try {
-      await projectsAPI.purgeProject(project.id)
-      addToast(t('projects.deleted.purged'), 'success')
-      await load()
-    } catch (err: any) {
-      addToast(err?.message || t('common.error'), 'error')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
   return (
-    <ResponsiveContainer size="xl" className="pt-8 pb-10">
+    <ResponsiveContainer size="full" className="pt-8 pb-10">
       <div className="mb-4">
         <Breadcrumb
           items={[
             { label: t('navigation.dashboard'), href: '/dashboard' },
             { label: t('navigation.projects'), href: '/projects' },
-            { label: t('projects.deleted.title') },
+            { label: t('projects.deleted.title'), href: '/projects/deleted' },
           ]}
         />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-        {t('projects.deleted.title')}
-      </h1>
-      <p className="mt-2 mb-6 text-zinc-600 dark:text-zinc-400">
-        {t('projects.deleted.subtitle')}
-      </p>
 
-      {loading ? (
-        <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400" />
-        </div>
-      ) : projects.length === 0 ? (
-        <p
-          className="text-sm text-zinc-500 dark:text-zinc-400"
-          data-testid="deleted-empty"
-        >
-          {t('projects.deleted.empty')}
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
-            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.project')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.deletedAt')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
-              {projects.map((p) => (
-                <tr key={p.id} data-testid={`deleted-row-${p.id}`}>
-                  <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center whitespace-nowrap">
-                      <span className="mr-2" aria-hidden>
-                        {projectIcon(p)}
-                      </span>
-                      <span className="max-w-md truncate" title={p.title}>
-                        {p.title}
-                      </span>
-                      <span className="ml-2 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">
-                        {t('projects.deleted.badge')}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                    {p.deleted_at
-                      ? new Date(p.deleted_at).toLocaleString(intlTag(locale))
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm whitespace-nowrap">
-                    <Button
-                      variant="outline"
-                      className="mr-2 gap-1.5"
-                      disabled={busyId === p.id}
-                      onClick={() => handleRestore(p)}
-                      data-testid={`deleted-restore-${p.id}`}
-                    >
-                      <ArrowUturnLeftIcon className="h-4 w-4" />
-                      {t('projects.deleted.restore')}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      className="gap-1.5"
-                      disabled={busyId === p.id}
-                      onClick={() => handlePurge(p)}
-                      data-testid={`deleted-purge-${p.id}`}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      {t('projects.deleted.purge')}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ProjectListTable showDeletedOnly={true} />
     </ResponsiveContainer>
   )
 }

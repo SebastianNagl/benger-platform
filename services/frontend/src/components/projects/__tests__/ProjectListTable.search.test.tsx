@@ -298,6 +298,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         false,
         false,
+        false,
       )
 
       // Clear mock to track new calls
@@ -315,6 +316,7 @@ describe('ProjectListTable Search Functionality', () => {
       expect(mockFetchProjects).toHaveBeenCalledWith(
         undefined,
         undefined,
+        false,
         false,
         false,
       )
@@ -442,6 +444,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         false,
         false,
+        false,
       )
     })
 
@@ -451,6 +454,7 @@ describe('ProjectListTable Search Functionality', () => {
         undefined,
         undefined,
         true,
+        false,
         false,
       )
     })

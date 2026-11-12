@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-11-12-open-deleted-projects": "Les projets supprimés peuvent désormais être ouverts : la liste des projets supprimés présente aux superadministrateurs le même tableau que les listes des projets actifs et archivés, et un clic ouvre le projet pour consulter son contenu sans le restaurer d'abord. Un avis en haut de la page indique qu'il est supprimé et propose de le restaurer.",
     "2026-11-11-lti-openolat": "Vous pouvez désormais connecter OpenOlat : le panneau « Connecter une plateforme d'apprentissage » propose OpenOlat comme plateforme à part entière, et le guide « Comment connecter OpenOlat ? » vous accompagne dans la configuration.",
     "2026-11-11-lti-deep-linking": "Les enseignants choisissent désormais l'examen dès la création de l'activité dans la plateforme d'apprentissage (sélection de contenu dans Moodle et OpenOlat). L'activité est reliée dès sa première ouverture.",
     "2026-11-11-lti-course-roster": "La vue enseignant d'une activité indique désormais qui, dans le cours, ne l'a pas encore ouverte. Quand la plateforme intègre l'activité, un clic l'ouvre dans une fenêtre séparée au lieu d'un cadre vide.",

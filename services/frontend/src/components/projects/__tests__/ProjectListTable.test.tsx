@@ -1541,6 +1541,7 @@ describe('ProjectListTable', () => {
         undefined,
         true,
         false,
+        false,
       )
     })
 
@@ -2359,6 +2360,7 @@ describe('ProjectListTable', () => {
         undefined,
         false,
         false,
+        false,
       )
     })
 
@@ -2369,6 +2371,7 @@ describe('ProjectListTable', () => {
         undefined,
         undefined,
         true,
+        false,
         false,
       )
     })

@@ -313,7 +313,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         updatePreference('sortOrder', 'desc')
       }
     },
-    [columns, sortBy, sortOrder, updatePreference],
+    [columns, sortBy, sortOrder, updatePreference, setSortBy, setSortOrder],
   )
 
   // Handle bulk actions
@@ -571,11 +571,16 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const [showDataModal, setShowDataModal] = useState(false)
   const [dataModalMode, setDataModalMode] = useState<'view' | 'edit'>('view')
 
+  // A soft-deleted project (open to superadmins only) is shown read-only:
+  // its tasks and answers can be looked at and exported, not changed.
+  const isDeletedProject = Boolean(currentProject?.deleted_at)
+
   // Per-project edit gate: superadmins and callers the API resolved to
   // ORG_ADMIN for this project (creator, or org admin in any of its orgs).
   // The backend re-checks and returns 403 if not allowed.
   const canEditTasks =
-    !!user?.is_superadmin || currentProject?.effective_role === 'ORG_ADMIN'
+    !isDeletedProject &&
+    (!!user?.is_superadmin || currentProject?.effective_role === 'ORG_ADMIN')
 
   // State for annotation comparison modal
   const [selectedTaskForComparison, setSelectedTaskForComparison] =
@@ -838,7 +843,8 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
   // Check if current user can unassign tasks (admins/contributors, plus
   // public-tier CONTRIBUTORs when the project is public).
-  const canUnassign = perms.canAccessProjectData({ project: currentProject })
+  const canUnassign =
+    !isDeletedProject && perms.canAccessProjectData({ project: currentProject })
 
   return (
     <>
@@ -871,24 +877,26 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 </span>
               </Button>
 
-              <BulkActions
-                selectedCount={selectedTasks.size}
-                selectedTaskIds={Array.from(selectedTasks).map((id) =>
-                  String(id),
-                )}
-                projectId={projectId}
-                onDelete={handleBulkDelete}
-                onExport={handleBulkExport}
-                onArchive={handleBulkArchive}
-                onAssign={handleOpenAssignmentModal}
-                canAssign={perms.canAccessProjectData({
-                  project: currentProject,
-                })}
-                onTagsUpdated={async () => {
-                  await reloadCurrentPage()
-                  addToast(t('annotationTab.messages.tagsUpdated'), 'success')
-                }}
-              />
+              {!isDeletedProject && (
+                <BulkActions
+                  selectedCount={selectedTasks.size}
+                  selectedTaskIds={Array.from(selectedTasks).map((id) =>
+                    String(id),
+                  )}
+                  projectId={projectId}
+                  onDelete={handleBulkDelete}
+                  onExport={handleBulkExport}
+                  onArchive={handleBulkArchive}
+                  onAssign={handleOpenAssignmentModal}
+                  canAssign={perms.canAccessProjectData({
+                    project: currentProject,
+                  })}
+                  onTagsUpdated={async () => {
+                    await reloadCurrentPage()
+                    addToast(t('annotationTab.messages.tagsUpdated'), 'success')
+                  }}
+                />
+              )}
 
               <ColumnSelector
                 columns={columns}
@@ -992,45 +1000,49 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 </span>
               </Button>
 
-              <Button variant="primary" className="flex">
-                <PlayIcon className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {t('annotationTab.buttons.labelAll')}
-                </span>
-                <span className="sm:hidden">
-                  {t('annotationTab.buttons.labelAll')}
-                </span>
-              </Button>
+              {!isDeletedProject && (
+                <Button variant="primary" className="flex">
+                  <PlayIcon className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {t('annotationTab.buttons.labelAll')}
+                  </span>
+                  <span className="sm:hidden">
+                    {t('annotationTab.buttons.labelAll')}
+                  </span>
+                </Button>
+              )}
             </div>
 
             {/* Secondary Actions - Import/Export buttons */}
             <div className="flex items-center gap-2">
-              {SolutionUploads && currentProject && (
+              {SolutionUploads && currentProject && !isDeletedProject && (
                 <SolutionUploads
                   project={currentProject}
                   onUploaded={reloadCurrentPage}
                 />
               )}
-              <Button
-                variant="outline"
-                onClick={() => setShowImportModal(true)}
-                title={t('annotationTab.buttons.import')}
-                data-testid="import-button"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {!isDeletedProject && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowImportModal(true)}
+                  title={t('annotationTab.buttons.import')}
+                  data-testid="import-button"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  />
-                </svg>
-              </Button>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                </Button>
+              )}
 
               <Button
                 variant="outline"
@@ -1265,6 +1277,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
           setSelectedTaskForComparison(null)
         }}
         projectId={projectId}
+        readOnly={isDeletedProject}
       />
 
       {/* Task Generation Comparison Modal (all models for the task) */}

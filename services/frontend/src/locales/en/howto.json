@@ -331,7 +331,7 @@
       "steps": [
         "**Archive**: [Projects](/projects) → tick projects → **Actions → Archive selected**. Archived projects live under **More → Archived** and can be unarchived there.",
         "**Delete**: project page → quick actions → **Delete project**. The project disappears for everyone, tasks, submissions and evaluations stay stored.",
-        "**Restore** (superadmin): **More → Deleted projects** → *Restore* or *Delete permanently*."
+        "**Restore** (superadmin): **More → Deleted projects** → *Restore* or *Delete permanently*. A click on a row opens the deleted project read-only, so you can check its contents first; the notice at the top offers the restore too."
       ],
       "tips": [
         "Before deleting permanently, keep an export: tick projects → **Actions → Export selected projects**."

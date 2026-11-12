@@ -213,6 +213,7 @@
       "actions": "Actions"
     },
     "noProjects": "Aucun projet trouvé",
+    "noArchivedProjects": "Aucun projet archivé.",
     "noProjectsDescription": "Créez votre premier projet pour commencer",
     "noProjectsMatchFilters": "Aucun projet ne correspond à vos filtres",
     "adjustFilters": "Essayez d'ajuster vos critères de recherche",
@@ -700,6 +701,7 @@
       "windowOpen": "Ouvert",
       "participantBadge": "Participant",
       "attemptedBadge": "Remise antérieure",
+      "archivedBadge": "Archivé",
       "participantVia": {
         "share": "Rejoint via un lien de partage",
         "entitlement": "Débloqué via « Découvrir »",
@@ -941,17 +943,18 @@
     "more": "Plus",
     "deleted": {
       "title": "Projets supprimés",
-      "subtitle": "Les projets supprimés sont masqués pour tout le monde, mais leurs données sont conservées. C'est uniquement ici qu'ils peuvent être restaurés ou supprimés définitivement.",
+      "subtitle": "Les projets supprimés sont masqués pour tout le monde, mais leurs données sont conservées. Seuls les superadministrateurs peuvent les restaurer ou les supprimer définitivement.",
       "empty": "Aucun projet supprimé.",
-      "project": "Projet",
-      "deletedAt": "Supprimé le",
-      "actions": "Actions",
       "badge": "Supprimé",
+      "deletedColumn": "Supprimé",
       "restore": "Restaurer",
       "restored": "Projet restauré.",
       "purge": "Supprimer définitivement",
       "purged": "Projet supprimé définitivement.",
-      "purgeConfirm": "Supprimer définitivement « {title} » et TOUTES les données associées (tâches, remises, notations, historiques d'apprentissage) ? Cette action est irréversible."
+      "purgeConfirm": "Supprimer définitivement « {title} » et TOUTES les données associées (tâches, remises, notations, historiques d'apprentissage) ? Cette action est irréversible.",
+      "bannerTitle": "Ce projet a été supprimé le {date}.",
+      "bannerBody": "Seuls les superadministrateurs peuvent l'ouvrir ; il est masqué pour tous les autres. Restaurez-le pour y travailler à nouveau.",
+      "bannerBackToList": "Voir les projets supprimés"
     },
     "archivedTitle": "Projets archivés"
   },
@@ -974,6 +977,8 @@
       "title": "Détails du projet",
       "status": "Statut",
       "active": "Actif",
+      "archived": "Archivé",
+      "deleted": "Supprimé",
       "createdBy": "Créé par",
       "projectId": "ID du projet",
       "created": "Créé",

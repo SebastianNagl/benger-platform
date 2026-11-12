@@ -382,7 +382,7 @@
       "steps": [
         "**Archivieren**: [Projekte](/projects) → Projekte ankreuzen → **Aktionen → Ausgewählte archivieren**. Archivierte Projekte findest du unter **Mehr → Archiviert** und kannst sie dort dearchivieren.",
         "**Löschen**: Projektseite → Schnellaktionen → **Projekt löschen**. Das Projekt verschwindet für alle, Aufgaben, Abgaben und Bewertungen bleiben gespeichert.",
-        "**Wiederherstellen** (Superadmin): **Mehr → Gelöschte Projekte** → *Wiederherstellen* oder *Endgültig löschen*."
+        "**Wiederherstellen** (Superadmin): **Mehr → Gelöschte Projekte** → *Wiederherstellen* oder *Endgültig löschen*. Ein Klick auf eine Zeile öffnet das gelöschte Projekt schreibgeschützt, sodass du vorher seinen Inhalt prüfen kannst; der Hinweis oben bietet die Wiederherstellung ebenfalls an."
       ],
       "tips": [
         "Sichere vor dem endgültigen Löschen einen Export: Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**."

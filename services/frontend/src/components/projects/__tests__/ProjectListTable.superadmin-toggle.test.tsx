@@ -181,6 +181,7 @@ describe('ProjectListTable — superadmin private-projects toggle', () => {
       undefined,
       false,
       false,
+      false,
     )
     mockFetchProjects.mockClear()
 
@@ -193,6 +194,7 @@ describe('ProjectListTable — superadmin private-projects toggle', () => {
         undefined,
         false,
         true,
+        false,
       )
     })
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe('true')

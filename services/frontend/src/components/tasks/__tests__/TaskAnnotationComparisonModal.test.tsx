@@ -328,6 +328,50 @@ describe('TaskAnnotationComparisonModal', () => {
     })
   })
 
+  describe('Read-only (deleted project)', () => {
+    it('shows the answers without add or edit actions', async () => {
+      ;(projectsAPI.getTaskAnnotations as jest.Mock).mockResolvedValue(
+        mockAnnotations,
+      )
+      render(
+        <TaskAnnotationComparisonModal
+          task={mockTask}
+          isOpen={true}
+          onClose={jest.fn()}
+          projectId="project-1"
+          readOnly
+        />,
+      )
+      await waitFor(() => {
+        expect(screen.getAllByText('annotator1').length).toBeGreaterThan(0)
+      })
+      expect(screen.queryByText('Add My Annotation')).not.toBeInTheDocument()
+      expect(screen.queryByText('Edit My Annotation')).not.toBeInTheDocument()
+    })
+
+    it('does not open the annotation creator for an empty task', async () => {
+      render(
+        <TaskAnnotationComparisonModal
+          task={mockTask}
+          isOpen={true}
+          onClose={jest.fn()}
+          projectId="project-1"
+          readOnly
+        />,
+      )
+      await waitFor(() =>
+        expect(projectsAPI.getTaskAnnotations).toHaveBeenCalled(),
+      )
+      await waitFor(() =>
+        expect(screen.getByRole('dialog')).toBeInTheDocument(),
+      )
+      expect(screen.queryByTestId('annotation-creator')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('Create New Annotation'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
   describe('Modal Controls', () => {
     it('should close modal when close button is clicked', async () => {
       const onClose = jest.fn()

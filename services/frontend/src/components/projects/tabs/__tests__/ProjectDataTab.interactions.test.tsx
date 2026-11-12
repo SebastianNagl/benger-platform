@@ -103,8 +103,18 @@ jest.mock('date-fns', () => ({
 }))
 
 jest.mock('@/components/projects/AnnotatorBadges', () => ({
-  AnnotatorBadges: ({ assignments, onAssign, onUnassign }: any) => (
-    <div data-testid="annotator-badges">
+  AnnotatorBadges: ({
+    assignments,
+    onAssign,
+    onUnassign,
+    canAssign,
+    canUnassign,
+  }: any) => (
+    <div
+      data-testid="annotator-badges"
+      data-can-assign={String(Boolean(canAssign))}
+      data-can-unassign={String(Boolean(canUnassign))}
+    >
       {assignments?.length > 0
         ? assignments.map((a: any, i: number) => (
             <div key={i}>
@@ -1050,6 +1060,41 @@ describe('ProjectDataTab - interaction coverage', () => {
   })
 
   // ---- IMPORT MODAL ----
+
+  describe('Deleted project (superadmin view)', () => {
+    it('shows the tasks read-only: export stays, every write control goes', async () => {
+      mockUseProjectStore.mockReturnValue({
+        currentProject: {
+          id: 'project-1',
+          title: 'Test Project',
+          num_tasks: 3,
+          num_annotations: 3,
+          effective_role: 'ORG_ADMIN',
+          deleted_at: '2026-09-01T10:00:00Z',
+        },
+        loading: false,
+        fetchProjectTasks: mockFetchProjectTasks,
+      } as any)
+      await renderAndWaitForTasks()
+
+      expect(screen.getByTestId('export-button')).toBeInTheDocument()
+      expect(screen.queryByTestId('import-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('bulk-actions')).not.toBeInTheDocument()
+      // Assigning and unassigning annotators are writes too.
+      const badges = screen.getAllByTestId('annotator-badges')
+      expect(badges.length).toBeGreaterThan(0)
+      for (const b of badges) {
+        expect(b).toHaveAttribute('data-can-assign', 'false')
+        expect(b).toHaveAttribute('data-can-unassign', 'false')
+      }
+    })
+
+    it('the same project, live, keeps import and bulk actions', async () => {
+      await renderAndWaitForTasks()
+      expect(screen.getByTestId('import-button')).toBeInTheDocument()
+      expect(screen.getByTestId('bulk-actions')).toBeInTheDocument()
+    })
+  })
 
   describe('Import modal', () => {
     it('opens import modal and completes import', async () => {
