@@ -1,8 +1,11 @@
 % Bibliography of the LEXam-DE paper. Chicago notes and bibliography style
-% (chicago-notes-bibliography.csl); German entries carry langid so the style
+% (chicago-notes-bibliography-classic.csl); German entries carry langid so the style
 % keeps their original casing. Court decisions and the grading ordinance are
-% cited in the footnotes in German citation form, as Chicago prescribes for
-% legal sources, and therefore have no entry here.
+% cited in the footnotes in the form used in German courts, as Chicago allows
+% for legal sources, and therefore have no entry here. Editors, publisher and
+% place of the ACL proceedings are taken from the ACL Anthology; with editors
+% the Chicago CSL prints the "In Proceedings ..., edited by ..." book form.
+% The ICLR and ICAIL entries name no editors because none could be verified.
 
 @inproceedings{fan2025lexam,
   title     = {{LEXam}: Benchmarking Legal Reasoning on 340 Law Exams},
@@ -16,8 +19,9 @@
   title     = {{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in {German} Law},
   author    = {Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin and Ko{\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},
   booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2026},
+  editor    = {Lee, Hung-Yi and Dev, Sunipa and Li, Jessy and Elliott, Desmond},
   publisher = {Association for Computational Linguistics},
-  address   = {Budapest, Hungary},
+  address   = {Budapest},
   year      = {2026},
   pages     = {26759--26794},
   doi       = {10.18653/2026.findings-emnlp.1266}
@@ -49,8 +53,9 @@
   author    = {Calderon, Nitay and Reichart, Roi and Dror, Rotem},
   title     = {The Alternative Annotator Test for {LLM}-as-a-Judge: How to Statistically Justify Replacing Human Annotators with {LLMs}},
   booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  editor    = {Che, Wanxiang and Nabende, Joyce and Shutova, Ekaterina and Pilehvar, Mohammad Taher},
   publisher = {Association for Computational Linguistics},
-  address   = {Vienna, Austria},
+  address   = {Vienna},
   year      = {2025},
   pages     = {16051--16081},
   doi       = {10.18653/v1/2025.acl-long.782}
@@ -80,6 +85,8 @@
   langid  = {german}
 }
 
+% Issue 1 of 2026, pages 1-34, as the article PDF's running header states; the
+% /2025/ in the URL is the online-first upload date (December 2025).
 @article{strecker2026ki,
   author  = {Strecker, Michael B. and H{\"a}hnchen, Susanne and Heidebach, Martin and Herberger, Marie and Nonn, Simon Alexander and Gro{\ss}kopf, Sarah and Erol, G{\"o}khan and Erol, Menaf and Garber, Ilja and H{\"o}hmann, Constantin and Huang, Enci and Hufeld, Clemens and Zachmann, Louisa},
   title   = {{KI}-Unterst{\"u}tzung und Rohpunkteschemata: Die Zukunft der juristischen Klausurkorrektur?},
@@ -95,19 +102,22 @@
   title     = {{BLEU}: A Method for Automatic Evaluation of Machine Translation},
   author    = {Papineni, Kishore and Roukos, Salim and Ward, Todd and Zhu, Wei-Jing},
   booktitle = {Proceedings of the 40th Annual Meeting of the Association for Computational Linguistics},
+  editor    = {Isabelle, Pierre and Charniak, Eugene and Lin, Dekang},
   publisher = {Association for Computational Linguistics},
-  address   = {Philadelphia, Pennsylvania},
+  address   = {Philadelphia},
   year      = {2002},
   pages     = {311--318},
   doi       = {10.3115/1073083.1073135}
 }
 
-@inproceedings{lin2004rouge,
+% The workshop volume has no editors (ACL Anthology W04-10), so the paper is
+% typed as a contribution to a book to get the Chicago "In ..." form.
+@incollection{lin2004rouge,
   title     = {{ROUGE}: A Package for Automatic Evaluation of Summaries},
   author    = {Lin, Chin-Yew},
   booktitle = {Text Summarization Branches Out},
   publisher = {Association for Computational Linguistics},
-  address   = {Barcelona, Spain},
+  address   = {Barcelona},
   year      = {2004},
   pages     = {74--81},
   url       = {https://aclanthology.org/W04-1013/}
@@ -117,8 +127,9 @@
   title     = {{METEOR}: An Automatic Metric for {MT} Evaluation with Improved Correlation with Human Judgments},
   author    = {Banerjee, Satanjeev and Lavie, Alon},
   booktitle = {Proceedings of the {ACL} Workshop on Intrinsic and Extrinsic Evaluation Measures for Machine Translation and/or Summarization},
+  editor    = {Goldstein, Jade and Lavie, Alon and Lin, Chin-Yew and Voss, Clare},
   publisher = {Association for Computational Linguistics},
-  address   = {Ann Arbor, Michigan},
+  address   = {Ann Arbor, MI},
   year      = {2005},
   pages     = {65--72},
   url       = {https://aclanthology.org/W05-0909/}
@@ -136,8 +147,9 @@
   title     = {{MoverScore}: Text Generation Evaluating with Contextualized Embeddings and Earth Mover Distance},
   author    = {Zhao, Wei and Peyrard, Maxime and Liu, Fei and Gao, Yang and Meyer, Christian M. and Eger, Steffen},
   booktitle = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing ({EMNLP-IJCNLP})},
+  editor    = {Inui, Kentaro and Jiang, Jing and Ng, Vincent and Wan, Xiaojun},
   publisher = {Association for Computational Linguistics},
-  address   = {Hong Kong, China},
+  address   = {Hong Kong},
   year      = {2019},
   pages     = {563--578},
   doi       = {10.18653/v1/D19-1053}

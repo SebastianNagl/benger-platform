@@ -21,8 +21,9 @@ Chicago notes and bibliography, publisher's Word template).
   (alternative solutions, step-by-step grading of the subsumption), why that
   led to BenGER and on to instance-specific grading sheets; respectful toward
   LEXam throughout. Citations are footnotes in Chicago style
-  (`chicago-notes-bibliography.csl`); court decisions are cited in the
-  footnotes in German form. Numbers are hardcoded in the qmd and trace to
+  (`chicago-notes-bibliography-classic.csl`, the official CMOS 18 style
+  with page ranges and place of publication); court decisions are cited in the
+  footnotes by court, decision type, date and docket number. Numbers are hardcoded in the qmd and trace to
   `REPRODUCTION.md`, `analysis/` and the BenGER paper.
 - `make docx` → `manuscript.docx` for the publisher. Copy the publisher's
   Word template to `publisher/St.Gallen_Publishing_Template.docx` (both
