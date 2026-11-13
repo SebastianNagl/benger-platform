@@ -78,3 +78,24 @@ export function scopeUpstreamSetCookies(
     .map((cookie) => scopeUpstreamSetCookie(cookie, host))
     .filter((cookie): cookie is string => cookie !== null)
 }
+
+/**
+ * The Set-Cookie values to relay to the browser for an API auth response
+ * (login, refresh): re-scoped for ``host`` (see scopeUpstreamSetCookie), with
+ * ``Path=/`` and ``SameSite=Lax`` when the API left them out. Outside
+ * production the stack runs on plain HTTP, so the Secure flag is dropped
+ * (a Secure cookie would never reach the browser); in production it stays.
+ */
+export function relayedAuthCookies(
+  cookies: string[],
+  host: string,
+  production: boolean = process.env.NODE_ENV === 'production',
+): string[] {
+  return scopeUpstreamSetCookies(cookies, host).map((cookie) => {
+    let relayed = cookie
+    if (!relayed.includes('Path=')) relayed += '; Path=/'
+    if (!relayed.includes('SameSite')) relayed += '; SameSite=Lax'
+    if (!production) relayed = relayed.replace(/;\s*Secure/gi, '')
+    return relayed
+  })
+}

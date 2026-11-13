@@ -21,11 +21,11 @@ from starlette.concurrency import run_in_threadpool
 
 import org_storage_connection_service as storage_conn_service
 from auth_module import User, require_user
+from auth_module.dependencies import require_org_admin_async
 from database import get_async_db, get_db, release_db_sessions
 from models import (
     Organization,
     OrganizationMembership,
-    OrganizationRole,
     OrgStorageConnection,
 )
 
@@ -35,27 +35,9 @@ router = APIRouter(prefix="/api/organizations", tags=["Organization Storage Conn
 
 
 async def _require_org_admin(user: User, org_id: str, db: AsyncSession):
-    """Raise 403 if user cannot manage the organization.
-
-    Same inline membership lookup as ``routers.org_api_keys._require_org_admin``
-    (superadmin or active ORG_ADMIN membership) on the async lane.
-    """
-    if user.is_superadmin:
-        return
-
-    result = await db.execute(
-        select(OrganizationMembership).where(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-    )
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this organization",
-        )
+    """403 unless the caller is a superadmin or an active ORG_ADMIN of the org
+    (the shared rule, ``auth_module.dependencies.require_org_admin_async``)."""
+    await require_org_admin_async(db, user, org_id)
 
 
 async def _require_org_member(user: User, org_id: str, db: AsyncSession):

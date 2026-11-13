@@ -155,7 +155,7 @@ class TestLoginDeep:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "access_token" in data
+        assert "access_token" not in data  # tokens travel in HttpOnly cookies only
         assert "token_type" in data
         assert data["token_type"] == "bearer"
         assert "user" in data
@@ -220,7 +220,7 @@ class TestLoginDeep:
             json={"username": "admin@test.com", "password": "admin123"},
         )
         assert resp.status_code == 200
-        assert "access_token" in resp.json()
+        assert "access_token" not in resp.json()  # tokens travel in HttpOnly cookies only
 
     def test_login_nonexistent_user(self, client, test_db, test_users):
         """Nonexistent user returns 401."""
@@ -266,7 +266,7 @@ class TestLoginDeep:
             json={"username": "contributor@test.com", "password": "contrib123"},
         )
         assert resp.status_code == 200
-        assert "access_token" in resp.json()
+        assert "access_token" not in resp.json()  # tokens travel in HttpOnly cookies only
 
 
 # ===================================================================

@@ -154,9 +154,9 @@ export interface OnboardingStateUpdate extends OnboardingState {
   reset_tours?: boolean
 }
 
+/** Body of POST /auth/login and /auth/refresh. The session tokens are not
+ * part of it: they live only in HttpOnly cookies. */
 export interface AuthResponse {
-  access_token: string
-  refresh_token?: string
   token_type: string
   expires_in: number
   user: User
@@ -1132,6 +1132,13 @@ export interface ScopeCatalog {
   scopes: ScopeDefinition[]
   /** Preset id -> scope names (benchmark_read, benchmark_submit, org_full, full_access, ...). */
   presets: Record<string, string[]>
+  /** The deployment's per-key request limits (defaults and maximum). */
+  limits?: {
+    default_per_minute: number
+    default_per_day: number
+    max_per_minute: number
+    max_per_day: number
+  }
 }
 
 /** Answer of GET /api/v1/me for an access key. */

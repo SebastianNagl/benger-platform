@@ -215,7 +215,7 @@ class TestLoginBody:
             json={"username": "contributor@test.com", "password": "contrib123"},
         )
         assert resp.status_code == 200
-        assert "access_token" in resp.json()
+        assert "access_token" not in resp.json()  # tokens travel in HttpOnly cookies only
 
     def test_login_annotator_returns_token(self, client, test_db, test_users):
         resp = client.post(
@@ -223,7 +223,7 @@ class TestLoginBody:
             json={"username": "annotator@test.com", "password": "annotator123"},
         )
         assert resp.status_code == 200
-        assert "access_token" in resp.json()
+        assert "access_token" not in resp.json()  # tokens travel in HttpOnly cookies only
 
     def test_login_invalid_password_401(self, client, test_db, test_users):
         resp = client.post(

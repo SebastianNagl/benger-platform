@@ -680,4 +680,19 @@ describe('BulkActions', () => {
       expect(mockOnDelete).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('canModify', () => {
+    it('offers only export to callers who may not change the project', async () => {
+      const user = userEvent.setup()
+      render(
+        <BulkActions {...defaultProps} selectedCount={2} canModify={false} />,
+      )
+
+      await user.click(screen.getByText('Actions'))
+      expect(screen.getByText('Export Selected')).toBeInTheDocument()
+      expect(screen.queryByText('Archive Selected')).not.toBeInTheDocument()
+      expect(screen.queryByText('Delete Selected')).not.toBeInTheDocument()
+      expect(screen.queryByText('Edit Metadata')).not.toBeInTheDocument()
+    })
+  })
 })

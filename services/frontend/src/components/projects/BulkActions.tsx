@@ -28,6 +28,12 @@ interface BulkActionsProps {
   onArchive: () => void
   onAssign?: () => void
   canAssign?: boolean
+  /**
+   * Whether the caller may change the project's tasks (metadata, archive,
+   * delete, duplicate): real project members only, the API's
+   * check_user_can_edit_project. Export stays available either way.
+   */
+  canModify?: boolean
   onTagsUpdated?: () => void
 }
 
@@ -40,6 +46,7 @@ export function BulkActions({
   onArchive,
   onAssign,
   canAssign = false,
+  canModify = true,
   onTagsUpdated,
 }: BulkActionsProps) {
   const { t } = useI18n()
@@ -116,51 +123,55 @@ export function BulkActions({
                   {t('projects.bulkActions.exportSelected')}
                 </button>
 
-                <button
-                  className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                  onClick={() => {
-                    alert(t('projects.bulkActions.duplicateComingSoon'))
-                    setDropdownOpen(false)
-                  }}
-                >
-                  <DocumentDuplicateIcon className="mr-3 h-4 w-4" />
-                  {t('projects.bulkActions.duplicateSelected')}
-                </button>
+                {canModify && (
+                  <>
+                    <button
+                      className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                      onClick={() => {
+                        alert(t('projects.bulkActions.duplicateComingSoon'))
+                        setDropdownOpen(false)
+                      }}
+                    >
+                      <DocumentDuplicateIcon className="mr-3 h-4 w-4" />
+                      {t('projects.bulkActions.duplicateSelected')}
+                    </button>
 
-                <button
-                  className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                  onClick={() => {
-                    setShowMetadataEditor(true)
-                    setDropdownOpen(false)
-                  }}
-                >
-                  <PencilSquareIcon className="mr-3 h-4 w-4" />
-                  {t('projects.bulkActions.editMetadata')}
-                </button>
+                    <button
+                      className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                      onClick={() => {
+                        setShowMetadataEditor(true)
+                        setDropdownOpen(false)
+                      }}
+                    >
+                      <PencilSquareIcon className="mr-3 h-4 w-4" />
+                      {t('projects.bulkActions.editMetadata')}
+                    </button>
 
-                <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+                    <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
 
-                <button
-                  className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                  onClick={() => {
-                    onArchive()
-                    setDropdownOpen(false)
-                  }}
-                >
-                  <ArchiveBoxIcon className="mr-3 h-4 w-4" />
-                  {t('projects.bulkActions.archiveSelected')}
-                </button>
+                    <button
+                      className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                      onClick={() => {
+                        onArchive()
+                        setDropdownOpen(false)
+                      }}
+                    >
+                      <ArchiveBoxIcon className="mr-3 h-4 w-4" />
+                      {t('projects.bulkActions.archiveSelected')}
+                    </button>
 
-                <button
-                  className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                  onClick={() => {
-                    onDelete()
-                    setDropdownOpen(false)
-                  }}
-                >
-                  <TrashIcon className="mr-3 h-4 w-4" />
-                  {t('projects.bulkActions.deleteSelected')}
-                </button>
+                    <button
+                      className="group flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      onClick={() => {
+                        onDelete()
+                        setDropdownOpen(false)
+                      }}
+                    >
+                      <TrashIcon className="mr-3 h-4 w-4" />
+                      {t('projects.bulkActions.deleteSelected')}
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <div className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">

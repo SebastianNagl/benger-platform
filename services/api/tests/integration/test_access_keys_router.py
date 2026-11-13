@@ -335,6 +335,43 @@ async def test_scope_catalog(async_test_client, world):
         assert r.status_code == 200
         assert "benchmark_read" in r.json()["presets"]
         assert any(s["name"] == "tasks:read_reference" for s in r.json()["scopes"])
+        assert r.json()["limits"] == {
+            "default_per_minute": 120,
+            "default_per_day": 20000,
+            "max_per_minute": 600,
+            "max_per_day": 100000,
+        }
+
+
+async def test_rate_limits_above_the_deployment_maximum_are_refused(
+    async_test_client, world
+):
+    """Per-key limits may not exceed API_KEY_MAX_RPM / API_KEY_MAX_RPD
+    (defaults 600/min, 100,000/day) on create and on update, for org and
+    personal keys; the maximum itself is allowed."""
+    with _as(world["admin"]):
+        for body in ({"rate_limit_per_minute": 601}, {"rate_limit_per_day": 100_001}):
+            r = await _create_org_key(async_test_client, world, **body)
+            assert r.status_code == 422, r.text
+            assert r.json()["detail"]["code"] == "rate_limit_too_high"
+        r = await _create_org_key(
+            async_test_client, world, rate_limit_per_minute=600, rate_limit_per_day=100_000
+        )
+        assert r.status_code == 201, r.text
+        key = r.json()["key"]
+        url = f"{_base(world['org'].id)}/{key['id']}"
+        r = await async_test_client.patch(url, json={"rate_limit_per_minute": 100_000})
+        assert r.status_code == 422, r.text
+        assert "600" in r.json()["detail"]["message"]
+        r = await async_test_client.get(_base(world["org"].id))
+        assert r.json()[0]["rate_limit_per_minute"] == 600
+    with _as(world["member"]):
+        r = await async_test_client.post(
+            "/api/users/me/access-keys",
+            json={"name": "fast", "rate_limit_per_minute": 1000},
+        )
+        assert r.status_code == 422, r.text
+        assert r.json()["detail"]["code"] == "rate_limit_too_high"
 
 
 def test_service_account_login_is_forbidden(client, test_db):

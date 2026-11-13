@@ -25,7 +25,6 @@ from models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    UserProfileHistory,
 )
 
 
@@ -168,7 +167,7 @@ class TestLogin:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "access_token" in data
+        assert "access_token" not in data  # tokens travel in HttpOnly cookies only
 
     def test_login_wrong_password(self, client, test_db, test_users):
         resp = client.post(
@@ -221,7 +220,7 @@ class TestLogin:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "access_token" in data
+        assert "access_token" not in data  # tokens travel in HttpOnly cookies only
         assert data["token_type"] == "bearer"
 
     def test_login_annotator(self, client, test_db, test_users):
@@ -469,13 +468,11 @@ class TestRefreshToken:
             },
         )
         assert login_resp.status_code == 200
-        data = login_resp.json()
-        if "refresh_token" in data:
-            resp = client.post(
-                "/api/auth/refresh",
-                json={"refresh_token": data["refresh_token"]},
-            )
-            assert resp.status_code in [200, 401]
+        # The refresh token travels in the HttpOnly cookie set by login.
+        assert "refresh_token" not in login_resp.json()
+        assert login_resp.cookies.get("refresh_token")
+        resp = client.post("/api/auth/refresh")
+        assert resp.status_code == 200
 
     def test_refresh_with_invalid_token(self, client, test_db):
         resp = client.post(

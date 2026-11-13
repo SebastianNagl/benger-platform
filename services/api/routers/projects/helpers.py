@@ -2545,7 +2545,7 @@ def check_project_write_access(
     project_id: str,
     allowed_roles: tuple = ("ORG_ADMIN", "CONTRIBUTOR"),
 ) -> bool:
-    """Check if a user can perform a write/contribute action on a project.
+    """Check if a user may CONTRIBUTE their own work to a project.
 
     Combines read access + role gate. The role check honours the public_role
     fallback for public-tier visitors:
@@ -2554,9 +2554,12 @@ def check_project_write_access(
       - org-member with allowed role → allowed
       - creator + superadmin → always allowed (via get_effective_project_role)
 
-    Use for endpoints that mutate task/annotation/generation data on a project
-    (e.g. import, generate, bulk delete) where the documented public_role
-    contract should be enforced.
+    Use only for actions that add the caller's own work: starting a
+    generation or an evaluation run. Anything that changes or bulk-writes the
+    project itself (imports of every mode, task edits and deletes, task
+    metadata, assignments, settings, visibility) needs real membership,
+    :func:`check_user_can_edit_project`, so a public project's
+    ``public_role=CONTRIBUTOR`` visitors cannot overwrite it.
     """
     if user.is_superadmin:
         return True
@@ -3171,3 +3174,34 @@ async def get_project_organizations_async(
         .where(ProjectOrganization.project_id == project_id)
     )
     return _format_project_organizations(result.scalars().unique().all())
+
+
+def require_org_key_own_organization(request, organization_id) -> None:
+    """A project created with an organization access key (POST
+    /api/projects, a create-new full import) must name that key's
+    organization as ``organization_id`` (optionally with one of its groups).
+
+    The project would otherwise become the private or public project of the
+    key's service account, which is deactivated when the key is revoked,
+    leaving a project only superadmins can edit. Personal keys and browser
+    sessions are not affected: their projects belong to a person. 400
+    ``organization_required`` naming the expected organization otherwise.
+    """
+    from auth_module.principal import get_principal
+
+    principal = get_principal(request)
+    if principal is None or not principal.is_api_key or not principal.organization_id:
+        return
+    key_org = str(principal.organization_id)
+    if organization_id is None or str(organization_id) != key_org:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "organization_required",
+                "message": (
+                    "An organization access key must create projects in its "
+                    f"own organization: set organization_id to {key_org} "
+                    "(and organization_group_id to one of its groups if needed)"
+                ),
+            },
+        )

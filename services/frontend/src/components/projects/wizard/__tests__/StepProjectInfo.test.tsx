@@ -555,7 +555,7 @@ describe('StepProjectInfo', () => {
   })
 
   describe('public visibility section', () => {
-    it('renders the public role options and switches role', () => {
+    it('renders the public role options and switches role after confirmation', async () => {
       const { onChange } = renderStep({
         visibility: 'public',
         publicRole: 'ANNOTATOR',
@@ -566,7 +566,24 @@ describe('StepProjectInfo', () => {
       fireEvent.click(
         screen.getByTestId('wizard-public-role-contributor-radio'),
       )
+      // The public CONTRIBUTOR role needs an explicit confirmation first.
+      expect(onChange).not.toHaveBeenCalledWith({ publicRole: 'CONTRIBUTOR' })
+      fireEvent.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
       expect(onChange).toHaveBeenCalledWith({ publicRole: 'CONTRIBUTOR' })
+    })
+
+    it('keeps the annotator role when the confirmation is cancelled', async () => {
+      const { onChange } = renderStep({
+        visibility: 'public',
+        publicRole: 'ANNOTATOR',
+      })
+      fireEvent.click(
+        screen.getByTestId('wizard-public-role-contributor-radio'),
+      )
+      fireEvent.click(await screen.findByTestId('confirm-dialog-cancel-button'))
+      expect(onChange).not.toHaveBeenCalledWith({ publicRole: 'CONTRIBUTOR' })
     })
 
     it('reflects the currently selected role', () => {

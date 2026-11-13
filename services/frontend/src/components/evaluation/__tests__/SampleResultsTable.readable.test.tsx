@@ -188,3 +188,45 @@ describe('SampleResultsTable: readable rows', () => {
     expect(reference).toHaveTextContent('No content')
   })
 })
+
+describe('SampleResultsTable: model and judge answer', () => {
+  const judgeRow = {
+    ...rubricRow,
+    id: 'j1',
+    field_name: 'cfg-judge|answer|reference',
+    model_id: 'custom-3f2a',
+    model_name: 'Qwen3 (prod)',
+    metrics: {
+      llm_judge_classic: 0.75,
+      raw_score: 4,
+      llm_judge_classic_response: {
+        score: 4,
+        justification: 'Mostly correct, misses one element.',
+        _call_metadata: { tokens: 12 },
+      },
+    },
+  }
+
+  it('shows the model of the graded generation by name', () => {
+    render(<SampleResultsTable data={[judgeRow]} configs={[]} />)
+    const cell = screen.getByTestId('sample-model')
+    expect(cell).toHaveTextContent('Qwen3 (prod)')
+    expect(cell).toHaveAttribute('title', 'custom-3f2a')
+  })
+
+  it("renders the judge's answer as text, not as an N/A metric", async () => {
+    const user = userEvent.setup()
+    render(<SampleResultsTable data={[judgeRow]} configs={[]} />)
+    await user.click(screen.getAllByRole('button')[0])
+
+    const heading = await screen.findByText('All Metrics')
+    const grid = heading.nextElementSibling as HTMLElement
+    expect(within(grid).queryByText('N/A')).toBeNull()
+    expect(grid.children).toHaveLength(1)
+
+    const answer = screen.getByTestId('sample-judge-response')
+    expect(answer).toHaveTextContent("judge's answer")
+    expect(answer).toHaveTextContent('Mostly correct, misses one element.')
+    expect(answer.textContent).not.toContain('_call_metadata')
+  })
+})

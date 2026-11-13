@@ -167,6 +167,23 @@ describe('CustomModelList', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows the model id with a copy button in the expanded row', async () => {
+    const user = userEvent.setup()
+    const writeText = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+    render(<CustomModelList models={[foreignModel]} />)
+    await user.click(screen.getByTestId('custom-model-expand-custom-foreign'))
+
+    expect(
+      screen.getByTestId('custom-model-id-custom-foreign'),
+    ).toHaveTextContent('custom-foreign')
+    await user.click(screen.getByTestId('custom-model-copy-id-custom-foreign'))
+    expect(writeText).toHaveBeenCalledWith('custom-foreign')
+  })
+
   it('opens the visibility panel from the owner action', async () => {
     const user = userEvent.setup()
     render(<CustomModelList models={[ownModel]} />)

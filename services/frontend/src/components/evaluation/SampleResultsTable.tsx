@@ -25,6 +25,7 @@ import {
   fieldSelectorLabel,
   formatMetricNumber,
   isSidecarMetricKey,
+  judgeResponses,
   metricDisplayLabel,
   parseSampleFieldKey,
   readableSampleValue,
@@ -115,6 +116,9 @@ function visibleMetricKeys(metrics: Record<string, unknown>): string[] {
 interface SampleResult {
   id: string
   task_id: string
+  /** Model of the graded generation; null for a graded annotation. */
+  model_id?: string | null
+  model_name?: string | null
   field_name: string
   answer_type: string
   ground_truth: Record<string, any> | string | null
@@ -280,6 +284,25 @@ export function SampleResultsTable({
           </code>
         ),
         size: 120,
+      },
+      {
+        id: 'model',
+        accessorFn: (sample) => sample.model_name || sample.model_id || '',
+        header: t('evaluation.sampleResultsTable.model'),
+        cell: ({ row }) => {
+          const { model_id: id, model_name: name } = row.original
+          if (!id) return <span className="text-zinc-400">-</span>
+          return (
+            <span
+              className={`text-sm text-zinc-900 dark:text-zinc-100 ${name ? '' : 'font-mono text-xs break-all'}`}
+              title={id}
+              data-testid="sample-model"
+            >
+              {name || id}
+            </span>
+          )
+        },
+        size: 140,
       },
       {
         // Sorted and filtered by what the reader sees, not the stored key.
@@ -659,6 +682,26 @@ export function SampleResultsTable({
                             )}
                           </div>
                         </div>
+
+                        {judgeResponses(row.original.metrics).map(
+                          ({ metric, value }) => (
+                            <SampleValue
+                              key={metric}
+                              label={t(
+                                'evaluation.sampleResultsTable.judgeResponse',
+                                {
+                                  metric: metricDisplayLabel(
+                                    metric,
+                                    undefined,
+                                    t,
+                                  ),
+                                },
+                              )}
+                              value={value}
+                              testId="sample-judge-response"
+                            />
+                          ),
+                        )}
 
                         {row.original.error_message && (
                           <Alert variant="error">

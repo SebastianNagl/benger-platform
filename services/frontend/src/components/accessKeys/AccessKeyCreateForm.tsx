@@ -4,7 +4,8 @@
  * Create form of an access key, written for non-technical staff: a name,
  * one of the plain-language presets (the scope list stays behind
  * "Erweitert"), and for organization keys the role, the group and an
- * optional project allowlist. Expiry defaults to one year.
+ * optional project allowlist. Expiry defaults to 90 days (still optional);
+ * the request limits may not exceed the deployment maximum.
  *
  * The scope list only offers what the creator may grant for this kind of
  * key (app/core/scopes.py); scopes that need a higher org-key role stay
@@ -199,6 +200,20 @@ export function AccessKeyCreateForm({
     }
     if (scopes.length === 0) {
       setError(t('accessKeys.form.noScopes'))
+      return
+    }
+    const maxPerMinute = catalog?.limits?.max_per_minute
+    const maxPerDay = catalog?.limits?.max_per_day
+    if (
+      (perMinute && maxPerMinute && Number(perMinute) > maxPerMinute) ||
+      (perDay && maxPerDay && Number(perDay) > maxPerDay)
+    ) {
+      setError(
+        t('accessKeys.form.rateLimitTooHigh', {
+          perMinute: maxPerMinute ?? '',
+          perDay: maxPerDay ?? '',
+        }),
+      )
       return
     }
     const body: AccessKeyCreate = {
@@ -511,6 +526,9 @@ export function AccessKeyCreateForm({
             ))}
           </SelectContent>
         </Select>
+        <p className={hintClass} data-testid="access-key-expiry-hint">
+          {t('accessKeys.form.expiryHint')}
+        </p>
       </div>
 
       <div>
@@ -538,6 +556,7 @@ export function AccessKeyCreateForm({
                 id="access-key-rpm"
                 type="number"
                 min={1}
+                max={catalog?.limits?.max_per_minute}
                 value={perMinute}
                 onChange={(e) => setPerMinute(e.target.value)}
                 className="mt-1"
@@ -552,6 +571,7 @@ export function AccessKeyCreateForm({
                 id="access-key-rpd"
                 type="number"
                 min={1}
+                max={catalog?.limits?.max_per_day}
                 value={perDay}
                 onChange={(e) => setPerDay(e.target.value)}
                 className="mt-1"
@@ -560,6 +580,17 @@ export function AccessKeyCreateForm({
             </div>
             <p className={`${hintClass} sm:col-span-2`}>
               {t('accessKeys.form.rateLimitsHint')}
+              {catalog?.limits && (
+                <>
+                  {' '}
+                  {t('accessKeys.form.rateLimitsRange', {
+                    defaultPerMinute: catalog.limits.default_per_minute,
+                    defaultPerDay: catalog.limits.default_per_day,
+                    maxPerMinute: catalog.limits.max_per_minute,
+                    maxPerDay: catalog.limits.max_per_day,
+                  })}
+                </>
+              )}
             </p>
           </div>
         )}

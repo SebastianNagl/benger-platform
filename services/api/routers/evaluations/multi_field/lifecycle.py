@@ -28,18 +28,25 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from sqlalchemy import text as _sql_text
 from sqlalchemy.orm.attributes import flag_modified
 
+from .run import _can_launch_evaluation
+
 
 def _get_run_and_authorize(
     db: Session,
     evaluation_id: str,
     current_user: User,
     action: str,
+    *,
+    spends: bool = False,
 ) -> DBEvaluationRun:
     """404/403 guard stack shared by all three lifecycle handlers.
 
     Permission mirrors single-run cancel: the user who triggered the run,
     OR anyone with project EDIT. See cancel.py for why PROJECT_VIEW is too
-    permissive and EDIT-only too strict.
+    permissive and EDIT-only too strict. An action that ``spends`` judge
+    budget (resume, retry) admits the owner only while they may still
+    launch a run (:func:`_can_launch_evaluation`), so an ANNOTATOR cannot
+    re-dispatch a run they started before, or under a role they since lost.
     """
     evaluation = (
         db.query(DBEvaluationRun)
@@ -57,7 +64,9 @@ def _get_run_and_authorize(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Parent project '{evaluation.project_id}' not found",
         )
-    is_owner = evaluation.created_by == current_user.id
+    is_owner = evaluation.created_by == current_user.id and (
+        not spends or _can_launch_evaluation(db, current_user, project.id)
+    )
     has_edit = auth_service.check_project_access(
         current_user, project, Permission.PROJECT_EDIT, db
     )
@@ -202,7 +211,7 @@ def resume_evaluation_run(
     """Resume a paused (or continue a cancelled) run: same run id, re-dispatch
     missing-only so completed cells are reused."""
     evaluation = _get_run_and_authorize(
-        db, evaluation_id, current_user, "resume"
+        db, evaluation_id, current_user, "resume", spends=True
     )
     previous = evaluation.status
     # Snapshot guard BEFORE flipping state so a snapshot-less run isn't
@@ -264,7 +273,7 @@ def retry_evaluation_run(
     """Retry a failed run: same run id, missing-only re-dispatch, bumps
     retry_count."""
     evaluation = _get_run_and_authorize(
-        db, evaluation_id, current_user, "retry"
+        db, evaluation_id, current_user, "retry", spends=True
     )
     previous = evaluation.status
     _dispatch_snapshot_kwargs(evaluation)  # 409 before any state change

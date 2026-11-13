@@ -108,7 +108,7 @@ class TestAPIHealth:
         """Test authentication endpoints"""
         # Test login endpoint
         response = client.post(
-            "/api/auth/login", json={"username": "admin@test.com", "password": "admin123"}
+            "/api/auth/token", json={"username": "admin@test.com", "password": "admin123"}
         )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -488,7 +488,7 @@ class TestHealthSummary:
         """Test complete authentication flow"""
         # Login
         response = client.post(
-            "/api/auth/login", json={"username": "admin@test.com", "password": "admin123"}
+            "/api/auth/token", json={"username": "admin@test.com", "password": "admin123"}
         )
         assert response.status_code == status.HTTP_200_OK
         token = response.json()["access_token"]

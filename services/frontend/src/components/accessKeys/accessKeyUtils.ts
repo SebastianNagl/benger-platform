@@ -22,7 +22,9 @@ export const EXPIRY_WARNING_DAYS = 14
 
 export type ExpiryChoice = '30' | '90' | '365' | 'never'
 export const EXPIRY_CHOICES: ExpiryChoice[] = ['30', '90', '365', 'never']
-export const DEFAULT_EXPIRY: ExpiryChoice = '365'
+// Suggested validity of a new key: short enough that a forgotten key stops
+// working on its own, still optional ("never" stays a choice).
+export const DEFAULT_EXPIRY: ExpiryChoice = '90'
 
 /** The presets the UI names in plain language, in display order. */
 export const KNOWN_PRESETS = [

@@ -1319,12 +1319,59 @@ describe('ProjectListTable', () => {
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
-          'Please select a JSON or ZIP file',
+          'Please select a project export (.json, .ndjson, .gz or .zip)',
           'error',
         )
       })
 
       expect(projectsAPI.runProjectImportJob).not.toHaveBeenCalled()
+    })
+
+    it('imports a gzipped NDJSON export and counts all its results', async () => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        status: 'completed',
+        project_id: 'new-project',
+        result: {
+          project_title: 'Benchmark copy',
+          statistics: {
+            imported_counts: {
+              tasks: 3,
+              annotations: 2,
+              generations: 12,
+              evaluations: 1,
+              task_evaluations: 24,
+            },
+          },
+        },
+      })
+
+      render(<ProjectListTable />)
+
+      const fileInput = screen.getByTestId(
+        'project-import-file-input',
+      ) as HTMLInputElement
+      expect(fileInput.accept).toBe('.json,.ndjson,.gz,.zip')
+      const file = new File(['x'], 'project.ndjson.gz', {
+        type: 'application/gzip',
+      })
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining(
+            '3 tasks, 2 annotations, 12 generations, 1 evaluation runs, 24 evaluated rows',
+          ),
+          'success',
+        )
+      })
     })
 
     it('explains a task export uploaded as a project import', async () => {

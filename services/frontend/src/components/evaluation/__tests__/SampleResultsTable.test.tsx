@@ -763,7 +763,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={mockSampleResults} />)
 
       expect(screen.getByRole('table')).toBeInTheDocument()
-      expect(screen.getAllByRole('columnheader')).toHaveLength(8)
+      expect(screen.getAllByRole('columnheader')).toHaveLength(9)
     })
 
     it('has accessible button labels', () => {

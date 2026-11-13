@@ -325,7 +325,7 @@
             "annotator": "Annotator",
             "annotatorDescription": "Besucher können Aufgaben ansehen und Annotationen erstellen",
             "contributor": "Mitwirkender",
-            "contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+            "contributorDescription": "Zusätzlich alle Daten samt Musterlösungen herunterladen und eigene Annotationen, Generierungen und Evaluierungen hinzufügen. Aufgaben, Importe und Einstellungen ändern nur Projektmitglieder."
           },
           "assignedOrganizations": "Zugewiesene Organisationen",
           "assignedOrganizationsHelp": "Wähle die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können.",
@@ -677,7 +677,7 @@
       "importTargetPrivate": "Privat",
       "importTargetChooseFile": "Datei auswählen",
       "importTargetCancel": "Abbrechen",
-      "importStats": " - {tasks} Aufgaben, {annotations} Annotationen",
+      "importStats": " - {tasks} Aufgaben, {annotations} Annotationen, {generations} Generierungen, {evaluations} Evaluationsläufe, {rows} bewertete Zeilen",
       "importSkippedAnnotations": "{count} Antworten wurden nicht importiert: Ihre Verfasser sind hier unbekannt und wurden deinem Konto zugeordnet, das pro Aufgabe nur eine aktive Antwort halten kann. Lege die Nutzer vor dem Import mit derselben E-Mail-Adresse an.",
       "importSuccess": "\"{title}\" erfolgreich importiert{stats} ({time}s)",
       "importFailed": "Import des Projekts fehlgeschlagen",
@@ -715,7 +715,8 @@
       "importTargetGroupOrgWide": "Gesamte Organisation",
       "publicContributorBadge": "Öffentlich · Mitwirkende:r",
       "publicAnnotatorBadge": "Öffentlich · Annotator:in",
-      "emptyExportFile": "Leere Datei vom Server erhalten"
+      "emptyExportFile": "Leere Datei vom Server erhalten",
+      "asyncExportSuccess": "{count} Projekt(e) exportiert; jeder Download startet, sobald sein Export fertig ist"
     },
     "columns": {
       "label": "Spalten",
@@ -880,7 +881,9 @@
       "unarchiveSelected": "Ausgewählte dearchivieren",
       "archiveSelected": "Ausgewählte archivieren",
       "deleteSelected": "Ausgewählte löschen",
-      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen"
+      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen",
+      "exportNdjsonGz": "Als NDJSON (gzip) exportieren, für große Projekte",
+      "exportComprehensive": "Als JSON exportieren (eine Datei je Projekt)"
     },
     "filter": {
       "filters": "Filter",
@@ -963,12 +966,10 @@
       "description": "Fügt die Generierungen und Evaluationen eines vollständigen Projektexports zu den Aufgaben dieses Projekts hinzu, etwa ein Modell, das auf einer Kopie dieses Projekts gebenchmarkt wurde. Ergebnisse, die dieses Projekt schon hat, werden übersprungen, sodass ein zweites Zusammenführen derselben Datei nichts ändert. Es werden keine Aufgaben angelegt: Gehören die Aufgaben der Datei nicht zu diesem Projekt, wird nichts importiert.",
       "fileLabel": "Projektexport",
       "fileHint": "Ein vollständiger Projektexport (JSON, NDJSON, .gz oder die .zip aus der Projektliste) dieses Projekts oder einer Kopie davon.",
-      "modelMapTitle": "Modell-IDs (optional)",
-      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Gib die ID aus der Datei und die ID desselben Modells hier an. Das Modell muss hier bereits angelegt sein.",
-      "sourceModel": "Modell-ID in der Datei",
-      "targetModel": "Modell-ID hier",
-      "addModel": "Modell-ID hinzufügen",
-      "removeModel": "Entfernen",
+      "modelMapTitle": "Modelle in der Datei",
+      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Wähle für jede ID, die es hier nicht gibt, das Modell hier aus; das Zusammenführen startet erst, wenn alle zugeordnet sind. Ordne jedes eigene Modell zu, auch eines, das schon beim Import der Kopie zugeordnet wurde.",
+      "sourceModel": "Modell in der Datei",
+      "targetModel": "Modell hier",
       "submit": "Zusammenführen",
       "running": "Wird zusammengeführt...",
       "success": "Ergebnisse zusammengeführt",
@@ -976,7 +977,17 @@
       "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führe eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importiere sie als neues Projekt.",
       "summaryAdded": "{tasks} Aufgaben zugeordnet und {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzugefügt.",
       "summarySkipped": "{generations} Generierungen und {evaluations} Evaluationsläufe, die das Projekt schon hatte, übersprungen.",
-      "summaryModels": "Zu den Modellen des Projekts hinzugefügt: {models}"
+      "summaryModels": "Zu den Modellen des Projekts hinzugefügt: {models}",
+      "check": "Datei prüfen",
+      "checking": "Wird geprüft...",
+      "checkFailed": "Die Datei konnte nicht geprüft werden",
+      "previewAdds": "{tasks} Aufgaben zugeordnet. Das Zusammenführen fügt {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzu.",
+      "modelRows": "{added} Zeilen neu, {present} schon vorhanden",
+      "targetFor": "Modell hier für {model}",
+      "keepModel": "Beibehalten: {model}",
+      "chooseModel": "Modell wählen",
+      "unknownModel": "Diese Modell-ID gibt es hier nicht. Wähle dasselbe Modell dieser Installation.",
+      "unknownModels": "Einige Modell-IDs der Datei gibt es hier nicht, daher wurde nichts importiert. Wähle für jede ein Modell hier und führe erneut zusammen."
     }
   },
   "project": {
@@ -1184,7 +1195,7 @@
         "annotator": "Annotator",
         "annotatorDescription": "Aufgaben ansehen und Annotationen erstellen.",
         "contributor": "Mitwirkender",
-        "contributorDescription": "Zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+        "contributorDescription": "Zusätzlich alle Daten samt Musterlösungen herunterladen und eigene Annotationen, Generierungen und Evaluierungen hinzufügen. Aufgaben, Importe und Einstellungen bleiben bei den Projektmitgliedern."
       },
       "organizations": "Organisationen",
       "organizationsDescription": "Wähle eine oder mehrere Organisationen, deren Mitglieder Zugriff erhalten.",
@@ -1202,7 +1213,12 @@
       "validation": {
         "privateNeedsOrganization": "Organisationsbasierte Projekte benötigen mindestens eine Organisation."
       },
-      "saveFailed": "Berechtigungen konnten nicht gespeichert werden"
+      "saveFailed": "Berechtigungen konnten nicht gespeichert werden",
+      "publicContributorConfirm": {
+        "title": "Projekt für Mitwirkende öffnen?",
+        "message": "Jedes angemeldete Konto auf dieser Plattform, auch Dienstkonten von Organisationen und Studierende aus angebundenen Lernplattformen, kann dann:\n- alle Aufgaben sehen und die vollständigen Daten herunterladen, samt Musterlösungen,\n- eigene Annotationen hinzufügen sowie Generierungen und Evaluierungen starten, die über die eigenen API-Schlüssel abgerechnet werden.\n\nImportieren, Aufgaben ändern oder löschen, Ergebnisse zusammenführen, Arbeit zuweisen und die Einstellungen oder die Sichtbarkeit ändern kann es nicht. Das bleibt beim Ersteller und bei den Mitwirkenden und Admins der Organisationen des Projekts.",
+        "confirm": "Für Mitwirkende öffnen"
+      }
     },
     "evaluation": {
       "title": "Evaluierungskonfiguration",
@@ -6026,7 +6042,9 @@
       "of": "von",
       "results": "Ergebnisse",
       "previous": "Zurück",
-      "next": "Weiter"
+      "next": "Weiter",
+      "model": "Modell",
+      "judgeResponse": "{metric}: Antwort des Judges"
     },
     "sampleScoresTable": {
       "failedToLoad": "Stichprobenergebnisse konnten nicht geladen werden",
@@ -7889,7 +7907,7 @@
       "archiveFailed": "Projekte konnten nicht archiviert werden",
       "unarchiveFailed": "Projekte konnten nicht wiederhergestellt werden",
       "deleteFailed": "Projekte konnten nicht gelöscht werden",
-      "selectJsonOrZip": "Bitte wähle eine JSON- oder ZIP-Datei"
+      "selectJsonOrZip": "Bitte wähle einen Projektexport (.json, .ndjson, .gz oder .zip)"
     },
     "task": {
       "created": "Aufgabe erfolgreich erstellt",
@@ -9228,7 +9246,9 @@
       "deactivateSuccess": "Modell deaktiviert – vorhandene Ergebnisse referenzieren es weiterhin",
       "deleteFailed": "Modell konnte nicht gelöscht werden",
       "inactiveBadge": "Inaktiv",
-      "inactiveHint": "Dieses Modell wurde deaktiviert, weil Generierungen es referenzieren. Es ist in Auswahllisten ausgeblendet."
+      "inactiveHint": "Dieses Modell wurde deaktiviert, weil Generierungen es referenzieren. Es ist in Auswahllisten ausgeblendet.",
+      "modelId": "Modell-ID",
+      "copyModelId": "Modell-ID kopieren"
     },
     "page": {
       "title": "Eigene Modelle",
@@ -11357,6 +11377,9 @@
       "perMinute": "Anfragen pro Minute",
       "perDay": "Anfragen pro Tag",
       "rateLimitsHint": "Leer lassen, dann gelten die Standardwerte.",
+      "expiryHint": "Empfohlen: 90 Tage. Ein abgelaufener Schlüssel hört von selbst auf zu funktionieren und lässt sich jederzeit durch einen neuen ersetzen.",
+      "rateLimitsRange": "Standard: {defaultPerMinute} pro Minute und {defaultPerDay} pro Tag, höchstens {maxPerMinute} pro Minute und {maxPerDay} pro Tag.",
+      "rateLimitTooHigh": "Die Limits dürfen höchstens {perMinute} Anfragen pro Minute und {perDay} pro Tag betragen.",
       "noScopes": "Wähle mindestens eine Berechtigung.",
       "create": "Schlüssel anlegen",
       "creating": "Wird angelegt …",

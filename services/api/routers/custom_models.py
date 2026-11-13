@@ -335,11 +335,26 @@ def _validate_base_url_or_400(base_url: str) -> str:
 @router.post("/", response_model=CustomModelResponse, status_code=status.HTTP_201_CREATED)
 async def create_custom_model(
     body: CustomModelCreate,
+    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Register a custom OpenAI-compatible model. Starts private."""
+    """Register a custom OpenAI-compatible model.
+
+    Starts private, except when an organization access key registers it:
+    then it starts shared with that key's organization. The key's service
+    account is deactivated when the key is revoked, and a model private to
+    it would be left reachable by superadmins only.
+    """
+    from auth_module.principal import get_principal
+
     normalized_url = _validate_base_url_or_400(body.base_url)
+    principal = get_principal(request)
+    share_org_id = (
+        str(principal.organization_id)
+        if principal is not None and principal.is_api_key and principal.organization_id
+        else None
+    )
 
     model = LLMModel(
         id=f"custom-{uuid.uuid4()}",
@@ -355,13 +370,22 @@ async def create_custom_model(
         is_active=True,
         is_official=False,
         created_by=str(current_user.id),
-        is_private=True,
+        is_private=share_org_id is None,
         is_public=False,
         base_url=normalized_url,
         endpoint_model_name=body.endpoint_model_name,
         requires_api_key=body.requires_api_key,
     )
     db.add(model)
+    if share_org_id is not None:
+        db.add(
+            ModelOrganization(
+                id=str(uuid.uuid4()),
+                model_id=model.id,
+                organization_id=share_org_id,
+                assigned_by=str(current_user.id),
+            )
+        )
     await db.commit()
     await db.refresh(model)
 
@@ -373,7 +397,7 @@ async def create_custom_model(
 
     return _to_response(
         model,
-        organization_ids=[],
+        organization_ids=[share_org_id] if share_org_id is not None else [],
         has_credential=has_credential,
         can_edit=True,
         created_by_username=current_user.username,

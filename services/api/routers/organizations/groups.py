@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from auth_module import require_user
+from auth_module.dependencies import is_org_admin_async, require_org_admin_async
 from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import (
@@ -158,14 +159,8 @@ async def _require_org_member(user: AuthUser, org_id: str, db: AsyncSession):
 
 
 async def _require_org_admin(user: AuthUser, org_id: str, db: AsyncSession):
-    if user.is_superadmin:
-        return
-    membership = await _get_membership(db, user.id, org_id)
-    if membership is None or membership.role != OrganizationRole.ORG_ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this organization",
-        )
+    """Superadmin or active ORG_ADMIN (``require_org_admin_async``)."""
+    await require_org_admin_async(db, user, org_id)
 
 
 async def _load_group_or_404(
@@ -190,10 +185,7 @@ async def _require_can_manage_group(
 ):
     """Superadmin ∨ org ORG_ADMIN ∨ that group's admin (async; group admin
     per ``org_groups.build_select_admin_group_ids``)."""
-    if user.is_superadmin:
-        return
-    membership = await _get_membership(db, user.id, org_id)
-    if membership is not None and membership.role == OrganizationRole.ORG_ADMIN:
+    if await is_org_admin_async(db, user, org_id):
         return
     result = await db.execute(
         build_select_admin_group_ids(str(user.id), org_id).where(

@@ -11,11 +11,12 @@ its reference solutions. These tests pin the tightened gates:
 * ``PUT /api/evaluations/projects/{id}/evaluation-config`` — edit rights
   (``Permission.PROJECT_EDIT``, identical to ``PUT .../generation-config``):
   public visitors of either role 403, creator / org editors keep it.
-* ``POST /api/evaluations/run`` — editors (incl. public CONTRIBUTOR) plus real
-  org members of any role (the timed-window access group). Public ANNOTATOR
-  visitors 403.
-* ``PATCH /api/projects/tasks/{id}/metadata`` + ``bulk-metadata`` — write tier
-  (effective ORG_ADMIN / CONTRIBUTOR).
+* ``POST /api/evaluations/run`` — an effective role of CONTRIBUTOR or higher
+  (creator, superadmin, org admins and contributors, public CONTRIBUTOR
+  visitors). ANNOTATORs 403, org members and public visitors alike.
+* ``PATCH /api/projects/tasks/{id}/metadata`` + ``bulk-metadata`` — real
+  project members only (``check_user_can_edit_project``): public visitors of
+  either role 403.
 * ``POST /api/projects/{id}/exports`` + ``POST .../tasks/bulk-export`` — write
   tier, i.e. exactly the roles that already see unblinded ``task.data``.
 
@@ -226,7 +227,7 @@ class TestEvaluationRun:
         with _as_user(stranger):
             r = self._post(client, p)
         assert r.status_code == 403, r.text
-        assert "members, contributors or admins" in r.json()["detail"]
+        assert "contributors or admins" in r.json()["detail"]
 
     def test_public_contributor_visitor_keeps_documented_right(self, client, test_db):
         _owner, stranger, p, _t = _seed_sync(test_db, public_role="CONTRIBUTOR")
@@ -244,14 +245,20 @@ class TestEvaluationRun:
                 r = self._post(client, p)
             assert r.status_code == 400, (u.id, r.text)
 
-    @pytest.mark.parametrize("role", ["ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR"])
-    def test_real_org_members_of_any_role_pass_gate(self, client, test_db, role):
-        # Org ANNOTATORs are the timed-window "access group" the window gate
-        # exists for — membership-based, so public_role never grants it.
+    @pytest.mark.parametrize("role", ["ORG_ADMIN", "CONTRIBUTOR"])
+    def test_org_contributors_and_admins_pass_gate(self, client, test_db, role):
         _owner, member, p = _seed_org_member_sync(test_db, role)
         with _as_user(member):
             r = self._post(client, p)
         assert r.status_code == 400, r.text
+
+    def test_org_annotator_403(self, client, test_db):
+        # Same rule as the app: annotators see results but start no runs (a
+        # run spends the org's judge budget), also through an access key.
+        _owner, member, p = _seed_org_member_sync(test_db, "ANNOTATOR")
+        with _as_user(member):
+            r = self._post(client, p)
+        assert r.status_code == 403, r.text
 
     def test_non_member_on_private_project_403(self, client, test_db):
         _owner, stranger, p, _t = _seed_sync(test_db, public_role=None)
@@ -343,9 +350,9 @@ class TestTaskMetadataPatch:
         for tid in task_ids:
             assert await _meta(db, tid) == {"tag": "orig"}
 
-    async def test_public_contributor_visitor_keeps_documented_right(
-        self, async_test_client, async_test_db
-    ):
+    async def test_public_contributor_visitor_403(self, async_test_client, async_test_db):
+        # Task metadata belongs to the project: a public CONTRIBUTOR visitor
+        # reads and exports it but cannot overwrite it.
         db = async_test_db
         _owner, stranger, _p, task_ids = await _seed_async(db, public_role="CONTRIBUTOR")
         with _as_user(stranger):
@@ -356,10 +363,34 @@ class TestTaskMetadataPatch:
                 self.BULK,
                 json={"task_ids": [task_ids[1]], "metadata": {"bulk": True}},
             )
-        assert r1.status_code == 200, r1.text
-        assert r2.status_code == 200, r2.text
-        assert await _meta(db, task_ids[0]) == {"tag": "orig", "extra": 1}
-        assert await _meta(db, task_ids[1]) == {"tag": "orig", "bulk": True}
+        assert r1.status_code == 403, r1.text
+        assert r2.status_code == 403, r2.text
+        for tid in task_ids:
+            assert await _meta(db, tid) == {"tag": "orig"}
+
+    async def test_org_contributor_keeps_editing(self, async_test_client, async_test_db):
+        db = async_test_db
+        owner, member = _new_user(), _new_user()
+        org = _new_org()
+        db.add_all([owner, member, org])
+        await db.flush()
+        db.add(_new_membership(member, org, "CONTRIBUTOR"))
+        p = _new_project(owner)
+        db.add(p)
+        await db.flush()
+        db.add(
+            ProjectOrganization(
+                id=_uid(), project_id=p.id, organization_id=org.id, assigned_by=owner.id
+            )
+        )
+        task = _new_task(p, owner)
+        db.add(task)
+        task_id = task.id
+        await db.commit()
+        with _as_user(member):
+            r = await async_test_client.patch(self.SINGLE.format(task_id), json={"extra": 1})
+        assert r.status_code == 200, r.text
+        assert await _meta(db, task_id) == {"tag": "orig", "extra": 1}
 
     async def test_creator_keeps_working(self, async_test_client, async_test_db):
         db = async_test_db

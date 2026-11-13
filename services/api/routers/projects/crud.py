@@ -66,6 +66,7 @@ from routers.projects.helpers import (
     get_participant_project_ids_async,
     get_project_access_tier_async,
     PARTICIPANT_EFFECTIVE_ROLE,
+    require_org_key_own_organization,
     TIER_ATTEMPTED,
     TIER_FULL,
     TIER_PARTICIPANT,
@@ -511,6 +512,7 @@ async def list_projects(
 @router.post("/", response_model=ProjectResponse)
 async def create_project(
     project: ProjectCreate,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -521,12 +523,16 @@ async def create_project(
     CONTRIBUTOR membership there; a superadmin may target any existing
     org), ``is_public=True`` a public project (visible to all authenticated
     users; public_role defaults to ANNOTATOR), otherwise a private one.
+    A request made with an organization access key must name the key's
+    organization (400 ``organization_required`` otherwise), so the project
+    never belongs to the key's service account alone.
     """
 
     # Generate unique ID
     project_id = str(uuid.uuid4())
 
     target_org_id = project.organization_id or None
+    require_org_key_own_organization(request, target_org_id)
     is_public = bool(project.is_public)
     if is_public and (project.is_private or target_org_id):
         raise HTTPException(

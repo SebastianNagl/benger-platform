@@ -24,6 +24,15 @@ caller is an active member of (superadmins: any attached org). Anything else
 raises :class:`BillingOrgNotAllowed`; the default rule above applies only
 when nothing is requested.
 
+A run the caller starts by hand (generation, evaluation) passes
+``min_role="CONTRIBUTOR"``: only a membership whose role on the project's
+attachment of that org (``org_groups.attachment_role``: the org role, or the
+group role on a grouped attachment) is CONTRIBUTOR or higher may spend the
+org's keys, the same role the app requires to start such a run. An
+ANNOTATOR membership then counts as no membership (personal keys). Without
+``min_role`` (grading that an annotator's submission triggers on a project
+an editor configured) every active membership counts.
+
 Lives in /shared so the api, the workers, and the extended package import one
 implementation. No fastapi/pydantic imports (worker container constraint);
 sync + async variants follow the dual-mode pattern from the workspace
@@ -59,6 +68,52 @@ def _is_superadmin_sync(db, user) -> bool:
         return False
 
 
+def _eligible_member_org_ids_sync(db, user_id, project_id, member_rows, min_role):
+    """The org ids among ``member_rows`` ((org_id, org_role) pairs of ACTIVE
+    memberships in the project's orgs) whose attachment role reaches
+    ``min_role``; all of them when ``min_role`` is None."""
+    if not min_role:
+        return {str(org_id) for org_id, _ in member_rows}
+    from org_groups import (
+        attachment_role,
+        get_attachment_group_map,
+        get_user_group_context,
+        role_at_least,
+    )
+
+    groups = get_attachment_group_map(db, str(project_id))
+    user_groups = get_user_group_context(db, str(user_id))
+    return {
+        str(org_id)
+        for org_id, org_role in member_rows
+        if role_at_least(
+            attachment_role(groups.get(str(org_id)), org_role, user_groups), min_role
+        )
+    }
+
+
+async def _eligible_member_org_ids_async(db, user_id, project_id, member_rows, min_role):
+    """Async twin of :func:`_eligible_member_org_ids_sync`."""
+    if not min_role:
+        return {str(org_id) for org_id, _ in member_rows}
+    from org_groups import (
+        attachment_role,
+        get_attachment_group_map_async,
+        get_user_group_context_async,
+        role_at_least,
+    )
+
+    groups = await get_attachment_group_map_async(db, str(project_id))
+    user_groups = await get_user_group_context_async(db, str(user_id))
+    return {
+        str(org_id)
+        for org_id, org_role in member_rows
+        if role_at_least(
+            attachment_role(groups.get(str(org_id)), org_role, user_groups), min_role
+        )
+    }
+
+
 def _payer_options(orgs, member_org_ids, is_superadmin, org_pays) -> List[Dict[str, str]]:
     """The billable subset of a project's ``(id, name)`` orgs, by name.
 
@@ -74,8 +129,11 @@ def _payer_options(orgs, member_org_ids, is_superadmin, org_pays) -> List[Dict[s
     return sorted(options, key=lambda o: (o["name"].casefold(), o["id"]))
 
 
-def billing_org_options(db, user, project) -> List[Dict[str, str]]:
-    """Sync: the orgs ``user`` may bill for a dispatch on ``project``."""
+def billing_org_options(
+    db, user, project, *, min_role: Optional[str] = None
+) -> List[Dict[str, str]]:
+    """Sync: the orgs ``user`` may bill for a dispatch on ``project``
+    (``min_role``: see the module docstring)."""
     orgs = getattr(project, "organizations", None) or []
     if not orgs:
         return []
@@ -83,16 +141,18 @@ def billing_org_options(db, user, project) -> List[Dict[str, str]]:
     from org_groups import org_pays_for_project
 
     org_ids = [str(o.id) for o in orgs]
-    member_org_ids = {
-        str(row[0])
-        for row in db.query(OrganizationMembership.organization_id)
+    member_rows = (
+        db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
         .filter(
             OrganizationMembership.user_id == _user_id_of(user),
             OrganizationMembership.is_active == True,  # noqa: E712
             OrganizationMembership.organization_id.in_(org_ids),
         )
         .all()
-    }
+    )
+    member_org_ids = _eligible_member_org_ids_sync(
+        db, _user_id_of(user), project.id, member_rows, min_role
+    )
     is_superadmin = _is_superadmin_sync(db, user)
     candidates = [o for o in org_ids if is_superadmin or o in member_org_ids]
     org_pays = {o: org_pays_for_project(db, o, project) for o in candidates}
@@ -113,17 +173,24 @@ def _check_requested_org(options, requested_org_id) -> str:
 
 
 def resolve_dispatch_org_for_project(
-    db, user, project, requested_org_id: Optional[str] = None
+    db,
+    user,
+    project,
+    requested_org_id: Optional[str] = None,
+    *,
+    min_role: Optional[str] = None,
 ) -> Optional[str]:
     """Sync: org whose keys a dispatch on ``project`` may spend for ``user``.
 
     ``user`` may be a User object or a bare user id (worker contexts).
     ``requested_org_id`` is the caller's explicit payer; it must be one of
     :func:`billing_org_options` or :class:`BillingOrgNotAllowed` is raised.
+    ``min_role``: see the module docstring.
     """
     if requested_org_id:
         return _check_requested_org(
-            billing_org_options(db, user, project), requested_org_id
+            billing_org_options(db, user, project, min_role=min_role),
+            requested_org_id,
         )
     orgs = getattr(project, "organizations", None) or []
     if not orgs:
@@ -132,8 +199,8 @@ def resolve_dispatch_org_for_project(
 
     org_ids = {str(o.id) for o in orgs}
     user_id = _user_id_of(user)
-    membership = (
-        db.query(OrganizationMembership)
+    member_rows = (
+        db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
         .filter(
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.is_active == True,  # noqa: E712
@@ -142,10 +209,14 @@ def resolve_dispatch_org_for_project(
         # A fixed order: the dialogs show this default before a run starts,
         # so the run must resolve to the same org every time.
         .order_by(OrganizationMembership.organization_id)
-        .first()
+        .all()
     )
-    if membership:
-        return str(membership.organization_id)
+    eligible = _eligible_member_org_ids_sync(
+        db, user_id, project.id, member_rows, min_role
+    )
+    for org_id, _ in member_rows:
+        if str(org_id) in eligible:
+            return str(org_id)
     if _is_superadmin_sync(db, user):
         return min(org_ids)
     return None
@@ -166,7 +237,9 @@ async def _is_superadmin_async(db, user) -> bool:
     return bool(row)
 
 
-async def billing_org_options_async(db, user, project_id: str) -> List[Dict[str, str]]:
+async def billing_org_options_async(
+    db, user, project_id: str, *, min_role: Optional[str] = None
+) -> List[Dict[str, str]]:
     """Async twin of :func:`billing_org_options` working from a project id."""
     from sqlalchemy import select
 
@@ -185,20 +258,20 @@ async def billing_org_options_async(db, user, project_id: str) -> List[Dict[str,
         return []
     orgs = [(str(r[0]), r[1] or r[2]) for r in rows]
     org_ids = [o for o, _ in orgs]
-    member_org_ids = {
-        str(o)
-        for o in (
-            await db.execute(
-                select(OrganizationMembership.organization_id).where(
-                    OrganizationMembership.user_id == _user_id_of(user),
-                    OrganizationMembership.organization_id.in_(org_ids),
-                    OrganizationMembership.is_active.is_(True),
-                )
+    member_rows = (
+        await db.execute(
+            select(
+                OrganizationMembership.organization_id, OrganizationMembership.role
+            ).where(
+                OrganizationMembership.user_id == _user_id_of(user),
+                OrganizationMembership.organization_id.in_(org_ids),
+                OrganizationMembership.is_active.is_(True),
             )
         )
-        .scalars()
-        .all()
-    }
+    ).all()
+    member_org_ids = await _eligible_member_org_ids_async(
+        db, _user_id_of(user), project_id, member_rows, min_role
+    )
     is_superadmin = await _is_superadmin_async(db, user)
     org_pays = {}
     for org_id in org_ids:
@@ -210,14 +283,20 @@ async def billing_org_options_async(db, user, project_id: str) -> List[Dict[str,
 
 
 async def resolve_dispatch_org_for_project_async(
-    db, user, project_id: str, requested_org_id: Optional[str] = None
+    db,
+    user,
+    project_id: str,
+    requested_org_id: Optional[str] = None,
+    *,
+    min_role: Optional[str] = None,
 ) -> Optional[str]:
     """Async twin working from a project id (no loaded relationship)."""
     from sqlalchemy import select
 
     if requested_org_id:
         return _check_requested_org(
-            await billing_org_options_async(db, user, project_id), requested_org_id
+            await billing_org_options_async(db, user, project_id, min_role=min_role),
+            requested_org_id,
         )
 
     from models import OrganizationMembership
@@ -237,23 +316,26 @@ async def resolve_dispatch_org_for_project_async(
     if not project_org_ids:
         return None
     user_id = _user_id_of(user)
-    member_org = (
-        (
-            await db.execute(
-                select(OrganizationMembership.organization_id).where(
-                    OrganizationMembership.user_id == user_id,
-                    OrganizationMembership.organization_id.in_(project_org_ids),
-                    OrganizationMembership.is_active.is_(True),
-                )
-                # Same fixed order as the sync twin.
-                .order_by(OrganizationMembership.organization_id)
+    member_rows = (
+        await db.execute(
+            select(
+                OrganizationMembership.organization_id, OrganizationMembership.role
             )
+            .where(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id.in_(project_org_ids),
+                OrganizationMembership.is_active.is_(True),
+            )
+            # Same fixed order as the sync twin.
+            .order_by(OrganizationMembership.organization_id)
         )
-        .scalars()
-        .first()
+    ).all()
+    eligible = await _eligible_member_org_ids_async(
+        db, user_id, project_id, member_rows, min_role
     )
-    if member_org:
-        return str(member_org)
+    for org_id, _ in member_rows:
+        if str(org_id) in eligible:
+            return str(org_id)
     if await _is_superadmin_async(db, user):
         return min(str(o) for o in project_org_ids)
     return None

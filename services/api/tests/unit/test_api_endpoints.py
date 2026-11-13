@@ -72,7 +72,7 @@ class TestAuthenticationEndpoints:
         )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert "access_token" in data
+        assert "access_token" not in data  # tokens travel in HttpOnly cookies only
         assert data["token_type"] == "bearer"
         assert "user" in data
 

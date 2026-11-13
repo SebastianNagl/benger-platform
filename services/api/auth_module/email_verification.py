@@ -406,14 +406,14 @@ class EmailVerificationService:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
             # Verify this is an email verification token: the purpose claim
-            # and the typ claim must both name this kind. A MISSING typ is
-            # tolerated until the next release (grace added 2026-10-13):
-            # links mailed before this change carry no typ and stay valid
-            # for up to 48 hours across the deploy. Make typ mandatory in
-            # the release after this one.
+            # and the typ claim must both name this kind, and typ is
+            # mandatory. The one-release grace for typ-less links (added
+            # 2026-10-13) is over: such links expired at most
+            # VERIFICATION_TOKEN_EXPIRE_HOURS after they were mailed.
             typ = payload.get("typ")
-            if payload.get("purpose") != "email_verification" or (
-                typ is not None and typ != VERIFICATION_TOKEN_TYP
+            if (
+                payload.get("purpose") != "email_verification"
+                or typ != VERIFICATION_TOKEN_TYP
             ):
                 logger.warning(
                     f"Invalid token purpose: {payload.get('purpose')} (typ: {typ})"

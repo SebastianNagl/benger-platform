@@ -21,6 +21,7 @@ import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
+import { PublicContributorConfirmDialog } from '../PublicContributorConfirmDialog'
 import { wizardDataJurisdictions } from './jurisdictions'
 import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
 import {
@@ -87,6 +88,9 @@ export function StepProjectInfo({
   const isSuperadmin = Boolean(auth?.user?.is_superadmin)
   const jurisdictions = wizardDataJurisdictions(auth?.organizations ?? [], data)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  // Choosing the public CONTRIBUTOR role needs an explicit confirmation.
+  const [confirmPublicContributor, setConfirmPublicContributor] =
+    useState(false)
   const [orgs, setOrgs] = useState<
     Array<{
       id: string
@@ -599,7 +603,11 @@ export function StepProjectInfo({
                       type="radio"
                       name="wizard-public-role"
                       checked={data.publicRole === role}
-                      onChange={() => onChange({ publicRole: role })}
+                      onChange={() =>
+                        role === 'CONTRIBUTOR'
+                          ? setConfirmPublicContributor(true)
+                          : onChange({ publicRole: role })
+                      }
                       className="h-4 w-4 border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
                       data-testid={`wizard-public-role-${role.toLowerCase()}-radio`}
                     />
@@ -607,6 +615,11 @@ export function StepProjectInfo({
                 ),
               )}
             </div>
+            <PublicContributorConfirmDialog
+              isOpen={confirmPublicContributor}
+              onClose={() => setConfirmPublicContributor(false)}
+              onConfirm={() => onChange({ publicRole: 'CONTRIBUTOR' })}
+            />
           </div>
         )}
       </div>

@@ -280,6 +280,25 @@ describe('GenerationTaskList', () => {
       expect(screen.getByText('model-2')).toBeInTheDocument()
     })
 
+    it('names a model in its header and keeps the id as the title', async () => {
+      const { apiClient } = require('@/lib/api/client')
+      apiClient.get.mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        total_pages: 0,
+        models: ['custom-3f2a', 'model-2'],
+        model_names: { 'custom-3f2a': 'Qwen3 (prod)' },
+      })
+      render(<GenerationTaskList projectId="test-project" />)
+
+      const header = await screen.findByText('Qwen3 (prod)')
+      expect(header).toHaveAttribute('title', 'custom-3f2a')
+      expect(screen.queryByText('custom-3f2a')).not.toBeInTheDocument()
+      expect(screen.getByText('model-2')).toBeInTheDocument()
+    })
+
     it('should render task data in table rows', async () => {
       render(<GenerationTaskList projectId="test-project" />)
 

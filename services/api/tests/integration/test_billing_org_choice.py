@@ -343,3 +343,128 @@ def test_evaluation_run_checks_the_chosen_payer(client, test_db):
                 },
             )
             assert r.status_code == expected, (org_name, r.text)
+
+
+async def _annotator_world(db):
+    """``member`` is a CONTRIBUTOR of Alpha and an ANNOTATOR of Annot (both
+    pay); the project is attached to both, Annot sorting first by id."""
+    member = await _user(db)
+    admin = await _user(db, superadmin=True)
+    alpha = await _org(db, "Alpha", pays=True, members=[(member, True)])
+    annot = Organization(
+        id="0" + str(uuid.uuid4())[1:],  # sorts before Alpha's id
+        name="Annot",
+        display_name="Annot",
+        slug=f"annot-{uuid.uuid4().hex[:8]}",
+        settings={"require_private_keys": False},
+    )
+    db.add(annot)
+    await db.flush()
+    db.add(
+        OrganizationMembership(
+            id=str(uuid.uuid4()),
+            user_id=member.id,
+            organization_id=annot.id,
+            role=OrganizationRole.ANNOTATOR,
+            is_active=True,
+        )
+    )
+    project = Project(
+        id=str(uuid.uuid4()),
+        title="annotator billing",
+        created_by=admin.id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(project)
+    await db.flush()
+    for org in (alpha, annot):
+        db.add(
+            ProjectOrganization(
+                id=str(uuid.uuid4()),
+                project_id=project.id,
+                organization_id=org.id,
+                assigned_by=admin.id,
+            )
+        )
+    await db.commit()
+    return {"member": member, "alpha": alpha, "annot": annot, "project": project}
+
+
+@pytest.mark.asyncio
+async def test_annotator_membership_never_pays_for_runs(async_test_client, async_test_db):
+    """Spending an org's keys on a generation or evaluation run needs
+    CONTRIBUTOR or higher in that org: an ANNOTATOR membership is neither an
+    option nor the default payer, also when it sorts first."""
+    w = await _annotator_world(async_test_db)
+    with _providers_by_org(), _as_user(w["member"]):
+        r = await async_test_client.get(
+            "/api/users/api-keys/billing-options",
+            params={"project_id": w["project"].id},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert [o["name"] for o in body["options"]] == ["Alpha"]
+        assert body["default_organization_id"] == w["alpha"].id
+
+        r = await async_test_client.get(
+            "/api/users/api-keys/available-models",
+            params={
+                "project_id": w["project"].id,
+                "billing_organization_id": w["annot"].id,
+            },
+        )
+        assert r.status_code == 403, r.text
+
+
+def test_dispatch_org_resolution_min_role(test_db):
+    """The shared resolver: without ``min_role`` (grading an annotator's own
+    submission triggers) every active membership counts; with
+    ``min_role="CONTRIBUTOR"`` an ANNOTATOR-only member resolves to personal
+    keys (None)."""
+    from org_resolution import resolve_dispatch_org_for_project
+
+    member = User(
+        id=str(uuid.uuid4()),
+        username=f"u-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Person",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+    )
+    org = Organization(
+        id=str(uuid.uuid4()),
+        name="Solo",
+        display_name="Solo",
+        slug=f"solo-{uuid.uuid4().hex[:8]}",
+    )
+    test_db.add_all([member, org])
+    test_db.flush()
+    test_db.add(
+        OrganizationMembership(
+            id=str(uuid.uuid4()),
+            user_id=member.id,
+            organization_id=org.id,
+            role=OrganizationRole.ANNOTATOR,
+            is_active=True,
+        )
+    )
+    project = Project(id=str(uuid.uuid4()), title="solo", created_by=member.id)
+    test_db.add(project)
+    test_db.flush()
+    test_db.add(
+        ProjectOrganization(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            organization_id=org.id,
+            assigned_by=member.id,
+        )
+    )
+    test_db.commit()
+    test_db.refresh(project)
+
+    assert resolve_dispatch_org_for_project(test_db, member, project) == org.id
+    assert (
+        resolve_dispatch_org_for_project(test_db, member, project, min_role="CONTRIBUTOR")
+        is None
+    )

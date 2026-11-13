@@ -5063,11 +5063,14 @@ def import_project(
     job_id: str,
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
+    dry_run: bool = False,
 ) -> Dict[str, Any]:
-    return import_project_impl(self, job_id, model_id_map=model_id_map, mode=mode)
+    return import_project_impl(
+        self, job_id, model_id_map=model_id_map, mode=mode, dry_run=dry_run
+    )
 
 
-def _fail_import_job(db, job_id: str, message: str) -> None:
+def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
     return _fail_import_job_impl(db, job_id, message)
 
 

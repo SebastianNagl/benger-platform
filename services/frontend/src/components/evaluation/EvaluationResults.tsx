@@ -1794,7 +1794,11 @@ export function EvaluationResults({
         generationLoading={generationLoading}
         evaluationLoading={evaluationLoading}
         onReEvaluate={
-          canStartGeneration(user) ? handleCellReEvaluate : undefined
+          // No run controls (onRunEvaluation unset) means the caller may not
+          // start evaluation runs on this project: no per-cell re-run either.
+          canStartGeneration(user) && onRunEvaluation
+            ? handleCellReEvaluate
+            : undefined
         }
         evaluationConfigs={evaluationConfigs}
         selectedMetricName={

@@ -64,6 +64,8 @@ interface PaginatedTaskGenerationResponse {
   total_pages: number
   models: string[]
   structures: string[]
+  /** Model id -> name; a custom model's id is a random custom-<uuid>. */
+  model_names?: Record<string, string>
 }
 
 interface GenerationTaskListProps {
@@ -627,9 +629,10 @@ export function GenerationTaskList({
               {data.models.map((model) => (
                 <th
                   key={model}
+                  title={model}
                   className="px-4 py-3 text-center text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
-                  {model}
+                  {data.model_names?.[model] || model}
                 </th>
               ))}
             </tr>
@@ -824,6 +827,7 @@ export function GenerationTaskList({
           isOpen={showResultModal}
           taskId={selectedTaskModel.taskId}
           modelId={selectedTaskModel.modelId}
+          modelName={data.model_names?.[selectedTaskModel.modelId]}
           onClose={() => {
             setShowResultModal(false)
             setSelectedTaskModel(null)

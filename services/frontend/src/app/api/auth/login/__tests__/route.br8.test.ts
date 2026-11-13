@@ -52,8 +52,8 @@ describe('login route br8', () => {
     const { POST } = require('../route')
     const res = await POST(makeRequest('benger.localhost'))
     const cookies = res.headers.getSetCookie()
-    // Should have the modified cookie + test cookie
-    expect(cookies.length).toBeGreaterThanOrEqual(2)
+    // Only the backend's cookie, no extra debug cookie
+    expect(cookies).toHaveLength(1)
     // First cookie is host-only: the upstream Domain is gone
     expect(cookies[0]).not.toContain('Domain=')
     // Secure should be removed

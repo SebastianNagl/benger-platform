@@ -338,7 +338,6 @@ export async function deleteTestProject(
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
       })
       if (!response.ok && response.status !== 404) {
