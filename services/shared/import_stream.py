@@ -27,12 +27,20 @@ Four drivers:
   CSV/TSV/TXT rows imported as tasks into an *existing* project (the cloud
   import flow's tabular arm).
 
-Both take a seekable binary file object already filled with the upload body
+All take a seekable binary file object already filled with the upload body
 (``SpooledTemporaryFile`` / ``io.BytesIO``); the caller streams the request body
 or downloads the storage object into one first. Memory stays O(batch): only a
 whitelist of small top-level fields is materialized; every big array is streamed
 one element at a time and the session identity map is flushed + expunged every
 ``_IMPORT_BATCH`` rows.
+
+That expunge detaches every ORM object in the session, the caller's included,
+so a caller must not hold an ORM row across a driver call. Each driver commits
+once and accepts ``before_commit(result)``: called with the driver's final
+result after the last row is written and just before that commit, it lets the
+caller record its own bookkeeping (the worker marks its ``ImportJob``
+completed there) in the same transaction as the imported rows, so the two can
+never disagree.
 """
 
 import copy
@@ -48,7 +56,7 @@ import tempfile
 import uuid
 import zipfile
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 import ijson
 from ijson.common import ObjectBuilder
@@ -103,6 +111,18 @@ _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 # Flush + expunge inserted rows every N tasks so the SQLAlchemy identity map
 # (and thus peak heap) stays O(batch) instead of O(file) during a large import.
 _IMPORT_BATCH = 200
+
+#: Hook a driver calls with its final result just before its single commit
+#: (see the module docstring).
+BeforeCommit = Optional[Callable[[dict], None]]
+
+
+def _commit(db, result: dict, before_commit: BeforeCommit) -> dict:
+    """Run the caller's ``before_commit`` hook, then commit the import."""
+    if before_commit is not None:
+        before_commit(result)
+    db.commit()
+    return result
 
 # Small top-level keys of the nested (Label-Studio) import payload that are safe
 # to fully materialize. The big `data` array is streamed separately via
@@ -511,7 +531,9 @@ def _remap_rubric_ids(metrics, rubric_id_mapping):
     return metrics if out is None else out
 
 
-def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
+def run_nested_import(
+    db, project_id: str, fileobj, user_id: str, before_commit: BeforeCommit = None
+) -> dict:
     """Import a nested Label-Studio payload into an existing project.
 
     Streams ``fileobj`` (a seekable spool already filled with the body) and
@@ -519,7 +541,8 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     committing once at the end. Does NOT roll back on failure — the caller owns
     transaction cleanup (the endpoint rolls back + maps exceptions to HTTP; the
     worker rolls back + marks the job failed). Raises ``ImportValidationError``
-    for malformed / mistyped payloads (HTTP 422 equivalent).
+    for malformed / mistyped payloads (HTTP 422 equivalent). ``before_commit``:
+    see the module docstring.
 
     A gzip-compressed upload is inflated transparently before parsing so a
     gzipped Label-Studio body imports like a plain one.
@@ -1226,7 +1249,19 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     _enforce_linked_exam_task_limit(db, project_id)
 
     # Commit everything atomically
-    db.commit()
+    result = _commit(db, {
+        "created_tasks": created_tasks,
+        "created_annotations": created_annotations,
+        "created_generations": created_generations,
+        "created_questionnaire_responses": created_questionnaire_responses,
+        "created_rubrics": created_rubrics,
+        "created_evaluation_runs": created_evaluation_runs,
+        "created_task_evaluations": created_task_evaluations,
+        "created_grading_feedback": created_grading_feedback,
+        "total_items": total_items,
+        "project_id": project_id,
+        "task_id_mapping": task_id_mapping,  # Return mapping for debugging/reference
+    }, before_commit)
 
     # Update report data section after task import (Issue #770). Best-effort:
     # lazy-import so a worker that can't import report_service still finishes.
@@ -1239,19 +1274,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         logger.error(f"Failed to update report data section: {e}")
         # Don't fail the import operation
 
-    return {
-        "created_tasks": created_tasks,
-        "created_annotations": created_annotations,
-        "created_generations": created_generations,
-        "created_questionnaire_responses": created_questionnaire_responses,
-        "created_rubrics": created_rubrics,
-        "created_evaluation_runs": created_evaluation_runs,
-        "created_task_evaluations": created_task_evaluations,
-        "created_grading_feedback": created_grading_feedback,
-        "total_items": total_items,
-        "project_id": project_id,
-        "task_id_mapping": task_id_mapping,  # Return mapping for debugging/reference
-    }
+    return result
 
 
 # Delimiters for the tabular import formats. ``txt`` is handled separately
@@ -1260,7 +1283,13 @@ _TABULAR_DELIMITERS = {"csv": ",", "tsv": "\t"}
 
 
 def run_tabular_import(
-    db, project_id: str, fileobj, user_id: str, fmt: str, progress_cb=None
+    db,
+    project_id: str,
+    fileobj,
+    user_id: str,
+    fmt: str,
+    progress_cb=None,
+    before_commit: BeforeCommit = None,
 ) -> dict:
     """Import a plain tabular file (csv/tsv/txt) as tasks into an existing project.
 
@@ -1272,7 +1301,7 @@ def run_tabular_import(
     a single commit at the end (the caller owns rollback on failure). A
     gzip-compressed body is inflated transparently; a UTF-8 BOM is consumed
     (``utf-8-sig``). ``progress_cb(created_tasks)``, when given, fires once per
-    flushed batch.
+    flushed batch. ``before_commit``: see the module docstring.
 
     Raises ``ImportValidationError(422)`` for an empty file, a header row with
     no usable column names, an unknown ``fmt``, or a body that isn't valid
@@ -1353,7 +1382,12 @@ def run_tabular_import(
     _enforce_linked_exam_task_limit(db, project_id)
 
     # Commit everything atomically (single end commit, like run_nested_import).
-    db.commit()
+    result = _commit(db, {
+        "created_tasks": created_tasks,
+        "total_items": total_rows,
+        "project_id": project_id,
+        "format": fmt,
+    }, before_commit)
     if progress_cb is not None:
         progress_cb(created_tasks)
 
@@ -1366,12 +1400,7 @@ def run_tabular_import(
     except Exception as e:
         logger.error(f"Failed to update report data section: {e}")
 
-    return {
-        "created_tasks": created_tasks,
-        "total_items": total_rows,
-        "project_id": project_id,
-        "format": fmt,
-    }
+    return result
 
 
 class _FullImportContext:
@@ -2850,6 +2879,22 @@ def _build_full_import_stats(
     }
 
 
+def _full_import_result(ctx, project_data: dict, original_title: str, new_title: str) -> dict:
+    """The result a create-new import (multi-pass or NDJSON) returns."""
+    return {
+        "message": "Project imported successfully",
+        "project_id": ctx.new_project_id,
+        "project_title": new_title,
+        "project_url": f"/projects/{ctx.new_project_id}",
+        "statistics": _build_full_import_stats(
+            ctx,
+            original_project_id=project_data.get("id"),
+            original_title=original_title,
+            new_title=new_title,
+        ),
+    }
+
+
 # Maps an NDJSON record's ``_type`` to the per-entity insert helper. ``meta`` and
 # ``end`` are framing records handled inline (project creation / completeness
 # check), not entity inserts, so they are deliberately absent here.
@@ -3019,6 +3064,7 @@ def run_ndjson_import(
     organization_id: Optional[str] = None,
     organization_group_id: Optional[str] = None,
     model_id_map: Optional[Dict[str, str]] = None,
+    before_commit: BeforeCommit = None,
 ) -> dict:
     """Import an NDJSON typed-record comprehensive payload in a single pass.
 
@@ -3036,6 +3082,7 @@ def run_ndjson_import(
     treated as truncated and raises ``ImportValidationError(400)`` before the
     commit, so a partial import never lands. Does NOT roll back on failure — the
     caller owns transaction cleanup, matching ``run_full_project_import``.
+    ``before_commit``: see the module docstring.
     """
     records = _iter_ndjson_records(fileobj)
 
@@ -3108,24 +3155,14 @@ def run_ndjson_import(
             400, "Truncated NDJSON export: missing end record"
         )
 
-    db.commit()
+    result = _commit(
+        db, _full_import_result(ctx, project_data, original_title, new_title),
+        before_commit,
+    )
 
     _notify_project_imported(ctx, new_title)
 
-    import_stats = _build_full_import_stats(
-        ctx,
-        original_project_id=project_data.get("id"),
-        original_title=original_title,
-        new_title=new_title,
-    )
-
-    return {
-        "message": "Project imported successfully",
-        "project_id": ctx.new_project_id,
-        "project_title": new_title,
-        "project_url": f"/projects/{ctx.new_project_id}",
-        "statistics": import_stats,
-    }
+    return result
 
 
 def run_full_project_import(
@@ -3135,6 +3172,7 @@ def run_full_project_import(
     organization_id: Optional[str] = None,
     organization_group_id: Optional[str] = None,
     model_id_map: Optional[Dict[str, str]] = None,
+    before_commit: BeforeCommit = None,
 ) -> dict:
     """Import a flat comprehensive payload, creating a NEW project.
 
@@ -3153,14 +3191,16 @@ def run_full_project_import(
 
     A gzip-compressed body (the "ndjson_gz" export) is inflated transparently to
     a seekable spool before format detection, so .gz, NDJSON, and legacy JSON all
-    funnel through this one entry point.
+    funnel through this one entry point. ``before_commit``: see the module
+    docstring.
     """
     model_id_map = normalize_model_id_map(model_id_map)
     fileobj = _maybe_decompress(_maybe_unzip(fileobj))
 
     if _is_ndjson_stream(fileobj):
         return run_ndjson_import(
-            db, fileobj, user_id, organization_id, organization_group_id, model_id_map
+            db, fileobj, user_id, organization_id, organization_group_id,
+            model_id_map, before_commit=before_commit,
         )
 
     # One streaming pass builds only the small top-level fields; malformed JSON
@@ -3297,24 +3337,14 @@ def run_full_project_import(
         _insert_post_annotation_response(ctx, par_data)
 
     # Commit all changes
-    db.commit()
+    result = _commit(
+        db, _full_import_result(ctx, project_data, original_title, new_title),
+        before_commit,
+    )
 
     _notify_project_imported(ctx, new_title)
 
-    import_stats = _build_full_import_stats(
-        ctx,
-        original_project_id=project_data.get("id"),
-        original_title=original_title,
-        new_title=new_title,
-    )
-
-    return {
-        "message": "Project imported successfully",
-        "project_id": ctx.new_project_id,
-        "project_title": new_title,
-        "project_url": f"/projects/{ctx.new_project_id}",
-        "statistics": import_stats,
-    }
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -3865,6 +3895,7 @@ def run_merge_import(
     fileobj,
     user_id: str,
     model_id_map: Optional[Dict[str, str]] = None,
+    before_commit: BeforeCommit = None,
 ) -> dict:
     """Merge the results of a full project export into an existing project.
 
@@ -3873,7 +3904,8 @@ def run_merge_import(
     gzipped or the projects list's single-project zip). Refuses with
     ``ImportValidationError(409, code=MERGE_TASK_MISMATCH)`` before writing
     anything when an exported task is not one of the project's. Commits once;
-    the caller owns rollback on failure.
+    the caller owns rollback on failure. ``before_commit``: see the module
+    docstring.
     """
     model_id_map = normalize_model_id_map(model_id_map)
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -3908,9 +3940,8 @@ def run_merge_import(
 
     project = db.query(Project).filter(Project.id == project_id).one()
     models_added = _add_merged_models_to_project(ctx, state, project, project_data)
-    db.commit()
 
-    return {
+    return _commit(db, {
         "message": "Results merged into the project",
         "project_id": project_id,
         "project_url": f"/projects/{project_id}",
@@ -3922,4 +3953,4 @@ def run_merge_import(
             "models_added_to_project": models_added,
             "model_id_map": dict(ctx.model_id_map),
         },
-    }
+    }, before_commit)
