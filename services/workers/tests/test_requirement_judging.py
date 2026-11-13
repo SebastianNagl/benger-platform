@@ -830,3 +830,204 @@ class TestPromptsForTheUi:
         first = requirement_judge_prompts()
         first["units"]["binary"]["system_prompt"] = "geändert"
         assert requirement_judge_prompts()["units"]["binary"]["system_prompt"] != "geändert"
+
+
+class _RecordingNotes:
+    """A notes overlay that records what the evaluator hands it."""
+
+    def __init__(self):
+        self.finalized = []
+
+    def schema(self, refs, use_enum=True):
+        return {"type": "array", "items": {"type": "object", "properties": {"ref": {"type": "string"}}}}
+
+    def schema_cost(self, ref_count):
+        return 5, ref_count + 4
+
+    def rubric_rules(self):
+        return "NOTIZEN-REGELN (Feld annotations)"
+
+    def finalize(self, raw, answer, refs, *, index=None, zeroed_refs=()):
+        self.finalized.append({"raw": raw, "refs": list(refs), "zeroed": list(zeroed_refs), "answer": answer})
+        return [{"id": f"n{i}", "ref": item["ref"]} for i, item in enumerate(raw or [], start=1)]
+
+
+def _warnings(caplog):
+    return [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+
+
+class TestRequirementLaneDetails:
+    """What the requirement-level lane hands on, to the letter: the steps
+    counted as zeroed for the notes, the binding's log lines and defaults,
+    and the end-to-end test mode's judgment (mutation co-gate kills for
+    ``llm_judge_evaluator``)."""
+
+    @pytest.mark.parametrize("status, zeroed", [
+        (1, True), (2, True), ("erfuellt", True), (0, False), (3, False), ("nicht_erfuellt", False), (None, False),
+    ])
+    def test_a_step_is_zeroed_when_its_credits_all_lost_their_quote(self, status, zeroed):
+        from ml_evaluation.llm_judge_evaluator import _finalize_checklist_margin_notes
+
+        notes = _RecordingNotes()
+        scores = {
+            "s01": {"anforderungen": {"b1": {"model_status": status, "evidence_verified": False},
+                                      "b2": {"model_status": 0, "evidence_verified": False}}},
+            # A credit whose quote stands keeps the step.
+            "s02": {"anforderungen": {"b1": {"model_status": status, "evidence_verified": True},
+                                      "b2": {"model_status": status, "evidence_verified": False}}},
+            "s03": {"anforderungen": {}},
+            "s04": {},
+        }
+        raw = [{"ref": "s01"}]
+        out = _finalize_checklist_margin_notes(notes, {"annotations": raw}, scores, "ANTWORT", None)
+        assert out == [{"id": "n1", "ref": "s01"}]
+        assert notes.finalized == [{"raw": raw, "refs": ["s01", "s02", "s03", "s04"],
+                                    "zeroed": ["s01"] if zeroed else [], "answer": "ANTWORT"}]
+
+    def test_margin_notes_are_on_unless_the_binding_says_otherwise(self):
+        ev = _judge()
+        ev.bind_task_rubric(_row())
+        assert ev.margin_notes is True
+        ev.bind_task_rubric(_row(), margin_notes=False)
+        assert ev.margin_notes is False
+
+    def test_one_number_per_step_is_chosen_quietly(self, caplog):
+        ev = _judge()
+        with caplog.at_level("WARNING"):
+            ev.bind_task_rubric(_row(), score_unit="step")
+        assert ev.checklist is None
+        assert caplog.records == []
+
+    def test_the_log_line_of_an_unknown_unit(self, caplog):
+        ev = _judge()
+        with caplog.at_level("WARNING"):
+            ev.bind_task_rubric(_row(), score_unit="quatsch")
+        assert _warnings(caplog) == [(
+            "Bewertungsbogen rubric-1: requirement-level grading is not possible (rubric_score_unit must be one "
+            "of ('binary', 'bullet', 'step'), got 'quatsch'); grading per step"
+        )]
+
+    def test_the_log_line_of_an_outline_that_cannot_be_read(self, caplog):
+        ev = _judge()
+        with patch("rubric_structure.checklist_spec_from_structure", side_effect=KeyError("nodes")), \
+                caplog.at_level("WARNING"):
+            ev.bind_task_rubric(_row())
+        # One line, and no attempt with scoring data after it.
+        assert _warnings(caplog) == [
+            "Bewertungsbogen rubric-1: the outline's requirements cannot be read ('nodes')"
+        ]
+        assert ev.checklist is None
+
+    def test_the_log_lines_when_no_scoring_data_fits_the_sheet(self, caplog):
+        stale = checklist_spec_from_structure(_structure())
+        stale["order"] = ["s01_anders", "s02_gefahr"]
+        row = _row(checklist_spec=stale, rendered_text="BEWERTUNGSBOGEN")
+        ev = _judge()
+        with patch.object(ev, "configure_checklist", side_effect=TypeError("kaputt")), caplog.at_level("WARNING"):
+            ev.bind_task_rubric(row)
+        assert ev.checklist is None
+        assert _warnings(caplog) == [
+            (
+                "Bewertungsbogen rubric-1: the stored scoring data cannot be used for requirement-level grading "
+                "(ValueError: the scoring data and the sheet's steps differ)"
+            ),
+            "Bewertungsbogen rubric-1: the outline cannot be used for requirement-level grading (TypeError: kaputt)",
+            "Bewertungsbogen rubric-1: requirement-level grading is not possible; grading per step",
+        ]
+
+    def test_without_notes_the_schema_budget_carries_nothing_extra(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = _judge()
+        ev.bind_task_rubric(_row(), margin_notes=False)
+        _answer(ev, _outline_judgment())
+        with patch.object(cs, "build_schema_within", wraps=cs.build_schema_within) as within:
+            ev._evaluate_multidim_single_call(
+                context="SV", ground_truth="ML", prediction=ANSWER, task_data={"bewertungsbogen": "BOGEN"})
+        assert within.call_args.kwargs == {"extra_enum_values": 0, "extra_properties": 0}
+
+    def test_with_notes_the_schema_budget_carries_their_cost(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = _judge()
+        ev.bind_task_rubric(_row(), margin_notes=True)
+        _answer(ev, _outline_judgment())
+        with patch("extension_registry.first_worker_attr", return_value=_RecordingNotes), \
+                patch.object(cs, "build_schema_within", wraps=cs.build_schema_within) as within:
+            ev._evaluate_multidim_single_call(
+                context="SV", ground_truth="ML", prediction=ANSWER, task_data={"bewertungsbogen": "BOGEN"})
+        # Two scored steps: 5 properties, 2 + 4 enum values (schema_cost above).
+        assert within.call_args.kwargs == {"extra_enum_values": 6, "extra_properties": 5}
+
+    def _e2e(self, monkeypatch, prediction, notes=None, context="SV"):
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        ev = _judge()
+        ev.bind_task_rubric(_row(), margin_notes=notes is not None)
+        mock = MagicMock(wraps=cs.mock_judgment)
+        final = MagicMock(wraps=cs.finalize)
+        with patch.object(cs, "mock_judgment", mock), patch.object(cs, "finalize", final), \
+                patch("extension_registry.first_worker_attr", return_value=lambda: notes):
+            result = ev._evaluate_multidim_single_call(
+                context=context, ground_truth="ML", prediction=prediction, task_data={"bewertungsbogen": "BOGEN"})
+        return ev, result, mock, final
+
+    @pytest.mark.parametrize("prediction, evidence", [
+        # Exactly 80 characters stay whole; 81 lose the last word.
+        ("a" * 75 + " bcde", "a" * 75 + " bcde"),
+        ("a" * 75 + " bcdef", "a" * 75),
+        ("  kurz  ", "kurz"),
+        ("", ""),
+        (None, ""),
+    ])
+    def test_the_mock_quote_at_the_edges(self, monkeypatch, prediction, evidence):
+        _ev, _result, mock, _final = self._e2e(monkeypatch, prediction)
+        assert mock.call_args.kwargs["evidence"] == evidence
+
+    def test_the_mock_draws_from_the_start_of_context_and_answer(self, monkeypatch):
+        context = "C" * 60
+        prediction = "P" * 40 + " " + "Q" * 30
+        ev, _result, mock, final = self._e2e(monkeypatch, prediction, context=context)
+        assert mock.call_args.kwargs["seed_text"] == f"{'C' * 50}:{prediction[:50]}"
+        assert mock.call_args.args == (ev.checklist["spec"], "binary", "branch")
+        assert final.call_args.kwargs == {"grade_scale": ev.checklist["grade_scale"]}
+        assert final.call_args.args[1:5] == (ev.checklist["spec"], "binary", "branch", "declared")
+
+    def test_the_mock_result_without_notes(self, monkeypatch):
+        _ev, result, _mock, _final = self._e2e(monkeypatch, ANSWER)
+        assert result["_call_metadata"] == {"e2e_test_mode": True, "finish_reason": "stop", "truncated": False}
+        raw = result["_raw_output"]
+        assert set(json.loads(raw)["scores"]) == set(result["scores"])
+        # Umlauts stay readable in the stored raw output.
+        assert "ö" in raw and "\\u00f6" not in raw
+        assert "annotations" not in json.loads(raw) and "annotations" not in result
+        assert result["_judge_prompts_used"]["mode"] == "checklist"
+
+    def test_the_mock_result_with_notes(self, monkeypatch):
+        notes = _RecordingNotes()
+        _ev, result, _mock, _final = self._e2e(monkeypatch, ANSWER, notes=notes)
+        quote = ANSWER[:80].rsplit(None, 1)[0]
+        expected_raw = [{"ref": "s01_oeffentliche_sicherheit", "kind": "mangel", "quote": quote,
+                         "comment": "Mock evaluation (E2E test mode)"}]
+        assert json.loads(result["_raw_output"])["annotations"] == expected_raw
+        assert result["annotations"] == [{"id": "n1", "ref": "s01_oeffentliche_sicherheit"}]
+        assert len(notes.finalized) == 1
+        finalized = notes.finalized[0]
+        assert finalized["raw"] == expected_raw
+        assert finalized["refs"] == list(result["scores"]) == ["s01_oeffentliche_sicherheit", "s02_gefahr"]
+        assert finalized["answer"] == ANSWER
+
+    def test_without_a_bound_sheet_the_spec_names_the_criteria(self):
+        ev = _judge()
+        spec = checklist_spec_from_structure(_structure())
+        ev.configure_checklist(spec, score_unit="binary")
+        assert ev.custom_criteria == {
+            "s01_oeffentliche_sicherheit": {"name": "Öffentliche Sicherheit", "max_score": 4.0},
+            "s02_gefahr": {"name": "Gefahr", "max_score": 6.0},
+        }
+        assert ev.all_criteria["s02_gefahr"] == {"name": "Gefahr", "max_score": 6.0}
+        assert "helpfulness" in ev.all_criteria
+        assert (ev.checklist["alternatives"], ev.checklist["total_mode"]) == ("branch", "declared")
+
+    def test_the_checklist_defaults_are_three_steps_per_path_and_the_declared_total(self):
+        ev = _judge()
+        ev.configure_checklist(checklist_spec_from_structure(_structure()))
+        assert (ev.checklist["score_unit"], ev.checklist["alternatives"], ev.checklist["total_mode"]) == (
+            "bullet", "branch", "declared")
