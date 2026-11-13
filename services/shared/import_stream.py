@@ -3331,7 +3331,7 @@ def run_full_project_import(
 #   (``source_task_id`` in either direction, or a shared origin), else the
 #   one task with identical data;
 # - a generation job: same task, model and creation time;
-# - a generation: same task, model and response text;
+# - a generation: same task, model, run index and response text;
 # - an evaluation run: same model and creation time (a run that is present
 #   brings nothing: its metrics, judge runs and rows are present too);
 # - a Bewertungsbogen: the sheet of the matched task with the same title,
@@ -3339,8 +3339,8 @@ def run_full_project_import(
 #   the project lacks is added (as a candidate when the task already has an
 #   active one), so the gradings scored against it stay joinable.
 #
-# Annotations, rubrics, comments, feedback, assignments and human-evaluation
-# data are not merged, and neither are evaluation rows that grade an
+# Annotations, comments, feedback, assignments and human-evaluation data
+# are not merged, and neither are evaluation rows that grade an
 # annotation rather than a generation.
 
 MERGE_TASK_MISMATCH = "merge_task_mismatch"

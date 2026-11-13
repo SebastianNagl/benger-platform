@@ -964,7 +964,7 @@
       "fileLabel": "Projektexport",
       "fileHint": "Ein vollständiger Projektexport (JSON, NDJSON, .gz oder die .zip aus der Projektliste) dieses Projekts oder einer Kopie davon.",
       "modelMapTitle": "Modell-IDs (optional)",
-      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Geben Sie die ID aus der Datei und die ID desselben Modells hier an. Das Modell muss hier bereits angelegt sein.",
+      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Gib die ID aus der Datei und die ID desselben Modells hier an. Das Modell muss hier bereits angelegt sein.",
       "sourceModel": "Modell-ID in der Datei",
       "targetModel": "Modell-ID hier",
       "addModel": "Modell-ID hinzufügen",
@@ -973,7 +973,7 @@
       "running": "Wird zusammengeführt...",
       "success": "Ergebnisse zusammengeführt",
       "failed": "Das Zusammenführen ist fehlgeschlagen",
-      "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führen Sie eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importieren Sie sie als neues Projekt.",
+      "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führe eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importiere sie als neues Projekt.",
       "summaryAdded": "{tasks} Aufgaben zugeordnet und {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzugefügt.",
       "summarySkipped": "{generations} Generierungen und {evaluations} Evaluationsläufe, die das Projekt schon hatte, übersprungen.",
       "summaryModels": "Zu den Modellen des Projekts hinzugefügt: {models}"
