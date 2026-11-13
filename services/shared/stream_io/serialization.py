@@ -149,14 +149,25 @@ def build_project_export_data(project, organization_id) -> dict:
 
 
 def serialize_response_generation_row(rg) -> dict:
+    """One generation job. ``project_id`` is informational (the importer sets
+    the new project); ``organization_id`` stays behind, it names the source
+    deployment's org whose API key the job ran on."""
     return {
         "id": rg.id,
+        "project_id": rg.project_id,
         "task_id": rg.task_id,
         "model_id": rg.model_id,
         "config_id": rg.config_id,
+        "structure_key": rg.structure_key,
         "status": rg.status,
         "responses_generated": rg.responses_generated,
+        "runs_requested": rg.runs_requested,
+        "runs_completed": rg.runs_completed,
+        "runs_failed": rg.runs_failed,
         "error_message": rg.error_message,
+        "result": rg.result,
+        "prompt_used": rg.prompt_used,
+        "parameters": rg.parameters,
         "generation_metadata": rg.generation_metadata,
         "created_by": rg.created_by,
         "created_at": _iso(rg.created_at),
@@ -201,6 +212,8 @@ def serialize_evaluation_judge_run_row(jr) -> dict:
         "samples_evaluated": jr.samples_evaluated,
         "error_message": jr.error_message,
         "metric_parameters_snapshot": jr.metric_parameters_snapshot,
+        "started_at": _iso(jr.started_at),
+        "completed_at": _iso(jr.completed_at),
     }
 
 

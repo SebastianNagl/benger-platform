@@ -1,0 +1,27 @@
+{
+  "_source": "xAI /v1/chat/completions, grok-3-mini with reasoning_effort=low.",
+  "id": "6a2f",
+  "object": "chat.completion",
+  "created": 1794500300,
+  "model": "grok-3-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Ja, die Frist ist gewahrt.",
+        "reasoning_content": "Die Frist beträgt einen Monat (§ 517 ZPO); zugestellt am 2. März, eingegangen am 28. März.",
+        "refusal": null
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 90,
+    "completion_tokens": 40,
+    "total_tokens": 130,
+    "completion_tokens_details": {
+      "reasoning_tokens": 25
+    }
+  }
+}

@@ -14,6 +14,7 @@ from openai import OpenAI
 
 from .attachments import openai_chat_content
 from .base_service import BaseAIService, derive_truncated
+from .reasoning import chat_message_reasoning, responses_api_reasoning
 from .provider_capabilities import (
     is_openai_gpt5_or_later,
     model_supports_seed,
@@ -319,6 +320,10 @@ class OpenAIService(BaseAIService):
             # Extract response data
             message = response.choices[0].message
             content = message.content.strip() if message.content else ""
+            # OpenAI's own chat models keep their reasoning hidden; an
+            # OpenAI-compatible endpoint behind this client may still send
+            # message.reasoning_content, which is stored beside the answer.
+            reasoning = chat_message_reasoning(message)
 
             # Log the generation
             logger.info(f"🤖 OpenAI Generation: {model_name}")
@@ -385,6 +390,7 @@ class OpenAIService(BaseAIService):
                     ),
                 },
                 success=True,
+                reasoning=reasoning,
                 error=None,
             )
 
@@ -458,6 +464,10 @@ class OpenAIService(BaseAIService):
             # all visible message-content text items, skipping the hidden
             # reasoning items. Empty string means a refusal or truncation.
             content = (response.output_text or "").strip()
+            # Reasoning items carry a summary only when one was requested
+            # (reasoning.summary); BenGER does not request it, so this is
+            # usually None. Stored as-is when the endpoint returns one.
+            reasoning = responses_api_reasoning(getattr(response, "output", None))
 
             # Responses-API usage uses input_tokens/output_tokens; map to
             # legacy keys so downstream cost/aggregation code keeps working.
@@ -535,6 +545,7 @@ class OpenAIService(BaseAIService):
                     ),
                 },
                 success=True,
+                reasoning=reasoning,
                 error=None,
             )
 
@@ -733,6 +744,10 @@ Your response must be ONLY the JSON object, no other text before or after.
 
             message = response.choices[0].message
             content = message.content.strip() if message.content else ""
+            # OpenAI's own chat models keep their reasoning hidden; an
+            # OpenAI-compatible endpoint behind this client may still send
+            # message.reasoning_content, which is stored beside the answer.
+            reasoning = chat_message_reasoning(message)
 
             logger.info(f"🤖 OpenAI Structured Generation: {model_name}")
             logger.info(
@@ -784,6 +799,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                     ),
                 },
                 success=True,
+                reasoning=reasoning,
             )
 
         except Exception as e:

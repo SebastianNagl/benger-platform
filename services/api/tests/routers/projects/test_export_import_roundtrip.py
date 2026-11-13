@@ -1565,3 +1565,1005 @@ class TestRubricGradingReferencesSurviveImport:
         assert gradings, "the rubric grading must travel with its task"
         for row in gradings:
             assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id
+
+
+# ---------------------------------------------------------------------------
+# Benchmark run: full project export -> import, field by field
+# ---------------------------------------------------------------------------
+#
+# A model benchmark run moved from one deployment to another (dev -> prod) has
+# to arrive complete: every run of a multi-run generation, the job's prompt and
+# settings, the judges' raw answers, the per-call telemetry and the original
+# timestamps. These tests compare every exported column after a round trip,
+# through both the comprehensive JSON and the NDJSON format, instead of only
+# counting rows.
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+DEV_MODEL = "custom-dev-0000"
+PROD_MODEL = "custom-prod-1111"
+_T0 = datetime(2026, 3, 2, 9, 30, 0, tzinfo=timezone.utc)
+
+
+def _export_text(db, project_id, fmt):
+    from routers.projects._export_stream import (
+        stream_comprehensive_project_data_json,
+        stream_export_ndjson,
+    )
+
+    gen = (
+        stream_export_ndjson
+        if fmt == "ndjson"
+        else stream_comprehensive_project_data_json
+    )
+    return "".join(gen(db, project_id))
+
+
+def _import_text(db, text, user_id, **kwargs):
+    from routers.projects._import_stream import run_full_project_import
+
+    return run_full_project_import(
+        db, io.BytesIO(text.encode("utf-8")), user_id, **kwargs
+    )
+
+
+def _benchmark_rows(db, project_id):
+    """Every benchmark row of one project, keyed by a content field that is
+    unique in the fixture (ids are fresh after an import)."""
+    from models import EvaluationRunMetric
+
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    rgs = db.query(ResponseGeneration).filter(ResponseGeneration.task_id.in_(task_ids)).all()
+    gens = db.query(Generation).filter(Generation.task_id.in_(task_ids)).all()
+    runs = db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).all()
+    run_ids = [r.id for r in runs]
+    judge_runs = (
+        db.query(EvaluationJudgeRun)
+        .filter(EvaluationJudgeRun.evaluation_id.in_(run_ids))
+        .all()
+    )
+    metrics = (
+        db.query(EvaluationRunMetric)
+        .filter(EvaluationRunMetric.evaluation_id.in_(run_ids))
+        .all()
+    )
+    tes = db.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id.in_(run_ids)).all()
+    return {
+        "tasks": {t.data["text"]: t for t in db.query(Task).filter(Task.id.in_(task_ids))},
+        "response_generations": {rg.prompt_used: rg for rg in rgs},
+        "generations": {g.response_content: g for g in gens},
+        "evaluation_runs": {r.samples_evaluated: r for r in runs},
+        "judge_runs": {jr.judge_model_id: jr for jr in judge_runs},
+        "metrics": {m.value: m for m in metrics},
+        "task_evaluations": {te.raw_output: te for te in tes},
+    }
+
+
+# Columns compared verbatim after a round trip. Ids and foreign keys are fresh
+# on the importing side and are checked through the content keys instead.
+_RG_FIELDS = (
+    "config_id", "structure_key", "status", "responses_generated",
+    "runs_requested", "runs_completed", "runs_failed", "error_message",
+    "result", "prompt_used", "parameters", "generation_metadata",
+    "created_at", "started_at", "completed_at",
+)
+_GEN_FIELDS = (
+    "case_data", "response_content", "reasoning", "usage_stats", "response_metadata",
+    "status", "error_message", "seed", "finish_reason", "truncated", "refusal",
+    "error_type", "latency_ms", "input_tokens", "output_tokens", "run_index",
+    "created_at", "parse_status", "parse_error", "parsed_annotation",
+    "parse_metadata", "label_config_version", "label_config_snapshot",
+)
+_RUN_FIELDS = (
+    "evaluation_type_ids", "metrics", "eval_metadata", "status",
+    "error_message", "samples_evaluated", "has_sample_results",
+    "created_at", "completed_at",
+)
+_JUDGE_RUN_FIELDS = (
+    "judge_model_id", "run_index", "status", "started_at", "completed_at",
+    "samples_evaluated", "error_message", "metric_parameters_snapshot",
+)
+_METRIC_FIELDS = ("evaluation_type_id", "value", "created_at")
+_TE_FIELDS = (
+    "field_name", "evaluation_config_id", "answer_type", "ground_truth",
+    "prediction", "metrics", "passed", "confidence_score", "error_message",
+    "processing_time_ms", "judge_prompts_used", "seed", "finish_reason",
+    "truncated", "refusal", "error_type", "latency_ms", "input_tokens",
+    "output_tokens", "raw_output", "raw_reasoning", "created_at", "updated_at",
+)
+_TASK_FIELDS = ("data", "meta", "is_labeled", "created_at", "updated_at")
+
+
+def _assert_same(src, dst, fields, what):
+    for f in fields:
+        assert getattr(dst, f) == getattr(src, f), (
+            f"{what}.{f}: exported {getattr(src, f)!r}, imported {getattr(dst, f)!r}"
+        )
+
+
+@pytest.fixture
+def benchmark_project(db_session, user):
+    """A finished benchmark run: two tasks, one generation job per task with
+    two runs each (runs_requested=2), an evaluation run with a judge run, a
+    metric row and one judged row per generation, every row carrying the
+    telemetry and timestamps a real run writes."""
+    from models import EvaluationRunMetric, EvaluationType
+
+    eval_type = EvaluationType(
+        id=f"rt-metric-{uuid.uuid4().hex[:8]}",
+        name="Roundtrip judge metric",
+        category="generation",
+        applicable_project_types=["generation"],
+    )
+    db_session.add(eval_type)
+
+    project = Project(
+        id=str(uuid.uuid4()),
+        title=f"Benchmark RT {uuid.uuid4().hex[:8]}",
+        label_config='<View><Text name="text" value="$text"/></View>',
+        created_by=user.id,
+        generation_config={
+            "selected_configuration": {
+                "models": [DEV_MODEL, "gpt-4o"],
+                "model_configs": {DEV_MODEL: {"temperature": 0.2}},
+                "active_structures": ["default"],
+            },
+            "prompt_structures": {"default": {"name": "Default"}},
+        },
+        llm_model_ids=[DEV_MODEL],
+        created_at=_T0 - timedelta(days=10),
+    )
+    db_session.add(project)
+    db_session.flush()
+
+    tasks, rgs, gens = [], [], []
+    for i in range(2):
+        t = Task(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            inner_id=i + 1,
+            data={"text": f"Benchmark case {i}"},
+            meta={"source": "lexam"},
+            created_by=user.id,
+            created_at=_T0 - timedelta(days=9, minutes=i),
+            updated_at=_T0 - timedelta(days=8, minutes=i),
+        )
+        db_session.add(t)
+        tasks.append(t)
+        db_session.flush()
+
+        rg = ResponseGeneration(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            task_id=t.id,
+            model_id=DEV_MODEL,
+            config_id="cfg-gen",
+            structure_key="default",
+            status="completed",
+            responses_generated=2,
+            runs_requested=2,
+            runs_completed=2,
+            runs_failed=0,
+            result={"summary": f"job {i}"},
+            prompt_used=f"Solve benchmark case {i}",
+            parameters={"temperature": 0.2, "max_tokens": 512},
+            generation_metadata={"structure": "default"},
+            created_by=user.id,
+            created_at=_T0 + timedelta(minutes=i),
+            started_at=_T0 + timedelta(minutes=i, seconds=5),
+            completed_at=_T0 + timedelta(minutes=i, seconds=50),
+        )
+        db_session.add(rg)
+        rgs.append(rg)
+        db_session.flush()
+
+        for run in range(2):
+            g = Generation(
+                id=str(uuid.uuid4()),
+                generation_id=rg.id,
+                task_id=t.id,
+                model_id=DEV_MODEL,
+                run_index=run,
+                case_data=json.dumps(t.data),
+                response_content=f"Answer case {i} run {run}",
+                # Reasoning on one run only, so NULL round-trips too.
+                reasoning=None if run else f"Reasoning case {i}",
+                usage_stats={"input_tokens": 100 + run, "output_tokens": 40 + run},
+                response_metadata={"finish_reason": "stop"},
+                status="completed",
+                seed=1000 + run,
+                finish_reason="length" if run else "stop",
+                truncated=bool(run),
+                refusal=False,
+                error_type=None,
+                latency_ms=900 + run,
+                input_tokens=100 + run,
+                output_tokens=40 + run,
+                parse_status="success",
+                parsed_annotation=[{"from_name": "answer", "value": {"text": ["x"]}}],
+                parse_metadata={"retry_count": 0},
+                label_config_version="v1",
+                created_at=_T0 + timedelta(minutes=i, seconds=10 + run),
+            )
+            db_session.add(g)
+            gens.append(g)
+    db_session.flush()
+
+    er = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        model_id=DEV_MODEL,
+        evaluation_type_ids=[eval_type.id],
+        metrics={"score": 0.75},
+        eval_metadata={"evaluation_configs": [{"id": "cfg-judge"}]},
+        status="completed",
+        samples_evaluated=4,
+        has_sample_results=True,
+        created_by=user.id,
+        created_at=_T0 + timedelta(hours=1),
+        completed_at=_T0 + timedelta(hours=2),
+    )
+    db_session.add(er)
+    db_session.flush()
+    jr = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=er.id,
+        judge_model_id="gpt-judge",
+        run_index=0,
+        status="completed",
+        started_at=_T0 + timedelta(hours=1, minutes=1),
+        completed_at=_T0 + timedelta(hours=1, minutes=59),
+        samples_evaluated=4,
+        metric_parameters_snapshot={"judge": "gpt-judge"},
+    )
+    db_session.add(jr)
+    db_session.add(
+        EvaluationRunMetric(
+            id=str(uuid.uuid4()),
+            evaluation_id=er.id,
+            evaluation_type_id=eval_type.id,
+            value=0.75,
+            created_at=_T0 + timedelta(hours=2),
+        )
+    )
+    db_session.flush()
+
+    for n, g in enumerate(gens):
+        db_session.add(
+            TaskEvaluation(
+                id=str(uuid.uuid4()),
+                evaluation_id=er.id,
+                judge_run_id=jr.id,
+                task_id=g.task_id,
+                generation_id=g.id,
+                field_name="cfg-judge:answer:reference",
+                evaluation_config_id="cfg-judge",
+                answer_type="text",
+                ground_truth="expected",
+                prediction=g.response_content,
+                metrics={"score": 0.5 + n / 10},
+                passed=bool(n % 2),
+                confidence_score=0.8,
+                processing_time_ms=1500 + n,
+                judge_prompts_used={"system": "judge"},
+                seed=7,
+                finish_reason="stop",
+                truncated=False,
+                refusal=bool(n == 3),
+                error_type="refusal" if n == 3 else None,
+                latency_ms=2000 + n,
+                input_tokens=300 + n,
+                output_tokens=60 + n,
+                raw_output=f'{{"score": {0.5 + n / 10}, "row": {n}}}',
+                raw_reasoning=f"Judge reasoning {n}" if n % 2 else None,
+                created_at=_T0 + timedelta(hours=1, minutes=10 + n),
+                updated_at=_T0 + timedelta(hours=1, minutes=30 + n),
+            )
+        )
+    db_session.commit()
+    return {"project": project, "eval_type": eval_type}
+
+
+def _register_prod_model(db_session):
+    """The model the dev id maps to, registered (public) on this instance."""
+    from models import LLMModel
+
+    if db_session.query(LLMModel).filter(LLMModel.id == PROD_MODEL).first() is None:
+        db_session.add(
+            LLMModel(
+                id=PROD_MODEL,
+                name="Qwen3-4B (prod)",
+                provider="custom",
+                model_type="chat",
+                capabilities=["text_generation"],
+                is_official=False,
+                is_public=True,
+                base_url="http://gpu.example.org:40001/v1",
+                endpoint_model_name="Qwen/Qwen3-4B",
+            )
+        )
+        db_session.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestBenchmarkRunRoundtrip:
+    def test_multi_run_generations_import(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Every run of a runs_requested=2 job lands, each with its own
+        run_index; with run_index missing they all collided on
+        uq_generations_parent_run_index and the whole import failed."""
+        src = benchmark_project["project"]
+        result = _import_text(db_session, _export_text(db_session, src.id, fmt), user.id)
+
+        rows = _benchmark_rows(db_session, result["project_id"])
+        assert len(rows["generations"]) == 4
+        by_parent = {}
+        for g in rows["generations"].values():
+            by_parent.setdefault(g.generation_id, set()).add(g.run_index)
+        assert sorted(by_parent.values(), key=sorted) == [{0, 1}, {0, 1}]
+
+    def test_imported_generation_jobs_belong_to_the_new_project(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """The generation grid, the job list, evaluation scoping and the
+        project summaries all filter response_generations by project_id."""
+        src = benchmark_project["project"]
+        result = _import_text(db_session, _export_text(db_session, src.id, fmt), user.id)
+
+        rows = _benchmark_rows(db_session, result["project_id"])
+        assert len(rows["response_generations"]) == 2
+        for rg in rows["response_generations"].values():
+            assert rg.project_id == result["project_id"]
+
+    def test_every_benchmark_field_survives(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Field by field, per entity: job provenance and run counters, the
+        generations' run index and call telemetry, the run's sample flag, the
+        judge's raw answers and telemetry, and every original timestamp."""
+        src_project = benchmark_project["project"]
+        src = _benchmark_rows(db_session, src_project.id)
+        result = _import_text(
+            db_session, _export_text(db_session, src_project.id, fmt), user.id
+        )
+        dst = _benchmark_rows(db_session, result["project_id"])
+
+        for entity, fields in (
+            ("tasks", _TASK_FIELDS),
+            ("response_generations", _RG_FIELDS),
+            ("generations", _GEN_FIELDS),
+            ("evaluation_runs", _RUN_FIELDS),
+            ("judge_runs", _JUDGE_RUN_FIELDS),
+            ("metrics", _METRIC_FIELDS),
+            ("task_evaluations", _TE_FIELDS),
+        ):
+            assert set(dst[entity]) == set(src[entity]), entity
+            for key, src_row in src[entity].items():
+                dst_row = dst[entity][key]
+                assert dst_row.id != src_row.id, entity
+                _assert_same(src_row, dst_row, fields, f"{entity}[{key!r}]")
+
+        # Without a model_id_map every model id travels verbatim.
+        for entity in ("response_generations", "generations", "evaluation_runs"):
+            for row in dst[entity].values():
+                assert row.model_id == DEV_MODEL, entity
+
+        # Foreign keys point at the imported rows, not at the source.
+        src_rg_by_id = {rg.id: rg for rg in src["response_generations"].values()}
+        dst_rg_by_id = {rg.id: rg for rg in dst["response_generations"].values()}
+        dst_task_by_id = {t.id: t for t in dst["tasks"].values()}
+        src_task_by_id = {t.id: t for t in src["tasks"].values()}
+        for key, g in dst["generations"].items():
+            src_g = src["generations"][key]
+            assert (
+                dst_rg_by_id[g.generation_id].prompt_used
+                == src_rg_by_id[src_g.generation_id].prompt_used
+            )
+            assert (
+                dst_task_by_id[g.task_id].data == src_task_by_id[src_g.task_id].data
+            )
+        for rg in dst["response_generations"].values():
+            assert rg.project_id == result["project_id"]
+            assert rg.task_id in dst_task_by_id
+        dst_gen_by_id = {g.id: g for g in dst["generations"].values()}
+        (dst_run,) = dst["evaluation_runs"].values()
+        (dst_jr,) = dst["judge_runs"].values()
+        assert dst_jr.evaluation_id == dst_run.id
+        for key, te in dst["task_evaluations"].items():
+            assert te.evaluation_id == dst_run.id
+            assert te.judge_run_id == dst_jr.id
+            assert dst_gen_by_id[te.generation_id].response_content == te.prediction
+
+    def test_model_id_map_relabels_the_run(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A dev model id named in model_id_map arrives as the production id
+        everywhere a model is referenced, before the catalog check (which
+        would otherwise drop the dev-only id from the model selection)."""
+        _register_prod_model(db_session)
+        src_project = benchmark_project["project"]
+        result = _import_text(
+            db_session,
+            _export_text(db_session, src_project.id, fmt),
+            user.id,
+            model_id_map={DEV_MODEL: PROD_MODEL, "gpt-judge": "gpt-judge-prod"},
+        )
+        dst = _benchmark_rows(db_session, result["project_id"])
+        for entity in ("response_generations", "generations", "evaluation_runs"):
+            assert dst[entity]
+            for row in dst[entity].values():
+                assert row.model_id == PROD_MODEL, entity
+        assert set(dst["judge_runs"]) == {"gpt-judge-prod"}
+
+        imported = (
+            db_session.query(Project).filter(Project.id == result["project_id"]).one()
+        )
+        assert imported.llm_model_ids == [PROD_MODEL]
+        selected = imported.generation_config["selected_configuration"]
+        assert PROD_MODEL in selected["models"]
+        assert DEV_MODEL not in selected["models"]
+        assert selected["model_configs"] == {PROD_MODEL: {"temperature": 0.2}}
+        assert result["statistics"]["model_id_map"] == {
+            DEV_MODEL: PROD_MODEL,
+            "gpt-judge": "gpt-judge-prod",
+        }
+
+    def test_older_export_without_the_new_fields_imports(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """An export written before these fields existed still imports: the
+        runs of a multi-run job get distinct indexes, the counters and flags
+        take their column defaults and the timestamps are the import's."""
+        dropped = {
+            "response_generation": (
+                "project_id", "structure_key", "runs_requested", "runs_completed",
+                "runs_failed", "result", "prompt_used", "parameters",
+                "created_at", "started_at", "completed_at",
+            ),
+            "generation": (
+                "run_index", "seed", "finish_reason", "truncated", "refusal",
+                "error_type", "latency_ms", "input_tokens", "output_tokens",
+                "created_at", "reasoning",
+            ),
+            "evaluation": ("has_sample_results", "created_at", "completed_at"),
+            "evaluation_judge_run": ("started_at", "completed_at"),
+            "task_evaluation": (
+                "raw_output", "seed", "finish_reason", "truncated", "refusal",
+                "error_type", "latency_ms", "input_tokens", "output_tokens",
+                "created_at", "updated_at", "raw_reasoning",
+            ),
+        }
+        plural = {
+            "response_generation": "response_generations",
+            "generation": "generations",
+            "evaluation": "evaluations",
+            "evaluation_judge_run": "evaluation_judge_runs",
+            "task_evaluation": "task_evaluations",
+        }
+        text = _export_text(db_session, benchmark_project["project"].id, fmt)
+        if fmt == "ndjson":
+            records = [json.loads(line) for line in text.splitlines() if line.strip()]
+            for rec in records:
+                for key in dropped.get(rec.get("_type"), ()):
+                    rec.pop(key, None)
+            text = "\n".join(json.dumps(r) for r in records) + "\n"
+        else:
+            doc = json.loads(text)
+            for rtype, keys in dropped.items():
+                for rec in doc[plural[rtype]]:
+                    for key in keys:
+                        rec.pop(key, None)
+            text = json.dumps(doc)
+
+        before = datetime.now(timezone.utc) - timedelta(minutes=5)
+        result = _import_text(db_session, text, user.id)
+        dst = _benchmark_rows(db_session, result["project_id"])
+
+        by_parent = {}
+        for g in dst["generations"].values():
+            by_parent.setdefault(g.generation_id, set()).add(g.run_index)
+            assert g.truncated is False and g.refusal is False
+            assert g.reasoning is None
+            assert g.created_at > before
+        assert sorted(by_parent.values(), key=sorted) == [{0, 1}, {0, 1}]
+        for rg in dst["response_generations"].values():
+            assert rg.project_id == result["project_id"]
+            assert (rg.runs_requested, rg.runs_completed, rg.runs_failed) == (1, 0, 0)
+            assert rg.created_at > before
+        (run,) = dst["evaluation_runs"].values()
+        assert run.has_sample_results is False
+        assert run.completed_at is None
+        tes = db_session.query(TaskEvaluation).filter(
+            TaskEvaluation.evaluation_id == run.id
+        ).all()
+        assert len(tes) == 4
+        assert all(te.raw_output is None and te.refusal is False for te in tes)
+        assert all(te.raw_reasoning is None for te in tes)
+
+
+def test_model_id_map_must_map_strings_to_strings(db_session, user, benchmark_project):
+    from routers.projects._import_stream import ImportValidationError
+
+    text = _export_text(db_session, benchmark_project["project"].id, "ndjson")
+    for bad in (["a", "b"], {"a": ""}, {"a": 1}, {"": "b"}):
+        with pytest.raises(ImportValidationError) as exc:
+            _import_text(db_session, text, user.id, model_id_map=bad)
+        assert exc.value.status_code == 400
+
+
+def test_both_formats_carry_identical_benchmark_rows(db_session, benchmark_project):
+    """The comprehensive JSON and the NDJSON export emit the same dict per
+    benchmark row, so either file moves a run completely."""
+    pid = benchmark_project["project"].id
+    doc = json.loads(_export_text(db_session, pid, "comprehensive"))
+    records = [
+        json.loads(line)
+        for line in _export_text(db_session, pid, "ndjson").splitlines()
+        if line.strip()
+    ]
+    for rtype, key in (
+        ("response_generation", "response_generations"),
+        ("generation", "generations"),
+        ("evaluation", "evaluations"),
+        ("evaluation_metric", "evaluation_metrics"),
+        ("evaluation_judge_run", "evaluation_judge_runs"),
+        ("task_evaluation", "task_evaluations"),
+    ):
+        nd = sorted(
+            ({k: v for k, v in r.items() if k != "_type"} for r in records
+             if r["_type"] == rtype),
+            key=lambda r: r["id"],
+        )
+        assert nd, rtype
+        assert nd == sorted(doc[key], key=lambda r: r["id"]), rtype
+
+
+# ---------------------------------------------------------------------------
+# Merge import: prod -> local copy -> new model benchmarked -> back into prod
+# ---------------------------------------------------------------------------
+
+LOCAL_MODEL = "custom-local-2222"
+
+
+def _merge_text(db, project_id, text, user_id, **kwargs):
+    from routers.projects._import_stream import run_merge_import
+
+    return run_merge_import(
+        db, project_id, io.BytesIO(text.encode("utf-8")), user_id, **kwargs
+    )
+
+
+def _benchmark_new_model(db, project_id, user_id, model_id, runs=1):
+    """What a benchmark run on the local copy adds: one generation job per
+    task for ``model_id`` with ``runs`` generations that all give the same
+    answer, and an evaluation run that judges every run."""
+    from models import EvaluationRunMetric
+
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    when = datetime.now(timezone.utc).replace(microsecond=0)
+    run = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        model_id=model_id,
+        evaluation_type_ids=["rt-new"],
+        metrics={"score": 0.9},
+        status="completed",
+        samples_evaluated=len(tasks),
+        has_sample_results=True,
+        created_by=user_id,
+        created_at=when + timedelta(hours=1),
+        completed_at=when + timedelta(hours=2),
+    )
+    db.add(run)
+    db.flush()
+    jr = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=run.id,
+        judge_model_id="gpt-judge",
+        run_index=0,
+        status="completed",
+    )
+    db.add(jr)
+    db.flush()
+    db.add(
+        EvaluationRunMetric(
+            id=str(uuid.uuid4()),
+            evaluation_id=run.id,
+            evaluation_type_id=db.query(EvaluationRunMetric.evaluation_type_id)
+            .limit(1)
+            .scalar(),
+            value=0.9,
+        )
+    )
+    for n, t in enumerate(tasks):
+        rg = ResponseGeneration(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            task_id=t.id,
+            model_id=model_id,
+            structure_key="default",
+            status="completed",
+            responses_generated=runs,
+            runs_requested=runs,
+            runs_completed=runs,
+            prompt_used=f"new model prompt {n}",
+            created_by=user_id,
+            created_at=when + timedelta(seconds=n),
+        )
+        db.add(rg)
+        db.flush()
+        for r in range(runs):
+            g = Generation(
+                id=str(uuid.uuid4()),
+                generation_id=rg.id,
+                task_id=t.id,
+                model_id=model_id,
+                run_index=r,
+                case_data=json.dumps(t.data),
+                response_content=f"New model answer {t.data['text']}",
+                reasoning=f"New model reasoning {t.data['text']}",
+                status="completed",
+            )
+            db.add(g)
+            db.flush()
+            db.add(
+                TaskEvaluation(
+                    id=str(uuid.uuid4()),
+                    evaluation_id=run.id,
+                    judge_run_id=jr.id,
+                    task_id=t.id,
+                    generation_id=g.id,
+                    field_name="cfg-judge:answer:reference",
+                    answer_type="text",
+                    ground_truth="expected",
+                    prediction=g.response_content,
+                    metrics={"score": 0.9},
+                    passed=True,
+                    raw_output=f"new judge {n}" + (f" run {r}" if r else ""),
+                    raw_reasoning=f"new judge reasoning {n}",
+                )
+            )
+    db.commit()
+
+
+def _result_counts(db, project_id):
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    run_ids = [
+        r.id for r in db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id)
+    ]
+    from models import EvaluationRunMetric
+
+    return {
+        "tasks": len(task_ids),
+        "response_generations": db.query(ResponseGeneration)
+        .filter(ResponseGeneration.task_id.in_(task_ids)).count(),
+        "generations": db.query(Generation).filter(Generation.task_id.in_(task_ids)).count(),
+        "evaluations": len(run_ids),
+        "evaluation_metrics": db.query(EvaluationRunMetric)
+        .filter(EvaluationRunMetric.evaluation_id.in_(run_ids)).count(),
+        "evaluation_judge_runs": db.query(EvaluationJudgeRun)
+        .filter(EvaluationJudgeRun.evaluation_id.in_(run_ids)).count(),
+        "task_evaluations": db.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id.in_(run_ids)).count(),
+    }
+
+
+def _models_by_entity(db, project_id):
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    return {
+        "response_generations": sorted(
+            m for (m,) in db.query(ResponseGeneration.model_id)
+            .filter(ResponseGeneration.task_id.in_(task_ids))
+        ),
+        "generations": sorted(
+            m for (m,) in db.query(Generation.model_id)
+            .filter(Generation.task_id.in_(task_ids))
+        ),
+        "evaluations": sorted(
+            m for (m,) in db.query(EvaluationRun.model_id)
+            .filter(EvaluationRun.project_id == project_id)
+        ),
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestMergeImport:
+    def test_imported_tasks_remember_their_origin(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        prod_tasks = {t.data["text"]: t.id for t in db_session.query(Task).filter(
+            Task.project_id == prod.id)}
+        local_tasks = db_session.query(Task).filter(Task.project_id == local_id).all()
+        assert {t.data["text"]: t.source_task_id for t in local_tasks} == prod_tasks
+
+        # A copy of the copy still points at the first task, not at the copy.
+        second_id = _import_text(
+            db_session, _export_text(db_session, local_id, fmt), user.id
+        )["project_id"]
+        second = db_session.query(Task).filter(Task.project_id == second_id).all()
+        assert {t.data["text"]: t.source_task_id for t in second} == prod_tasks
+
+    def test_benchmarked_copy_merges_back_next_to_the_existing_results(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """The captain's flow: export the prod project, import it locally,
+        benchmark one more model there, export, merge into the prod project.
+        The new model's results land next to the old ones, nothing is
+        duplicated, and a second merge of the same file changes nothing."""
+        _register_prod_model(db_session)
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        local_export = _export_text(db_session, local_id, fmt)
+
+        result = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        stats = result["statistics"]
+        assert stats["matched_tasks"] == 2
+        assert stats["added_counts"] == {
+            "task_rubrics": 0,
+            "response_generations": 2,
+            "generations": 2,
+            "evaluations": 1,
+            "evaluation_metrics": 1,
+            "evaluation_judge_runs": 1,
+            "task_evaluations": 2,
+        }
+        assert stats["skipped_present_counts"]["generations"] == 4
+        assert stats["skipped_present_counts"]["evaluations"] == 1
+        assert stats["models_added_to_project"] == [PROD_MODEL]
+
+        after = _result_counts(db_session, prod.id)
+        assert after == {
+            "tasks": before["tasks"],
+            "response_generations": before["response_generations"] + 2,
+            "generations": before["generations"] + 2,
+            "evaluations": before["evaluations"] + 1,
+            "evaluation_metrics": before["evaluation_metrics"] + 1,
+            "evaluation_judge_runs": before["evaluation_judge_runs"] + 1,
+            "task_evaluations": before["task_evaluations"] + 2,
+        }
+        models = _models_by_entity(db_session, prod.id)
+        assert models["generations"] == sorted([DEV_MODEL] * 4 + [PROD_MODEL] * 2)
+        assert models["evaluations"] == sorted([DEV_MODEL, PROD_MODEL])
+
+        # The merged rows hang off the prod tasks and the prod project.
+        prod_task_ids = {t.id for t in db_session.query(Task).filter(
+            Task.project_id == prod.id)}
+        new_jobs = db_session.query(ResponseGeneration).filter(
+            ResponseGeneration.model_id == PROD_MODEL,
+            ResponseGeneration.task_id.in_(prod_task_ids),
+        ).all()
+        assert {rg.project_id for rg in new_jobs} == {prod.id}
+        new_run = db_session.query(EvaluationRun).filter(
+            EvaluationRun.project_id == prod.id, EvaluationRun.model_id == PROD_MODEL
+        ).one()
+        new_gen_ids = {
+            g.id for g in db_session.query(Generation).filter(
+                Generation.model_id == PROD_MODEL, Generation.task_id.in_(prod_task_ids)
+            )
+        }
+        rows = db_session.query(TaskEvaluation).filter(
+            TaskEvaluation.evaluation_id == new_run.id
+        ).all()
+        assert {te.generation_id for te in rows} == new_gen_ids
+        assert sorted(te.raw_output for te in rows) == ["new judge 0", "new judge 1"]
+        # Model and judge reasoning come along with the merged rows.
+        assert sorted(te.raw_reasoning for te in rows) == [
+            "new judge reasoning 0", "new judge reasoning 1"
+        ]
+        merged_gens = db_session.query(Generation).filter(Generation.id.in_(new_gen_ids)).all()
+        assert merged_gens
+        assert all(
+            g.reasoning == g.response_content.replace("answer", "reasoning")
+            for g in merged_gens
+        )
+
+        # The generation grid takes its columns from the model selection.
+        db_session.refresh(prod)
+        selected = prod.generation_config["selected_configuration"]["models"]
+        assert selected[-1] == PROD_MODEL and DEV_MODEL in selected
+
+        # Idempotent: the same file again adds nothing.
+        again = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        assert set(again["statistics"]["added_counts"].values()) == {0}
+        assert again["statistics"]["models_added_to_project"] == []
+        assert _result_counts(db_session, prod.id) == after
+
+    def test_repeated_runs_with_the_same_answer_all_merge(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A model run twice per task that answers the same both times: both
+        runs arrive as their own generations, each judged row stays on its
+        own run, and merging the file again adds nothing."""
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL, runs=2)
+        local_export = _export_text(db_session, local_id, fmt)
+
+        result = _merge_text(db_session, prod.id, local_export, user.id)
+        added = result["statistics"]["added_counts"]
+        assert added["response_generations"] == 2
+        assert added["generations"] == 4
+        assert added["task_evaluations"] == 4
+
+        prod_tasks = db_session.query(Task).filter(Task.project_id == prod.id).all()
+        new_run = db_session.query(EvaluationRun).filter(
+            EvaluationRun.project_id == prod.id, EvaluationRun.model_id == LOCAL_MODEL
+        ).one()
+        for t in prod_tasks:
+            gens = db_session.query(Generation).filter(
+                Generation.task_id == t.id, Generation.model_id == LOCAL_MODEL
+            ).all()
+            assert sorted(g.run_index for g in gens) == [0, 1]
+            judged = {
+                te.generation_id: te.raw_output
+                for te in db_session.query(TaskEvaluation).filter(
+                    TaskEvaluation.evaluation_id == new_run.id,
+                    TaskEvaluation.task_id == t.id,
+                )
+            }
+            by_run = {g.run_index: g.id for g in gens}
+            local_n = judged[by_run[0]].split()[2]
+            assert judged == {
+                by_run[0]: f"new judge {local_n}",
+                by_run[1]: f"new judge {local_n} run 1",
+            }
+
+        after = _result_counts(db_session, prod.id)
+        again = _merge_text(db_session, prod.id, local_export, user.id)
+        assert set(again["statistics"]["added_counts"].values()) == {0}
+        assert _result_counts(db_session, prod.id) == after
+
+    def test_merging_a_project_into_itself_adds_nothing(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, prod.id, fmt), user.id
+        )
+        assert set(result["statistics"]["added_counts"].values()) == {0}
+        assert _result_counts(db_session, prod.id) == before
+
+    def test_tasks_without_a_recorded_origin_match_by_content(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """An export from before source ids existed (or of a project created
+        by a data import) still merges when the task data is identical."""
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        for t in db_session.query(Task).filter(Task.project_id == local_id):
+            t.source_task_id = None
+        db_session.commit()
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert result["statistics"]["matched_tasks"] == 2
+        assert result["statistics"]["added_counts"]["generations"] == 2
+
+    def test_unrelated_project_is_refused_and_nothing_changes(
+        self, db_session, user, benchmark_project, project_with_full_data, fmt
+    ):
+        from routers.projects._import_stream import (
+            MERGE_TASK_MISMATCH,
+            ImportValidationError,
+        )
+
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        other = _export_text(db_session, project_with_full_data["project"].id, fmt)
+        with pytest.raises(ImportValidationError) as exc:
+            _merge_text(db_session, prod.id, other, user.id)
+        db_session.rollback()
+        assert exc.value.status_code == 409
+        assert exc.value.code == MERGE_TASK_MISMATCH
+        assert "3 match no task of this project" in exc.value.detail
+        assert _result_counts(db_session, prod.id) == before
+
+    def test_ambiguous_content_match_is_refused(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Two project tasks with the same data and no recorded origin: the
+        merge cannot tell which one an exported task is, so it refuses."""
+        from routers.projects._import_stream import ImportValidationError
+
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        for t in db_session.query(Task).filter(Task.project_id == local_id):
+            t.source_task_id = None
+        first = db_session.query(Task).filter(Task.project_id == prod.id).first()
+        db_session.add(Task(
+            id=str(uuid.uuid4()), project_id=prod.id, inner_id=99,
+            data=dict(first.data), created_by=user.id,
+        ))
+        db_session.commit()
+        with pytest.raises(ImportValidationError) as exc:
+            _merge_text(
+                db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+            )
+        db_session.rollback()
+        assert exc.value.status_code == 409
+        assert "match more than one" in exc.value.detail
+
+    def test_merged_rubric_gradings_point_at_the_projects_sheet(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A new model graded against a task's Bewertungsbogen on the copy:
+        after the merge its gradings name the original project's sheet, and
+        no second copy of the sheet is added."""
+        from project_models import TaskRubric
+
+        prod = benchmark_project["project"]
+        prod_task = db_session.query(Task).filter(Task.project_id == prod.id).first()
+        sheet = TaskRubric(
+            id=str(uuid.uuid4()),
+            task_id=prod_task.id,
+            project_id=prod.id,
+            title="Bogen",
+            criteria={"items": [{"id": "c1", "points": 10}]},
+            total_points=10.0,
+            source="llm",
+            status="active",
+            created_by=user.id,
+        )
+        db_session.add(sheet)
+        db_session.commit()
+
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        local_task = db_session.query(Task).filter(
+            Task.project_id == local_id, Task.source_task_id == prod_task.id
+        ).one()
+        local_sheet = db_session.query(TaskRubric).filter(
+            TaskRubric.task_id == local_task.id
+        ).one()
+        graded = db_session.query(TaskEvaluation).join(
+            Generation, Generation.id == TaskEvaluation.generation_id
+        ).filter(
+            Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == local_task.id
+        ).one()
+        graded.metrics = {
+            "llm_judge_rubric": {"value": 0.7, "details": {"rubric_id": local_sheet.id}}
+        }
+        db_session.commit()
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert result["statistics"]["added_counts"]["task_rubrics"] == 0
+        assert db_session.query(TaskRubric).filter(
+            TaskRubric.task_id == prod_task.id
+        ).count() == 1
+        merged = db_session.query(TaskEvaluation).join(
+            Generation, Generation.id == TaskEvaluation.generation_id
+        ).filter(
+            Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == prod_task.id
+        ).one()
+        assert merged.metrics["llm_judge_rubric"]["details"]["rubric_id"] == sheet.id

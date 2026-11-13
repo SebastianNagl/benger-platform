@@ -19,6 +19,7 @@ import aiohttp
 
 from .base_service import BaseAIService, derive_refusal, derive_truncated
 from .provider_capabilities import model_supports_seed
+from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -247,6 +248,8 @@ class GrokService(BaseAIService):
             content = ""
             if result.get("choices") and len(result["choices"]) > 0:
                 content = result["choices"][0]["message"]["content"].strip()
+            # grok-3-mini returns its reasoning in message.reasoning_content.
+            reasoning = chat_completion_reasoning(result)
 
             # Get usage stats
             usage = result.get("usage", {})
@@ -290,6 +293,7 @@ class GrokService(BaseAIService):
                 },
                 success=True,
                 error=None,
+                reasoning=reasoning,
             )
 
         except Exception as e:
@@ -439,6 +443,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             raw_content = ""
             if result.get("choices") and len(result["choices"]) > 0:
                 raw_content = result["choices"][0]["message"]["content"].strip()
+            reasoning = chat_completion_reasoning(result)
 
             # Get usage stats
             usage = result.get("usage", {})
@@ -503,6 +508,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 metadata=result_metadata,
                 success=True,
                 error=None,
+                reasoning=reasoning,
             )
 
         except Exception as e:

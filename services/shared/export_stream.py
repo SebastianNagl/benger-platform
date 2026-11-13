@@ -588,6 +588,7 @@ def stream_export_label_studio(
                         "id": gen.id,
                         "model_id": gen.model_id,
                         "response_content": gen.response_content,
+                        "reasoning": gen.reasoning,
                         "case_data": gen.case_data,
                         "created_at": (
                             gen.created_at.isoformat() if gen.created_at else None

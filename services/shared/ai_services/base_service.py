@@ -230,6 +230,7 @@ class BaseAIService(ABC):
         usage: Dict[str, int],
         success: bool = True,
         error: str = None,
+        reasoning: Optional[str] = None,
         **additional_data
     ) -> Dict[str, Any]:
         """
@@ -241,6 +242,10 @@ class BaseAIService(ABC):
             usage: Token usage statistics
             success: Whether generation was successful
             error: Error message if failed
+            reasoning: Reasoning text the provider returned beside the
+                answer (see ``ai_services.reasoning``); ``None`` when it
+                returned none. Kept apart from ``content``: it is stored
+                as research data and never parsed or scored.
             **additional_data: Additional data to include
 
         Returns:
@@ -248,6 +253,7 @@ class BaseAIService(ABC):
         """
         response = {
             "content": content,
+            "reasoning": reasoning,
             "model": model,
             "usage": usage,
             "metadata": {

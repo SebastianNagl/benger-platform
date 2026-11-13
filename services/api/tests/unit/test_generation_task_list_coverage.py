@@ -223,6 +223,7 @@ async def _seed_individual_generation(
     response_content="Hello world",
     usage_stats=None,
     created_at=None,
+    reasoning=None,
 ) -> DBGeneration:
     g = DBGeneration(
         id=_uid(),
@@ -231,6 +232,7 @@ async def _seed_individual_generation(
         model_id=parent.model_id,
         case_data="case data text",
         response_content=response_content,
+        reasoning=reasoning,
         usage_stats=usage_stats if usage_stats is not None else {"tokens": 100},
         status="completed",
         run_index=run_index,
@@ -1143,6 +1145,8 @@ class TestGetGenerationResult:
         assert len(body["results"]) == 1
         assert body["results"][0]["status"] == "completed"
         assert body["results"][0]["result"]["generated_text"] == "Hello world"
+        # No reasoning stored -> the field is present and null.
+        assert body["results"][0]["result"]["reasoning"] is None
         assert body["results"][0]["generation_time_seconds"] is not None
 
     @pytest.mark.asyncio
@@ -1165,6 +1169,7 @@ class TestGetGenerationResult:
             async_test_db, parent, run_index=0, response_content="First response",
             usage_stats={"tokens": 50},
             created_at=datetime(2025, 6, 2, 0, 0, 0, tzinfo=timezone.utc),
+            reasoning="First reasoning",
         )
         await _seed_individual_generation(
             async_test_db, parent, run_index=1, response_content="Second response",
@@ -1181,7 +1186,13 @@ class TestGetGenerationResult:
         assert resp.status_code == 200
         body = resp.json()
         assert "generations" in body["results"][0]["result"]
-        assert len(body["results"][0]["result"]["generations"]) == 2
+        runs = body["results"][0]["result"]["generations"]
+        assert len(runs) == 2
+        # Each run carries its own reasoning beside its answer.
+        assert [(r["generated_text"], r["reasoning"]) for r in runs] == [
+            ("First response", "First reasoning"),
+            ("Second response", None),
+        ]
 
     @pytest.mark.asyncio
     async def test_failed_generation(self, async_test_client, async_test_db):

@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-11-13-model-reasoning": "Wenn ein Modell neben seiner Antwort sein Reasoning mitliefert, speichert BenGER es jetzt mit: Du findest es in der Generierungsansicht in einem eingeklappten Abschnitt unter der Antwort, und Projektexporte enthalten es. Auch das Reasoning eines Judge-Modells wird bei der Bewertung gespeichert. Parsing und Bewertung nutzen weiterhin nur die Antwort.",
     "2026-11-12-open-deleted-projects": "Gelöschte Projekte lassen sich jetzt öffnen: Superadmins sehen in der Liste der gelöschten Projekte dieselbe Tabelle wie bei aktiven und archivierten Projekten, öffnen ein Projekt per Klick und sehen seinen Inhalt, ohne es vorher wiederherzustellen. Ein Hinweis oben auf der Seite zeigt, dass es gelöscht ist, und bietet die Wiederherstellung an.",
     "2026-11-11-lti-openolat": "Du kannst jetzt auch OpenOlat anbinden: Im Panel „Lernplattform verbinden“ gibt es OpenOlat als eigene Lernplattform, die Anleitung „Wie binde ich OpenOlat an?“ führt durch die Einrichtung.",
     "2026-11-11-lti-deep-linking": "Lehrende wählen die Klausur jetzt schon beim Anlegen der Aktivität in der Lernplattform aus („Inhalt auswählen“ in Moodle und OpenOlat). Die Aktivität ist dann beim ersten Öffnen verknüpft.",

@@ -9,6 +9,7 @@ import { BulkActions } from '@/components/projects/BulkActions'
 import { ColumnSelector } from '@/components/projects/ColumnSelector'
 import { FilterDropdown } from '@/components/projects/FilterDropdown'
 import { ImportDataModal } from '@/components/projects/ImportDataModal'
+import { MergeResultsModal } from '@/components/projects/MergeResultsModal'
 import { TaskAssignmentModal } from '@/components/projects/TaskAssignmentModal'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
@@ -34,6 +35,7 @@ import { extractNestedDataColumns } from '@/utils/nestedDataColumnHelpers'
 import { labelStudioTaskToApi } from '@/utils/taskTypeAdapter'
 import { Menu } from '@headlessui/react'
 import {
+  ArrowsPointingInIcon,
   ChevronDownIcon,
   DocumentMagnifyingGlassIcon,
   MagnifyingGlassIcon,
@@ -198,6 +200,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showMergeModal, setShowMergeModal] = useState(false)
   // Extended: hand in solutions as files on members' behalf (button + modal).
   const SolutionUploads = useSlot('project-data-solution-uploads')
 
@@ -1043,6 +1046,17 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   </svg>
                 </Button>
               )}
+              {!isDeletedProject && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMergeModal(true)}
+                  title={t('projects.mergeImport.button')}
+                  aria-label={t('projects.mergeImport.button')}
+                  data-testid="merge-results-button"
+                >
+                  <ArrowsPointingInIcon className="h-4 w-4" />
+                </Button>
+              )}
 
               <Button
                 variant="outline"
@@ -1240,6 +1254,14 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
             await reloadCurrentPage()
           }
         }}
+      />
+
+      {/* Merge Results Modal */}
+      <MergeResultsModal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        projectId={projectId}
+        onMergeComplete={reloadCurrentPage}
       />
 
       {/* Task Assignment Modal */}

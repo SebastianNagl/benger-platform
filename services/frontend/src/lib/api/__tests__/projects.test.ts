@@ -914,6 +914,96 @@ describe('projectsAPI', () => {
       fetchSpy.mockRestore()
     })
 
+    it('runMergeImportJob enqueues a merge with its model id map and polls', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-3', status: 'pending' })
+      })
+      const statuses = [
+        { job_id: 'job-3', status: 'running', result: null },
+        {
+          job_id: 'job-3',
+          status: 'completed',
+          result: { statistics: { merged: true, matched_tasks: 2 } },
+        },
+      ]
+      let poll = 0
+      ;(apiClient.get as jest.Mock).mockImplementation(() =>
+        Promise.resolve(statuses[Math.min(poll++, statuses.length - 1)]),
+      )
+
+      const file = new File(['{}'], 'copy.ndjson', { type: 'application/json' })
+      const onStatus = jest.fn()
+      const final = await projectsAPI.runMergeImportJob(
+        'proj-1',
+        file,
+        { onStatus },
+        { pollIntervalMs: 1, modelIdMap: { 'custom-local': 'custom-prod' } },
+      )
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: presigned.file_key,
+        mode: 'merge',
+        model_id_map: { 'custom-local': 'custom-prod' },
+      })
+      expect(onStatus).toHaveBeenCalledTimes(2)
+      expect(final.result?.statistics?.matched_tasks).toBe(2)
+
+      fetchSpy.mockRestore()
+    })
+
+    it('runMergeImportJob without a map sends no map and surfaces a refusal', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-4', status: 'pending' })
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-4',
+        status: 'failed',
+        error_message: '409: merge_task_mismatch: no match',
+        result: null,
+      })
+
+      const file = new File(['{}'], 'other.json', { type: 'application/json' })
+      await expect(
+        projectsAPI.runMergeImportJob('proj-1', file, undefined, {
+          pollIntervalMs: 1,
+        }),
+      ).rejects.toThrow('merge_task_mismatch')
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: presigned.file_key,
+        mode: 'merge',
+      })
+
+      fetchSpy.mockRestore()
+    })
+
+    it('runMergeImportJob stops polling once aborted', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-5', status: 'pending' })
+      })
+      const controller = new AbortController()
+      controller.abort()
+      const file = new File(['{}'], 'copy.json', { type: 'application/json' })
+      await expect(
+        projectsAPI.runMergeImportJob('proj-1', file, undefined, {
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow('Import polling aborted')
+
+      fetchSpy.mockRestore()
+    })
+
     it('runProjectImportJob creates a project and returns the new id', async () => {
       const fetchSpy = jest
         .spyOn(global, 'fetch')

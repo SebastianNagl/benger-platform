@@ -109,7 +109,11 @@ class TestCreateResponseDict:
         assert "error" not in resp
 
         # Exactly the documented top-level key set, nothing extra leaked.
-        assert set(resp.keys()) == {"content", "model", "usage", "metadata", "success"}
+        # "reasoning" is always present (None when the provider returned none).
+        assert set(resp.keys()) == {
+            "content", "reasoning", "model", "usage", "metadata", "success"
+        }
+        assert resp["reasoning"] is None
 
     def test_success_false_passthrough(self):
         # success is a real parameter, not hardcoded True.

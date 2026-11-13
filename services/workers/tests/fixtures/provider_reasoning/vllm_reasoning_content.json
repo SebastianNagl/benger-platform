@@ -1,0 +1,24 @@
+{
+  "_source": "vLLM / SGLang with a reasoning parser (DeepSeek-R1 style): answer in content, reasoning in reasoning_content.",
+  "id": "chatcmpl-2b0c",
+  "object": "chat.completion",
+  "created": 1794500100,
+  "model": "qwen3-32b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Der Anspruch besteht.",
+        "reasoning_content": "Zuerst prüfe ich die Anspruchsgrundlage § 433 Abs. 2 BGB.\nDann die Einwendungen.",
+        "tool_calls": []
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 60,
+    "total_tokens": 180
+  }
+}

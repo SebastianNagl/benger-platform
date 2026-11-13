@@ -674,13 +674,23 @@ export const projectsAPI = {
     }
   },
 
-  /** Create an async NESTED import job for an already-uploaded artifact. */
+  /**
+   * Create an async import job into a project for an already-uploaded
+   * artifact. The default is the NESTED import (new tasks); `mode: 'merge'`
+   * merges a full project export's new generation and evaluation results
+   * into the project's existing tasks, `modelIdMap` translating model ids.
+   */
   createImportJob: async (
     projectId: string,
     objectKey: string,
+    options?: { mode?: 'merge'; modelIdMap?: Record<string, string> },
   ): Promise<{ job_id: string; status: ImportJobState }> => {
     return apiClient.post(`/projects/${projectId}/imports`, {
       object_key: objectKey,
+      ...(options?.mode ? { mode: options.mode } : {}),
+      ...(options?.modelIdMap && Object.keys(options.modelIdMap).length > 0
+        ? { model_id_map: options.modelIdMap }
+        : {}),
     })
   },
 
@@ -735,6 +745,49 @@ export const projectsAPI = {
     const { job_id } = await projectsAPI.createImportJob(
       projectId,
       upload.file_key,
+    )
+
+    let attempt = 0
+    for (;;) {
+      if (options?.signal?.aborted) {
+        throw new DOMException('Import polling aborted', 'AbortError')
+      }
+      const status = await projectsAPI.getImportJob(projectId, job_id)
+      callbacks?.onStatus?.(status)
+      if (status.status === 'completed') return status
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'Import job failed')
+      }
+      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
+    }
+  },
+
+  /**
+   * Drive a MERGE import (a full project export's new results into this
+   * project) through the async job flow: presign → upload → enqueue → poll.
+   * Resolves with the final (completed) job status; the merge statistics are
+   * on `status.result.statistics`.
+   *
+   * Throws an Error if the job fails (message = the worker's error_message,
+   * e.g. `merge_task_mismatch: ...`), or a DOMException `AbortError` if the
+   * caller's signal is aborted while polling.
+   */
+  runMergeImportJob: async (
+    projectId: string,
+    file: File,
+    callbacks?: { onStatus?: (status: ImportJobStatus) => void },
+    options?: {
+      pollIntervalMs?: number
+      signal?: AbortSignal
+      modelIdMap?: Record<string, string>
+    },
+  ): Promise<ImportJobStatus> => {
+    const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
+    await projectsAPI.uploadToPresignedUrl(upload, file)
+    const { job_id } = await projectsAPI.createImportJob(
+      projectId,
+      upload.file_key,
+      { mode: 'merge', modelIdMap: options?.modelIdMap },
     )
 
     let attempt = 0

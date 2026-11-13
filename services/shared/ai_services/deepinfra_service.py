@@ -20,6 +20,7 @@ from .base_service import (
     derive_truncated,
 )
 from .provider_capabilities import calculate_cost, model_supports_seed
+from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
 
@@ -345,6 +346,9 @@ class DeepInfraService(BaseAIService):
         response_text = ""
         if result.get("choices") and len(result["choices"]) > 0:
             response_text = result["choices"][0]["message"]["content"]
+        # Reasoning models (DeepSeek-R1, Qwen thinking, gpt-oss, GLM, Kimi)
+        # return their reasoning beside the answer in reasoning_content.
+        reasoning = chat_completion_reasoning(result)
 
         # Calculate token usage
         usage = result.get("usage", {})
@@ -395,6 +399,7 @@ class DeepInfraService(BaseAIService):
             },
             success=True,
             error=None,
+            reasoning=reasoning,
         )
 
 

@@ -41,6 +41,9 @@ def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> d
         "data": task.data,
         "meta": task.meta,
         "is_labeled": task.is_labeled,
+        # The task this one was imported from (NULL when created here). An
+        # import carries it on, so a merge import can find the original.
+        "source_task_id": task.source_task_id,
         "created_at": _isoformat(task.created_at),
         "updated_at": _isoformat(task.updated_at),
     }
@@ -133,6 +136,8 @@ def serialize_generation(
         "id": gen.id,
         "model_id": gen.model_id,
         "response_content": gen.response_content,
+        # Reasoning the model returned beside the answer (None when none).
+        "reasoning": gen.reasoning,
         "case_data": gen.case_data,
         "created_at": _isoformat(gen.created_at),
         "response_metadata": gen.response_metadata,
@@ -152,8 +157,32 @@ def serialize_generation(
             "parse_metadata": gen.parse_metadata,
             "label_config_version": gen.label_config_version,
             "label_config_snapshot": gen.label_config_snapshot,
+            # Trial number within the parent job. Without it every child of a
+            # multi-run job re-imported as run 0 and collided on
+            # uq_generations_parent_run_index, failing the whole import.
+            "run_index": gen.run_index,
+            **_call_telemetry(gen),
         })
     return d
+
+
+# Per-LLM-call columns (migration 040) shared by generations and judged
+# evaluation rows. The worker writes them as columns only; on evaluation rows
+# nothing else keeps them, so a full export has to carry them.
+CALL_TELEMETRY_FIELDS = (
+    "seed",
+    "finish_reason",
+    "truncated",
+    "refusal",
+    "error_type",
+    "latency_ms",
+    "input_tokens",
+    "output_tokens",
+)
+
+
+def _call_telemetry(row) -> dict:
+    return {f: getattr(row, f) for f in CALL_TELEMETRY_FIELDS}
 
 
 def serialize_task_evaluation(
@@ -176,6 +205,8 @@ def serialize_task_evaluation(
         "error_message": te.error_message,
         "processing_time_ms": te.processing_time_ms,
         "judge_prompts_used": te.judge_prompts_used,
+        # Reasoning the judge model returned beside its output (None when none).
+        "raw_reasoning": te.raw_reasoning,
         # judge_run_id is the per-row link to EvaluationJudgeRun; needed so
         # multi-judge configs (where one EvaluationRun spawns N EvaluationJudgeRuns,
         # one per judge model) remain distinguishable in the export.
@@ -210,6 +241,11 @@ def serialize_task_evaluation(
             "evaluation_id": te.evaluation_id,
             "task_id": te.task_id,
             "generation_id": te.generation_id,
+            # The judge's raw answer and the call telemetry exist only as
+            # columns of this row.
+            "raw_output": te.raw_output,
+            **_call_telemetry(te),
+            "updated_at": _isoformat(te.updated_at),
         })
     return d
 
@@ -238,6 +274,7 @@ def serialize_evaluation_run(er, *, mode: str = "data") -> dict:
             "task_id": er.task_id,
             "eval_metadata": er.eval_metadata,
             "error_message": er.error_message,
+            "has_sample_results": er.has_sample_results,
             "created_by": er.created_by,
         })
     return d

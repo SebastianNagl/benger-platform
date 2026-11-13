@@ -1,0 +1,19 @@
+{
+  "_source": "Anthropic Messages API without thinking.",
+  "id": "msg_01DEF",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-haiku-4-5-20251001",
+  "content": [
+    {
+      "type": "text",
+      "text": "Die Klage hat Erfolg."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 40,
+    "output_tokens": 8
+  }
+}

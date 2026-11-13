@@ -1,0 +1,48 @@
+{
+  "_source": "OpenAI /v1/responses for a *-pro model with reasoning.summary requested: one reasoning item with a summary, then the message.",
+  "id": "resp_67cb",
+  "object": "response",
+  "created_at": 1794500500,
+  "status": "completed",
+  "model": "gpt-5.5-pro",
+  "output": [
+    {
+      "id": "rs_1",
+      "type": "reasoning",
+      "summary": [
+        {
+          "type": "summary_text",
+          "text": "Ich vergleiche die Fristen nach ZPO."
+        }
+      ]
+    },
+    {
+      "id": "msg_1",
+      "type": "message",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Die Frist ist abgelaufen.",
+          "annotations": []
+        }
+      ]
+    }
+  ],
+  "parallel_tool_calls": true,
+  "tool_choice": "auto",
+  "tools": [],
+  "usage": {
+    "input_tokens": 80,
+    "output_tokens": 300,
+    "total_tokens": 380,
+    "input_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "output_tokens_details": {
+      "reasoning_tokens": 280
+    }
+  }
+}

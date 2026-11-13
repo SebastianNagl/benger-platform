@@ -428,6 +428,13 @@ def _create_tables():
                     "jurisdiction VARCHAR(8)"
                 )
             )
+            # Migration 130: where an imported task came from (nullable).
+            conn.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "
+                    "source_task_id VARCHAR"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

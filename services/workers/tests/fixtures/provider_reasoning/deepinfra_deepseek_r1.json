@@ -1,0 +1,27 @@
+{
+  "_source": "DeepInfra OpenAI-compatible endpoint, deepseek-ai/DeepSeek-R1-0528.",
+  "id": "chatcmpl-di-1",
+  "object": "chat.completion",
+  "created": 1794500200,
+  "model": "deepseek-ai/DeepSeek-R1-0528",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Ergebnis: Der Vertrag ist wirksam.",
+        "reasoning_content": "Angebot und Annahme liegen vor (§§ 145 ff. BGB). Kein Nichtigkeitsgrund ersichtlich.",
+        "name": null,
+        "tool_calls": null
+      },
+      "finish_reason": "stop",
+      "logprobs": null
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 300,
+    "completion_tokens": 150,
+    "total_tokens": 450,
+    "estimated_cost": 0.0005
+  }
+}
