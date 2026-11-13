@@ -82,6 +82,11 @@ function GenerationControlModalBody({
   const { t, locale } = useI18n()
   const { billingOrganizationId } = useModelScope()
   const [mode, setMode] = useState<'all' | 'missing'>('missing')
+  // "Regenerate all" cancels every pending or running generation on the
+  // project, so it is for real project members only (the API's
+  // check_user_can_edit_project); a public project's visitors generate the
+  // missing cells.
+  const canRegenerateAll = project?.can_edit !== false
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedStructures, setSelectedStructures] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -451,24 +456,26 @@ function GenerationControlModalBody({
                           </p>
                         </div>
                       </div>
-                      <div className={R.optionCard}>
-                        <input
-                          id="mode-all"
-                          type="radio"
-                          value="all"
-                          checked={mode === 'all'}
-                          onChange={(e) => setMode(e.target.value as 'all')}
-                          className={R.radio}
-                        />
-                        <div className="flex-1">
-                          <label htmlFor="mode-all" className={R.optionTitle}>
-                            {t('generation.controlModal.generateAll')}
-                          </label>
-                          <p className={R.optionDescription}>
-                            {t('generation.controlModal.generateAllDesc')}
-                          </p>
+                      {canRegenerateAll && (
+                        <div className={R.optionCard}>
+                          <input
+                            id="mode-all"
+                            type="radio"
+                            value="all"
+                            checked={mode === 'all'}
+                            onChange={(e) => setMode(e.target.value as 'all')}
+                            className={R.radio}
+                          />
+                          <div className="flex-1">
+                            <label htmlFor="mode-all" className={R.optionTitle}>
+                              {t('generation.controlModal.generateAll')}
+                            </label>
+                            <p className={R.optionDescription}>
+                              {t('generation.controlModal.generateAllDesc')}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 

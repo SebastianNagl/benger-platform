@@ -432,6 +432,23 @@ def _validate_expiry(expires_at: Optional[datetime]) -> Optional[datetime]:
     return expires_at
 
 
+def validate_rate_limits(rpm: Optional[int], rpd: Optional[int]) -> None:
+    """Refuse per-key limits above the deployment maximum
+    (``API_KEY_MAX_RPM`` / ``API_KEY_MAX_RPD``). ``None`` means the
+    deployment default and is always allowed."""
+    settings = _settings()
+    for value, cap, field, unit in (
+        (rpm, settings.api_key_max_rpm, "rate_limit_per_minute", "minute"),
+        (rpd, settings.api_key_max_rpd, "rate_limit_per_day", "day"),
+    ):
+        if value is not None and value > cap:
+            raise _error(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "rate_limit_too_high",
+                f"{field} may be at most {cap} requests per {unit} on this deployment",
+            )
+
+
 def _normalize_project_ids(project_ids) -> Optional[List[str]]:
     if project_ids is None:
         return None
@@ -498,6 +515,9 @@ def service_account_for(kid: str, key_name: str) -> User:
 
 
 def _personal_parts(owner_user_id: str, payload: Any, created_by: Optional[str]):
+    validate_rate_limits(
+        _field(payload, "rate_limit_per_minute"), _field(payload, "rate_limit_per_day")
+    )
     plain, prefix = generate_api_key()
     row = _key_row(
         name=_field(payload, "name"),
@@ -523,6 +543,9 @@ def _org_parts(creator_id: str, org_id: str, payload: Any):
             "invalid_org_role",
             "org_role must be ANNOTATOR, CONTRIBUTOR or ORG_ADMIN",
         )
+    validate_rate_limits(
+        _field(payload, "rate_limit_per_minute"), _field(payload, "rate_limit_per_day")
+    )
     group_id = _field(payload, "group_id")
     name = _field(payload, "name")
     plain, prefix = generate_api_key()

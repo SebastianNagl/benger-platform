@@ -1132,6 +1132,13 @@ export interface ScopeCatalog {
   scopes: ScopeDefinition[]
   /** Preset id -> scope names (benchmark_read, benchmark_submit, org_full, full_access, ...). */
   presets: Record<string, string[]>
+  /** The deployment's per-key request limits (defaults and maximum). */
+  limits?: {
+    default_per_minute: number
+    default_per_day: number
+    max_per_minute: number
+    max_per_day: number
+  }
 }
 
 /** Answer of GET /api/v1/me for an access key. */

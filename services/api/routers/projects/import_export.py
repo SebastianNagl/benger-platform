@@ -70,11 +70,12 @@ from project_models import (  # noqa: E402
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
-    check_project_write_access_async,
+    check_user_can_edit_project_async,
     can_read_all_task_content,
     can_read_all_task_content_async,
     enforce_project_read_window,
     enforce_project_read_window_async,
+    require_org_key_own_organization,
 )
 
 router = APIRouter()
@@ -404,16 +405,17 @@ async def _load_import_job_for_read(
 ) -> ImportJob:
     """Fetch an ImportJob enforcing scope + authz, or raise the right HTTP error.
 
-    Mirrors ``_load_export_job_for_read``: readable by its requester or by anyone
-    with write access to the project. 404 (not 403) when the job belongs to a
-    different project so job-id existence doesn't leak across projects.
+    Mirrors ``_load_export_job_for_read``: readable by its requester or by
+    anyone who may import into the project (``check_user_can_edit_project``).
+    404 (not 403) when the job belongs to a different project so job-id
+    existence doesn't leak across projects.
     """
     job = (
         await db.execute(select(ImportJob).where(ImportJob.id == job_id))
     ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Import job not found")
-    if str(job.requested_by) != str(current_user.id) and not await check_project_write_access_async(
+    if str(job.requested_by) != str(current_user.id) and not await check_user_can_edit_project_async(
         db, current_user, project_id
     ):
         raise HTTPException(status_code=403, detail="Access denied")
@@ -451,7 +453,12 @@ async def create_import_upload_url(
 ):
     """Hand the client a presigned URL to upload a nested-import artifact.
 
-    Write access to the project is required. The key is scoped to
+    Edit rights on the project are required (``check_user_can_edit_project``:
+    creator, superadmin, or a CONTRIBUTOR or higher of an attached org).
+    Imports of every mode add to or rewrite the project as a whole, so a
+    public project's ``public_role=CONTRIBUTOR`` visitors, who may read and
+    export it and add their own annotations and generations, may not import
+    into it. The key is scoped to
     ``imports/.../{project_id}/`` so the later POST .../imports can verify the
     uploaded object belongs to this project.
     """
@@ -461,10 +468,13 @@ async def create_import_upload_url(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not await check_project_write_access_async(db, current_user, project_id):
+    if not await check_user_can_edit_project_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
-            detail="Only contributors or admins can import tasks into this project",
+            detail=(
+                "Only members of the project's organizations (contributors or "
+                "admins), its creator or a superadmin can import into this project"
+            ),
         )
     await _reject_import_into_linked_exam(db, project)
 
@@ -509,10 +519,13 @@ async def create_import_job(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not await check_project_write_access_async(db, current_user, project_id):
+    if not await check_user_can_edit_project_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
-            detail="Only contributors or admins can import tasks into this project",
+            detail=(
+                "Only members of the project's organizations (contributors or "
+                "admins), its creator or a superadmin can import into this project"
+            ),
         )
     await _reject_import_into_linked_exam(db, project)
 
@@ -675,10 +688,13 @@ async def create_cloud_import_jobs(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not await check_project_write_access_async(db, current_user, project_id):
+    if not await check_user_can_edit_project_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
-            detail="Only contributors or admins can import tasks into this project",
+            detail=(
+                "Only members of the project's organizations (contributors or "
+                "admins), its creator or a superadmin can import into this project"
+            ),
         )
     await _reject_import_into_linked_exam(db, project)
 
@@ -802,7 +818,7 @@ async def list_cloud_import_jobs(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not await check_project_write_access_async(db, current_user, project_id):
+    if not await check_user_can_edit_project_async(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     rows = (
@@ -978,6 +994,7 @@ async def create_full_import_upload_url(
 @router.post("/project-imports", status_code=202)
 async def create_full_import_job(
     data: dict,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -989,7 +1006,10 @@ async def create_full_import_job(
     this user — both checked here so a client can't point the worker at
     someone else's upload. ``organization_id`` names the org that will own the
     new project (``organization_group_id``: attached through that group of
-    it); without it the project is the importer's private project.
+    it); without it the project is the importer's private project. An
+    organization access key must name its own organization (400
+    ``organization_required`` otherwise), so the project never ends up as
+    the private project of the key's service account.
 
     ``model_id_map`` (``{"<model id in the export>": "<model id here>"}``)
     translates model ids before the import stores them: the model of every
@@ -1013,6 +1033,7 @@ async def create_full_import_job(
     except ImportValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
+    require_org_key_own_organization(request, (data or {}).get("organization_id"))
     organization_id, organization_group_id = await _resolve_import_target_org(
         db,
         current_user,

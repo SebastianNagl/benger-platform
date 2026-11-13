@@ -24,17 +24,20 @@ celery_app = get_celery_app()
 # ============= Helper Functions =============
 
 
-def resolve_user_org_for_project(user, project, db: Session) -> Optional[str]:
+def resolve_user_org_for_project(
+    user, project, db: Session, *, min_role: Optional[str] = None
+) -> Optional[str]:
     """Find the org the current user belongs to among the project's orgs.
 
     Thin delegate kept for its many importers — the shared implementation in
     ``org_resolution`` is the single source of truth (active membership wins;
     superadmins fall back to the project's first org; ordinary non-members
-    resolve to ``None`` → personal key).
+    resolve to ``None`` → personal key). ``min_role`` (for runs a caller
+    starts: ``"CONTRIBUTOR"``) ignores memberships below that role.
     """
     from org_resolution import resolve_dispatch_org_for_project
 
-    return resolve_dispatch_org_for_project(db, user, project)
+    return resolve_dispatch_org_for_project(db, user, project, min_role=min_role)
 
 
 def _build_select_evaluation_types_for_task_type(dialect_name: str, task_type: str):

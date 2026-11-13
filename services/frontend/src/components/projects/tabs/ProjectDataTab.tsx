@@ -585,6 +585,15 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
     !isDeletedProject &&
     (!!user?.is_superadmin || currentProject?.effective_role === 'ORG_ADMIN')
 
+  // Project-level writes (import of every mode, merge, task metadata,
+  // archive, delete, assignment): real members only, the API's own edit
+  // decision (can_edit: creator, superadmin, CONTRIBUTOR or higher of an
+  // attached org). A public project's CONTRIBUTOR visitors read and export
+  // but do not see these controls; the API refuses them too.
+  const canManageProject =
+    !isDeletedProject &&
+    (!!user?.is_superadmin || currentProject?.can_edit === true)
+
   // State for annotation comparison modal
   const [selectedTaskForComparison, setSelectedTaskForComparison] =
     useState<LabelStudioTask | null>(null)
@@ -844,10 +853,9 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
     setShowAssignmentModal(true)
   }
 
-  // Check if current user can unassign tasks (admins/contributors, plus
-  // public-tier CONTRIBUTORs when the project is public).
-  const canUnassign =
-    !isDeletedProject && perms.canAccessProjectData({ project: currentProject })
+  // Assigning and unassigning manage the project: real members only (the
+  // API's assign / unassign gate), not a public project's visitors.
+  const canUnassign = canManageProject
 
   return (
     <>
@@ -891,9 +899,8 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   onExport={handleBulkExport}
                   onArchive={handleBulkArchive}
                   onAssign={handleOpenAssignmentModal}
-                  canAssign={perms.canAccessProjectData({
-                    project: currentProject,
-                  })}
+                  canAssign={canManageProject}
+                  canModify={canManageProject}
                   onTagsUpdated={async () => {
                     await reloadCurrentPage()
                     addToast(t('annotationTab.messages.tagsUpdated'), 'success')
@@ -1024,7 +1031,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   onUploaded={reloadCurrentPage}
                 />
               )}
-              {!isDeletedProject && (
+              {canManageProject && (
                 <Button
                   variant="outline"
                   onClick={() => setShowImportModal(true)}
@@ -1046,7 +1053,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                   </svg>
                 </Button>
               )}
-              {!isDeletedProject && (
+              {canManageProject && (
                 <Button
                   variant="outline"
                   onClick={() => setShowMergeModal(true)}

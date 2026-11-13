@@ -110,3 +110,18 @@ async def test_memory_store_prunes_expired_entries(memory_limiter, monkeypatch):
         memory_limiter._memory_store[f"old{i}"] = {"count": 1, "expires": 0}
     await memory_limiter._increment_count("fresh", 60)
     assert set(memory_limiter._memory_store) == {"fresh"}
+
+
+def test_stored_limits_above_the_maximum_are_clamped_at_use(monkeypatch):
+    """A key stored with a limit above the deployment maximum (created before
+    the maximum existed, or after it was lowered) is held to the maximum."""
+    monkeypatch.setattr(settings, "api_key_max_rpm", 600)
+    monkeypatch.setattr(settings, "api_key_max_rpd", 100_000)
+    assert rl.api_key_limits(_key(rpm=100_000, rpd=100_000_000)) == {
+        "minute": (600, 60),
+        "day": (100_000, 86400),
+    }
+    monkeypatch.setattr(settings, "api_key_max_rpm", 50)
+    monkeypatch.setattr(settings, "api_key_default_rpm", 120)
+    # The default is clamped too when the maximum is set below it.
+    assert rl.api_key_limits(_key())["minute"] == (50, 60)

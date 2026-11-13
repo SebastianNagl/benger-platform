@@ -549,6 +549,8 @@ describe('ProjectDataTab', () => {
         title: 'Test Project',
         num_tasks: 2,
         num_annotations: 2,
+        // A real project member (the API's edit decision).
+        can_edit: true,
       },
       loading: false,
       fetchProjectTasks: mockFetchProjectTasks,
@@ -1030,6 +1032,38 @@ describe('ProjectDataTab', () => {
   })
 
   describe('Import Modal', () => {
+    it('hides import and merge from callers who may not change the project', async () => {
+      // A public project's CONTRIBUTOR visitor: reads and exports, but the
+      // API refuses imports and merges, so the controls are not shown.
+      mockUseProjectStore.mockReturnValue({
+        currentProject: {
+          id: 'project-1',
+          title: 'Public Project',
+          num_tasks: 2,
+          num_annotations: 2,
+          is_public: true,
+          public_role: 'CONTRIBUTOR',
+          effective_role: 'CONTRIBUTOR',
+          can_edit: false,
+        },
+        loading: false,
+        fetchProjectTasks: mockFetchProjectTasks,
+      } as any)
+      render(<ProjectDataTab projectId="project-1" />)
+
+      await waitFor(() => {
+        expect(mockFetchProjectTasks).toHaveBeenCalled()
+      })
+
+      expect(screen.queryByTestId('import-button')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('merge-results-button'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTitle(/annotationTab\.buttons\.export/i),
+      ).toBeInTheDocument()
+    })
+
     it('should open import modal', async () => {
       render(<ProjectDataTab projectId="project-1" />)
 

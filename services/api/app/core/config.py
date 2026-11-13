@@ -147,6 +147,11 @@ class Settings(BaseSettings):
     api_key_environment: Optional[str] = None
     api_key_default_rpm: int = 120
     api_key_default_rpd: int = 20000
+    # Deployment-wide ceiling for the per-key limits (API_KEY_MAX_RPM /
+    # API_KEY_MAX_RPD). Creating or updating a key above it is refused, and a
+    # key stored with a higher limit is clamped to it when it is used.
+    api_key_max_rpm: int = 600
+    api_key_max_rpd: int = 100000
     # Usage events older than this are deleted by the daily beat task.
     api_usage_retention_days: int = 400
     # How much of the client IP the usage log keeps: "full", "truncated"
