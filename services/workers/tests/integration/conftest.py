@@ -291,6 +291,9 @@ def _schema(_eager_celery):
             # carries it, so every group SELECT needs the column).
             "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
             "jurisdiction VARCHAR(8)",
+            # Migration 130: where an imported task came from; every Task
+            # select names the column.
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_task_id VARCHAR",
         ):
             conn.execute(text(_ddl))
     yield

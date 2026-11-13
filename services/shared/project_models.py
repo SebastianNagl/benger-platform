@@ -296,6 +296,11 @@ class Task(Base):
     # JSONB in a query that needs jsonb operators.
     data = Column(JSON, nullable=False)  # The actual data to annotate
     meta = Column(JSON, nullable=True)  # Optional metadata
+    # Id of the task this row was imported from, kept across repeated imports
+    # (the original's id, not an intermediate copy's); NULL for tasks created
+    # here. A merge import matches exported tasks to this project's by it
+    # (migration 130).
+    source_task_id = Column(String, nullable=True)
 
     # User tracking
     created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

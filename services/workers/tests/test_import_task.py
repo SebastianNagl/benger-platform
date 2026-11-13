@@ -176,6 +176,60 @@ def test_import_comprehensive_creates_project_and_captures_id(_patched):
     assert captured["organization_id"] is None
 
 
+def test_import_comprehensive_passes_model_id_map_to_importer(_patched):
+    """The model_id_map sent with the task reaches the create-new importer."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"format_version": "1.0", "project": {"title": "X"}}'
+    job = _make_job(project_id=None, object_key="imports/u1/file.json")
+    _stage_object(storage, job.object_key, content)
+
+    captured = {}
+
+    def _fake_full(db, fileobj, user_id, organization_id=None, model_id_map=None):
+        captured["model_id_map"] = model_id_map
+        return {"project_id": "new-proj-8", "message": "ok", "statistics": {}}
+
+    session = _FakeSession({ImportJob: job})
+    with patch("import_stream.run_full_project_import", _fake_full), patch.object(
+        workers_tasks, "SessionLocal", return_value=session
+    ):
+        result = workers_tasks.import_project(
+            "ijob-1", model_id_map={"custom-dev": "custom-prod"}
+        )
+
+    assert result["status"] == "completed"
+    assert captured["model_id_map"] == {"custom-dev": "custom-prod"}
+
+
+def test_merge_mode_runs_the_merge_driver(_patched):
+    """mode="merge" on a project-scoped job merges instead of importing new
+    tasks, and hands over the model_id_map."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"format_version": "1.0", "project": {"title": "X"}}'
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, content)
+
+    captured = {}
+
+    def _fake_merge(db, project_id, fileobj, user_id, model_id_map=None):
+        captured.update(project_id=project_id, model_id_map=model_id_map)
+        return {"project_id": project_id, "statistics": {"merged": True}}
+
+    session = _FakeSession({ImportJob: job})
+    with patch("import_stream.run_merge_import", _fake_merge), patch(
+        "import_stream.run_nested_import"
+    ) as mock_nested, patch.object(workers_tasks, "SessionLocal", return_value=session):
+        result = workers_tasks.import_project(
+            "ijob-1", model_id_map={"a": "b"}, mode="merge"
+        )
+
+    assert result["status"] == "completed"
+    mock_nested.assert_not_called()
+    assert captured == {"project_id": "proj-1", "model_id_map": {"a": "b"}}
+    assert job.format == "merge"
+    assert job.project_id == "proj-1"
+
+
 def test_import_comprehensive_passes_job_organization_to_importer(_patched):
     """The org context stored on the job reaches the create-new importer."""
     workers_tasks, storage, ImportJob = _patched

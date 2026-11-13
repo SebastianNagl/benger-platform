@@ -10,7 +10,7 @@ import tempfile
 import uuid
 import zipfile
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,10 @@ from routers.projects._import_stream import (  # noqa: E402,F401
     LINKED_EXAM_MAX_TASKS,
     MULTI_TASK_MESSAGE,
     MULTI_TASK_UNSUPPORTED,
+    ImportValidationError,
     convert_from_label_studio_format,  # re-exported: shared driver used by tests
     linked_exam_stmt,
+    normalize_model_id_map,
     run_full_project_import,  # re-exported: shared driver used by tests
     run_nested_import,  # re-exported: shared driver used by tests
     task_count_stmt,
@@ -464,10 +466,20 @@ async def create_import_job(
 ):
     """Create an async import job for an already-uploaded artifact and enqueue it.
 
-    Body: ``{"object_key": "imports/.../{project_id}/..."}``. The key must live
+    Body: ``{"object_key": "imports/.../{project_id}/...", "mode": optional,
+    "model_id_map": optional}``. The key must live
     under the import prefix AND be scoped to this project — both are checked
     here so a client can't point the worker at an arbitrary object. Returns 202
     with the job id.
+
+    ``mode`` is ``"nested"`` (default: the Project data page's task export,
+    imported as new tasks) or ``"merge"``: the file is a full project export
+    (comprehensive JSON or NDJSON) of this project or of a copy of it, and
+    only its generation and evaluation results that this project does not
+    hold yet are added to the matching tasks (see ``run_merge_import``). A
+    merge whose tasks are not this project's fails the job and imports
+    nothing. ``model_id_map`` (merge only) translates model ids as on
+    ``POST /project-imports``.
     """
     project = (
         await db.execute(select(Project).where(Project.id == project_id))
@@ -491,6 +503,24 @@ async def create_import_job(
     if not object_key.startswith("imports/") or f"/{project_id}/" not in object_key:
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
+    mode = (data or {}).get("mode") or "nested"
+    if mode not in ("nested", "merge"):
+        raise HTTPException(status_code=400, detail="mode must be 'nested' or 'merge'")
+    raw_map = (data or {}).get("model_id_map")
+    if raw_map is not None and mode != "merge":
+        raise HTTPException(
+            status_code=400, detail="model_id_map is only supported with mode 'merge'"
+        )
+    try:
+        model_id_map = normalize_model_id_map(raw_map)
+    except ImportValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    task_kwargs = {}
+    if mode == "merge":
+        task_kwargs["mode"] = "merge"
+        if model_id_map:
+            task_kwargs["model_id_map"] = model_id_map
+
     job = ImportJob(
         id=str(uuid.uuid4()),
         project_id=project_id,
@@ -507,6 +537,7 @@ async def create_import_job(
         result = send_task_safe(
             "tasks.import_project",
             args=[job.id],
+            **({"kwargs": task_kwargs} if task_kwargs else {}),
             queue=await _import_queue(object_key),
         )
         job.celery_task_id = getattr(result, "id", None)
@@ -931,11 +962,21 @@ async def create_full_import_job(
     """Create a full-project (create-new) import job and enqueue it.
 
     Body: ``{"object_key": "imports/.../{user_id}/...", "organization_id":
-    optional, "organization_group_id": optional}``. The key must live under the import prefix AND be scoped to
+    optional, "organization_group_id": optional, "model_id_map": optional}``.
+    The key must live under the import prefix AND be scoped to
     this user — both checked here so a client can't point the worker at
     someone else's upload. ``organization_id`` names the org that will own the
     new project (``organization_group_id``: attached through that group of
     it); without it the project is the importer's private project.
+
+    ``model_id_map`` (``{"<model id in the export>": "<model id here>"}``)
+    translates model ids before the import stores them: the model of every
+    generation job, generation, evaluation run and judge run, the project's
+    ``llm_model_ids`` and its ``generation_config`` model selection. Custom
+    models get a new id on every deployment, so moving a benchmark run from
+    one deployment to another needs it. The target model must already exist
+    here; the import does not create models, and a target the importer cannot
+    use is dropped from the project's model selection like any other.
     The job's ``project_id`` is NULL until the worker creates the project.
     Returns 202.
     """
@@ -944,6 +985,11 @@ async def create_full_import_job(
         raise HTTPException(status_code=400, detail="object_key is required")
     if not object_key.startswith("imports/") or f"/{current_user.id}/" not in object_key:
         raise HTTPException(status_code=400, detail="Invalid object_key")
+
+    try:
+        model_id_map = normalize_model_id_map((data or {}).get("model_id_map"))
+    except ImportValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
     organization_id, organization_group_id = await _resolve_import_target_org(
         db,
@@ -967,9 +1013,12 @@ async def create_full_import_job(
     await db.refresh(job)
 
     try:
+        # The map travels with the task message (a redelivery keeps it), so
+        # the job table needs no column for this one-off import option.
         result = send_task_safe(
             "tasks.import_project",
             args=[job.id],
+            **({"kwargs": {"model_id_map": model_id_map}} if model_id_map else {}),
             queue=await _import_queue(object_key),
         )
         job.celery_task_id = getattr(result, "id", None)
