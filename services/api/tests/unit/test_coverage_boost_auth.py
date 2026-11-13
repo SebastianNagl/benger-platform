@@ -25,7 +25,6 @@ from models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    UserProfileHistory,
 )
 
 

@@ -28,7 +28,6 @@ Prerequisites:
         LOAD_TEST_NUM_USERS   - number of pre-created test users (default: 100)
 """
 
-import json
 import os
 import time
 

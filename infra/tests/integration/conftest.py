@@ -10,7 +10,6 @@ import requests
 import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from typing import Generator
 
 # Import from services for testing
 import sys
