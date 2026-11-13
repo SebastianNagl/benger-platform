@@ -24,6 +24,13 @@ import tasks
 from typing import Any, Dict, Optional
 
 
+def _reasoning_only_note(response_data: Dict[str, Any]) -> str:
+    reasoning = response_data.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        return f"; the model returned only reasoning ({len(reasoning)} chars)"
+    return ""
+
+
 def _notify_generation_failed(
     db, project_id: str, user_id: Optional[str], generation_id: str,
     model_id: str, error: Optional[str],
@@ -1136,7 +1143,7 @@ def generate_llm_responses_impl(
                             # Try to extract the human-readable message from API error JSON
                             match = re.search(r"'message':\s*'([^']+)'", str(raw_error))
                             error_msg = match.group(1) if match else str(raw_error)
-                            raise Exception(error_msg)
+                            raise Exception(error_msg + _reasoning_only_note(response_data))
 
                         if "response_text" in response_data:
                             response_text = response_data["response_text"]
@@ -1217,6 +1224,11 @@ def generate_llm_responses_impl(
 
                         # Reject empty responses from any provider
                         if not response_text or not response_text.strip():
+                            reasoning_note = _reasoning_only_note(response_data)
+                            if reasoning_note:
+                                raise Exception(
+                                    f"AI service returned an empty answer for {model_id}{reasoning_note}"
+                                )
                             raise Exception(
                                 f"AI service returned empty response for {model_id}"
                             )

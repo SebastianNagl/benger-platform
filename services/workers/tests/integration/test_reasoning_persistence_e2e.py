@@ -123,6 +123,83 @@ def test_generation_stores_reasoning_beside_answer(
     assert "reasoning" not in (metadata or {})
 
 
+class _FailedReasoningService(_ReasoningService):
+    """Provider stand-in reporting a failed call that still carries reasoning."""
+
+    def generate(self, **kwargs):
+        response = super().generate(**kwargs)
+        response.update(success=False, error="Model returned empty response")
+        return response
+
+
+@pytest.mark.parametrize(
+    "service_cls, reasoning, expected_error",
+    [
+        (
+            _ReasoningService,
+            "Die Antwort steht nur hier.",
+            "AI service returned an empty answer for {model_id}; "
+            "the model returned only reasoning (27 chars)",
+        ),
+        (
+            _ReasoningService,
+            None,
+            "AI service returned empty response for {model_id}",
+        ),
+        (
+            _FailedReasoningService,
+            "Die Antwort steht nur hier.",
+            "Model returned empty response; "
+            "the model returned only reasoning (27 chars)",
+        ),
+    ],
+    ids=["empty_answer_with_reasoning", "empty_answer_without_reasoning",
+         "failed_call_with_reasoning"],
+)
+def test_empty_answer_error_names_reasoning(
+    db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
+    service_cls, reasoning, expected_error,
+):
+    import uuid as _uuid
+
+    service = service_cls("", reasoning)
+    monkeypatch.setattr(
+        tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: service
+    )
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id, label_config=None, generation_config=GEN_CONFIG)
+    task = make_task(project.id, {"text": "Besteht der Anspruch?"}, created_by=user.id)
+    rg = ResponseGeneration(
+        id=str(_uuid.uuid4()),
+        project_id=project.id,
+        task_id=task.id,
+        model_id=model.id,
+        status="pending",
+        runs_requested=1,
+        structure_key=STRUCTURE_KEY,
+        created_by=user.id,
+    )
+    db_conn.add(rg)
+    db_conn.commit()
+
+    tasks.generate_llm_responses(
+        generation_id=rg.id,
+        structure_key=STRUCTURE_KEY,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
+        model_id=model.id,
+        user_id=user.id,
+        run_index=0,
+    )
+    db_conn.expire_all()
+
+    assert service.calls == 1
+    parent = db_conn.get(ResponseGeneration, rg.id)
+    assert parent.status == "failed"
+    assert parent.error_message == expected_error.format(model_id=model.id)
+    assert db_conn.query(Generation).filter(Generation.generation_id == rg.id).count() == 0
+
+
 def test_llm_judge_reasoning_goes_to_raw_reasoning_column(
     db_conn, make_user, make_llm_model, make_project, make_task,
     make_generation, make_evaluation_run, monkeypatch,
