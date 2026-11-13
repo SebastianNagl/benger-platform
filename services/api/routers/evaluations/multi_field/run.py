@@ -67,14 +67,14 @@ def _translate_annotator_model_ids(db, project_id, model_ids, annotator_user_ids
 
 
 def _can_launch_evaluation(db, user, project_id: str) -> bool:
-    """Editors (effective ORG_ADMIN / CONTRIBUTOR, incl. the public_role
-    contract) OR real org members of any role (the timed-window access group).
-
-    See the comment at the call site in :func:`run_evaluation`.
+    """Who may start an evaluation run: the same rule the app applies to its
+    "run evaluation" controls, an effective project role of CONTRIBUTOR or
+    higher (creator, superadmin, org admins and contributors through an
+    eligible attachment, and a public project's CONTRIBUTOR visitors).
+    ANNOTATORs never launch runs, also not through an access key, because a
+    run spends judge budget.
     """
-    return check_project_write_access(db, user, project_id) or check_user_can_edit_project(
-        db, user, project_id, allowed_roles=("ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR")
-    )
+    return check_project_write_access(db, user, project_id)
 
 
 @router.post("/run", response_model=EvaluationRunResponse)
@@ -111,44 +111,45 @@ def run_evaluation(
 
         # Launch gate. PROJECT_VIEW admits every signed-in user of a PUBLIC
         # project (public_role=ANNOTATOR included), and a batch run spends the
-        # org's / creator's judge budget — so a public visitor must not be
-        # able to launch one. Who may:
-        #   - editors: effective ORG_ADMIN / CONTRIBUTOR (creator, superadmin,
-        #     org admins / contributors) — this arm also honours the documented
-        #     public_role contract: a public CONTRIBUTOR visitor may, a public
-        #     ANNOTATOR visitor may not;
-        #   - the timed-window "access group": REAL org members of any role
-        #     (ANNOTATOR included) through an eligible attachment. The
-        #     membership-based check ignores public_role by construction, so a
-        #     non-member never enters through it.
+        # org's / creator's judge budget. Only an effective CONTRIBUTOR or
+        # higher may launch (see _can_launch_evaluation); ANNOTATORs, org
+        # members and public visitors alike, may not.
         if not _can_launch_evaluation(db, current_user, request.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    "Only project members, contributors or admins can run "
-                    "evaluations on this project"
+                    "Only contributors or admins can run evaluations on this "
+                    "project"
                 ),
             )
 
         # Timed access window: the access group can only run evaluations while
         # the window is open (editors exempt). The launch gate above still
-        # admits non-editors (org ANNOTATOR members, public CONTRIBUTOR
-        # visitors), so this gate is load-bearing here. No-op without a window.
+        # admits public CONTRIBUTOR visitors, who are not editors, so this
+        # gate is load-bearing here. No-op without a window.
         enforce_project_write_window(db, current_user, project)
 
         # Organization context for API key resolution (Issue #1180): the
         # default rule, or the payer the caller picked among their options.
+        # Only a CONTRIBUTOR or higher in an org may spend its keys
+        # (min_role); an ANNOTATOR membership falls back to personal keys.
         if request.billing_organization_id:
             from org_resolution import BillingOrgNotAllowed, resolve_dispatch_org_for_project
 
             try:
                 organization_id = resolve_dispatch_org_for_project(
-                    db, current_user, project, request.billing_organization_id
+                    db,
+                    current_user,
+                    project,
+                    request.billing_organization_id,
+                    min_role="CONTRIBUTOR",
                 )
             except BillingOrgNotAllowed as e:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
         else:
-            organization_id = resolve_user_org_for_project(current_user, project, db)
+            organization_id = resolve_user_org_for_project(
+                current_user, project, db, min_role="CONTRIBUTOR"
+            )
 
         # Validate evaluation configs
         if not request.evaluation_configs:

@@ -377,3 +377,79 @@ async def test_generation_rejects_blank_model_ids(async_test_client, async_test_
         headers=bearer(plain),
     )
     assert r.status_code == 422, r.text
+
+
+async def test_org_key_create_new_import_must_name_its_org(
+    async_test_client, async_test_db, world, monkeypatch
+):
+    """A create-new import made with an organization key must land in the
+    key's organization: without organization_id (or with another org) it is
+    a 400 ``organization_required``, never a private project of the key's
+    service account. Personal keys may still import a private project."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from routers.projects import import_export
+
+    sent = MagicMock(id="celery-1")
+    monkeypatch.setattr(import_export, "send_task_safe", lambda *a, **k: sent)
+    monkeypatch.setattr(import_export, "_import_queue", AsyncMock(return_value="bulk"))
+
+    key, plain = await svc.create_org_key(
+        async_test_db,
+        world["admin"].id,
+        world["org"].id,
+        {"name": "k", "org_role": "CONTRIBUTOR", "scopes": ["projects:write", "tasks:write"]},
+    )
+    object_key = f"imports/2026/11/{key.user_id}/1_export.json"
+    url = "/api/projects/project-imports"
+
+    for body in ({}, {"organization_id": "another-org"}):
+        r = await async_test_client.post(
+            url, json={"object_key": object_key, **body}, headers=bearer(plain)
+        )
+        assert r.status_code == 400, r.text
+        assert _code(r) == "organization_required"
+        assert world["org"].id in r.json()["detail"]["message"]
+
+    r = await async_test_client.post(
+        url,
+        json={"object_key": object_key, "organization_id": world["org"].id},
+        headers=bearer(plain),
+    )
+    assert r.status_code == 202, r.text
+
+    personal = await _personal(
+        async_test_db, world["member"], ["projects:write", "tasks:write"]
+    )
+    r = await async_test_client.post(
+        url,
+        json={"object_key": f"imports/2026/11/{world['member'].id}/1_export.json"},
+        headers=bearer(personal),
+    )
+    assert r.status_code == 202, r.text
+
+
+async def test_org_key_custom_model_is_shared_with_its_org(
+    async_test_client, async_test_db, world, monkeypatch
+):
+    """A custom model registered with an organization key starts shared with
+    that organization (a model private to the key's service account would be
+    lost when the key is revoked); one registered with a personal key starts
+    private."""
+    monkeypatch.setenv("CUSTOM_MODEL_ALLOW_PRIVATE_URLS", "1")
+    body = {
+        "name": "Org Llama",
+        "base_url": "http://10.10.3.7:8000/v1",
+        "endpoint_model_name": "llama-3-8b",
+    }
+    org_plain = await _org(async_test_db, world, ["models:manage"])
+    r = await async_test_client.post("/api/custom-models/", json=body, headers=bearer(org_plain))
+    assert r.status_code == 201, r.text
+    assert r.json()["is_private"] is False
+    assert r.json()["organization_ids"] == [world["org"].id]
+
+    personal = await _personal(async_test_db, world["member"], ["models:manage"])
+    r = await async_test_client.post("/api/custom-models/", json=body, headers=bearer(personal))
+    assert r.status_code == 201, r.text
+    assert r.json()["is_private"] is True
+    assert r.json()["organization_ids"] == []

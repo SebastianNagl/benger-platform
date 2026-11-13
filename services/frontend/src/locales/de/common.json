@@ -325,7 +325,7 @@
             "annotator": "Annotator",
             "annotatorDescription": "Besucher können Aufgaben ansehen und Annotationen erstellen",
             "contributor": "Mitwirkender",
-            "contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+            "contributorDescription": "Zusätzlich alle Daten samt Musterlösungen herunterladen und eigene Annotationen, Generierungen und Evaluierungen hinzufügen. Aufgaben, Importe und Einstellungen ändern nur Projektmitglieder."
           },
           "assignedOrganizations": "Zugewiesene Organisationen",
           "assignedOrganizationsHelp": "Wähle die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können.",
@@ -1184,7 +1184,7 @@
         "annotator": "Annotator",
         "annotatorDescription": "Aufgaben ansehen und Annotationen erstellen.",
         "contributor": "Mitwirkender",
-        "contributorDescription": "Zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+        "contributorDescription": "Zusätzlich alle Daten samt Musterlösungen herunterladen und eigene Annotationen, Generierungen und Evaluierungen hinzufügen. Aufgaben, Importe und Einstellungen bleiben bei den Projektmitgliedern."
       },
       "organizations": "Organisationen",
       "organizationsDescription": "Wähle eine oder mehrere Organisationen, deren Mitglieder Zugriff erhalten.",
@@ -1202,7 +1202,12 @@
       "validation": {
         "privateNeedsOrganization": "Organisationsbasierte Projekte benötigen mindestens eine Organisation."
       },
-      "saveFailed": "Berechtigungen konnten nicht gespeichert werden"
+      "saveFailed": "Berechtigungen konnten nicht gespeichert werden",
+      "publicContributorConfirm": {
+        "title": "Projekt für Mitwirkende öffnen?",
+        "message": "Jedes angemeldete Konto auf dieser Plattform, auch Dienstkonten von Organisationen und Studierende aus angebundenen Lernplattformen, kann dann:\n- alle Aufgaben sehen und die vollständigen Daten herunterladen, samt Musterlösungen,\n- eigene Annotationen hinzufügen sowie Generierungen und Evaluierungen starten, die über die eigenen API-Schlüssel abgerechnet werden.\n\nImportieren, Aufgaben ändern oder löschen, Ergebnisse zusammenführen, Arbeit zuweisen und die Einstellungen oder die Sichtbarkeit ändern kann es nicht. Das bleibt beim Ersteller und bei den Mitwirkenden und Admins der Organisationen des Projekts.",
+        "confirm": "Für Mitwirkende öffnen"
+      }
     },
     "evaluation": {
       "title": "Evaluierungskonfiguration",
@@ -11357,6 +11362,9 @@
       "perMinute": "Anfragen pro Minute",
       "perDay": "Anfragen pro Tag",
       "rateLimitsHint": "Leer lassen, dann gelten die Standardwerte.",
+      "expiryHint": "Empfohlen: 90 Tage. Ein abgelaufener Schlüssel hört von selbst auf zu funktionieren und lässt sich jederzeit durch einen neuen ersetzen.",
+      "rateLimitsRange": "Standard: {defaultPerMinute} pro Minute und {defaultPerDay} pro Tag, höchstens {maxPerMinute} pro Minute und {maxPerDay} pro Tag.",
+      "rateLimitTooHigh": "Die Limits dürfen höchstens {perMinute} Anfragen pro Minute und {perDay} pro Tag betragen.",
       "noScopes": "Wähle mindestens eine Berechtigung.",
       "create": "Schlüssel anlegen",
       "creating": "Wird angelegt …",

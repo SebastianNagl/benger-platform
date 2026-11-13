@@ -2545,7 +2545,7 @@ def check_project_write_access(
     project_id: str,
     allowed_roles: tuple = ("ORG_ADMIN", "CONTRIBUTOR"),
 ) -> bool:
-    """Check if a user can perform a write/contribute action on a project.
+    """Check if a user may CONTRIBUTE their own work to a project.
 
     Combines read access + role gate. The role check honours the public_role
     fallback for public-tier visitors:
@@ -2554,9 +2554,12 @@ def check_project_write_access(
       - org-member with allowed role → allowed
       - creator + superadmin → always allowed (via get_effective_project_role)
 
-    Use for endpoints that mutate task/annotation/generation data on a project
-    (e.g. import, generate, bulk delete) where the documented public_role
-    contract should be enforced.
+    Use only for actions that add the caller's own work: starting a
+    generation or an evaluation run. Anything that changes or bulk-writes the
+    project itself (imports of every mode, task edits and deletes, task
+    metadata, assignments, settings, visibility) needs real membership,
+    :func:`check_user_can_edit_project`, so a public project's
+    ``public_role=CONTRIBUTOR`` visitors cannot overwrite it.
     """
     if user.is_superadmin:
         return True

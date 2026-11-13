@@ -325,7 +325,7 @@
             "annotator": "Annotator",
             "annotatorDescription": "Visitors can view tasks and create annotations",
             "contributor": "Contributor",
-            "contributorDescription": "Visitors can also add tasks and run generation/evaluation. Project settings remain locked."
+            "contributorDescription": "Also download all data including reference solutions, and add their own annotations, generations and evaluation runs. Only project members change tasks, imports or settings."
           },
           "assignedOrganizations": "Assigned organizations",
           "assignedOrganizationsHelp": "Pick the organizations whose members can access this project.",
@@ -1184,7 +1184,7 @@
         "annotator": "Annotator",
         "annotatorDescription": "View tasks and create annotations.",
         "contributor": "Contributor",
-        "contributorDescription": "Also add tasks and run generation/evaluation. Cannot edit project settings."
+        "contributorDescription": "Also download all data including reference solutions, and add their own annotations, generations and evaluation runs. Tasks, imports and settings stay with project members."
       },
       "organizations": "Organizations",
       "organizationsDescription": "Pick one or more organizations whose members get access.",
@@ -1202,7 +1202,12 @@
       "validation": {
         "privateNeedsOrganization": "Organization-scoped projects need at least one organization."
       },
-      "saveFailed": "Failed to save permissions"
+      "saveFailed": "Failed to save permissions",
+      "publicContributorConfirm": {
+        "title": "Open the project to contributors?",
+        "message": "Every signed-in account on this platform, including organization service accounts and students from connected learning platforms, will be able to:\n- see all tasks and download the full data, including reference solutions,\n- add their own annotations, and start generations and evaluation runs paid with their own API keys.\n\nThey cannot import, change or delete tasks, merge results, assign work or change the project's settings or visibility. That stays with the creator and the contributors and admins of the project's organizations.",
+        "confirm": "Open to contributors"
+      }
     },
     "evaluation": {
       "title": "Evaluation Configuration",
@@ -11357,6 +11362,9 @@
       "perMinute": "Requests per minute",
       "perDay": "Requests per day",
       "rateLimitsHint": "Leave empty to use the defaults.",
+      "expiryHint": "Recommended: 90 days. An expired key stops working on its own and can be replaced by a new one at any time.",
+      "rateLimitsRange": "Defaults: {defaultPerMinute} per minute and {defaultPerDay} per day, at most {maxPerMinute} per minute and {maxPerDay} per day.",
+      "rateLimitTooHigh": "The limits may be at most {perMinute} requests per minute and {perDay} per day.",
       "noScopes": "Pick at least one permission.",
       "create": "Create key",
       "creating": "Creating …",

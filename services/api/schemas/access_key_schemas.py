@@ -136,3 +136,7 @@ class UsageEventPage(BaseModel):
 class ScopeCatalog(BaseModel):
     scopes: List[Dict[str, Any]]
     presets: Dict[str, List[str]]
+    #: The deployment's per-key request limits: ``default_per_minute`` /
+    #: ``default_per_day`` (a key without own limits) and ``max_per_minute`` /
+    #: ``max_per_day`` (the highest values a key may be given).
+    limits: Dict[str, int] = Field(default_factory=dict)

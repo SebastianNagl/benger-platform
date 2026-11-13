@@ -823,7 +823,8 @@ describe('Cell re-evaluation', () => {
   it('dispatches runEvaluation and toasts success', async () => {
     mockPerm.canStart = true
     setup()
-    await renderDataView({ evaluationConfigs })
+    // The page passes onRunEvaluation only to callers who may start runs.
+    await renderDataView({ evaluationConfigs, onRunEvaluation: jest.fn() })
 
     await openModalAndReEvaluate()
 
@@ -850,13 +851,35 @@ describe('Cell re-evaluation', () => {
     mockPerm.canStart = true
     setup()
     mockRunEvaluation.mockRejectedValue(new Error('Queue is full'))
-    await renderDataView({ evaluationConfigs })
+    await renderDataView({ evaluationConfigs, onRunEvaluation: jest.fn() })
 
     await openModalAndReEvaluate()
 
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith('Queue is full', 'error'),
     )
+  })
+
+  it('does not render the re-evaluate button without run controls', async () => {
+    // An annotator: generation permission alone is not enough when the page
+    // withholds the run controls (no onRunEvaluation).
+    mockPerm.canStart = true
+    setup()
+    await renderDataView({ evaluationConfigs })
+
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
+    await act(async () => {
+      fireEvent.click(scoreCells[0])
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('dialog')).toBeInTheDocument(),
+    )
+
+    expect(
+      screen.queryByText('evaluation.multiFieldResults.reEvaluate'),
+    ).not.toBeInTheDocument()
   })
 
   it('does not render the re-evaluate button without permission', async () => {

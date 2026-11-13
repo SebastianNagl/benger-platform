@@ -14,12 +14,16 @@ Note on PROJECT_EDIT cap:
   visitors regardless of public_role (creator + superadmin only). Both these
   layers are exercised by the assertions below.
 
-Note on TASK_CREATE / GENERATION_CREATE:
-  These endpoints (`POST /projects/{id}/imports/upload-url` — the async import
-  entry point that replaced the removed sync `POST /{id}/import` in #158 — and
-  `POST /projects/{id}/generate`) call `check_project_write_access`, which
-  enforces the documented public_role contract: public-tier ANNOTATOR
-  visitors are blocked; CONTRIBUTOR visitors are allowed.
+Note on imports, assignments and generation:
+  Every import entry point (`POST /projects/{id}/imports/upload-url`,
+  `POST /projects/{id}/imports` in both modes, cloud imports) and task
+  assignment require real project membership
+  (`check_user_can_edit_project`): public visitors of either role are
+  blocked, so a public CONTRIBUTOR cannot overwrite the project. Starting a
+  generation of the missing cells stays a contribute-level action
+  (`check_project_write_access`: public CONTRIBUTOR allowed, ANNOTATOR
+  blocked); regenerating ALL cells, which cancels everyone's running
+  generations, is members only.
 
 The projects/tasks/search routers these tests hit were migrated to the async DB
 lane, so rows are seeded via ``async_test_db`` and the HTTP surface is driven
@@ -299,8 +303,10 @@ class TestPublicAnnotatorVisitorWritePaths:
 
 
 class TestPublicContributorVisitorWritePaths:
-    """CONTRIBUTOR public_role: extra write powers (annotate + future writes),
-    but settings + visibility editing remain creator/superadmin-only."""
+    """CONTRIBUTOR public_role: read, full export and the visitor's own work
+    (annotations, generations of missing cells, evaluation runs). Changing
+    the project (settings, visibility, imports, task metadata, assignments)
+    stays with its real members."""
 
     async def test_visitor_can_read_project(self, async_test_client, async_test_db):
         creator = await _make_creator(async_test_db)
@@ -369,19 +375,86 @@ class TestPublicContributorVisitorWritePaths:
             )
         assert resp.status_code == 403, resp.text
 
-    async def test_visitor_can_import_tasks(self, async_test_client, async_test_db):
+    @pytest.mark.parametrize(
+        "method,path,body",
+        [
+            ("post", "/api/projects/{pid}/imports/upload-url", None),
+            ("post", "/api/projects/{pid}/imports", {"object_key": "imports/x"}),
+            (
+                "post",
+                "/api/projects/{pid}/imports",
+                {"object_key": "imports/x", "mode": "merge"},
+            ),
+            (
+                "post",
+                "/api/projects/{pid}/cloud-imports",
+                {"connection_id": "c", "object_keys": ["a.json"]},
+            ),
+            ("get", "/api/projects/{pid}/cloud-imports", None),
+        ],
+    )
+    async def test_visitor_cannot_import(
+        self, async_test_client, async_test_db, method, path, body
+    ):
+        """Public CONTRIBUTOR visitors read and export, but every import mode
+        and the cloud-import history are for real project members only: they
+        403 before any storage or worker call."""
         creator = await _make_creator(async_test_db)
         visitor = await _make_visitor(async_test_db)
         project = await _public_project(async_test_db, creator, "CONTRIBUTOR")
         await async_test_db.commit()
 
-        # The sync POST /{id}/import was removed (#158); async import now begins
-        # by requesting a presigned upload URL, gated by write access. A public
-        # CONTRIBUTOR must clear that gate (anything except 403).
+        url = path.format(pid=project.id)
         with _as_user(visitor):
+            call = getattr(async_test_client, method)
+            resp = await (call(url, json=body) if body is not None else call(url))
+        assert resp.status_code == 403, resp.text
+
+    async def test_creator_passes_the_import_gate(self, async_test_client, async_test_db):
+        creator = await _make_creator(async_test_db)
+        project = await _public_project(async_test_db, creator, "CONTRIBUTOR")
+        await async_test_db.commit()
+
+        # Past the gate the body is validated: an empty body is a 400, not a 403.
+        with _as_user(creator):
             resp = await async_test_client.post(
-                f"/api/projects/{project.id}/imports/upload-url",
+                f"/api/projects/{project.id}/imports", json={}
             )
+        assert resp.status_code == 400, resp.text
+
+    async def test_visitor_may_generate_missing_but_not_regenerate_all(
+        self, async_test_client, async_test_db
+    ):
+        creator = await _make_creator(async_test_db)
+        visitor = await _make_visitor(async_test_db)
+        project = await _public_project(async_test_db, creator, "CONTRIBUTOR")
+        project_id = project.id
+        await async_test_db.commit()
+
+        url = f"/api/generation-tasks/projects/{project_id}/generate"
+        with _as_user(visitor):
+            all_resp = await async_test_client.post(url, json={"mode": "all"})
+            missing_resp = await async_test_client.post(url, json={"mode": "missing"})
+        assert all_resp.status_code == 403, all_resp.text
+        assert "regenerate all" in all_resp.json()["detail"]
+        # "missing" clears the permission gates; whatever follows (no models
+        # configured here) is not a 403.
+        assert missing_resp.status_code != 403, missing_resp.text
+
+    def test_visitor_cannot_assign_tasks(self, client, test_db):
+        creator = _sync_make_user(test_db, "creator")
+        visitor = _sync_make_user(test_db, "visitor")
+        project = _sync_public_project(test_db, creator, "CONTRIBUTOR")
+        task = _sync_task(test_db, project)
+        test_db.flush()
+
+        body = {"task_ids": [task.id], "user_ids": [visitor.id]}
+        with _as_user(visitor):
+            resp = client.post(f"/api/projects/{project.id}/tasks/assign", json=body)
+        assert resp.status_code == 403, resp.text
+        # The creator passes the gate (and then assigns).
+        with _as_user(creator):
+            resp = client.post(f"/api/projects/{project.id}/tasks/assign", json=body)
         assert resp.status_code != 403, resp.text
 
 

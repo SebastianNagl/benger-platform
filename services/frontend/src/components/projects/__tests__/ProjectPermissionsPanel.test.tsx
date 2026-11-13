@@ -307,8 +307,72 @@ describe('ProjectPermissionsPanel', () => {
         ).toBe(true)
       })
 
+      // CONTRIBUTOR opens every signed-in account to full export: the radio
+      // only switches after an explicit confirmation.
+      await user.click(screen.getByTestId('public-role-contributor-option'))
+      expect(
+        (
+          screen.getByTestId(
+            'public-role-contributor-radio',
+          ) as HTMLInputElement
+        ).checked,
+      ).toBe(false)
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('confirm-dialog-confirm-button'),
+        ).toBeInTheDocument(),
+      )
+      await user.click(screen.getByTestId('confirm-dialog-confirm-button'))
+
+      expect(
+        (
+          screen.getByTestId(
+            'public-role-contributor-radio',
+          ) as HTMLInputElement
+        ).checked,
+      ).toBe(true)
+    })
+
+    it('keeps the annotator role when the contributor confirmation is cancelled', async () => {
+      const user = userEvent.setup()
+      render(
+        <ProjectPermissionsPanel
+          projectId="project-1"
+          initialVisibility="public"
+          initialPublicRole="ANNOTATOR"
+        />,
+      )
+
+      await user.click(screen.getByTestId('public-role-contributor-option'))
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('confirm-dialog-cancel-button'),
+        ).toBeInTheDocument(),
+      )
+      await user.click(screen.getByTestId('confirm-dialog-cancel-button'))
+
+      expect(
+        (screen.getByTestId('public-role-annotator-radio') as HTMLInputElement)
+          .checked,
+      ).toBe(true)
+    })
+
+    it('needs no confirmation when the saved role already is contributor', async () => {
+      const user = userEvent.setup()
+      render(
+        <ProjectPermissionsPanel
+          projectId="project-1"
+          initialVisibility="public"
+          initialPublicRole="CONTRIBUTOR"
+        />,
+      )
+
+      await user.click(screen.getByTestId('public-role-annotator-option'))
       await user.click(screen.getByTestId('public-role-contributor-option'))
 
+      expect(
+        screen.queryByTestId('confirm-dialog-confirm-button'),
+      ).not.toBeInTheDocument()
       expect(
         (
           screen.getByTestId(
@@ -336,6 +400,9 @@ describe('ProjectPermissionsPanel', () => {
 
       await user.click(screen.getByTestId('public-option'))
       await user.click(screen.getByTestId('public-role-contributor-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
       await user.click(screen.getByTestId('save-button'))
 
       await waitFor(() => {

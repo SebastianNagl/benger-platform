@@ -117,7 +117,7 @@ export function ConfirmationDialog({
                       {title}
                     </Dialog.Title>
                     <div className="mt-2">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      <p className="text-sm whitespace-pre-line text-zinc-600 dark:text-zinc-300">
                         {message}
                       </p>
                     </div>

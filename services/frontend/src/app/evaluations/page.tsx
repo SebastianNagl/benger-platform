@@ -913,6 +913,13 @@ export default function EvaluationDashboard() {
     return modelMatch
   })
 
+  // Starting a run needs an effective project role of CONTRIBUTOR or higher
+  // (the API's rule): annotators see the results but no run controls.
+  const canRunEvaluation =
+    Boolean(user?.is_superadmin) ||
+    selectedProject?.effective_role === 'ORG_ADMIN' ||
+    selectedProject?.effective_role === 'CONTRIBUTOR'
+
   // Check permissions (resolved across all org memberships)
   useEffect(() => {
     if (
@@ -1645,7 +1652,11 @@ export default function EvaluationDashboard() {
                   fetchProjectData(selectedProject.id.toString())
                 }
                 hasConfiguration={hasAnyConfiguration}
-                onRunEvaluation={() => setShowEvaluationModal(true)}
+                onRunEvaluation={
+                  canRunEvaluation
+                    ? () => setShowEvaluationModal(true)
+                    : undefined
+                }
                 isRunningEvaluation={runningEvaluation}
                 onResultsLoaded={setHasEvaluationResults}
                 onDataLoaded={setEvaluationChartData}

@@ -46,6 +46,19 @@ counts or user lists (superadmins can include them in `GET /api/users` with
 `include_service_accounts=true`). Revoking the key deactivates the service
 account and ends its memberships.
 
+So that nothing an organisation key creates is stranded when the key is
+revoked, a create-new import (`POST /api/projects/project-imports`) made
+with an organisation key must name the key's organisation as
+`organization_id` (optionally with one of its groups as
+`organization_group_id`); otherwise it is refused with
+`400 organization_required`. A custom model registered with an organisation
+key starts shared with that organisation instead of private.
+
+A key acts with exactly the rights its user has in the web app; the scopes
+only narrow them. Starting evaluation runs, for example, needs a CONTRIBUTOR
+or higher role on the project (ANNOTATOR keys cannot start runs), and a run
+is billed to an organisation only for a CONTRIBUTOR or higher member of it.
+
 A key carries its owner's superadmin rights only when it holds the scope
 `admin:platform`, which only a superadmin can grant, and only to a personal
 key. Any other key of a superadmin acts like a key of a plain user.
@@ -61,7 +74,9 @@ key. Any other key of a superadmin acts like a key of a plain user.
 
 Creating a key starts from a preset (`benchmark_read`, `benchmark_submit`,
 `org_full`, `full_access`); *Advanced* lists every scope the caller may
-grant. The full key
+grant. The validity defaults to 90 days (30 days, one year or
+unlimited can be chosen instead), and the optional request limits may not
+exceed the deployment maximum (see *Rate limits*). The full key
 is shown once, together with `curl` and Python snippets and a **Test
 connection** button that calls `GET /api/v1/me` with the new key. **Renew**
 creates a key with the same settings; the old key keeps working until it is
@@ -148,7 +163,11 @@ A missing scope answers `403 insufficient_scope` with
 ## Rate limits
 
 Each key has a per-minute and a per-day budget (its own values, or
-`API_KEY_DEFAULT_RPM` / `API_KEY_DEFAULT_RPD`). Responses carry
+`API_KEY_DEFAULT_RPM` / `API_KEY_DEFAULT_RPD`). A key's own values may not
+exceed the deployment maximum (`API_KEY_MAX_RPM`, default 600 per minute, and
+`API_KEY_MAX_RPD`, default 100,000 per day): a higher value is refused with
+`422 rate_limit_too_high`, and a key stored with a higher limit is held to the
+maximum when it is used. Responses carry
 `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`; an
 exhausted budget answers `429` with `Retry-After`.
 

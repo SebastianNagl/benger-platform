@@ -3,16 +3,18 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 
 
 async def _metadata_write_allowed(db, user, project_id: str) -> bool:
-    """Read gate + write-tier gate for the metadata PATCHes.
+    """Read gate + edit gate for the metadata PATCHes.
 
-    The read gate is the one every task endpoint has (no access → 403); the
-    write gate is what stops a
-    public-project visitor with ``public_role=ANNOTATOR`` from editing
+    The read gate is the one every task endpoint has (no access → 403). Task
+    metadata belongs to the project, not to one contributor's work, so the
+    edit gate is the real-membership one (``check_user_can_edit_project``:
+    creator, superadmin, CONTRIBUTOR or higher of an attached org): a public
+    project's visitors, ``public_role=CONTRIBUTOR`` included, cannot change
     ``task.meta``.
     """
     if not await check_project_accessible_async(db, user, project_id):
         return False
-    return await check_project_write_access_async(db, user, project_id)
+    return await check_user_can_edit_project_async(db, user, project_id)
 
 
 @router.patch("/tasks/{task_id}/metadata")

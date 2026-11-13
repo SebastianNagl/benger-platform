@@ -325,7 +325,7 @@
             "annotator": "Annotateur",
             "annotatorDescription": "Les visiteurs peuvent consulter les tâches et créer des annotations",
             "contributor": "Contributeur",
-            "contributorDescription": "Les visiteurs peuvent en plus ajouter des tâches et lancer la génération/l'évaluation. Les paramètres du projet restent verrouillés."
+            "contributorDescription": "Peuvent aussi télécharger toutes les données, solutions de référence comprises, et ajouter leurs propres annotations, générations et évaluations. Seuls les membres du projet modifient les tâches, les imports ou les paramètres."
           },
           "assignedOrganizations": "Organisations attribuées",
           "assignedOrganizationsHelp": "Choisissez les organisations dont les membres peuvent accéder à ce projet.",
@@ -1184,7 +1184,7 @@
         "annotator": "Annotateur",
         "annotatorDescription": "Consulter les tâches et créer des annotations.",
         "contributor": "Contributeur",
-        "contributorDescription": "Peut en plus ajouter des tâches et lancer la génération et l'évaluation. Les paramètres du projet restent verrouillés."
+        "contributorDescription": "Peuvent aussi télécharger toutes les données, solutions de référence comprises, et ajouter leurs propres annotations, générations et évaluations. Les tâches, les imports et les paramètres restent aux membres du projet."
       },
       "organizations": "Organisations",
       "organizationsDescription": "Choisissez une ou plusieurs organisations dont les membres obtiennent l'accès.",
@@ -1202,7 +1202,12 @@
       "validation": {
         "privateNeedsOrganization": "Les projets au niveau de l'organisation nécessitent au moins une organisation."
       },
-      "saveFailed": "Impossible d'enregistrer les autorisations"
+      "saveFailed": "Impossible d'enregistrer les autorisations",
+      "publicContributorConfirm": {
+        "title": "Ouvrir le projet aux contributeurs ?",
+        "message": "Chaque compte connecté sur cette plateforme, y compris les comptes de service des organisations et les étudiants des plateformes d'apprentissage connectées, pourra alors :\n- voir toutes les tâches et télécharger l'ensemble des données, solutions de référence comprises,\n- ajouter ses propres annotations et lancer des générations et des évaluations facturées sur ses propres clés API.\n\nIl ne pourra ni importer, ni modifier ou supprimer des tâches, ni fusionner des résultats, ni attribuer du travail, ni changer les paramètres ou la visibilité du projet. Cela reste réservé au créateur ainsi qu'aux contributeurs et administrateurs des organisations du projet.",
+        "confirm": "Ouvrir aux contributeurs"
+      }
     },
     "evaluation": {
       "title": "Configuration de l'évaluation",
@@ -11357,6 +11362,9 @@
       "perMinute": "Requêtes par minute",
       "perDay": "Requêtes par jour",
       "rateLimitsHint": "Laissez vide pour utiliser les valeurs par défaut.",
+      "expiryHint": "Recommandé : 90 jours. Une clé expirée cesse de fonctionner d'elle-même et peut être remplacée à tout moment par une nouvelle.",
+      "rateLimitsRange": "Par défaut : {defaultPerMinute} par minute et {defaultPerDay} par jour, au maximum {maxPerMinute} par minute et {maxPerDay} par jour.",
+      "rateLimitTooHigh": "Les limites ne peuvent pas dépasser {perMinute} requêtes par minute et {perDay} par jour.",
       "noScopes": "Choisissez au moins une autorisation.",
       "create": "Créer la clé",
       "creating": "Création …",

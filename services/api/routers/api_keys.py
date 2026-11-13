@@ -259,7 +259,11 @@ async def _resolve_model_scope_org(
             raise HTTPException(status_code=403, detail="Access denied")
         try:
             return await resolve_dispatch_org_for_project_async(
-                db, current_user, project_id, billing_organization_id
+                db,
+                current_user,
+                project_id,
+                billing_organization_id,
+                min_role="CONTRIBUTOR",
             )
         except BillingOrgNotAllowed as e:
             raise HTTPException(status_code=403, detail=str(e))
@@ -300,14 +304,17 @@ async def get_billing_options(
 
     if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
-    options = await billing_org_options_async(db, current_user, project_id)
+    # The runs these options are for need CONTRIBUTOR in the paying org.
+    options = await billing_org_options_async(
+        db, current_user, project_id, min_role="CONTRIBUTOR"
+    )
     for option in options:
         option["providers"] = await org_api_key_service.get_available_providers_for_context_async(
             db, current_user.id, option["id"], project_id=project_id
         )
     return {
         "default_organization_id": await resolve_dispatch_org_for_project_async(
-            db, current_user, project_id
+            db, current_user, project_id, min_role="CONTRIBUTOR"
         ),
         "options": options,
     }

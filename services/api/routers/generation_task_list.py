@@ -38,6 +38,7 @@ from routers.generation_revoke import (
 from routers.projects.helpers import (
     check_project_accessible_async,
     check_project_write_access_async,
+    check_user_can_edit_project_async,
     can_read_all_task_content_async,
     enforce_project_write_window_async,
 )
@@ -633,21 +634,41 @@ async def start_generation(
             detail="Only contributors or admins can start generation for this project",
         )
 
+    # "all" regenerates every cell and cancels every pending or running
+    # generation on the project, including other people's: a bulk operation
+    # on the project, so real members only (creator, superadmin, CONTRIBUTOR
+    # or higher of an attached org). A public project's CONTRIBUTOR visitors
+    # add their own generations through "missing" and "single".
+    if request.mode == "all" and not await check_user_can_edit_project_async(
+        db, current_user, project_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Only project members can regenerate all cells of this project; "
+                "generate the missing cells instead"
+            ),
+        )
+
     # Timed access window: no generation runs outside [start, end] for the
     # access group (editors exempt). No-op when the project has no window.
     await enforce_project_write_window_async(db, current_user, project)
 
     # Which org's keys the run may spend: resolved from the project and the
     # caller's memberships (services/shared/org_resolution.py), the same
-    # rule grading uses, never from the selected organization. A member of
-    # an org that provides keys gets that org's key; everyone else falls
-    # back to their personal keys. A caller who may bill several orgs names
+    # rule grading uses, never from the selected organization. A CONTRIBUTOR
+    # or higher of an org that provides keys gets that org's key; everyone
+    # else (ANNOTATOR memberships included) falls back to their personal keys. A caller who may bill several orgs names
     # one in billing_organization_id.
     from org_resolution import BillingOrgNotAllowed, resolve_dispatch_org_for_project_async
 
     try:
         org_id = await resolve_dispatch_org_for_project_async(
-            db, current_user, project_id, request.billing_organization_id
+            db,
+            current_user,
+            project_id,
+            request.billing_organization_id,
+            min_role="CONTRIBUTOR",
         )
     except BillingOrgNotAllowed as e:
         raise HTTPException(status_code=403, detail=str(e))
