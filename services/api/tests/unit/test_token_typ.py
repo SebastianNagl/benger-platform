@@ -164,11 +164,11 @@ class TestEmailVerificationTokenTyp:
         token = svc.generate_verification_token("u-1", "u@test.com")
         assert svc.validate_verification_token(token) == ("u-1", "u@test.com")
 
-    def test_validator_tolerates_missing_typ_for_one_release(self):
-        # Links mailed before 2026-10-13 carry only the purpose claim and
-        # stay valid for up to 48 hours; drop with the grace next release.
+    def test_validator_rejects_missing_typ(self):
+        # The grace for typ-less links (2026-10-13) is over: a token with the
+        # right secret and purpose but no typ is rejected even when unexpired.
         token = _sign({"user_id": "u-1", "email": "u@test.com", "purpose": "email_verification"})
-        assert self._service().validate_verification_token(token) == ("u-1", "u@test.com")
+        assert self._service().validate_verification_token(token) is None
 
     def test_validator_rejects_foreign_typ(self):
         token = _sign(
