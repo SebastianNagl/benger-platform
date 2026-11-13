@@ -401,6 +401,14 @@ class RefreshToken(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     user_agent = Column(String, nullable=True)  # Browser/device identification
     ip_address = Column(String, nullable=True)  # IP address for security tracking
+    # Rotation: every refresh replaces the token with a successor in the same
+    # family (the id of the family's first token; NULL on rows from before
+    # rotation, whose family is their own id). ``rotated_at`` marks a token
+    # that was replaced rather than revoked; presenting it again after the
+    # reuse grace period revokes the whole family
+    # (services/refresh_token_service.py).
+    family_id = Column(String, nullable=True, index=True)
+    rotated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = relationship("User", backref="refresh_tokens")

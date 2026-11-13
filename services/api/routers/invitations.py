@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
+from auth_module.dependencies import is_org_admin_async  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
 from models import (  # noqa: E402
     Invitation,
@@ -978,29 +979,18 @@ async def list_organization_invitations(
 
     # Check permissions
     admin_group_ids: Optional[List[str]] = None  # None = unrestricted
-    if not current_user.is_superadmin:
-        membership = (
-            await db.execute(
-                select(OrganizationMembership).where(
-                    OrganizationMembership.user_id == current_user.id,
-                    OrganizationMembership.organization_id == organization_id,
-                    OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                    OrganizationMembership.is_active == True,  # noqa: E712
-                )
-            )
-        ).scalar_one_or_none()
-        if not membership:
-            from org_groups import build_select_admin_group_ids
+    if not await is_org_admin_async(db, current_user, organization_id):
+        from org_groups import build_select_admin_group_ids
 
-            group_rows = await db.execute(
-                build_select_admin_group_ids(str(current_user.id), organization_id)
+        group_rows = await db.execute(
+            build_select_admin_group_ids(str(current_user.id), organization_id)
+        )
+        admin_group_ids = [r[0] for r in group_rows.all()]
+        if not admin_group_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only organization admins can view invitations",
             )
-            admin_group_ids = [r[0] for r in group_rows.all()]
-            if not admin_group_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Only organization admins can view invitations",
-                )
 
     # Build query
     stmt = (
@@ -1279,20 +1269,9 @@ async def _authorize_existing_invitation(
     membership in the invitation's organization, or be the inviter. Cancel and
     resend share this so a resend can never reach further than a cancel.
     """
-    if current_user.is_superadmin:
+    if invitation.invited_by == current_user.id:
         return
-
-    membership = (
-        await db.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.organization_id == invitation.organization_id,
-                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,  # noqa: E712
-            )
-        )
-    ).scalar_one_or_none()
-    if not membership and invitation.invited_by != current_user.id:
+    if not await is_org_admin_async(db, current_user, invitation.organization_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Only organization admins or the inviter can {action} invitations",

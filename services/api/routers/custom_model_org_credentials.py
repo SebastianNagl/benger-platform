@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
+from auth_module.dependencies import require_org_admin_async
 from custom_model_org_credential_service import (
     delete_org_credential_async,
     get_org_credential_model_ids_async,
@@ -33,7 +34,7 @@ from custom_model_org_credential_service import (
 from database import get_async_db
 from models import CustomModelOrgCredential
 from models import LLMModel as DBLLMModel
-from models import ModelOrganization, Organization, OrganizationMembership, OrganizationRole
+from models import ModelOrganization, Organization
 from routers.model_access import lock_model_and_check_base_url
 
 logger = logging.getLogger(__name__)
@@ -57,27 +58,9 @@ async def _require_org_exists(org_id: str, db: AsyncSession):
 
 
 async def _require_org_admin(user: User, org_id: str, db: AsyncSession):
-    """Raise 403 unless the caller is a superadmin or an active ORG_ADMIN.
-
-    Same membership lookup as ``org_api_keys._require_org_admin`` — a hook,
-    not proprietary logic, inlined to keep this router fully async.
-    """
-    if user.is_superadmin:
-        return
-
-    result = await db.execute(
-        select(OrganizationMembership).where(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-    )
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this organization",
-        )
+    """403 unless the caller is a superadmin or an active ORG_ADMIN of the org
+    (the shared rule, ``auth_module.dependencies.require_org_admin_async``)."""
+    await require_org_admin_async(db, user, org_id)
 
 
 async def _require_shared_custom_model(

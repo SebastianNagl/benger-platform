@@ -435,6 +435,20 @@ def _create_tables():
                     "source_task_id VARCHAR"
                 )
             )
+            # Migration 132: refresh token rotation (family, rotated_at).
+            conn.execute(
+                text(
+                    "ALTER TABLE refresh_tokens "
+                    "ADD COLUMN IF NOT EXISTS family_id VARCHAR, "
+                    "ADD COLUMN IF NOT EXISTS rotated_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_refresh_tokens_family_id "
+                    "ON refresh_tokens (family_id)"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

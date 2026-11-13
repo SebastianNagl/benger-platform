@@ -212,7 +212,8 @@ docker-compose up -d
 
 # Test endpoints
 curl -X GET http://localhost:8001/api/tasks
-curl -X POST http://localhost:8001/api/auth/login \
+# Bearer token for scripts (the login route sets HttpOnly cookies only)
+curl -X POST http://localhost:8001/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin"}'
 ```

@@ -62,6 +62,9 @@ def _mock_project(project_id="project-123", title="Test Project"):
     p.label_config = "<View></View>"
     p.expert_instruction = "Instructions"
     p.organizations = []
+    # No timed access window (the exports check the read window).
+    p.window_start_at = None
+    p.window_end_at = None
     return p
 
 

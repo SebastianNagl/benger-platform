@@ -283,6 +283,68 @@ def optional_user(request: Request, db: Session = Depends(get_db)) -> Optional[U
     return get_current_user(request, db)
 
 
+#: 403 detail of :func:`require_org_admin_async`.
+ORG_ADMIN_REQUIRED_DETAIL = "You do not have permission to manage this organization"
+
+
+def _active_org_admin_criteria(user_id: str, org_id: str):
+    from models import OrganizationMembership, OrganizationRole
+
+    return (
+        OrganizationMembership.user_id == user_id,
+        OrganizationMembership.organization_id == org_id,
+        OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+        OrganizationMembership.is_active == True,  # noqa: E712
+    )
+
+
+async def is_org_admin_async(db, user, org_id: str) -> bool:
+    """Whether ``user`` may administer the whole organization ``org_id``.
+
+    The org-admin rule shared by the organization routers: a superadmin, or
+    an active ORG_ADMIN membership in that organization. Group admins do not
+    count (see ``auth_module.org_scope`` for the group-aware scope). Unlike
+    :func:`require_org_admin`, a deactivated organization is not refused
+    here; the routers answer for those with their own 404s.
+    """
+    if user is None:
+        return False
+    if getattr(user, "is_superadmin", False):
+        return True
+    from sqlalchemy import select
+
+    from models import OrganizationMembership
+
+    result = await db.execute(
+        select(OrganizationMembership).where(*_active_org_admin_criteria(user.id, org_id))
+    )
+    return result.scalar_one_or_none() is not None
+
+
+def is_org_admin_sync(db: Session, user, org_id: str) -> bool:
+    """Sync twin of :func:`is_org_admin_async`."""
+    if user is None:
+        return False
+    if getattr(user, "is_superadmin", False):
+        return True
+    from models import OrganizationMembership
+
+    membership = (
+        db.query(OrganizationMembership)
+        .filter(*_active_org_admin_criteria(user.id, org_id))
+        .first()
+    )
+    return membership is not None
+
+
+async def require_org_admin_async(db, user, org_id: str) -> None:
+    """403 unless :func:`is_org_admin_async` holds for ``org_id``."""
+    if not await is_org_admin_async(db, user, org_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=ORG_ADMIN_REQUIRED_DETAIL
+        )
+
+
 def require_org_admin(organization_id: Optional[str] = None):
     """
     Factory function to create organization admin dependency

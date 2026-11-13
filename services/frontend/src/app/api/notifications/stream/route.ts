@@ -1,4 +1,5 @@
-import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { getExternalHost, getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { relayedAuthCookies } from '@/lib/utils/upstreamCookies'
 import { NextRequest } from 'next/server'
 
 // Configure Next.js route segment config for SSE
@@ -16,6 +17,11 @@ export async function GET(request: NextRequest) {
   // Attempt token refresh if needed
   let finalCookies = cookies
   let newAccessToken = ''
+  // Cookies of a server-side refresh, passed on to the browser. Every
+  // refresh rotates the refresh token; a browser left holding the replaced
+  // one would trip the API's reuse detection on its next refresh and lose
+  // the session.
+  let refreshedCookies: string[] = []
 
   if (!hasAccessToken && hasRefreshToken) {
     try {
@@ -30,6 +36,10 @@ export async function GET(request: NextRequest) {
       if (refreshResponse.ok) {
         // Get the new cookies from the refresh response
         const setCookieHeaders = refreshResponse.headers.getSetCookie()
+        refreshedCookies = relayedAuthCookies(
+          setCookieHeaders,
+          getExternalHost(request),
+        )
         if (setCookieHeaders.length > 0) {
           // Extract new access_token from Set-Cookie headers
           for (const setCookie of setCookieHeaders) {
@@ -176,21 +186,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Return the streaming response with comprehensive anti-buffering headers
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate, no-transform',
-        Pragma: 'no-cache',
-        Expires: '0',
-        Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no', // nginx
-        'X-Content-Type-Options': 'nosniff',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control',
-        // Additional headers to prevent buffering
-        'Transfer-Encoding': 'chunked',
-      },
+    const responseHeaders = new Headers({
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate, no-transform',
+      Pragma: 'no-cache',
+      Expires: '0',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no', // nginx
+      'X-Content-Type-Options': 'nosniff',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control',
+      // Additional headers to prevent buffering
+      'Transfer-Encoding': 'chunked',
     })
+    refreshedCookies.forEach((cookie) =>
+      responseHeaders.append('Set-Cookie', cookie),
+    )
+    return new Response(stream, { headers: responseHeaders })
   } catch (error: any) {
     // Only log unexpected errors
     if (

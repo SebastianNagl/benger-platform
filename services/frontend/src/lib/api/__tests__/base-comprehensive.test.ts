@@ -407,36 +407,6 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
     })
   })
 
-  describe('Token expiration checking', () => {
-    it('should detect expired tokens', () => {
-      const expiredToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 3600 }),
-      )}.signature`
-
-      const isExpired = (client as any).isTokenExpired(expiredToken)
-
-      expect(isExpired).toBe(true)
-    })
-
-    it('should detect tokens expiring within 30 seconds', () => {
-      const soonToExpireToken = `header.${btoa(
-        JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 20 }),
-      )}.signature`
-
-      const isExpired = (client as any).isTokenExpired(soonToExpireToken)
-
-      expect(isExpired).toBe(true)
-    })
-
-    it('should treat malformed tokens as expired', () => {
-      const malformedToken = 'not.a.valid.jwt'
-
-      const isExpired = (client as any).isTokenExpired(malformedToken)
-
-      expect(isExpired).toBe(true)
-    })
-  })
-
   describe('Organization context', () => {
     it('never sends an X-Organization-Context header (core 2.22)', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -762,7 +732,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       expect(mockAuthFailure).not.toHaveBeenCalled()
     })
 
-    it('should use valid access token from localStorage', async () => {
+    it('should ignore a valid-looking access token in localStorage', async () => {
       const validToken = `header.${btoa(
         JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       )}.signature`
@@ -780,14 +750,9 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
       await client.get('/test')
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: `Bearer ${validToken}`,
-          }),
-        }),
-      )
+      const fetchCall = (global.fetch as jest.Mock).mock.calls[0][1]
+      expect(fetchCall.headers.Authorization).toBeUndefined()
+      expect(fetchCall.credentials).toBe('include')
     })
 
     it('should not use expired token from localStorage', async () => {

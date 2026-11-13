@@ -103,7 +103,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert "access_token" in data
+            assert "access_token" not in data  # tokens travel in HttpOnly cookies only
             assert data["token_type"] == "bearer"
 
     def test_login_invalid_credentials(self, client):
@@ -211,8 +211,9 @@ class TestAuthRouter:
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert "access_token" in data
-                assert data["access_token"] == "new-access-token"
+                assert "access_token" not in data  # tokens travel in HttpOnly cookies only
+                assert response.cookies.get("access_token") == "new-access-token"
+                assert response.cookies.get("refresh_token") == "new-refresh-token"
             finally:
                 app.dependency_overrides.clear()
 

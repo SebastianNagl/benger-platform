@@ -1,15 +1,25 @@
 """
 Refresh token service for persistent authentication
 Handles refresh token generation, validation, rotation, and revocation
+
+Rotation and reuse detection: every refresh replaces the presented token
+with a successor in the same family (``rotate_refresh_token``). The replaced
+token keeps ``rotated_at``. If it is presented again within
+``REFRESH_TOKEN_REUSE_GRACE_SECONDS`` (two tabs or the SSE proxy refreshing
+at the same moment), the caller gets a new access token but no new refresh
+token, since the first call already set the successor cookie. After the
+grace period such a presentation means the token was copied, so the whole
+family is revoked (``resolve_rotated_refresh_token``).
 """
 
 import hashlib
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -22,6 +32,12 @@ from models import RefreshToken
 # would defeat that reload-based test mechanism.
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
+#: How long a replaced refresh token may still mint an access token, so that
+#: concurrent refreshes with the same cookie do not end the session.
+REFRESH_TOKEN_REUSE_GRACE_SECONDS = 30
+
+logger = logging.getLogger(__name__)
+
 
 def generate_refresh_token() -> str:
     """Generate a secure random refresh token"""
@@ -33,6 +49,34 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def family_of(db_token: RefreshToken) -> str:
+    """The family a token belongs to (rows from before rotation: their own id)."""
+    return db_token.family_id or db_token.id
+
+
+def _new_token_row(
+    user_id: str,
+    user_agent: Optional[str],
+    ip_address: Optional[str],
+    family_id: Optional[str] = None,
+) -> tuple[str, RefreshToken]:
+    token_id = secrets.token_urlsafe(32)
+    plain_token = generate_refresh_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    db_token = RefreshToken(
+        id=token_id,
+        token_hash=hash_token(plain_token),
+        user_id=user_id,
+        expires_at=expires_at,
+        is_active=True,
+        user_agent=user_agent,
+        ip_address=ip_address,
+        # A new login starts a family named after its first token.
+        family_id=family_id or token_id,
+    )
+    return plain_token, db_token
+
+
 def create_refresh_token(
     db: Session,
     user_id: str,
@@ -40,29 +84,10 @@ def create_refresh_token(
     ip_address: Optional[str] = None,
 ) -> tuple[str, RefreshToken]:
     """
-    Create a new refresh token for a user
+    Create a new refresh token for a user (a new login: a new family)
     Returns the plain token and the database record
     """
-    # Generate unique ID for the token
-    token_id = secrets.token_urlsafe(32)
-
-    # Generate the actual refresh token
-    plain_token = generate_refresh_token()
-    token_hash = hash_token(plain_token)
-
-    # Calculate expiration time
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    # Create database record
-    db_token = RefreshToken(
-        id=token_id,
-        token_hash=token_hash,
-        user_id=user_id,
-        expires_at=expires_at,
-        is_active=True,
-        user_agent=user_agent,
-        ip_address=ip_address,
-    )
+    plain_token, db_token = _new_token_row(user_id, user_agent, ip_address)
 
     db.add(db_token)
     db.commit()
@@ -105,21 +130,99 @@ def rotate_refresh_token(
 ) -> Optional[tuple[str, RefreshToken]]:
     """
     Rotate a refresh token - invalidate the old one and create a new one
-    This is a security best practice to prevent token reuse attacks
+    in the same family, in one transaction.
+
+    The old row is locked, so of two concurrent rotations of the same token
+    exactly one succeeds; the other gets None and can fall back to
+    ``resolve_rotated_refresh_token``. Returns None as well when the token is
+    unknown, expired or no longer active.
     """
-    # Validate the old token
-    old_db_token = validate_refresh_token(db, old_token)
+    now = datetime.now(timezone.utc)
+    old_db_token = (
+        db.query(RefreshToken)
+        .filter(
+            RefreshToken.token_hash == hash_token(old_token),
+            RefreshToken.is_active == True,  # noqa: E712
+            RefreshToken.expires_at > now,
+        )
+        .with_for_update()
+        .first()
+    )
     if not old_db_token:
         return None
 
-    # Invalidate the old token
     old_db_token.is_active = False
-    db.commit()
+    old_db_token.rotated_at = now
+    old_db_token.last_used_at = now
 
-    # Create a new refresh token for the same user
-    new_token, new_db_token = create_refresh_token(db, old_db_token.user_id, user_agent, ip_address)
+    new_token, new_db_token = _new_token_row(
+        old_db_token.user_id, user_agent, ip_address, family_id=family_of(old_db_token)
+    )
+    db.add(new_db_token)
+    db.commit()
+    db.refresh(new_db_token)
 
     return new_token, new_db_token
+
+
+def revoke_token_family(db: Session, family_id: str) -> int:
+    """Revoke every active token of a family. Returns the number revoked."""
+    count = (
+        db.query(RefreshToken)
+        .filter(
+            or_(RefreshToken.family_id == family_id, RefreshToken.id == family_id),
+            RefreshToken.is_active == True,  # noqa: E712
+        )
+        .update({"is_active": False}, synchronize_session=False)
+    )
+    db.commit()
+    return count
+
+
+def resolve_rotated_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
+    """Decide about a presented refresh token that is no longer active.
+
+    Returns the token's row when it was replaced by rotation less than
+    ``REFRESH_TOKEN_REUSE_GRACE_SECONDS`` ago and its family still has a live
+    token: a concurrent refresh, which may mint an access token but no new
+    refresh token. Returns None in every other case. A replaced token
+    presented after the grace period is treated as stolen: its whole family
+    is revoked, so the legitimate holder of the successor has to log in
+    again too.
+    """
+    now = datetime.now(timezone.utc)
+    db_token = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.token_hash == hash_token(token))
+        .first()
+    )
+    if db_token is None or db_token.is_active or db_token.rotated_at is None:
+        # Unknown, still active (not this function's case) or ended by logout.
+        return None
+    if db_token.expires_at <= now:
+        return None
+
+    family = family_of(db_token)
+    if now - db_token.rotated_at > timedelta(seconds=REFRESH_TOKEN_REUSE_GRACE_SECONDS):
+        revoked = revoke_token_family(db, family)
+        logger.warning(
+            "Refresh token reuse detected for user %s: revoked %d token(s) of family %s",
+            db_token.user_id,
+            revoked,
+            family,
+        )
+        return None
+
+    live_successor = (
+        db.query(RefreshToken.id)
+        .filter(
+            or_(RefreshToken.family_id == family, RefreshToken.id == family),
+            RefreshToken.is_active == True,  # noqa: E712
+            RefreshToken.expires_at > now,
+        )
+        .first()
+    )
+    return db_token if live_successor is not None else None
 
 
 def revoke_refresh_token(db: Session, token: str) -> bool:
@@ -306,6 +409,7 @@ async def create_refresh_token_async(
         is_active=True,
         user_agent=user_agent,
         ip_address=ip_address,
+        family_id=token_id,
     )
 
     db.add(db_token)

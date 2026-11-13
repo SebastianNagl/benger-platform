@@ -3,6 +3,7 @@ import asyncio
 
 from account_activation import mask_email
 from auth_module.auth_cookies import expire_legacy_cookies
+from auth_module.models import AccessTokenResponse, SessionResponse
 from auth_module.session_origin import clear_session_origin
 from sqlalchemy import func
 
@@ -19,20 +20,69 @@ def _login_hint(login: str) -> str:
     return login[:2] + "…"
 
 
-@router.post(
-    "/login",
-    response_model=Token,
-    summary="User Login",
-    description="""
-    Authenticate a user and return JWT access and refresh tokens.
+def _authenticate_login(login_data: UserLogin, request: Request, db: Session) -> User:
+    """The checks every password sign-in passes, for ``/login`` and ``/token``.
 
-    **Authentication Flow:**
-    1. Validates username/email and password
-    2. Returns JWT access token (expires in 30 minutes)
-    3. Sets HttpOnly refresh token cookie (expires in 7 days)
-    4. Includes user profile and organization information
+    Rate limits, the password, the verified e-mail address and the
+    ``after_user_login`` extension hook. Returns the signed-in user.
+    """
+    # Per-IP soft limit first (counts every attempt), then the account
+    # throttle (counts nothing). Both run before the password is checked.
+    auth_rate_limit.enforce_ip_limit(request, auth_rate_limit.LOGIN)
+    auth_rate_limit.check_login_throttle(login_data.username)
 
-    **Security Features:**
+    user = authenticate_user(login_data.username, login_data.password, db)
+    if not user:
+        logger.info(f"Authentication failed for login: {_login_hint(login_data.username)}")
+        auth_rate_limit.record_login_failure(login_data.username)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # The password was right: earlier failures no longer count.
+    auth_rate_limit.reset_login_failures(login_data.username)
+
+    # Check if email is verified
+    if not user.email_verified:
+        logger.info(f"Login blocked - unverified email for user: {user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required. Please check your email for the verification link.",
+        )
+
+    logger.info(f"Authentication successful for user: {user.id}")
+
+    # Extension hook: host-aware login onboarding — an EXISTING account's
+    # first sign-in on a student-locked host (vertretbar.net) attaches the
+    # Vertretbar org membership (the signup hook only covers accounts
+    # CREATED there). Runs before token creation so the issued profile
+    # already carries the new membership. The context is derived
+    # server-side (not a spoofable body field). The hook contract takes
+    # the ORM user (it mutates and commits) — authenticate_user returns
+    # the Pydantic schema, so re-fetch the row. Never let a hook failure
+    # break login.
+    try:
+        from extensions import after_user_login as _after_user_login_ext
+        from models import User as DBUser
+
+        db_user = db.query(DBUser).filter(DBUser.id == str(user.id)).first()
+        if db_user is not None:
+            login_context = {
+                "host": request.headers.get("x-forwarded-host")
+                or request.headers.get("host"),
+                "origin": request.headers.get("origin")
+                or request.headers.get("referer"),
+            }
+            _after_user_login_ext(db, db_user, login_context)
+    except Exception as e:
+        logger.error(f"after_user_login hook failed (non-fatal): {e}", exc_info=True)
+
+    return user
+
+
+_LOGIN_SECURITY_NOTES = """
     - Brute-force limits: after 10 failed attempts for one login (username
       or email as typed, case-insensitive) within a sliding 15 minutes, each
       further attempt within 60 seconds of the last failure is refused
@@ -42,31 +92,55 @@ def _login_hint(login: str) -> str:
       Limited requests get 429 with `Retry-After` and
       `detail={"code": "rate_limited", "retry_after": <seconds>}`;
       503 `rate_limiter_unavailable` while Redis is unreachable
-    - Secure HttpOnly cookies for refresh tokens
-    - JWT tokens with role-based claims
-    """,
+"""
+
+_LOGIN_ERROR_RESPONSES = {
+    401: {"description": "Invalid credentials"},
+    403: {"description": "E-mail address not verified"},
+    429: {"description": "Too many login attempts (account throttled or IP limit)"},
+    503: {"description": "Rate limiter unavailable (Redis down), login refused"},
+}
+
+
+@router.post(
+    "/login",
+    response_model=SessionResponse,
+    summary="User Login",
+    description="""
+    Authenticate a user for a browser session.
+
+    **Authentication Flow:**
+    1. Validates username/email and password
+    2. Sets the HttpOnly `access_token` cookie (a JWT valid for 60 minutes)
+    3. Sets the HttpOnly `refresh_token` cookie (valid for 7 days, replaced
+       on every `POST /api/auth/refresh`)
+    4. Returns the user profile and organization information
+
+    The tokens are never part of the response body, so script on the page
+    can not read them. Scripts that need a bearer token use
+    `POST /api/auth/token` or an access key.
+
+    **Security Features:**"""
+    + _LOGIN_SECURITY_NOTES,
     responses={
         200: {
             "description": "Login successful",
             "content": {
                 "application/json": {
                     "example": {
-                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                         "token_type": "bearer",
+                        "expires_in": 3600,
                         "user": {
                             "id": "123e4567-e89b-12d3-a456-426614174000",
                             "username": "admin",
                             "email": "admin@benger.dev",
-                            "role": "superadmin",
-                            "organizations": ["TUM", "Research Lab"],
+                            "is_superadmin": True,
                         },
                     }
                 }
             },
         },
-        401: {"description": "Invalid credentials"},
-        429: {"description": "Too many login attempts (account throttled or IP limit)"},
-        503: {"description": "Rate limiter unavailable (Redis down), login refused"},
+        **_LOGIN_ERROR_RESPONSES,
     },
 )
 def login(
@@ -75,60 +149,9 @@ def login(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Login endpoint that returns JWT tokens and sets HttpOnly cookies"""
+    """Login endpoint that sets the session tokens as HttpOnly cookies"""
     try:
-        # Per-IP soft limit first (counts every attempt), then the account
-        # throttle (counts nothing). Both run before the password is checked.
-        auth_rate_limit.enforce_ip_limit(request, auth_rate_limit.LOGIN)
-        auth_rate_limit.check_login_throttle(login_data.username)
-
-        user = authenticate_user(login_data.username, login_data.password, db)
-        if not user:
-            logger.info(f"Authentication failed for login: {_login_hint(login_data.username)}")
-            auth_rate_limit.record_login_failure(login_data.username)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # The password was right: earlier failures no longer count.
-        auth_rate_limit.reset_login_failures(login_data.username)
-
-        # Check if email is verified
-        if not user.email_verified:
-            logger.info(f"Login blocked - unverified email for user: {user.id}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Email verification required. Please check your email for the verification link.",
-            )
-
-        logger.info(f"Authentication successful for user: {user.id}")
-
-        # Extension hook: host-aware login onboarding — an EXISTING account's
-        # first sign-in on a student-locked host (vertretbar.net) attaches the
-        # Vertretbar org membership (the signup hook only covers accounts
-        # CREATED there). Runs before token creation so the issued profile
-        # already carries the new membership. The context is derived
-        # server-side (not a spoofable body field). The hook contract takes
-        # the ORM user (it mutates and commits) — authenticate_user returns
-        # the Pydantic schema, so re-fetch the row. Never let a hook failure
-        # break login.
-        try:
-            from extensions import after_user_login as _after_user_login_ext
-            from models import User as DBUser
-
-            db_user = db.query(DBUser).filter(DBUser.id == str(user.id)).first()
-            if db_user is not None:
-                login_context = {
-                    "host": request.headers.get("x-forwarded-host")
-                    or request.headers.get("host"),
-                    "origin": request.headers.get("origin")
-                    or request.headers.get("referer"),
-                }
-                _after_user_login_ext(db, db_user, login_context)
-        except Exception as e:
-            logger.error(f"after_user_login hook failed (non-fatal): {e}", exc_info=True)
+        user = _authenticate_login(login_data, request, db)
 
         # Extract request metadata for security tracking
         user_agent = request.headers.get("user-agent")
@@ -174,7 +197,12 @@ def login(
         # A password login is a regular session: drop any LMS-launch marker.
         clear_session_origin(response)
 
-        return token_response
+        # Shaped by response_model=SessionResponse: no token in the body.
+        return {
+            "token_type": token_response.token_type,
+            "expires_in": token_response.expires_in,
+            "user": token_response.user,
+        }
     except HTTPException:
         # Expected outcomes (401/403/429/503), not crashes worth a traceback.
         raise
@@ -183,6 +211,42 @@ def login(
         logger.error(f"Exception type: {type(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
+
+
+@router.post(
+    "/token",
+    response_model=AccessTokenResponse,
+    summary="Access token for scripts",
+    description="""
+    Exchange username/email and password for an access token in the response
+    body, to send as `Authorization: Bearer <token>`. Meant for scripts and
+    API clients; the browser app uses `POST /api/auth/login`, whose tokens
+    stay in HttpOnly cookies.
+
+    Sets no cookie and issues no refresh token: the token is valid for 60
+    minutes, after which the script requests a new one. For long-running
+    automation prefer an access key (`/api/access-keys`).
+
+    Same checks as login (password, verified e-mail address, limits):"""
+    + _LOGIN_SECURITY_NOTES,
+    responses=_LOGIN_ERROR_RESPONSES,
+)
+def issue_access_token(
+    login_data: UserLogin,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Password grant for API clients: the access token in the body, no cookies"""
+    user = _authenticate_login(login_data, request, db)
+    token_response = create_tokens_with_refresh(
+        user=user, db=db, include_refresh_token=False
+    )
+    return {
+        "access_token": token_response.access_token,
+        "token_type": token_response.token_type,
+        "expires_in": token_response.expires_in,
+        "user": token_response.user,
+    }
 
 
 @router.post("/signup", response_model=User)

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
+from auth_module.dependencies import is_org_admin_async, require_org_admin_async
 from database import get_async_db, get_db, release_db_sessions
 from models import LLMModel as DBLLMModel
 from models import (
@@ -18,7 +19,6 @@ from models import (
     OrganizationGroup,
     OrganizationGroupMembership,
     OrganizationMembership,
-    OrganizationRole,
 )
 from services.org_api_key_service import org_api_key_service
 
@@ -28,30 +28,9 @@ router = APIRouter(prefix="/api/organizations", tags=["Organization API Keys"])
 
 
 async def _require_org_admin(user: User, org_id: str, db: AsyncSession):
-    """Raise 403 if user cannot manage the organization.
-
-    Mirrors ``routers.organizations.can_manage_organization`` (superadmin or
-    active ORG_ADMIN membership) on the async lane. The check is a plain
-    membership lookup — a hook, not proprietary logic — so inlining it keeps
-    this router fully async without reaching into the (sync) organizations
-    domain owned by another agent.
-    """
-    if user.is_superadmin:
-        return
-
-    result = await db.execute(
-        select(OrganizationMembership).where(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-    )
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this organization",
-        )
+    """403 unless the caller is a superadmin or an active ORG_ADMIN of the org
+    (the shared rule, ``auth_module.dependencies.require_org_admin_async``)."""
+    await require_org_admin_async(db, user, org_id)
 
 
 async def _require_org_member(user: User, org_id: str, db: AsyncSession):
@@ -109,17 +88,7 @@ async def _require_scope_admin(
             status_code=status.HTTP_404_NOT_FOUND, detail="Group not found"
         )
 
-    if user.is_superadmin:
-        return
-    admin = await db.execute(
-        select(OrganizationMembership.id).where(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-    )
-    if admin.first() is not None:
+    if await is_org_admin_async(db, user, org_id):
         return
     from org_groups import build_select_admin_group_ids
 

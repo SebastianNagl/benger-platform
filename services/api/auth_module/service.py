@@ -174,20 +174,13 @@ def token_typ_accepted(payload: dict, expected_typ: str) -> bool:
 
     Rejects any payload carrying a ``purpose`` claim (the single-purpose
     tokens, e.g. email verification, are never session tokens) and any
-    ``typ`` other than the expected one.
-
-    A MISSING ``typ`` is tolerated until the next release (grace added
-    2026-10-13): access tokens issued before this change carry no ``typ``
-    and must keep working for their remaining 60-minute lifetime across the
-    deploy. Make ``typ`` mandatory (``payload.get("typ") == expected_typ``)
-    in the release after this one.
+    ``typ`` other than the expected one, a missing ``typ`` included. (Tokens
+    without ``typ`` were tolerated for one release after 2026-10-13 so that
+    sessions survived that deploy; every token issued since carries it.)
     """
     if "purpose" in payload:
         return False
-    typ = payload.get("typ")
-    if typ is None:
-        return True
-    return typ == expected_typ
+    return payload.get("typ") == expected_typ
 
 
 def verify_token(token: str, expected_typ: str = ACCESS_TOKEN_TYP) -> dict:
@@ -343,35 +336,61 @@ def create_tokens_with_refresh(
     )
 
 
+def _refresh_denied() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
+    )
+
+
 def refresh_access_token(
     refresh_token: str, db: Session, user_agent: str = None, ip_address: str = None
 ) -> Token:
-    """Create new access token using refresh token"""
-    # Validate refresh token and get user
-    db_refresh_token = refresh_token_service.validate_refresh_token(db, refresh_token)
-    if not db_refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
-        )
+    """Create a new access token from a refresh token and rotate the latter.
 
-    # Get user
+    The returned ``Token`` carries the successor refresh token in
+    ``refresh_token``; it is None when the presented token had just been
+    rotated by a concurrent refresh (the browser already holds the
+    successor). A replaced token presented after the grace period revokes
+    its whole family (see ``services.refresh_token_service``). Deactivated
+    users and service accounts are refused, and the token is not rotated
+    for them.
+    """
     from .user_service import get_user_by_id
 
+    db_refresh_token = refresh_token_service.validate_refresh_token(db, refresh_token)
+    rotate = db_refresh_token is not None
+    if not rotate:
+        db_refresh_token = refresh_token_service.resolve_rotated_refresh_token(
+            db, refresh_token
+        )
+        if db_refresh_token is None:
+            raise _refresh_denied()
+
     db_user = get_user_by_id(db, db_refresh_token.user_id)
-    if not db_user:
+    if not db_user or not db_user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     forbid_service_account(db_user)
 
-    user = db_user_to_user(db_user)
+    new_refresh_token = None
+    if rotate:
+        rotated = refresh_token_service.rotate_refresh_token(
+            db, refresh_token, user_agent=user_agent, ip_address=ip_address
+        )
+        if rotated is not None:
+            new_refresh_token = rotated[0]
+        elif refresh_token_service.resolve_rotated_refresh_token(db, refresh_token) is None:
+            # Lost the race against a concurrent rotation AND the grace check
+            # failed (e.g. a logout in between).
+            raise _refresh_denied()
 
-    # Create new access token (without refresh token)
-    return create_tokens_with_refresh(
-        user=user,
+    token = create_tokens_with_refresh(
+        user=db_user_to_user(db_user),
         db=db,
         include_refresh_token=False,
         user_agent=user_agent,
         ip_address=ip_address,
     )
+    return token.model_copy(update={"refresh_token": new_refresh_token})
 
 
 def revoke_refresh_token(refresh_token: str, db: Session) -> bool:

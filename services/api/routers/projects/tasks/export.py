@@ -1,5 +1,5 @@
 """Bulk export endpoint (streaming JSON/CSV/TSV)."""
-from routers.projects.helpers import can_read_all_task_content
+from routers.projects.helpers import can_read_all_task_content, enforce_project_read_window
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
@@ -49,6 +49,9 @@ def bulk_export_tasks(
             status_code=403,
             detail="Only contributors or admins can export tasks from this project",
         )
+    # Timed access window, as on the single export: a non-editor (public
+    # CONTRIBUTOR visitor) gets no task data before the window opens.
+    enforce_project_read_window(db, current_user, project)
 
     # Capture scalars now — we'll reference them inside the generator after
     # the closure has been handed off to StreamingResponse.

@@ -195,7 +195,7 @@ class TestLogin:
                     json={"username": "testuser", "password": "pass"},
                 )
                 assert resp.status_code == 200
-                assert "access_token" in resp.json()
+                assert "access_token" not in resp.json()  # tokens travel in HttpOnly cookies only
         finally:
             app.dependency_overrides.clear()
 

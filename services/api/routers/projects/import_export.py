@@ -29,7 +29,7 @@ from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
 from celery_client import send_task_safe  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
-from object_storage import object_storage  # noqa: E402
+from object_storage import is_import_key_of, object_storage  # noqa: E402
 from routers.projects._export_stream import (  # noqa: E402,F401
     EXPORT_FORMAT_MEDIA_TYPES,
     convert_to_label_studio_format,  # re-exported: tests import it from here
@@ -73,10 +73,32 @@ from routers.projects.helpers import (  # noqa: E402
     check_project_write_access_async,
     can_read_all_task_content,
     can_read_all_task_content_async,
+    enforce_project_read_window,
     enforce_project_read_window_async,
 )
 
 router = APIRouter()
+
+
+def _may_bulk_export(db: Session, current_user: AuthUser, project: Project) -> bool:
+    """Whether a multi-project export may include ``project``.
+
+    The gates of the single export (``enqueue_export_job``): read access,
+    the full-data role (whole-project exports carry task data and other
+    people's annotations, so plain members would bypass blinding, access
+    windows and the SEB gate) and the timed read window (a non-editor gets
+    nothing before the window opens). The bulk exports skip a project that
+    fails any of them instead of failing the whole request.
+    """
+    if not check_project_accessible(db, current_user, project.id):
+        return False
+    if not can_read_all_task_content(db, current_user, project):
+        return False
+    try:
+        enforce_project_read_window(db, current_user, project)
+    except HTTPException:
+        return False
+    return True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -497,10 +519,10 @@ async def create_import_job(
     object_key = (data or {}).get("object_key")
     if not isinstance(object_key, str) or not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")
-    # The key was minted by create_import_upload_url for THIS project. Reject
-    # anything outside the import prefix or not scoped to this project so a
-    # client can't redirect the worker at someone else's upload.
-    if not object_key.startswith("imports/") or f"/{project_id}/" not in object_key:
+    # The key was minted by create_import_upload_url for THIS project. Only
+    # that exact layout passes, so a client can't redirect the worker at
+    # someone else's upload (another owner's prefix, a ``..`` segment).
+    if not is_import_key_of(object_key, project_id):
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
     mode = (data or {}).get("mode") or "nested"
@@ -983,7 +1005,7 @@ async def create_full_import_job(
     object_key = (data or {}).get("object_key")
     if not isinstance(object_key, str) or not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")
-    if not object_key.startswith("imports/") or f"/{current_user.id}/" not in object_key:
+    if not is_import_key_of(object_key, current_user.id):
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
     try:
@@ -1093,12 +1115,7 @@ def bulk_export_projects(
         if not project:
             continue
 
-        # Whole-project exports (task data, other people's annotations) are
-        # for contributors; plain members would bypass blinding, access
-        # windows and the SEB gate here.
-        if not check_project_accessible(db, current_user, project_id):
-            continue
-        if not can_read_all_task_content(db, current_user, project):
+        if not _may_bulk_export(db, current_user, project):
             continue
 
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
@@ -1297,9 +1314,7 @@ def bulk_export_full_projects(
                         )
                         continue
 
-                    if not check_project_accessible(
-                        db, current_user, project_id
-                    ) or not can_read_all_task_content(db, current_user, project):
+                    if not _may_bulk_export(db, current_user, project):
                         logger.warning(
                             "bulk-export-full: access denied for project %s, skipping",
                             project_id,

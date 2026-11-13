@@ -25,6 +25,8 @@ import json
 import logging
 import mimetypes
 import os
+import re
+import secrets
 import shutil
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -63,6 +65,47 @@ except Exception as e:
     print(f"Warning: Boto3 not available: {e}. Only local storage will be supported.")
 
 logger = logging.getLogger(__name__)
+
+
+_UNSAFE_KEY_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
+_MAX_KEY_STEM_LENGTH = 100
+_MAX_KEY_EXT_LENGTH = 16
+
+
+def safe_key_filename(filename: Optional[str]) -> str:
+    """Reduce a client-supplied file name to one safe key segment.
+
+    Directory parts (``/`` and ``\\``) are dropped, every character outside
+    ``A-Za-z0-9._-`` becomes ``_``, leading dots go (no ``..`` or hidden
+    names) and the stem and extension are capped. Never empty.
+    """
+    name = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+    stem, ext = os.path.splitext(name)
+    stem = _UNSAFE_KEY_CHARS.sub("_", stem).strip("._")[:_MAX_KEY_STEM_LENGTH] or "file"
+    ext = "." + _UNSAFE_KEY_CHARS.sub("", ext[1:]).strip(".")[: _MAX_KEY_EXT_LENGTH - 1]
+    return stem + (ext if ext != "." else "")
+
+
+#: A minted import key: ``imports/<yyyy>/<mm>/<owner>/<one file-name segment>``.
+_IMPORT_KEY = re.compile(r"imports/\d{4}/\d{2}/(?P<owner>[^/]+)/(?P<name>[^/]+)")
+
+
+def is_import_key_of(object_key: str, owner_id: str) -> bool:
+    """Whether ``object_key`` is an import upload key minted for ``owner_id``.
+
+    The exact layout ``get_upload_url(file_type="imports", user_id=owner_id)``
+    produces (owner = project id or user id). Keys minted before the random
+    component was added (``<timestamp>_<raw name>``) match too, as long as the
+    name is one segment, which is what every browser upload produced.
+    """
+    if not isinstance(object_key, str) or not owner_id:
+        return False
+    match = _IMPORT_KEY.fullmatch(object_key)
+    return (
+        match is not None
+        and match.group("owner") == str(owner_id)
+        and match.group("name") not in (".", "..")
+    )
 
 
 class ObjectStorageService:
@@ -308,10 +351,10 @@ class ObjectStorageService:
         if user_id:
             prefix = f"{prefix}/{user_id}"
 
-        # Generate unique filename with timestamp
+        # Unique, unguessable and one segment: timestamp, a random part and
+        # the client's file name reduced to safe characters.
         timestamp = now.strftime("%Y%m%d_%H%M%S")
-        name, ext = os.path.splitext(filename)
-        unique_filename = f"{timestamp}_{name}{ext}"
+        unique_filename = f"{timestamp}_{secrets.token_hex(8)}_{safe_key_filename(filename)}"
 
         return f"{prefix}/{unique_filename}"
 

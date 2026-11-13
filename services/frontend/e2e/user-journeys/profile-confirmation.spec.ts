@@ -15,8 +15,9 @@ import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
 
+// Bearer token for API calls (login keeps its tokens in HttpOnly cookies).
 async function getAuthToken(page: Page): Promise<string> {
-  const response = await page.request.post(`${BASE_URL}/api/auth/login`, {
+  const response = await page.request.post(`${BASE_URL}/api/auth/token`, {
     data: { username: 'admin', password: 'admin' },
     timeout: 30000,
   })

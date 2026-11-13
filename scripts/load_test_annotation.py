@@ -86,9 +86,9 @@ class AnnotatorUser(HttpUser):
     def _login(self):
         """Authenticate and store access token."""
         with self.client.post(
-            "/api/auth/login",
+            "/api/auth/token",
             json={"username": self.username, "password": PASSWORD},
-            name="/api/auth/login",
+            name="/api/auth/token",
             catch_response=True,
         ) as resp:
             if resp.status_code == 200:

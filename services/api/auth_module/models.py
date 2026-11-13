@@ -270,6 +270,31 @@ class Token(BaseModel):
     user: User
 
 
+class SessionResponse(BaseModel):
+    """Body of a browser session response (login, refresh).
+
+    The tokens travel only in the HttpOnly ``access_token`` and
+    ``refresh_token`` cookies, never in the body, so script on the page can
+    not read them. Scripts that need a bearer token use ``POST
+    /api/auth/token`` (``AccessTokenResponse``) or an access key.
+    """
+
+    token_type: str
+    expires_in: int
+    user: User
+
+
+class AccessTokenResponse(BaseModel):
+    """Body of ``POST /api/auth/token``: an access token for scripts, sent as
+    ``Authorization: Bearer``. No refresh token: when it expires the script
+    requests a new one (or uses an access key)."""
+
+    access_token: str
+    token_type: str
+    expires_in: int
+    user: User
+
+
 class TokenData(BaseModel):
     """Token payload data"""
 

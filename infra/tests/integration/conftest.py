@@ -133,7 +133,7 @@ def api_client(config):
         
         def login(self, username: str, password: str):
             """Login and set auth token"""
-            response = self.post("/auth/login", json={
+            response = self.post("/auth/token", json={
                 "username": username,
                 "password": password
             })

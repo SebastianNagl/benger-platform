@@ -1,14 +1,23 @@
 """Auth: token refresh and logout handlers."""
 from auth_module.auth_cookies import SESSION_TOKEN_COOKIES, expire_legacy_cookies
+from auth_module.models import SessionResponse
 from auth_module.session_origin import clear_session_origin
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh", response_model=SessionResponse)
 def refresh_token_endpoint(
     request: Request, response: Response, db: Session = Depends(get_db)
 ):
-    """Refresh access token using refresh token"""
+    """Mint a new access token from the refresh cookie and rotate the latter.
+
+    Every successful call replaces the refresh token (new ``refresh_token``
+    cookie). A token replaced moments ago by a concurrent refresh still
+    yields an access token, without a new refresh cookie; presented later it
+    ends the whole session family (reuse detection, see
+    ``services.refresh_token_service``). Like login, the body carries no
+    token.
+    """
     # Get refresh token from cookie
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
@@ -22,7 +31,8 @@ def refresh_token_endpoint(
     user_agent = request.headers.get("user-agent")
     ip_address = request.client.host if request.client else None
 
-    # Refresh the access token (with token rotation)
+    # New access token, refresh token rotated (refresh_token is None when a
+    # concurrent refresh already rotated the presented one).
     token_response = refresh_access_token(
         refresh_token=refresh_token, db=db, user_agent=user_agent, ip_address=ip_address
     )
@@ -59,7 +69,7 @@ def refresh_token_endpoint(
         path="/",
     )
 
-    # Set new refresh token cookie (token rotation)
+    # Set the successor refresh token cookie (rotation)
     if token_response.refresh_token:
         response.set_cookie(
             key="refresh_token",
@@ -71,7 +81,12 @@ def refresh_token_endpoint(
             path="/",
         )
 
-    return token_response
+    # Shaped by response_model=SessionResponse: no token in the body.
+    return {
+        "token_type": token_response.token_type,
+        "expires_in": token_response.expires_in,
+        "user": token_response.user,
+    }
 
 
 @router.post("/logout")

@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth_module.dependencies import require_superadmin, require_user
+from auth_module.dependencies import is_org_admin_async, require_superadmin, require_user
 from database import get_async_db
 from models import (  # noqa: F401
     MarketplaceOrder,
@@ -597,19 +597,8 @@ async def vendor_account_status(
     Gated to ORG_ADMIN of the org (or superadmin). Returns ``approved=False``
     when the org has no VendorAccount yet (awaiting superadmin approval).
     """
-    if not current_user.is_superadmin:
-        is_admin = (
-            await db.execute(
-                select(OrganizationMembership.id).where(
-                    OrganizationMembership.user_id == str(current_user.id),
-                    OrganizationMembership.organization_id == organization_id,
-                    OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                    OrganizationMembership.is_active == True,  # noqa: E712
-                )
-            )
-        ).first()
-        if not is_admin:
-            raise HTTPException(status_code=403, detail="Not an admin of this organization")
+    if not await is_org_admin_async(db, current_user, organization_id):
+        raise HTTPException(status_code=403, detail="Not an admin of this organization")
     va = (
         await db.execute(
             select(VendorAccount).where(
