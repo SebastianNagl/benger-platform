@@ -1,4 +1,5 @@
 import { chromium, FullConfig, Page } from '@playwright/test'
+import { apiBaseUrl } from './helpers/api-url'
 
 interface HealthCheckResult {
   api: boolean
@@ -8,28 +9,10 @@ interface HealthCheckResult {
   frontend: boolean
 }
 
-// The API hosts Traefik serves next to each frontend host.
-const API_HOSTS: Record<string, string> = {
-  'benger-test.localhost': 'api-test.localhost',
-  'benger.localhost': 'api.localhost',
-}
-
-/**
- * The API's own health endpoint. PLAYWRIGHT_API_URL wins; otherwise the API
- * host that Traefik serves next to the frontend host. Returns null when the
- * base URL is not a known local stack, so the check is skipped rather than
- * reported as failing.
- */
+/** The API's own health endpoint, or null when the base URL is not a known local stack. */
 function apiHealthUrl(baseURL: string): string | null {
-  const explicit = process.env.PLAYWRIGHT_API_URL
-  if (explicit) return `${explicit.replace(/\/+$/, '')}/health`
-  const url = new URL(baseURL)
-  const apiHost = API_HOSTS[url.hostname]
-  if (!apiHost) return null
-  url.hostname = apiHost
-  url.pathname = '/health'
-  url.search = ''
-  return url.toString()
+  const apiUrl = apiBaseUrl(baseURL)
+  return apiUrl ? `${apiUrl}/health` : null
 }
 
 /**
