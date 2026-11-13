@@ -147,7 +147,9 @@ metrics exist and which fields they read: `GET
 /api/evaluations/projects/{id}/available-fields`. The evaluation
 configuration shown in the app is stored with
 `PUT /api/evaluations/projects/{id}/evaluation-config` (deep merge, send
-only the keys you change). New tasks come in through the import flow:
+only the keys you change); a run with inline `evaluation_configs` on a
+project that has none stores them there when the caller may edit the
+project. New tasks come in through the import flow:
 `POST /api/projects/{id}/imports/upload-url`, upload the file to the
 returned URL, then `POST /api/projects/{id}/imports` with the
 `object_key` and poll `GET /api/projects/{id}/imports/{job_id}`.
