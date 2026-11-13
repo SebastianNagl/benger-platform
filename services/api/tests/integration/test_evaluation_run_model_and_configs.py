@@ -21,12 +21,10 @@ from main import app
 from models import (
     EvaluationRun,
     Generation,
-    Organization,
-    OrganizationMembership,
     ResponseGeneration,
     User,
 )
-from project_models import Project, ProjectOrganization, Task
+from project_models import Project, Task
 from routers.evaluations.multi_field.run import _run_model_label
 
 CONFIG = {
@@ -153,30 +151,22 @@ class TestInlineConfigsAreStored:
     def test_a_launcher_without_edit_rights_leaves_the_config_untouched(
         self, client, test_db, seeded
     ):
-        # Org ANNOTATORs may launch a run (the timed-window access group) but
-        # PUT .../evaluation-config refuses them; the run must not write the
+        # A public project's CONTRIBUTOR visitor passes the launch gate (an
+        # effective CONTRIBUTOR role) but is not an editor, so PUT
+        # .../evaluation-config refuses them; the run must not write the
         # project's configs on their behalf.
         _owner, project = seeded
-        slug = f"org-{_uid()[:8]}"
-        org = Organization(id=_uid(), name=slug, display_name=slug, slug=slug)
-        annotator = User(
-            id=_uid(), username=f"an-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com",
-            name="Annotator", is_superadmin=False, is_active=True, email_verified=True,
+        visitor = User(
+            id=_uid(), username=f"pv-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com",
+            name="Public visitor", is_superadmin=False, is_active=True, email_verified=True,
         )
-        test_db.add_all([org, annotator])
-        test_db.flush()
-        test_db.add(OrganizationMembership(
-            id=_uid(), user_id=annotator.id, organization_id=org.id,
-            role="ANNOTATOR", is_active=True,
-        ))
-        test_db.add(ProjectOrganization(
-            id=_uid(), project_id=project.id, organization_id=org.id,
-            assigned_by=_owner.id,
-        ))
+        test_db.add(visitor)
         project.is_private = False
+        project.is_public = True
+        project.public_role = "CONTRIBUTOR"
         test_db.commit()
 
-        resp = _run(client, annotator, {
+        resp = _run(client, visitor, {
             "project_id": project.id,
             "evaluation_configs": [CONFIG],
             "model_ids": ["model-other"],
