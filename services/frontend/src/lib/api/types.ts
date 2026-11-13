@@ -154,9 +154,9 @@ export interface OnboardingStateUpdate extends OnboardingState {
   reset_tours?: boolean
 }
 
+/** Body of POST /auth/login and /auth/refresh. The session tokens are not
+ * part of it: they live only in HttpOnly cookies. */
 export interface AuthResponse {
-  access_token: string
-  refresh_token?: string
   token_type: string
   expires_in: number
   user: User

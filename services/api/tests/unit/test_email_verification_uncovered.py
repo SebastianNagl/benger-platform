@@ -278,6 +278,7 @@ class TestValidateVerificationToken:
         payload = {
             "email": "test@test.com",
             "purpose": "email_verification",
+            "typ": "email_verification",
             "exp": datetime.now(timezone.utc) + timedelta(hours=48),
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -292,6 +293,7 @@ class TestValidateVerificationToken:
         payload = {
             "user_id": "user-1",
             "purpose": "email_verification",
+            "typ": "email_verification",
             "exp": datetime.now(timezone.utc) + timedelta(hours=48),
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -307,6 +309,7 @@ class TestValidateVerificationToken:
             "user_id": "user-1",
             "email": "test@test.com",
             "purpose": "email_verification",
+            "typ": "email_verification",
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # expired
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)

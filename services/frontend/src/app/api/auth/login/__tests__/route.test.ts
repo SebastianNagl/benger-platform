@@ -786,13 +786,13 @@ describe('/api/auth/login', () => {
       }
     })
 
-    it('should always add test_cookie on successful login', async () => {
+    it('should relay only the backend cookies, all HttpOnly', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ access_token: 'tok' }),
+        json: async () => ({ user: { id: 'u1' } }),
         headers: {
-          getSetCookie: () => [],
+          getSetCookie: () => ['access_token=tok; Path=/; HttpOnly'],
         },
       })
 
@@ -803,11 +803,8 @@ describe('/api/auth/login', () => {
 
       const response = await POST(request)
       const cookies = response.headers.getSetCookie()
-      const testCookie = cookies.find((c: string) =>
-        c.startsWith('test_cookie='),
-      )
-      expect(testCookie).toBeDefined()
-      expect(testCookie).toContain('working')
+      expect(cookies).toHaveLength(1)
+      expect(cookies[0]).toMatch(/^access_token=tok;.*HttpOnly/)
     })
 
     it('should use API_BASE_URL env var when set', async () => {

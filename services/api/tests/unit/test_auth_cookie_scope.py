@@ -8,7 +8,7 @@ host-only cookies, so browsers drop the domain-wide cookies older releases
 set.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import inspect
@@ -106,7 +106,11 @@ def _request(cookies=None):
 async def _refresh():
     from routers.auth import refresh_token_endpoint
 
-    token_resp = Mock(access_token="new-access", refresh_token="new-refresh")
+    token_resp = Mock(
+        access_token="new-access",
+        refresh_token="new-refresh",
+        refresh_token_expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
     response = Response()
     with patch("routers.auth.tokens.refresh_access_token", return_value=token_resp):
         # The handler is a plain def (threadpool); await only if it ever

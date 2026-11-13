@@ -198,7 +198,7 @@ class TestLoginEndpoint:
         })
         assert resp.status_code == 200
         body = resp.json()
-        assert "access_token" in body
+        assert "access_token" not in body  # tokens travel in HttpOnly cookies only
         assert body["token_type"] == "bearer"
 
     def test_login_invalid_password(self, client, test_users, test_db):

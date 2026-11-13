@@ -72,12 +72,11 @@ class TestAccessTokenTyp:
         payload = verify_token(create_access_token({"user_id": "u-1"}))
         assert payload["user_id"] == "u-1"
 
-    def test_verify_token_tolerates_missing_typ_for_one_release(self):
-        # Tokens issued before 2026-10-13 carry no typ; the grace keeps them
-        # valid for their remaining lifetime. Drop this test (and the grace)
-        # when typ becomes mandatory next release.
-        payload = verify_token(_sign({"user_id": "u-1"}))
-        assert payload["user_id"] == "u-1"
+    def test_verify_token_rejects_missing_typ(self):
+        # The one-release grace for tokens without typ (2026-10-13) is over.
+        with pytest.raises(HTTPException) as exc:
+            verify_token(_sign({"user_id": "u-1"}))
+        assert exc.value.status_code == 401
 
     @pytest.mark.parametrize("typ", ["email_verification", "refresh", "", "ACCESS"])
     def test_verify_token_rejects_other_typ(self, typ):
@@ -103,7 +102,7 @@ class TestAccessTokenTyp:
 
     def test_token_typ_accepted_matrix(self):
         assert token_typ_accepted({"typ": "access"}, "access")
-        assert token_typ_accepted({}, "access")  # one-release grace
+        assert not token_typ_accepted({}, "access")  # typ is mandatory
         assert not token_typ_accepted({"typ": "email_verification"}, "access")
         assert not token_typ_accepted({"purpose": "email_verification"}, "access")
         assert not token_typ_accepted({"typ": "access", "purpose": "x"}, "access")
@@ -137,8 +136,9 @@ class TestCookieHeaderAndWebSocketVerifiers:
             verify_token_for_websocket(_websocket(bearer=_sign({"user_id": "u", "typ": "x"})))
         token = create_access_token({"user_id": "u-1"})
         assert verify_token_for_websocket(_websocket(cookie=token))["user_id"] == "u-1"
-        # Legacy token without typ: accepted during the grace release.
-        assert verify_token_for_websocket(_websocket(cookie=_sign({"user_id": "u-1"})))
+        # A token without typ is refused (the grace release is over).
+        with pytest.raises(WebSocketAuthError):
+            verify_token_for_websocket(_websocket(cookie=_sign({"user_id": "u-1"})))
 
 
 @pytest.mark.unit
@@ -164,11 +164,11 @@ class TestEmailVerificationTokenTyp:
         token = svc.generate_verification_token("u-1", "u@test.com")
         assert svc.validate_verification_token(token) == ("u-1", "u@test.com")
 
-    def test_validator_tolerates_missing_typ_for_one_release(self):
-        # Links mailed before 2026-10-13 carry only the purpose claim and
-        # stay valid for up to 48 hours; drop with the grace next release.
+    def test_validator_rejects_missing_typ(self):
+        # The grace for typ-less links (2026-10-13) is over: a token with the
+        # right secret and purpose but no typ is rejected even when unexpired.
         token = _sign({"user_id": "u-1", "email": "u@test.com", "purpose": "email_verification"})
-        assert self._service().validate_verification_token(token) == ("u-1", "u@test.com")
+        assert self._service().validate_verification_token(token) is None
 
     def test_validator_rejects_foreign_typ(self):
         token = _sign(

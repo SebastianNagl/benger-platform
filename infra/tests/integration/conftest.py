@@ -10,7 +10,6 @@ import requests
 import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from typing import Generator
 
 # Import from services for testing
 import sys
@@ -133,7 +132,7 @@ def api_client(config):
         
         def login(self, username: str, password: str):
             """Login and set auth token"""
-            response = self.post("/auth/login", json={
+            response = self.post("/auth/token", json={
                 "username": username,
                 "password": password
             })

@@ -454,6 +454,8 @@ class TestRefreshAccessToken:
         from auth_module.service import refresh_access_token
 
         mock_rts.validate_refresh_token.return_value = None
+        # Not a token replaced moments ago by a concurrent refresh either.
+        mock_rts.resolve_rotated_refresh_token.return_value = None
         db = Mock()
 
         with pytest.raises(HTTPException) as exc_info:
@@ -497,13 +499,22 @@ class TestRefreshAccessToken:
         mock_db_user.organization_memberships = []
         mock_get_user.return_value = mock_db_user
 
-        expected_token = Mock()
-        mock_create_tokens.return_value = expected_token
+        successor_row = Mock(expires_at=_NOW)
+        mock_rts.rotate_refresh_token.return_value = ("successor-token", successor_row)
+        access_only = Mock()
+        mock_create_tokens.return_value = access_only
 
         db = Mock()
         result = refresh_access_token("valid-token", db, user_agent="agent", ip_address="1.2.3.4")
 
-        assert result == expected_token
+        # The access token comes with the rotated refresh token.
+        assert result == access_only.model_copy.return_value
+        access_only.model_copy.assert_called_once_with(
+            update={"refresh_token": "successor-token", "refresh_token_expires_at": _NOW}
+        )
+        mock_rts.rotate_refresh_token.assert_called_once_with(
+            db, "valid-token", user_agent="agent", ip_address="1.2.3.4"
+        )
         mock_create_tokens.assert_called_once()
 
 

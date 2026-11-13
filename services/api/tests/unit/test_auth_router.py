@@ -3,7 +3,7 @@ Comprehensive tests for the auth router endpoints.
 Tests the current router architecture mounted at /api/auth/*.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -103,7 +103,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert "access_token" in data
+            assert "access_token" not in data  # tokens travel in HttpOnly cookies only
             assert data["token_type"] == "bearer"
 
     def test_login_invalid_credentials(self, client):
@@ -195,6 +195,7 @@ class TestAuthRouter:
             mock_token_response = Mock()
             mock_token_response.access_token = "new-access-token"
             mock_token_response.refresh_token = "new-refresh-token"
+            mock_token_response.refresh_token_expires_at = datetime.now(timezone.utc) + timedelta(days=1)
             mock_token_response.token_type = "bearer"
             mock_token_response.expires_in = 1800  # 30 minutes in seconds
             mock_token_response.user = mock_user  # Use the actual mock user
@@ -211,8 +212,9 @@ class TestAuthRouter:
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert "access_token" in data
-                assert data["access_token"] == "new-access-token"
+                assert "access_token" not in data  # tokens travel in HttpOnly cookies only
+                assert response.cookies.get("access_token") == "new-access-token"
+                assert response.cookies.get("refresh_token") == "new-refresh-token"
             finally:
                 app.dependency_overrides.clear()
 

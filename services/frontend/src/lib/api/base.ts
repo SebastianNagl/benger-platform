@@ -322,21 +322,6 @@ export class BaseApiClient {
   }
 
   /**
-   * Check if a JWT token is expired or will expire soon
-   */
-  private isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const now = Date.now() / 1000
-      // Consider token expired if it expires within the next 30 seconds
-      return payload.exp * 1000 < Date.now() + 30000
-    } catch {
-      // Treat malformed tokens as expired
-      return true
-    }
-  }
-
-  /**
    * Attempt to refresh the access token using the refresh token
    */
   private async refreshAccessToken(): Promise<boolean> {
@@ -648,16 +633,6 @@ export class BaseApiClient {
         headers['Content-Type'] = 'application/json'
       }
 
-      // Add Authorization header if we have a valid token in localStorage as fallback
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('access_token')
-        if (token && !this.isTokenExpired(token)) {
-          headers['Authorization'] = `Bearer ${token}`
-        } else if (token && this.isTokenExpired(token)) {
-          logger.debug('Token is expired, will trigger refresh on 401 response')
-        }
-      }
-
       // Create AbortController for timeout if not provided
       const controller = new AbortController()
       const signal = options.signal || controller.signal
@@ -879,13 +854,6 @@ export class BaseApiClient {
 
     if (!isFormData) {
       headers['Content-Type'] = 'application/json'
-    }
-
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('access_token')
-      if (token && !this.isTokenExpired(token)) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
     }
 
     const response = await fetch(url, {

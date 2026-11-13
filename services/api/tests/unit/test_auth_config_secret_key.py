@@ -14,7 +14,6 @@ run 2026-05-19).
 """
 
 import importlib
-import logging
 import os
 import sys
 from unittest.mock import patch
@@ -74,23 +73,23 @@ class TestSecretKeyResolution:
             config = _reload_config()
             assert config.SECRET_KEY == "only-secret-value"
 
-    def test_random_fallback_when_neither_set(self, caplog):
-        """Missing both env vars must surface as a CRITICAL log line
-        — silently regenerating per-process keys is the worst-case UX
-        (every JWT invalid after restart, different per replica).
+    def test_random_fallback_when_neither_set(self):
+        """Missing both env vars: importing still works (tests, doc
+        generators) with a random key, but the module records that no key
+        was configured, so the API lifespan refuses to start
+        (``assert_jwt_secret_configured``, tests/unit/test_jwt_secret_startup.py).
         """
         env = {
             k: v
             for k, v in os.environ.items()
             if k not in ("JWT_SECRET_KEY", "SECRET_KEY", "PYTEST_CURRENT_TEST")
         }
-        with patch.dict(os.environ, env, clear=True), \
-             caplog.at_level(logging.CRITICAL, logger="auth_module.config"):
+        with patch.dict(os.environ, env, clear=True):
             config = _reload_config()
 
             assert config.SECRET_KEY  # something got assigned
             assert len(config.SECRET_KEY) >= 32  # token_urlsafe(32) → at least 43 chars
-            assert "Neither JWT_SECRET_KEY nor SECRET_KEY" in caplog.text
+            assert config.SECRET_KEY_FROM_ENV is False
 
 
 class TestEmailVerificationSharesConfigKey:

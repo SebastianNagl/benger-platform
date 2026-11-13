@@ -256,7 +256,10 @@ class TestLoginCookiePaths:
             request=request,
             db=db,
         )
-        assert result.access_token == "access-tok"
+        assert "access_token" not in result  # tokens travel in cookies only
+        cookies = response.headers.getlist("set-cookie")
+        assert any(c.startswith("access_token=access-tok;") for c in cookies)
+        assert any(c.startswith("refresh_token=refresh-tok;") for c in cookies)
 
     @pytest.mark.asyncio
     @patch("routers.auth.session.create_tokens_with_refresh")
@@ -286,7 +289,10 @@ class TestLoginCookiePaths:
             request=request,
             db=db,
         )
-        assert result.access_token == "access-tok"
+        assert "access_token" not in result  # tokens travel in cookies only
+        cookies = response.headers.getlist("set-cookie")
+        assert any(c.startswith("access_token=access-tok;") for c in cookies)
+        assert not any(c.startswith("refresh_token=") for c in cookies)
 
     @pytest.mark.asyncio
     @patch("routers.auth.session.authenticate_user", side_effect=RuntimeError("DB boom"))
@@ -363,6 +369,7 @@ class TestRefreshToken:
         token_resp = Mock()
         token_resp.access_token = "new-access"
         token_resp.refresh_token = "new-refresh"
+        token_resp.refresh_token_expires_at = datetime.now(timezone.utc) + timedelta(days=1)
         mock_refresh.return_value = token_resp
 
         request = _mock_request(cookies={"refresh_token": "old-refresh"})
@@ -370,7 +377,10 @@ class TestRefreshToken:
         db = _mock_db()
 
         result = refresh_token_endpoint(request=request, response=response, db=db)
-        assert result.access_token == "new-access"
+        assert "access_token" not in result  # tokens travel in cookies only
+        cookies = response.headers.getlist("set-cookie")
+        assert any(c.startswith("access_token=new-access;") for c in cookies)
+        assert any(c.startswith("refresh_token=new-refresh;") for c in cookies)
 
     @pytest.mark.asyncio
     async def test_refresh_no_cookie(self):
@@ -412,7 +422,11 @@ class TestRefreshToken:
         db = _mock_db()
 
         result = refresh_token_endpoint(request=request, response=response, db=db)
-        assert result.access_token == "new-access"
+        assert "access_token" not in result  # tokens travel in cookies only
+        cookies = response.headers.getlist("set-cookie")
+        assert any(c.startswith("access_token=new-access;") for c in cookies)
+        # A concurrent refresh already rotated: the refresh cookie stays.
+        assert not any(c.startswith("refresh_token=") for c in cookies)
 
 
 # ---------------------------------------------------------------------------

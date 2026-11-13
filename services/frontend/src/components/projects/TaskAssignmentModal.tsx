@@ -63,7 +63,6 @@ export function TaskAssignmentModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
         body: JSON.stringify({
           task_ids: selectedTaskIds,

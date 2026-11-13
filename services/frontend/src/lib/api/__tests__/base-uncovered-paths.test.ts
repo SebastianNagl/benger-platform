@@ -160,7 +160,9 @@ describe('BaseApiClient - additional uncovered paths', () => {
       expect(fetchCall.headers['Content-Type']).toBeUndefined()
     })
 
-    it('applies the Bearer token and no organization context header', async () => {
+    it('sends no localStorage token and no organization context header', async () => {
+      // Sessions live in HttpOnly cookies only; a token some old release
+      // left in localStorage must never be sent.
       const validToken = `header.${btoa(
         JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       )}.signature`
@@ -176,7 +178,8 @@ describe('BaseApiClient - additional uncovered paths', () => {
       await client.requestRaw('/stream')
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0][1]
-      expect(fetchCall.headers.Authorization).toBe(`Bearer ${validToken}`)
+      expect(fetchCall.headers.Authorization).toBeUndefined()
+      expect(fetchCall.credentials).toBe('include')
       // Core 2.22: the client no longer names a selected organization.
       expect(fetchCall.headers['X-Organization-Context']).toBeUndefined()
     })

@@ -9,6 +9,7 @@ Tests the S3-compatible object storage functionality including:
 - Health checks
 """
 
+import re
 import os
 import tempfile
 from unittest.mock import Mock, patch
@@ -166,8 +167,10 @@ class TestFileOrganization:
                 file_type="uploads", filename="test.txt", user_id="user123"
             )
 
-            assert "uploads/2025/07/14/user123/" in file_key
-            assert "20250714_120000_test.txt" in file_key
+            # timestamp, a 16-hex-digit random part, then the file name
+            assert re.fullmatch(
+                r"uploads/2025/07/14/user123/20250714_120000_[0-9a-f]{16}_test\.txt", file_key
+            )
 
     def test_get_file_key_exports(self, storage_service):
         """Test file key generation for exports"""
@@ -181,8 +184,9 @@ class TestFileOrganization:
 
             file_key = storage_service._get_file_key(file_type="exports", filename="report.pdf")
 
-            assert "exports/2025/07/" in file_key
-            assert "20250714_120000_report.pdf" in file_key
+            assert re.fullmatch(
+                r"exports/2025/07/20250714_120000_[0-9a-f]{16}_report\.pdf", file_key
+            )
 
     def test_get_file_key_static(self, storage_service):
         """Test file key generation for static assets"""

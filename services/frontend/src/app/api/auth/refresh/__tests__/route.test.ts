@@ -391,21 +391,11 @@ describe('/api/auth/refresh route', () => {
       }
     })
 
-    it('should return response data from backend', async () => {
+    it('should return response data from backend, without tokens', async () => {
       const mockRefreshResponse = {
-        access_token: 'new-access-token',
         token_type: 'bearer',
         expires_in: 3600,
       }
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockRefreshResponse),
-        headers: {
-          getSetCookie: () => [],
-        },
-      } as Response)
 
       const request = new NextRequest(
         'http://localhost:3000/api/auth/refresh',
@@ -416,6 +406,19 @@ describe('/api/auth/refresh route', () => {
           },
         },
       )
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockRefreshResponse,
+            access_token: 'new-access-token',
+          }),
+        headers: {
+          getSetCookie: () => [],
+        },
+      } as Response)
 
       const response = await POST(request)
 
