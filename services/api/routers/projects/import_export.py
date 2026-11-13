@@ -466,10 +466,20 @@ async def create_import_job(
 ):
     """Create an async import job for an already-uploaded artifact and enqueue it.
 
-    Body: ``{"object_key": "imports/.../{project_id}/..."}``. The key must live
+    Body: ``{"object_key": "imports/.../{project_id}/...", "mode": optional,
+    "model_id_map": optional}``. The key must live
     under the import prefix AND be scoped to this project — both are checked
     here so a client can't point the worker at an arbitrary object. Returns 202
     with the job id.
+
+    ``mode`` is ``"nested"`` (default: the Project data page's task export,
+    imported as new tasks) or ``"merge"``: the file is a full project export
+    (comprehensive JSON or NDJSON) of this project or of a copy of it, and
+    only its generation and evaluation results that this project does not
+    hold yet are added to the matching tasks (see ``run_merge_import``). A
+    merge whose tasks are not this project's fails the job and imports
+    nothing. ``model_id_map`` (merge only) translates model ids as on
+    ``POST /project-imports``.
     """
     project = (
         await db.execute(select(Project).where(Project.id == project_id))
@@ -493,6 +503,24 @@ async def create_import_job(
     if not object_key.startswith("imports/") or f"/{project_id}/" not in object_key:
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
+    mode = (data or {}).get("mode") or "nested"
+    if mode not in ("nested", "merge"):
+        raise HTTPException(status_code=400, detail="mode must be 'nested' or 'merge'")
+    raw_map = (data or {}).get("model_id_map")
+    if raw_map is not None and mode != "merge":
+        raise HTTPException(
+            status_code=400, detail="model_id_map is only supported with mode 'merge'"
+        )
+    try:
+        model_id_map = normalize_model_id_map(raw_map)
+    except ImportValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    task_kwargs = {}
+    if mode == "merge":
+        task_kwargs["mode"] = "merge"
+        if model_id_map:
+            task_kwargs["model_id_map"] = model_id_map
+
     job = ImportJob(
         id=str(uuid.uuid4()),
         project_id=project_id,
@@ -509,6 +537,7 @@ async def create_import_job(
         result = send_task_safe(
             "tasks.import_project",
             args=[job.id],
+            **({"kwargs": task_kwargs} if task_kwargs else {}),
             queue=await _import_queue(object_key),
         )
         job.celery_task_id = getattr(result, "id", None)

@@ -41,6 +41,9 @@ def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> d
         "data": task.data,
         "meta": task.meta,
         "is_labeled": task.is_labeled,
+        # The task this one was imported from (NULL when created here). An
+        # import carries it on, so a merge import can find the original.
+        "source_task_id": task.source_task_id,
         "created_at": _isoformat(task.created_at),
         "updated_at": _isoformat(task.updated_at),
     }

@@ -5042,9 +5042,12 @@ def export_project(self, job_id: str) -> Dict[str, Any]:
     max_retries=0,
 )
 def import_project(
-    self, job_id: str, model_id_map: Optional[Dict[str, str]] = None
+    self,
+    job_id: str,
+    model_id_map: Optional[Dict[str, str]] = None,
+    mode: Optional[str] = None,
 ) -> Dict[str, Any]:
-    return import_project_impl(self, job_id, model_id_map=model_id_map)
+    return import_project_impl(self, job_id, model_id_map=model_id_map, mode=mode)
 
 
 def _fail_import_job(db, job_id: str, message: str) -> None:

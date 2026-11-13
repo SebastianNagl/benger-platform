@@ -256,7 +256,9 @@ class TestSerializeEvaluationRun:
         assert result["project_id"] == "proj-1"
         assert result["task_id"] is None
         assert result["eval_metadata"] == {"judge_models": {"cfg1": "gpt-4o-judge"}}
-        assert "has_sample_results" not in result
+        # Full mode carries the sample flag too, so an imported run's detail
+        # page still loads its per-sample results.
+        assert result["has_sample_results"] is True
 
 
 class TestBuildJudgeModelLookup:

@@ -290,7 +290,10 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
         db.close()
 
 def import_project_impl(
-    self, job_id: str, model_id_map: Optional[Dict[str, str]] = None
+    self,
+    job_id: str,
+    model_id_map: Optional[Dict[str, str]] = None,
+    mode: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Download an uploaded import artifact and stream-import it into the DB.
 
@@ -301,8 +304,10 @@ def import_project_impl(
     comprehensive (creates a new project). The driver parses with ijson and
     inserts in flush-batched passes, so import memory stays O(batch).
 
-    ``model_id_map`` (source model id -> model id here) is the create-new
-    import's model translation from POST /project-imports; the nested and
+    ``mode="merge"`` (with ``project_id`` set) merges a full project export's
+    new results into that project (``run_merge_import``) instead of the
+    nested import. ``model_id_map`` (source model id -> model id here) is the
+    model translation of the create-new and the merge import; the nested and
     tabular imports ignore it.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
@@ -316,6 +321,7 @@ def import_project_impl(
     from import_stream import (
         ImportValidationError,
         run_full_project_import,
+        run_merge_import,
         run_nested_import,
         run_tabular_import,
     )
@@ -414,6 +420,11 @@ def import_project_impl(
                     db, project_id, spooled, requested_by, tabular_fmt
                 )
                 detected_format = tabular_fmt
+            elif project_id and mode == "merge":
+                result = run_merge_import(
+                    db, project_id, spooled, requested_by, model_id_map=model_id_map
+                )
+                detected_format = "merge"
             elif project_id:
                 result = run_nested_import(db, project_id, spooled, requested_by)
                 detected_format = "nested"

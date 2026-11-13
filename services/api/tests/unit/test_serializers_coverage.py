@@ -36,7 +36,7 @@ class TestSerializeTask:
             "total_annotations": 0, "cancelled_annotations": 0,
             "comment_count": 0, "unresolved_comment_count": 0,
             "last_comment_updated_at": None, "comment_authors": None,
-            "file_upload_id": None,
+            "file_upload_id": None, "source_task_id": "origin-t1",
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -111,6 +111,10 @@ class TestSerializeGeneration:
             "parse_status": "pending", "parse_error": None,
             "parsed_annotation": None, "parse_metadata": None,
             "label_config_version": None, "label_config_snapshot": None,
+            # Run index and per-call telemetry (full mode).
+            "run_index": 1, "seed": 7, "finish_reason": "stop",
+            "truncated": False, "refusal": False, "error_type": None,
+            "latency_ms": 900, "input_tokens": 100, "output_tokens": 40,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -158,6 +162,11 @@ class TestSerializeTaskEvaluation:
             # Same story for the per-config linkage the serializer now
             # exports so a re-import keeps per-config selectability.
             "evaluation_config_id": "cfg1",
+            # The judge's raw answer and per-call telemetry (full mode).
+            "raw_output": '{"score": 1}', "seed": None, "finish_reason": "stop",
+            "truncated": False, "refusal": False, "error_type": None,
+            "latency_ms": 1200, "input_tokens": 300, "output_tokens": 60,
+            "updated_at": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -227,7 +236,8 @@ class TestSerializeEvaluationRun:
         d = serialize_evaluation_run(er, mode="full")
         assert d["project_id"] == "p1"
         assert d["task_id"] == "t1"
-        assert "has_sample_results" not in d
+        # Without it an imported run's detail page never loads its samples.
+        assert d["has_sample_results"] is True
 
 
 class TestBuildJudgeModelLookup:

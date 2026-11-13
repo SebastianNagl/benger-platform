@@ -2113,3 +2113,392 @@ def test_both_formats_carry_identical_benchmark_rows(db_session, benchmark_proje
         )
         assert nd, rtype
         assert nd == sorted(doc[key], key=lambda r: r["id"]), rtype
+
+
+# ---------------------------------------------------------------------------
+# Merge import: prod -> local copy -> new model benchmarked -> back into prod
+# ---------------------------------------------------------------------------
+
+LOCAL_MODEL = "custom-local-2222"
+
+
+def _merge_text(db, project_id, text, user_id, **kwargs):
+    from routers.projects._import_stream import run_merge_import
+
+    return run_merge_import(
+        db, project_id, io.BytesIO(text.encode("utf-8")), user_id, **kwargs
+    )
+
+
+def _benchmark_new_model(db, project_id, user_id, model_id):
+    """What a benchmark run on the local copy adds: one generation job and
+    generation per task for ``model_id``, and an evaluation run that judges
+    them."""
+    from models import EvaluationRunMetric
+
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    when = datetime.now(timezone.utc).replace(microsecond=0)
+    run = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        model_id=model_id,
+        evaluation_type_ids=["rt-new"],
+        metrics={"score": 0.9},
+        status="completed",
+        samples_evaluated=len(tasks),
+        has_sample_results=True,
+        created_by=user_id,
+        created_at=when + timedelta(hours=1),
+        completed_at=when + timedelta(hours=2),
+    )
+    db.add(run)
+    db.flush()
+    jr = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=run.id,
+        judge_model_id="gpt-judge",
+        run_index=0,
+        status="completed",
+    )
+    db.add(jr)
+    db.flush()
+    db.add(
+        EvaluationRunMetric(
+            id=str(uuid.uuid4()),
+            evaluation_id=run.id,
+            evaluation_type_id=db.query(EvaluationRunMetric.evaluation_type_id)
+            .limit(1)
+            .scalar(),
+            value=0.9,
+        )
+    )
+    for n, t in enumerate(tasks):
+        rg = ResponseGeneration(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            task_id=t.id,
+            model_id=model_id,
+            structure_key="default",
+            status="completed",
+            responses_generated=1,
+            runs_requested=1,
+            runs_completed=1,
+            prompt_used=f"new model prompt {n}",
+            created_by=user_id,
+            created_at=when + timedelta(seconds=n),
+        )
+        db.add(rg)
+        db.flush()
+        g = Generation(
+            id=str(uuid.uuid4()),
+            generation_id=rg.id,
+            task_id=t.id,
+            model_id=model_id,
+            run_index=0,
+            case_data=json.dumps(t.data),
+            response_content=f"New model answer {t.data['text']}",
+            status="completed",
+        )
+        db.add(g)
+        db.flush()
+        db.add(
+            TaskEvaluation(
+                id=str(uuid.uuid4()),
+                evaluation_id=run.id,
+                judge_run_id=jr.id,
+                task_id=t.id,
+                generation_id=g.id,
+                field_name="cfg-judge:answer:reference",
+                answer_type="text",
+                ground_truth="expected",
+                prediction=g.response_content,
+                metrics={"score": 0.9},
+                passed=True,
+                raw_output=f"new judge {n}",
+            )
+        )
+    db.commit()
+
+
+def _result_counts(db, project_id):
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    run_ids = [
+        r.id for r in db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id)
+    ]
+    from models import EvaluationRunMetric
+
+    return {
+        "tasks": len(task_ids),
+        "response_generations": db.query(ResponseGeneration)
+        .filter(ResponseGeneration.task_id.in_(task_ids)).count(),
+        "generations": db.query(Generation).filter(Generation.task_id.in_(task_ids)).count(),
+        "evaluations": len(run_ids),
+        "evaluation_metrics": db.query(EvaluationRunMetric)
+        .filter(EvaluationRunMetric.evaluation_id.in_(run_ids)).count(),
+        "evaluation_judge_runs": db.query(EvaluationJudgeRun)
+        .filter(EvaluationJudgeRun.evaluation_id.in_(run_ids)).count(),
+        "task_evaluations": db.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id.in_(run_ids)).count(),
+    }
+
+
+def _models_by_entity(db, project_id):
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    return {
+        "response_generations": sorted(
+            m for (m,) in db.query(ResponseGeneration.model_id)
+            .filter(ResponseGeneration.task_id.in_(task_ids))
+        ),
+        "generations": sorted(
+            m for (m,) in db.query(Generation.model_id)
+            .filter(Generation.task_id.in_(task_ids))
+        ),
+        "evaluations": sorted(
+            m for (m,) in db.query(EvaluationRun.model_id)
+            .filter(EvaluationRun.project_id == project_id)
+        ),
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestMergeImport:
+    def test_imported_tasks_remember_their_origin(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        prod_tasks = {t.data["text"]: t.id for t in db_session.query(Task).filter(
+            Task.project_id == prod.id)}
+        local_tasks = db_session.query(Task).filter(Task.project_id == local_id).all()
+        assert {t.data["text"]: t.source_task_id for t in local_tasks} == prod_tasks
+
+        # A copy of the copy still points at the first task, not at the copy.
+        second_id = _import_text(
+            db_session, _export_text(db_session, local_id, fmt), user.id
+        )["project_id"]
+        second = db_session.query(Task).filter(Task.project_id == second_id).all()
+        assert {t.data["text"]: t.source_task_id for t in second} == prod_tasks
+
+    def test_benchmarked_copy_merges_back_next_to_the_existing_results(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """The captain's flow: export the prod project, import it locally,
+        benchmark one more model there, export, merge into the prod project.
+        The new model's results land next to the old ones, nothing is
+        duplicated, and a second merge of the same file changes nothing."""
+        _register_prod_model(db_session)
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        local_export = _export_text(db_session, local_id, fmt)
+
+        result = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        stats = result["statistics"]
+        assert stats["matched_tasks"] == 2
+        assert stats["added_counts"] == {
+            "task_rubrics": 0,
+            "response_generations": 2,
+            "generations": 2,
+            "evaluations": 1,
+            "evaluation_metrics": 1,
+            "evaluation_judge_runs": 1,
+            "task_evaluations": 2,
+        }
+        assert stats["skipped_present_counts"]["generations"] == 4
+        assert stats["skipped_present_counts"]["evaluations"] == 1
+        assert stats["models_added_to_project"] == [PROD_MODEL]
+
+        after = _result_counts(db_session, prod.id)
+        assert after == {
+            "tasks": before["tasks"],
+            "response_generations": before["response_generations"] + 2,
+            "generations": before["generations"] + 2,
+            "evaluations": before["evaluations"] + 1,
+            "evaluation_metrics": before["evaluation_metrics"] + 1,
+            "evaluation_judge_runs": before["evaluation_judge_runs"] + 1,
+            "task_evaluations": before["task_evaluations"] + 2,
+        }
+        models = _models_by_entity(db_session, prod.id)
+        assert models["generations"] == sorted([DEV_MODEL] * 4 + [PROD_MODEL] * 2)
+        assert models["evaluations"] == sorted([DEV_MODEL, PROD_MODEL])
+
+        # The merged rows hang off the prod tasks and the prod project.
+        prod_task_ids = {t.id for t in db_session.query(Task).filter(
+            Task.project_id == prod.id)}
+        new_jobs = db_session.query(ResponseGeneration).filter(
+            ResponseGeneration.model_id == PROD_MODEL,
+            ResponseGeneration.task_id.in_(prod_task_ids),
+        ).all()
+        assert {rg.project_id for rg in new_jobs} == {prod.id}
+        new_run = db_session.query(EvaluationRun).filter(
+            EvaluationRun.project_id == prod.id, EvaluationRun.model_id == PROD_MODEL
+        ).one()
+        new_gen_ids = {
+            g.id for g in db_session.query(Generation).filter(
+                Generation.model_id == PROD_MODEL, Generation.task_id.in_(prod_task_ids)
+            )
+        }
+        rows = db_session.query(TaskEvaluation).filter(
+            TaskEvaluation.evaluation_id == new_run.id
+        ).all()
+        assert {te.generation_id for te in rows} == new_gen_ids
+        assert sorted(te.raw_output for te in rows) == ["new judge 0", "new judge 1"]
+
+        # The generation grid takes its columns from the model selection.
+        db_session.refresh(prod)
+        selected = prod.generation_config["selected_configuration"]["models"]
+        assert selected[-1] == PROD_MODEL and DEV_MODEL in selected
+
+        # Idempotent: the same file again adds nothing.
+        again = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        assert set(again["statistics"]["added_counts"].values()) == {0}
+        assert again["statistics"]["models_added_to_project"] == []
+        assert _result_counts(db_session, prod.id) == after
+
+    def test_merging_a_project_into_itself_adds_nothing(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, prod.id, fmt), user.id
+        )
+        assert set(result["statistics"]["added_counts"].values()) == {0}
+        assert _result_counts(db_session, prod.id) == before
+
+    def test_tasks_without_a_recorded_origin_match_by_content(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """An export from before source ids existed (or of a project created
+        by a data import) still merges when the task data is identical."""
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        for t in db_session.query(Task).filter(Task.project_id == local_id):
+            t.source_task_id = None
+        db_session.commit()
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert result["statistics"]["matched_tasks"] == 2
+        assert result["statistics"]["added_counts"]["generations"] == 2
+
+    def test_unrelated_project_is_refused_and_nothing_changes(
+        self, db_session, user, benchmark_project, project_with_full_data, fmt
+    ):
+        from routers.projects._import_stream import (
+            MERGE_TASK_MISMATCH,
+            ImportValidationError,
+        )
+
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        other = _export_text(db_session, project_with_full_data["project"].id, fmt)
+        with pytest.raises(ImportValidationError) as exc:
+            _merge_text(db_session, prod.id, other, user.id)
+        db_session.rollback()
+        assert exc.value.status_code == 409
+        assert exc.value.code == MERGE_TASK_MISMATCH
+        assert "3 match no task of this project" in exc.value.detail
+        assert _result_counts(db_session, prod.id) == before
+
+    def test_ambiguous_content_match_is_refused(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Two project tasks with the same data and no recorded origin: the
+        merge cannot tell which one an exported task is, so it refuses."""
+        from routers.projects._import_stream import ImportValidationError
+
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        for t in db_session.query(Task).filter(Task.project_id == local_id):
+            t.source_task_id = None
+        first = db_session.query(Task).filter(Task.project_id == prod.id).first()
+        db_session.add(Task(
+            id=str(uuid.uuid4()), project_id=prod.id, inner_id=99,
+            data=dict(first.data), created_by=user.id,
+        ))
+        db_session.commit()
+        with pytest.raises(ImportValidationError) as exc:
+            _merge_text(
+                db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+            )
+        db_session.rollback()
+        assert exc.value.status_code == 409
+        assert "match more than one" in exc.value.detail
+
+    def test_merged_rubric_gradings_point_at_the_projects_sheet(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A new model graded against a task's Bewertungsbogen on the copy:
+        after the merge its gradings name the original project's sheet, and
+        no second copy of the sheet is added."""
+        from project_models import TaskRubric
+
+        prod = benchmark_project["project"]
+        prod_task = db_session.query(Task).filter(Task.project_id == prod.id).first()
+        sheet = TaskRubric(
+            id=str(uuid.uuid4()),
+            task_id=prod_task.id,
+            project_id=prod.id,
+            title="Bogen",
+            criteria={"items": [{"id": "c1", "points": 10}]},
+            total_points=10.0,
+            source="llm",
+            status="active",
+            created_by=user.id,
+        )
+        db_session.add(sheet)
+        db_session.commit()
+
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        local_task = db_session.query(Task).filter(
+            Task.project_id == local_id, Task.source_task_id == prod_task.id
+        ).one()
+        local_sheet = db_session.query(TaskRubric).filter(
+            TaskRubric.task_id == local_task.id
+        ).one()
+        graded = db_session.query(TaskEvaluation).join(
+            Generation, Generation.id == TaskEvaluation.generation_id
+        ).filter(
+            Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == local_task.id
+        ).one()
+        graded.metrics = {
+            "llm_judge_rubric": {"value": 0.7, "details": {"rubric_id": local_sheet.id}}
+        }
+        db_session.commit()
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert result["statistics"]["added_counts"]["task_rubrics"] == 0
+        assert db_session.query(TaskRubric).filter(
+            TaskRubric.task_id == prod_task.id
+        ).count() == 1
+        merged = db_session.query(TaskEvaluation).join(
+            Generation, Generation.id == TaskEvaluation.generation_id
+        ).filter(
+            Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == prod_task.id
+        ).one()
+        assert merged.metrics["llm_judge_rubric"]["details"]["rubric_id"] == sheet.id

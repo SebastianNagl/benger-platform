@@ -102,31 +102,71 @@ Authorization: Bearer <token>
 
 **Response**: ZIP file containing project JSON files
 
-### Import Endpoint
+### Import Endpoints
+
+Imports run as background jobs. The client first asks for a presigned upload
+URL, uploads the file straight to object storage, then creates the job and
+polls it:
 
 ```http
-POST /api/projects/import-project
-Content-Type: multipart/form-data
-Authorization: Bearer <token>
-
-file: <project.json>
+POST /api/projects/project-imports/upload-url?filename=project.ndjson.gz
+POST /api/projects/project-imports
+GET  /api/projects/project-imports/{job_id}
 ```
 
-**Response**:
+The job body of `POST /api/projects/project-imports` (create a new project):
+
 ```json
 {
-  "message": "Project imported successfully",
-  "project_id": "new-project-id",
-  "project_title": "Imported Project Title",
-  "project_url": "/projects/new-project-id",
-  "statistics": {
-    "tasks_imported": 100,
-    "annotations_imported": 50,
-    "predictions_imported": 25,
-    "generations_imported": 10
-  }
+  "object_key": "<file_key from the upload-url response>",
+  "organization_id": "optional: the organization that owns the new project",
+  "organization_group_id": "optional: a group of that organization",
+  "model_id_map": {"custom-<id in the export>": "custom-<id on this instance>"}
 }
 ```
+
+`model_id_map` is optional. Custom models get a new id on every instance, so
+results generated with a custom model on one instance only show up under the
+same model on another when the map translates the id. It applies to the model
+of every generation job, generation, evaluation run and judge run and to the
+project's model selection (`llm_model_ids`, `generation_config`). The target
+model must already be registered on the importing instance (and be public if it
+should appear on the leaderboard); an import never creates models.
+
+Every imported task records the id of the task it was copied from
+(`source_task_id`, kept across repeated imports), which is what a merge import
+matches on.
+
+### Merge Import (results back into an existing project)
+
+```http
+POST /api/projects/{project_id}/imports/upload-url?filename=copy.ndjson.gz
+POST /api/projects/{project_id}/imports
+GET  /api/projects/{project_id}/imports/{job_id}
+```
+
+with the job body
+
+```json
+{
+  "object_key": "<file_key from the upload-url response>",
+  "mode": "merge",
+  "model_id_map": {"custom-<id in the export>": "custom-<id on this instance>"}
+}
+```
+
+The file is a full project export (comprehensive JSON, NDJSON, `.gz` or the
+single-project `.zip`) of this project or of a copy of it. Each exported task is
+matched to one of the project's tasks by its recorded origin, else by identical
+task data. The merge then adds only the generation jobs, generations,
+evaluation runs, metrics, judge runs and evaluated rows the project does not
+hold yet, and adds newly merged models to the project's model selection so the
+generation grid shows them. Results already present are skipped, so running the
+same merge twice changes nothing. If any exported task matches no task of the
+project (or more than one), the job fails with `merge_task_mismatch` and nothing
+is imported. Annotations, rubrics, comments and human-evaluation data are not
+merged. In the UI the merge is the "Merge results" button on the project's data
+page.
 
 ## Data Format
 
@@ -251,6 +291,19 @@ Moving projects between BenGER instances:
    - Verify data integrity
    - Update project settings as needed
 
+### Benchmarking a Model on Another Instance
+
+To benchmark a model on a local instance and show its results next to the
+other models of a production project:
+
+1. Production: export the project as NDJSON (gzipped) or comprehensive JSON.
+2. Local: import it as a new project. Register the model, generate and
+   evaluate on the copy.
+3. Local: export the copy.
+4. Production: register the same model (public, if it should appear on the
+   leaderboard), then merge the export into the original project, mapping the
+   local model id to the production one (`model_id_map`).
+
 ### Backup Strategy
 Regular backup workflow:
 
@@ -279,8 +332,9 @@ Sharing projects with external teams:
 
 ### Python Example
 ```python
+import time
+
 import requests
-import json
 
 # Export projects
 def export_projects(project_ids, token):
@@ -295,16 +349,24 @@ def export_projects(project_ids, token):
     
     return "export.zip"
 
-# Import project
-def import_project(file_path, token):
+# Import project (background job: presign, upload, enqueue, poll)
+def import_project(file_path, token, model_id_map=None):
+    base = "https://benger.example.com/api/projects/project-imports"
+    headers = {"Authorization": f"Bearer {token}"}
+    upload = requests.post(
+        f"{base}/upload-url", params={"filename": file_path}, headers=headers
+    ).json()
     with open(file_path, "rb") as f:
-        response = requests.post(
-            "https://benger.example.com/api/projects/import-project",
-            files={"file": f},
-            headers={"Authorization": f"Bearer {token}"}
-        )
-    
-    return response.json()
+        requests.post(upload["upload_url"], data=upload["fields"], files={"file": f})
+    body = {"object_key": upload["file_key"]}
+    if model_id_map:
+        body["model_id_map"] = model_id_map
+    job = requests.post(base, json=body, headers=headers).json()
+    while True:
+        status = requests.get(f"{base}/{job['job_id']}", headers=headers).json()
+        if status["status"] in ("completed", "failed"):
+            return status
+        time.sleep(2)
 ```
 
 ### JavaScript Example
@@ -328,21 +390,8 @@ async function exportProjects(projectIds) {
   a.click();
 }
 
-// Import project
-async function importProject(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await fetch('/api/projects/import-project', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-    body: formData
-  });
-  
-  return await response.json();
-}
+// Import project: see the Python example for the presign, upload, enqueue
+// and poll steps; the web client does the same in projectsAPI.runProjectImportJob.
 ```
 
 ## Support

@@ -851,6 +851,7 @@ class TestSerializers:
             data = {"text": "hello"}
             meta = {"tags": ["a"]}
             is_labeled = True
+            source_task_id = None
             created_at = datetime(2024, 1, 1)
             updated_at = None
 
@@ -879,6 +880,7 @@ class TestSerializers:
             last_comment_updated_at = None
             comment_authors = None
             file_upload_id = None
+            source_task_id = "origin-t1"
 
         result = serialize_task(FakeTask(), mode="full", total_generations=5)
         assert result["project_id"] == "p1"
@@ -982,10 +984,22 @@ class TestSerializers:
             parse_metadata = None
             label_config_version = None
             label_config_snapshot = None
+            # Run index + per-call telemetry.
+            run_index = 2
+            seed = None
+            finish_reason = "stop"
+            truncated = False
+            refusal = False
+            error_type = None
+            latency_ms = 900
+            input_tokens = 100
+            output_tokens = 40
 
         result = serialize_generation(FakeGen(), mode="full")
         assert result["generation_id"] == "rg1"
         assert result["usage_stats"] == {"tokens": 100}
+        assert result["run_index"] == 2
+        assert result["latency_ms"] == 900
 
     def test_serialize_task_evaluation_data_mode(self):
         from routers.projects.serializers import serialize_task_evaluation
@@ -1045,8 +1059,20 @@ class TestSerializers:
             judge_prompts_used = None
             judge_run_id = None
             evaluation_config_id = None
+            # The judge's raw answer + per-call telemetry.
+            raw_output = "judge says"
+            seed = None
+            finish_reason = "stop"
+            truncated = False
+            refusal = False
+            error_type = None
+            latency_ms = 1200
+            input_tokens = 300
+            output_tokens = 60
+            updated_at = None
 
         result = serialize_task_evaluation(FakeTE(), mode="full")
+        assert result["raw_output"] == "judge says"
         assert result["evaluation_id"] == "er1"
         assert result["task_id"] == "t1"
         assert result["generation_id"] == "g1"

@@ -12,12 +12,17 @@ problems are raised as ``ImportValidationError`` (carrying the HTTP status the
 endpoints used to raise); the API layer rebuilds the matching ``HTTPException``,
 and the worker records the message on the job row.
 
-Three drivers:
+Four drivers:
 
 - ``run_nested_import(db, project_id, fileobj, user_id)`` — the nested
-  Label-Studio payload imported into an *existing* project (``POST /import``).
+  Label-Studio payload imported into an *existing* project
+  (``POST /{project_id}/imports``).
 - ``run_full_project_import(db, fileobj, user_id)`` — the flat comprehensive
-  payload that *creates* a new project (``POST /import-project``).
+  payload that *creates* a new project (``POST /project-imports``).
+- ``run_merge_import(db, project_id, fileobj, user_id)`` — a comprehensive
+  payload of the project (or of a copy of it) whose new generation and
+  evaluation results are merged into the existing project's tasks
+  (``POST /{project_id}/imports`` with ``mode: "merge"``).
 - ``run_tabular_import(db, project_id, fileobj, user_id, fmt)`` — plain
   CSV/TSV/TXT rows imported as tasks into an *existing* project (the cloud
   import flow's tabular arm).
@@ -30,8 +35,10 @@ one element at a time and the session identity map is flushed + expunged every
 ``_IMPORT_BATCH`` rows.
 """
 
+import copy
 import csv
 import gzip
+import hashlib
 import io
 import json
 import logging
@@ -40,8 +47,8 @@ import shutil
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime
-from typing import Any, Dict, Iterator, Optional, Set, Tuple
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 import ijson
 from ijson.common import ObjectBuilder
@@ -748,6 +755,9 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             data=task_data,
             meta=task_meta,
             inner_id=inner_id_value,  # Integer value for database
+            source_task_id=_source_task_id(
+                item.get("source_task_id"), original_task_id
+            ),
         )
         db.add(task)
         created_tasks += 1
@@ -1587,6 +1597,17 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
         ctx.user_email_to_id[email] = matched_id
 
 
+def _source_task_id(exported_source, exported_id) -> Optional[str]:
+    """What an imported task records as its origin: the origin the export
+    already carried (so repeated imports keep pointing at the first task),
+    else the exported task's own id. Label Studio's integer ids name no
+    BenGER task and are not kept."""
+    for candidate in (exported_source, exported_id):
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return None
+
+
 def _map_model(ctx: _FullImportContext, model_id):
     """``model_id`` translated through the import's ``model_id_map``; ids the
     map does not name pass through unchanged."""
@@ -1635,6 +1656,7 @@ def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
     new_task = Task(
         id=new_task_id,
         project_id=ctx.new_project_id,
+        source_task_id=_source_task_id(task_data.get("source_task_id"), task_data.get("id")),
         inner_id=ctx.task_counter,  # Recalculate inner IDs
         data=task_data.get("data", {}),
         meta=task_data.get("meta"),
@@ -3287,4 +3309,604 @@ def run_full_project_import(
         "project_title": new_title,
         "project_url": f"/projects/{ctx.new_project_id}",
         "statistics": import_stats,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Merge import: results of an exported copy back into the original project
+# ---------------------------------------------------------------------------
+#
+# The workflow it serves: a project is exported from one deployment, imported
+# on another (each task remembers the id it came from, ``source_task_id``),
+# a new model is generated and evaluated there, and the copy is exported
+# again. Merging that export into the original project adds the new model's
+# generation jobs, generations and evaluation runs (with their metrics, judge
+# runs and judged rows) next to the results the project already has, and
+# skips every result it already holds, so re-running the same merge changes
+# nothing. Tasks are never created: every exported task has to be one of the
+# project's tasks, or nothing is imported.
+#
+# What counts as "already present":
+# - a task: the project task the exported one came from or was copied to
+#   (``source_task_id`` in either direction, or a shared origin), else the
+#   one task with identical data;
+# - a generation job: same task, model and creation time;
+# - a generation: same task, model and response text;
+# - an evaluation run: same model and creation time (a run that is present
+#   brings nothing: its metrics, judge runs and rows are present too);
+# - a Bewertungsbogen: the sheet of the matched task with the same title,
+#   criteria, structure and total. Merged gradings are pointed at it; a sheet
+#   the project lacks is added (as a candidate when the task already has an
+#   active one), so the gradings scored against it stay joinable.
+#
+# Annotations, rubrics, comments, feedback, assignments and human-evaluation
+# data are not merged, and neither are evaluation rows that grade an
+# annotation rather than a generation.
+
+MERGE_TASK_MISMATCH = "merge_task_mismatch"
+
+# Entity types a merge consumes, in FK-dependency order, with the array key of
+# the comprehensive JSON format.
+_MERGE_STREAMS = (
+    ("user", "users"),
+    ("task", "tasks"),
+    ("task_rubric", "task_rubrics"),
+    ("response_generation", "response_generations"),
+    ("generation", "generations"),
+    ("evaluation", "evaluations"),
+    ("evaluation_metric", "evaluation_metrics"),
+    ("evaluation_judge_run", "evaluation_judge_runs"),
+    ("task_evaluation", "task_evaluations"),
+)
+_MERGE_TYPES = {rtype for rtype, _ in _MERGE_STREAMS}
+
+
+def _utc_key(value) -> Optional[str]:
+    """A timestamp as a comparable key (naive values are taken as UTC)."""
+    dt = _parse_iso(value)
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def _digest(value) -> str:
+    if not isinstance(value, str):
+        value = json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+class _MergeState:
+    """What the target project already holds, plus the merge's bookkeeping."""
+
+    def __init__(self, db, project_id: str):
+        self.tasks_by_id: Set[str] = set()
+        self.tasks_by_source: Dict[str, List[str]] = {}
+        self.tasks_by_data: Dict[str, List[str]] = {}
+        for task_id, source_id, data in (
+            db.query(Task.id, Task.source_task_id, Task.data)
+            .filter(Task.project_id == project_id)
+            .yield_per(_IMPORT_BATCH)
+        ):
+            self.tasks_by_id.add(task_id)
+            if source_id:
+                self.tasks_by_source.setdefault(source_id, []).append(task_id)
+            self.tasks_by_data.setdefault(_digest(data), []).append(task_id)
+        self.claimed: Dict[str, str] = {}  # target task id -> exported task id
+        self.tasks_seen = 0
+        self.unmatched: List[str] = []
+        self.ambiguous: List[str] = []
+        self.tasks_checked = False
+
+        task_ids = list(self.tasks_by_id)
+        self.rubrics: Dict[tuple, str] = {}
+        self.active_rubric_tasks: Set[str] = set()
+        if task_ids:
+            for rubric in (
+                db.query(TaskRubric)
+                .filter(TaskRubric.task_id.in_(task_ids))
+                .yield_per(_IMPORT_BATCH)
+            ):
+                shape = {
+                    "title": rubric.title,
+                    "criteria": rubric.criteria,
+                    "structure": rubric.structure,
+                    "total_points": rubric.total_points,
+                }
+                self.rubrics[(rubric.task_id, _rubric_digest(shape))] = rubric.id
+                if rubric.status == "active":
+                    self.active_rubric_tasks.add(rubric.task_id)
+        self.jobs: Dict[tuple, str] = {}
+        self.generations: Dict[tuple, str] = {}
+        if task_ids:
+            for rg_id, task_id, model_id, created_at in (
+                db.query(
+                    ResponseGeneration.id,
+                    ResponseGeneration.task_id,
+                    ResponseGeneration.model_id,
+                    ResponseGeneration.created_at,
+                )
+                .filter(ResponseGeneration.task_id.in_(task_ids))
+                .yield_per(_IMPORT_BATCH)
+            ):
+                self.jobs[(task_id, model_id, _utc_key(created_at))] = rg_id
+            for gen_id, task_id, model_id, content in (
+                db.query(
+                    Generation.id,
+                    Generation.task_id,
+                    Generation.model_id,
+                    Generation.response_content,
+                )
+                .filter(Generation.task_id.in_(task_ids))
+                .yield_per(_IMPORT_BATCH)
+            ):
+                self.generations[(task_id, model_id, _digest(content or ""))] = gen_id
+        self.runs: Dict[tuple, str] = {}
+        self.human_korrektur_run: Optional[str] = None
+        for run_id, model_id, created_at, meta in db.query(
+            EvaluationRun.id,
+            EvaluationRun.model_id,
+            EvaluationRun.created_at,
+            EvaluationRun.eval_metadata,
+        ).filter(EvaluationRun.project_id == project_id):
+            self.runs[(model_id, _utc_key(created_at))] = run_id
+            if _is_human_korrektur_run(model_id, meta):
+                self.human_korrektur_run = run_id
+
+        # Generation jobs whose rows are held back until a generation needs
+        # them, so a job whose every generation is present adds nothing.
+        self.pending_jobs: Dict[str, dict] = {}
+        self.existing_jobs_loaded: Set[str] = set()
+        self.added_models: List[str] = []
+        self.added = {
+            "task_rubrics": 0,
+            "response_generations": 0,
+            "generations": 0,
+            "evaluations": 0,
+            "evaluation_metrics": 0,
+            "evaluation_judge_runs": 0,
+            "task_evaluations": 0,
+        }
+        self.skipped = {
+            "response_generations": 0,
+            "generations": 0,
+            "evaluations": 0,
+            "task_evaluations": 0,
+        }
+
+
+def _rubric_digest(row: dict) -> str:
+    try:
+        total = float(row.get("total_points") or 100.0)
+    except (TypeError, ValueError):
+        total = 100.0
+    return _digest(
+        [row.get("title"), row.get("criteria"), row.get("structure"), total]
+    )
+
+
+def _merge_task_rubric(ctx, state: "_MergeState", rec: dict) -> None:
+    task_id = ctx.id_mappings["tasks"].get(rec.get("task_id"))
+    old_id = rec.get("id")
+    if not task_id or not isinstance(old_id, str) or not old_id:
+        return
+    key = (task_id, _rubric_digest(rec))
+    existing = state.rubrics.get(key)
+    if existing:
+        ctx.id_mappings["task_rubrics"][old_id] = existing
+        return
+    _insert_task_rubric(ctx, rec)
+    new_id = ctx.id_mappings["task_rubrics"].get(old_id)
+    if new_id:
+        state.rubrics[key] = new_id
+        state.added["task_rubrics"] += 1
+
+
+def _is_human_korrektur_run(model_id, eval_metadata) -> bool:
+    # The singleton behind uq_human_eval_run_per_project_metric.
+    return model_id == "human" and isinstance(eval_metadata, dict) and (
+        eval_metadata.get("evaluation_type") == "korrektur_falloesung"
+    )
+
+
+def _merge_user(ctx: _FullImportContext, user_data: dict) -> None:
+    """Map an exported user onto an existing account (same id, else same
+    email). A merge creates no placeholder accounts: rows of an unknown
+    author fall back to the importing user, as every create-new import does
+    for job and run creators."""
+    old_user_id = user_data.get("id")
+    if not isinstance(old_user_id, str) or not old_user_id:
+        return
+    matched_id = ctx.db.query(User.id).filter(User.id == old_user_id).scalar()
+    email = user_data.get("email")
+    if matched_id is None and email:
+        matched_id = (
+            ctx.db.query(User.id)
+            .filter(func.lower(User.email) == email.strip().lower())
+            .scalar()
+        )
+    if matched_id is not None:
+        ctx.id_mappings["users"][old_user_id] = matched_id
+        ctx.matched_user_ids[old_user_id] = matched_id
+
+
+def _merge_task(ctx: _FullImportContext, state: _MergeState, task_data: dict) -> None:
+    state.tasks_seen += 1
+    old_id = task_data.get("id")
+    source_id = task_data.get("source_task_id")
+    label = str(old_id or f"#{state.tasks_seen}")
+
+    def _free(ids):
+        return [t for t in ids if t not in state.claimed]
+
+    # Strongest evidence first: the project task this one was copied from,
+    # this very task (an export of the project itself), a copy of it, a
+    # sibling copy of the same origin, and only then identical data.
+    candidates: List[str] = []
+    for ids in (
+        [source_id] if source_id in state.tasks_by_id else [],
+        [old_id] if old_id in state.tasks_by_id else [],
+        state.tasks_by_source.get(old_id, []) if old_id else [],
+        state.tasks_by_source.get(source_id, []) if source_id else [],
+    ):
+        free = _free(ids)
+        if len(free) == 1:
+            candidates = free
+            break
+        if len(free) > 1:
+            state.ambiguous.append(label)
+            return
+    if not candidates:
+        free = _free(state.tasks_by_data.get(_digest(task_data.get("data", {})), []))
+        if len(free) > 1:
+            state.ambiguous.append(label)
+            return
+        candidates = free
+    if not candidates:
+        state.unmatched.append(label)
+        return
+    target = candidates[0]
+    state.claimed[target] = label
+    if old_id:
+        ctx.id_mappings["tasks"][old_id] = target
+
+
+def _merge_check_tasks(state: _MergeState) -> None:
+    """Refuse the whole merge (nothing written yet) unless every exported
+    task found exactly one task of this project."""
+    if state.tasks_checked:
+        return
+    state.tasks_checked = True
+    if state.tasks_seen == 0:
+        raise ImportValidationError(
+            400, "The export holds no tasks to merge", code=MERGE_TASK_MISMATCH
+        )
+    problems = []
+    if state.unmatched:
+        problems.append(
+            f"{len(state.unmatched)} match no task of this project "
+            f"(e.g. {', '.join(state.unmatched[:3])})"
+        )
+    if state.ambiguous:
+        problems.append(
+            f"{len(state.ambiguous)} match more than one "
+            f"(e.g. {', '.join(state.ambiguous[:3])})"
+        )
+    if problems:
+        raise ImportValidationError(
+            409,
+            f"Of the {state.tasks_seen} tasks in the export, "
+            + " and ".join(problems)
+            + ". A merge only adds results to the tasks this project already "
+            "has, so nothing was imported. Import the file as a new project "
+            "instead, or merge it into the project it was exported from.",
+            code=MERGE_TASK_MISMATCH,
+        )
+
+
+def _merge_response_generation(ctx, state: _MergeState, rec: dict) -> None:
+    old_id = rec.get("id")
+    task_id = ctx.id_mappings["tasks"].get(rec.get("task_id"))
+    if not old_id or not task_id:
+        return
+    key = (task_id, _map_model(ctx, rec.get("model_id")), _utc_key(rec.get("created_at")))
+    existing = state.jobs.get(key) if key[2] else None
+    if existing:
+        ctx.id_mappings["response_generations"][old_id] = existing
+        state.skipped["response_generations"] += 1
+    else:
+        state.pending_jobs[old_id] = rec
+
+
+def _merge_generation(ctx, state: _MergeState, rec: dict) -> None:
+    old_id = rec.get("id")
+    task_id = ctx.id_mappings["tasks"].get(rec.get("task_id"))
+    if not old_id or not task_id:
+        return
+    model_id = _map_model(ctx, rec.get("model_id"))
+    key = (task_id, model_id, _digest(rec.get("response_content") or ""))
+    existing = state.generations.get(key)
+    if existing:
+        ctx.id_mappings["generations"][old_id] = existing
+        state.skipped["generations"] += 1
+        return
+    old_job_id = rec.get("generation_id")
+    pending = state.pending_jobs.pop(old_job_id, None)
+    if pending is not None:
+        _insert_response_generation(ctx, pending)
+        state.added["response_generations"] += 1
+        _note_model(state, _map_model(ctx, pending.get("model_id")))
+        # A job created by this merge holds no runs yet.
+        state.existing_jobs_loaded.add(
+            ctx.id_mappings["response_generations"].get(old_job_id)
+        )
+    job_id = ctx.id_mappings["response_generations"].get(old_job_id)
+    if not job_id:
+        return
+    if job_id not in state.existing_jobs_loaded:
+        # A job already on this project: its runs keep their indexes.
+        state.existing_jobs_loaded.add(job_id)
+        taken = ctx.run_indexes.setdefault(job_id, set())
+        taken.update(
+            r for (r,) in ctx.db.query(Generation.run_index).filter(
+                Generation.generation_id == job_id
+            )
+        )
+    _insert_generation(ctx, rec)
+    state.generations[key] = ctx.id_mappings["generations"][old_id]
+    state.added["generations"] += 1
+    _note_model(state, model_id)
+
+
+def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
+    old_id = rec.get("id")
+    if not old_id:
+        return
+    model_id = _map_model(ctx, rec.get("model_id"))
+    created = _utc_key(rec.get("created_at"))
+    present = (created and state.runs.get((model_id, created))) or (
+        state.human_korrektur_run
+        if _is_human_korrektur_run(model_id, rec.get("eval_metadata"))
+        else None
+    )
+    if present:
+        # Not mapped on purpose: its metrics, judge runs and rows are skipped.
+        state.skipped["evaluations"] += 1
+        return
+    _insert_evaluation(ctx, rec)
+    new_id = ctx.id_mappings["evaluations"][old_id]
+    state.runs[(model_id, created)] = new_id
+    if _is_human_korrektur_run(model_id, rec.get("eval_metadata")):
+        state.human_korrektur_run = new_id
+    state.added["evaluations"] += 1
+    _note_model(state, model_id)
+
+
+def _merge_evaluation_metric(ctx, state: _MergeState, rec: dict) -> None:
+    if ctx.id_mappings["evaluations"].get(rec.get("evaluation_id")):
+        _insert_evaluation_metric(ctx, rec)
+        state.added["evaluation_metrics"] += 1
+
+
+def _merge_evaluation_judge_run(ctx, state: _MergeState, rec: dict) -> None:
+    if ctx.id_mappings["evaluations"].get(rec.get("evaluation_id")):
+        _insert_evaluation_judge_run(ctx, rec)
+        state.added["evaluation_judge_runs"] += 1
+
+
+def _merge_task_evaluation(ctx, state: _MergeState, rec: dict) -> None:
+    if not ctx.id_mappings["evaluations"].get(rec.get("evaluation_id")):
+        state.skipped["task_evaluations"] += 1
+        return
+    # A row grading an annotation needs that annotation, which a merge does
+    # not bring along.
+    if rec.get("annotation_id") and not rec.get("generation_id"):
+        state.skipped["task_evaluations"] += 1
+        return
+    if rec.get("generation_id") and not ctx.id_mappings["generations"].get(
+        rec.get("generation_id")
+    ):
+        state.skipped["task_evaluations"] += 1
+        return
+    if not ctx.id_mappings["tasks"].get(rec.get("task_id")):
+        state.skipped["task_evaluations"] += 1
+        return
+    _insert_task_evaluation(ctx, rec)
+    state.added["task_evaluations"] += 1
+
+
+def _note_model(state: _MergeState, model_id) -> None:
+    if (
+        isinstance(model_id, str)
+        and model_id not in ("unknown", "human")
+        and model_id not in state.added_models
+    ):
+        state.added_models.append(model_id)
+
+
+_MERGE_DISPATCH = {
+    "response_generation": _merge_response_generation,
+    "generation": _merge_generation,
+    "evaluation": _merge_evaluation,
+    "evaluation_metric": _merge_evaluation_metric,
+    "evaluation_judge_run": _merge_evaluation_judge_run,
+    "task_evaluation": _merge_task_evaluation,
+}
+
+
+def _iter_merge_records(db, fileobj):
+    """``(project_data, records)`` of a comprehensive JSON or NDJSON export,
+    where ``records`` yields ``(type, record)`` in FK-dependency order."""
+    if _is_ndjson_stream(fileobj):
+        records = _iter_ndjson_records(fileobj)
+        try:
+            meta = next(records)
+        except StopIteration:
+            raise ImportValidationError(400, "Empty NDJSON export")
+        except ValueError as exc:
+            raise ImportValidationError(400, f"Invalid JSON format: {exc}")
+        if not isinstance(meta, dict) or meta.get("_type") != "meta":
+            raise ImportValidationError(400, "NDJSON export must start with a meta record")
+        if not str(meta.get("format_version", "1.0.0")).startswith("1."):
+            raise ImportValidationError(400, "Unsupported export format version")
+
+        def _ndjson():
+            saw_end = False
+            try:
+                for record in records:
+                    if not isinstance(record, dict):
+                        raise ImportValidationError(400, "Each NDJSON record must be an object")
+                    rtype = record.get("_type")
+                    if rtype == "end":
+                        saw_end = True
+                        break
+                    if rtype in _MERGE_TYPES:
+                        yield rtype, record
+            except ValueError as exc:
+                raise ImportValidationError(400, f"Invalid JSON in NDJSON record: {exc}")
+            if not saw_end:
+                raise ImportValidationError(400, "Truncated NDJSON export: missing end record")
+
+        return meta.get("project") or {}, _ndjson()
+
+    try:
+        top_obj, kinds = read_top_object(fileobj, {"format_version", "project"})
+    except ijson.JSONError:
+        raise ImportValidationError(400, "Invalid JSON format")
+    if _is_nested_task_export(fileobj, top_obj, kinds):
+        raise ImportValidationError(
+            400,
+            "This file is a task export from the Project data page. A merge "
+            "needs a full project export (comprehensive JSON or NDJSON).",
+            code=TASK_EXPORT_NOT_PROJECT,
+        )
+    if not str(top_obj.get("format_version", "1.0.0")).startswith("1."):
+        raise ImportValidationError(400, "Unsupported export format version")
+
+    def _json():
+        for rtype, key in _MERGE_STREAMS:
+            for record in _stream_rows(db, fileobj, f"{key}.item"):
+                yield rtype, record
+
+    return top_obj.get("project") or {}, _json()
+
+
+def _add_merged_models_to_project(ctx, state: _MergeState, project, project_data) -> List[str]:
+    """Put the models the merge brought in on the project's model selection,
+    so the generation grid shows them next to the others. Only models this
+    deployment knows and the importer may use; returns the ids added."""
+    selected_now = ((project.generation_config or {}).get("selected_configuration") or {})
+    current = list(selected_now.get("models") or [])
+    candidates = [m for m in state.added_models if m not in current]
+    if not candidates:
+        return []
+    importing_user = (
+        ctx.db.query(User)
+        .options(joinedload(User.organization_memberships))
+        .filter(User.id == ctx.user_id)
+        .first()
+    )
+    try:
+        kept, dropped = _split_accessible_model_ids(ctx, candidates, importing_user)
+    except Exception as e:  # noqa: BLE001 - the results are in; the selection is a convenience
+        logger.warning(f"Merge: could not check the merged models, selection unchanged: {e}")
+        return []
+    if dropped:
+        logger.warning(
+            "Merge: %d merged model id(s) are unknown here or not usable by the "
+            "importing user and were not added to the model selection: %s",
+            len(dropped),
+            dropped,
+        )
+    if not kept:
+        return []
+    exported_configs = (
+        ((project_data.get("generation_config") or {}).get("selected_configuration") or {})
+        .get("model_configs")
+        or {}
+    )
+    exported_configs = {_map_model(ctx, k): v for k, v in exported_configs.items()}
+    config = copy.deepcopy(project.generation_config or {})
+    selected = config.setdefault("selected_configuration", {})
+    selected["models"] = current + kept
+    model_configs = selected.get("model_configs")
+    for model_id in kept:
+        if model_id in exported_configs:
+            if not isinstance(model_configs, dict):
+                model_configs = {}
+            model_configs.setdefault(model_id, exported_configs[model_id])
+    if isinstance(model_configs, dict):
+        selected["model_configs"] = model_configs
+    project.generation_config = config
+    if isinstance(project.llm_model_ids, list):
+        project.llm_model_ids = list(project.llm_model_ids) + [
+            m for m in kept if m not in project.llm_model_ids
+        ]
+    return kept
+
+
+def run_merge_import(
+    db,
+    project_id: str,
+    fileobj,
+    user_id: str,
+    model_id_map: Optional[Dict[str, str]] = None,
+) -> dict:
+    """Merge the results of a full project export into an existing project.
+
+    See the section comment above for what is added and what counts as
+    present. Accepts the comprehensive JSON and the NDJSON format (plain,
+    gzipped or the projects list's single-project zip). Refuses with
+    ``ImportValidationError(409, code=MERGE_TASK_MISMATCH)`` before writing
+    anything when an exported task is not one of the project's. Commits once;
+    the caller owns rollback on failure.
+    """
+    model_id_map = normalize_model_id_map(model_id_map)
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise ImportValidationError(404, "Project not found")
+    fileobj = _maybe_decompress(_maybe_unzip(fileobj))
+    project_data, records = _iter_merge_records(db, fileobj)
+
+    ctx = _FullImportContext(db, user_id, model_id_map)
+    ctx.new_project_id = project_id
+    state = _MergeState(db, project_id)
+    # One active Bewertungsbogen per task: an added sheet becomes a candidate
+    # where the task already has one (see _insert_task_rubric).
+    ctx.active_rubric_tasks = set(state.active_rubric_tasks)
+
+    handled = 0
+    for rtype, record in records:
+        if rtype == "user":
+            _merge_user(ctx, record)
+            continue
+        if rtype == "task":
+            _merge_task(ctx, state, record)
+            continue
+        _merge_check_tasks(state)
+        if rtype == "task_rubric":
+            _merge_task_rubric(ctx, state, record)
+            continue
+        _MERGE_DISPATCH[rtype](ctx, state, record)
+        handled += 1
+        flush_every(db, handled, _IMPORT_BATCH)
+    _merge_check_tasks(state)
+
+    project = db.query(Project).filter(Project.id == project_id).one()
+    models_added = _add_merged_models_to_project(ctx, state, project, project_data)
+    db.commit()
+
+    return {
+        "message": "Results merged into the project",
+        "project_id": project_id,
+        "project_url": f"/projects/{project_id}",
+        "statistics": {
+            "merged": True,
+            "matched_tasks": len(state.claimed),
+            "added_counts": dict(state.added),
+            "skipped_present_counts": dict(state.skipped),
+            "models_added_to_project": models_added,
+            "model_id_map": dict(ctx.model_id_map),
+        },
     }

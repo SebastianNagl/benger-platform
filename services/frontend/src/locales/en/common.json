@@ -956,7 +956,28 @@
       "bannerBody": "Only superadmins can open it; it is hidden from everyone else. Restore it to work in it again.",
       "bannerBackToList": "Go to deleted projects"
     },
-    "archivedTitle": "Archived projects"
+    "archivedTitle": "Archived projects",
+    "mergeImport": {
+      "button": "Merge results",
+      "title": "Merge results from a project export",
+      "description": "Adds the generations and evaluations of a full project export to this project's tasks, for example a model benchmarked on a copy of this project. Results this project already has are skipped, so merging the same file twice changes nothing. No tasks are created: if the file's tasks are not this project's, nothing is imported.",
+      "fileLabel": "Project export",
+      "fileHint": "A full project export (JSON, NDJSON, .gz or the .zip from the project list) of this project or of a copy of it.",
+      "modelMapTitle": "Model ids (optional)",
+      "modelMapHint": "A custom model has a different id on every installation. Enter the id used in the file and the id of the same model here. The model must already exist here.",
+      "sourceModel": "Model id in the file",
+      "targetModel": "Model id here",
+      "addModel": "Add model id",
+      "removeModel": "Remove",
+      "submit": "Merge",
+      "running": "Merging...",
+      "success": "Results merged",
+      "failed": "The merge failed",
+      "taskMismatch": "The tasks in this file are not this project's tasks, so nothing was imported. Merge a file exported from this project or from a copy of it, or import it as a new project.",
+      "summaryAdded": "Matched {tasks} tasks and added {generations} generations, {evaluations} evaluation runs and {rows} evaluated rows.",
+      "summarySkipped": "Skipped {generations} generations and {evaluations} evaluation runs this project already had.",
+      "summaryModels": "Added to the project's models: {models}"
+    }
   },
   "project": {
     "loading": "Loading project...",

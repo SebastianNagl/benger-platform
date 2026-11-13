@@ -682,3 +682,58 @@ class TestCreateFullImportJobModelIdMap:
             )
         ).scalars().all()
         assert jobs == []
+
+
+@pytest.mark.integration
+class TestCreateImportJobMergeMode:
+    """POST /{project_id}/imports: mode "merge" (and its model_id_map) reach
+    the worker; anything else stays a nested import."""
+
+    @staticmethod
+    async def _post(client, admin, project, body_extra):
+        body = {"object_key": _valid_key(project.id), **body_extra}
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-merge"),
+        ) as mock_send:
+            resp = await client.post(f"/api/projects/{project.id}/imports", json=body)
+        return resp, mock_send
+
+    @pytest.mark.asyncio
+    async def test_merge_mode_and_map_travel_with_the_task(
+        self, async_test_client, async_test_db
+    ):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, mock_send = await self._post(
+            async_test_client, admin, project,
+            {"mode": "merge", "model_id_map": {"custom-local": "custom-prod"}},
+        )
+        assert resp.status_code == 202, resp.text
+        assert mock_send.call_args.kwargs["kwargs"] == {
+            "mode": "merge",
+            "model_id_map": {"custom-local": "custom-prod"},
+        }
+
+    @pytest.mark.asyncio
+    async def test_default_stays_nested(self, async_test_client, async_test_db):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, mock_send = await self._post(async_test_client, admin, project, {})
+        assert resp.status_code == 202, resp.text
+        assert "kwargs" not in mock_send.call_args.kwargs
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"mode": "replace"},
+            {"model_id_map": {"a": "b"}},
+            {"mode": "merge", "model_id_map": {"a": ""}},
+        ],
+    )
+    async def test_bad_options_400(self, async_test_client, async_test_db, body):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, mock_send = await self._post(async_test_client, admin, project, body)
+        assert resp.status_code == 400, resp.text
+        mock_send.assert_not_called()
