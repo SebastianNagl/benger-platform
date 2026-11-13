@@ -52,9 +52,13 @@ jobs:
           - name: generation_structure_parser
             module: generation_structure_parser.py
             tests: tests/test_generation_structure_parser.py tests/test_generation_structure_parser_extended.py tests/test_generation_structure_parser_coverage.py tests/test_generation_structure_parser_properties.py tests/test_generation_structure_parser_mutation_kills.py
+          # The requirement-level lane (bind_task_rubric, configure_checklist,
+          # its notes and E2E mock) is tested in test_requirement_judging.py
+          # and test_checklist_scoring.py; without them its ~170 mutants
+          # survive and the shard fell below its floor (2026-11-12).
           - name: llm_judge_evaluator
             module: ml_evaluation/llm_judge_evaluator.py
-            tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
+            tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py tests/test_requirement_judging.py tests/test_checklist_scoring.py
           # The rubric judge's quote check, against its own pure test file
           # (95% line coverage, ~3 s a run; with the judge and checklist tests
           # the first run took 310 of the 340 minutes).
