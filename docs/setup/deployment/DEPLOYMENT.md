@@ -268,8 +268,9 @@ The repository includes two main workflows:
 
 **`.github/workflows/ci.yml`** (Testing):
 - Runs on GitHub-hosted runners
-- Executes tests, linting, build validation
-- Triggers on all pushes and PRs
+- Executes the full API and workers suites, Jest and lint, without coverage
+- Triggers on PRs and pushes to `main`
+- A green push to `main` dispatches the downstream build; the manual `notify-extended.yml` is the only bypass
 
 **`.github/workflows/deploy-self-hosted.yml`** (Deployment):
 - Runs on self-hosted runner

@@ -1,8 +1,10 @@
 name: Nightly Tests
 
 # Comprehensive test suite — runs ALL tests (API, Workers, Frontend, E2E).
-# PR CI only runs frontend Jest + Python lint for fast feedback.
-# This nightly suite catches regressions within 24 hours.
+# The merge gate (ci.yml) runs the API, workers and Jest suites without
+# coverage. This suite adds the coverage thresholds and the Playwright E2E run,
+# and catches what only those see within 24 hours. A red night alerts by mail
+# (extended repo, nightly-status.yml) and does not block deploys.
 #
 # Each slice runs in its own matrix shard so a single slow suite doesn't
 # starve the others or trip the per-step timeout. Frontend Jest skips Docker
