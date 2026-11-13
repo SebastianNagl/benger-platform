@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from auth_module import User, require_user
 from database import get_async_db
 from models import Generation as DBGeneration
+from models import LLMModel as DBLLMModel
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
@@ -107,6 +108,9 @@ class PaginatedTaskGenerationResponse(BaseModel):
     total_pages: int
     models: List[str]  # List of model IDs configured for this project
     structures: List[str]  # List of structure keys configured for this project (Issue #762)
+    # Model id -> its name, for the column headers and the dialogs (a custom
+    # model's id is a random custom-<uuid>). Ids unknown here are left out.
+    model_names: Dict[str, str] = Field(default_factory=dict)
 
 
 class GenerationParameters(BaseModel):
@@ -395,6 +399,23 @@ async def get_task_generation_status(
     generation_config = project.generation_config or {}
     selected_config = generation_config.get("selected_configuration", {})
     model_ids = selected_config.get("models", [])
+    if not model_ids:
+        # No selection saved (a project generated through the API, which does
+        # not store its model_ids, or an imported copy of one): show the
+        # models that have generations rather than an empty grid.
+        model_ids = list(
+            (
+                await db.execute(
+                    select(DBResponseGeneration.model_id)
+                    .where(
+                        DBResponseGeneration.project_id == project_id,
+                        DBResponseGeneration.model_id.isnot(None),
+                    )
+                    .group_by(DBResponseGeneration.model_id)
+                    .order_by(func.min(DBResponseGeneration.created_at))
+                )
+            ).scalars()
+        )
 
     # Get structure keys from prompt_structures (matching GenerationControlModal behavior)
     # This fixes the mismatch where generation uses prompt_structures keys but status used active_structures
@@ -598,6 +619,15 @@ async def get_task_generation_status(
         total_pages=total_pages,
         models=model_ids,
         structures=structures_for_response,
+        model_names=dict(
+            (
+                await db.execute(
+                    select(DBLLMModel.id, DBLLMModel.name).where(
+                        DBLLMModel.id.in_(model_ids)
+                    )
+                )
+            ).all()
+        ),
     )
 
 

@@ -604,3 +604,58 @@ class TestPerformance:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestTaskStatusModelsAndNames:
+    """Defects 3 and 11: a project without a saved model selection (one
+    generated through the API, or a copy of one) showed an empty grid, and
+    the column headers showed raw custom-<uuid> ids."""
+
+    @pytest.mark.asyncio
+    async def test_empty_selection_falls_back_to_the_models_with_generations(
+        self, async_test_client, async_test_db
+    ):
+        from models import LLMModel, ResponseGeneration
+
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _create_project(
+            async_test_db, admin, generation_config={"selected_configuration": {"models": []}}
+        )
+        task = Task(id=_uid(), project_id=project.id, inner_id=1, data={"text": "Q"})
+        async_test_db.add(task)
+        async_test_db.add(
+            LLMModel(
+                id="custom-grid-1",
+                name="Grid custom",
+                provider="custom",
+                model_type="chat",
+                capabilities=["text_generation"],
+                is_official=False,
+                is_public=True,
+                base_url="http://gpu.example.org:40001/v1",
+                endpoint_model_name="grid",
+            )
+        )
+        await async_test_db.flush()
+        for n, model_id in enumerate(("custom-grid-1", "gpt-unknown-here")):
+            async_test_db.add(
+                ResponseGeneration(
+                    id=_uid(),
+                    project_id=project.id,
+                    task_id=task.id,
+                    model_id=model_id,
+                    status="completed",
+                    created_by=admin.id,
+                    created_at=datetime(2026, 1, 1, 10, n, tzinfo=timezone.utc),
+                )
+            )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status"
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["models"] == ["custom-grid-1", "gpt-unknown-here"]
+        assert body["model_names"] == {"custom-grid-1": "Grid custom"}

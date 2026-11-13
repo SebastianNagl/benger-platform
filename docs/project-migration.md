@@ -26,7 +26,7 @@ The export system captures ALL project data including:
 The import system provides:
 - 🔄 Automatic ID regeneration to avoid conflicts
 - 📝 Project renaming on title conflicts
-- 👤 User mapping by email address
+- 👤 Pseudonymous authors: an export names no email, username or name, so on another instance every author becomes a placeholder account
 - 🛡️ Data validation and integrity checks
 - 📊 Import statistics and reporting
 
@@ -44,7 +44,9 @@ For exporting just the task data in Label Studio compatible format:
 5. A JSON file will be downloaded containing the task data
 
 #### Full Project Export (Complete)
-For exporting complete projects with all associated data:
+For exporting complete projects with all associated data (for large projects
+and for moving a benchmark project between instances, prefer the NDJSON
+export below):
 
 1. Navigate to the Projects page
 2. Select one or more projects using the checkboxes
@@ -55,17 +57,27 @@ For exporting complete projects with all associated data:
    - Each file contains complete project data
    - Files are named: `[ProjectTitle]_[ProjectID].json`
 
+The same **Actions** menu offers **Export as NDJSON (gzip)** and **Export as
+JSON (one file per project)**. They run as background jobs (one per project):
+the worker writes the export to object storage and the browser downloads it
+from there, so the size of a project does not matter.
+
 ### Importing Projects
 
 1. Navigate to the Projects page
 2. Click the **Import Project** button (cloud upload icon)
-3. Select a JSON file exported from BenGER
+3. Select a project export (`.json`, `.ndjson`, `.gz` or the `.zip` of the
+   full export)
 4. The system will:
    - Validate the file format
    - Check for conflicts
-   - Import the project with new IDs
-   - Map users by email when possible
-   - Show import statistics
+   - Import the project with new IDs, keeping the order of the task numbers
+   - Keep the authors of an export from this same instance; on another
+     instance every author becomes a placeholder account
+     (`imported_<id>@imported.invalid`, no password), because exports are
+     pseudonymous
+   - Show import statistics (tasks, annotations, generations, evaluation
+     runs and evaluated rows)
 
 ### Progress Indicators
 
@@ -88,7 +100,20 @@ Common errors and their solutions:
 
 ## API Reference
 
-### Export Endpoint
+### Export Endpoints
+
+The export to use for a full project is the background job, which writes the
+file to object storage:
+
+```http
+POST /api/projects/{project_id}/exports?format=ndjson_gz
+GET  /api/projects/{project_id}/exports/{job_id}
+GET  /api/projects/{project_id}/exports/{job_id}/download
+```
+
+`format` is `ndjson_gz` (recommended), `ndjson` or `comprehensive` for a full
+project export. The synchronous projects-list export is still there for a few
+small projects:
 
 ```http
 POST /api/projects/bulk-export-full
@@ -131,7 +156,27 @@ same model on another when the map translates the id. It applies to the model
 of every generation job, generation, evaluation run and judge run and to the
 project's model selection (`llm_model_ids`, `generation_config`). The target
 model must already be registered on the importing instance (and be public if it
-should appear on the leaderboard); an import never creates models.
+should appear on the leaderboard); an import never creates models. A map
+whose target does not exist is refused with 400 (`unknown_model_id_map_target`,
+listing the ids).
+
+A malformed body (missing `object_key`, a map that is not an object of
+strings, an unknown `mode`) is answered with 400, like every refused option;
+the request and response bodies are typed in the OpenAPI schema. The job a
+client polls carries `status` (`pending`, `running`, `completed`, `failed`),
+the created or targeted `project_id`, the importer's `result` with its
+statistics, and for a refused import `error_message` plus `error_status` (the
+HTTP-style status, e.g. 409) and `error_code`, a stable token such as
+`merge_task_mismatch`, `merge_unknown_models`, `task_export_not_project` or
+`import_too_large`.
+
+A compressed upload (gzip or zip) may inflate to at most 20 times the 2 GiB
+upload cap; past that the job fails with 413 `import_too_large`. Set
+`IMPORT_MAX_DECOMPRESSED_BYTES` (bytes) on the workers to change the limit.
+
+Generation jobs keep the organization their cost was attributed to when the
+export comes from this same instance; otherwise they are attributed to the
+organization that owns the new project.
 
 Every imported task records the id of the task it was copied from
 (`source_task_id`, kept across repeated imports), which is what a merge import
@@ -155,21 +200,42 @@ with the job body
 }
 ```
 
+Before merging, the same uploaded file can be checked without writing
+anything:
+
+```http
+POST /api/projects/{project_id}/imports/merge-preview
+{"object_key": "...", "model_id_map": {...}}
+```
+
+The answer lists the matched tasks, the rows the merge would add and skip, and
+every model id the file's results name (`models`: the id in the file, the id it
+lands under here, whether that model exists here, its name and its row
+counts), with `unknown_models` naming the ids that still need a mapping and
+`available_models` the models you may map to. The merge dialog builds its
+model map from it.
+
 The file is a full project export (comprehensive JSON, NDJSON, `.gz` or the
 single-project `.zip`) of this project or of a copy of it. Each exported task is
 matched to one of the project's tasks by its recorded origin, else by identical
 task data. The merge then adds only the generation jobs, generations,
 evaluation runs, metrics, judge runs and evaluated rows the project does not
-hold yet, and adds newly merged models to the project's model selection so the
-generation grid shows them. Results already present are skipped, so running the
-same merge twice changes nothing. If any exported task matches no task of the
-project (or more than one), the job fails with `merge_task_mismatch` and nothing
-is imported. Exported Bewertungsbogen (task rubrics) are mapped onto the
+hold yet, and adds the models of newly merged generations to the project's
+model selection so the generation grid shows them (a project without a saved
+selection first gets the models it already has generations for). Results
+already present are skipped, so running the same merge twice changes nothing.
+If any exported task matches no task of the project (or more than one), the job
+fails with `merge_task_mismatch` and nothing is imported. If rows would land
+under a model id that does not exist on this instance, the job fails with
+`merge_unknown_models`, listing the ids, and nothing is imported: map them and
+merge again. Exported Bewertungsbogen (task rubrics) are mapped onto the
 matching task's identical sheet, and a sheet the task lacks is added (as a
 candidate when the task already has an active one), so merged gradings stay
 joinable to their sheet. Annotations, comments and human-evaluation data are
 not merged. In the UI the merge is the "Merge results" button on the project's
-data page.
+data page: choose the file, check it, choose the model here for every id the
+file names that this instance does not know, and merge. The id of a custom
+model is shown, with a copy button, in its expanded row on the models page.
 
 ## Data Format
 
@@ -225,7 +291,7 @@ data page.
 ### Data Privacy
 - User passwords are NEVER exported
 - API keys are NEVER exported
-- Personal data is mapped by email only
+- Exports are pseudonymous: no email, username or name of any user is exported
 - Sensitive metadata can be excluded
 
 ### Best Practices
@@ -251,9 +317,11 @@ data page.
 
 ### Import Issues
 
-**Problem**: Import fails with "User not found"
-- **Solution**: Create users with matching emails first
-- **Solution**: Import will use current user as fallback
+**Problem**: Imported annotations show placeholder authors
+- **Cause**: Exports are pseudonymous, so on another instance an author cannot
+  be matched to an account, even one with the same email
+- **Solution**: None needed for the data; on the same instance the original
+  authors are kept
 
 **Problem**: Import creates duplicate projects
 - **Solution**: System auto-renames duplicates
@@ -289,8 +357,7 @@ Moving projects between BenGER instances:
    - Download ZIP file
 
 2. **Target Instance**:
-   - Ensure users exist (by email)
-   - Import each JSON file
+   - Import each export file (authors become placeholder accounts, see above)
    - Verify data integrity
    - Update project settings as needed
 
@@ -306,6 +373,12 @@ other models of a production project:
 4. Production: register the same model (public, if it should appear on the
    leaderboard), then merge the export into the original project, mapping the
    local model id to the production one (`model_id_map`).
+
+Map every custom model back, not only the new one: a custom model of the
+production project that was mapped to a local id on the way into the copy
+comes back under that local id, and without its mapping the merge would add
+its results a second time. The merge refuses such a file
+(`merge_unknown_models`) and the preview lists every id that needs a mapping.
 
 ### Backup Strategy
 Regular backup workflow:

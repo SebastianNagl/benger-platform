@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
+# Object storage free space, read at most once a minute: (monotonic time, bytes).
+_STORAGE_FREE_TTL_SECONDS = 60.0
+_storage_free_cache: list = [None, None]
+
+
+async def _storage_free_bytes():
+    import asyncio
+    import time
+
+    from object_storage import object_storage
+
+    now = time.monotonic()
+    if _storage_free_cache[0] is None or now - _storage_free_cache[0] > _STORAGE_FREE_TTL_SECONDS:
+        _storage_free_cache[1] = await asyncio.wait_for(
+            asyncio.to_thread(object_storage.free_bytes), timeout=3.0
+        )
+        _storage_free_cache[0] = now
+    return _storage_free_cache[1]
+
 
 @router.get("/")
 async def root():
@@ -44,6 +63,11 @@ async def health(db: AsyncSession = Depends(get_async_db)):
       - Celery workers: API can still serve sync requests; only async
         tasks queue up. K8s shouldn't evict for this — operators
         should alert on the body field.
+      - Object storage free space (``storage_free_bytes``, read once a
+        minute): below the import upload cap MinIO refuses every import
+        upload larger than about 128 KB with 507 (it checks the policy's
+        maximum against its free space), so ``storage`` turns
+        ``low_free_space``.
 
     Pre-existing /health only checked Redis: if all workers were down
     or the DB was unreachable, /health still returned 200 and K8s kept
@@ -55,6 +79,8 @@ async def health(db: AsyncSession = Depends(get_async_db)):
         "redis": "unknown",
         "database": "unknown",
         "celery_workers": "unknown",
+        "storage": "unknown",
+        "storage_free_bytes": None,
     }
 
     # Redis check (required)
@@ -127,6 +153,30 @@ async def health(db: AsyncSession = Depends(get_async_db)):
 
     if health_status["status"] == "degraded":
         emit_ops_event("health_check_failed", dependency="celery")
+
+    # Object storage free space (soft).
+    try:
+        from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
+
+        free = await _storage_free_bytes()
+        health_status["storage_free_bytes"] = free
+        if free is None:
+            health_status["storage"] = "free_space_unknown"
+        elif free < IMPORT_UPLOAD_MAX_BYTES:
+            health_status["storage"] = "low_free_space"
+            health_status["status"] = "degraded"
+            logger.warning(
+                "Health check: object storage has %d bytes free, below the %d "
+                "byte import upload cap; import uploads will fail with 507",
+                free,
+                IMPORT_UPLOAD_MAX_BYTES,
+            )
+            emit_ops_event("health_check_failed", dependency="object_storage")
+        else:
+            health_status["storage"] = "ok"
+    except Exception as e:
+        logger.warning(f"Health check: storage free space check failed: {e}")
+        health_status["storage"] = "error"
     return health_status
 
 

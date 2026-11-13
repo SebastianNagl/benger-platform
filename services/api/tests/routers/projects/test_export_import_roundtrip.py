@@ -2135,12 +2135,48 @@ def _merge_text(db, project_id, text, user_id, **kwargs):
     )
 
 
-def _benchmark_new_model(db, project_id, user_id, model_id, runs=1):
+def _register_model(db, model_id, name=None, official=False):
+    """Register ``model_id`` on this instance (public), once."""
+    from models import LLMModel
+
+    if db.query(LLMModel).filter(LLMModel.id == model_id).first() is None:
+        db.add(
+            LLMModel(
+                id=model_id,
+                name=name or f"Model {model_id}",
+                provider="custom" if not official else "openai",
+                model_type="chat",
+                capabilities=["text_generation"],
+                is_official=official,
+                # An official catalog row carries no visibility flags; a
+                # custom one needs its endpoint.
+                is_public=not official,
+                **(
+                    {}
+                    if official
+                    else {
+                        "base_url": "http://gpu.example.org:40001/v1",
+                        "endpoint_model_name": model_id,
+                    }
+                ),
+            )
+        )
+        db.commit()
+
+
+def _benchmark_new_model(db, project_id, user_id, model_id, runs=1, register=True):
     """What a benchmark run on the local copy adds: one generation job per
     task for ``model_id`` with ``runs`` generations that all give the same
-    answer, and an evaluation run that judges every run."""
+    answer, and an evaluation run that judges every run.
+
+    The judge model exists on both instances; ``register`` makes
+    ``model_id`` one of this instance's models too (a merge refuses rows of
+    a model it does not know)."""
     from models import EvaluationRunMetric
 
+    _register_model(db, "gpt-judge", official=True)
+    if register:
+        _register_model(db, model_id)
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     when = datetime.now(timezone.utc).replace(microsecond=0)
     run = EvaluationRun(
@@ -2567,3 +2603,299 @@ class TestMergeImport:
             Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == prod_task.id
         ).one()
         assert merged.metrics["llm_judge_rubric"]["details"]["rubric_id"] == sheet.id
+
+
+UNKNOWN_MODEL = "custom-unknown-3333"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestMergeModelSafety:
+    """A merge never writes rows under a model id this instance does not
+    know, the preview says which ids need mapping, the grid keeps the
+    project's models, and a run's label is not a model of the selection."""
+
+    def _local_copy(self, db, user, prod, fmt, model_id=LOCAL_MODEL, register=True):
+        local_id = _import_text(db, _export_text(db, prod.id, fmt), user.id)["project_id"]
+        _benchmark_new_model(db, local_id, user.id, model_id, register=register)
+        return _export_text(db, local_id, fmt)
+
+    def test_unknown_model_is_refused_and_nothing_is_written(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Defect 2: without a map the rows used to land under the other
+        instance's id (an orphan the grid never shows), and the corrective
+        merge with the map then added them a second time."""
+        from routers.projects._import_stream import (
+            MERGE_UNKNOWN_MODELS,
+            ImportValidationError,
+        )
+
+        _register_prod_model(db_session)
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        local_export = self._local_copy(
+            db_session, user, prod, fmt, model_id=UNKNOWN_MODEL, register=False
+        )
+
+        with pytest.raises(ImportValidationError) as exc:
+            _merge_text(db_session, prod.id, local_export, user.id)
+        db_session.rollback()
+        assert exc.value.status_code == 409
+        assert exc.value.code == MERGE_UNKNOWN_MODELS
+        assert UNKNOWN_MODEL in exc.value.detail
+        assert _result_counts(db_session, prod.id) == before
+
+        # The corrective merge adds the results exactly once.
+        result = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={UNKNOWN_MODEL: PROD_MODEL},
+        )
+        assert result["statistics"]["added_counts"]["generations"] == 2
+        models = _models_by_entity(db_session, prod.id)
+        assert UNKNOWN_MODEL not in models["generations"]
+        assert models["generations"].count(PROD_MODEL) == 2
+
+    def test_dry_run_reports_the_models_and_writes_nothing(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        prod = benchmark_project["project"]
+        before = _result_counts(db_session, prod.id)
+        selection_before = dict(prod.generation_config)
+        local_export = self._local_copy(
+            db_session, user, prod, fmt, model_id=UNKNOWN_MODEL, register=False
+        )
+
+        result = _merge_text(db_session, prod.id, local_export, user.id, dry_run=True)
+        stats = result["statistics"]
+        assert stats["dry_run"] is True
+        assert stats["matched_tasks"] == 2
+        assert stats["added_counts"]["generations"] == 2
+        by_id = {m["source_model_id"]: m for m in stats["models"]}
+        # Two generations and the evaluation run land under the new model.
+        assert by_id[UNKNOWN_MODEL] == {
+            "source_model_id": UNKNOWN_MODEL,
+            "model_id": UNKNOWN_MODEL,
+            "mapped": False,
+            "known": False,
+            "name": None,
+            "rows_added": 3,
+            "rows_present": 0,
+        }
+        assert by_id["gpt-judge"]["known"] is True
+        # The project's own model: everything present, nothing added.
+        assert by_id[DEV_MODEL]["rows_added"] == 0
+        assert by_id[DEV_MODEL]["rows_present"] > 0
+
+        db_session.expire_all()
+        assert _result_counts(db_session, prod.id) == before
+        assert db_session.get(Project, prod.id).generation_config == selection_before
+
+    def test_empty_selection_keeps_the_projects_models(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Defect 3: the grid shows exactly the selection. An empty one used
+        to end up holding only the merged model, hiding every model the
+        project already had."""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        _register_prod_model(db_session)
+        _register_model(db_session, DEV_MODEL)
+        prod = benchmark_project["project"]
+        local_export = self._local_copy(db_session, user, prod, fmt)
+        prod.generation_config["selected_configuration"]["models"] = []
+        flag_modified(prod, "generation_config")
+        db_session.commit()
+
+        result = _merge_text(
+            db_session, prod.id, local_export, user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        assert result["statistics"]["models_added_to_project"] == [PROD_MODEL]
+        db_session.refresh(prod)
+        assert prod.generation_config["selected_configuration"]["models"] == [
+            DEV_MODEL,
+            PROD_MODEL,
+        ]
+
+    def test_a_runs_label_does_not_join_the_selection(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Defect 5: a run labelled with a model whose generations the merge
+        does not bring used to add that model to the selection."""
+        _register_prod_model(db_session)
+        _register_model(db_session, "claude-label", official=True)
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        new_run = db_session.query(EvaluationRun).filter(
+            EvaluationRun.project_id == local_id, EvaluationRun.model_id == LOCAL_MODEL
+        ).one()
+        new_run.model_id = "claude-label"
+        db_session.commit()
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        assert result["statistics"]["models_added_to_project"] == [PROD_MODEL]
+        db_session.refresh(prod)
+        assert "claude-label" not in prod.generation_config["selected_configuration"]["models"]
+
+
+def _make_org(db, name):
+    from models import Organization
+
+    org = Organization(
+        id=str(uuid.uuid4()),
+        name=name,
+        display_name=name,
+        slug=f"{name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}",
+    )
+    db.add(org)
+    db.commit()
+    return org
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestImportKeepsAttributionAndOrder:
+    def test_job_organization_survives_a_same_instance_copy(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """Defect 6: organization_id was dropped on every import."""
+        org = _make_org(db_session, "Billing Org")
+        prod = benchmark_project["project"]
+        for rg in db_session.query(ResponseGeneration).filter(
+            ResponseGeneration.project_id == prod.id
+        ):
+            rg.organization_id = org.id
+        db_session.commit()
+
+        copy_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        orgs = {
+            rg.organization_id
+            for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == copy_id
+            )
+        }
+        assert orgs == {org.id}
+
+    def test_unknown_job_organization_falls_back_to_the_named_one(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        from models import OrganizationMembership, OrganizationRole
+
+        org = _make_org(db_session, "Target Org")
+        db_session.add(
+            OrganizationMembership(
+                id=str(uuid.uuid4()),
+                user_id=user.id,
+                organization_id=org.id,
+                role=OrganizationRole.ORG_ADMIN,
+                is_active=True,
+            )
+        )
+        db_session.commit()
+        prod = benchmark_project["project"]
+        text = _export_text(db_session, prod.id, fmt)
+        # As an export from another instance: its org id is unknown here.
+        text = text.replace('"organization_id": null', '"organization_id": "org-elsewhere"')
+
+        copy_id = _import_text(db_session, text, user.id, organization_id=org.id)["project_id"]
+        orgs = {
+            rg.organization_id
+            for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == copy_id
+            )
+        }
+        assert orgs == {org.id}
+
+    def test_task_numbers_keep_their_order(self, db_session, user, fmt):
+        """Defect 7: the exporters wrote tasks in heap order and the importer
+        numbers them in file order, so every copy renumbered its tasks."""
+        project = Project(
+            id=str(uuid.uuid4()),
+            title=f"Order RT {uuid.uuid4().hex[:8]}",
+            label_config='<View><Text name="text" value="$text"/></View>',
+            created_by=user.id,
+        )
+        db_session.add(project)
+        db_session.flush()
+        # Inserted out of order, so heap order differs from number order.
+        for n in (3, 1, 4, 2, 6, 5):
+            db_session.add(
+                Task(
+                    id=str(uuid.uuid4()),
+                    project_id=project.id,
+                    inner_id=n,
+                    data={"text": f"Q{n}"},
+                    created_by=user.id,
+                )
+            )
+        db_session.commit()
+
+        copy_id = _import_text(
+            db_session, _export_text(db_session, project.id, fmt), user.id
+        )["project_id"]
+        numbers = {
+            t.data["text"]: t.inner_id
+            for t in db_session.query(Task).filter(Task.project_id == copy_id)
+        }
+        assert numbers == {f"Q{n}": n for n in range(1, 7)}
+
+
+class TestDecompressedSizeCap:
+    """Defect 9: a small gzip or zip could inflate without limit into worker
+    temp disk before the job failed."""
+
+    def _gzip(self, raw: bytes) -> io.BytesIO:
+        import gzip
+
+        return io.BytesIO(gzip.compress(raw))
+
+    def test_gzip_past_the_cap_is_refused(self, monkeypatch):
+        from routers.projects._import_stream import (
+            IMPORT_TOO_LARGE,
+            ImportValidationError,
+            _maybe_decompress,
+        )
+
+        monkeypatch.setenv("IMPORT_MAX_DECOMPRESSED_BYTES", "1000")
+        with pytest.raises(ImportValidationError) as exc:
+            _maybe_decompress(self._gzip(b"x" * 5000))
+        assert exc.value.status_code == 413
+        assert exc.value.code == IMPORT_TOO_LARGE
+
+        out = _maybe_decompress(self._gzip(b"y" * 1000))
+        assert out.read() == b"y" * 1000
+
+    def test_zip_member_past_the_cap_is_refused(self, monkeypatch):
+        import zipfile
+
+        from routers.projects._import_stream import (
+            IMPORT_TOO_LARGE,
+            ImportValidationError,
+            _maybe_unzip,
+        )
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("project.json", "{" + " " * 5000 + "}")
+        monkeypatch.setenv("IMPORT_MAX_DECOMPRESSED_BYTES", "1000")
+        with pytest.raises(ImportValidationError) as exc:
+            _maybe_unzip(buf)
+        assert exc.value.status_code == 413
+        assert exc.value.code == IMPORT_TOO_LARGE
+
+    def test_default_cap_is_twenty_times_the_upload_cap(self, monkeypatch):
+        from routers.projects._import_stream import max_decompressed_bytes
+
+        monkeypatch.delenv("IMPORT_MAX_DECOMPRESSED_BYTES", raising=False)
+        assert max_decompressed_bytes() == 20 * 2 * 1024 ** 3
+        monkeypatch.setenv("IMPORT_MAX_DECOMPRESSED_BYTES", "not-a-number")
+        assert max_decompressed_bytes() == 20 * 2 * 1024 ** 3

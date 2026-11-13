@@ -21,6 +21,8 @@ interface ProjectBulkActionsProps {
   selectedCount: number
   onDelete: () => void
   onFullExport?: () => void
+  /** Full export through the async job flow, one file per project. */
+  onAsyncExport?: (format: 'ndjson_gz' | 'comprehensive') => void
   onArchive?: () => void
   onUnarchive?: () => void
   onDuplicate?: () => void
@@ -32,6 +34,7 @@ export function ProjectBulkActions({
   selectedCount,
   onDelete,
   onFullExport,
+  onAsyncExport,
   onArchive,
   onUnarchive,
   onDuplicate,
@@ -91,6 +94,28 @@ export function ProjectBulkActions({
                   )}
                 </Menu.Item>
               )}
+
+              {onAsyncExport &&
+                (['ndjson_gz', 'comprehensive'] as const).map((format) => (
+                  <Menu.Item key={format}>
+                    {({ active }) => (
+                      <button
+                        className={`${
+                          active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                        } group flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-900 dark:text-white`}
+                        onClick={() => onAsyncExport(format)}
+                        data-testid={`projects-bulk-export-${format}-option`}
+                      >
+                        <ArrowDownTrayIcon className="mr-3 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        {format === 'ndjson_gz'
+                          ? t('projects.projectBulkActions.exportNdjsonGz')
+                          : t(
+                              'projects.projectBulkActions.exportComprehensive',
+                            )}
+                      </button>
+                    )}
+                  </Menu.Item>
+                ))}
 
               {onDuplicate && (
                 <Menu.Item>

@@ -16,7 +16,11 @@ import { useI18n } from '@/contexts/I18nContext'
 import { customModelsAPI } from '@/lib/api/customModels'
 import type { CustomModel } from '@/lib/api/types'
 import { formatDecimal } from '@/lib/i18n/locales'
-import { ChevronRightIcon } from '@heroicons/react/24/outline'
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  ClipboardDocumentIcon,
+} from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { CustomModelCredentialRow } from './CustomModelCredentialRow'
 import { CustomBadge, VisibilityBadge } from './ModelBadges'
@@ -244,6 +248,8 @@ export function CustomModelList({
                 className="space-y-4 border-t border-zinc-200 p-4 dark:border-zinc-700"
                 data-testid={`custom-model-detail-${model.id}`}
               >
+                <ModelIdLine modelId={model.id} />
+
                 {model.description && (
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     {model.description}
@@ -310,6 +316,52 @@ export function CustomModelList({
         confirmText={t('customModels.list.deleteConfirm')}
         variant="danger"
       />
+    </div>
+  )
+}
+
+/**
+ * The model's id with a copy button. A custom model gets a new id on every
+ * installation, and moving its results between installations (an import's
+ * or a merge's model id map, the API) needs that id.
+ */
+function ModelIdLine({ modelId }: { modelId: string }) {
+  const { t } = useI18n()
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(modelId)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+      <span>{t('customModels.list.modelId')}:</span>
+      <code
+        className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono break-all text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+        data-testid={`custom-model-id-${modelId}`}
+      >
+        {modelId}
+      </code>
+      <button
+        type="button"
+        onClick={copy}
+        title={t('customModels.list.copyModelId')}
+        aria-label={t('customModels.list.copyModelId')}
+        className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        data-testid={`custom-model-copy-id-${modelId}`}
+      >
+        {copied ? (
+          <CheckIcon className="h-4 w-4 text-emerald-600" />
+        ) : (
+          <ClipboardDocumentIcon className="h-4 w-4" />
+        )}
+      </button>
     </div>
   )
 }

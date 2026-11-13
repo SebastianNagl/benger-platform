@@ -66,6 +66,70 @@ def _translate_annotator_model_ids(db, project_id, model_ids, annotator_user_ids
     return new_model_ids, new_annotator_ids
 
 
+def _evaluated_model_ids(db, project_id: str, model_ids) -> List[str]:
+    """The models whose generations a run grades: the requested ones, or
+    without a model filter every model with generations on the project. An
+    empty list deselects the model side (annotators only)."""
+    if model_ids is not None:
+        return list(dict.fromkeys(model_ids))
+    rows = (
+        db.query(DBLLMResponse.model_id, func.count(DBLLMResponse.id))
+        .join(
+            DBResponseGeneration,
+            DBLLMResponse.generation_id == DBResponseGeneration.id,
+        )
+        .filter(DBResponseGeneration.project_id == project_id)
+        .filter(DBLLMResponse.parse_status == "success")
+        .group_by(DBLLMResponse.model_id)
+        .order_by(func.count(DBLLMResponse.id).desc(), DBLLMResponse.model_id)
+        .all()
+    )
+    return [model_id for model_id, _count in rows if model_id]
+
+
+def _run_model_label(evaluated_model_ids: List[str]) -> str:
+    """``EvaluationRun.model_id``: the one model a run grades, else
+    ``"unknown"``, the neutral value every per-model view already skips. A
+    run used to carry the project's most common generation model, so a run
+    restricted to another model was labelled (and merged) as that one."""
+    return evaluated_model_ids[0] if len(evaluated_model_ids) == 1 else "unknown"
+
+
+def _store_configs_if_unconfigured(db, project, evaluation_configs) -> None:
+    """Save a run's configs as the project's evaluation configs when the
+    project has none, so a run started through the API with inline configs
+    shows on the evaluations page (which lists the project's configs).
+    Best effort: a refused or failed save never fails the started run."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    import extensions
+    from routers.evaluations.config import (
+        merge_evaluation_config,
+        validate_evaluation_config_write,
+    )
+
+    try:
+        db.refresh(project)
+        stored = project.evaluation_config or {}
+        if stored.get("evaluation_configs") or stored.get("multi_field_evaluations"):
+            return
+        body = {"evaluation_configs": [c.dict() for c in evaluation_configs]}
+        merged = merge_evaluation_config(stored, body)
+        validate_evaluation_config_write(body, merged)
+        merged["label_config_version"] = project.label_config_version
+        project.evaluation_config = merged
+        # As PUT .../evaluation-config does after a save.
+        extensions.run_after_eval_config_save(db, project, merged)
+        flag_modified(project, "evaluation_config")
+        db.commit()
+    except Exception as e:  # noqa: BLE001 - the run is already started
+        db.rollback()
+        logger.warning(
+            f"[evaluation run {project.id}] could not save the run's configs on "
+            f"the project: {e}"
+        )
+
+
 def _can_launch_evaluation(db, user, project_id: str) -> bool:
     """Who may start an evaluation run: the same rule the app applies to its
     "run evaluation" controls, an effective project role of CONTRIBUTOR or
@@ -291,24 +355,8 @@ def run_evaluation(
         # Extract unique metrics from enabled configs as evaluation_type_ids
         evaluation_type_ids = list(set(c.metric for c in llm_configs))
 
-        # Determine the actual model_id from generations in this project
-        # Query the most common model_id from generations for this project
-        # Join through ResponseGeneration which has direct project_id
-        generation_model_query = (
-            db.query(DBLLMResponse.model_id, func.count(DBLLMResponse.id).label("count"))
-            .join(
-                DBResponseGeneration,
-                DBLLMResponse.generation_id == DBResponseGeneration.id,
-            )
-            .filter(DBResponseGeneration.project_id == request.project_id)
-            .filter(DBLLMResponse.parse_status == "success")
-            .group_by(DBLLMResponse.model_id)
-            .order_by(func.count(DBLLMResponse.id).desc())
-            .first()
-        )
-
-        # Use the most common model_id, or fallback to "unknown" if no generations exist
-        evaluated_model_id = generation_model_query[0] if generation_model_query else "unknown"
+        evaluated_model_ids = _evaluated_model_ids(db, request.project_id, request.model_ids)
+        evaluated_model_id = _run_model_label(evaluated_model_ids)
 
         # (H) Top-level seed propagation: when the request carries a
         # top-level seed and a config doesn't already pin its own seed in
@@ -422,6 +470,8 @@ def run_evaluation(
                 "batch_size": request.batch_size,
                 "label_config_version": request.label_config_version,
                 "evaluated_model_id": evaluated_model_id,  # Track model in metadata
+                # Every model whose generations the run grades.
+                "evaluated_model_ids": evaluated_model_ids,
                 "force_rerun": request.force_rerun,
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,
@@ -440,6 +490,7 @@ def run_evaluation(
 
         db.add(evaluation)
         db.commit()
+        _store_configs_if_unconfigured(db, project, request.evaluation_configs)
 
         # Dispatch Celery task. Using `kwargs=` instead of `args=` keeps the
         # call site robust to future parameter additions on

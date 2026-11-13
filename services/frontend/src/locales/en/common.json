@@ -677,7 +677,7 @@
       "importTargetPrivate": "Private",
       "importTargetChooseFile": "Choose file",
       "importTargetCancel": "Cancel",
-      "importStats": " - {tasks} tasks, {annotations} annotations",
+      "importStats": " - {tasks} tasks, {annotations} annotations, {generations} generations, {evaluations} evaluation runs, {rows} evaluated rows",
       "importSkippedAnnotations": "{count} answers were not imported: their authors are unknown here and were mapped to your account, which can hold only one active answer per task. Create the users with the same email address before importing.",
       "importSuccess": "Successfully imported \"{title}\"{stats} ({time}s)",
       "importFailed": "Failed to import project",
@@ -715,7 +715,8 @@
       "importTargetGroupOrgWide": "Whole organization",
       "publicContributorBadge": "Public · Contributor",
       "publicAnnotatorBadge": "Public · Annotator",
-      "emptyExportFile": "Received empty file from server"
+      "emptyExportFile": "Received empty file from server",
+      "asyncExportSuccess": "Exported {count} project(s); the downloads start as each export finishes"
     },
     "columns": {
       "label": "Columns",
@@ -880,7 +881,9 @@
       "unarchiveSelected": "Unarchive Selected",
       "archiveSelected": "Archive Selected",
       "deleteSelected": "Delete Selected",
-      "selectProjectsPrompt": "Select projects to see available actions"
+      "selectProjectsPrompt": "Select projects to see available actions",
+      "exportNdjsonGz": "Export as NDJSON (gzip), for large projects",
+      "exportComprehensive": "Export as JSON (one file per project)"
     },
     "filter": {
       "filters": "Filters",
@@ -963,12 +966,10 @@
       "description": "Adds the generations and evaluations of a full project export to this project's tasks, for example a model benchmarked on a copy of this project. Results this project already has are skipped, so merging the same file twice changes nothing. No tasks are created: if the file's tasks are not this project's, nothing is imported.",
       "fileLabel": "Project export",
       "fileHint": "A full project export (JSON, NDJSON, .gz or the .zip from the project list) of this project or of a copy of it.",
-      "modelMapTitle": "Model ids (optional)",
-      "modelMapHint": "A custom model has a different id on every installation. Enter the id used in the file and the id of the same model here. The model must already exist here.",
-      "sourceModel": "Model id in the file",
-      "targetModel": "Model id here",
-      "addModel": "Add model id",
-      "removeModel": "Remove",
+      "modelMapTitle": "Models in the file",
+      "modelMapHint": "A custom model has a different id on every installation. Choose the model here for every id that does not exist here; the merge only starts once each of them is mapped. Map every custom model, also one that was mapped when the copy was imported.",
+      "sourceModel": "Model in the file",
+      "targetModel": "Model here",
       "submit": "Merge",
       "running": "Merging...",
       "success": "Results merged",
@@ -976,7 +977,17 @@
       "taskMismatch": "The tasks in this file are not this project's tasks, so nothing was imported. Merge a file exported from this project or from a copy of it, or import it as a new project.",
       "summaryAdded": "Matched {tasks} tasks and added {generations} generations, {evaluations} evaluation runs and {rows} evaluated rows.",
       "summarySkipped": "Skipped {generations} generations and {evaluations} evaluation runs this project already had.",
-      "summaryModels": "Added to the project's models: {models}"
+      "summaryModels": "Added to the project's models: {models}",
+      "check": "Check file",
+      "checking": "Checking...",
+      "checkFailed": "The file could not be checked",
+      "previewAdds": "Matches {tasks} tasks. The merge will add {generations} generations, {evaluations} evaluation runs and {rows} evaluated rows.",
+      "modelRows": "{added} rows to add, {present} already here",
+      "targetFor": "Model here for {model}",
+      "keepModel": "Keep: {model}",
+      "chooseModel": "Choose a model",
+      "unknownModel": "This model id does not exist here. Choose the same model of this installation.",
+      "unknownModels": "Some model ids of the file do not exist here, so nothing was imported. Choose a model here for each of them and merge again."
     }
   },
   "project": {
@@ -6031,7 +6042,9 @@
       "of": "of",
       "results": "results",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "model": "Model",
+      "judgeResponse": "{metric}: judge's answer"
     },
     "sampleScoresTable": {
       "failedToLoad": "Failed to load sample results",
@@ -7775,7 +7788,7 @@
       "archiveFailed": "Failed to archive projects",
       "unarchiveFailed": "Failed to unarchive projects",
       "deleteFailed": "Failed to delete projects",
-      "selectJsonOrZip": "Please select a JSON or ZIP file"
+      "selectJsonOrZip": "Please select a project export (.json, .ndjson, .gz or .zip)"
     },
     "task": {
       "created": "Task created successfully",
@@ -9233,7 +9246,9 @@
       "deactivateSuccess": "Model deactivated – existing results still reference it",
       "deleteFailed": "Failed to delete model",
       "inactiveBadge": "Inactive",
-      "inactiveHint": "This model was deactivated because generations reference it. It is hidden from picker lists."
+      "inactiveHint": "This model was deactivated because generations reference it. It is hidden from picker lists.",
+      "modelId": "Model id",
+      "copyModelId": "Copy model id"
     },
     "page": {
       "title": "My Models",

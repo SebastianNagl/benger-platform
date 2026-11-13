@@ -59,10 +59,55 @@ export interface ImportJobStatus {
   progress: number
   byte_size: number | null
   error_message: string | null
+  /** Status of a refused import (400, 403, 404, 409, 413, 422); null for a worker fault. */
+  error_status?: number | null
+  /** Stable token of a refused import, e.g. `merge_task_mismatch`, `merge_unknown_models`. */
+  error_code?: string | null
   result: ImportJobResult | null
   created_at: string | null
   updated_at: string | null
   expires_at: string | null
+}
+
+/** One model id of a merge file, as POST .../imports/merge-preview reports it. */
+export interface MergePreviewModel {
+  source_model_id: string
+  model_id: string
+  mapped: boolean
+  known: boolean
+  name: string | null
+  rows_added: number
+  rows_present: number
+}
+
+/** A model of this installation an import's model ids can be mapped to. */
+export interface MappableModel {
+  id: string
+  name: string
+  is_custom: boolean
+}
+
+/** What a merge of an uploaded file would do; nothing is written. */
+export interface MergePreview {
+  matched_tasks: number
+  added_counts: Record<string, number>
+  skipped_present_counts: Record<string, number>
+  models_added_to_project: string[]
+  models: MergePreviewModel[]
+  unknown_models: string[]
+  available_models: MappableModel[]
+}
+
+/** The Error a failed import job rejects with; `code` is the job's error_code. */
+export class ImportJobError extends Error {
+  code: string | null
+  status: number | null
+  constructor(job: ImportJobStatus) {
+    super(job.error_message || 'Import job failed')
+    this.name = 'ImportJobError'
+    this.code = job.error_code ?? null
+    this.status = job.error_status ?? null
+  }
 }
 
 /** Request body for POST /projects/{id}/cloud-imports. */
@@ -536,7 +581,9 @@ export const projectsAPI = {
       | 'tsv'
       | 'txt'
       | 'label_studio'
-      | 'comprehensive' = 'json',
+      | 'comprehensive'
+      | 'ndjson'
+      | 'ndjson_gz' = 'json',
     taskIds?: string[],
   ): Promise<{ job_id: string; status: ExportJobState }> => {
     return apiClient.post(
@@ -582,7 +629,15 @@ export const projectsAPI = {
    */
   runProjectExportJob: async (
     projectId: string,
-    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive',
+    format:
+      | 'json'
+      | 'csv'
+      | 'tsv'
+      | 'txt'
+      | 'label_studio'
+      | 'comprehensive'
+      | 'ndjson'
+      | 'ndjson_gz',
     callbacks?: { onStatus?: (status: ExportJobStatus) => void },
     options?: {
       pollIntervalMs?: number
@@ -756,10 +811,35 @@ export const projectsAPI = {
       callbacks?.onStatus?.(status)
       if (status.status === 'completed') return status
       if (status.status === 'failed') {
-        throw new Error(status.error_message || 'Import job failed')
+        throw new ImportJobError(status)
       }
       await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
+  },
+
+  /** Upload a file for an import into a project; resolves with its object key. */
+  uploadImportFile: async (projectId: string, file: File): Promise<string> => {
+    const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
+    await projectsAPI.uploadToPresignedUrl(upload, file)
+    return upload.file_key
+  },
+
+  /**
+   * What merging an uploaded full project export would add, and every model
+   * id its results name with whether that model exists here. Nothing is
+   * written. Rejects like the merge itself (`merge_task_mismatch`, ...).
+   */
+  previewMergeImport: async (
+    projectId: string,
+    objectKey: string,
+    modelIdMap?: Record<string, string>,
+  ): Promise<MergePreview> => {
+    return apiClient.post(`/projects/${projectId}/imports/merge-preview`, {
+      object_key: objectKey,
+      ...(modelIdMap && Object.keys(modelIdMap).length > 0
+        ? { model_id_map: modelIdMap }
+        : {}),
+    })
   },
 
   /**
@@ -774,21 +854,25 @@ export const projectsAPI = {
    */
   runMergeImportJob: async (
     projectId: string,
-    file: File,
+    file: File | null,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
     options?: {
       pollIntervalMs?: number
       signal?: AbortSignal
       modelIdMap?: Record<string, string>
+      /** Key of a file already uploaded with uploadImportFile (no re-upload). */
+      objectKey?: string
     },
   ): Promise<ImportJobStatus> => {
-    const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
-    await projectsAPI.uploadToPresignedUrl(upload, file)
-    const { job_id } = await projectsAPI.createImportJob(
-      projectId,
-      upload.file_key,
-      { mode: 'merge', modelIdMap: options?.modelIdMap },
-    )
+    let objectKey = options?.objectKey
+    if (!objectKey) {
+      if (!file) throw new Error('A file or an uploaded object key is needed')
+      objectKey = await projectsAPI.uploadImportFile(projectId, file)
+    }
+    const { job_id } = await projectsAPI.createImportJob(projectId, objectKey, {
+      mode: 'merge',
+      modelIdMap: options?.modelIdMap,
+    })
 
     let attempt = 0
     for (;;) {
@@ -799,7 +883,7 @@ export const projectsAPI = {
       callbacks?.onStatus?.(status)
       if (status.status === 'completed') return status
       if (status.status === 'failed') {
-        throw new Error(status.error_message || 'Import job failed')
+        throw new ImportJobError(status)
       }
       await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
@@ -842,7 +926,7 @@ export const projectsAPI = {
       callbacks?.onStatus?.(status)
       if (status.status === 'completed') return status
       if (status.status === 'failed') {
-        throw new Error(status.error_message || 'Import job failed')
+        throw new ImportJobError(status)
       }
       await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }

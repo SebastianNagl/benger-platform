@@ -80,6 +80,7 @@ interface EvaluationData {
   id: string
   project_id: string
   model_id: string
+  model_name?: string | null
   status: string
   // Set when the run failed. A run that matched nothing to grade fails with
   // a diagnostic naming the config and what to change.
@@ -604,8 +605,11 @@ export default function EvaluationDashboard({
                     <span aria-hidden="true">·</span>
                     <span data-testid="evaluation-detail-model">
                       {t('evaluations.detail.model')}:{' '}
-                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                        {evaluation.model_id}
+                      <span
+                        className="font-medium text-zinc-700 dark:text-zinc-300"
+                        title={evaluation.model_id}
+                      >
+                        {evaluation.model_name || evaluation.model_id}
                       </span>
                     </span>
                   </>

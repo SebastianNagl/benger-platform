@@ -62,6 +62,10 @@ type SortOrder = 'asc' | 'desc'
 // Projektdaten task export (services/shared/import_stream.py).
 const TASK_EXPORT_NOT_PROJECT_CODE = 'task_export_not_project'
 
+// What the create-new import reads: a full project export as JSON or NDJSON,
+// gzipped (the async "ndjson_gz" export) or the .zip of the bulk export.
+const IMPORT_EXTENSIONS = ['.json', '.ndjson', '.gz', '.zip']
+
 interface ProjectListTableProps {
   /** Show only archived projects and enable unarchive functionality */
   showArchivedOnly?: boolean
@@ -448,13 +452,54 @@ export function ProjectListTable({
     }
   }
 
+  // Full export of each selected project through the async job flow: the
+  // worker streams it to object storage and the browser downloads it from a
+  // presigned URL, so a large project never passes through the API or a
+  // browser Blob. NDJSON gzip is the format to move a benchmark project.
+  const handleAsyncExport = async (format: 'ndjson_gz' | 'comprehensive') => {
+    if (selectedProjects.size === 0) return
+    const projectIds = Array.from(selectedProjects)
+    const progressId = `async-export-projects-${Date.now()}`
+    startProgress(
+      progressId,
+      t('projects.list.exportingFullProjects', { count: projectIds.length }),
+      { indeterminate: true },
+    )
+    try {
+      for (const projectId of projectIds) {
+        await projectsAPI.runProjectExportJob(projectId, format)
+      }
+      completeProgress(progressId, 'success')
+      addToast(
+        t('projects.list.asyncExportSuccess', { count: projectIds.length }),
+        'success',
+        5000,
+      )
+      setSelectedProjects(new Set())
+    } catch (error) {
+      console.error('Failed to export projects:', error)
+      completeProgress(progressId, 'error')
+      addToast(
+        t('projects.list.exportFailed', {
+          error:
+            error instanceof Error
+              ? error.message
+              : t('projects.list.unknownError'),
+        }),
+        'error',
+      )
+    }
+  }
+
   const handleImportProject = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    if (!file.name.endsWith('.json') && !file.name.endsWith('.zip')) {
+    if (
+      !IMPORT_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))
+    ) {
       addToast(t('toasts.projects.selectJsonOrZip'), 'error')
       return
     }
@@ -498,6 +543,9 @@ export function ProjectListTable({
         ? t('projects.list.importStats', {
             tasks: counts.tasks || 0,
             annotations: counts.annotations || 0,
+            generations: counts.generations || 0,
+            evaluations: counts.evaluations || 0,
+            rows: counts.task_evaluations || 0,
           })
         : ''
 
@@ -954,6 +1002,7 @@ export function ProjectListTable({
               selectedCount={selectedProjects.size}
               onDelete={handleBulkDelete}
               onFullExport={() => handleBulkExport(true)}
+              onAsyncExport={handleAsyncExport}
               onArchive={showArchivedOnly ? undefined : handleBulkArchive}
               onUnarchive={showArchivedOnly ? handleBulkUnarchive : undefined}
               isArchivedContext={showArchivedOnly}
@@ -1423,7 +1472,7 @@ export function ProjectListTable({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,.zip"
+        accept={IMPORT_EXTENSIONS.join(',')}
         onChange={handleImportProject}
         style={{ display: 'none' }}
         data-testid="project-import-file-input"

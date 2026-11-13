@@ -112,6 +112,8 @@ class CostEstimateRequest(BaseModel):
 
 class PerModelCost(BaseModel):
     model_id: str
+    # Display name; a custom model's id is a random custom-<uuid>.
+    model_name: Optional[str] = None
     per_call_usd: float
     per_run_usd: float
     total_usd: float
@@ -635,6 +637,7 @@ def _compute_cost_estimate_impl(
         if pricing is None:
             per_model_costs.append(PerModelCost(
                 model_id=model_id,
+                model_name=getattr(llm_model_row, "name", None),
                 per_call_usd=0.0,
                 per_run_usd=0.0,
                 total_usd=0.0,
@@ -658,6 +661,7 @@ def _compute_cost_estimate_impl(
 
         per_model_costs.append(PerModelCost(
             model_id=model_id,
+            model_name=getattr(llm_model_row, "name", None),
             per_call_usd=round(per_call, 4),
             per_run_usd=round(per_run, 4),
             total_usd=round(model_total, 2),

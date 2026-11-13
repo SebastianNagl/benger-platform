@@ -984,6 +984,58 @@ describe('projectsAPI', () => {
       fetchSpy.mockRestore()
     })
 
+    it('runMergeImportJob merges an uploaded key without re-uploading and carries the error code', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch')
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-6',
+        status: 'pending',
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-6',
+        status: 'failed',
+        error_message: '409: merge_unknown_models: 1 model id(s) ...',
+        error_status: 409,
+        error_code: 'merge_unknown_models',
+        result: null,
+      })
+
+      const rejection = projectsAPI.runMergeImportJob(
+        'proj-1',
+        null,
+        undefined,
+        {
+          pollIntervalMs: 1,
+          objectKey: 'imports/2026/11/proj-1/copy.ndjson',
+        },
+      )
+      await expect(rejection).rejects.toMatchObject({
+        name: 'ImportJobError',
+        code: 'merge_unknown_models',
+        status: 409,
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(apiClient.post).toHaveBeenCalledTimes(1)
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: 'imports/2026/11/proj-1/copy.ndjson',
+        mode: 'merge',
+      })
+      fetchSpy.mockRestore()
+    })
+
+    it('previewMergeImport posts the key and the map', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({ matched_tasks: 1 })
+      await projectsAPI.previewMergeImport('proj-1', 'imports/k', { a: 'b' })
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/imports/merge-preview',
+        { object_key: 'imports/k', model_id_map: { a: 'b' } },
+      )
+      await projectsAPI.previewMergeImport('proj-1', 'imports/k')
+      expect(apiClient.post).toHaveBeenLastCalledWith(
+        '/projects/proj-1/imports/merge-preview',
+        { object_key: 'imports/k' },
+      )
+    })
+
     it('runMergeImportJob stops polling once aborted', async () => {
       const fetchSpy = jest
         .spyOn(global, 'fetch')
