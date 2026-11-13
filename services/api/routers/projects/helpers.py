@@ -3174,3 +3174,34 @@ async def get_project_organizations_async(
         .where(ProjectOrganization.project_id == project_id)
     )
     return _format_project_organizations(result.scalars().unique().all())
+
+
+def require_org_key_own_organization(request, organization_id) -> None:
+    """A project created with an organization access key (POST
+    /api/projects, a create-new full import) must name that key's
+    organization as ``organization_id`` (optionally with one of its groups).
+
+    The project would otherwise become the private or public project of the
+    key's service account, which is deactivated when the key is revoked,
+    leaving a project only superadmins can edit. Personal keys and browser
+    sessions are not affected: their projects belong to a person. 400
+    ``organization_required`` naming the expected organization otherwise.
+    """
+    from auth_module.principal import get_principal
+
+    principal = get_principal(request)
+    if principal is None or not principal.is_api_key or not principal.organization_id:
+        return
+    key_org = str(principal.organization_id)
+    if organization_id is None or str(organization_id) != key_org:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "organization_required",
+                "message": (
+                    "An organization access key must create projects in its "
+                    f"own organization: set organization_id to {key_org} "
+                    "(and organization_group_id to one of its groups if needed)"
+                ),
+            },
+        )

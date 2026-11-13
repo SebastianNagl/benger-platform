@@ -47,8 +47,9 @@ counts or user lists (superadmins can include them in `GET /api/users` with
 account and ends its memberships.
 
 So that nothing an organisation key creates is stranded when the key is
-revoked, a create-new import (`POST /api/projects/project-imports`) made
-with an organisation key must name the key's organisation as
+revoked, a new project (`POST /api/projects`) or a create-new import
+(`POST /api/projects/project-imports`) made with an organisation key must
+name the key's organisation as
 `organization_id` (optionally with one of its groups as
 `organization_group_id`); otherwise it is refused with
 `400 organization_required`. A custom model registered with an organisation

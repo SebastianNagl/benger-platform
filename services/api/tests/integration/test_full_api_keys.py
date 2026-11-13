@@ -429,6 +429,54 @@ async def test_org_key_create_new_import_must_name_its_org(
     assert r.status_code == 202, r.text
 
 
+async def test_org_key_created_project_must_name_its_org(
+    async_test_client, async_test_db, world
+):
+    """POST /api/projects with an organization key must create the project in
+    the key's organization: a private project (no organization_id), a public
+    one, or another organization is a 400 ``organization_required``, since the
+    key's service account is deactivated on revocation. A personal key may
+    still create a private project."""
+    from sqlalchemy import select
+
+    from project_models import Project
+
+    org_plain = await _org(async_test_db, world, ["projects:write"])
+    url = "/api/projects/"
+
+    for body in (
+        {},
+        {"is_public": True},
+        {"is_private": True},
+        {"organization_id": "another-org"},
+    ):
+        r = await async_test_client.post(
+            url, json={"title": "Stranded", **body}, headers=bearer(org_plain)
+        )
+        assert r.status_code == 400, r.text
+        assert _code(r) == "organization_required"
+        assert world["org"].id in r.json()["detail"]["message"]
+    stranded = (
+        await async_test_db.execute(select(Project.id).where(Project.title == "Stranded"))
+    ).all()
+    assert stranded == []
+
+    r = await async_test_client.post(
+        url,
+        json={"title": "Org owned", "organization_id": world["org"].id},
+        headers=bearer(org_plain),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["is_private"] is False
+
+    personal = await _personal(async_test_db, world["member"], ["projects:write"])
+    r = await async_test_client.post(
+        url, json={"title": "Mine alone"}, headers=bearer(personal)
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["is_private"] is True
+
+
 async def test_org_key_custom_model_is_shared_with_its_org(
     async_test_client, async_test_db, world, monkeypatch
 ):

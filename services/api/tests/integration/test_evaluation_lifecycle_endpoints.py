@@ -396,3 +396,106 @@ class TestLifecycleAuth:
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["changed"] is True
+
+    @pytest.mark.parametrize(
+        "action,status_before",
+        [("resume", "paused"), ("resume", "cancelled"), ("retry", "failed")],
+    )
+    def test_annotator_owner_cannot_redispatch_own_run(
+        self, client, test_db, test_users, auth_headers, test_org,
+        action, status_before,
+    ):
+        """Resume and retry spend judge budget, so they need the launch
+        right (CONTRIBUTOR or higher) also for the run's owner: an org
+        ANNOTATOR who owns a run (started before the launch gate, or before
+        a demotion) gets 403 and nothing is dispatched."""
+        admin = test_users[0]
+        annotator = next(u for u in test_users if "annotator" in u.username)
+        data = _seed_run(
+            test_db, admin, test_org, status=status_before,
+            created_by=annotator.id,
+        )
+        data["eval_run"].eval_metadata = {
+            **data["eval_run"].eval_metadata,
+            "organization_id": test_org.id,
+        }
+        test_db.commit()
+        with patch(
+            "routers.evaluations.multi_field.lifecycle.celery_app"
+        ) as mock_celery:
+            resp = client.post(
+                f"{BASE}/run/{data['eval_run'].id}/{action}",
+                headers=auth_headers["annotator"],
+            )
+        assert resp.status_code == 403, resp.text
+        mock_celery.send_task.assert_not_called()
+        test_db.expire_all()
+        assert (
+            test_db.query(EvaluationRun)
+            .filter_by(id=data["eval_run"].id)
+            .one()
+            .status
+            == status_before
+        )
+
+    def test_annotator_owner_can_still_cancel_own_run(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        admin = test_users[0]
+        annotator = next(u for u in test_users if "annotator" in u.username)
+        data = _seed_run(
+            test_db, admin, test_org, status="running",
+            created_by=annotator.id,
+        )
+        resp = client.post(
+            f"{BASE}/run/{data['eval_run'].id}/cancel",
+            headers=auth_headers["annotator"],
+        )
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        assert (
+            test_db.query(EvaluationRun)
+            .filter_by(id=data["eval_run"].id)
+            .one()
+            .status
+            == "cancelled"
+        )
+
+    def test_redispatch_drops_a_payer_the_caller_cannot_bill(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """The stored payer is reused only while the caller may still bill
+        it: a run that recorded an org the resuming contributor is not a
+        member of is re-billed by the default rule instead."""
+        from models import Organization
+
+        admin = test_users[0]
+        contributor = next(u for u in test_users if "contributor" in u.username)
+        foreign = Organization(
+            id=_uid(), name="Foreign", slug=f"foreign-{uuid.uuid4().hex[:6]}",
+            display_name="Foreign", created_at=datetime.now(timezone.utc),
+        )
+        test_db.add(foreign)
+        test_db.flush()
+        data = _seed_run(
+            test_db, admin, test_org, status="paused",
+            created_by=contributor.id,
+        )
+        data["eval_run"].eval_metadata = {
+            **data["eval_run"].eval_metadata,
+            "organization_id": foreign.id,
+        }
+        test_db.commit()
+        fake_task = MagicMock()
+        fake_task.id = "celery-task-payer"
+        with patch(
+            "routers.evaluations.multi_field.lifecycle.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = fake_task
+            resp = client.post(
+                f"{BASE}/run/{data['eval_run'].id}/resume",
+                headers=auth_headers["contributor"],
+            )
+        assert resp.status_code == 200, resp.text
+        kwargs = mock_celery.send_task.call_args.kwargs["kwargs"]
+        assert kwargs["organization_id"] == test_org.id

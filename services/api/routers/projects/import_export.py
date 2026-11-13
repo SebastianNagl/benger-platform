@@ -74,6 +74,7 @@ from routers.projects.helpers import (  # noqa: E402
     can_read_all_task_content,
     can_read_all_task_content_async,
     enforce_project_read_window_async,
+    require_org_key_own_organization,
 )
 
 router = APIRouter()
@@ -945,36 +946,6 @@ async def _resolve_import_target_org(
     return organization_id, organization_group_id or None
 
 
-def _require_org_key_import_target(request: Request, organization_id) -> None:
-    """A create-new import made with an organization access key must name
-    that key's organization (or a group of it) as ``organization_id``.
-
-    The project would otherwise become the private project of the key's
-    service account, which is deactivated when the key is revoked, leaving
-    a project only superadmins can reach. Personal keys and browser
-    sessions are not affected: their private imports belong to a person.
-    400 with a message naming the expected organization otherwise.
-    """
-    from auth_module.principal import get_principal
-
-    principal = get_principal(request)
-    if principal is None or not principal.is_api_key or not principal.organization_id:
-        return
-    key_org = str(principal.organization_id)
-    if organization_id is None or str(organization_id) != key_org:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "organization_required",
-                "message": (
-                    "An organization access key must import into its own "
-                    f"organization: set organization_id to {key_org} "
-                    "(and organization_group_id to one of its groups if needed)"
-                ),
-            },
-        )
-
-
 @router.post("/project-imports/upload-url")
 async def create_full_import_upload_url(
     request: Request,
@@ -1040,7 +1011,7 @@ async def create_full_import_job(
     except ImportValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
-    _require_org_key_import_target(request, (data or {}).get("organization_id"))
+    require_org_key_own_organization(request, (data or {}).get("organization_id"))
     organization_id, organization_group_id = await _resolve_import_target_org(
         db,
         current_user,

@@ -28,18 +28,27 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from sqlalchemy import text as _sql_text
 from sqlalchemy.orm.attributes import flag_modified
 
+from routers.evaluations.helpers import resolve_user_org_for_project
+
+from .run import _can_launch_evaluation
+
 
 def _get_run_and_authorize(
     db: Session,
     evaluation_id: str,
     current_user: User,
     action: str,
+    *,
+    spends: bool = False,
 ) -> DBEvaluationRun:
     """404/403 guard stack shared by all three lifecycle handlers.
 
     Permission mirrors single-run cancel: the user who triggered the run,
     OR anyone with project EDIT. See cancel.py for why PROJECT_VIEW is too
-    permissive and EDIT-only too strict.
+    permissive and EDIT-only too strict. An action that ``spends`` judge
+    budget (resume, retry) admits the owner only while they may still
+    launch a run (:func:`_can_launch_evaluation`), so an ANNOTATOR cannot
+    re-dispatch a run they started before, or under a role they since lost.
     """
     evaluation = (
         db.query(DBEvaluationRun)
@@ -57,7 +66,9 @@ def _get_run_and_authorize(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Parent project '{evaluation.project_id}' not found",
         )
-    is_owner = evaluation.created_by == current_user.id
+    is_owner = evaluation.created_by == current_user.id and (
+        not spends or _can_launch_evaluation(db, current_user, project.id)
+    )
     has_edit = auth_service.check_project_access(
         current_user, project, Permission.PROJECT_EDIT, db
     )
@@ -99,7 +110,6 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
         "label_config_version": meta.get("label_config_version"),
         # Always missing-only on resume/retry: reuse every completed cell.
         "evaluate_missing_only": True,
-        "organization_id": meta.get("organization_id"),
         "task_ids": meta.get("task_ids"),
         "model_ids": meta.get("model_ids"),
         "annotator_user_ids": meta.get("annotator_user_ids"),
@@ -107,12 +117,35 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
     }
 
 
-def _redispatch(db: Session, evaluation: DBEvaluationRun, action: str) -> str:
+def _resolve_payer(
+    db: Session, evaluation: DBEvaluationRun, current_user: User
+) -> Optional[str]:
+    """The org whose keys the re-dispatch spends: the run's stored payer
+    while ``current_user`` may still bill it, otherwise the default rule
+    for a run the caller starts (``min_role="CONTRIBUTOR"``)."""
+    from org_resolution import billing_org_options
+
+    project = db.query(Project).filter(Project.id == evaluation.project_id).first()
+    stored = (evaluation.eval_metadata or {}).get("organization_id")
+    if stored and str(stored) in {
+        o["id"]
+        for o in billing_org_options(db, current_user, project, min_role="CONTRIBUTOR")
+    }:
+        return str(stored)
+    return resolve_user_org_for_project(
+        current_user, project, db, min_role="CONTRIBUTOR"
+    )
+
+
+def _redispatch(
+    db: Session, evaluation: DBEvaluationRun, action: str, current_user: User
+) -> str:
     """Send ``tasks.run_evaluation`` for the (already pending-flipped) run and
     persist the new celery task id. On broker failure, mark the run failed
     (mirror of the ``POST /run`` dispatch except-branch) and re-raise.
     """
     kwargs = _dispatch_snapshot_kwargs(evaluation)
+    kwargs["organization_id"] = _resolve_payer(db, evaluation, current_user)
     try:
         task = celery_app.send_task("tasks.run_evaluation", kwargs=kwargs)
     except Exception as e:  # pragma: no cover - broker down
@@ -202,7 +235,7 @@ def resume_evaluation_run(
     """Resume a paused (or continue a cancelled) run: same run id, re-dispatch
     missing-only so completed cells are reused."""
     evaluation = _get_run_and_authorize(
-        db, evaluation_id, current_user, "resume"
+        db, evaluation_id, current_user, "resume", spends=True
     )
     previous = evaluation.status
     # Snapshot guard BEFORE flipping state so a snapshot-less run isn't
@@ -236,7 +269,7 @@ def resume_evaluation_run(
             ),
         )
     db.refresh(evaluation)
-    task_id = _redispatch(db, evaluation, "resume")
+    task_id = _redispatch(db, evaluation, "resume", current_user)
     return EvaluationLifecycleResponse(
         evaluation_id=evaluation_id,
         action="resume",
@@ -264,7 +297,7 @@ def retry_evaluation_run(
     """Retry a failed run: same run id, missing-only re-dispatch, bumps
     retry_count."""
     evaluation = _get_run_and_authorize(
-        db, evaluation_id, current_user, "retry"
+        db, evaluation_id, current_user, "retry", spends=True
     )
     previous = evaluation.status
     _dispatch_snapshot_kwargs(evaluation)  # 409 before any state change
@@ -296,7 +329,7 @@ def retry_evaluation_run(
             ),
         )
     db.refresh(evaluation)
-    task_id = _redispatch(db, evaluation, "retry")
+    task_id = _redispatch(db, evaluation, "retry", current_user)
     return EvaluationLifecycleResponse(
         evaluation_id=evaluation_id,
         action="retry",
