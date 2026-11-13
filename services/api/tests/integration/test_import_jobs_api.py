@@ -618,3 +618,67 @@ class TestCreateFullImportJobTarget:
         resp, mock_send = await self._post(async_test_client, user, 42)
         assert resp.status_code == 400, resp.text
         mock_send.assert_not_called()
+
+
+@pytest.mark.integration
+class TestCreateFullImportJobModelIdMap:
+    """POST /project-imports hands an optional model_id_map to the worker."""
+
+    @staticmethod
+    async def _post(client, user, body_extra):
+        body = {"object_key": f"imports/2026/11/{user.id}/20261113_120000_full.ndjson"}
+        body.update(body_extra)
+        with _as_user(user), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-map"),
+        ) as mock_send:
+            resp = await client.post("/api/projects/project-imports", json=body)
+        return resp, mock_send
+
+    @pytest.mark.asyncio
+    async def test_map_travels_with_the_task(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, name="Mover")
+        await async_test_db.commit()
+
+        resp, mock_send = await self._post(
+            async_test_client,
+            user,
+            {"model_id_map": {"custom-dev": "custom-prod"}},
+        )
+        assert resp.status_code == 202, resp.text
+        mock_send.assert_called_once()
+        assert mock_send.call_args.kwargs["args"] == [resp.json()["job_id"]]
+        assert mock_send.call_args.kwargs["kwargs"] == {
+            "model_id_map": {"custom-dev": "custom-prod"}
+        }
+
+    @pytest.mark.asyncio
+    async def test_no_map_sends_no_kwargs(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, name="Plain")
+        await async_test_db.commit()
+
+        resp, mock_send = await self._post(async_test_client, user, {})
+        assert resp.status_code == 202, resp.text
+        assert "kwargs" not in mock_send.call_args.kwargs
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "bad", [["custom-dev"], {"custom-dev": ""}, {"custom-dev": 3}, "x"]
+    )
+    async def test_malformed_map_400_and_no_job(
+        self, async_test_client, async_test_db, bad
+    ):
+        user = await _make_user(async_test_db, name="Malformed")
+        await async_test_db.commit()
+
+        resp, mock_send = await self._post(
+            async_test_client, user, {"model_id_map": bad}
+        )
+        assert resp.status_code == 400, resp.text
+        mock_send.assert_not_called()
+        jobs = (
+            await async_test_db.execute(
+                select(ImportJob).where(ImportJob.requested_by == user.id)
+            )
+        ).scalars().all()
+        assert jobs == []

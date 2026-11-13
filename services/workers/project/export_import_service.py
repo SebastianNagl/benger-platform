@@ -12,7 +12,7 @@ names, and decorator args) remain in ``tasks.py`` and delegate here.
 """
 
 import tasks
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # S3/MinIO require every multipart part EXCEPT the last to be >= 5MB. We buffer
 # to 8MB before flushing a part; 8MB x 10_000 parts (the S3 part-count ceiling)
@@ -289,7 +289,9 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
     finally:
         db.close()
 
-def import_project_impl(self, job_id: str) -> Dict[str, Any]:
+def import_project_impl(
+    self, job_id: str, model_id_map: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
     """Download an uploaded import artifact and stream-import it into the DB.
 
     The inverse of ``export_project``: reads the ImportJob row, downloads its
@@ -298,6 +300,10 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
     (label-studio, into the existing project); ``project_id`` None ⇒ flat
     comprehensive (creates a new project). The driver parses with ijson and
     inserts in flush-batched passes, so import memory stays O(batch).
+
+    ``model_id_map`` (source model id -> model id here) is the create-new
+    import's model translation from POST /project-imports; the nested and
+    tabular imports ignore it.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
     a finished job is a no-op); a job left `running` by a crashed worker IS
@@ -415,6 +421,8 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
                 import_kwargs = {"organization_id": organization_id}
                 if organization_group_id:
                     import_kwargs["organization_group_id"] = organization_group_id
+                if model_id_map:
+                    import_kwargs["model_id_map"] = model_id_map
                 result = run_full_project_import(
                     db, spooled, requested_by, **import_kwargs
                 )

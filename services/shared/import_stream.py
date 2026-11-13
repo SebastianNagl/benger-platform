@@ -79,7 +79,7 @@ from project_models import (
 )
 import seb
 from exam_tools import portable_exam_tools
-from serializers import _parse_iso
+from serializers import CALL_TELEMETRY_FIELDS, _parse_iso
 
 # Shared batch helper extracted alongside the export side. See
 # stream_io/__init__.py for why the package is named stream_io and not io.
@@ -1390,11 +1390,20 @@ class _FullImportContext:
         "skipped_annotations",
         "stub_users_created",
         "task_level_assignment_keys",
+        "model_id_map",
+        "run_indexes",
     )
 
-    def __init__(self, db, user_id: str):
+    def __init__(self, db, user_id: str, model_id_map: Optional[Dict[str, str]] = None):
         self.db = db
         self.user_id = user_id
+        # Source-deployment model id -> model id on this deployment (see
+        # _map_model). Custom models get a random id per deployment, so a
+        # benchmark run only lands under the right model through this map.
+        self.model_id_map: Dict[str, str] = dict(model_id_map or {})
+        # New generation-job id -> run indexes its imported children hold
+        # (uq_generations_parent_run_index), see _claim_run_index.
+        self.run_indexes: Dict[str, Set[int]] = {}
         self.new_project_id: Optional[str] = None
         self.id_mappings: Dict[str, Dict] = {
             "projects": {},
@@ -1578,6 +1587,43 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
         ctx.user_email_to_id[email] = matched_id
 
 
+def _map_model(ctx: _FullImportContext, model_id):
+    """``model_id`` translated through the import's ``model_id_map``; ids the
+    map does not name pass through unchanged."""
+    if isinstance(model_id, str):
+        return ctx.model_id_map.get(model_id, model_id)
+    return model_id
+
+
+def _timestamps(data: dict, *names: str) -> dict:
+    """The exported timestamps ``names`` that parse, as constructor kwargs.
+
+    Absent or unparsable values are left out rather than passed as None, so
+    a NOT NULL column keeps its server default (an older export carries no
+    timestamp, or only some of them)."""
+    out = {}
+    for name in names:
+        value = _parse_iso(data.get(name))
+        if value is not None:
+            out[name] = value
+    return out
+
+
+# Per-LLM-call flag columns (migration 040), NOT NULL with a server default of
+# false: an absent or null value keeps the default.
+_CALL_TELEMETRY_FLAGS = ("truncated", "refusal")
+
+
+def _call_telemetry_kwargs(data: dict) -> dict:
+    out = {}
+    for name in CALL_TELEMETRY_FIELDS:
+        value = data.get(name)
+        if value is None and name in _CALL_TELEMETRY_FLAGS:
+            continue
+        out[name] = value
+    return out
+
+
 def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
     old_task_id = task_data.get("id", str(uuid.uuid4()))
     new_task_id = str(uuid.uuid4())
@@ -1601,6 +1647,7 @@ def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
         unresolved_comment_count=task_data.get("unresolved_comment_count", 0),
         comment_authors=task_data.get("comment_authors"),
         file_upload_id=task_data.get("file_upload_id"),
+        **_timestamps(task_data, "created_at", "updated_at", "last_comment_updated_at"),
     )
 
     ctx.db.add(new_task)
@@ -1675,6 +1722,7 @@ def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
             created_by=ctx.id_mappings["users"].get(
                 rubric_data.get("created_by"), ctx.user_id
             ),
+            **_timestamps(rubric_data, "created_at", "updated_at"),
         )
     )
 
@@ -1736,6 +1784,7 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
             review_result=annotation_data.get("review_result"),
             review_annotation=annotation_data.get("review_annotation"),
             review_comment=annotation_data.get("review_comment"),
+            **_timestamps(annotation_data, "created_at", "updated_at"),
         )
 
         ctx.db.add(new_annotation)
@@ -1752,17 +1801,46 @@ def _insert_response_generation(ctx: _FullImportContext, resp_gen_data: dict) ->
     if task_id:  # Only import if task exists
         new_resp_gen = ResponseGeneration(
             id=new_resp_gen_id,
+            # The generation grid, the job list, evaluation scoping and the
+            # project summaries all find a job by its project.
+            project_id=ctx.new_project_id,
             task_id=task_id,
-            model_id=resp_gen_data.get("model_id"),
+            model_id=_map_model(ctx, resp_gen_data.get("model_id")),
             config_id=resp_gen_data.get("config_id"),
+            structure_key=resp_gen_data.get("structure_key"),
             status=resp_gen_data.get("status", "completed"),
             responses_generated=resp_gen_data.get("responses_generated", 0),
+            # Older exports lack the run counters: one run per job.
+            runs_requested=_setting(resp_gen_data, "runs_requested", 1),
+            runs_completed=_setting(resp_gen_data, "runs_completed", 0),
+            runs_failed=_setting(resp_gen_data, "runs_failed", 0),
             error_message=resp_gen_data.get("error_message"),
+            result=resp_gen_data.get("result"),
+            prompt_used=resp_gen_data.get("prompt_used"),
+            parameters=resp_gen_data.get("parameters"),
             generation_metadata=resp_gen_data.get("generation_metadata"),
             created_by=created_by,
+            **_timestamps(resp_gen_data, "created_at", "started_at", "completed_at"),
         )
 
         ctx.db.add(new_resp_gen)
+
+
+def _claim_run_index(ctx: _FullImportContext, parent_id: str, wanted) -> int:
+    """The exported run index of a generation, unless its job already holds
+    it here; then (and for exports that predate the field, which carry none)
+    the lowest free one. Two children of one job on the same index would fail
+    the whole import on uq_generations_parent_run_index."""
+    taken = ctx.run_indexes.setdefault(parent_id, set())
+    valid = isinstance(wanted, int) and not isinstance(wanted, bool) and wanted >= 0
+    if valid and wanted not in taken:
+        index = wanted
+    else:
+        index = 0
+        while index in taken:
+            index += 1
+    taken.add(index)
+    return index
 
 
 def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
@@ -1781,7 +1859,7 @@ def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
             id=new_generation_id,
             generation_id=generation_id,
             task_id=task_id,
-            model_id=generation_data.get("model_id"),
+            model_id=_map_model(ctx, generation_data.get("model_id")),
             # prompt_id removed in issue #759 - prompts now in project.generation_config (issue #817)
             case_data=generation_data.get("case_data"),
             response_content=generation_data.get("response_content"),
@@ -1796,6 +1874,11 @@ def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
             parse_metadata=generation_data.get("parse_metadata"),
             label_config_version=generation_data.get("label_config_version"),
             label_config_snapshot=generation_data.get("label_config_snapshot"),
+            run_index=_claim_run_index(
+                ctx, generation_id, generation_data.get("run_index")
+            ),
+            **_call_telemetry_kwargs(generation_data),
+            **_timestamps(generation_data, "created_at"),
         )
 
         ctx.db.add(new_generation)
@@ -1814,14 +1897,19 @@ def _insert_evaluation(ctx: _FullImportContext, evaluation_data: dict) -> None:
         id=new_evaluation_id,
         project_id=ctx.new_project_id,
         task_id=ctx.id_mappings["tasks"].get(evaluation_data.get("task_id")),
-        model_id=evaluation_data.get("model_id"),
+        model_id=_map_model(ctx, evaluation_data.get("model_id")),
         evaluation_type_ids=evaluation_data.get("evaluation_type_ids", []),
         metrics=evaluation_data.get("metrics", {}),
         eval_metadata=evaluation_data.get("eval_metadata"),
         status=evaluation_data.get("status", "completed"),
         error_message=evaluation_data.get("error_message"),
         samples_evaluated=evaluation_data.get("samples_evaluated"),
+        # Without it the evaluation detail page never loads the samples.
+        has_sample_results=_setting(evaluation_data, "has_sample_results", False),
         created_by=created_by,
+        # The leaderboard's period filters read created_at and its
+        # "last evaluated" reads completed_at.
+        **_timestamps(evaluation_data, "created_at", "completed_at"),
     )
 
     ctx.db.add(new_evaluation)
@@ -1840,6 +1928,7 @@ def _insert_evaluation_metric(ctx: _FullImportContext, metric_data: dict) -> Non
             evaluation_id=evaluation_id,
             evaluation_type_id=metric_data.get("evaluation_type_id"),
             value=metric_data.get("value", 0.0),
+            **_timestamps(metric_data, "created_at"),
         )
 
         ctx.db.add(new_metric)
@@ -1857,12 +1946,13 @@ def _insert_evaluation_judge_run(ctx: _FullImportContext, jr_data: dict) -> None
     ctx.db.add(EvaluationJudgeRun(
         id=new_jr_id,
         evaluation_id=evaluation_id,
-        judge_model_id=jr_data.get("judge_model_id"),
+        judge_model_id=_map_model(ctx, jr_data.get("judge_model_id")),
         run_index=jr_data.get("run_index", 0),
         status=jr_data.get("status", "completed"),
         samples_evaluated=jr_data.get("samples_evaluated"),
         error_message=jr_data.get("error_message"),
         metric_parameters_snapshot=jr_data.get("metric_parameters_snapshot"),
+        **_timestamps(jr_data, "started_at", "completed_at"),
     ))
 
 
@@ -1938,6 +2028,10 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
             # Per-config linkage — config ids are stable strings, not remapped.
             evaluation_config_id=te_data.get("evaluation_config_id"),
             created_by=_map_grader(ctx, te_data.get("created_by")),
+            # The judge's raw answer and the call telemetry of this row.
+            raw_output=te_data.get("raw_output"),
+            **_call_telemetry_kwargs(te_data),
+            **_timestamps(te_data, "created_at", "updated_at"),
         )
 
         ctx.db.add(new_te)
@@ -1960,6 +2054,7 @@ def _insert_human_evaluation_config(ctx: _FullImportContext, config_data: dict) 
             blinding_enabled=config_data.get("blinding_enabled", True),
             include_human_responses=config_data.get("include_human_responses", False),
             status=config_data.get("status", "pending"),
+            **_timestamps(config_data, "created_at", "updated_at"),
         )
 
         ctx.db.add(new_config)
@@ -1983,6 +2078,7 @@ def _insert_human_evaluation_session(ctx: _FullImportContext, session_data: dict
         total_items=session_data.get("total_items"),
         status=session_data.get("status", "active"),
         session_config=session_data.get("session_config"),
+        **_timestamps(session_data, "created_at", "updated_at", "completed_at"),
     )
 
     ctx.db.add(new_session)
@@ -2009,6 +2105,7 @@ def _insert_human_evaluation_result(ctx: _FullImportContext, result_data: dict) 
             usability_score=result_data.get("usability_score", 3),
             comments=result_data.get("comments"),
             evaluation_time_seconds=result_data.get("evaluation_time_seconds"),
+            **_timestamps(result_data, "created_at"),
         )
 
         ctx.db.add(new_result)
@@ -2035,6 +2132,7 @@ def _insert_preference_ranking(ctx: _FullImportContext, ranking_data: dict) -> N
             confidence=ranking_data.get("confidence"),
             reasoning=ranking_data.get("reasoning"),
             time_spent_seconds=ranking_data.get("time_spent_seconds"),
+            **_timestamps(ranking_data, "created_at"),
         )
 
         ctx.db.add(new_ranking)
@@ -2058,6 +2156,7 @@ def _insert_likert_scale_evaluation(ctx: _FullImportContext, likert_data: dict) 
             rating=likert_data.get("rating", 3),
             comment=likert_data.get("comment"),
             time_spent_seconds=likert_data.get("time_spent_seconds"),
+            **_timestamps(likert_data, "created_at"),
         )
 
         ctx.db.add(new_likert)
@@ -2105,6 +2204,7 @@ def _insert_korrektur_comment(ctx: _FullImportContext, c: dict) -> None:
         created_by=ctx.id_mappings["users"].get(
             c.get("created_by"), ctx.user_id
         ),
+        **_timestamps(c, "created_at", "updated_at"),
     ))
 
 
@@ -2158,6 +2258,7 @@ def _insert_grading_feedback(ctx: _FullImportContext, fb: dict) -> None:
         rating=fb.get("rating"),
         comment=comment,
         context=fb.get("context"),
+        **_timestamps(fb, "created_at", "updated_at"),
     ))
 
 
@@ -2187,6 +2288,11 @@ def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> N
             user_id=assignment_user_id,
             assigned_by=assigned_by,
             status=assignment_data.get("status", "assigned"),
+            priority=_setting(assignment_data, "priority", 0),
+            notes=assignment_data.get("notes"),
+            **_timestamps(
+                assignment_data, "due_date", "assigned_at", "started_at", "completed_at"
+            ),
         )
 
         ctx.db.add(new_assignment)
@@ -2209,6 +2315,7 @@ def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) ->
             project_id=ctx.new_project_id,
             user_id=par_user_id,
             result=par_data.get("result", []),
+            **_timestamps(par_data, "created_at"),
         )
 
         ctx.db.add(new_par)
@@ -2279,6 +2386,59 @@ def _split_accessible_model_ids(ctx: "_FullImportContext", models, importing_use
         else:
             dropped.append(model_id)
     return kept, dropped
+
+
+# A benchmark import names a handful of models; this only bounds a bad request.
+_MODEL_ID_MAP_MAX = 200
+
+
+def normalize_model_id_map(model_id_map) -> Dict[str, str]:
+    """Validate an import's ``model_id_map`` (source model id -> model id on
+    this deployment). ``None`` means no mapping. Raises
+    ``ImportValidationError(400)`` unless it is an object of non-empty strings.
+    """
+    if model_id_map is None:
+        return {}
+    if not isinstance(model_id_map, dict):
+        raise ImportValidationError(
+            400, "model_id_map must be an object of source model id -> model id"
+        )
+    if len(model_id_map) > _MODEL_ID_MAP_MAX:
+        raise ImportValidationError(
+            400, f"model_id_map may name at most {_MODEL_ID_MAP_MAX} models"
+        )
+    for source, target in model_id_map.items():
+        if not (isinstance(source, str) and source and isinstance(target, str) and target):
+            raise ImportValidationError(
+                400, "model_id_map keys and values must be non-empty strings"
+            )
+    return dict(model_id_map)
+
+
+def _remap_project_model_ids(ctx: "_FullImportContext", project_data: dict) -> None:
+    """Apply ``model_id_map`` to the project's model selections in place,
+    before they are reconciled against this deployment's catalog (which
+    would otherwise drop every source-only custom id)."""
+    if not ctx.model_id_map:
+        return
+    llm_model_ids = project_data.get("llm_model_ids")
+    if isinstance(llm_model_ids, list):
+        project_data["llm_model_ids"] = [_map_model(ctx, m) for m in llm_model_ids]
+    generation_config = project_data.get("generation_config")
+    selected = (
+        generation_config.get("selected_configuration")
+        if isinstance(generation_config, dict)
+        else None
+    )
+    if not isinstance(selected, dict):
+        return
+    if isinstance(selected.get("models"), list):
+        selected["models"] = [_map_model(ctx, m) for m in selected["models"]]
+    model_configs = selected.get("model_configs")
+    if isinstance(model_configs, dict):
+        selected["model_configs"] = {
+            _map_model(ctx, k): v for k, v in model_configs.items()
+        }
 
 
 def _reconcile_llm_model_ids(ctx: "_FullImportContext", llm_model_ids, importing_user):
@@ -2452,6 +2612,7 @@ def _create_imported_project(
     owning_organization_id = _resolve_owning_organization_id(
         ctx, user_with_memberships, organization_id, organization_group_id
     )
+    _remap_project_model_ids(ctx, project_data)
 
     new_project_id = str(uuid.uuid4())
     # Only add to mappings if the original project had an ID
@@ -2657,6 +2818,8 @@ def _build_full_import_stats(
         # Exported users unknown on this deployment, kept 1:1 as pseudonymous
         # placeholder accounts instead of being merged into the importer.
         "placeholder_users_created": ctx.stub_users_created,
+        # The model ids this import translated (source -> this deployment).
+        "model_id_map": dict(ctx.model_id_map),
     }
 
 
@@ -2828,6 +2991,7 @@ def run_ndjson_import(
     user_id: str,
     organization_id: Optional[str] = None,
     organization_group_id: Optional[str] = None,
+    model_id_map: Optional[Dict[str, str]] = None,
 ) -> dict:
     """Import an NDJSON typed-record comprehensive payload in a single pass.
 
@@ -2873,7 +3037,7 @@ def run_ndjson_import(
     original_title = project_data.get("title", "Imported Project")
     new_title = _deduplicate_project_title(db, original_title)
 
-    ctx = _FullImportContext(db, user_id)
+    ctx = _FullImportContext(db, user_id, normalize_model_id_map(model_id_map))
     # Create the project (+ ProjectOrganization). Raises 400 if the importing
     # user has no active organization. Sets ctx.new_project_id.
     _create_imported_project(
@@ -2943,6 +3107,7 @@ def run_full_project_import(
     user_id: str,
     organization_id: Optional[str] = None,
     organization_group_id: Optional[str] = None,
+    model_id_map: Optional[Dict[str, str]] = None,
 ) -> dict:
     """Import a flat comprehensive payload, creating a NEW project.
 
@@ -2963,11 +3128,12 @@ def run_full_project_import(
     a seekable spool before format detection, so .gz, NDJSON, and legacy JSON all
     funnel through this one entry point.
     """
+    model_id_map = normalize_model_id_map(model_id_map)
     fileobj = _maybe_decompress(_maybe_unzip(fileobj))
 
     if _is_ndjson_stream(fileobj):
         return run_ndjson_import(
-            db, fileobj, user_id, organization_id, organization_group_id
+            db, fileobj, user_id, organization_id, organization_group_id, model_id_map
         )
 
     # One streaming pass builds only the small top-level fields; malformed JSON
@@ -3010,7 +3176,7 @@ def run_full_project_import(
     # insert logic. ctx carries the old→new id maps + running counters across
     # passes; every pass re-seeks the spool and streams one element at a time,
     # flushing + expunging every _IMPORT_BATCH rows to keep heap O(batch).
-    ctx = _FullImportContext(db, user_id)
+    ctx = _FullImportContext(db, user_id, model_id_map)
 
     # Map users to existing users (by email) or the importing user. No user rows
     # are inserted — imported projects reuse the importing org's users.

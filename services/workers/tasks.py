@@ -5041,8 +5041,10 @@ def export_project(self, job_id: str) -> Dict[str, Any]:
     acks_late=True,
     max_retries=0,
 )
-def import_project(self, job_id: str) -> Dict[str, Any]:
-    return import_project_impl(self, job_id)
+def import_project(
+    self, job_id: str, model_id_map: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    return import_project_impl(self, job_id, model_id_map=model_id_map)
 
 
 def _fail_import_job(db, job_id: str, message: str) -> None:
