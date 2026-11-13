@@ -47,8 +47,6 @@ from routers.projects._import_stream import (  # noqa: E402,F401
     linked_exam_stmt,
     normalize_model_id_map,
     run_full_project_import,  # re-exported: shared driver used by tests
-    mappable_models,
-    run_merge_import,
     run_nested_import,  # re-exported: shared driver used by tests
     task_count_stmt,
 )
@@ -90,8 +88,6 @@ from schemas.import_schemas import (  # noqa: E402
     FullImportJobRequest,
     ImportJobAccepted,
     ImportJobStatus,
-    MergePreview,
-    MergePreviewRequest,
     ProjectImportJobRequest,
     split_job_error,
 )
@@ -635,7 +631,11 @@ async def create_import_job(
     hold yet are added to the matching tasks (see ``run_merge_import``). A
     merge whose tasks are not this project's fails the job and imports
     nothing. ``model_id_map`` (merge only) translates model ids as on
-    ``POST /project-imports``.
+    ``POST /project-imports``. ``dry_run`` (merge only) previews the merge:
+    the worker runs it and rolls it back, and the job completes with format
+    ``merge_preview`` and the preview in ``result.statistics`` (what the
+    merge would add and skip, every model id of the file and whether it
+    exists here, the unknown ones and the models the caller may map to).
     """
     project = (
         await db.execute(select(Project).where(Project.id == project_id))
@@ -659,6 +659,10 @@ async def create_import_job(
         raise HTTPException(
             status_code=400, detail="model_id_map is only supported with mode 'merge'"
         )
+    if data.dry_run and mode != "merge":
+        raise HTTPException(
+            status_code=400, detail="dry_run is only supported with mode 'merge'"
+        )
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
     task_kwargs = {}
@@ -666,6 +670,8 @@ async def create_import_job(
         task_kwargs["mode"] = "merge"
         if model_id_map:
             task_kwargs["model_id_map"] = model_id_map
+        if data.dry_run:
+            task_kwargs["dry_run"] = True
 
     job = ImportJob(
         id=str(uuid.uuid4()),
@@ -712,91 +718,6 @@ def _checked_project_object_key(object_key: str, project_id: str) -> str:
     if not is_import_key_of(object_key, project_id):
         raise HTTPException(status_code=400, detail="Invalid object_key")
     return object_key
-
-
-@_post(
-    "/{project_id}/imports/merge-preview",
-    response_model=MergePreview,
-    responses={
-        **IMPORT_ERROR_RESPONSES,
-        409: {"description": "The export's tasks are not this project's (merge_task_mismatch)"},
-        413: {"description": "The file inflates past the decompressed-size cap (import_too_large)"},
-    },
-)
-def preview_merge_import(
-    project_id: str,
-    data: MergePreviewRequest,
-    current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
-):
-    """What a merge of an uploaded full project export would add, without
-    writing anything.
-
-    Same body and checks as ``POST /{project_id}/imports`` with mode
-    ``merge``. Returns the matched task count, the rows the merge would add
-    and skip, and every model id the file's results name with what it maps
-    to and whether that model exists here (``models``; ``unknown_models``
-    lists the ids a merge would refuse until they are mapped), plus the
-    models the caller may map to. The merge dialog builds its model map from
-    it. Runs the merge itself on the sync lane (a worker thread) and rolls it
-    back: it reads the whole file, a few seconds for a 3000-task export.
-    """
-    if db.query(Project.id).filter(Project.id == project_id).scalar() is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if not check_user_can_edit_project(db, current_user, project_id):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Only members of the project's organizations (contributors or "
-                "admins), its creator or a superadmin can import into this project"
-            ),
-        )
-    object_key = _checked_project_object_key(data.object_key, project_id)
-    model_id_map = _validated_model_id_map(data.model_id_map)
-    _raise_on_unknown_targets(
-        model_id_map,
-        {
-            m
-            for (m,) in db.query(LLMModel.id).filter(
-                LLMModel.id.in_(set(model_id_map.values()))
-            )
-        }
-        if model_id_map
-        else set(),
-    )
-    if not object_storage.get_file_info(object_key):
-        raise HTTPException(status_code=404, detail="Uploaded file not found")
-
-    spooled = tempfile.SpooledTemporaryFile(max_size=4 * 1024 * 1024)
-    try:
-        object_storage.download_to_fileobj(object_key, spooled)
-        spooled.seek(0)
-        result = run_merge_import(
-            db, project_id, spooled, str(current_user.id),
-            model_id_map=model_id_map, dry_run=True,
-        )
-        available = mappable_models(db, str(current_user.id))
-    except ImportValidationError as exc:
-        detail = {"code": exc.code, "message": exc.message} if exc.code else exc.detail
-        raise HTTPException(status_code=exc.status_code, detail=detail)
-    finally:
-        db.rollback()
-        spooled.close()
-
-    stats = result["statistics"]
-    return MergePreview(
-        matched_tasks=stats["matched_tasks"],
-        added_counts=stats["added_counts"],
-        skipped_present_counts=stats["skipped_present_counts"],
-        models_added_to_project=stats["models_added_to_project"],
-        models=stats["models"],
-        unknown_models=[
-            m["source_model_id"]
-            for m in stats["models"]
-            if not m["known"] and m["rows_added"]
-        ],
-        available_models=available,
-    )
 
 
 @router.get("/{project_id}/imports/{job_id}", response_model=ImportJobStatus)

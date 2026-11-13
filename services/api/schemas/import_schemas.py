@@ -1,6 +1,6 @@
 """Request and response shapes of the async project import API
-(``routers/projects/import_export.py``): creating an import job, the merge
-preview, and the job a client polls.
+(``routers/projects/import_export.py``): creating an import job and the job
+a client polls.
 
 A malformed body answers 400 like every other refused import option, not
 FastAPI's 422 (see ``Coded400Route`` in the router).
@@ -9,7 +9,7 @@ FastAPI's 422 (see ``Coded400Route`` in the router).
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, Literal, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,6 +42,18 @@ class ProjectImportJobRequest(_ImportRequest):
             "yet are added (model_id_map applies to merge only)."
         ),
     )
+    dry_run: bool = Field(
+        False,
+        description=(
+            "merge only: preview the merge. The job runs the merge and rolls it "
+            "back, writing nothing, and completes with format merge_preview; its "
+            "result.statistics holds matched_tasks, added_counts, "
+            "skipped_present_counts, models (every model id of the file, what it "
+            "maps to and whether it exists here), unknown_models (ids a merge "
+            "refuses until they are mapped) and available_models (models the "
+            "caller may map to)."
+        ),
+    )
 
 
 class FullImportJobRequest(_ImportRequest):
@@ -53,10 +65,6 @@ class FullImportJobRequest(_ImportRequest):
     organization_group_id: Optional[str] = Field(
         None, description="Attach the project through this group of organization_id"
     )
-
-
-class MergePreviewRequest(_ImportRequest):
-    """Body of ``POST /api/projects/{project_id}/imports/merge-preview``."""
 
 
 class ImportJobAccepted(BaseModel):
@@ -93,39 +101,6 @@ class ImportJobStatus(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     expires_at: Optional[str] = None
-
-
-class MergeModel(BaseModel):
-    source_model_id: str = Field(..., description="Model id as the export names it")
-    model_id: str = Field(..., description="Model id it lands under here (after model_id_map)")
-    mapped: bool = Field(..., description="Whether model_id_map names source_model_id")
-    known: bool = Field(..., description="Whether model_id exists on this deployment")
-    name: Optional[str] = Field(None, description="Name of the model here, when known")
-    rows_added: int = Field(..., description="Generations, runs and judge runs the merge adds under it")
-    rows_present: int = Field(..., description="Rows of it the project already holds")
-
-
-class MappableModel(BaseModel):
-    id: str
-    name: str
-    is_custom: bool
-
-
-class MergePreview(BaseModel):
-    """What a merge of the uploaded file would do. Nothing is written."""
-
-    matched_tasks: int
-    added_counts: Dict[str, int]
-    skipped_present_counts: Dict[str, int]
-    models_added_to_project: List[str]
-    models: List[MergeModel]
-    unknown_models: List[str] = Field(
-        ...,
-        description="Source model ids whose rows would land under an unknown model; a merge refuses until they are mapped",
-    )
-    available_models: List[MappableModel] = Field(
-        ..., description="Models of this deployment the caller may map to"
-    )
 
 
 class ImportErrorBody(BaseModel):

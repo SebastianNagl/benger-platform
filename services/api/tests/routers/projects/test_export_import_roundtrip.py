@@ -439,6 +439,48 @@ class TestDataExportImportRoundtrip:
             assert gen.model_id == "gpt-4o"
             assert "Response for task" in gen.response_content
 
+    @pytest.mark.parametrize("attached", [True, False])
+    def test_imported_generation_jobs_are_billed_to_the_target_org(
+        self, db_session, user, project_with_full_data, attached
+    ):
+        """Defect 6 on the nested import: its generation jobs used to carry
+        no organization. They are attributed to the target project's org, and
+        to none for a private project."""
+        from project_models import ProjectOrganization
+
+        data = project_with_full_data
+        project = data["project"]
+        export = self._export(
+            db_session, project.id, [t.id for t in data["tasks"]], user.id
+        )
+        target = Project(
+            id=str(uuid.uuid4()),
+            title="Import Target Org",
+            label_config="<View></View>",
+            created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.flush()
+        org = _make_org(db_session, "Nested Target Org")
+        if attached:
+            db_session.add(
+                ProjectOrganization(
+                    id=str(uuid.uuid4()), project_id=target.id,
+                    organization_id=org.id, assigned_by=user.id,
+                )
+            )
+        db_session.commit()
+
+        self._import(db_session, target.id, export, user.id)
+
+        orgs = {
+            rg.organization_id
+            for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == target.id
+            )
+        }
+        assert orgs == ({org.id} if attached else {None})
+
     def test_evaluation_runs_survive_roundtrip(
         self, db_session, user, project_with_full_data
     ):

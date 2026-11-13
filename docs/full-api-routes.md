@@ -305,7 +305,6 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/projects/{project_id}/grading-feedback/mine` | `results:read` | bound |
 | GET | `/api/projects/{project_id}/grading-feedback/summary` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/imports` | `projects:write`, `tasks:write` | bound |
-| POST | `/api/projects/{project_id}/imports/merge-preview` | `projects:write`, `tasks:write` | bound |
 | POST | `/api/projects/{project_id}/imports/upload-url` | `projects:write`, `tasks:write` | bound |
 | GET | `/api/projects/{project_id}/imports/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/compare/{version1}/{version2}` | `projects:read` | bound |

@@ -202,19 +202,14 @@ with the job body
 ```
 
 Before merging, the same uploaded file can be checked without writing
-anything:
-
-```http
-POST /api/projects/{project_id}/imports/merge-preview
-{"object_key": "...", "model_id_map": {...}}
-```
-
-The answer lists the matched tasks, the rows the merge would add and skip, and
-every model id the file's results name (`models`: the id in the file, the id it
-lands under here, whether that model exists here, its name and its row
-counts), with `unknown_models` naming the ids that still need a mapping and
-`available_models` the models you may map to. The merge dialog builds its
-model map from it.
+anything: create the job with `"dry_run": true` as well. The worker runs the
+merge and rolls it back, and the job completes with `format`
+`merge_preview` and the preview in `result.statistics`: the matched tasks, the
+rows the merge would add and skip, and every model id the file's results name
+(`models`: the id in the file, the id it lands under here, whether that model
+exists here, its name and its row counts), with `unknown_models` naming the ids
+that still need a mapping and `available_models` the models you may map to.
+Poll it like any import job. The merge dialog builds its model map from it.
 
 The file is a full project export (comprehensive JSON, NDJSON, `.gz` or the
 single-project `.zip`) of this project or of a copy of it. Each exported task is

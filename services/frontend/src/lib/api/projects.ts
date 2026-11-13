@@ -69,7 +69,7 @@ export interface ImportJobStatus {
   expires_at: string | null
 }
 
-/** One model id of a merge file, as POST .../imports/merge-preview reports it. */
+/** One model id of a merge file, as a merge preview (dry-run job) reports it. */
 export interface MergePreviewModel {
   source_model_id: string
   model_id: string
@@ -153,6 +153,29 @@ const nextPollDelay = (attempt: number, overrideMs?: number): number =>
 // Job status polls must see the live state, never the 30 s GET cache.
 const getJobStatus = (endpoint: string) => {
   return apiClient.get(endpoint, { cache: 'no-store' })
+}
+
+// Poll a project import job until it completes (resolves with it) or fails
+// (rejects with an ImportJobError); an aborted signal rejects with AbortError.
+async function pollImportJob(
+  projectId: string,
+  jobId: string,
+  callbacks?: { onStatus?: (status: ImportJobStatus) => void },
+  options?: { pollIntervalMs?: number; signal?: AbortSignal },
+): Promise<ImportJobStatus> {
+  let attempt = 0
+  for (;;) {
+    if (options?.signal?.aborted) {
+      throw new DOMException('Import polling aborted', 'AbortError')
+    }
+    const status = await projectsAPI.getImportJob(projectId, jobId)
+    callbacks?.onStatus?.(status)
+    if (status.status === 'completed') return status
+    if (status.status === 'failed') {
+      throw new ImportJobError(status)
+    }
+    await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
+  }
 }
 
 export const projectsAPI = {
@@ -738,11 +761,17 @@ export const projectsAPI = {
   createImportJob: async (
     projectId: string,
     objectKey: string,
-    options?: { mode?: 'merge'; modelIdMap?: Record<string, string> },
+    options?: {
+      mode?: 'merge'
+      modelIdMap?: Record<string, string>
+      /** Merge only: preview the merge; the job writes nothing. */
+      dryRun?: boolean
+    },
   ): Promise<{ job_id: string; status: ImportJobState }> => {
     return apiClient.post(`/projects/${projectId}/imports`, {
       object_key: objectKey,
       ...(options?.mode ? { mode: options.mode } : {}),
+      ...(options?.dryRun ? { dry_run: true } : {}),
       ...(options?.modelIdMap && Object.keys(options.modelIdMap).length > 0
         ? { model_id_map: options.modelIdMap }
         : {}),
@@ -801,20 +830,7 @@ export const projectsAPI = {
       projectId,
       upload.file_key,
     )
-
-    let attempt = 0
-    for (;;) {
-      if (options?.signal?.aborted) {
-        throw new DOMException('Import polling aborted', 'AbortError')
-      }
-      const status = await projectsAPI.getImportJob(projectId, job_id)
-      callbacks?.onStatus?.(status)
-      if (status.status === 'completed') return status
-      if (status.status === 'failed') {
-        throw new ImportJobError(status)
-      }
-      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
-    }
+    return pollImportJob(projectId, job_id, callbacks, options)
   },
 
   /** Upload a file for an import into a project; resolves with its object key. */
@@ -826,20 +842,32 @@ export const projectsAPI = {
 
   /**
    * What merging an uploaded full project export would add, and every model
-   * id its results name with whether that model exists here. Nothing is
-   * written. Rejects like the merge itself (`merge_task_mismatch`, ...).
+   * id its results name with whether that model exists here. Runs as a
+   * dry-run merge job on the worker (enqueue -> poll) that writes nothing.
+   * Rejects like the merge itself (`merge_task_mismatch`, ...).
    */
   previewMergeImport: async (
     projectId: string,
     objectKey: string,
     modelIdMap?: Record<string, string>,
+    options?: { pollIntervalMs?: number; signal?: AbortSignal },
   ): Promise<MergePreview> => {
-    return apiClient.post(`/projects/${projectId}/imports/merge-preview`, {
-      object_key: objectKey,
-      ...(modelIdMap && Object.keys(modelIdMap).length > 0
-        ? { model_id_map: modelIdMap }
-        : {}),
+    const { job_id } = await projectsAPI.createImportJob(projectId, objectKey, {
+      mode: 'merge',
+      modelIdMap,
+      dryRun: true,
     })
+    const status = await pollImportJob(projectId, job_id, undefined, options)
+    const stats = status.result?.statistics || {}
+    return {
+      matched_tasks: stats.matched_tasks ?? 0,
+      added_counts: stats.added_counts || {},
+      skipped_present_counts: stats.skipped_present_counts || {},
+      models_added_to_project: stats.models_added_to_project || [],
+      models: stats.models || [],
+      unknown_models: stats.unknown_models || [],
+      available_models: stats.available_models || [],
+    }
   },
 
   /**
@@ -873,20 +901,7 @@ export const projectsAPI = {
       mode: 'merge',
       modelIdMap: options?.modelIdMap,
     })
-
-    let attempt = 0
-    for (;;) {
-      if (options?.signal?.aborted) {
-        throw new DOMException('Import polling aborted', 'AbortError')
-      }
-      const status = await projectsAPI.getImportJob(projectId, job_id)
-      callbacks?.onStatus?.(status)
-      if (status.status === 'completed') return status
-      if (status.status === 'failed') {
-        throw new ImportJobError(status)
-      }
-      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
-    }
+    return pollImportJob(projectId, job_id, callbacks, options)
   },
 
   /**

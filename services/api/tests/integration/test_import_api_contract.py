@@ -168,7 +168,6 @@ def test_import_bodies_are_typed_in_the_openapi_schema():
     for path, model in (
         ("/api/projects/project-imports", "FullImportJobRequest"),
         ("/api/projects/{project_id}/imports", "ProjectImportJobRequest"),
-        ("/api/projects/{project_id}/imports/merge-preview", "MergePreviewRequest"),
     ):
         post = paths[path]["post"]
         ref = post["requestBody"]["content"]["application/json"]["schema"]["$ref"]
@@ -193,7 +192,6 @@ def test_the_full_api_reference_spec_lists_no_422_for_the_import_bodies():
     for path in (
         "/api/projects/project-imports",
         "/api/projects/{project_id}/imports",
-        "/api/projects/{project_id}/imports/merge-preview",
     ):
         post = paths[path]["post"]
         assert "400" in post["responses"], path
@@ -242,38 +240,30 @@ def _seed_preview_project(db):
 @pytest.mark.integration
 class TestMergePreview:
     """Recommendation 2: a dry run of the merge that names every model id of
-    the file and whether it exists here, for the merge dialog's model map."""
+    the file and whether it exists here, for the merge dialog's model map.
+    It runs as a dry-run merge job on the import worker."""
 
-    def _post(self, client, user, project, export, body_extra=None):
-        key = f"imports/2026/11/{project.id}/copy.ndjson"
+    def _preview(self, db, project, export, user, model_id_map=None):
+        import io
 
-        def _download(_key, fileobj):
-            fileobj.write(export)
+        from routers.projects._import_stream import run_merge_import
 
-        with _as_user(user), patch(
-            "routers.projects.import_export.object_storage.get_file_info",
-            return_value={"size": len(export)},
-        ), patch(
-            "routers.projects.import_export.object_storage.download_to_fileobj",
-            side_effect=_download,
-        ):
-            return client.post(
-                f"/api/projects/{project.id}/imports/merge-preview",
-                json={"object_key": key, **(body_extra or {})},
-            )
+        return run_merge_import(
+            db, project.id, io.BytesIO(export), user.id,
+            model_id_map=model_id_map, dry_run=True,
+        )["statistics"]
 
-    def test_lists_unknown_models_and_writes_nothing(self, client, test_db):
+    def test_lists_unknown_models_and_writes_nothing(self, test_db):
         user, project, export = _seed_preview_project(test_db)
-        resp = self._post(client, user, project, export)
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["matched_tasks"] == 1
-        assert body["added_counts"]["generations"] == 1
-        assert body["unknown_models"] == ["custom-elsewhere"]
-        (model,) = body["models"]
+        stats = self._preview(test_db, project, export, user)
+        assert stats["dry_run"] is True
+        assert stats["matched_tasks"] == 1
+        assert stats["added_counts"]["generations"] == 1
+        assert stats["unknown_models"] == ["custom-elsewhere"]
+        (model,) = stats["models"]
         assert model["source_model_id"] == "custom-elsewhere"
         assert model["known"] is False and model["rows_added"] == 1
-        assert {"id": "custom-here", "name": "Same model here", "is_custom": True} in body[
+        assert {"id": "custom-here", "name": "Same model here", "is_custom": True} in stats[
             "available_models"
         ]
         test_db.expire_all()
@@ -281,16 +271,13 @@ class TestMergePreview:
             [t.id for t in test_db.query(Task).filter(Task.project_id == project.id)]
         )).count() == 0
 
-    def test_a_mapped_model_is_known(self, client, test_db):
+    def test_a_mapped_model_is_known(self, test_db):
         user, project, export = _seed_preview_project(test_db)
-        resp = self._post(
-            client, user, project, export,
-            {"model_id_map": {"custom-elsewhere": "custom-here"}},
+        stats = self._preview(
+            test_db, project, export, user, {"custom-elsewhere": "custom-here"}
         )
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["unknown_models"] == []
-        (model,) = body["models"]
+        assert stats["unknown_models"] == []
+        (model,) = stats["models"]
         assert model == {
             "source_model_id": "custom-elsewhere",
             "model_id": "custom-here",
@@ -301,21 +288,68 @@ class TestMergePreview:
             "rows_present": 0,
         }
 
-    def test_unrelated_file_is_a_coded_409(self, client, test_db):
+    def test_unrelated_file_is_a_coded_409(self, test_db):
+        from routers.projects._import_stream import ImportValidationError
+
         user, project, export = _seed_preview_project(test_db)
         other = Project(id=_uid(), title="Other", created_by=user.id)
         test_db.add(other)
         test_db.add(Task(id=_uid(), project_id=other.id, inner_id=1, data={"text": "Else"}))
         test_db.commit()
-        resp = self._post(client, user, other, export)
-        assert resp.status_code == 409, resp.text
-        detail = resp.json()["detail"]
-        assert detail["code"] == "merge_task_mismatch"
-        # The code travels in its own field; the message is the readable text.
-        assert detail["message"].startswith("Of the ")
+        with pytest.raises(ImportValidationError) as raised:
+            self._preview(test_db, other, export, user)
+        assert raised.value.status_code == 409
+        assert raised.value.code == "merge_task_mismatch"
 
-    def test_malformed_body_is_a_400(self, client, test_db):
-        user, project, export = _seed_preview_project(test_db)
-        resp = self._post(client, user, project, export, {"model_id_map": ["x"]})
+
+@pytest.mark.integration
+class TestDryRunJob:
+    """POST .../imports with dry_run enqueues the merge preview on the import
+    worker instead of running it on the API."""
+
+    async def _post(self, client, db, body):
+        user = _user(is_superadmin=True)
+        db.add(user)
+        await db.flush()
+        project = Project(
+            id=_uid(), title="Dry run", created_by=user.id,
+            label_config='<View><Text name="text" value="$text"/></View>',
+        )
+        db.add(project)
+        await db.commit()
+        with _as_user(user), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery"),
+        ) as mock_send:
+            resp = await client.post(
+                f"/api/projects/{project.id}/imports",
+                json={"object_key": f"imports/2026/11/{project.id}/copy.ndjson", **body},
+            )
+        return resp, mock_send
+
+    @pytest.mark.asyncio
+    async def test_dry_run_enqueues_a_merge_preview(self, async_test_client, async_test_db):
+        resp, mock_send = await self._post(
+            async_test_client, async_test_db, {"mode": "merge", "dry_run": True}
+        )
+        assert resp.status_code == 202, resp.text
+        assert mock_send.call_args.args[0] == "tasks.import_project"
+        assert mock_send.call_args.kwargs["kwargs"] == {"mode": "merge", "dry_run": True}
+
+    @pytest.mark.asyncio
+    async def test_dry_run_needs_merge_mode(self, async_test_client, async_test_db):
+        resp, mock_send = await self._post(
+            async_test_client, async_test_db, {"dry_run": True}
+        )
         assert resp.status_code == 400, resp.text
-        assert "model_id_map" in resp.json()["detail"]
+        assert "dry_run" in resp.json()["detail"]
+        mock_send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_malformed_dry_run_is_a_400(self, async_test_client, async_test_db):
+        resp, mock_send = await self._post(
+            async_test_client, async_test_db, {"mode": "merge", "dry_run": "maybe"}
+        )
+        assert resp.status_code == 400, resp.text
+        assert "dry_run" in resp.json()["detail"]
+        mock_send.assert_not_called()

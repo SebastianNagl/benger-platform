@@ -257,12 +257,10 @@ class ImportValidationError(Exception):
 
     ``code`` is an optional stable token for errors a client maps to its own
     translated message. It is also prefixed to ``detail`` (``"<code>: ..."``)
-    because the job row only stores the message text; ``message`` is the text
-    without that prefix.
+    because the job row only stores the message text.
     """
 
     def __init__(self, status_code: int, detail: str, code: Optional[str] = None):
-        self.message = detail
         if code:
             detail = f"{code}: {detail}"
         super().__init__(detail)
@@ -537,6 +535,18 @@ def _remap_rubric_ids(metrics, rubric_id_mapping):
     return metrics if out is None else out
 
 
+def _project_organization_id(db, project_id: str) -> Optional[str]:
+    """The org imported generation jobs of ``project_id`` are attributed to:
+    the first org the project is attached to, None for a private project."""
+    return (
+        db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project_id)
+        .order_by(ProjectOrganization.created_at.asc(), ProjectOrganization.id)
+        .limit(1)
+        .scalar()
+    )
+
+
 def run_nested_import(
     db, project_id: str, fileobj, user_id: str, before_commit: BeforeCommit = None
 ) -> dict:
@@ -554,6 +564,7 @@ def run_nested_import(
     gzipped Label-Studio body imports like a plain one.
     """
     fileobj = _maybe_decompress(fileobj)
+    job_organization_id = _project_organization_id(db, project_id)
 
     created_tasks = 0
     created_annotations = 0
@@ -931,6 +942,7 @@ def run_nested_import(
                         task_id=task_id,
                         project_id=project_id,
                         model_id=model_id,
+                        organization_id=job_organization_id,
                         config_id="import-default",  # Default config for imported data
                         status="completed",  # Imported generations are completed
                         responses_generated=1,
@@ -4117,8 +4129,9 @@ def run_merge_import(
     ``dry_run`` runs the same merge and rolls it back (``before_commit`` is
     not called): the result holds what the merge would add and skip and
     every model id of the file with what it maps to and whether it exists
-    here (``statistics.models``), and unknown models are reported there
-    instead of refusing.
+    here (``statistics.models``), the source ids a merge would refuse until
+    they are mapped (``statistics.unknown_models``) instead of refusing, and
+    the models the user may map them to (``statistics.available_models``).
     """
     model_id_map = normalize_model_id_map(model_id_map)
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -4129,13 +4142,7 @@ def run_merge_import(
 
     ctx = _FullImportContext(db, user_id, model_id_map)
     ctx.new_project_id = project_id
-    ctx.organization_id = (
-        db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project_id)
-        .order_by(ProjectOrganization.created_at.asc(), ProjectOrganization.id)
-        .limit(1)
-        .scalar()
-    )
+    ctx.organization_id = _project_organization_id(db, project_id)
     state = _MergeState(db, project_id)
     # One active Bewertungsbogen per task: an added sheet becomes a candidate
     # where the task already has one (see _insert_task_rubric).
@@ -4185,5 +4192,9 @@ def run_merge_import(
     }
     if dry_run:
         db.rollback()
+        result["statistics"]["unknown_models"] = [
+            m["source_model_id"] for m in model_report if not m["known"] and m["rows_added"]
+        ]
+        result["statistics"]["available_models"] = mappable_models(db, user_id)
         return result
     return _commit(db, result, before_commit)
