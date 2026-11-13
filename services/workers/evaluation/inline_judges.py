@@ -16,7 +16,9 @@ where an ``InlineJudge`` provides
   thinking_budget, reasoning_effort, task_data, prediction,
   metric_params) -> dict`` — the judge call. Returns the result dict, or an
   error wrapper ``{"error": True, "error_message": ...}``. A
-  ``_judge_prompts_used`` key is moved to the row's audit column.
+  ``_judge_prompts_used`` key is moved to the row's audit column, a
+  ``_raw_reasoning`` key (the judge model's reasoning text, e.g. the
+  service response's ``reasoning``) to the row's ``raw_reasoning`` column.
 * ``build_row(*, result, error_message) -> dict`` — the metric-specific
   ``TaskEvaluation`` kwargs (``metrics``, ``passed`` and the discrete
   call-metadata columns).
@@ -78,6 +80,9 @@ def inline_judge_row(
         metric_params=metric_params or {},
     )
     judge_prompts = result.pop("_judge_prompts_used", None) if result else None
+    import tasks
+
+    judge_reasoning = tasks._pop_judge_reasoning(result)
     error_msg = None
     if not result or result.get("error"):
         error_msg = (result or {}).get("error_message") or "LLM judge evaluation failed"
@@ -85,5 +90,6 @@ def inline_judge_row(
         **row,
         "error_message": error_msg,
         "judge_prompts_used": judge_prompts,
+        "raw_reasoning": judge_reasoning,
         **judge.build_row(result=result, error_message=error_msg),
     }

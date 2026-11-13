@@ -955,6 +955,7 @@ class TestSerializers:
             id = "g1"
             model_id = "gpt-4o"
             response_content = "Generated text"
+            reasoning = None
             case_data = '{"text": "input"}'
             created_at = datetime(2024, 1, 1)
             response_metadata = {"temperature": 0.5}
@@ -969,6 +970,7 @@ class TestSerializers:
             id = "g1"
             model_id = "gpt-4o"
             response_content = "text"
+            reasoning = None
             case_data = "{}"
             created_at = None
             response_metadata = None
@@ -1020,6 +1022,7 @@ class TestSerializers:
             created_by = "u1"
             evaluation_id = "er1"
             judge_prompts_used = None
+            raw_reasoning = None
             judge_run_id = "jr-1"
             evaluation_config_id = "cfg1"
 
@@ -1057,6 +1060,7 @@ class TestSerializers:
             task_id = "t1"
             generation_id = "g1"
             judge_prompts_used = None
+            raw_reasoning = None
             judge_run_id = None
             evaluation_config_id = None
             # The judge's raw answer + per-call telemetry.

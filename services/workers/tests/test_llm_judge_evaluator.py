@@ -1770,10 +1770,11 @@ class TestRubricModeSingleCall:
         assert result["total_score"] == 2.0
         assert result["total_max"] == 6.0
         assert result["overall_assessment"] == "solide"
-        # No new top-level keys.
+        # No new top-level keys. _raw_reasoning carries the judge model's
+        # reasoning (None here); the row builders move it to its column.
         assert set(result) == {
             "scores", "total_score", "total_max", "overall_assessment",
-            "_call_metadata", "_raw_output", "_judge_prompts_used",
+            "_call_metadata", "_raw_output", "_raw_reasoning", "_judge_prompts_used",
         }
 
     def test_other_metrics_keep_the_generic_prompt_schema_and_totals(self):

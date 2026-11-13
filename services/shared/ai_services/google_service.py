@@ -16,6 +16,7 @@ from google.genai import types
 
 from .attachments import google_contents
 from .base_service import BaseAIService, derive_truncated
+from .reasoning import google_thoughts
 from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
 
@@ -55,6 +56,23 @@ def retry_with_exponential_backoff(
                     retries += 1
         return wrapper
     return decorator
+
+
+
+def _thinking_config(thinking_budget: int) -> "types.ThinkingConfig":
+    """ThinkingConfig for a thinking-capable Gemini model.
+
+    ``include_thoughts`` asks Gemini to return thought summaries as parts
+    flagged ``thought=True``. They are stored as the generation's reasoning
+    and kept out of the answer text. Thinking tokens are billed the same
+    with or without it, and the answer parts are unchanged. A zero budget
+    turns thinking off, so there is nothing to include.
+    """
+    if thinking_budget == 0:
+        return types.ThinkingConfig(thinking_budget=0)
+    return types.ThinkingConfig(
+        thinking_budget=thinking_budget, include_thoughts=True
+    )
 
 
 class GoogleService(BaseAIService):
@@ -194,7 +212,7 @@ class GoogleService(BaseAIService):
             )
             if supports_thinking:
                 thinking_budget = kwargs.get("thinking_budget", 1024)
-                thinking_config = types.ThinkingConfig(thinking_budget=int(thinking_budget))
+                thinking_config = _thinking_config(int(thinking_budget))
                 logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
 
             # Configure generation settings using new SDK types
@@ -228,6 +246,7 @@ class GoogleService(BaseAIService):
 
             # Extract response text with detailed logging
             response_text = ""
+            reasoning: Optional[str] = None
             finish_reason: Optional[str] = None
             refusal = False
 
@@ -261,8 +280,12 @@ class GoogleService(BaseAIService):
                 if hasattr(candidate, 'content') and candidate.content:
                     if hasattr(candidate.content, 'parts') and candidate.content.parts:
                         for part in candidate.content.parts:
+                            # Thought parts are reasoning, not answer text.
+                            if getattr(part, 'thought', None) is True:
+                                continue
                             if hasattr(part, 'text') and part.text:
                                 response_text += part.text
+                        reasoning = google_thoughts(candidate.content.parts)
                         logger.info(
                             f"🔍 Extracted text from {len(candidate.content.parts)} part(s), length: {len(response_text)}")
                     else:
@@ -346,6 +369,7 @@ class GoogleService(BaseAIService):
                     },
                     success=False,
                     error="Model returned empty response (possible safety filter or capacity issue)",
+                    reasoning=reasoning,
                 )
 
             return self._create_response_dict(
@@ -372,6 +396,7 @@ class GoogleService(BaseAIService):
                 },
                 success=True,
                 error=None,
+                reasoning=reasoning,
             )
 
         except Exception as e:
@@ -489,7 +514,7 @@ class GoogleService(BaseAIService):
             )
             if supports_thinking:
                 thinking_budget = kwargs.get("thinking_budget", 1024)
-                thinking_config = types.ThinkingConfig(thinking_budget=int(thinking_budget))
+                thinking_config = _thinking_config(int(thinking_budget))
                 logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
 
             # Configure generation with JSON mode using new SDK types
@@ -512,7 +537,14 @@ class GoogleService(BaseAIService):
             response_time_ms = int(
                 (end_time - start_time).total_seconds() * 1000)
 
+            # response.text skips thought parts; they are read separately.
             response_text = response.text if response.text else ""
+            reasoning = (
+                google_thoughts(response.candidates[0].content.parts)
+                if getattr(response, "candidates", None)
+                and getattr(response.candidates[0], "content", None)
+                else None
+            )
 
             # Phase 6.6: extract finish_reason for academic-rigor logging.
             finish_reason: Optional[str] = None
@@ -606,6 +638,7 @@ class GoogleService(BaseAIService):
                 },
                 metadata=result_metadata,
                 success=True,
+                reasoning=reasoning,
             )
 
         except Exception as e:

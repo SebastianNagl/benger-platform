@@ -1648,7 +1648,7 @@ _RG_FIELDS = (
     "created_at", "started_at", "completed_at",
 )
 _GEN_FIELDS = (
-    "case_data", "response_content", "usage_stats", "response_metadata",
+    "case_data", "response_content", "reasoning", "usage_stats", "response_metadata",
     "status", "error_message", "seed", "finish_reason", "truncated", "refusal",
     "error_type", "latency_ms", "input_tokens", "output_tokens", "run_index",
     "created_at", "parse_status", "parse_error", "parsed_annotation",
@@ -1669,7 +1669,7 @@ _TE_FIELDS = (
     "prediction", "metrics", "passed", "confidence_score", "error_message",
     "processing_time_ms", "judge_prompts_used", "seed", "finish_reason",
     "truncated", "refusal", "error_type", "latency_ms", "input_tokens",
-    "output_tokens", "raw_output", "created_at", "updated_at",
+    "output_tokens", "raw_output", "raw_reasoning", "created_at", "updated_at",
 )
 _TASK_FIELDS = ("data", "meta", "is_labeled", "created_at", "updated_at")
 
@@ -1766,6 +1766,8 @@ def benchmark_project(db_session, user):
                 run_index=run,
                 case_data=json.dumps(t.data),
                 response_content=f"Answer case {i} run {run}",
+                # Reasoning on one run only, so NULL round-trips too.
+                reasoning=None if run else f"Reasoning case {i}",
                 usage_stats={"input_tokens": 100 + run, "output_tokens": 40 + run},
                 response_metadata={"finish_reason": "stop"},
                 status="completed",
@@ -1853,6 +1855,7 @@ def benchmark_project(db_session, user):
                 input_tokens=300 + n,
                 output_tokens=60 + n,
                 raw_output=f'{{"score": {0.5 + n / 10}, "row": {n}}}',
+                raw_reasoning=f"Judge reasoning {n}" if n % 2 else None,
                 created_at=_T0 + timedelta(hours=1, minutes=10 + n),
                 updated_at=_T0 + timedelta(hours=1, minutes=30 + n),
             )
@@ -2022,14 +2025,14 @@ class TestBenchmarkRunRoundtrip:
             "generation": (
                 "run_index", "seed", "finish_reason", "truncated", "refusal",
                 "error_type", "latency_ms", "input_tokens", "output_tokens",
-                "created_at",
+                "created_at", "reasoning",
             ),
             "evaluation": ("has_sample_results", "created_at", "completed_at"),
             "evaluation_judge_run": ("started_at", "completed_at"),
             "task_evaluation": (
                 "raw_output", "seed", "finish_reason", "truncated", "refusal",
                 "error_type", "latency_ms", "input_tokens", "output_tokens",
-                "created_at", "updated_at",
+                "created_at", "updated_at", "raw_reasoning",
             ),
         }
         plural = {
@@ -2062,6 +2065,7 @@ class TestBenchmarkRunRoundtrip:
         for g in dst["generations"].values():
             by_parent.setdefault(g.generation_id, set()).add(g.run_index)
             assert g.truncated is False and g.refusal is False
+            assert g.reasoning is None
             assert g.created_at > before
         assert sorted(by_parent.values(), key=sorted) == [{0, 1}, {0, 1}]
         for rg in dst["response_generations"].values():
@@ -2076,6 +2080,7 @@ class TestBenchmarkRunRoundtrip:
         ).all()
         assert len(tes) == 4
         assert all(te.raw_output is None and te.refusal is False for te in tes)
+        assert all(te.raw_reasoning is None for te in tes)
 
 
 def test_model_id_map_must_map_strings_to_strings(db_session, user, benchmark_project):
@@ -2198,6 +2203,7 @@ def _benchmark_new_model(db, project_id, user_id, model_id, runs=1):
                 run_index=r,
                 case_data=json.dumps(t.data),
                 response_content=f"New model answer {t.data['text']}",
+                reasoning=f"New model reasoning {t.data['text']}",
                 status="completed",
             )
             db.add(g)
@@ -2216,6 +2222,7 @@ def _benchmark_new_model(db, project_id, user_id, model_id, runs=1):
                     metrics={"score": 0.9},
                     passed=True,
                     raw_output=f"new judge {n}" + (f" run {r}" if r else ""),
+                    raw_reasoning=f"new judge reasoning {n}",
                 )
             )
     db.commit()
@@ -2354,6 +2361,16 @@ class TestMergeImport:
         ).all()
         assert {te.generation_id for te in rows} == new_gen_ids
         assert sorted(te.raw_output for te in rows) == ["new judge 0", "new judge 1"]
+        # Model and judge reasoning come along with the merged rows.
+        assert sorted(te.raw_reasoning for te in rows) == [
+            "new judge reasoning 0", "new judge reasoning 1"
+        ]
+        merged_gens = db_session.query(Generation).filter(Generation.id.in_(new_gen_ids)).all()
+        assert merged_gens
+        assert all(
+            g.reasoning == g.response_content.replace("answer", "reasoning")
+            for g in merged_gens
+        )
 
         # The generation grid takes its columns from the model selection.
         db_session.refresh(prod)

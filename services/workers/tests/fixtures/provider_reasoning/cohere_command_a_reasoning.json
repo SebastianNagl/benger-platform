@@ -1,0 +1,28 @@
+{
+  "_source": "Cohere v2 /chat, command-a-reasoning-08-2025: thinking content block before the text block.",
+  "id": "c0h3r3",
+  "finish_reason": "COMPLETE",
+  "message": {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "Der Nutzer fragt nach der Verjährung; Regelfrist drei Jahre, § 195 BGB."
+      },
+      {
+        "type": "text",
+        "text": "Der Anspruch ist verjährt."
+      }
+    ]
+  },
+  "usage": {
+    "billed_units": {
+      "input_tokens": 60,
+      "output_tokens": 45
+    },
+    "tokens": {
+      "input_tokens": 60,
+      "output_tokens": 45
+    }
+  }
+}

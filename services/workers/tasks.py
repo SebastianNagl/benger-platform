@@ -184,6 +184,23 @@ def _scrub_control_chars(obj):
     return obj
 
 
+def _pop_judge_reasoning(result: Optional[dict]) -> Optional[str]:
+    """Move the judge model's reasoning out of a judge ``result`` dict.
+
+    The evaluator puts the reasoning text the judge's provider returned
+    (``response["reasoning"]``) under ``_raw_reasoning``. It belongs in the
+    ``task_evaluations.raw_reasoning`` column, not in the metrics blob the
+    score readers parse, so the row builders pop it here, next to the
+    ``_judge_prompts_used`` pop. ``None`` when the judge returned none.
+    """
+    if not isinstance(result, dict):
+        return None
+    reasoning = result.pop("_raw_reasoning", None)
+    if not isinstance(reasoning, str) or not reasoning:
+        return None
+    return _strip_control_chars(reasoning)
+
+
 def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
     """Phase 6.6: pull the eight academic-rigor column values + raw_output
     out of an LLM-judge ``result`` dict (which carries ``_call_metadata``

@@ -1,5 +1,6 @@
 'use client'
 
+import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
@@ -279,18 +280,21 @@ export function GenerationResultModal({
   const renderResultContent = (result: GenerationResult) => (
     <>
       {result.status === 'completed' && result.result ? (
-        <div>
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            {t('generation.resultModal.generatedText')}
-          </h4>
-          <div className="max-h-96 overflow-y-auto rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-            <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
-              {viewMode === 'raw'
-                ? JSON.stringify(result.result, null, 2)
-                : formatResult(result.result)}
-            </pre>
+        <>
+          <div>
+            <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              {t('generation.resultModal.generatedText')}
+            </h4>
+            <div className="max-h-96 overflow-y-auto rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+              <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
+                {viewMode === 'raw'
+                  ? JSON.stringify(result.result, null, 2)
+                  : formatResult(result.result)}
+              </pre>
+            </div>
           </div>
-        </div>
+          <GenerationReasoning result={result.result} />
+        </>
       ) : result.status === 'failed' && result.error_message ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <p className="text-sm font-medium text-red-800 dark:text-red-300">

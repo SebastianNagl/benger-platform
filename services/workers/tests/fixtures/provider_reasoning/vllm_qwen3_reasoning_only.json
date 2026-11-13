@@ -1,0 +1,34 @@
+{
+  "_source": "vLLM 0.11 OpenAI-compatible /v1/chat/completions behind GPUStack, Qwen3-4B-Instruct-2507, reasoning parser enabled: the server put the whole output into message.reasoning and returned content null.",
+  "id": "chatcmpl-8d1f4e2a9b7c4d0e",
+  "object": "chat.completion",
+  "created": 1794500000,
+  "model": "qwen3-4b-instruct-2507",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "refusal": null,
+        "annotations": null,
+        "audio": null,
+        "function_call": null,
+        "tool_calls": [],
+        "reasoning": "Die Klage ist zulässig und begründet, weil der Anspruch aus § 433 Abs. 2 BGB besteht.",
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "stop",
+      "stop_reason": null
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 212,
+    "total_tokens": 251,
+    "completion_tokens": 39,
+    "prompt_tokens_details": null
+  },
+  "prompt_logprobs": null,
+  "kv_transfer_params": null
+}

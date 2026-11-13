@@ -366,6 +366,7 @@ def evaluate_generation_cell_impl(
     _extract_field_value_from_parsed_annotation = tasks._extract_field_value_from_parsed_annotation
     _get_insensitive = tasks._get_insensitive
     _llm_judge_columns_from_result = tasks._llm_judge_columns_from_result
+    _pop_judge_reasoning = tasks._pop_judge_reasoning
     _normalize_field_key = tasks._normalize_field_key
     _publish_progress = tasks._publish_progress
     _reconstruct_judge_evaluators_for_cell = tasks._reconstruct_judge_evaluators_for_cell
@@ -818,6 +819,9 @@ def evaluate_generation_cell_impl(
                                     if result
                                     else None
                                 )
+                                # The judge model's own reasoning goes to the raw_reasoning
+                                # column, not into the metrics blob.
+                                judge_reasoning = _pop_judge_reasoning(result)
 
                                 if multidim_mode:
                                     if task_rubric is not None:
@@ -852,6 +856,7 @@ def evaluate_generation_cell_impl(
                                         "passed": _multidim_row_passed(metrics_dict, metric, normalized),
                                         "error_message": error_msg,
                                         "judge_prompts_used": judge_prompts,
+                                        "raw_reasoning": judge_reasoning,
                                         **_llm_judge_columns_from_result(result),
                                     })
                                     continue
@@ -894,6 +899,7 @@ def evaluate_generation_cell_impl(
                                         "prediction": str(prediction)[:1000] if prediction else "",
                                         "error_message": error_msg,
                                         "judge_prompts_used": judge_prompts,
+                                        "raw_reasoning": judge_reasoning,
                                         **build_falloesung_row_dict(result=result, error_message=error_msg),
                                     })
                                 else:
@@ -930,6 +936,7 @@ def evaluate_generation_cell_impl(
                                         ),
                                         "error_message": error_msg,
                                         "judge_prompts_used": judge_prompts,
+                                        "raw_reasoning": judge_reasoning,
                                         **_llm_judge_columns_from_result(result),
                                     })
 
@@ -1094,6 +1101,7 @@ def evaluate_annotation_cell_impl(
     _extract_field_value_from_annotation = tasks._extract_field_value_from_annotation
     _get_insensitive = tasks._get_insensitive
     _llm_judge_columns_from_result = tasks._llm_judge_columns_from_result
+    _pop_judge_reasoning = tasks._pop_judge_reasoning
     _normalize_field_key = tasks._normalize_field_key
     _publish_progress = tasks._publish_progress
     _reconstruct_judge_evaluators_for_cell = tasks._reconstruct_judge_evaluators_for_cell
@@ -1476,6 +1484,9 @@ def evaluate_annotation_cell_impl(
                                         if result
                                         else None
                                     )
+                                    # The judge model's own reasoning goes to the raw_reasoning
+                                    # column, not into the metrics blob.
+                                    judge_reasoning = _pop_judge_reasoning(result)
 
                                     if multidim_mode:
                                         if task_rubric is not None:
@@ -1511,6 +1522,7 @@ def evaluate_annotation_cell_impl(
                                             "passed": _multidim_row_passed(metrics_dict, metric, normalized),
                                             "error_message": error_msg,
                                             "judge_prompts_used": judge_prompts,
+                                            "raw_reasoning": judge_reasoning,
                                             **_llm_judge_columns_from_result(result),
                                         })
                                         continue
@@ -1549,6 +1561,7 @@ def evaluate_annotation_cell_impl(
                                             "prediction": str(prediction)[:1000] if prediction else "",
                                             "error_message": error_msg,
                                             "judge_prompts_used": judge_prompts,
+                                            "raw_reasoning": judge_reasoning,
                                             **build_falloesung_row_dict(result=result, error_message=error_msg),
                                         })
                                     else:
@@ -1586,6 +1599,7 @@ def evaluate_annotation_cell_impl(
                                             ),
                                             "error_message": error_msg,
                                             "judge_prompts_used": judge_prompts,
+                                            "raw_reasoning": judge_reasoning,
                                             **_llm_judge_columns_from_result(result),
                                         })
 

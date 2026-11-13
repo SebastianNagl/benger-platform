@@ -102,7 +102,7 @@ class TestSerializeAnnotation:
 class TestSerializeGeneration:
     def _mock_gen(self, **overrides):
         defaults = {
-            "id": "g1", "model_id": "gpt-4", "response_content": "answer",
+            "id": "g1", "model_id": "gpt-4", "response_content": "answer", "reasoning": None,
             "case_data": {"q": "question"}, "created_at": _mock_dt(),
             "response_metadata": {}, "generation_id": "gen-1",
             "task_id": "t1", "usage_stats": {}, "status": "completed",
@@ -154,6 +154,7 @@ class TestSerializeTaskEvaluation:
             "task_id": "t1", "generation_id": "g1",
             # Round-trip judge-prompt provenance.
             "judge_prompts_used": None,
+            "raw_reasoning": None,
             "judge_run_id": None,
             # PR #112 exposed task_evaluation.created_by in the serializer
             # (grader user_id for korrektur / LLM-judge rows). The fake

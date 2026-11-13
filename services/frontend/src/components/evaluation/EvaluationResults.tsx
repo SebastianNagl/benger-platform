@@ -330,6 +330,7 @@ export function EvaluationResults({
     status: string
     result?: {
       generated_text?: string
+      reasoning?: string | null
       created_at?: string
       usage_stats?: Record<string, any>
       fields?: Record<string, any>

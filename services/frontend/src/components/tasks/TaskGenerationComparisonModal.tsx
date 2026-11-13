@@ -1,5 +1,6 @@
 'use client'
 
+import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { formatDecimal, intlTag } from '@/lib/i18n/locales'
@@ -186,12 +187,18 @@ export function TaskGenerationComparisonModal({
       </div>
 
       {result.status === 'completed' && result.result ? (
-        <div className="max-h-80 overflow-y-auto rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-          <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-100">
-            {viewMode === 'raw'
-              ? JSON.stringify(result.result, null, 2)
-              : formatResult(result.result)}
-          </pre>
+        <div className="space-y-3">
+          <div className="max-h-80 overflow-y-auto rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+            <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-100">
+              {viewMode === 'raw'
+                ? JSON.stringify(result.result, null, 2)
+                : formatResult(result.result)}
+            </pre>
+          </div>
+          <GenerationReasoning
+            result={result.result}
+            className="rounded-lg border p-3"
+          />
         </div>
       ) : result.error_message ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-900/20">

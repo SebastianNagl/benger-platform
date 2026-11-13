@@ -1,0 +1,35 @@
+{
+  "_source": "Anthropic Messages API, extended thinking enabled: thinking block, redacted_thinking block, text block.",
+  "id": "msg_01ABC",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-5-20250929",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "Ich prüfe zuerst die Zulässigkeit der Klage.",
+      "signature": "EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds"
+    },
+    {
+      "type": "redacted_thinking",
+      "data": "EmwKAhgBEgy3va3pzix/LafPsn4aDFIT2Xlxh0L5L8rLVyIwxtE3rAFBa8cr3qpP"
+    },
+    {
+      "type": "thinking",
+      "thinking": "Dann die Begründetheit nach § 823 Abs. 1 BGB.",
+      "signature": "EqQBCgIYAhIMxyz"
+    },
+    {
+      "type": "text",
+      "text": "Die Klage hat Erfolg."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 400,
+    "output_tokens": 220,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0
+  }
+}
