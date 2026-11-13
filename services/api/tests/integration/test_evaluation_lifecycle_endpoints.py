@@ -461,29 +461,29 @@ class TestLifecycleAuth:
             == "cancelled"
         )
 
-    def test_redispatch_drops_a_payer_the_caller_cannot_bill(
+    def test_editor_retry_keeps_the_runs_stored_payer(
         self, client, test_db, test_users, auth_headers, test_org
     ):
-        """The stored payer is reused only while the caller may still bill
-        it: a run that recorded an org the resuming contributor is not a
-        member of is re-billed by the default rule instead."""
+        """The worker spends keys as the run's starter, so a retry by another
+        editor re-dispatches with the payer stored on the run, even an org
+        the retrying editor is not a member of."""
         from models import Organization
 
         admin = test_users[0]
         contributor = next(u for u in test_users if "contributor" in u.username)
-        foreign = Organization(
-            id=_uid(), name="Foreign", slug=f"foreign-{uuid.uuid4().hex[:6]}",
-            display_name="Foreign", created_at=datetime.now(timezone.utc),
+        payer = Organization(
+            id=_uid(), name="Payer", slug=f"payer-{uuid.uuid4().hex[:6]}",
+            display_name="Payer", created_at=datetime.now(timezone.utc),
         )
-        test_db.add(foreign)
+        test_db.add(payer)
         test_db.flush()
         data = _seed_run(
-            test_db, admin, test_org, status="paused",
+            test_db, admin, test_org, status="failed",
             created_by=contributor.id,
         )
         data["eval_run"].eval_metadata = {
             **data["eval_run"].eval_metadata,
-            "organization_id": foreign.id,
+            "organization_id": payer.id,
         }
         test_db.commit()
         fake_task = MagicMock()
@@ -493,9 +493,9 @@ class TestLifecycleAuth:
         ) as mock_celery:
             mock_celery.send_task.return_value = fake_task
             resp = client.post(
-                f"{BASE}/run/{data['eval_run'].id}/resume",
-                headers=auth_headers["contributor"],
+                f"{BASE}/run/{data['eval_run'].id}/retry",
+                headers=auth_headers["org_admin"],
             )
         assert resp.status_code == 200, resp.text
         kwargs = mock_celery.send_task.call_args.kwargs["kwargs"]
-        assert kwargs["organization_id"] == test_org.id
+        assert kwargs["organization_id"] == payer.id

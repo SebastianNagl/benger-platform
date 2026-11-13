@@ -28,8 +28,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from sqlalchemy import text as _sql_text
 from sqlalchemy.orm.attributes import flag_modified
 
-from routers.evaluations.helpers import resolve_user_org_for_project
-
 from .run import _can_launch_evaluation
 
 
@@ -110,6 +108,7 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
         "label_config_version": meta.get("label_config_version"),
         # Always missing-only on resume/retry: reuse every completed cell.
         "evaluate_missing_only": True,
+        "organization_id": meta.get("organization_id"),
         "task_ids": meta.get("task_ids"),
         "model_ids": meta.get("model_ids"),
         "annotator_user_ids": meta.get("annotator_user_ids"),
@@ -117,35 +116,12 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
     }
 
 
-def _resolve_payer(
-    db: Session, evaluation: DBEvaluationRun, current_user: User
-) -> Optional[str]:
-    """The org whose keys the re-dispatch spends: the run's stored payer
-    while ``current_user`` may still bill it, otherwise the default rule
-    for a run the caller starts (``min_role="CONTRIBUTOR"``)."""
-    from org_resolution import billing_org_options
-
-    project = db.query(Project).filter(Project.id == evaluation.project_id).first()
-    stored = (evaluation.eval_metadata or {}).get("organization_id")
-    if stored and str(stored) in {
-        o["id"]
-        for o in billing_org_options(db, current_user, project, min_role="CONTRIBUTOR")
-    }:
-        return str(stored)
-    return resolve_user_org_for_project(
-        current_user, project, db, min_role="CONTRIBUTOR"
-    )
-
-
-def _redispatch(
-    db: Session, evaluation: DBEvaluationRun, action: str, current_user: User
-) -> str:
+def _redispatch(db: Session, evaluation: DBEvaluationRun, action: str) -> str:
     """Send ``tasks.run_evaluation`` for the (already pending-flipped) run and
     persist the new celery task id. On broker failure, mark the run failed
     (mirror of the ``POST /run`` dispatch except-branch) and re-raise.
     """
     kwargs = _dispatch_snapshot_kwargs(evaluation)
-    kwargs["organization_id"] = _resolve_payer(db, evaluation, current_user)
     try:
         task = celery_app.send_task("tasks.run_evaluation", kwargs=kwargs)
     except Exception as e:  # pragma: no cover - broker down
@@ -269,7 +245,7 @@ def resume_evaluation_run(
             ),
         )
     db.refresh(evaluation)
-    task_id = _redispatch(db, evaluation, "resume", current_user)
+    task_id = _redispatch(db, evaluation, "resume")
     return EvaluationLifecycleResponse(
         evaluation_id=evaluation_id,
         action="resume",
@@ -329,7 +305,7 @@ def retry_evaluation_run(
             ),
         )
     db.refresh(evaluation)
-    task_id = _redispatch(db, evaluation, "retry", current_user)
+    task_id = _redispatch(db, evaluation, "retry")
     return EvaluationLifecycleResponse(
         evaluation_id=evaluation_id,
         action="retry",
