@@ -168,8 +168,8 @@ is imported. Exported Bewertungsbogen (task rubrics) are mapped onto the
 matching task's identical sheet, and a sheet the task lacks is added (as a
 candidate when the task already has an active one), so merged gradings stay
 joinable to their sheet. Annotations, comments and human-evaluation data are
-not merged. In the UI the merge is the "Merge results" button on the project's data
-page.
+not merged. In the UI the merge is the "Merge results" button on the project's
+data page.
 
 ## Data Format
 
