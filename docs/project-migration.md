@@ -164,8 +164,11 @@ hold yet, and adds newly merged models to the project's model selection so the
 generation grid shows them. Results already present are skipped, so running the
 same merge twice changes nothing. If any exported task matches no task of the
 project (or more than one), the job fails with `merge_task_mismatch` and nothing
-is imported. Annotations, rubrics, comments and human-evaluation data are not
-merged. In the UI the merge is the "Merge results" button on the project's data
+is imported. Exported Bewertungsbogen (task rubrics) are mapped onto the
+matching task's identical sheet, and a sheet the task lacks is added (as a
+candidate when the task already has an active one), so merged gradings stay
+joinable to their sheet. Annotations, comments and human-evaluation data are
+not merged. In the UI the merge is the "Merge results" button on the project's data
 page.
 
 ## Data Format

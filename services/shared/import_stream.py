@@ -3431,17 +3431,20 @@ class _MergeState:
                 .yield_per(_IMPORT_BATCH)
             ):
                 self.jobs[(task_id, model_id, _utc_key(created_at))] = rg_id
-            for gen_id, task_id, model_id, content in (
+            for gen_id, task_id, model_id, run_index, content in (
                 db.query(
                     Generation.id,
                     Generation.task_id,
                     Generation.model_id,
+                    Generation.run_index,
                     Generation.response_content,
                 )
                 .filter(Generation.task_id.in_(task_ids))
                 .yield_per(_IMPORT_BATCH)
             ):
-                self.generations[(task_id, model_id, _digest(content or ""))] = gen_id
+                self.generations[
+                    (task_id, model_id, run_index or 0, _digest(content or ""))
+                ] = gen_id
         self.runs: Dict[tuple, str] = {}
         self.human_korrektur_run: Optional[str] = None
         for run_id, model_id, created_at, meta in db.query(
@@ -3625,7 +3628,12 @@ def _merge_generation(ctx, state: _MergeState, rec: dict) -> None:
     if not old_id or not task_id:
         return
     model_id = _map_model(ctx, rec.get("model_id"))
-    key = (task_id, model_id, _digest(rec.get("response_content") or ""))
+    key = (
+        task_id,
+        model_id,
+        rec.get("run_index") or 0,
+        _digest(rec.get("response_content") or ""),
+    )
     existing = state.generations.get(key)
     if existing:
         ctx.id_mappings["generations"][old_id] = existing

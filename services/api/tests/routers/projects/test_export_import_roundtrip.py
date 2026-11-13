@@ -2130,10 +2130,10 @@ def _merge_text(db, project_id, text, user_id, **kwargs):
     )
 
 
-def _benchmark_new_model(db, project_id, user_id, model_id):
-    """What a benchmark run on the local copy adds: one generation job and
-    generation per task for ``model_id``, and an evaluation run that judges
-    them."""
+def _benchmark_new_model(db, project_id, user_id, model_id, runs=1):
+    """What a benchmark run on the local copy adds: one generation job per
+    task for ``model_id`` with ``runs`` generations that all give the same
+    answer, and an evaluation run that judges every run."""
     from models import EvaluationRunMetric
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
@@ -2180,43 +2180,44 @@ def _benchmark_new_model(db, project_id, user_id, model_id):
             model_id=model_id,
             structure_key="default",
             status="completed",
-            responses_generated=1,
-            runs_requested=1,
-            runs_completed=1,
+            responses_generated=runs,
+            runs_requested=runs,
+            runs_completed=runs,
             prompt_used=f"new model prompt {n}",
             created_by=user_id,
             created_at=when + timedelta(seconds=n),
         )
         db.add(rg)
         db.flush()
-        g = Generation(
-            id=str(uuid.uuid4()),
-            generation_id=rg.id,
-            task_id=t.id,
-            model_id=model_id,
-            run_index=0,
-            case_data=json.dumps(t.data),
-            response_content=f"New model answer {t.data['text']}",
-            status="completed",
-        )
-        db.add(g)
-        db.flush()
-        db.add(
-            TaskEvaluation(
+        for r in range(runs):
+            g = Generation(
                 id=str(uuid.uuid4()),
-                evaluation_id=run.id,
-                judge_run_id=jr.id,
+                generation_id=rg.id,
                 task_id=t.id,
-                generation_id=g.id,
-                field_name="cfg-judge:answer:reference",
-                answer_type="text",
-                ground_truth="expected",
-                prediction=g.response_content,
-                metrics={"score": 0.9},
-                passed=True,
-                raw_output=f"new judge {n}",
+                model_id=model_id,
+                run_index=r,
+                case_data=json.dumps(t.data),
+                response_content=f"New model answer {t.data['text']}",
+                status="completed",
             )
-        )
+            db.add(g)
+            db.flush()
+            db.add(
+                TaskEvaluation(
+                    id=str(uuid.uuid4()),
+                    evaluation_id=run.id,
+                    judge_run_id=jr.id,
+                    task_id=t.id,
+                    generation_id=g.id,
+                    field_name="cfg-judge:answer:reference",
+                    answer_type="text",
+                    ground_truth="expected",
+                    prediction=g.response_content,
+                    metrics={"score": 0.9},
+                    passed=True,
+                    raw_output=f"new judge {n}" + (f" run {r}" if r else ""),
+                )
+            )
     db.commit()
 
 
@@ -2366,6 +2367,53 @@ class TestMergeImport:
         )
         assert set(again["statistics"]["added_counts"].values()) == {0}
         assert again["statistics"]["models_added_to_project"] == []
+        assert _result_counts(db_session, prod.id) == after
+
+    def test_repeated_runs_with_the_same_answer_all_merge(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A model run twice per task that answers the same both times: both
+        runs arrive as their own generations, each judged row stays on its
+        own run, and merging the file again adds nothing."""
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL, runs=2)
+        local_export = _export_text(db_session, local_id, fmt)
+
+        result = _merge_text(db_session, prod.id, local_export, user.id)
+        added = result["statistics"]["added_counts"]
+        assert added["response_generations"] == 2
+        assert added["generations"] == 4
+        assert added["task_evaluations"] == 4
+
+        prod_tasks = db_session.query(Task).filter(Task.project_id == prod.id).all()
+        new_run = db_session.query(EvaluationRun).filter(
+            EvaluationRun.project_id == prod.id, EvaluationRun.model_id == LOCAL_MODEL
+        ).one()
+        for t in prod_tasks:
+            gens = db_session.query(Generation).filter(
+                Generation.task_id == t.id, Generation.model_id == LOCAL_MODEL
+            ).all()
+            assert sorted(g.run_index for g in gens) == [0, 1]
+            judged = {
+                te.generation_id: te.raw_output
+                for te in db_session.query(TaskEvaluation).filter(
+                    TaskEvaluation.evaluation_id == new_run.id,
+                    TaskEvaluation.task_id == t.id,
+                )
+            }
+            by_run = {g.run_index: g.id for g in gens}
+            local_n = judged[by_run[0]].split()[2]
+            assert judged == {
+                by_run[0]: f"new judge {local_n}",
+                by_run[1]: f"new judge {local_n} run 1",
+            }
+
+        after = _result_counts(db_session, prod.id)
+        again = _merge_text(db_session, prod.id, local_export, user.id)
+        assert set(again["statistics"]["added_counts"].values()) == {0}
         assert _result_counts(db_session, prod.id) == after
 
     def test_merging_a_project_into_itself_adds_nothing(
