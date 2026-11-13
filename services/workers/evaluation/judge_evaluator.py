@@ -213,6 +213,7 @@ def _evaluate_llm_judge_single_impl(
             raise RuntimeError(err_msg)
 
         judge_prompts_used = multidim.get("_judge_prompts_used")
+        judge_reasoning = tasks._pop_judge_reasoning(multidim)
         if task_rubric is not None:
             # rubric_id + Notenpunkte on the result, sheet provenance on the
             # prompts: the same stamp the bulk cell paths apply.
@@ -245,6 +246,7 @@ def _evaluate_llm_judge_single_impl(
             prediction=prediction,
             metrics=row_metrics,
             judge_prompts_used=judge_prompts_used,
+            raw_reasoning=judge_reasoning,
             passed=row_passed,
         )
         db.add(eval_record)
@@ -288,6 +290,7 @@ def _evaluate_llm_judge_single_impl(
         )
         raise RuntimeError(err_msg)
 
+    judge_reasoning = tasks._pop_judge_reasoning(raw)
     raw_score = float(raw["score"])
     # Normalize to 0..1 the same way evaluate() does for the bulk path.
     score = raw_score if llm_judge.score_scale == "0-1" else (raw_score - 1) / 4
@@ -309,6 +312,7 @@ def _evaluate_llm_judge_single_impl(
             f"{metric_type}_details": raw,
             "raw_score": float(score),
         },
+        raw_reasoning=judge_reasoning,
         passed=float(score) >= 0.5,
     )
     db.add(eval_record)

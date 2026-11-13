@@ -1,0 +1,37 @@
+{
+  "_source": "Mistral /v1/chat/completions, magistral-medium with prompt_mode=reasoning: list content with a thinking chunk and a text chunk.",
+  "id": "cmpl-m1",
+  "object": "chat.completion",
+  "created": 1794500600,
+  "model": "magistral-medium-2509",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "tool_calls": null,
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": [
+              {
+                "type": "text",
+                "text": "Zunächst ist zu klären, ob ein Vertrag zustande kam."
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "Ein Kaufvertrag ist zustande gekommen."
+          }
+        ]
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 70,
+    "completion_tokens": 90,
+    "total_tokens": 160
+  }
+}

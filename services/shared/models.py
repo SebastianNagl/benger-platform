@@ -2353,6 +2353,11 @@ class Generation(Base):
     # Prompt functionality now in generation_structure field
     case_data = Column(Text, nullable=False)  # Input case data
     response_content = Column(Text, nullable=False)  # Generated response
+    # Reasoning text the provider returned beside the answer (thinking
+    # blocks, thought summaries, reasoning_content; see
+    # ai_services/reasoning.py). NULL when it returned none. Research data
+    # only: never parsed, scored or shown to judges (migration 131).
+    reasoning = Column(Text, nullable=True)
     usage_stats = Column(JSON, nullable=True)  # Token usage and costs
     # Additional response metadata
     response_metadata = Column(JSON, nullable=True)
@@ -2594,6 +2599,9 @@ class TaskEvaluation(Base):
     input_tokens = Column(Integer, nullable=True)
     output_tokens = Column(Integer, nullable=True)
     raw_output = Column(Text, nullable=True)
+    # Reasoning text the judge model returned beside raw_output (migration
+    # 131). NULL when it returned none; never read by score parsing.
+    raw_reasoning = Column(Text, nullable=True)
     # First-class grader identity for human-graded evaluation rows (e.g.
     # korrektur_falloesung). Nullable because LLM-judge rows have no
     # human grader. Added in migration 037.

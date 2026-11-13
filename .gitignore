@@ -202,6 +202,8 @@ targeted_fix.py
 # Unignore the pinned extended-overlay import contract (tests/contracts)
 !services/api/tests/contracts/*.json
 !services/workers/tests/contracts/*.json
+# Unignore the recorded provider response fixtures (reasoning capture tests)
+!services/workers/tests/fixtures/provider_reasoning/*.json
 
 # Unignore the prompts of the requirement-level rubric judge, written from the
 # worker code (services/workers/scripts/write_rubric_requirement_prompts.py)

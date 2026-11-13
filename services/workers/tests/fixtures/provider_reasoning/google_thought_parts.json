@@ -1,0 +1,29 @@
+{
+  "_source": "Gemini generateContent with thinkingConfig.includeThoughts=true: a thought-summary part (thought=true) before the answer part.",
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "**Prüfung der Anspruchsgrundlage**\nIch beginne mit § 280 Abs. 1 BGB.",
+            "thought": true
+          },
+          {
+            "text": "Der Schadensersatzanspruch besteht."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 150,
+    "candidatesTokenCount": 12,
+    "totalTokenCount": 420,
+    "thoughtsTokenCount": 258
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "resp-g1"
+}

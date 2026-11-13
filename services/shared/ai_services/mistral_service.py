@@ -17,6 +17,7 @@ from functools import wraps
 from typing import Any, Dict, Optional
 
 from .base_service import BaseAIService, derive_refusal, derive_truncated
+from .reasoning import mistral_content
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -244,7 +245,14 @@ class MistralService(BaseAIService):
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Extract response data
-            content = response.choices[0].message.content.strip() if response.choices else ""
+            # Magistral returns a list of chunks (thinking + text); other
+            # models a string. Thinking chunks become the stored reasoning.
+            answer, reasoning = (
+                mistral_content(response.choices[0].message.content)
+                if response.choices
+                else ("", None)
+            )
+            content = answer.strip()
 
             # Get usage stats
             usage = response.usage if hasattr(response, 'usage') else None
@@ -289,6 +297,7 @@ class MistralService(BaseAIService):
                 },
                 success=True,
                 error=None,
+                reasoning=reasoning,
             )
 
         except Exception as e:
@@ -399,7 +408,12 @@ Your response must be ONLY the JSON object, no other text before or after.
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Extract response data
-            raw_content = response.choices[0].message.content.strip() if response.choices else ""
+            answer, reasoning = (
+                mistral_content(response.choices[0].message.content)
+                if response.choices
+                else ("", None)
+            )
+            raw_content = answer.strip()
 
             # Get usage stats
             usage = response.usage if hasattr(response, 'usage') else None
@@ -464,6 +478,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 metadata=result_metadata,
                 success=True,
                 error=None,
+                reasoning=reasoning,
             )
 
         except Exception as e:

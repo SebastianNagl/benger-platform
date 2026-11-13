@@ -1,0 +1,25 @@
+{
+  "_source": "OpenAI /v1/chat/completions, gpt-4.1: no reasoning field.",
+  "id": "chatcmpl-oa",
+  "object": "chat.completion",
+  "created": 1794500400,
+  "model": "gpt-4.1",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Die Berufung ist unzulässig.",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 50,
+    "completion_tokens": 10,
+    "total_tokens": 60
+  }
+}

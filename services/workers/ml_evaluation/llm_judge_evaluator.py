@@ -1290,6 +1290,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "error_message": response.get("error"),
                         "_call_metadata": _extract_call_metadata(response),
                         "_raw_output": response.get("content", ""),
+                        "_raw_reasoning": response.get("reasoning"),
                         "_judge_prompts_used": {
                             "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
                             "evaluation_prompt": prompt,
@@ -1326,6 +1327,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     # task_evaluations.metrics[criterion].details.
                     result["_call_metadata"] = _extract_call_metadata(response)
                     result["_raw_output"] = content
+                    result["_raw_reasoning"] = response.get("reasoning")
                     # Return the ENTIRE parsed response (all custom fields)
                     return result
 
@@ -1343,6 +1345,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "error_type": "parse_error",
                     },
                     "_raw_output": content,
+                    "_raw_reasoning": response.get("reasoning"),
                     "_judge_prompts_used": {
                         "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
                         "evaluation_prompt": prompt,
@@ -2034,6 +2037,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "error_message": response.get("error"),
                         "_call_metadata": call_meta(base_meta),
                         "_raw_output": response.get("content", ""),
+                        "_raw_reasoning": response.get("reasoning"),
                         "_judge_prompts_used": provenance,
                     }
                     error_type = base_meta.get("error_type")
@@ -2092,6 +2096,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                                 _extract_call_metadata(response), error_type="checklist_error"
                             ),
                             "_raw_output": content,
+                            "_raw_reasoning": response.get("reasoning"),
                             "_judge_prompts_used": provenance,
                         }
                     if not result.get("missing") and result.get("not_evaluable"):
@@ -2106,6 +2111,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                                 _extract_call_metadata(response), error_type="not_evaluable"
                             ),
                             "_raw_output": content,
+                            "_raw_reasoning": response.get("reasoning"),
                             "_judge_prompts_used": provenance,
                         }
                     if not result.get("missing"):
@@ -2117,6 +2123,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             **result,
                             "_call_metadata": call_meta(_extract_call_metadata(response)),
                             "_raw_output": content,
+                            "_raw_reasoning": response.get("reasoning"),
                             "_judge_prompts_used": provenance,
                         }
                     # A judgment that skips steps is not a judgment: retry,
@@ -2129,6 +2136,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             _extract_call_metadata(response), error_type="parse_error"
                         ),
                         "_raw_output": content,
+                        "_raw_reasoning": response.get("reasoning"),
                         "_judge_prompts_used": provenance,
                     }
                     if attempt < self.max_retries - 1:
@@ -2159,6 +2167,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "overall_assessment": str(parsed.get("overall_assessment", "") or ""),
                         "_call_metadata": call_meta(_extract_call_metadata(response)),
                         "_raw_output": content,
+                        "_raw_reasoning": response.get("reasoning"),
                         "_judge_prompts_used": provenance,
                     }
                     if notes is not None:
@@ -2181,6 +2190,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         ),
                         "_call_metadata": call_meta(base_meta, error_type="truncated"),
                         "_raw_output": content,
+                        "_raw_reasoning": response.get("reasoning"),
                         "_judge_prompts_used": provenance,
                     }
                     break
@@ -2189,6 +2199,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     "error_message": "judge response missing parseable scores dict",
                     "_call_metadata": call_meta(base_meta, error_type="parse_error"),
                     "_raw_output": content,
+                    "_raw_reasoning": response.get("reasoning"),
                     "_judge_prompts_used": provenance,
                 }
                 if attempt < self.max_retries - 1:

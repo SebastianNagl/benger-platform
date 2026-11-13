@@ -931,6 +931,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                     task_id=task_id,
                     model_id=model_id,
                     response_content=gen_data.get("response_content", ""),
+                    reasoning=gen_data.get("reasoning"),
                     # prompt_id removed in issue #759 - prompts now in project.generation_config (issue #817)
                     case_data=gen_data.get("case_data", json.dumps(task_data)),
                     response_metadata=gen_data.get("response_metadata"),
@@ -977,6 +978,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                         error_message=eval_data.get("error_message"),
                         processing_time_ms=eval_data.get("processing_time_ms"),
                         judge_prompts_used=eval_data.get("judge_prompts_used"),
+                        raw_reasoning=eval_data.get("raw_reasoning"),
                         # Grader identity (human korrektur rows); part of the
                         # per-cell unique key. Stub users were pre-created.
                         created_by=eval_data.get("created_by"),
@@ -1028,6 +1030,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 error_message=eval_data.get("error_message"),
                 processing_time_ms=eval_data.get("processing_time_ms"),
                 judge_prompts_used=eval_data.get("judge_prompts_used"),
+                raw_reasoning=eval_data.get("raw_reasoning"),
                 # Grader identity (human korrektur rows); see comment above.
                 created_by=eval_data.get("created_by"),
                 # Per-config linkage — pass through verbatim (stable strings).
@@ -1885,6 +1888,7 @@ def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
             # prompt_id removed in issue #759 - prompts now in project.generation_config (issue #817)
             case_data=generation_data.get("case_data"),
             response_content=generation_data.get("response_content"),
+            reasoning=generation_data.get("reasoning"),
             usage_stats=generation_data.get("usage_stats"),
             response_metadata=generation_data.get("response_metadata"),
             status=generation_data.get("status", "completed"),
@@ -2046,6 +2050,7 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
             error_message=te_data.get("error_message"),
             processing_time_ms=te_data.get("processing_time_ms"),
             judge_prompts_used=te_data.get("judge_prompts_used"),
+            raw_reasoning=te_data.get("raw_reasoning"),
             judge_run_id=judge_run_id,
             # Per-config linkage — config ids are stable strings, not remapped.
             evaluation_config_id=te_data.get("evaluation_config_id"),

@@ -136,6 +136,8 @@ def serialize_generation(
         "id": gen.id,
         "model_id": gen.model_id,
         "response_content": gen.response_content,
+        # Reasoning the model returned beside the answer (None when none).
+        "reasoning": gen.reasoning,
         "case_data": gen.case_data,
         "created_at": _isoformat(gen.created_at),
         "response_metadata": gen.response_metadata,
@@ -203,6 +205,8 @@ def serialize_task_evaluation(
         "error_message": te.error_message,
         "processing_time_ms": te.processing_time_ms,
         "judge_prompts_used": te.judge_prompts_used,
+        # Reasoning the judge model returned beside its output (None when none).
+        "raw_reasoning": te.raw_reasoning,
         # judge_run_id is the per-row link to EvaluationJudgeRun; needed so
         # multi-judge configs (where one EvaluationRun spawns N EvaluationJudgeRuns,
         # one per judge model) remain distinguishable in the export.

@@ -54,6 +54,7 @@ from .base_service import (
     derive_truncated,
 )
 from .deepinfra_service import async_retry_with_exponential_backoff
+from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -334,6 +335,10 @@ class OpenAICompatibleService(BaseAIService):
         response_text = ""
         if result.get("choices") and len(result["choices"]) > 0:
             response_text = result["choices"][0]["message"]["content"] or ""
+        # Reasoning servers (vLLM, SGLang, DeepSeek) return the reasoning
+        # beside the answer in message.reasoning / reasoning_content. It is
+        # stored as its own field and never replaces an empty answer.
+        reasoning = chat_completion_reasoning(result)
 
         usage = result.get("usage") or {}
         input_tokens = usage.get("prompt_tokens", 0)
@@ -384,6 +389,7 @@ class OpenAICompatibleService(BaseAIService):
             },
             success=True,
             error=None,
+            reasoning=reasoning,
         )
 
 

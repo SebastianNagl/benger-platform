@@ -1183,6 +1183,7 @@ async def get_generation_result(
                         "generations": [
                             {
                                 "generated_text": g.response_content,
+                                "reasoning": g.reasoning,
                                 "created_at": g.created_at.isoformat() if g.created_at else None,
                                 "usage_stats": g.usage_stats,
                             }
@@ -1193,6 +1194,7 @@ async def get_generation_result(
                     g = individual_generations[0]
                     result_data = {
                         "generated_text": g.response_content,
+                        "reasoning": g.reasoning,
                         "created_at": g.created_at.isoformat() if g.created_at else None,
                         "usage_stats": g.usage_stats,
                     }

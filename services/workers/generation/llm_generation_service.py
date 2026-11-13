@@ -1333,6 +1333,10 @@ def generate_llm_responses_impl(
                             # prompt_id removed - prompts table dropped in issue #759
                             case_data=json.dumps(case_data_with_id),
                             response_content=response_text,
+                            # Reasoning the provider returned beside the
+                            # answer, stored as is (None when it returned
+                            # none). The parser above never sees it.
+                            reasoning=response_data.get("reasoning"),
                             usage_stats=usage_stats,
                             response_metadata=json.dumps(metadata),
                             # Migration 041: trial index within parent fan-out

@@ -12,6 +12,7 @@
 
 'use client'
 
+import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import { isFeedbackOnlyResult } from '@/lib/evaluation/feedbackOnly'
@@ -230,6 +231,7 @@ export function ResultsTabs({
                       </div>
                     </div>
                   )}
+                  <GenerationReasoning result={selectedGen.result} />
 
                   {/* Fields Section (for structured outputs) */}
                   {selectedGen.result?.fields &&
