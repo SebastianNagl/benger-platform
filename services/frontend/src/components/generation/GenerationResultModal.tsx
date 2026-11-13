@@ -20,6 +20,8 @@ interface GenerationResultModalProps {
   isOpen: boolean
   taskId: string
   modelId: string
+  /** Display name of the model; a custom model's id is a random custom-<uuid>. */
+  modelName?: string
   onClose: () => void
   onRegenerate?: (
     taskId: string,
@@ -56,6 +58,7 @@ export function GenerationResultModal({
   isOpen,
   taskId,
   modelId,
+  modelName,
   onClose,
   onRegenerate,
   result: providedResult,
@@ -373,7 +376,7 @@ export function GenerationResultModal({
                           <span className="font-medium">
                             {t('generation.resultModal.model')}
                           </span>{' '}
-                          <span>{modelId}</span>
+                          <span title={modelId}>{modelName || modelId}</span>
                         </p>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           <span className="font-medium">

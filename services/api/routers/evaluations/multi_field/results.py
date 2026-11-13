@@ -26,6 +26,16 @@ ACCEPTED_EVAL_RUN_TYPES = frozenset({
 })
 
 
+async def _model_name(db: AsyncSession, model_id) -> Optional[str]:
+    if not isinstance(model_id, str) or not model_id:
+        return None
+    from models import LLMModel
+
+    return (
+        await db.execute(select(LLMModel.name).where(LLMModel.id == model_id))
+    ).scalar_one_or_none()
+
+
 async def _resolve_scope_block(
     db: AsyncSession,
     eval_metadata: Optional[Dict[str, Any]],
@@ -443,6 +453,9 @@ async def get_evaluation_run_results(
             "evaluation_id": evaluation.id,
             "project_id": evaluation.project_id,
             "model_id": _model_id if isinstance(_model_id, (str, type(None))) else None,
+            # Name of that model here; a custom model's id is a random
+            # custom-<uuid>.
+            "model_name": await _model_name(db, _model_id),
             "status": evaluation.status,
             # Why a run failed. A run that matched nothing now fails with a
             # diagnostic naming the config and the fix; without this key the

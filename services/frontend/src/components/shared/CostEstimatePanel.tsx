@@ -42,6 +42,7 @@ export interface CostEstimatePanelProps {
 
 interface PerModelCost {
   model_id: string
+  model_name?: string | null
   per_call_usd: number
   per_run_usd: number
   total_usd: number
@@ -353,8 +354,11 @@ export function CostEstimatePanel({
                 <tbody className="divide-y divide-zinc-100 text-zinc-700 dark:divide-zinc-700/60 dark:text-zinc-300">
                   {estimate.per_model.map((m) => (
                     <tr key={m.model_id}>
-                      <td className="px-3 py-2 font-mono text-[11px]">
-                        {m.model_id}
+                      <td
+                        className={`px-3 py-2 ${m.model_name ? '' : 'font-mono text-[11px]'}`}
+                        title={m.model_id}
+                      >
+                        {m.model_name || m.model_id}
                       </td>
                       <td className="px-3 py-2 text-right">
                         {m.pricing_known

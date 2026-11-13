@@ -377,3 +377,23 @@ describe('describeBillingBlock', () => {
     expect(describeBillingBlock(undefined, t)).toBeNull()
   })
 })
+
+describe('judgeResponses', () => {
+  it('keys the stored judge answer by its metric and drops private keys', () => {
+    const { isSidecarMetricKey, judgeResponses } = require('../runDisplay')
+    expect(isSidecarMetricKey('llm_judge_classic_response')).toBe(true)
+    expect(
+      judgeResponses({
+        llm_judge_classic: 0.5,
+        llm_judge_classic_response: {
+          score: 3,
+          _raw_output: 'x',
+          reason: 'ok',
+        },
+        empty_response: null,
+      }),
+    ).toEqual([
+      { metric: 'llm_judge_classic', value: { score: 3, reason: 'ok' } },
+    ])
+  })
+})

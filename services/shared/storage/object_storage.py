@@ -1157,6 +1157,49 @@ class ObjectStorageService:
 
         return health
 
+    def free_bytes(self, timeout: float = 2.0) -> Optional[int]:
+        """Free space of the storage backend in bytes, or None when it can't
+        be told (AWS S3 has no such limit; a MinIO whose credentials may not
+        read its metrics).
+
+        MinIO: ``minio_cluster_capacity_usable_free_bytes`` of the cluster
+        metrics, read with the bearer token ``mc admin prometheus generate``
+        would mint (HS512 over the secret key, ``sub`` the access key). The
+        app's S3 credentials are MinIO's root pair in every deployment of this
+        repo (compose stacks and the Helm chart).
+        """
+        try:
+            if self.storage_backend == "local":
+                return shutil.disk_usage(self.local_storage_path).free
+            if self.storage_backend != "minio" or not self.endpoint_url:
+                return None
+            import urllib.request
+
+            import jwt
+
+            token = jwt.encode(
+                {
+                    "exp": datetime.utcnow() + timedelta(minutes=1),
+                    "sub": self.access_key,
+                    "iss": "prometheus",
+                },
+                self.secret_key,
+                algorithm="HS512",
+            )
+            request = urllib.request.Request(
+                self.endpoint_url.rstrip("/") + "/minio/v2/metrics/cluster",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - our own endpoint
+                body = response.read().decode("utf-8", "replace")
+            for line in body.splitlines():
+                if line.startswith("minio_cluster_capacity_usable_free_bytes"):
+                    return int(float(line.rsplit(" ", 1)[1]))
+            return None
+        except Exception as e:  # noqa: BLE001 - a health probe must not raise
+            logger.info(f"Could not read the storage free space: {e}")
+            return None
+
 
 # Global instance
 object_storage = ObjectStorageService()

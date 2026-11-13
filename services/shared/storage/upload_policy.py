@@ -234,3 +234,10 @@ def content_disposition_for(
     if _ascii_filename(name) != name:
         header += f"; filename*=UTF-8''{quote(name, safe='')}"
     return header
+
+
+# Ceiling of a presigned project-import upload (the import endpoints). 2 GiB
+# covers the 583 MB incident file with headroom. MinIO refuses a streamed
+# upload whose policy maximum exceeds its free space (XMinioStorageFull), so
+# the bucket needs at least this much free; /health warns below it.
+IMPORT_UPLOAD_MAX_BYTES = 2 * 1024 * MB

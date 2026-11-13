@@ -366,7 +366,8 @@ def emit_ops_event(event, **labels):
       and ``outcome`` (``sent``, ``failed``) for mail the API sends inline.
       Mail sent by the workers is observed through Celery signals instead.
     - ``health_check_failed``: ``dependency`` (``redis``, ``database``,
-      ``celery``) when ``/health`` answers 503 or degraded.
+      ``celery``, ``object_storage``) when ``/health`` answers 503 or
+      degraded (``object_storage``: free space below the import upload cap).
 
     Optional hook ``on_ops_event(event, **labels)``, CALL_ALL_ISOLATED. No-op
     in the community edition; never raises, because monitoring must not

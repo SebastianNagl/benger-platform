@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.routing import APIRoute  # noqa: E402
 from fastapi.responses import (  # noqa: E402
     JSONResponse,
     RedirectResponse,
@@ -52,6 +54,7 @@ from models import (  # noqa: E402
     ExportJob,
     ImportJob,
     JobStatus,
+    LLMModel,
     Organization,
     OrganizationGroup,
     OrganizationMembership,
@@ -70,12 +73,23 @@ from project_models import (  # noqa: E402
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
+    check_user_can_edit_project,
     check_user_can_edit_project_async,
     can_read_all_task_content,
     can_read_all_task_content_async,
     enforce_project_read_window,
     enforce_project_read_window_async,
     require_org_key_own_organization,
+)
+
+from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES  # noqa: E402
+from schemas.import_schemas import (  # noqa: E402
+    IMPORT_ERROR_RESPONSES,
+    FullImportJobRequest,
+    ImportJobAccepted,
+    ImportJobStatus,
+    ProjectImportJobRequest,
+    split_job_error,
 )
 
 router = APIRouter()
@@ -100,6 +114,66 @@ def _may_bulk_export(db: Session, current_user: AuthUser, project: Project) -> b
     except HTTPException:
         return False
     return True
+
+
+class Coded400Route(APIRoute):
+    """A route whose malformed body answers 400 with a readable message, like
+    the semantic checks of the same endpoint, instead of FastAPI's 422."""
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def _handler(request: Request):
+            try:
+                return await handler(request)
+            except RequestValidationError as exc:
+                problems = "; ".join(
+                    ".".join(str(part) for part in err.get("loc", ()) if part != "body")
+                    + f": {err.get('msg')}"
+                    for err in exc.errors()
+                )
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid request body: {problems}"
+                )
+
+        return _handler
+
+
+_CODED_400_MARK = "x-benger-coded-400"
+
+
+def strip_coded_400_validation(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove FastAPI's automatic 422 (and the internal mark) from the
+    OpenAPI entries of every :class:`Coded400Route`, which answers a
+    malformed body with 400 instead. Idempotent; returns ``schema``."""
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            if isinstance(operation, dict) and operation.pop(_CODED_400_MARK, False):
+                operation.get("responses", {}).pop("422", None)
+    return schema
+
+
+def drop_unreturned_validation_responses(app) -> None:
+    """Apply :func:`strip_coded_400_validation` to the app's own spec."""
+    build = app.openapi
+    app.openapi = lambda: strip_coded_400_validation(build())
+
+
+def _post(path: str, **kwargs):
+    """``@router.post`` with :class:`Coded400Route`."""
+
+    def _register(endpoint):
+        router.add_api_route(
+            path,
+            endpoint,
+            methods=["POST"],
+            route_class_override=Coded400Route,
+            openapi_extra={_CODED_400_MARK: True},
+            **kwargs,
+        )
+        return endpoint
+
+    return _register
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -368,8 +442,8 @@ async def download_export_job(
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Cap presigned import uploads so a client can't push an unbounded object into
-# storage. 2 GiB comfortably covers the 583MB incident file with headroom.
-_IMPORT_UPLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024
+# storage (see upload_policy.IMPORT_UPLOAD_MAX_BYTES).
+_IMPORT_UPLOAD_MAX_BYTES = IMPORT_UPLOAD_MAX_BYTES
 
 
 async def _import_queue(object_key: str) -> str:
@@ -385,6 +459,7 @@ async def _import_queue(object_key: str) -> str:
 
 
 def _serialize_import_job(job: ImportJob) -> dict:
+    error_status, error_code = split_job_error(job.error_message)
     return {
         "job_id": job.id,
         "project_id": job.project_id,
@@ -393,6 +468,8 @@ def _serialize_import_job(job: ImportJob) -> dict:
         "progress": job.progress,
         "byte_size": job.byte_size,
         "error_message": job.error_message,
+        "error_status": error_status,
+        "error_code": error_code,
         "result": job.result,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
@@ -443,6 +520,44 @@ async def _reject_import_into_linked_exam(db: AsyncSession, project: Project) ->
         )
 
 
+async def _check_model_id_map_targets(db: AsyncSession, model_id_map: Dict[str, str]) -> None:
+    """400 ``unknown_model_id_map_target`` unless every target of the map is a
+    model of this deployment: an unknown target would only move the results
+    from one orphan id to another."""
+    targets = set(model_id_map.values())
+    if not targets:
+        return
+    known = set(
+        (
+            await db.execute(select(LLMModel.id).where(LLMModel.id.in_(targets)))
+        ).scalars()
+    )
+    _raise_on_unknown_targets(model_id_map, known)
+
+
+def _raise_on_unknown_targets(model_id_map: Dict[str, str], known) -> None:
+    missing = sorted(set(model_id_map.values()) - set(known))
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "unknown_model_id_map_target",
+                "message": (
+                    "model_id_map names model id(s) that do not exist on this "
+                    f"deployment: {', '.join(missing[:10])}"
+                ),
+                "model_ids": missing,
+            },
+        )
+
+
+def _validated_model_id_map(raw) -> Dict[str, str]:
+    try:
+        return normalize_model_id_map(raw)
+    except ImportValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+
 @router.post("/{project_id}/imports/upload-url")
 async def create_import_upload_url(
     project_id: str,
@@ -488,10 +603,15 @@ async def create_import_upload_url(
     return upload
 
 
-@router.post("/{project_id}/imports", status_code=202)
+@_post(
+    "/{project_id}/imports",
+    status_code=202,
+    response_model=ImportJobAccepted,
+    responses=IMPORT_ERROR_RESPONSES,
+)
 async def create_import_job(
     project_id: str,
-    data: dict,
+    data: ProjectImportJobRequest,
     request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -511,7 +631,11 @@ async def create_import_job(
     hold yet are added to the matching tasks (see ``run_merge_import``). A
     merge whose tasks are not this project's fails the job and imports
     nothing. ``model_id_map`` (merge only) translates model ids as on
-    ``POST /project-imports``.
+    ``POST /project-imports``. ``dry_run`` (merge only) previews the merge:
+    the worker runs it and rolls it back, and the job completes with format
+    ``merge_preview`` and the preview in ``result.statistics`` (what the
+    merge would add and skip, every model id of the file and whether it
+    exists here, the unknown ones and the models the caller may map to).
     """
     project = (
         await db.execute(select(Project).where(Project.id == project_id))
@@ -529,32 +653,25 @@ async def create_import_job(
         )
     await _reject_import_into_linked_exam(db, project)
 
-    object_key = (data or {}).get("object_key")
-    if not isinstance(object_key, str) or not object_key:
-        raise HTTPException(status_code=400, detail="object_key is required")
-    # The key was minted by create_import_upload_url for THIS project. Only
-    # that exact layout passes, so a client can't redirect the worker at
-    # someone else's upload (another owner's prefix, a ``..`` segment).
-    if not is_import_key_of(object_key, project_id):
-        raise HTTPException(status_code=400, detail="Invalid object_key")
-
-    mode = (data or {}).get("mode") or "nested"
-    if mode not in ("nested", "merge"):
-        raise HTTPException(status_code=400, detail="mode must be 'nested' or 'merge'")
-    raw_map = (data or {}).get("model_id_map")
-    if raw_map is not None and mode != "merge":
+    object_key = _checked_project_object_key(data.object_key, project_id)
+    mode = data.mode
+    if data.model_id_map is not None and mode != "merge":
         raise HTTPException(
             status_code=400, detail="model_id_map is only supported with mode 'merge'"
         )
-    try:
-        model_id_map = normalize_model_id_map(raw_map)
-    except ImportValidationError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    if data.dry_run and mode != "merge":
+        raise HTTPException(
+            status_code=400, detail="dry_run is only supported with mode 'merge'"
+        )
+    model_id_map = _validated_model_id_map(data.model_id_map)
+    await _check_model_id_map_targets(db, model_id_map)
     task_kwargs = {}
     if mode == "merge":
         task_kwargs["mode"] = "merge"
         if model_id_map:
             task_kwargs["model_id_map"] = model_id_map
+        if data.dry_run:
+            task_kwargs["dry_run"] = True
 
     job = ImportJob(
         id=str(uuid.uuid4()),
@@ -592,7 +709,18 @@ async def create_import_job(
     )
 
 
-@router.get("/{project_id}/imports/{job_id}")
+def _checked_project_object_key(object_key: str, project_id: str) -> str:
+    if not object_key:
+        raise HTTPException(status_code=400, detail="object_key is required")
+    # The key was minted by create_import_upload_url for THIS project. Only
+    # that exact layout passes, so a client can't redirect the worker at
+    # someone else's upload (another owner's prefix, a ``..`` segment).
+    if not is_import_key_of(object_key, project_id):
+        raise HTTPException(status_code=400, detail="Invalid object_key")
+    return object_key
+
+
+@router.get("/{project_id}/imports/{job_id}", response_model=ImportJobStatus)
 async def get_import_job(
     project_id: str,
     job_id: str,
@@ -991,9 +1119,14 @@ async def create_full_import_upload_url(
     return upload
 
 
-@router.post("/project-imports", status_code=202)
+@_post(
+    "/project-imports",
+    status_code=202,
+    response_model=ImportJobAccepted,
+    responses=IMPORT_ERROR_RESPONSES,
+)
 async def create_full_import_job(
-    data: dict,
+    data: FullImportJobRequest,
     request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -1022,23 +1155,21 @@ async def create_full_import_job(
     The job's ``project_id`` is NULL until the worker creates the project.
     Returns 202.
     """
-    object_key = (data or {}).get("object_key")
-    if not isinstance(object_key, str) or not object_key:
+    object_key = data.object_key
+    if not object_key:
         raise HTTPException(status_code=400, detail="object_key is required")
     if not is_import_key_of(object_key, current_user.id):
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
-    try:
-        model_id_map = normalize_model_id_map((data or {}).get("model_id_map"))
-    except ImportValidationError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+    model_id_map = _validated_model_id_map(data.model_id_map)
+    await _check_model_id_map_targets(db, model_id_map)
 
-    require_org_key_own_organization(request, (data or {}).get("organization_id"))
+    require_org_key_own_organization(request, data.organization_id)
     organization_id, organization_group_id = await _resolve_import_target_org(
         db,
         current_user,
-        (data or {}).get("organization_id"),
-        (data or {}).get("organization_group_id"),
+        data.organization_id,
+        data.organization_group_id,
     )
 
     job = ImportJob(
@@ -1081,7 +1212,7 @@ async def create_full_import_job(
     )
 
 
-@router.get("/project-imports/{job_id}")
+@router.get("/project-imports/{job_id}", response_model=ImportJobStatus)
 async def get_full_import_job(
     job_id: str,
     request: Request,

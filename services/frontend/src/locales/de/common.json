@@ -677,7 +677,7 @@
       "importTargetPrivate": "Privat",
       "importTargetChooseFile": "Datei auswählen",
       "importTargetCancel": "Abbrechen",
-      "importStats": " - {tasks} Aufgaben, {annotations} Annotationen",
+      "importStats": " - {tasks} Aufgaben, {annotations} Annotationen, {generations} Generierungen, {evaluations} Evaluationsläufe, {rows} bewertete Zeilen",
       "importSkippedAnnotations": "{count} Antworten wurden nicht importiert: Ihre Verfasser sind hier unbekannt und wurden deinem Konto zugeordnet, das pro Aufgabe nur eine aktive Antwort halten kann. Lege die Nutzer vor dem Import mit derselben E-Mail-Adresse an.",
       "importSuccess": "\"{title}\" erfolgreich importiert{stats} ({time}s)",
       "importFailed": "Import des Projekts fehlgeschlagen",
@@ -715,7 +715,8 @@
       "importTargetGroupOrgWide": "Gesamte Organisation",
       "publicContributorBadge": "Öffentlich · Mitwirkende:r",
       "publicAnnotatorBadge": "Öffentlich · Annotator:in",
-      "emptyExportFile": "Leere Datei vom Server erhalten"
+      "emptyExportFile": "Leere Datei vom Server erhalten",
+      "asyncExportSuccess": "{count} Projekt(e) exportiert; jeder Download startet, sobald sein Export fertig ist"
     },
     "columns": {
       "label": "Spalten",
@@ -880,7 +881,9 @@
       "unarchiveSelected": "Ausgewählte dearchivieren",
       "archiveSelected": "Ausgewählte archivieren",
       "deleteSelected": "Ausgewählte löschen",
-      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen"
+      "selectProjectsPrompt": "Projekte auswählen, um verfügbare Aktionen zu sehen",
+      "exportNdjsonGz": "Als NDJSON (gzip) exportieren, für große Projekte",
+      "exportComprehensive": "Als JSON exportieren (eine Datei je Projekt)"
     },
     "filter": {
       "filters": "Filter",
@@ -963,12 +966,10 @@
       "description": "Fügt die Generierungen und Evaluationen eines vollständigen Projektexports zu den Aufgaben dieses Projekts hinzu, etwa ein Modell, das auf einer Kopie dieses Projekts gebenchmarkt wurde. Ergebnisse, die dieses Projekt schon hat, werden übersprungen, sodass ein zweites Zusammenführen derselben Datei nichts ändert. Es werden keine Aufgaben angelegt: Gehören die Aufgaben der Datei nicht zu diesem Projekt, wird nichts importiert.",
       "fileLabel": "Projektexport",
       "fileHint": "Ein vollständiger Projektexport (JSON, NDJSON, .gz oder die .zip aus der Projektliste) dieses Projekts oder einer Kopie davon.",
-      "modelMapTitle": "Modell-IDs (optional)",
-      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Gib die ID aus der Datei und die ID desselben Modells hier an. Das Modell muss hier bereits angelegt sein.",
-      "sourceModel": "Modell-ID in der Datei",
-      "targetModel": "Modell-ID hier",
-      "addModel": "Modell-ID hinzufügen",
-      "removeModel": "Entfernen",
+      "modelMapTitle": "Modelle in der Datei",
+      "modelMapHint": "Ein eigenes Modell hat auf jeder Installation eine andere ID. Wähle für jede ID, die es hier nicht gibt, das Modell hier aus; das Zusammenführen startet erst, wenn alle zugeordnet sind. Ordne jedes eigene Modell zu, auch eines, das schon beim Import der Kopie zugeordnet wurde.",
+      "sourceModel": "Modell in der Datei",
+      "targetModel": "Modell hier",
       "submit": "Zusammenführen",
       "running": "Wird zusammengeführt...",
       "success": "Ergebnisse zusammengeführt",
@@ -976,7 +977,17 @@
       "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führe eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importiere sie als neues Projekt.",
       "summaryAdded": "{tasks} Aufgaben zugeordnet und {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzugefügt.",
       "summarySkipped": "{generations} Generierungen und {evaluations} Evaluationsläufe, die das Projekt schon hatte, übersprungen.",
-      "summaryModels": "Zu den Modellen des Projekts hinzugefügt: {models}"
+      "summaryModels": "Zu den Modellen des Projekts hinzugefügt: {models}",
+      "check": "Datei prüfen",
+      "checking": "Wird geprüft...",
+      "checkFailed": "Die Datei konnte nicht geprüft werden",
+      "previewAdds": "{tasks} Aufgaben zugeordnet. Das Zusammenführen fügt {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzu.",
+      "modelRows": "{added} Zeilen neu, {present} schon vorhanden",
+      "targetFor": "Modell hier für {model}",
+      "keepModel": "Beibehalten: {model}",
+      "chooseModel": "Modell wählen",
+      "unknownModel": "Diese Modell-ID gibt es hier nicht. Wähle dasselbe Modell dieser Installation.",
+      "unknownModels": "Einige Modell-IDs der Datei gibt es hier nicht, daher wurde nichts importiert. Wähle für jede ein Modell hier und führe erneut zusammen."
     }
   },
   "project": {
@@ -6031,7 +6042,9 @@
       "of": "von",
       "results": "Ergebnisse",
       "previous": "Zurück",
-      "next": "Weiter"
+      "next": "Weiter",
+      "model": "Modell",
+      "judgeResponse": "{metric}: Antwort des Judges"
     },
     "sampleScoresTable": {
       "failedToLoad": "Stichprobenergebnisse konnten nicht geladen werden",
@@ -7894,7 +7907,7 @@
       "archiveFailed": "Projekte konnten nicht archiviert werden",
       "unarchiveFailed": "Projekte konnten nicht wiederhergestellt werden",
       "deleteFailed": "Projekte konnten nicht gelöscht werden",
-      "selectJsonOrZip": "Bitte wähle eine JSON- oder ZIP-Datei"
+      "selectJsonOrZip": "Bitte wähle einen Projektexport (.json, .ndjson, .gz oder .zip)"
     },
     "task": {
       "created": "Aufgabe erfolgreich erstellt",
@@ -9233,7 +9246,9 @@
       "deactivateSuccess": "Modell deaktiviert – vorhandene Ergebnisse referenzieren es weiterhin",
       "deleteFailed": "Modell konnte nicht gelöscht werden",
       "inactiveBadge": "Inaktiv",
-      "inactiveHint": "Dieses Modell wurde deaktiviert, weil Generierungen es referenzieren. Es ist in Auswahllisten ausgeblendet."
+      "inactiveHint": "Dieses Modell wurde deaktiviert, weil Generierungen es referenzieren. Es ist in Auswahllisten ausgeblendet.",
+      "modelId": "Modell-ID",
+      "copyModelId": "Modell-ID kopieren"
     },
     "page": {
       "title": "Eigene Modelle",

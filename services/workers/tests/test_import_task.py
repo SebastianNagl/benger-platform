@@ -250,6 +250,42 @@ def test_merge_mode_runs_the_merge_driver(_patched):
     assert job.project_id == "proj-1"
 
 
+def test_merge_dry_run_completes_the_job_with_the_preview_and_writes_nothing(_patched):
+    """dry_run=True is the merge preview: the driver runs as a dry run (it
+    rolls the merge back itself and never calls before_commit), and only the
+    job row is completed, as a merge_preview carrying the preview."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"format_version": "1.0", "project": {"title": "X"}}'
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, content)
+
+    captured = {}
+    preview = {
+        "project_id": "proj-1",
+        "statistics": {"dry_run": True, "matched_tasks": 2, "unknown_models": ["custom-x"]},
+    }
+
+    def _fake_merge(
+        db, project_id, fileobj, user_id, model_id_map=None, before_commit=None, dry_run=False
+    ):
+        captured.update(dry_run=dry_run, before_commit=before_commit, model_id_map=model_id_map)
+        return preview
+
+    session = _FakeSession({ImportJob: job})
+    with patch("import_stream.run_merge_import", _fake_merge), patch.object(
+        workers_tasks, "SessionLocal", return_value=session
+    ):
+        result = workers_tasks.import_project(
+            "ijob-1", model_id_map={"a": "b"}, mode="merge", dry_run=True
+        )
+
+    assert result["status"] == "completed"
+    assert captured == {"dry_run": True, "before_commit": None, "model_id_map": {"a": "b"}}
+    assert job.status == "completed"
+    assert job.format == "merge_preview"
+    assert job.result == preview
+
+
 def test_import_comprehensive_passes_job_organization_to_importer(_patched):
     """The org context stored on the job reaches the create-new importer."""
     workers_tasks, storage, ImportJob = _patched

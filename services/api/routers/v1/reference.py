@@ -74,6 +74,8 @@ def reference_routes(app: FastAPI, *, platform_only: bool = False) -> List[Tuple
 def build_reference_openapi(
     app: FastAPI, server_url: Optional[str] = None, *, platform_only: bool = False
 ) -> Dict[str, Any]:
+    from routers.projects.import_export import strip_coded_400_validation
+
     pairs = reference_routes(app, platform_only=platform_only)
     schema = get_openapi(
         title=TITLE,
@@ -83,6 +85,7 @@ def build_reference_openapi(
         routes=[route for route, _ in pairs],
         servers=[{"url": server_url}] if server_url else None,
     )
+    strip_coded_400_validation(schema)
     schema.setdefault("components", {})["securitySchemes"] = {
         "accessKey": {
             "type": "http",

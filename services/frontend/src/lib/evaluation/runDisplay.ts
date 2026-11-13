@@ -57,8 +57,39 @@ export function isSidecarMetricKey(key: string): boolean {
     bare === 'raw_score' ||
     bare.endsWith('_passed') ||
     bare.endsWith('_details') ||
-    bare.endsWith('_raw')
+    bare.endsWith('_raw') ||
+    bare.endsWith('_response')
   )
+}
+
+/**
+ * The judge's full answer an LLM-judge metric stores next to its score
+ * (`<metric>_response`), keyed by the metric it belongs to. It is not a
+ * number, so the metric grid would show it as N/A; the run page shows it as
+ * text instead.
+ */
+export function judgeResponses(
+  metrics: Record<string, unknown> | null | undefined,
+): { metric: string; value: unknown }[] {
+  return Object.entries(metrics ?? {})
+    .filter(
+      ([key, value]) =>
+        bareMetricName(key).endsWith('_response') &&
+        value !== null &&
+        value !== undefined &&
+        value !== '',
+    )
+    .map(([key, value]) => ({
+      metric: key.slice(0, -'_response'.length),
+      value:
+        value && typeof value === 'object' && !Array.isArray(value)
+          ? Object.fromEntries(
+              Object.entries(value as Record<string, unknown>).filter(
+                ([k]) => !k.startsWith('_'),
+              ),
+            )
+          : value,
+    }))
 }
 
 /** Display name of a metric: the registry's name (translated when the metric

@@ -294,6 +294,7 @@ def import_project_impl(
     job_id: str,
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
+    dry_run: bool = False,
 ) -> Dict[str, Any]:
     """Download an uploaded import artifact and stream-import it into the DB.
 
@@ -308,7 +309,9 @@ def import_project_impl(
     new results into that project (``run_merge_import``) instead of the
     nested import. ``model_id_map`` (source model id -> model id here) is the
     model translation of the create-new and the merge import; the nested and
-    tabular imports ignore it.
+    tabular imports ignore it. ``dry_run`` (merge only) is the merge preview:
+    the merge runs and is rolled back, and only the job row is committed,
+    completed with format ``merge_preview`` and the preview as its result.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
     a finished job is a no-op); a job left `running` by a crashed worker IS
@@ -448,6 +451,15 @@ def import_project_impl(
                     db, project_id, spooled, requested_by, tabular_fmt,
                     before_commit=_mark_completed,
                 )
+            elif project_id and mode == "merge" and dry_run:
+                detected_format = "merge_preview"
+                _mark_completed(
+                    run_merge_import(
+                        db, project_id, spooled, requested_by,
+                        model_id_map=model_id_map, dry_run=True,
+                    )
+                )
+                db.commit()
             elif project_id and mode == "merge":
                 detected_format = "merge"
                 run_merge_import(

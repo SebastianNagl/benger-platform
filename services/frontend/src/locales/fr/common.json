@@ -677,7 +677,7 @@
       "importTargetPrivate": "Privé",
       "importTargetChooseFile": "Choisir un fichier",
       "importTargetCancel": "Annuler",
-      "importStats": " - {tasks} tâches, {annotations} annotations",
+      "importStats": " - {tasks} tâches, {annotations} annotations, {generations} générations, {evaluations} évaluations, {rows} lignes évaluées",
       "importSkippedAnnotations": "{count} réponses n'ont pas été importées : leurs auteurs sont inconnus ici et ont été associés à votre compte, qui ne peut détenir qu'une seule réponse active par tâche. Créez les utilisateurs avec la même adresse e-mail avant l'import.",
       "importSuccess": "« {title} » importé avec succès{stats} ({time} s)",
       "importFailed": "Échec de l'import du projet",
@@ -715,7 +715,8 @@
       "importTargetGroupOrgWide": "Toute l'organisation",
       "publicContributorBadge": "Public · Contributeur",
       "publicAnnotatorBadge": "Public · Annotateur",
-      "emptyExportFile": "Fichier vide reçu du serveur"
+      "emptyExportFile": "Fichier vide reçu du serveur",
+      "asyncExportSuccess": "{count} projet(s) exporté(s) ; chaque téléchargement démarre dès que son export est prêt"
     },
     "columns": {
       "label": "Colonnes",
@@ -880,7 +881,9 @@
       "unarchiveSelected": "Désarchiver la sélection",
       "archiveSelected": "Archiver la sélection",
       "deleteSelected": "Supprimer la sélection",
-      "selectProjectsPrompt": "Sélectionnez des projets pour voir les actions disponibles"
+      "selectProjectsPrompt": "Sélectionnez des projets pour voir les actions disponibles",
+      "exportNdjsonGz": "Exporter en NDJSON (gzip), pour les grands projets",
+      "exportComprehensive": "Exporter en JSON (un fichier par projet)"
     },
     "filter": {
       "filters": "Filtres",
@@ -963,12 +966,10 @@
       "description": "Ajoute les générations et les évaluations d'un export complet de projet aux tâches de ce projet, par exemple un modèle évalué sur une copie de ce projet. Les résultats que ce projet possède déjà sont ignorés : fusionner deux fois le même fichier ne change rien. Aucune tâche n'est créée : si les tâches du fichier ne sont pas celles de ce projet, rien n'est importé.",
       "fileLabel": "Export de projet",
       "fileHint": "Un export complet (JSON, NDJSON, .gz ou le .zip de la liste des projets) de ce projet ou d'une copie de celui-ci.",
-      "modelMapTitle": "Identifiants de modèle (facultatif)",
-      "modelMapHint": "Un modèle personnalisé a un identifiant différent sur chaque installation. Indiquez l'identifiant utilisé dans le fichier et celui du même modèle ici. Le modèle doit déjà exister ici.",
-      "sourceModel": "Identifiant dans le fichier",
-      "targetModel": "Identifiant ici",
-      "addModel": "Ajouter un identifiant",
-      "removeModel": "Retirer",
+      "modelMapTitle": "Modèles du fichier",
+      "modelMapHint": "Un modèle personnalisé a un identifiant différent sur chaque installation. Choisissez ici le modèle pour chaque identifiant qui n'existe pas ici ; la fusion ne démarre qu'une fois tous associés. Associez chaque modèle personnalisé, y compris celui déjà associé lors de l'import de la copie.",
+      "sourceModel": "Modèle du fichier",
+      "targetModel": "Modèle ici",
       "submit": "Fusionner",
       "running": "Fusion en cours...",
       "success": "Résultats fusionnés",
@@ -976,7 +977,17 @@
       "taskMismatch": "Les tâches de ce fichier ne sont pas celles de ce projet, rien n'a donc été importé. Fusionnez un fichier exporté de ce projet ou d'une copie, ou importez-le comme nouveau projet.",
       "summaryAdded": "{tasks} tâches associées ; {generations} générations, {evaluations} évaluations et {rows} lignes évaluées ajoutées.",
       "summarySkipped": "{generations} générations et {evaluations} évaluations déjà présentes ignorées.",
-      "summaryModels": "Ajouté aux modèles du projet : {models}"
+      "summaryModels": "Ajouté aux modèles du projet : {models}",
+      "check": "Vérifier le fichier",
+      "checking": "Vérification...",
+      "checkFailed": "Le fichier n'a pas pu être vérifié",
+      "previewAdds": "{tasks} tâches associées. La fusion ajoutera {generations} générations, {evaluations} évaluations et {rows} lignes évaluées.",
+      "modelRows": "{added} lignes à ajouter, {present} déjà présentes",
+      "targetFor": "Modèle ici pour {model}",
+      "keepModel": "Conserver : {model}",
+      "chooseModel": "Choisir un modèle",
+      "unknownModel": "Cet identifiant n'existe pas ici. Choisissez le même modèle de cette installation.",
+      "unknownModels": "Certains identifiants de modèle du fichier n'existent pas ici, rien n'a donc été importé. Choisissez un modèle ici pour chacun et fusionnez à nouveau."
     }
   },
   "project": {
@@ -6031,7 +6042,9 @@
       "of": "sur",
       "results": "résultats",
       "previous": "Précédent",
-      "next": "Suivant"
+      "next": "Suivant",
+      "model": "Modèle",
+      "judgeResponse": "{metric} : réponse du juge"
     },
     "sampleScoresTable": {
       "failedToLoad": "Impossible de charger les résultats par échantillon",
@@ -7894,7 +7907,7 @@
       "archiveFailed": "Impossible d'archiver les projets",
       "unarchiveFailed": "Impossible de restaurer les projets",
       "deleteFailed": "Impossible de supprimer les projets",
-      "selectJsonOrZip": "Veuillez sélectionner un fichier JSON ou ZIP"
+      "selectJsonOrZip": "Veuillez sélectionner un export de projet (.json, .ndjson, .gz ou .zip)"
     },
     "task": {
       "created": "Tâche créée avec succès",
@@ -9233,7 +9246,9 @@
       "deactivateSuccess": "Modèle désactivé : les résultats existants continuent d'y faire référence",
       "deleteFailed": "Impossible de supprimer le modèle",
       "inactiveBadge": "Inactif",
-      "inactiveHint": "Ce modèle a été désactivé car des générations y font référence. Il est masqué dans les listes de sélection."
+      "inactiveHint": "Ce modèle a été désactivé car des générations y font référence. Il est masqué dans les listes de sélection.",
+      "modelId": "Identifiant du modèle",
+      "copyModelId": "Copier l'identifiant du modèle"
     },
     "page": {
       "title": "Modèles personnalisés",

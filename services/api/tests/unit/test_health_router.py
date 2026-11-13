@@ -531,3 +531,105 @@ class TestHealthRouterIntegration:
             response = client.get(endpoint)
             if response.status_code == 200:
                 assert response.headers.get("content-type", "").startswith("application/json")
+
+
+class TestHealthStorageFreeSpace:
+    """Defect 12: MinIO refuses an import upload whose policy maximum (the
+    2 GiB cap) exceeds its free space, with 507; /health warns before that."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_cache(self):
+        import routers.health as health
+
+        health._storage_free_cache[:] = [None, None]
+        yield
+        health._storage_free_cache[:] = [None, None]
+
+    def _get(self, free):
+        from database import get_async_db
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app, patch(
+                "object_storage.object_storage.free_bytes", return_value=free
+            ):
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@worker1": {"ok": "pong"},
+                }
+                return TestClient(app).get("/health")
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_free_space_below_the_upload_cap_is_degraded(self):
+        response = self._get(1024 ** 3)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["storage"] == "low_free_space"
+        assert data["storage_free_bytes"] == 1024 ** 3
+
+    def test_enough_free_space_is_healthy(self):
+        data = self._get(3 * 1024 ** 3).json()
+        assert data["status"] == "healthy"
+        assert data["storage"] == "ok"
+
+    def test_unknown_free_space_does_not_degrade(self):
+        data = self._get(None).json()
+        assert data["status"] == "healthy"
+        assert data["storage"] == "free_space_unknown"
+
+
+class TestObjectStorageFreeBytes:
+    def test_minio_reads_the_cluster_metric(self, monkeypatch):
+        import io as _io
+
+        from storage.object_storage import ObjectStorageService
+
+        svc = ObjectStorageService.__new__(ObjectStorageService)
+        svc.storage_backend = "minio"
+        svc.endpoint_url = "http://minio:9000"
+        svc.access_key = "minioadmin"
+        svc.secret_key = "minioadmin-secret-key"
+        seen = {}
+
+        class _Resp(_io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def _urlopen(request, timeout):
+            seen["url"] = request.full_url
+            seen["auth"] = request.get_header("Authorization")
+            return _Resp(
+                b"# HELP x\nminio_cluster_capacity_usable_free_bytes 3.221225472e+09\n"
+            )
+
+        monkeypatch.setattr("urllib.request.urlopen", _urlopen)
+        assert svc.free_bytes() == 3221225472
+        assert seen["url"] == "http://minio:9000/minio/v2/metrics/cluster"
+        assert seen["auth"].startswith("Bearer ")
+
+    def test_s3_and_errors_give_none(self, monkeypatch):
+        from storage.object_storage import ObjectStorageService
+
+        svc = ObjectStorageService.__new__(ObjectStorageService)
+        svc.storage_backend = "s3"
+        svc.endpoint_url = None
+        assert svc.free_bytes() is None
+
+        svc.storage_backend = "minio"
+        svc.endpoint_url = "http://minio:9000"
+        svc.access_key, svc.secret_key = "a", "b-secret-key-long-enough"
+
+        def _boom(*a, **k):
+            raise OSError("refused")
+
+        monkeypatch.setattr("urllib.request.urlopen", _boom)
+        assert svc.free_bytes() is None
