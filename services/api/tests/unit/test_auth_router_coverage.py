@@ -6,7 +6,7 @@ profile completion, mandatory profile, and profile history endpoints.
 
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -242,6 +242,7 @@ class TestRefreshToken:
         )
         token_resp = Token(
             access_token="new-access", refresh_token="new-refresh",
+            refresh_token_expires_at=datetime.now(timezone.utc) + timedelta(days=1),
             token_type="bearer", expires_in=3600, user=user_for_token,
         )
 

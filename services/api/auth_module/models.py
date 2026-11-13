@@ -265,6 +265,7 @@ class Token(BaseModel):
 
     access_token: str
     refresh_token: Optional[str] = None
+    refresh_token_expires_at: Optional[datetime] = Field(default=None, exclude=True)
     token_type: str
     expires_in: int
     user: User

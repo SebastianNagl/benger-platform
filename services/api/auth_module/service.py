@@ -372,12 +372,14 @@ def refresh_access_token(
     forbid_service_account(db_user)
 
     new_refresh_token = None
+    new_refresh_expires_at = None
     if rotate:
         rotated = refresh_token_service.rotate_refresh_token(
             db, refresh_token, user_agent=user_agent, ip_address=ip_address
         )
         if rotated is not None:
-            new_refresh_token = rotated[0]
+            new_refresh_token, new_db_token = rotated
+            new_refresh_expires_at = new_db_token.expires_at
         elif refresh_token_service.resolve_rotated_refresh_token(db, refresh_token) is None:
             # Lost the race against a concurrent rotation AND the grace check
             # failed (e.g. a logout in between).
@@ -390,7 +392,12 @@ def refresh_access_token(
         user_agent=user_agent,
         ip_address=ip_address,
     )
-    return token.model_copy(update={"refresh_token": new_refresh_token})
+    return token.model_copy(
+        update={
+            "refresh_token": new_refresh_token,
+            "refresh_token_expires_at": new_refresh_expires_at,
+        }
+    )
 
 
 def revoke_refresh_token(refresh_token: str, db: Session) -> bool:

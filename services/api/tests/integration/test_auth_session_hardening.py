@@ -145,6 +145,49 @@ class TestRefreshRotation:
         assert _refresh_with(client, "not-a-real-token").status_code == 401
 
 
+def _refresh_cookie_max_age(resp):
+    header = next(
+        h for h in resp.headers.get_list("set-cookie") if h.startswith("refresh_token=")
+    )
+    attrs = dict(
+        part.strip().split("=", 1) for part in header.split(";")[1:] if "=" in part
+    )
+    return int(attrs["Max-Age"])
+
+
+@pytest.mark.integration
+class TestSessionLifetimeIsAbsolute:
+    """Rotation keeps the 7-day limit from the password sign-in; it does not slide."""
+
+    def test_refreshes_do_not_extend_the_session(self, client, test_db, test_users):
+        _, first = _login(client)
+        login_expiry = _row(test_db, first).expires_at
+        assert abs(
+            login_expiry - (datetime.now(timezone.utc) + timedelta(days=7))
+        ) < timedelta(minutes=1)
+        # Six days and 23 hours later: one hour of the session is left.
+        row = _row(test_db, first)
+        row.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        test_db.commit()
+        session_end = row.expires_at
+
+        current = first
+        for _ in range(3):
+            resp = _refresh_with(client, current)
+            assert resp.status_code == 200, resp.text
+            current = resp.cookies.get("refresh_token")
+            assert _row(test_db, current).expires_at == session_end
+            assert 0 < _refresh_cookie_max_age(resp) <= 3600
+
+        # The hour is over: the session ends although it was refreshed.
+        for plain in (first, current):
+            row = _row(test_db, plain)
+            row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        test_db.commit()
+
+        assert _refresh_with(client, current).status_code == 401
+
+
 @pytest.mark.integration
 class TestTokensStayInCookies:
     def test_login_body_carries_no_tokens(self, client, test_db, test_users):

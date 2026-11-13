@@ -1,4 +1,6 @@
 """Auth: token refresh and logout handlers."""
+from datetime import datetime, timezone
+
 from auth_module.auth_cookies import SESSION_TOKEN_COOKIES, expire_legacy_cookies
 from auth_module.models import SessionResponse
 from auth_module.session_origin import clear_session_origin
@@ -69,12 +71,14 @@ def refresh_token_endpoint(
         path="/",
     )
 
-    # Set the successor refresh token cookie (rotation)
+    # Set the successor refresh token cookie (rotation). It lives only as
+    # long as the session it continues.
     if token_response.refresh_token:
+        remaining = token_response.refresh_token_expires_at - datetime.now(timezone.utc)
         response.set_cookie(
             key="refresh_token",
             value=token_response.refresh_token,
-            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            max_age=max(0, int(remaining.total_seconds())),
             httponly=True,
             secure=_settings.is_production,
             samesite="lax",

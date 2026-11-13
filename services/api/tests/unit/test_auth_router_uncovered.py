@@ -369,6 +369,7 @@ class TestRefreshToken:
         token_resp = Mock()
         token_resp.access_token = "new-access"
         token_resp.refresh_token = "new-refresh"
+        token_resp.refresh_token_expires_at = datetime.now(timezone.utc) + timedelta(days=1)
         mock_refresh.return_value = token_resp
 
         request = _mock_request(cookies={"refresh_token": "old-refresh"})

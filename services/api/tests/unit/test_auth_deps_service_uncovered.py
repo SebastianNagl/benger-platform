@@ -499,7 +499,8 @@ class TestRefreshAccessToken:
         mock_db_user.organization_memberships = []
         mock_get_user.return_value = mock_db_user
 
-        mock_rts.rotate_refresh_token.return_value = ("successor-token", Mock())
+        successor_row = Mock(expires_at=_NOW)
+        mock_rts.rotate_refresh_token.return_value = ("successor-token", successor_row)
         access_only = Mock()
         mock_create_tokens.return_value = access_only
 
@@ -509,7 +510,7 @@ class TestRefreshAccessToken:
         # The access token comes with the rotated refresh token.
         assert result == access_only.model_copy.return_value
         access_only.model_copy.assert_called_once_with(
-            update={"refresh_token": "successor-token"}
+            update={"refresh_token": "successor-token", "refresh_token_expires_at": _NOW}
         )
         mock_rts.rotate_refresh_token.assert_called_once_with(
             db, "valid-token", user_agent="agent", ip_address="1.2.3.4"

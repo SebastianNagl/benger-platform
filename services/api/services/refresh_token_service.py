@@ -3,7 +3,9 @@ Refresh token service for persistent authentication
 Handles refresh token generation, validation, rotation, and revocation
 
 Rotation and reuse detection: every refresh replaces the presented token
-with a successor in the same family (``rotate_refresh_token``). The replaced
+with a successor in the same family (``rotate_refresh_token``) that keeps
+the family's expiry, so rotation never extends a session past
+``REFRESH_TOKEN_EXPIRE_DAYS`` after its login. The replaced
 token keeps ``rotated_at``. If it is presented again within
 ``REFRESH_TOKEN_REUSE_GRACE_SECONDS`` (two tabs or the SSE proxy refreshing
 at the same moment), the caller gets a new access token but no new refresh
@@ -59,10 +61,12 @@ def _new_token_row(
     user_agent: Optional[str],
     ip_address: Optional[str],
     family_id: Optional[str] = None,
+    expires_at: Optional[datetime] = None,
 ) -> tuple[str, RefreshToken]:
     token_id = secrets.token_urlsafe(32)
     plain_token = generate_refresh_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    if expires_at is None:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     db_token = RefreshToken(
         id=token_id,
         token_hash=hash_token(plain_token),
@@ -130,7 +134,9 @@ def rotate_refresh_token(
 ) -> Optional[tuple[str, RefreshToken]]:
     """
     Rotate a refresh token - invalidate the old one and create a new one
-    in the same family, in one transaction.
+    in the same family, in one transaction. The successor keeps the old
+    token's expiry, so a session ends REFRESH_TOKEN_EXPIRE_DAYS after the
+    login that started it, however often it is refreshed.
 
     The old row is locked, so of two concurrent rotations of the same token
     exactly one succeeds; the other gets None and can fall back to
@@ -156,7 +162,11 @@ def rotate_refresh_token(
     old_db_token.last_used_at = now
 
     new_token, new_db_token = _new_token_row(
-        old_db_token.user_id, user_agent, ip_address, family_id=family_of(old_db_token)
+        old_db_token.user_id,
+        user_agent,
+        ip_address,
+        family_id=family_of(old_db_token),
+        expires_at=old_db_token.expires_at,
     )
     db.add(new_db_token)
     db.commit()
