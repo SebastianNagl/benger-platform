@@ -18,8 +18,15 @@ import pytest
 from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
 from main import app
-from models import EvaluationRun, Generation, ResponseGeneration, User
-from project_models import Project, Task
+from models import (
+    EvaluationRun,
+    Generation,
+    Organization,
+    OrganizationMembership,
+    ResponseGeneration,
+    User,
+)
+from project_models import Project, ProjectOrganization, Task
 from routers.evaluations.multi_field.run import _run_model_label
 
 CONFIG = {
@@ -73,7 +80,7 @@ def seeded(test_db):
 def _run(client, user, body):
     auth_user = AuthUser(
         id=user.id, username=user.username, email=user.email, name=user.name,
-        is_superadmin=True, is_active=True, email_verified=True,
+        is_superadmin=user.is_superadmin, is_active=True, email_verified=True,
         created_at=datetime.now(timezone.utc),
     )
     app.dependency_overrides[require_user] = lambda: auth_user
@@ -142,6 +149,42 @@ class TestInlineConfigsAreStored:
         test_db.expire_all()
         stored = test_db.get(Project, project.id).evaluation_config
         assert [c["id"] for c in stored["evaluation_configs"]] == ["cfg-mine"]
+
+    def test_a_launcher_without_edit_rights_leaves_the_config_untouched(
+        self, client, test_db, seeded
+    ):
+        # Org ANNOTATORs may launch a run (the timed-window access group) but
+        # PUT .../evaluation-config refuses them; the run must not write the
+        # project's configs on their behalf.
+        _owner, project = seeded
+        slug = f"org-{_uid()[:8]}"
+        org = Organization(id=_uid(), name=slug, display_name=slug, slug=slug)
+        annotator = User(
+            id=_uid(), username=f"an-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com",
+            name="Annotator", is_superadmin=False, is_active=True, email_verified=True,
+        )
+        test_db.add_all([org, annotator])
+        test_db.flush()
+        test_db.add(OrganizationMembership(
+            id=_uid(), user_id=annotator.id, organization_id=org.id,
+            role="ANNOTATOR", is_active=True,
+        ))
+        test_db.add(ProjectOrganization(
+            id=_uid(), project_id=project.id, organization_id=org.id,
+            assigned_by=_owner.id,
+        ))
+        project.is_private = False
+        test_db.commit()
+
+        resp = _run(client, annotator, {
+            "project_id": project.id,
+            "evaluation_configs": [CONFIG],
+            "model_ids": ["model-other"],
+        })
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        stored = test_db.get(Project, project.id).evaluation_config or {}
+        assert not stored.get("evaluation_configs")
 
 
 def test_run_model_label():

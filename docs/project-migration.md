@@ -174,9 +174,10 @@ A compressed upload (gzip or zip) may inflate to at most 20 times the 2 GiB
 upload cap; past that the job fails with 413 `import_too_large`. Set
 `IMPORT_MAX_DECOMPRESSED_BYTES` (bytes) on the workers to change the limit.
 
-Generation jobs keep the organization their cost was attributed to when the
-export comes from this same instance; otherwise they are attributed to the
-organization that owns the new project.
+Imported generation jobs are attributed to the organization that owns the
+project they land in (the organization the import names, or the merge target's
+organization), and to no organization for a private project. The organization
+an export names for a job is informational and never used.
 
 Every imported task records the id of the task it was copied from
 (`source_task_id`, kept across repeated imports), which is what a merge import

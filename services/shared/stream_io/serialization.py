@@ -150,10 +150,9 @@ def build_project_export_data(project, organization_id) -> dict:
 
 def serialize_response_generation_row(rg) -> dict:
     """One generation job. ``project_id`` is informational (the importer sets
-    the new project). ``organization_id`` names the org whose API key the job
-    ran on; the importer keeps it when that org exists on its deployment (a
-    copy on the same deployment) and otherwise attributes the job to the org
-    of the project it lands in."""
+    the new project). ``organization_id`` is informational too: it names the
+    org whose API key the job ran on, and the importer ignores it and
+    attributes the job to the org of the project it lands in."""
     return {
         "id": rg.id,
         "project_id": rg.project_id,

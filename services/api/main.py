@@ -594,6 +594,10 @@ from routers.v1 import install_v1  # noqa: E402
 
 install_v1(app)
 
+from routers.projects.import_export import drop_unreturned_validation_responses  # noqa: E402
+
+drop_unreturned_validation_responses(app)
+
 
 # Root endpoint
 @app.get("/")

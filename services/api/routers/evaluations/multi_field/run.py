@@ -95,11 +95,14 @@ def _run_model_label(evaluated_model_ids: List[str]) -> str:
     return evaluated_model_ids[0] if len(evaluated_model_ids) == 1 else "unknown"
 
 
-def _store_configs_if_unconfigured(db, project, evaluation_configs) -> None:
+def _store_configs_if_unconfigured(db, user, project_id: str, evaluation_configs) -> None:
     """Save a run's configs as the project's evaluation configs when the
     project has none, so a run started through the API with inline configs
     shows on the evaluations page (which lists the project's configs).
-    Best effort: a refused or failed save never fails the started run."""
+    Only for callers who may edit the evaluation config (the edit gate of
+    PUT .../evaluation-config); a launcher without edit rights leaves it
+    untouched. Best effort: a refused or failed save never fails the
+    started run."""
     from sqlalchemy.orm.attributes import flag_modified
 
     import extensions
@@ -109,7 +112,18 @@ def _store_configs_if_unconfigured(db, project, evaluation_configs) -> None:
     )
 
     try:
-        db.refresh(project)
+        project = (
+            db.query(Project)
+            .filter(Project.id == project_id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
+        if project is None or not auth_service.check_project_access(
+            user, project, Permission.PROJECT_EDIT, db
+        ):
+            db.rollback()
+            return
         stored = project.evaluation_config or {}
         if stored.get("evaluation_configs") or stored.get("multi_field_evaluations"):
             return
@@ -125,7 +139,7 @@ def _store_configs_if_unconfigured(db, project, evaluation_configs) -> None:
     except Exception as e:  # noqa: BLE001 - the run is already started
         db.rollback()
         logger.warning(
-            f"[evaluation run {project.id}] could not save the run's configs on "
+            f"[evaluation run {project_id}] could not save the run's configs on "
             f"the project: {e}"
         )
 
@@ -490,7 +504,9 @@ def run_evaluation(
 
         db.add(evaluation)
         db.commit()
-        _store_configs_if_unconfigured(db, project, request.evaluation_configs)
+        _store_configs_if_unconfigured(
+            db, current_user, request.project_id, request.evaluation_configs
+        )
 
         # Dispatch Celery task. Using `kwargs=` instead of `args=` keeps the
         # call site robust to future parameter additions on

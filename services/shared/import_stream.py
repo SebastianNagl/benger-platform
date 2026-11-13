@@ -257,10 +257,12 @@ class ImportValidationError(Exception):
 
     ``code`` is an optional stable token for errors a client maps to its own
     translated message. It is also prefixed to ``detail`` (``"<code>: ..."``)
-    because the job row only stores the message text.
+    because the job row only stores the message text; ``message`` is the text
+    without that prefix.
     """
 
     def __init__(self, status_code: int, detail: str, code: Optional[str] = None):
+        self.message = detail
         if code:
             detail = f"{code}: {detail}"
         super().__init__(detail)
@@ -1439,7 +1441,6 @@ class _FullImportContext:
         "model_id_map",
         "run_indexes",
         "organization_id",
-        "known_org_ids",
     )
 
     def __init__(self, db, user_id: str, model_id_map: Optional[Dict[str, str]] = None):
@@ -1454,11 +1455,9 @@ class _FullImportContext:
         self.run_indexes: Dict[str, Set[int]] = {}
         self.new_project_id: Optional[str] = None
         # Organization of the project the rows land in (the org a create-new
-        # import names, the target project's org for a merge); see
-        # _job_organization_id.
+        # import names, the target project's org for a merge; None for a
+        # private project): the org imported generation jobs are attributed to.
         self.organization_id: Optional[str] = None
-        # Exported organization id -> whether it exists here.
-        self.known_org_ids: Dict[str, bool] = {}
         self.id_mappings: Dict[str, Dict] = {
             "projects": {},
             "tasks": {},
@@ -1872,9 +1871,9 @@ def _insert_response_generation(ctx: _FullImportContext, resp_gen_data: dict) ->
             project_id=ctx.new_project_id,
             task_id=task_id,
             model_id=_map_model(ctx, resp_gen_data.get("model_id")),
-            organization_id=_job_organization_id(
-                ctx, resp_gen_data.get("organization_id")
-            ),
+            # Attributed to the org of the project the job lands in, never to
+            # the org the file names.
+            organization_id=ctx.organization_id,
             config_id=resp_gen_data.get("config_id"),
             structure_key=resp_gen_data.get("structure_key"),
             status=resp_gen_data.get("status", "completed"),
@@ -1893,23 +1892,6 @@ def _insert_response_generation(ctx: _FullImportContext, resp_gen_data: dict) ->
         )
 
         ctx.db.add(new_resp_gen)
-
-
-def _job_organization_id(ctx: _FullImportContext, exported) -> Optional[str]:
-    """The org a generation job's cost is attributed to: the exported one
-    when it exists here (an import onto the same deployment), else the org of
-    the project the job lands in (None for a private project)."""
-    if isinstance(exported, str) and exported:
-        known = ctx.known_org_ids.get(exported)
-        if known is None:
-            known = (
-                ctx.db.query(Organization.id).filter(Organization.id == exported).scalar()
-                is not None
-            )
-            ctx.known_org_ids[exported] = known
-        if known:
-            return exported
-    return ctx.organization_id
 
 
 def _claim_run_index(ctx: _FullImportContext, parent_id: str, wanted) -> int:

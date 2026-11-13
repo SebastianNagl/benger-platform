@@ -143,12 +143,36 @@ class Coded400Route(APIRoute):
         return _handler
 
 
+_CODED_400_MARK = "x-benger-coded-400"
+
+
+def drop_unreturned_validation_responses(app) -> None:
+    """Remove FastAPI's automatic 422 from the OpenAPI entries of every
+    :class:`Coded400Route`, which answers a malformed body with 400 instead."""
+    build = app.openapi
+
+    def openapi():
+        schema = build()
+        for path_item in schema.get("paths", {}).values():
+            for operation in path_item.values():
+                if isinstance(operation, dict) and operation.pop(_CODED_400_MARK, False):
+                    operation.get("responses", {}).pop("422", None)
+        return schema
+
+    app.openapi = openapi
+
+
 def _post(path: str, **kwargs):
     """``@router.post`` with :class:`Coded400Route`."""
 
     def _register(endpoint):
         router.add_api_route(
-            path, endpoint, methods=["POST"], route_class_override=Coded400Route, **kwargs
+            path,
+            endpoint,
+            methods=["POST"],
+            route_class_override=Coded400Route,
+            openapi_extra={_CODED_400_MARK: True},
+            **kwargs,
         )
         return endpoint
 
@@ -752,7 +776,7 @@ def preview_merge_import(
         )
         available = mappable_models(db, str(current_user.id))
     except ImportValidationError as exc:
-        detail = {"code": exc.code, "message": exc.detail} if exc.code else exc.detail
+        detail = {"code": exc.code, "message": exc.message} if exc.code else exc.detail
         raise HTTPException(status_code=exc.status_code, detail=detail)
     finally:
         db.rollback()

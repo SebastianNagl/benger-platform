@@ -175,6 +175,8 @@ def test_import_bodies_are_typed_in_the_openapi_schema():
         assert ref.endswith(f"/{model}")
         for status in ("400", "403", "404"):
             assert status in post["responses"], (path, status)
+        # A malformed body answers 400 (Coded400Route), never 422.
+        assert "422" not in post["responses"], path
     props = schema["components"]["schemas"]["FullImportJobRequest"]["properties"]
     assert {"object_key", "model_id_map", "organization_id", "organization_group_id"} <= set(props)
     status_props = schema["components"]["schemas"]["ImportJobStatus"]["properties"]
@@ -289,7 +291,10 @@ class TestMergePreview:
         test_db.commit()
         resp = self._post(client, user, other, export)
         assert resp.status_code == 409, resp.text
-        assert resp.json()["detail"]["code"] == "merge_task_mismatch"
+        detail = resp.json()["detail"]
+        assert detail["code"] == "merge_task_mismatch"
+        # The code travels in its own field; the message is the readable text.
+        assert detail["message"].startswith("Of the ")
 
     def test_malformed_body_is_a_400(self, client, test_db):
         user, project, export = _seed_preview_project(test_db)

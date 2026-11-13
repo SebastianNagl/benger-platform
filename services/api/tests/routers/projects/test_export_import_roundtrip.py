@@ -2762,36 +2762,16 @@ def _make_org(db, name):
 @pytest.mark.integration
 @pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
 class TestImportKeepsAttributionAndOrder:
-    def test_job_organization_survives_a_same_instance_copy(
-        self, db_session, user, benchmark_project, fmt
-    ):
-        """Defect 6: organization_id was dropped on every import."""
-        org = _make_org(db_session, "Billing Org")
-        prod = benchmark_project["project"]
-        for rg in db_session.query(ResponseGeneration).filter(
-            ResponseGeneration.project_id == prod.id
-        ):
-            rg.organization_id = org.id
-        db_session.commit()
+    """Defect 6: organization_id was dropped on every import. Imported jobs
+    are attributed to the org of the project they land in, never to the org
+    the file names (an importer could otherwise bill any org whose id they
+    know)."""
 
-        copy_id = _import_text(
-            db_session, _export_text(db_session, prod.id, fmt), user.id
-        )["project_id"]
-        orgs = {
-            rg.organization_id
-            for rg in db_session.query(ResponseGeneration).filter(
-                ResponseGeneration.project_id == copy_id
-            )
-        }
-        assert orgs == {org.id}
-
-    def test_unknown_job_organization_falls_back_to_the_named_one(
-        self, db_session, user, benchmark_project, fmt
-    ):
+    def _member_org(self, db, user, name):
         from models import OrganizationMembership, OrganizationRole
 
-        org = _make_org(db_session, "Target Org")
-        db_session.add(
+        org = _make_org(db, name)
+        db.add(
             OrganizationMembership(
                 id=str(uuid.uuid4()),
                 user_id=user.id,
@@ -2800,20 +2780,119 @@ class TestImportKeepsAttributionAndOrder:
                 is_active=True,
             )
         )
-        db_session.commit()
-        prod = benchmark_project["project"]
-        text = _export_text(db_session, prod.id, fmt)
-        # As an export from another instance: its org id is unknown here.
-        text = text.replace('"organization_id": null', '"organization_id": "org-elsewhere"')
+        db.commit()
+        return org
 
-        copy_id = _import_text(db_session, text, user.id, organization_id=org.id)["project_id"]
-        orgs = {
+    def _bill_jobs_to(self, db, project_id, org_id):
+        for rg in db.query(ResponseGeneration).filter(
+            ResponseGeneration.project_id == project_id
+        ):
+            rg.organization_id = org_id
+        db.commit()
+
+    def _job_orgs(self, db, project_id):
+        return {
             rg.organization_id
-            for rg in db_session.query(ResponseGeneration).filter(
-                ResponseGeneration.project_id == copy_id
+            for rg in db.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == project_id
             )
         }
-        assert orgs == {org.id}
+
+    def test_a_copy_bills_the_org_the_import_names_not_the_files_org(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        foreign = _make_org(db_session, "Foreign Org")
+        target = self._member_org(db_session, user, "Target Org")
+        prod = benchmark_project["project"]
+        self._bill_jobs_to(db_session, prod.id, foreign.id)
+
+        copy_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id,
+            organization_id=target.id,
+        )["project_id"]
+        assert self._job_orgs(db_session, copy_id) == {target.id}
+
+    def test_a_private_copy_bills_no_org(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        foreign = _make_org(db_session, "Foreign Org")
+        prod = benchmark_project["project"]
+        self._bill_jobs_to(db_session, prod.id, foreign.id)
+
+        copy_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        assert self._job_orgs(db_session, copy_id) == {None}
+
+    def test_a_merge_bills_the_target_projects_org_not_the_files_org(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        from project_models import ProjectOrganization
+
+        foreign = _make_org(db_session, "Foreign Org")
+        target = self._member_org(db_session, user, "Target Org")
+        prod = benchmark_project["project"]
+        db_session.add(
+            ProjectOrganization(
+                id=str(uuid.uuid4()), project_id=prod.id,
+                organization_id=target.id, assigned_by=user.id,
+            )
+        )
+        db_session.commit()
+        _register_prod_model(db_session)
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        self._bill_jobs_to(db_session, local_id, foreign.id)
+        before = {
+            rg.id for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == prod.id
+            )
+        }
+
+        _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        merged = {
+            rg.organization_id
+            for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == prod.id,
+                ResponseGeneration.id.notin_(before),
+            )
+        }
+        assert merged == {target.id}
+
+    def test_a_merge_into_a_private_project_bills_no_org(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        foreign = _make_org(db_session, "Foreign Org")
+        prod = benchmark_project["project"]
+        _register_prod_model(db_session)
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        _benchmark_new_model(db_session, local_id, user.id, LOCAL_MODEL)
+        self._bill_jobs_to(db_session, local_id, foreign.id)
+        before = {
+            rg.id for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == prod.id
+            )
+        }
+
+        _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+        merged = {
+            rg.organization_id
+            for rg in db_session.query(ResponseGeneration).filter(
+                ResponseGeneration.project_id == prod.id,
+                ResponseGeneration.id.notin_(before),
+            )
+        }
+        assert merged == {None}
 
     def test_task_numbers_keep_their_order(self, db_session, user, fmt):
         """Defect 7: the exporters wrote tasks in heap order and the importer
