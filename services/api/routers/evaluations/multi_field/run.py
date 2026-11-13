@@ -111,22 +111,32 @@ def _store_configs_if_unconfigured(db, user, project_id: str, evaluation_configs
         validate_evaluation_config_write,
     )
 
+    def _configured(project) -> bool:
+        stored = project.evaluation_config or {}
+        return bool(stored.get("evaluation_configs") or stored.get("multi_field_evaluations"))
+
     try:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if (
+            project is None
+            or _configured(project)
+            or not auth_service.check_project_access(
+                user, project, Permission.PROJECT_EDIT, db
+            )
+        ):
+            db.rollback()
+            return
         project = (
             db.query(Project)
             .filter(Project.id == project_id)
             .populate_existing()
             .with_for_update()
-            .first()
+            .one()
         )
-        if project is None or not auth_service.check_project_access(
-            user, project, Permission.PROJECT_EDIT, db
-        ):
+        if _configured(project):
             db.rollback()
             return
         stored = project.evaluation_config or {}
-        if stored.get("evaluation_configs") or stored.get("multi_field_evaluations"):
-            return
         body = {"evaluation_configs": [c.dict() for c in evaluation_configs]}
         merged = merge_evaluation_config(stored, body)
         validate_evaluation_config_write(body, merged)

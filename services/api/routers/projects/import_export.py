@@ -146,20 +146,21 @@ class Coded400Route(APIRoute):
 _CODED_400_MARK = "x-benger-coded-400"
 
 
+def strip_coded_400_validation(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove FastAPI's automatic 422 (and the internal mark) from the
+    OpenAPI entries of every :class:`Coded400Route`, which answers a
+    malformed body with 400 instead. Idempotent; returns ``schema``."""
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            if isinstance(operation, dict) and operation.pop(_CODED_400_MARK, False):
+                operation.get("responses", {}).pop("422", None)
+    return schema
+
+
 def drop_unreturned_validation_responses(app) -> None:
-    """Remove FastAPI's automatic 422 from the OpenAPI entries of every
-    :class:`Coded400Route`, which answers a malformed body with 400 instead."""
+    """Apply :func:`strip_coded_400_validation` to the app's own spec."""
     build = app.openapi
-
-    def openapi():
-        schema = build()
-        for path_item in schema.get("paths", {}).values():
-            for operation in path_item.values():
-                if isinstance(operation, dict) and operation.pop(_CODED_400_MARK, False):
-                    operation.get("responses", {}).pop("422", None)
-        return schema
-
-    app.openapi = openapi
+    app.openapi = lambda: strip_coded_400_validation(build())
 
 
 def _post(path: str, **kwargs):

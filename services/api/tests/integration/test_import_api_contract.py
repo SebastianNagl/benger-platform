@@ -177,10 +177,28 @@ def test_import_bodies_are_typed_in_the_openapi_schema():
             assert status in post["responses"], (path, status)
         # A malformed body answers 400 (Coded400Route), never 422.
         assert "422" not in post["responses"], path
+        assert "x-benger-coded-400" not in post, path
     props = schema["components"]["schemas"]["FullImportJobRequest"]["properties"]
     assert {"object_key", "model_id_map", "organization_id", "organization_group_id"} <= set(props)
     status_props = schema["components"]["schemas"]["ImportJobStatus"]["properties"]
     assert {"error_code", "error_status", "result", "project_id"} <= set(status_props)
+
+
+def test_the_full_api_reference_spec_lists_no_422_for_the_import_bodies():
+    """GET /api/v1/reference/openapi.json, the spec access-key clients read,
+    documents the same 400 contract as /openapi.json."""
+    from routers.v1.reference import build_reference_openapi
+
+    paths = build_reference_openapi(app, platform_only=True)["paths"]
+    for path in (
+        "/api/projects/project-imports",
+        "/api/projects/{project_id}/imports",
+        "/api/projects/{project_id}/imports/merge-preview",
+    ):
+        post = paths[path]["post"]
+        assert "400" in post["responses"], path
+        assert "422" not in post["responses"], path
+        assert "x-benger-coded-400" not in post, path
 
 
 def _seed_preview_project(db):
