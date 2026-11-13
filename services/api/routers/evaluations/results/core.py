@@ -314,8 +314,43 @@ async def get_evaluation_samples(
             .all()
         )
 
-        # Convert to response models
-        sample_results = [SampleResultSchema.from_orm(s) for s in samples]
+        # Convert to response models, with the model each row graded.
+        from models import Generation, LLMModel
+
+        generation_ids = {s.generation_id for s in samples if s.generation_id}
+        model_by_generation = (
+            dict(
+                (
+                    await db.execute(
+                        select(Generation.id, Generation.model_id).where(
+                            Generation.id.in_(generation_ids)
+                        )
+                    )
+                ).all()
+            )
+            if generation_ids
+            else {}
+        )
+        model_ids = {m for m in model_by_generation.values() if m}
+        model_names = (
+            dict(
+                (
+                    await db.execute(
+                        select(LLMModel.id, LLMModel.name).where(LLMModel.id.in_(model_ids))
+                    )
+                ).all()
+            )
+            if model_ids
+            else {}
+        )
+        sample_results = []
+        for s in samples:
+            model_id = model_by_generation.get(s.generation_id)
+            sample_results.append(
+                SampleResultSchema.from_orm(s).model_copy(
+                    update={"model_id": model_id, "model_name": model_names.get(model_id)}
+                )
+            )
 
         return SampleEvaluationListResponse(
             items=sample_results,

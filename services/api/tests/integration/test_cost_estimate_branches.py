@@ -429,6 +429,7 @@ class TestPricingBranches:
         body = body_resp.json()
         row = _per_model(body, "totally-unknown-model")
         assert row["pricing_known"] is False
+        assert row["model_name"] is None
         assert row["per_call_usd"] == 0.0
         assert row["per_run_usd"] == 0.0
         assert row["total_usd"] == 0.0
@@ -458,6 +459,8 @@ class TestPricingBranches:
         assert body_resp.status_code == 200, body_resp.text
         row = _per_model(body_resp.json(), FREE_MODEL)
         assert row["pricing_known"] is False
+        # The cost table names the model, priced or not.
+        assert row["model_name"] == FREE_MODEL
         assert row["total_usd"] == 0.0
 
     @pytest.mark.asyncio
@@ -482,6 +485,7 @@ class TestPricingBranches:
         body = body_resp.json()
         row = _per_model(body, PRICED_MODEL)
         assert row["pricing_known"] is True
+        assert row["model_name"] == PRICED_MODEL
         assert row["per_call_usd"] > 0.0
         assert row["total_usd"] > 0.0
         assert body["total_usd"] == row["total_usd"]

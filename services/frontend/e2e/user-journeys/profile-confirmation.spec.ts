@@ -11,15 +11,23 @@
  */
 
 import { expect, Page, test } from '@playwright/test'
+import { apiBaseUrl } from '../helpers/api-url'
 import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
 
+// Bearer token for API calls (login keeps its tokens in HttpOnly cookies).
+// The frontend host routes /api/auth/* to Next.js, so this goes to the API host.
 async function getAuthToken(page: Page): Promise<string> {
-  const response = await page.request.post(`${BASE_URL}/api/auth/login`, {
+  const apiUrl = apiBaseUrl(BASE_URL)
+  if (!apiUrl) {
+    throw new Error(`No API host known for ${BASE_URL}; set PLAYWRIGHT_API_URL`)
+  }
+  const response = await page.request.post(`${apiUrl}/api/auth/token`, {
     data: { username: 'admin', password: 'admin' },
     timeout: 30000,
   })
+  expect(response.ok()).toBe(true)
   const body = await response.json()
   return body.access_token
 }

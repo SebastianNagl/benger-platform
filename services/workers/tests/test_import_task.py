@@ -40,6 +40,14 @@ def _stage_object(storage, object_key, content: bytes):
         f.write(content)
 
 
+def _committed(before_commit, result):
+    """What a real driver does on success: hand the result to the caller's
+    hook, then commit (the fake session's commit is a no-op)."""
+    assert before_commit is not None, "the worker must pass a before_commit hook"
+    before_commit(result)
+    return result
+
+
 def _make_job(
     project_id="proj-1",
     status="pending",
@@ -72,6 +80,10 @@ class _FakeQuery:
         return self
 
     def first(self):
+        return self._result
+
+    def one(self):
+        assert self._result is not None
         return self._result
 
 
@@ -123,11 +135,11 @@ def test_import_nested_runs_nested_driver(_patched):
 
     captured = {}
 
-    def _fake_nested(db, project_id, fileobj, user_id):
+    def _fake_nested(db, project_id, fileobj, user_id, before_commit=None):
         captured["project_id"] = project_id
         captured["user_id"] = user_id
         captured["bytes"] = fileobj.read()
-        return {"created_tasks": 1}
+        return _committed(before_commit, {"created_tasks": 1})
 
     with patch("import_stream.run_nested_import", _fake_nested), patch(
         "import_stream.run_full_project_import"
@@ -157,9 +169,12 @@ def test_import_comprehensive_creates_project_and_captures_id(_patched):
 
     captured = {}
 
-    def _fake_full(db, fileobj, user_id, organization_id=None):
+    def _fake_full(db, fileobj, user_id, organization_id=None, before_commit=None):
         captured["organization_id"] = organization_id
-        return {"project_id": "new-proj-9", "message": "ok", "statistics": {}}
+        return _committed(
+            before_commit,
+            {"project_id": "new-proj-9", "message": "ok", "statistics": {}},
+        )
 
     with patch("import_stream.run_full_project_import", _fake_full), patch(
         "import_stream.run_nested_import"
@@ -185,9 +200,14 @@ def test_import_comprehensive_passes_model_id_map_to_importer(_patched):
 
     captured = {}
 
-    def _fake_full(db, fileobj, user_id, organization_id=None, model_id_map=None):
+    def _fake_full(
+        db, fileobj, user_id, organization_id=None, model_id_map=None, before_commit=None
+    ):
         captured["model_id_map"] = model_id_map
-        return {"project_id": "new-proj-8", "message": "ok", "statistics": {}}
+        return _committed(
+            before_commit,
+            {"project_id": "new-proj-8", "message": "ok", "statistics": {}},
+        )
 
     session = _FakeSession({ImportJob: job})
     with patch("import_stream.run_full_project_import", _fake_full), patch.object(
@@ -211,9 +231,9 @@ def test_merge_mode_runs_the_merge_driver(_patched):
 
     captured = {}
 
-    def _fake_merge(db, project_id, fileobj, user_id, model_id_map=None):
+    def _fake_merge(db, project_id, fileobj, user_id, model_id_map=None, before_commit=None):
         captured.update(project_id=project_id, model_id_map=model_id_map)
-        return {"project_id": project_id, "statistics": {"merged": True}}
+        return _committed(before_commit, {"project_id": project_id, "statistics": {"merged": True}})
 
     session = _FakeSession({ImportJob: job})
     with patch("import_stream.run_merge_import", _fake_merge), patch(
@@ -230,6 +250,42 @@ def test_merge_mode_runs_the_merge_driver(_patched):
     assert job.project_id == "proj-1"
 
 
+def test_merge_dry_run_completes_the_job_with_the_preview_and_writes_nothing(_patched):
+    """dry_run=True is the merge preview: the driver runs as a dry run (it
+    rolls the merge back itself and never calls before_commit), and only the
+    job row is completed, as a merge_preview carrying the preview."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"format_version": "1.0", "project": {"title": "X"}}'
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, content)
+
+    captured = {}
+    preview = {
+        "project_id": "proj-1",
+        "statistics": {"dry_run": True, "matched_tasks": 2, "unknown_models": ["custom-x"]},
+    }
+
+    def _fake_merge(
+        db, project_id, fileobj, user_id, model_id_map=None, before_commit=None, dry_run=False
+    ):
+        captured.update(dry_run=dry_run, before_commit=before_commit, model_id_map=model_id_map)
+        return preview
+
+    session = _FakeSession({ImportJob: job})
+    with patch("import_stream.run_merge_import", _fake_merge), patch.object(
+        workers_tasks, "SessionLocal", return_value=session
+    ):
+        result = workers_tasks.import_project(
+            "ijob-1", model_id_map={"a": "b"}, mode="merge", dry_run=True
+        )
+
+    assert result["status"] == "completed"
+    assert captured == {"dry_run": True, "before_commit": None, "model_id_map": {"a": "b"}}
+    assert job.status == "completed"
+    assert job.format == "merge_preview"
+    assert job.result == preview
+
+
 def test_import_comprehensive_passes_job_organization_to_importer(_patched):
     """The org context stored on the job reaches the create-new importer."""
     workers_tasks, storage, ImportJob = _patched
@@ -241,9 +297,12 @@ def test_import_comprehensive_passes_job_organization_to_importer(_patched):
 
     captured = {}
 
-    def _fake_full(db, fileobj, user_id, organization_id=None):
+    def _fake_full(db, fileobj, user_id, organization_id=None, before_commit=None):
         captured["organization_id"] = organization_id
-        return {"project_id": "new-proj-7", "message": "ok", "statistics": {}}
+        return _committed(
+            before_commit,
+            {"project_id": "new-proj-7", "message": "ok", "statistics": {}},
+        )
 
     with patch("import_stream.run_full_project_import", _fake_full):
         result, _ = _run_with_job(workers_tasks, ImportJob, job)
@@ -259,7 +318,7 @@ def test_import_validation_error_marks_failed(_patched):
     job = _make_job(project_id="proj-1")
     _stage_object(storage, job.object_key, b'{"data": "not a list"}')
 
-    def _bad(db, project_id, fileobj, user_id):
+    def _bad(db, project_id, fileobj, user_id, **_):
         raise ImportValidationError(422, "data must be an array")
 
     with patch("import_stream.run_nested_import", _bad):
@@ -276,7 +335,7 @@ def test_import_generic_error_marks_failed(_patched):
     job = _make_job(project_id="proj-1")
     _stage_object(storage, job.object_key, b'{"data": []}')
 
-    def _boom(db, project_id, fileobj, user_id):
+    def _boom(db, project_id, fileobj, user_id, **_):
         raise RuntimeError("driver exploded")
 
     with patch("import_stream.run_nested_import", _boom):
@@ -369,12 +428,12 @@ def test_cloud_import_tabular_key_runs_tabular_driver(_patched):
 
     captured = {}
 
-    def _fake_tabular(db, project_id, fileobj, user_id, fmt):
+    def _fake_tabular(db, project_id, fileobj, user_id, fmt, before_commit=None):
         captured["project_id"] = project_id
         captured["user_id"] = user_id
         captured["fmt"] = fmt
         captured["bytes"] = fileobj.read()
-        return {"created_tasks": 1, "format": fmt}
+        return _committed(before_commit, {"created_tasks": 1, "format": fmt})
 
     with patch(
         "org_storage_connection_service.head_object_size", return_value=len(content)
@@ -408,9 +467,9 @@ def test_cloud_import_json_key_runs_nested_driver(_patched):
 
     captured = {}
 
-    def _fake_nested(db, project_id, fileobj, user_id):
+    def _fake_nested(db, project_id, fileobj, user_id, before_commit=None):
         captured["bytes"] = fileobj.read()
-        return {"created_tasks": 1}
+        return _committed(before_commit, {"created_tasks": 1})
 
     with patch(
         "org_storage_connection_service.head_object_size", return_value=len(content)
@@ -470,3 +529,46 @@ def test_cloud_import_oversize_object_fails_before_download(_patched):
     mock_tabular.assert_not_called()
     assert job.status == "failed"
     assert "413" in (job.error_message or "")
+
+
+def test_driver_returning_without_the_hook_fails_the_job(_patched):
+    """A driver that returns without calling before_commit has committed
+    without the job's completed state; the worker must not report success."""
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1")
+    _stage_object(storage, job.object_key, b'{"data": []}')
+
+    def _no_hook(db, project_id, fileobj, user_id, before_commit=None):
+        return {"created_tasks": 0}
+
+    with patch("import_stream.run_nested_import", _no_hook):
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "error"
+    assert job.status == "failed"
+    assert "without marking the job completed" in (job.error_message or "")
+
+
+def test_error_after_the_commit_leaves_the_job_completed(_patched):
+    """Once the hook's state has committed, a later error (here: the
+    completion progress event) neither relabels the job nor the result."""
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1")
+    _stage_object(storage, job.object_key, b'{"data": []}')
+
+    def _nested(db, project_id, fileobj, user_id, before_commit=None):
+        return _committed(before_commit, {"created_tasks": 0})
+
+    def _publish(channel, payload):
+        if payload.get("status") == "completed":
+            raise RuntimeError("redis gone")
+
+    with patch("import_stream.run_nested_import", _nested), patch.object(
+        workers_tasks, "_publish_progress", side_effect=_publish
+    ):
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "completed"
+    assert result["project_id"] == "proj-1"
+    assert job.status == "completed"
+    assert job.error_message is None

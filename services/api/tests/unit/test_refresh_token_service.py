@@ -46,6 +46,8 @@ class TestRefreshTokenService:
         token.user_agent = "Mozilla/5.0"
         token.ip_address = "192.168.1.1"
         token.last_used_at = datetime.now(timezone.utc)
+        token.family_id = None  # a row from before rotation: family = own id
+        token.rotated_at = None
         return token
 
     def test_generate_refresh_token(self):
@@ -174,45 +176,54 @@ class TestRefreshTokenService:
 
             assert result is None
 
-    def test_rotate_refresh_token_success(self, test_db, mock_refresh_token):
-        """Test successful token rotation"""
-        # Mock the old token validation
-        with patch('services.refresh_token_service.validate_refresh_token', return_value=mock_refresh_token):
-            # Mock the new token creation
-            new_mock_token = Mock(spec=RefreshToken)
-            with patch(
-                'services.refresh_token_service.create_refresh_token',
-                return_value=("new_token", new_mock_token),
-            ):
-                result = rotate_refresh_token(test_db, "old_token")
+    @staticmethod
+    def _locked_lookup(test_db):
+        return test_db.query.return_value.filter.return_value.with_for_update.return_value.first
 
-                assert result == ("new_token", new_mock_token)
-                assert mock_refresh_token.is_active == False  # noqa: E712
-                test_db.commit.assert_called()
+    def test_rotate_refresh_token_success(self, test_db, mock_refresh_token):
+        """Rotation retires the old token and adds a successor in its family"""
+        self._locked_lookup(test_db).return_value = mock_refresh_token
+
+        result = rotate_refresh_token(test_db, "old_token")
+
+        assert result is not None
+        new_plain, new_row = result
+        assert isinstance(new_plain, str) and new_plain != "old_token"
+        assert mock_refresh_token.is_active == False  # noqa: E712
+        assert mock_refresh_token.rotated_at is not None
+        assert new_row.family_id == "token-123"  # the old row's own id
+        assert new_row.user_id == "user-456"
+        assert new_row.is_active is True
+        test_db.add.assert_called_once_with(new_row)
+        test_db.commit.assert_called_once()  # one transaction for both rows
+
+    def test_rotate_refresh_token_keeps_an_existing_family(self, test_db, mock_refresh_token):
+        mock_refresh_token.family_id = "family-1"
+        self._locked_lookup(test_db).return_value = mock_refresh_token
+
+        _, new_row = rotate_refresh_token(test_db, "old_token")
+
+        assert new_row.family_id == "family-1"
 
     def test_rotate_refresh_token_invalid_old_token(self, test_db):
         """Test token rotation with invalid old token"""
-        with patch('services.refresh_token_service.validate_refresh_token', return_value=None):
-            result = rotate_refresh_token(test_db, "invalid_token")
+        self._locked_lookup(test_db).return_value = None
 
-            assert result is None
+        result = rotate_refresh_token(test_db, "invalid_token")
+
+        assert result is None
+        test_db.add.assert_not_called()
 
     def test_rotate_refresh_token_with_metadata(self, test_db, mock_refresh_token):
         """Test token rotation with user agent and IP"""
-        with patch('services.refresh_token_service.validate_refresh_token', return_value=mock_refresh_token):
-            new_mock_token = Mock(spec=RefreshToken)
-            with patch(
-                'services.refresh_token_service.create_refresh_token',
-                return_value=("new_token", new_mock_token),
-            ) as mock_create:
-                result = rotate_refresh_token(
-                    test_db, "old_token", user_agent="Chrome/90.0", ip_address="192.168.1.1"
-                )
+        self._locked_lookup(test_db).return_value = mock_refresh_token
 
-                assert result == ("new_token", new_mock_token)
-                mock_create.assert_called_once_with(
-                    test_db, mock_refresh_token.user_id, "Chrome/90.0", "192.168.1.1"
-                )
+        _, new_row = rotate_refresh_token(
+            test_db, "old_token", user_agent="Chrome/90.0", ip_address="192.168.1.1"
+        )
+
+        assert new_row.user_agent == "Chrome/90.0"
+        assert new_row.ip_address == "192.168.1.1"
 
     def test_revoke_refresh_token_success(self, test_db, mock_refresh_token):
         """Test successful token revocation"""

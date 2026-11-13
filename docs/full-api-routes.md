@@ -73,6 +73,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/auth/resend-verification` | never |  |
 | POST | `/api/auth/reset-password` | never |  |
 | POST | `/api/auth/signup` | never |  |
+| POST | `/api/auth/token` | never |  |
 | GET | `/api/auth/verify` | never |  |
 | POST | `/api/auth/verify-email` | never |  |
 | POST | `/api/auth/verify-email-enhanced/{token}` | never |  |

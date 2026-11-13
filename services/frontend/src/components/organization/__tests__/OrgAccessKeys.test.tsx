@@ -390,8 +390,9 @@ describe('OrgAccessKeys dialog', () => {
         rate_limit_per_day: null,
       })
       const expires = Date.parse(body.expires_at as string)
-      expect(expires).toBeGreaterThanOrEqual(before + 365 * DAY - 1000)
-      expect(expires).toBeLessThanOrEqual(Date.now() + 365 * DAY + 1000)
+      // A new key suggests 90 days of validity (still optional).
+      expect(expires).toBeGreaterThanOrEqual(before + 90 * DAY - 1000)
+      expect(expires).toBeLessThanOrEqual(Date.now() + 90 * DAY + 1000)
 
       expect(screen.getByTestId('access-key-secret')).toHaveTextContent(
         'bgr_live_newkey12_SECRETVALUE',

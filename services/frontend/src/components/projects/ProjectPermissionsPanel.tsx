@@ -11,9 +11,12 @@
  * Creator, org admins of the attached orgs and superadmins may change it;
  * everyone else sees it greyed out.
  *
- * Edit access (settings, label config) stays with creator + superadmins
- * regardless of visibility — the public CONTRIBUTOR role grants task/data
- * interactions only.
+ * Changing the project (settings, label config, imports, task edits and
+ * deletes, assignments) stays with its real members (creator, superadmins,
+ * contributors and admins of attached organizations) whatever the
+ * visibility. The public CONTRIBUTOR role lets visitors read and fully
+ * export the project and add their own annotations, generations and
+ * evaluation runs; choosing it needs an explicit confirmation.
  */
 
 'use client'
@@ -37,6 +40,7 @@ import {
 import { projectsAPI } from '@/lib/api/projects'
 import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { useEffect, useRef, useState } from 'react'
+import { PublicContributorConfirmDialog } from './PublicContributorConfirmDialog'
 
 // Select item for "whole organization" (stored as a null group id).
 const ORG_WIDE = '__org__'
@@ -113,6 +117,18 @@ export function ProjectPermissionsPanel({
   const [loadingOrgs, setLoadingOrgs] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The public CONTRIBUTOR role only applies after an explicit confirmation
+  // (not needed when the saved setting already is public CONTRIBUTOR).
+  const [confirmContributor, setConfirmContributor] = useState(false)
+  const contributorAlreadySaved =
+    initialVisibility === 'public' && initialPublicRole === 'CONTRIBUTOR'
+  const choosePublicRole = (role: PublicRole) => {
+    if (role === 'CONTRIBUTOR' && !contributorAlreadySaved) {
+      setConfirmContributor(true)
+      return
+    }
+    setPublicRole(role)
+  }
 
   // Organization groups, cached per org id (undefined = not fetched yet,
   // [] = fetched, org has no groups / fetch failed).
@@ -605,7 +621,7 @@ export function ProjectPermissionsPanel({
                   type="radio"
                   name="public-role"
                   checked={publicRole === 'ANNOTATOR'}
-                  onChange={() => setPublicRole('ANNOTATOR')}
+                  onChange={() => choosePublicRole('ANNOTATOR')}
                   className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                   data-testid="public-role-annotator-radio"
                 />
@@ -626,7 +642,7 @@ export function ProjectPermissionsPanel({
                   type="radio"
                   name="public-role"
                   checked={publicRole === 'CONTRIBUTOR'}
-                  onChange={() => setPublicRole('CONTRIBUTOR')}
+                  onChange={() => choosePublicRole('CONTRIBUTOR')}
                   className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                   data-testid="public-role-contributor-radio"
                 />
@@ -643,6 +659,12 @@ export function ProjectPermissionsPanel({
           </div>
         )}
       </fieldset>
+
+      <PublicContributorConfirmDialog
+        isOpen={confirmContributor}
+        onClose={() => setConfirmContributor(false)}
+        onConfirm={() => setPublicRole('CONTRIBUTOR')}
+      />
 
       {!readOnly && (
         <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">

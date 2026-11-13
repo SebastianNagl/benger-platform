@@ -28,7 +28,6 @@ Prerequisites:
         LOAD_TEST_NUM_USERS   - number of pre-created test users (default: 100)
 """
 
-import json
 import os
 import time
 
@@ -86,9 +85,9 @@ class AnnotatorUser(HttpUser):
     def _login(self):
         """Authenticate and store access token."""
         with self.client.post(
-            "/api/auth/login",
+            "/api/auth/token",
             json={"username": self.username, "password": PASSWORD},
-            name="/api/auth/login",
+            name="/api/auth/token",
             catch_response=True,
         ) as resp:
             if resp.status_code == 200:

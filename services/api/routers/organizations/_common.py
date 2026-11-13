@@ -18,6 +18,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from auth_module import get_current_user, require_user
+from auth_module.dependencies import is_org_admin_sync
 from auth_module.user_service import delete_user as delete_user_service
 from database import get_db
 from models import Organization, OrganizationMembership, OrganizationRole, User
@@ -28,26 +29,9 @@ router = APIRouter(prefix="/api/organizations", tags=["organizations"])
 
 
 def can_manage_organization(user: User, organization_id: str, db: Session) -> bool:
-    """Check if user can manage the specified organization"""
-    if not user:
-        return False
-
-    if user.is_superadmin:
-        return True
-
-    # Check if user is admin of the specific organization
-    membership = (
-        db.query(OrganizationMembership)
-        .filter(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-        .first()
-    )
-
-    return membership is not None
+    """Check if user can manage the specified organization: superadmin or an
+    active ORG_ADMIN membership (``auth_module.dependencies.is_org_admin_sync``)."""
+    return is_org_admin_sync(db, user, organization_id)
 
 
 def can_manage_group(user: User, organization_id: str, group_id: str, db: Session) -> bool:

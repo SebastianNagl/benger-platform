@@ -27,6 +27,10 @@ class SampleEvaluationResult(BaseModel):
     evaluation_id: str
     task_id: str
     generation_id: Optional[str] = None
+    # The model of the graded generation (None for a graded annotation), and
+    # its name here.
+    model_id: Optional[str] = None
+    model_name: Optional[str] = None
 
     field_name: str
     answer_type: str

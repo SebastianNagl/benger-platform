@@ -126,6 +126,11 @@ async def lifespan(app: FastAPI):
         initialize_task_types_and_evaluation_types,
     )
 
+    # No random per-process JWT key outside tests (auth_module/config.py).
+    from auth_module.config import assert_jwt_secret_configured
+
+    assert_jwt_secret_configured()
+
     # Deny by default: every public /api/v1 route must declare its scopes.
     from routers.v1._deps import assert_v1_routes_scoped
 
@@ -588,6 +593,10 @@ configure_app(app)
 from routers.v1 import install_v1  # noqa: E402
 
 install_v1(app)
+
+from routers.projects.import_export import drop_unreturned_validation_responses  # noqa: E402
+
+drop_unreturned_validation_responses(app)
 
 
 # Root endpoint

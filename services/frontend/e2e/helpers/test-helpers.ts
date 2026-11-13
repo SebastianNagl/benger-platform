@@ -298,7 +298,6 @@ export class TestHelpers {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('access_token')}`,
             },
           })
           return { status: response.status, ok: response.ok }
@@ -316,11 +315,7 @@ export class TestHelpers {
       // Verify deletion by checking project no longer exists
       const verifyResult = await throttledRequest(() =>
         this.page.evaluate(async (id) => {
-          const response = await fetch(`/api/projects/${id}`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-            },
-          })
+          const response = await fetch(`/api/projects/${id}`, {})
           return response.status
         }, projectId),
       )

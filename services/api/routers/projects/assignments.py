@@ -28,7 +28,7 @@ from services.member_privacy import project_name_mask
 from routers.projects.helpers import (
     check_project_accessible_async,
     seb_request_allowed,
-    get_effective_project_role,
+    check_user_can_edit_project,
     get_project_access_tier,
 )
 
@@ -64,15 +64,12 @@ def assign_tasks(
         # on a hidden project.
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Check permission - only superadmin, org admin, or contributor can assign
-    # The central effective-role resolution (best role over every eligible
-    # attachment; the group role decides on a grouped attachment).
-    if current_user.is_superadmin:
-        user_role = "superadmin"
-    else:
-        user_role = get_effective_project_role(db, current_user, project)
-
-    if user_role not in ["superadmin", "ORG_ADMIN", "CONTRIBUTOR"]:
+    # Assigning work to people manages the project: superadmin, creator, or
+    # a CONTRIBUTOR or higher of an attached org (best role over every
+    # eligible attachment; the group role decides on a grouped attachment).
+    # A public project's public_role=CONTRIBUTOR visitors are not members and
+    # may not assign.
+    if not check_user_can_edit_project(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Only admins and contributors can assign tasks")
 
     task_ids = data.get("task_ids", [])
@@ -82,24 +79,12 @@ def assign_tasks(
     due_date = data.get("due_date")
     notes = data.get("notes")
 
-    # Debug logging
-    print(f"[ASSIGN DEBUG] Received task_ids: {task_ids}")
-    print(f"[ASSIGN DEBUG] Received user_ids: {user_ids}")
-    print(f"[ASSIGN DEBUG] Project ID: {project_id}")
 
     if not task_ids or not user_ids:
         raise HTTPException(status_code=400, detail="task_ids and user_ids are required")
 
     # Verify tasks exist
     tasks = db.query(Task).filter(Task.id.in_(task_ids), Task.project_id == project_id).all()
-
-    # Debug logging
-    print(f"[ASSIGN DEBUG] Found {len(tasks)} tasks in database")
-    print(f"[ASSIGN DEBUG] Task IDs in DB: {[t.id for t in tasks]}")
-
-    # Check all tasks in this project to see what IDs exist
-    all_project_tasks = db.query(Task).filter(Task.project_id == project_id).all()
-    print(f"[ASSIGN DEBUG] All task IDs in project: {[t.id for t in all_project_tasks]}")
 
     if len(tasks) != len(task_ids):
         raise HTTPException(
@@ -165,7 +150,6 @@ def assign_tasks(
                     )
                     db.add(assignment)
                     assignments_created.append(assignment)
-                    print(f"[ASSIGN DEBUG] Created assignment for task {task_id} to user {user_id}")
                 else:
                     # Update existing assignment if needed
                     updated = False
@@ -181,14 +165,8 @@ def assign_tasks(
 
                     if updated:
                         assignments_updated.append(existing)
-                        print(
-                            f"[ASSIGN DEBUG] Updated existing assignment for task {task_id} to user {user_id}"
-                        )
                     else:
                         assignments_skipped.append(existing)
-                        print(
-                            f"[ASSIGN DEBUG] Assignment already exists for task {task_id} to user {user_id} - skipping"
-                        )
 
     elif distribution == "round_robin":
         # Distribute tasks evenly in round-robin fashion
@@ -284,9 +262,6 @@ def assign_tasks(
                 workload[user_id] += 1
 
     db.commit()
-
-    # Debug logging
-    print(f"[ASSIGN DEBUG] Total assignments created: {len(assignments_created)}")
 
     # Send notifications to assigned users
     if assignments_created:
@@ -463,14 +438,8 @@ def remove_task_assignment(
     if task_in_project is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
-    # The central effective-role resolution (best role over every eligible
-    # attachment; the group role decides on a grouped attachment).
-    if current_user.is_superadmin:
-        user_role = "superadmin"
-    else:
-        user_role = get_effective_project_role(db, current_user, project)
-
-    if user_role not in ["superadmin", "ORG_ADMIN", "CONTRIBUTOR"]:
+    # Same gate as assigning: real project members (see assign_tasks).
+    if not check_user_can_edit_project(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
             detail="Only admins and contributors can remove assignments",

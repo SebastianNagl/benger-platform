@@ -24,7 +24,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -68,7 +68,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -92,7 +92,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -146,7 +146,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -182,7 +182,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -235,7 +235,7 @@ class TestTemplateSystem:
 
         # Login as admin
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -263,7 +263,7 @@ class TestTemplateSystem:
         # Create template as admin
         admin_user = test_users[0]
         response = client.post(
-            "/api/auth/login", json={"username": admin_user.username, "password": "admin123"}
+            "/api/auth/token", json={"username": admin_user.username, "password": "admin123"}
         )
         assert response.status_code == 200
         admin_token = response.json()["access_token"]
@@ -288,7 +288,7 @@ class TestTemplateSystem:
             if len(test_users) > 2:
                 other_user = test_users[2]
                 response = client.post(
-                    "/api/auth/login",
+                    "/api/auth/token",
                     json={"username": other_user.username, "password": "annotator123"},
                 )
 

@@ -121,6 +121,17 @@ BATCH_SIZE = 50
 MAX_BATCH_TASK_EVALS = 1000
 
 
+def _tasks_in_order(db: Session, project_id: str):
+    """A project's tasks in task-number order. The importer numbers tasks in
+    file order, so an export in heap order would renumber them on every
+    round trip ("task #3" would name another task in the copy)."""
+    return (
+        db.query(Task)
+        .filter(Task.project_id == project_id)
+        .order_by(Task.inner_id.asc(), Task.created_at.asc(), Task.id.asc())
+    )
+
+
 def iter_eval_bounded_batches(
     db: Session,
     task_q,
@@ -295,7 +306,7 @@ def stream_export_json(
     yield json.dumps(header)[:-1] + ', "tasks": ['
 
     first = True
-    task_q = db.query(Task).filter(Task.project_id == project_id)
+    task_q = _tasks_in_order(db, project_id)
     if task_ids is not None:
         task_q = task_q.filter(Task.id.in_(list(task_ids)))
 
@@ -436,7 +447,7 @@ def stream_export_flat_csv(
         buf.seek(0); buf.truncate()
         return chunk
 
-    task_q = db.query(Task).filter(Task.project_id == project_id)
+    task_q = _tasks_in_order(db, project_id)
     eval_run_ids = list(eval_run_by_id.keys())
     for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
         for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
@@ -523,7 +534,7 @@ def stream_export_label_studio(
     yield "["
     first = True
 
-    task_q = db.query(Task).filter(Task.project_id == project_id)
+    task_q = _tasks_in_order(db, project_id)
     batch: list = []
 
     def _build_ls_objs(task_batch: list) -> list[str]:
@@ -672,7 +683,7 @@ def stream_export_txt(
     yield f"Total Annotations: {annotation_count}\n"
     yield "-" * 50 + "\n"
 
-    task_q = db.query(Task).filter(Task.project_id == project_id)
+    task_q = _tasks_in_order(db, project_id)
     eval_run_ids = list(eval_run_by_id.keys())
     for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
         for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
@@ -742,7 +753,7 @@ def stream_comprehensive_project_data_json(
     # --- tasks (heavy) ---
     yield '"tasks": ['
     first = True
-    task_q = db.query(Task).filter(Task.project_id == project_id)
+    task_q = _tasks_in_order(db, project_id)
     for task in _drain(task_q):
         if task.created_by:
             user_ids.add(task.created_by)
@@ -1168,7 +1179,7 @@ def stream_export_ndjson(
             yield _emit("user", row)
 
     # --- tasks (heavy) ---
-    for task in _drain(db.query(Task).filter(Task.project_id == project_id)):
+    for task in _drain(_tasks_in_order(db, project_id)):
         yield _emit("task", serialize_task(
             task, mode="full", total_generations=gen_counts.get(task.id, 0),
         ))

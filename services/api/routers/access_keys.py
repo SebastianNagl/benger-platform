@@ -173,8 +173,19 @@ def _parse_window(frm: Optional[datetime], to: Optional[datetime]):
 
 @router.get("/api/access-keys/scopes", response_model=ScopeCatalog)
 async def get_scope_catalog(current_user: User = Depends(require_user)):
-    """Scope definitions (with German and English descriptions) and presets."""
-    return scope_catalog()
+    """Scope definitions (with German and English descriptions), presets and
+    the deployment's per-key request limits (defaults and maximum)."""
+    from app.core.config import settings
+
+    return {
+        **scope_catalog(),
+        "limits": {
+            "default_per_minute": settings.api_key_default_rpm,
+            "default_per_day": settings.api_key_default_rpd,
+            "max_per_minute": settings.api_key_max_rpm,
+            "max_per_day": settings.api_key_max_rpd,
+        },
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -439,6 +450,10 @@ def _apply_update(key: ApiKey, payload: AccessKeyUpdate) -> None:
         key.project_ids = svc._normalize_project_ids(payload.project_ids)
     if "expires_at" in fields:
         key.expires_at = svc._validate_expiry(payload.expires_at)
+    svc.validate_rate_limits(
+        payload.rate_limit_per_minute if "rate_limit_per_minute" in fields else None,
+        payload.rate_limit_per_day if "rate_limit_per_day" in fields else None,
+    )
     if "rate_limit_per_minute" in fields:
         key.rate_limit_per_minute = payload.rate_limit_per_minute
     if "rate_limit_per_day" in fields:

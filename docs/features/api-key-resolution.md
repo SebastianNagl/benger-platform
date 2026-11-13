@@ -71,7 +71,9 @@ Which org id reaches `resolve_api_key` is decided by
   from a project id): the user's first ACTIVE membership among the project's
   orgs; a superadmin without a membership falls back to the project's first
   org (admin backfills keep working); everyone else resolves to `None` →
-  personal key.
+  personal key. Runs a caller starts by hand (generation, batch evaluation)
+  pass `min_role="CONTRIBUTOR"`, so an ANNOTATOR membership counts as no
+  membership there (see the module docstring).
 - `validate_org_context_header(db, user, org_id)` (+ async twin): a
   client-supplied `X-Organization-Context` value is honored only for an
   active member or a superadmin. The middleware passes the header through

@@ -294,6 +294,7 @@ def import_project_impl(
     job_id: str,
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
+    dry_run: bool = False,
 ) -> Dict[str, Any]:
     """Download an uploaded import artifact and stream-import it into the DB.
 
@@ -308,12 +309,20 @@ def import_project_impl(
     new results into that project (``run_merge_import``) instead of the
     nested import. ``model_id_map`` (source model id -> model id here) is the
     model translation of the create-new and the merge import; the nested and
-    tabular imports ignore it.
+    tabular imports ignore it. ``dry_run`` (merge only) is the merge preview:
+    the merge runs and is rolled back, and only the job row is committed,
+    completed with format ``merge_preview`` and the preview as its result.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
     a finished job is a no-op); a job left `running` by a crashed worker IS
     re-run — its single end-of-import commit means a crashed run left nothing
     partial behind.
+
+    All or nothing: the job's completed state (status, format, size, result,
+    created project) is written by the driver's ``before_commit`` hook, so it
+    commits in the same transaction as the imported rows. A job that fails
+    before that commit is marked failed with nothing imported; once it has
+    committed it stays completed.
     """
     import tempfile
     from datetime import datetime, timedelta, timezone
@@ -328,6 +337,8 @@ def import_project_impl(
     from models import ImportJob, JobStatus, OrgStorageConnection
     from storage.object_storage import object_storage
 
+    # Filled by the driver's before_commit hook (_mark_completed below).
+    completed: Dict[str, Any] = {}
     db = tasks.SessionLocal()
     try:
         job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
@@ -406,6 +417,25 @@ def import_project_impl(
             byte_size = spooled.tell()
             spooled.seek(0)
 
+            def _mark_completed(result: Dict[str, Any]) -> None:
+                # The drivers flush + expunge_all the session every batch,
+                # which detaches the `job` loaded above, so load the row again
+                # here. The driver commits it together with the imported rows.
+                done = db.query(ImportJob).filter(ImportJob.id == job_id).one()
+                done.status = JobStatus.COMPLETED.value
+                done.format = detected_format
+                done.byte_size = byte_size
+                done.progress = 100
+                done.result = result
+                # A create-new import made the project; point the status row
+                # and the download/poll URLs at it.
+                if not done.project_id and (result or {}).get("project_id"):
+                    done.project_id = result["project_id"]
+                done.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+                done.error_message = None
+                completed["project_id"] = done.project_id
+                completed["byte_size"] = byte_size
+
             lowered_key = object_key.lower()
             tabular_fmt = next(
                 (
@@ -416,48 +446,54 @@ def import_project_impl(
                 None,
             )
             if source_connection is not None and tabular_fmt is not None:
-                result = run_tabular_import(
-                    db, project_id, spooled, requested_by, tabular_fmt
-                )
                 detected_format = tabular_fmt
-            elif project_id and mode == "merge":
-                result = run_merge_import(
-                    db, project_id, spooled, requested_by, model_id_map=model_id_map
+                run_tabular_import(
+                    db, project_id, spooled, requested_by, tabular_fmt,
+                    before_commit=_mark_completed,
                 )
+            elif project_id and mode == "merge" and dry_run:
+                detected_format = "merge_preview"
+                _mark_completed(
+                    run_merge_import(
+                        db, project_id, spooled, requested_by,
+                        model_id_map=model_id_map, dry_run=True,
+                    )
+                )
+                db.commit()
+            elif project_id and mode == "merge":
                 detected_format = "merge"
+                run_merge_import(
+                    db, project_id, spooled, requested_by,
+                    model_id_map=model_id_map, before_commit=_mark_completed,
+                )
             elif project_id:
-                result = run_nested_import(db, project_id, spooled, requested_by)
                 detected_format = "nested"
+                run_nested_import(
+                    db, project_id, spooled, requested_by,
+                    before_commit=_mark_completed,
+                )
             else:
+                detected_format = "comprehensive"
                 import_kwargs = {"organization_id": organization_id}
                 if organization_group_id:
                     import_kwargs["organization_group_id"] = organization_group_id
                 if model_id_map:
                     import_kwargs["model_id_map"] = model_id_map
-                result = run_full_project_import(
-                    db, spooled, requested_by, **import_kwargs
+                run_full_project_import(
+                    db, spooled, requested_by,
+                    before_commit=_mark_completed, **import_kwargs,
                 )
-                detected_format = "comprehensive"
         finally:
             spooled.close()
 
-        # run_full_project_import creates the project; capture its id so the
-        # status row and download/poll URLs resolve to the created project.
-        result_project_id = (result or {}).get("project_id")
-
-        job.status = JobStatus.COMPLETED.value
-        job.format = detected_format
-        job.byte_size = byte_size
-        job.progress = 100
-        job.result = result
-        if result_project_id and not job.project_id:
-            job.project_id = result_project_id
-        job.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        job.error_message = None
-        db.commit()
+        if "project_id" not in completed:
+            # Every driver calls the hook right before its commit; a driver
+            # that returned without it committed without marking the job.
+            raise RuntimeError("import driver returned without marking the job completed")
+        result_project_id = completed["project_id"]
 
         tasks._publish_progress(
-            f"import:progress:{job.project_id or job_id}",
+            f"import:progress:{result_project_id or job_id}",
             {"job_id": job_id, "status": "completed", "progress": 100},
         )
         tasks.logger.info(
@@ -465,12 +501,12 @@ def import_project_impl(
             job_id,
             byte_size,
             detected_format,
-            job.project_id,
+            result_project_id,
         )
         return {
             "status": "completed",
             "job_id": job_id,
-            "project_id": job.project_id,
+            "project_id": result_project_id,
             "byte_size": byte_size,
         }
 
@@ -489,18 +525,40 @@ def import_project_impl(
         tasks.logger.error(
             "import_project: job %s failed: %s", job_id, exc, exc_info=True
         )
-        tasks._fail_import_job(db, job_id, str(exc))
+        if tasks._fail_import_job(db, job_id, str(exc)) is False:
+            # The error came after the import committed: the job is completed
+            # and so is what the caller is told.
+            return {
+                "status": "completed",
+                "job_id": job_id,
+                "project_id": completed.get("project_id"),
+                "byte_size": completed.get("byte_size"),
+            }
         return {"status": "error", "job_id": job_id, "error": str(exc)}
     finally:
         db.close()
 
-def _fail_import_job_impl(db, job_id: str, message: str) -> None:
-    """Roll back and mark an ImportJob failed, publishing a final progress event."""
+def _fail_import_job_impl(db, job_id: str, message: str) -> Optional[bool]:
+    """Roll back and mark an ImportJob failed, publishing a final progress event.
+
+    A job whose completed state already committed (with its imported rows, see
+    ``import_project_impl``) is left completed and ``False`` is returned: the
+    import has landed, and a failed status would only invite a retry that
+    imports it twice.
+    """
     from models import ImportJob, JobStatus
 
     try:
         db.rollback()
         job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
+        if job is not None and job.status == JobStatus.COMPLETED.value:
+            tasks.logger.error(
+                "import_project: job %s already committed as completed; "
+                "not marking it failed after: %s",
+                job_id,
+                message,
+            )
+            return False
         if job is not None:
             job.status = JobStatus.FAILED.value
             job.error_message = message[:2000]

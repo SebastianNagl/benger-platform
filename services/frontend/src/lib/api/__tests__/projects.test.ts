@@ -984,6 +984,123 @@ describe('projectsAPI', () => {
       fetchSpy.mockRestore()
     })
 
+    it('runMergeImportJob merges an uploaded key without re-uploading and carries the error code', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch')
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-6',
+        status: 'pending',
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-6',
+        status: 'failed',
+        error_message: '409: merge_unknown_models: 1 model id(s) ...',
+        error_status: 409,
+        error_code: 'merge_unknown_models',
+        result: null,
+      })
+
+      const rejection = projectsAPI.runMergeImportJob(
+        'proj-1',
+        null,
+        undefined,
+        {
+          pollIntervalMs: 1,
+          objectKey: 'imports/2026/11/proj-1/copy.ndjson',
+        },
+      )
+      await expect(rejection).rejects.toMatchObject({
+        name: 'ImportJobError',
+        code: 'merge_unknown_models',
+        status: 409,
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(apiClient.post).toHaveBeenCalledTimes(1)
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: 'imports/2026/11/proj-1/copy.ndjson',
+        mode: 'merge',
+      })
+      fetchSpy.mockRestore()
+    })
+
+    it('previewMergeImport runs a dry-run merge job and returns its preview', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-p',
+        status: 'pending',
+      })
+      const model = {
+        source_model_id: 'custom-elsewhere',
+        model_id: 'custom-elsewhere',
+        mapped: false,
+        known: false,
+        name: null,
+        rows_added: 1,
+        rows_present: 0,
+      }
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-p',
+        status: 'completed',
+        format: 'merge_preview',
+        result: {
+          statistics: {
+            dry_run: true,
+            matched_tasks: 3,
+            added_counts: { generations: 1 },
+            skipped_present_counts: {},
+            models_added_to_project: [],
+            models: [model],
+            unknown_models: ['custom-elsewhere'],
+            available_models: [{ id: 'm', name: 'M', is_custom: true }],
+          },
+        },
+      })
+
+      const preview = await projectsAPI.previewMergeImport(
+        'proj-1',
+        'imports/k',
+        { a: 'b' },
+        { pollIntervalMs: 1 },
+      )
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: 'imports/k',
+        mode: 'merge',
+        dry_run: true,
+        model_id_map: { a: 'b' },
+      })
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/proj-1/imports/job-p',
+        { cache: 'no-store' },
+      )
+      expect(preview).toEqual({
+        matched_tasks: 3,
+        added_counts: { generations: 1 },
+        skipped_present_counts: {},
+        models_added_to_project: [],
+        models: [model],
+        unknown_models: ['custom-elsewhere'],
+        available_models: [{ id: 'm', name: 'M', is_custom: true }],
+      })
+    })
+
+    it('previewMergeImport rejects with the code of a refused dry run', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-q',
+        status: 'pending',
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-q',
+        status: 'failed',
+        error_message: '409: merge_task_mismatch: no match',
+        error_status: 409,
+        error_code: 'merge_task_mismatch',
+        result: null,
+      })
+      await expect(
+        projectsAPI.previewMergeImport('proj-1', 'imports/k', undefined, {
+          pollIntervalMs: 1,
+        }),
+      ).rejects.toMatchObject({ code: 'merge_task_mismatch' })
+    })
+
     it('runMergeImportJob stops polling once aborted', async () => {
       const fetchSpy = jest
         .spyOn(global, 'fetch')

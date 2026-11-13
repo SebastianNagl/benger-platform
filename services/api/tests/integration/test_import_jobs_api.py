@@ -167,6 +167,26 @@ async def _seed_world(db):
     return admin, contributor, annotator, org, project
 
 
+async def _register_model(db, model_id: str) -> None:
+    """A model of this deployment a model_id_map may target."""
+    from models import LLMModel
+
+    db.add(
+        LLMModel(
+            id=model_id,
+            name=f"Model {model_id}",
+            provider="custom",
+            model_type="chat",
+            capabilities=["text_generation"],
+            is_official=False,
+            is_public=True,
+            base_url="http://gpu.example.org:40001/v1",
+            endpoint_model_name=model_id,
+        )
+    )
+    await db.flush()
+
+
 async def _get_job(db, job_id):
     return (
         await db.execute(select(ImportJob).where(ImportJob.id == job_id))
@@ -638,6 +658,7 @@ class TestCreateFullImportJobModelIdMap:
     @pytest.mark.asyncio
     async def test_map_travels_with_the_task(self, async_test_client, async_test_db):
         user = await _make_user(async_test_db, name="Mover")
+        await _register_model(async_test_db, "custom-prod")
         await async_test_db.commit()
 
         resp, mock_send = await self._post(
@@ -706,6 +727,8 @@ class TestCreateImportJobMergeMode:
         self, async_test_client, async_test_db
     ):
         admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        await _register_model(async_test_db, "custom-prod")
+        await async_test_db.commit()
         resp, mock_send = await self._post(
             async_test_client, admin, project,
             {"mode": "merge", "model_id_map": {"custom-local": "custom-prod"}},

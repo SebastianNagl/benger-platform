@@ -63,6 +63,8 @@ See [API keys](../api-keys.md) for the model behind these settings.
 | `API_KEY_ENVIRONMENT` | `live` in production, `test` elsewhere | Key tag this deployment issues and accepts (`bgr_live_...` / `bgr_test_...`). A key from another environment is refused. |
 | `API_KEY_DEFAULT_RPM` | `120` | Requests per minute per key when the key sets no own limit. |
 | `API_KEY_DEFAULT_RPD` | `20000` | Requests per day per key when the key sets no own limit. |
+| `API_KEY_MAX_RPM` | `600` | Highest per-minute limit a key may be given. Higher values are refused on create and update; a key stored with a higher limit is held to this one. |
+| `API_KEY_MAX_RPD` | `100000` | Highest per-day limit a key may be given, enforced the same way. |
 | `API_USAGE_RETENTION_DAYS` | `400` | Age after which key usage events are deleted (daily beat task `tasks.cleanup_api_key_usage_events`; set it on the workers too). |
 | `API_USAGE_IP_MODE` | `truncated` | How much of the client IP the usage log keeps: `full`, `truncated` (IPv4 /24, IPv6 /48) or `none`. |
 | `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |

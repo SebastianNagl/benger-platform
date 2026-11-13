@@ -445,13 +445,21 @@ API_KEY_RATE_ENDPOINT = "apikey"
 
 
 def api_key_limits(principal) -> Dict[str, Tuple[int, int]]:
-    """The key's own limits, falling back to API_KEY_DEFAULT_RPM/RPD."""
+    """The key's own limits, falling back to API_KEY_DEFAULT_RPM/RPD and
+    clamped to API_KEY_MAX_RPM/RPD (a key stored before the maximum existed,
+    or above a lowered one, never exceeds the deployment ceiling)."""
     from app.core.config import settings
 
     rpm, rpd = getattr(principal, "rate_limit", (None, None)) or (None, None)
     return {
-        "minute": (int(rpm or settings.api_key_default_rpm), 60),
-        "day": (int(rpd or settings.api_key_default_rpd), 86400),
+        "minute": (
+            min(int(rpm or settings.api_key_default_rpm), int(settings.api_key_max_rpm)),
+            60,
+        ),
+        "day": (
+            min(int(rpd or settings.api_key_default_rpd), int(settings.api_key_max_rpd)),
+            86400,
+        ),
     }
 
 

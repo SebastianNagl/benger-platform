@@ -16,8 +16,9 @@
 # Check JWT token validity
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/users/me
 
-# Get new token
-curl -X POST http://localhost:8000/api/auth/login \
+# Get a new token (POST /api/auth/token returns it in the body; the browser
+# login keeps its tokens in HttpOnly cookies)
+curl -X POST http://localhost:8000/api/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username":"user@example.com","password":"password"}'
 ```
