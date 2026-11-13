@@ -5067,7 +5067,7 @@ def import_project(
     return import_project_impl(self, job_id, model_id_map=model_id_map, mode=mode)
 
 
-def _fail_import_job(db, job_id: str, message: str) -> None:
+def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
     return _fail_import_job_impl(db, job_id, message)
 
 
