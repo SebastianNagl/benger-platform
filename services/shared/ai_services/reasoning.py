@@ -88,8 +88,8 @@ def chat_completion_reasoning(result: Any) -> Optional[str]:
     return chat_message_reasoning(_field(choices[0], "message"))
 
 
-def anthropic_thinking(content_blocks: Any) -> Optional[str]:
-    """Text of the ``thinking`` blocks of an Anthropic Messages response."""
+def thinking_blocks(content_blocks: Any) -> Optional[str]:
+    """Text of the ``thinking`` blocks of an Anthropic Messages or Cohere v2 chat response."""
     if not content_blocks:
         return None
     return join_reasoning(
@@ -156,14 +156,3 @@ def mistral_content(content: Any) -> Tuple[str, Optional[str]]:
             if isinstance(text, str):
                 answer_parts.append(text)
     return "".join(answer_parts), join_reasoning(reasoning_parts)
-
-
-def cohere_thinking(content_blocks: Any) -> Optional[str]:
-    """Text of the ``thinking`` blocks of a Cohere v2 chat response."""
-    if not content_blocks:
-        return None
-    return join_reasoning(
-        _field(block, "thinking")
-        for block in content_blocks
-        if _field(block, "type") == "thinking"
-    )

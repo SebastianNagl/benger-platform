@@ -14,7 +14,7 @@ import anthropic
 
 from .attachments import anthropic_content
 from .base_service import BaseAIService, derive_truncated
-from .reasoning import anthropic_thinking
+from .reasoning import thinking_blocks
 from .provider_capabilities import calculate_cost
 
 logger = logging.getLogger(__name__)
@@ -213,7 +213,7 @@ class AnthropicService(BaseAIService):
             response_text = _extract_text(response.content)
             # Thinking blocks (extended / adaptive thinking) stay out of the
             # answer and are stored beside it.
-            reasoning = anthropic_thinking(response.content)
+            reasoning = thinking_blocks(response.content)
 
             # Calculate token usage
             input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
@@ -371,7 +371,7 @@ class AnthropicService(BaseAIService):
 
             # Extract response text (same shape as generate() at line 180)
             content = _extract_text(response.content)
-            reasoning = anthropic_thinking(response.content)
+            reasoning = thinking_blocks(response.content)
 
             input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
             output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0

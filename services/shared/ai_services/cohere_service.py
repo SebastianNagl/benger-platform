@@ -16,7 +16,7 @@ from functools import wraps
 from typing import Any, Dict, Optional
 
 from .base_service import BaseAIService, derive_refusal, derive_truncated
-from .reasoning import cohere_thinking
+from .reasoning import thinking_blocks
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -244,7 +244,7 @@ class CohereService(BaseAIService):
                     for block in response.message.content:
                         if hasattr(block, 'text'):
                             content += block.text
-                    reasoning = cohere_thinking(response.message.content)
+                    reasoning = thinking_blocks(response.message.content)
                 content = content.strip()
 
             # Get usage stats
@@ -412,7 +412,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                     for block in response.message.content:
                         if hasattr(block, 'text'):
                             raw_content += block.text
-                    reasoning = cohere_thinking(response.message.content)
+                    reasoning = thinking_blocks(response.message.content)
                 raw_content = raw_content.strip()
 
             # Get usage stats
