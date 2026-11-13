@@ -130,23 +130,28 @@ describe('Issue #123: Webpack Module Loading Fixes', () => {
   })
 
   describe('Memory Management', () => {
-    test('should not leak memory during initialization', () => {
-      const initialMemory = process.memoryUsage()
+    // An instance leaks when something global keeps a reference to it after
+    // construction: an event listener or a timer. Counting those is
+    // deterministic, unlike a heapUsed delta, which depends on when the
+    // garbage collector last ran.
+    test('should not register global listeners or timers during initialization', () => {
+      jest.useFakeTimers()
+      const windowListenerSpy = jest.spyOn(window, 'addEventListener')
+      const documentListenerSpy = jest.spyOn(document, 'addEventListener')
 
-      // Create and destroy multiple instances
-      for (let i = 0; i < 10; i++) {
-        const apiClient = new ApiClient()
-        // Force garbage collection if available
-        if (global.gc) {
-          global.gc()
+      try {
+        for (let i = 0; i < 10; i++) {
+          expect(new ApiClient()).toBeInstanceOf(ApiClient)
         }
+
+        expect(windowListenerSpy).not.toHaveBeenCalled()
+        expect(documentListenerSpy).not.toHaveBeenCalled()
+        expect(jest.getTimerCount()).toBe(0)
+      } finally {
+        windowListenerSpy.mockRestore()
+        documentListenerSpy.mockRestore()
+        jest.useRealTimers()
       }
-
-      const finalMemory = process.memoryUsage()
-
-      // Memory usage should not increase dramatically
-      const memoryIncrease = finalMemory.heapUsed - initialMemory.heapUsed
-      expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024) // Less than 10MB increase
     })
   })
 
@@ -214,17 +219,36 @@ describe('Issue #123: Webpack Module Loading Fixes', () => {
   })
 
   describe('Performance Optimization', () => {
-    test('should initialize quickly without blocking main thread', async () => {
-      const startTime = performance.now()
+    // Construction must stay cheap and side-effect free: building the client
+    // (including the module-level singleton) may not start requests or
+    // schedule timers. This is checked by counting calls rather than by
+    // wall-clock time, which on a shared CI runner measures runner load.
+    test('should initialize without network requests or scheduled work', () => {
+      jest.useFakeTimers()
+      const fetchSpy = jest.fn()
+      const xhrOpenSpy = jest.fn()
+      const originalFetch = global.fetch
+      const originalXhrOpen = XMLHttpRequest.prototype.open
+      global.fetch = fetchSpy as unknown as typeof fetch
+      XMLHttpRequest.prototype.open = xhrOpenSpy
 
-      const apiClient = new ApiClient()
-      expect(apiClient).toBeDefined()
+      try {
+        // Re-evaluate the module so its singleton is built under the spies too.
+        jest.isolateModules(() => {
+          const isolated = require('../index')
+          expect(isolated.default).toBeInstanceOf(isolated.ApiClient)
+          expect(new isolated.ApiClient()).toBeInstanceOf(isolated.ApiClient)
+        })
+        expect(new ApiClient()).toBeInstanceOf(ApiClient)
 
-      const endTime = performance.now()
-      const initTime = endTime - startTime
-
-      // Initialization should be fast (< 100ms)
-      expect(initTime).toBeLessThan(100)
+        expect(fetchSpy).not.toHaveBeenCalled()
+        expect(xhrOpenSpy).not.toHaveBeenCalled()
+        expect(jest.getTimerCount()).toBe(0)
+      } finally {
+        global.fetch = originalFetch
+        XMLHttpRequest.prototype.open = originalXhrOpen
+        jest.useRealTimers()
+      }
     })
 
     test('should not cause excessive bundle size', () => {
