@@ -484,5 +484,5 @@ For issues or questions about project migration:
 - Initial release of comprehensive export/import system
 - Support for all project data types
 - Automatic conflict resolution
-- User mapping by email
+- Pseudonymous user export (no email, username or name; authors become placeholder accounts on another instance)
 - Progress indicators and statistics
