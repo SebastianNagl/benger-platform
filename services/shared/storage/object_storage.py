@@ -93,7 +93,7 @@ _IMPORT_KEY = re.compile(r"imports/\d{4}/\d{2}/(?P<owner>[^/]+)/(?P<name>[^/]+)"
 def is_import_key_of(object_key: str, owner_id: str) -> bool:
     """Whether ``object_key`` is an import upload key minted for ``owner_id``.
 
-    The exact layout ``get_upload_url(file_type="imports", user_id=owner_id)``
+    The exact layout ``get_upload_url(file_type="imports", key_scope=owner_id)``
     produces (owner = project id or user id). Keys minted before the random
     component was added (``<timestamp>_<raw name>``) match too, as long as the
     name is one segment, which is what every browser upload produced.
@@ -469,6 +469,7 @@ class ObjectStorageService:
         content_type: Optional[str] = None,
         max_size: Optional[int] = None,
         expires_in: Optional[int] = None,
+        key_scope: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate a presigned URL for direct file upload from browser
@@ -476,24 +477,27 @@ class ObjectStorageService:
         Args:
             filename: Original filename
             file_type: Type of file
-            user_id: User ID for organization
+            user_id: The uploading user, stored as ``x-amz-meta-user-id``
             content_type: MIME type of the file
             max_size: Maximum allowed file size in bytes
             expires_in: URL expiration time in seconds
+            key_scope: Key segment the object goes under (a project id for a
+                project import); defaults to ``user_id``
 
         Returns:
             Dict with upload_url, file_key, and form fields for upload
         """
+        scope = key_scope or user_id
         if self.storage_backend == "local":
             # For local storage, return an API endpoint
             return {
                 "upload_url": "/api/upload",  # Handle via regular API
                 "method": "POST",
-                "file_key": self._get_file_key(file_type, filename, user_id),
+                "file_key": self._get_file_key(file_type, filename, scope),
             }
 
         # Generate file key
-        file_key = self._get_file_key(file_type, filename, user_id)
+        file_key = self._get_file_key(file_type, filename, scope)
 
         # Detect content type if not provided
         if not content_type:

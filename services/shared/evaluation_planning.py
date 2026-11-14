@@ -277,30 +277,83 @@ def _classify_config_sides(enabled_configs: Sequence[dict]) -> Tuple[List[dict],
         ], True
 
 
-def _graded_keys(db, subject_col, task_ids, configs_by_id, *, is_annotation) -> Dict[str, set]:
+# Rows whose metrics blob carries a numeric score, decided in SQL so the
+# blob (mostly judge prose under ``details``) never leaves the database for
+# them: on ZJS Fälle the skip set read 88k blobs, 336 MB of JSON, and ran the
+# cost estimate past the API's 15 s statement timeout. The path matches a
+# subset of what ``_row_has_score`` accepts (a non-``error`` metric that is a
+# number or a ``{"value": <number>}`` dict; jsonpath types booleans
+# separately), so every other row still gets the full Python check.
+_SCORED_METRICS_SQL = (
+    "jsonb_path_exists(task_evaluations.metrics, "
+    "'$.keyvalue() ? (@.key != \"error\" && "
+    "(@.value.type() == \"number\" || @.value.value.type() == \"number\"))', "
+    "'{}', true)"
+)
+
+
+# SQL twin of ``_row_is_terminal_error`` over ``task_evaluations.metrics``:
+# a metric blob carries an error that ``_error_is_retryable`` does not accept.
+_TERMINAL_ERROR_SQL = (
+    "jsonb_path_exists(task_evaluations.metrics, "
+    "'$.keyvalue() ? (@.key != \"error\" "
+    "&& exists(@.value.error ? ((@.type() == \"string\" && @ != \"\") "
+    "|| @.type() == \"object\" || @.type() == \"array\" || @ == true)) "
+    "&& !exists(@.value.error ? (@ like_regex \""
+    + "|".join(_RETRYABLE_ERROR_MARKERS)
+    + "\" flag \"i\")) "
+    "&& !exists(@.value.details.call_metadata.error_type ? ("
+    + " || ".join(f'@ == "{t}"' for t in sorted(_RETRYABLE_ERROR_TYPES))
+    + ")))', '{}', true)"
+)
+
+
+# Bound ids per query when fetching the blobs of unscored rows.
+_METRICS_FETCH_CHUNK = 1000
+
+
+def _graded_keys(db, subject_col, subject_ids, configs_by_id, *, is_annotation) -> Dict[str, set]:
     """Field keys already graded per subject (missing-only skip set). Rows
-    with a score or a terminal error count, so hopeless retries are skipped."""
+    with a score or a terminal error count, so hopeless retries are skipped.
+
+    ``subject_ids`` is a subquery of the run's subjects, so a run scoped to
+    one model reads that model's rows only, without an id list that grows
+    with the project. Scored rows are recognised in SQL; only the others
+    (unscored or failed, usually a few) have their metrics blob read for the
+    full check."""
+    from sqlalchemy import literal_column
+
     from models import EvaluationRun, TaskEvaluation
 
     rows = (
         db.query(
+            TaskEvaluation.id,
             subject_col,
             TaskEvaluation.field_name,
-            TaskEvaluation.metrics,
+            literal_column(_SCORED_METRICS_SQL).label("scored"),
             TaskEvaluation.evaluation_config_id,
         )
         .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
         .filter(
-            TaskEvaluation.task_id.in_(task_ids),
-            subject_col.isnot(None),
+            subject_col.in_(subject_ids),
             EvaluationRun.status.in_(_COUNTED_RUN_STATUSES),
         )
         .all()
     )
+    unscored = [r.id for r in rows if not r.scored]
+    metrics_by_id: Dict[str, Any] = {}
+    for i in range(0, len(unscored), _METRICS_FETCH_CHUNK):
+        chunk = unscored[i:i + _METRICS_FETCH_CHUNK]
+        metrics_by_id.update(
+            db.query(TaskEvaluation.id, TaskEvaluation.metrics)
+            .filter(TaskEvaluation.id.in_(chunk))
+            .all()
+        )
     done_by_subject: Dict[str, set] = {}
     for r in rows:
-        if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
-            done = done_by_subject.setdefault(r[0], set())
+        metrics = None if r.scored else metrics_by_id.get(r.id)
+        if r.scored or _row_has_score(metrics) or _row_is_terminal_error(metrics):
+            done = done_by_subject.setdefault(r[1], set())
             done.add(_normalize_field_key(r.field_name, is_annotation=is_annotation))
             # Bare-field_name rows (immediate eval) via their discrete
             # evaluation_config_id.
@@ -337,6 +390,10 @@ def plan_evaluation(
     if task_ids:
         tq = tq.filter(Task.id.in_(task_ids))
     run_task_ids = [r[0] for r in tq.all()]
+    # The subject queries take the tasks as a subquery: a bound id per task
+    # outgrows the driver's parameter limit on a large project (asyncpg:
+    # 32,767, and the cost estimate runs on the async connection).
+    run_task_scope = tq.scalar_subquery()
 
     config_sides, classifier_unavailable = _classify_config_sides(enabled_configs)
     plan = EvaluationPlan(
@@ -395,7 +452,7 @@ def plan_evaluation(
             "__all_model__" in c.get("prediction_fields", []) for c in enabled_configs
         )
         gq = db.query(Generation.id, Generation.task_id).filter(
-            Generation.task_id.in_(run_task_ids)
+            Generation.task_id.in_(run_task_scope)
         )
         if not uses_all_model:
             gq = gq.filter(Generation.parse_status == "success")
@@ -412,7 +469,8 @@ def plan_evaluation(
         gens = gq.order_by(Generation.task_id, Generation.id).all()
         plan.gen_pool_scoped = len(gens)
         done_by_gen = (
-            _graded_keys(db, TaskEvaluation.generation_id, run_task_ids, configs_by_id,
+            _graded_keys(db, TaskEvaluation.generation_id,
+                         gq.with_entities(Generation.id).scalar_subquery(), configs_by_id,
                          is_annotation=False)
             if missing_only else {}
         )
@@ -425,7 +483,7 @@ def plan_evaluation(
         from models import TaskEvaluation
 
         aq = db.query(Annotation.id, Annotation.task_id).filter(
-            Annotation.task_id.in_(run_task_ids),
+            Annotation.task_id.in_(run_task_scope),
             Annotation.was_cancelled == False,  # noqa: E712
         )
         plan.ann_pre_filter = aq.count()
@@ -434,7 +492,8 @@ def plan_evaluation(
         anns = aq.order_by(Annotation.task_id, Annotation.id).all()
         plan.ann_pool_scoped = len(anns)
         done_by_ann = (
-            _graded_keys(db, TaskEvaluation.annotation_id, run_task_ids, configs_by_id,
+            _graded_keys(db, TaskEvaluation.annotation_id,
+                         aq.with_entities(Annotation.id).scalar_subquery(), configs_by_id,
                          is_annotation=True)
             if missing_only else {}
         )

@@ -189,7 +189,7 @@ def _schema(_eager_celery):
     entrypoints don't depend on which path built the schema.
 
     CRITICAL: the partial unique index `uq_task_evaluations_cell` that backs
-    `_bulk_upsert_task_evaluations`' bare `ON CONFLICT DO NOTHING` exists
+    `_bulk_upsert_task_evaluations`' `ON CONFLICT` target exists
     ONLY in alembic (migration 049 supersedes 048 — note: 049 adds a 6th
     column `created_by`, so we replicate 049's shape, NOT 048's). The model
     has no `__table_args__` for it, so `create_all()` will NOT create it.

@@ -7,10 +7,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import distinct, func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import EvaluationType as DBEvaluationType
+from models import TaskEvaluation
 
 
 # Celery app (shared across evaluation sub-routers)
@@ -22,6 +24,64 @@ celery_app = get_celery_app()
 
 
 # ============= Helper Functions =============
+
+
+async def run_cells_completed(db: AsyncSession, evaluation) -> int:
+    """Cells (generations and answers) the run has graded: those graded
+    before its latest dispatch plus the dispatched cells with a
+    TaskEvaluation row written since. Rows an earlier attempt left on a
+    re-dispatched cell (a failed judge call) do not count. A cell writes one
+    row per field key and judge run, so ``samples_evaluated`` counts rows,
+    not cells."""
+    meta = evaluation.eval_metadata if isinstance(evaluation.eval_metadata, dict) else {}
+    before = meta.get("cells_graded_before_dispatch", 0)
+    if not isinstance(before, int) or isinstance(before, bool):
+        before = 0
+    query = select(
+        func.count(distinct(TaskEvaluation.generation_id)),
+        func.count(distinct(TaskEvaluation.annotation_id)),
+    ).where(TaskEvaluation.evaluation_id == evaluation.id)
+    dispatched_at = _parse_aware(meta.get("dispatched_at"))
+    if dispatched_at is not None:
+        query = query.where(TaskEvaluation.created_at >= dispatched_at)
+    else:
+        before = 0
+    gens, anns = (await db.execute(query)).one()
+    return before + int(gens or 0) + int(anns or 0)
+
+
+def _parse_aware(value) -> Optional[datetime]:
+    """A timezone-aware ISO timestamp, else None (absent or a legacy naive
+    worker-local time that cannot be compared with ``created_at``)."""
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def run_cells_total(evaluation) -> Optional[int]:
+    """The run's cells: those its latest dispatch sent plus those it had
+    graded before (a resume or retry dispatches only the cells left).
+    None while nothing is dispatched yet."""
+    meta = evaluation.eval_metadata if isinstance(evaluation.eval_metadata, dict) else {}
+    counts = [meta.get("cells_dispatched"), meta.get("cells_graded_before_dispatch", 0)]
+    if not all(isinstance(c, int) and not isinstance(c, bool) and c >= 0 for c in counts):
+        return None
+    total = sum(counts)
+    return total if total > 0 else None
+
+
+def run_progress(evaluation, cells_completed: int) -> Optional[float]:
+    """Percent of the run's cells that are graded; None while unknown."""
+    if evaluation.status == "completed":
+        return 100.0
+    total = run_cells_total(evaluation)
+    if total is None:
+        return None
+    return round(min(100.0, 100.0 * cells_completed / total), 1)
 
 
 def resolve_user_org_for_project(
@@ -126,6 +186,8 @@ class EvaluationStatus(BaseModel):
     id: str
     status: str  # pending, running, completed, failed
     message: Optional[str] = None
+    # Percent done (0-100): the run's graded cells over its cells (see
+    # ``run_progress``); None before the run has dispatched its cells.
     progress: Optional[float] = None
 
 

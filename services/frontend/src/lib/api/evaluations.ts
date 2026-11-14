@@ -1207,6 +1207,9 @@ export class EvaluationsClient extends BaseApiClient {
       completed_at: string | null
       samples_evaluated: number
       sample_results_count: number
+      cells_completed: number
+      cells_total: number | null
+      failures_by_reason: Record<string, number> | null
       error_message: string | null
       evaluation_configs: Array<{
         id: string

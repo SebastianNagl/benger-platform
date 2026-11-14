@@ -175,9 +175,12 @@ def _count_eval_subjects(
     evaluation_configs: List[EvalConfigForCost],
     model_ids: Optional[List[str]],
     annotator_user_ids: Optional[List[str]],
+    structure_keys: Optional[List[str]] = None,
 ) -> int:
     """Count (subject × prediction_field) cells that the configured eval
-    will (re-)score, scoped by the model + annotator filters. Generation
+    will (re-)score, scoped by the model, annotator and structure filters the
+    way the run planner scopes them (an explicit empty list deselects that
+    side). Generation
     rows are the subject for non-human fields; Annotation rows for human
     fields. Returns 0 when no configs are provided — the caller then falls
     back to the legacy tasks-count formula for backward-compat.
@@ -206,6 +209,7 @@ def _count_eval_subjects(
         project_id,
         model_ids=model_ids,
         annotator_user_ids=annotator_user_ids,
+        structure_keys=structure_keys,
         generations=has_any_llm_field,
         annotations=has_any_human_field,
     )
@@ -502,8 +506,11 @@ def _compute_cost_estimate_impl(
             db=db,
             project_id=request.project_id,
             evaluation_configs=request.evaluation_configs,
-            model_ids=request.model_ids or None,
+            # Same scope as the judge-call count below: an explicit empty
+            # model list deselects the generation side.
+            model_ids=request.model_ids if "model_ids" in request.model_fields_set else None,
             annotator_user_ids=request.annotator_user_ids,
+            structure_keys=request.structure_keys,
         )
 
     # Evaluation: the configs the run grades and the judge calls they make,

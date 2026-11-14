@@ -1088,6 +1088,90 @@ class TestEvaluationJudgeCallsRunScope:
         )
 
     @pytest.mark.asyncio
+    async def test_subject_count_follows_the_run_scope(
+        self, async_test_client, async_test_db
+    ):
+        """subject_count is scoped like the judge-call count. A Benchathon
+        run scoped to one model, one structure and ``annotator_user_ids: []``
+        priced 15 judge calls but reported 244 subjects (the 15 generations
+        plus all 229 answers), because the subject pool treated the empty
+        annotator list as "every annotator" and ignored the structure."""
+        actor, data = await self._seed(async_test_db, [
+            self._cfg("cfg-both", ["__all_model__", "human:loesung"]),
+        ])
+        rgs = (
+            await async_test_db.execute(
+                select(ResponseGeneration).where(
+                    ResponseGeneration.project_id == data["project"].id
+                )
+            )
+        ).scalars().all()
+        model = data["model_ids"][0]
+        # The chosen model has generations on two structures; one is in scope.
+        extra = 0
+        for rg in rgs:
+            rg.structure_key = "fallloesung" if rg.model_id == model else "lexam-open"
+            if rg.model_id == model:
+                other = ResponseGeneration(
+                    id=str(uuid.uuid4()),
+                    project_id=rg.project_id,
+                    task_id=rg.task_id,
+                    model_id=model,
+                    structure_key="lexam-open",
+                    status="completed",
+                    responses_generated=1,
+                    created_by=actor.id,
+                )
+                async_test_db.add(other)
+                await async_test_db.flush()
+                async_test_db.add(Generation(
+                    id=str(uuid.uuid4()),
+                    generation_id=other.id,
+                    task_id=rg.task_id,
+                    model_id=model,
+                    run_index=0,
+                    case_data="{}",
+                    response_content="...",
+                    status="completed",
+                    parse_status="success",
+                ))
+                extra += 1
+        await async_test_db.commit()
+        tasks = data["expected_generation_count"] // len(data["model_ids"])
+        assert extra == tasks
+        cfg = {
+            "id": "cfg-both",
+            "metric": "llm_judge_falloesung",
+            "prediction_fields": ["__all_model__", "human:loesung"],
+        }
+        with _as_user(actor):
+            body = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                model_ids=[model],
+                annotator_user_ids=[],
+                structure_keys=["fallloesung"],
+                generation_mode="missing",
+                evaluation_configs=[cfg],
+            )
+            no_models = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                model_ids=[],
+                annotator_user_ids=data["annotator_user_ids"][:1],
+                evaluation_configs=[cfg],
+            )
+        assert _per_model_cells(body, JUDGE_A) == tasks
+        assert body["subject_count"] == tasks
+        # An explicit empty model list deselects the generations here too.
+        assert no_models["subject_count"] == tasks
+        assert _per_model_cells(no_models, JUDGE_A) == tasks
+
+    @pytest.mark.asyncio
     async def test_cancelled_annotations_are_not_priced(
         self, async_test_client, async_test_db
     ):
