@@ -692,6 +692,30 @@ class TestGetUploadUrl:
         assert {"x-amz-meta-original-filename": "report.json"} in conditions
         assert {"x-amz-meta-user-id": "user-42"} in conditions
 
+    def test_s3_key_scope_is_separate_from_the_uploader(self):
+        """A project import's key goes under the project while the policy
+        names the uploading user. The project-import route passed the project
+        id as ``user_id``, so ``x-amz-meta-user-id`` carried a project id."""
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_post.return_value = {
+            "url": "https://s3.example.com",
+            "fields": {},
+        }
+
+        upload = service.get_upload_url(
+            "export.ndjson.gz", file_type="imports",
+            user_id="user-42", key_scope="project-7",
+            content_type="application/gzip",
+        )
+
+        call_kwargs = mock_client.generate_presigned_post.call_args[1]
+        assert upload["file_key"].split("/")[3] == "project-7"
+        assert call_kwargs["Key"] == upload["file_key"]
+        assert call_kwargs["Fields"]["x-amz-meta-user-id"] == "user-42"
+        assert {"x-amz-meta-user-id": "user-42"} in call_kwargs["Conditions"]
+        assert call_kwargs["Fields"]["Content-Type"] == "application/gzip"
+        assert {"Content-Type": "application/gzip"} in call_kwargs["Conditions"]
+
     def test_s3_default_expires_in(self):
         """Default expiration is used when not specified."""
         service, mock_client = _make_s3_service()

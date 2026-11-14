@@ -37,6 +37,7 @@ from typing import Dict, List, Optional
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth_module.dependencies import require_user
@@ -1327,6 +1328,130 @@ class TestEvaluationStatus:
         body = resp.json()
         assert body["id"] == eval_id
         assert body["status"] == "completed"
+        assert body["progress"] == 100.0
+
+    @pytest.mark.asyncio
+    async def test_running_evaluation_reports_progress(
+        self, async_test_client, async_test_db
+    ):
+        """progress was null throughout a run, so a client polling this route
+        saw no movement (ZJS Fälle: 571 of 581 cells done after 34 minutes).
+        It counts graded cells, not rows: a cell writes one row per config
+        and field, so rows outnumber cells and must not reach 100 early."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _create_eval_project_async(
+            async_test_db, owner, org, with_task_evaluations=False
+        )
+        run = data["evaluation_runs"][0]
+        judge_run = run._test_judge_run
+        eval_id = run.id
+        gens = data["generations"]
+        anns = data["annotations"]
+        dispatched_at = datetime.now(timezone.utc)
+        # 3 generations + 3 answers dispatched: 6 cells.
+        dispatched = {
+            "evaluation_type": "evaluation",
+            "cells_dispatched": 6,
+            "dispatched_at": dispatched_at.isoformat(),
+        }
+
+        def _rows(subject, keys, *, at, error=None):
+            for config_id, field in keys:
+                async_test_db.add(TaskEvaluation(
+                    id=_uid(),
+                    evaluation_id=eval_id,
+                    judge_run_id=judge_run.id,
+                    task_id=subject.task_id,
+                    generation_id=subject.id if subject in gens else None,
+                    annotation_id=subject.id if subject in anns else None,
+                    field_name=f"{config_id}|{field}|{field}",
+                    evaluation_config_id=config_id,
+                    answer_type="text",
+                    ground_truth={"value": "Ja"},
+                    prediction={"value": "Ja"},
+                    metrics={} if error else {"score": 1.0},
+                    passed=not error,
+                    error_message=error,
+                    created_at=at,
+                ))
+
+        async def _progress(status, meta):
+            run.status = status
+            run.eval_metadata = meta
+            await async_test_db.commit()
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/evaluation/status/{eval_id}",
+                )
+            assert resp.status_code == 200, resp.text
+            return resp.json()["progress"]
+
+        async def _listed():
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/run/results/project/{data['project'].id}",
+                )
+            assert resp.status_code == 200, resp.text
+            listed = next(
+                e for e in resp.json()["evaluations"] if e["evaluation_id"] == eval_id
+            )
+            return listed["cells_completed"], listed["cells_total"]
+
+        graded = dispatched_at + timedelta(seconds=1)
+        assert await _progress("running", dispatched) == 0.0
+        # Two configs on one generation: 2 rows, 1 cell.
+        _rows(gens[0], [("cfg1", "answer_type"), ("cfg2", "answer")], at=graded)
+        assert await _progress("running", dispatched) == 16.7
+        # Two fields of one config on a generation and on answers.
+        both_fields = [("cfg1", "answer_type"), ("cfg1", "answer")]
+        for subject in (gens[1], anns[0], anns[1]):
+            _rows(subject, both_fields, at=graded)
+        # The last two cells only got rate-limited judge calls.
+        for subject in (gens[2], anns[2]):
+            _rows(subject, both_fields, at=graded, error="Error code: 429")
+        # 12 rows for 6 of 6 cells.
+        assert await _progress("running", dispatched) == 100.0
+
+        # The run failed and a retry re-dispatched the 2 rate-limited cells:
+        # their error rows predate the retry, so they are not done yet.
+        retry_at = graded + timedelta(hours=1)
+        retried = {
+            "evaluation_type": "evaluation",
+            "cells_dispatched": 2,
+            "cells_graded_before_dispatch": 4,
+            "dispatched_at": retry_at.isoformat(),
+        }
+        assert await _progress("running", retried) == 66.7
+        assert await _listed() == (4, 6)
+
+        async def _regrade(subject):
+            # The worker's upsert replaces the error rows on the same key.
+            col = (
+                TaskEvaluation.generation_id if subject in gens
+                else TaskEvaluation.annotation_id
+            )
+            for row in (
+                await async_test_db.execute(
+                    select(TaskEvaluation).where(
+                        TaskEvaluation.evaluation_id == eval_id, col == subject.id
+                    )
+                )
+            ).scalars():
+                row.metrics = {"score": 1.0}
+                row.passed = True
+                row.error_message = None
+                row.created_at = retry_at + timedelta(seconds=1)
+
+        await _regrade(gens[2])
+        assert await _progress("running", retried) == 83.3
+        assert await _listed() == (5, 6)
+        await _regrade(anns[2])
+        assert await _progress("running", retried) == 100.0
+
+        # Not dispatched yet: unknown, not zero.
+        assert await _progress("pending", {"evaluation_type": "evaluation"}) is None
+        assert await _progress("completed", retried) == 100.0
 
     @pytest.mark.asyncio
     async def test_get_evaluation_status_not_found(

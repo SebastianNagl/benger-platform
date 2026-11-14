@@ -2428,6 +2428,199 @@ def test_annotation_cell_value_error_skips_pair(
 
 
 # ---------------------------------------------------------------------------
+# 29b - a regrade replaces only a retryable error row on its cell key
+# ---------------------------------------------------------------------------
+
+
+def test_upsert_keeps_graded_rows_and_replaces_retryable_error_rows(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run,
+):
+    """A retry regrades into the same run and judge run, so its rows hit the
+    cell key of the earlier attempt. Only rows the missing-only skip set
+    does not count as graded (``_row_has_score`` / ``_row_is_terminal_error``)
+    may be replaced; a scored row, a terminal error or a row counted as
+    passed stays as it was."""
+    import uuid as _uuid
+    from datetime import datetime, timezone
+
+    from evaluation_planning import _row_has_score, _row_is_terminal_error
+
+    def _uid():
+        return str(_uuid.uuid4())
+
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    _, gen = make_generation(
+        project.id, task.id, model.id, user.id, response_content="ja"
+    )
+    run = make_evaluation_run(project.id, user.id, status="running")
+    db_conn.commit()
+    jr_id = _make_default_judge_run(db_conn, run)
+
+    earlier = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    seeded = {
+        "scored": ({"exact_match": 1.0}, True, None),
+        "terminal": (
+            {"llm_judge_custom": {"value": None, "error": "prompt too long"}},
+            False, "prompt too long",
+        ),
+        "rate_limited": (
+            {"llm_judge_custom": {"value": None, "error": "Error code: 429 rate limit"}},
+            False, "Error code: 429 rate limit",
+        ),
+        # Counted as a passed sample: replacing it would move a count off
+        # passed that the counter deltas never put there.
+        "passed_error": (
+            {"llm_judge_custom": {"value": None, "error": "Error code: 429 rate limit"}},
+            True, "Error code: 429 rate limit",
+        ),
+        "timed_out": (
+            {"llm_judge_custom": {
+                "value": None, "error": "boom",
+                "details": {"call_metadata": {"error_type": "timeout"}},
+            }},
+            False, "boom",
+        ),
+    }
+    graded = {"scored", "terminal"}
+    for name in ("scored", "terminal", "rate_limited", "timed_out"):
+        metrics = seeded[name][0]
+        assert (_row_has_score(metrics) or _row_is_terminal_error(metrics)) == (
+            name in graded
+        )
+    kept = graded | {"passed_error"}
+    ids = {}
+    for name, (metrics, passed, error) in seeded.items():
+        ids[name] = _uid()
+        db_conn.add(TaskEvaluation(
+            id=ids[name], evaluation_id=run.id, judge_run_id=jr_id,
+            task_id=task.id, generation_id=gen.id, field_name=f"c|{name}|r",
+            evaluation_config_id="c", answer_type="text",
+            ground_truth={"value": "ja"}, prediction={"value": "ja"},
+            metrics=metrics, passed=passed, error_message=error,
+            created_at=earlier,
+        ))
+    db_conn.commit()
+
+    def _regrade(names):
+        return tasks._bulk_upsert_task_evaluations(db_conn, [
+            {
+                "id": _uid(), "evaluation_id": run.id, "judge_run_id": jr_id,
+                "task_id": task.id, "generation_id": gen.id,
+                "field_name": f"c|{name}|r", "evaluation_config_id": "c",
+                "answer_type": "text", "ground_truth": "ja", "prediction": "ja",
+                "metrics": {"exact_match": 0.5}, "passed": True,
+            }
+            for name in names
+        ])
+
+    def _row(name):
+        return (
+            db_conn.query(TaskEvaluation)
+            .filter(TaskEvaluation.field_name == f"c|{name}|r",
+                    TaskEvaluation.evaluation_id == run.id)
+            .one()
+        )
+
+    assert _regrade(sorted(kept)) == (0, 0, 0, 0)
+    db_conn.commit()
+    db_conn.expire_all()
+    for name in kept:
+        metrics, passed, error = seeded[name]
+        row = _row(name)
+        assert (row.id, row.metrics, row.passed, row.error_message, row.created_at) == (
+            ids[name], metrics, passed, error, earlier
+        )
+
+    # Two failed samples become passed ones; no new sample, two written.
+    assert _regrade(["rate_limited", "timed_out"]) == (0, 2, -2, 2)
+    db_conn.commit()
+    db_conn.expire_all()
+    for name in ("rate_limited", "timed_out"):
+        row = _row(name)
+        assert row.id == ids[name]
+        assert (row.metrics, row.passed, row.error_message) == (
+            {"exact_match": 0.5}, True, None
+        )
+        assert row.created_at > earlier
+
+
+def _rate_limited_twice(monkeypatch, run_cell):
+    """Run a cell whose metric hits a rate limit, then retry it: the retry
+    replaces the error row with another one and must still tell the API."""
+    from ml_evaluation.sample_evaluator import SampleEvaluator
+
+    def _rate_limited(self, *a, **k):
+        raise RuntimeError("Error code: 429 rate limit")
+
+    monkeypatch.setattr(SampleEvaluator, "evaluate_sample", _rate_limited)
+    ticks = []
+    monkeypatch.setattr(tasks, "_publish_progress", lambda channel, msg: ticks.append(msg))
+
+    first = run_cell()
+    assert first["samples_added"] == 1
+    assert len(ticks) == 1
+    retried = run_cell()
+    # Counted once already as a failed sample, so no counter moves ...
+    assert (retried["samples_added"], retried["samples_passed"], retried["samples_failed"]) == (0, 0, 0)
+    # ... but the cell's row was rewritten for this attempt.
+    assert len(ticks) == 2
+
+
+def test_generation_cell_regrade_that_fails_again_still_ticks(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, exact_match_config, monkeypatch,
+):
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    _, gen = make_generation(
+        project.id, task.id, model.id, user.id, response_content="ja"
+    )
+    run = make_evaluation_run(project.id, user.id, status="running")
+    db_conn.commit()
+    jr_id = _make_default_judge_run(db_conn, run)
+
+    _rate_limited_twice(monkeypatch, lambda: tasks.evaluate_generation_cell.apply(
+        kwargs=_gen_cell_kwargs(
+            run, project, task, gen, user,
+            configs_for_cell=[exact_match_config()], default_judge_run_id=jr_id,
+        )
+    ).get())
+    rows = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert len(rows) == 1 and rows[0].error_message
+
+
+def test_annotation_cell_regrade_that_fails_again_still_ticks(
+    db_conn, make_user, make_project, make_task, make_annotation,
+    make_evaluation_run, monkeypatch,
+):
+    user = make_user()
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    ann = make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[_ann_result("answer", "ja")],
+    )
+    run = make_evaluation_run(project.id, user.id, status="running")
+    db_conn.commit()
+    jr_id = _make_default_judge_run(db_conn, run)
+
+    _rate_limited_twice(monkeypatch, lambda: tasks.evaluate_annotation_cell.apply(
+        kwargs=_ann_cell_kwargs(
+            run, project, task, ann, user, default_judge_run_id=jr_id,
+            configs_for_cell=[_human_exact_match_config()],
+        )
+    ).get())
+    rows = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert len(rows) == 1 and rows[0].error_message
+
+
+# ---------------------------------------------------------------------------
 # 9b - a run that dispatches nothing must say why, and fail when it matters
 # ---------------------------------------------------------------------------
 #

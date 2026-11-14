@@ -22,19 +22,29 @@ def count_eval_subject_pools(
     *,
     model_ids: Optional[List[str]] = None,
     annotator_user_ids: Optional[List[str]] = None,
+    structure_keys: Optional[List[str]] = None,
     generations: bool = True,
     annotations: bool = True,
 ) -> Tuple[int, int]:
     """``(generation_count, annotation_count)`` for one project.
 
     Generations are every row on the project's tasks, narrowed to
-    ``model_ids`` when given. Annotations are the non-cancelled rows, narrowed
-    to ``annotator_user_ids`` when given. Pass ``generations=False`` or
-    ``annotations=False`` to skip a query whose answer is not needed; a
-    skipped side reports 0.
+    ``model_ids`` and ``structure_keys`` when given. Annotations are the
+    non-cancelled rows, narrowed to ``annotator_user_ids`` when given. The
+    scope follows the evaluation planner (``evaluation_planning``): an
+    explicitly empty ``model_ids`` or ``annotator_user_ids`` (not None)
+    deselects that side, so it reports 0, and a structure-scoped count leaves
+    out legacy generations without a structure key. Pass
+    ``generations=False`` or ``annotations=False`` to skip a query whose
+    answer is not needed; a skipped side reports 0.
     """
-    from models import Generation
+    from models import Generation, ResponseGeneration
     from project_models import Annotation, Task
+
+    if model_ids is not None and len(model_ids) == 0:
+        generations = False
+    if annotator_user_ids is not None and len(annotator_user_ids) == 0:
+        annotations = False
 
     gen_count = 0
     if generations:
@@ -46,6 +56,10 @@ def count_eval_subject_pools(
         )
         if model_ids:
             gen_q = gen_q.filter(Generation.model_id.in_(model_ids))
+        if structure_keys:
+            gen_q = gen_q.join(
+                ResponseGeneration, Generation.generation_id == ResponseGeneration.id
+            ).filter(ResponseGeneration.structure_key.in_(structure_keys))
         gen_count = gen_q.count()
 
     ann_count = 0
