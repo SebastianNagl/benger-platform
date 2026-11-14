@@ -605,24 +605,6 @@ class TestLinkUseVerifiesUnprovenEmail:
         assert user.email_verification_method == "admin"
 
 
-class TestProfileEmailChangeDropsMailedLinks:
-    async def test_email_change_clears_reset_token(self, test_db):
-        """A reset or activation link sent to the old address must not
-        verify the new one."""
-        from auth_module.user_service import update_user_profile
-
-        user, token = _lms_claim_user(test_db, email_verified=True)
-
-        update_user_profile(
-            test_db, user.id, email=f"new-{uuid.uuid4().hex[:6]}@uni-x.de"
-        )
-
-        test_db.refresh(user)
-        assert user.password_reset_token is None
-        assert user.password_reset_expires is None
-        assert user.email_verified is False
-
-
 def _open_invitation(db, email):
     from models import Invitation, Organization, OrganizationRole
 

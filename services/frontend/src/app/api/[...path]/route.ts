@@ -118,6 +118,11 @@ async function proxyRequest(
       // the forwarded cookie and returns JSON (never sets one).
       'activate-account',
       'request-account-activation',
+      // Email change from the profile page: confirm is token-based like
+      // reset-password; resend and cancel are authed but only read the
+      // forwarded cookie and return JSON. x-forwarded-host (set below)
+      // brands the confirmation mail and its link.
+      'email-change',
     ]
     if (
       path.startsWith('auth/') &&

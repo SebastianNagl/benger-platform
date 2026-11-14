@@ -2364,7 +2364,16 @@
       "ST": "Saxe-Anhalt",
       "SH": "Schleswig-Holstein",
       "TH": "Thuringe"
-    }
+    },
+    "emailChangeHint": "Une nouvelle adresse ne s'applique qu'une fois que vous avez ouvert le lien de confirmation que nous y envoyons. D'ici là, vous continuez à vous connecter avec votre adresse actuelle.",
+    "emailChangeSent": "Nous avons envoyé un lien de confirmation à {email}. Votre adresse change dès que vous l'ouvrez ; d'ici là, vous vous connectez avec {current}.",
+    "emailChangeNotSent": "Nous n'avons pas pu envoyer le lien de confirmation à {email}. Veuillez réessayer avec « Renvoyer le lien ».",
+    "emailChangeResend": "Renvoyer le lien",
+    "emailChangeCancel": "Annuler la modification",
+    "emailChangeResent": "Un nouveau lien de confirmation a été envoyé à {email}.",
+    "emailChangeCancelled": "La modification de l'adresse e-mail a été annulée. Votre adresse reste inchangée.",
+    "emailChangeRequested": "Profil enregistré. Nous avons envoyé un lien de confirmation à {email}.",
+    "emailChangeActionFailed": "Cela n'a pas fonctionné. Veuillez réessayer."
   },
   "leaderboards": {
     "title": "Classements",
@@ -2669,7 +2678,9 @@
       "description": "Vous êtes désormais membre de votre organisation. Connectez-vous avec votre nouveau mot de passe pour commencer.",
       "redirecting": "Vous allez être redirigé vers la page de connexion.",
       "loginNow": "Se connecter maintenant"
-    }
+    },
+    "emailTaken": "Un compte existe déjà avec cette adresse e-mail. S'il s'agit du vôtre, réinitialisez son mot de passe : cela confirme aussi l'adresse et vous permet d'y accéder à nouveau.",
+    "emailTakenResetPassword": "Réinitialiser le mot de passe"
   },
   "dataManagement": {
     "title": "Gestion des données",
@@ -7196,7 +7207,7 @@
     "didntReceive": "Vous n'avez pas reçu l'e-mail ?",
     "resend": "Renvoyer l'e-mail de vérification",
     "resending": "Renvoi en cours...",
-    "resent": "E-mail de vérification envoyé",
+    "resent": "Si cette adresse appartient à un compte qui n'est pas encore vérifié, un nouveau lien est en route. Pensez aussi à regarder dans vos courriers indésirables.",
     "resendFailed": "Erreur lors de l'envoi de l'e-mail",
     "verifying": "Vérification de votre adresse e-mail...",
     "verified": "Adresse e-mail vérifiée !",
@@ -7278,7 +7289,21 @@
       }
     },
     "redirectingToLogin": "Vous allez être redirigé vers la page de connexion dans quelques secondes.",
-    "canNowLogIn": "Vous pouvez maintenant vous connecter à votre compte BenGER."
+    "canNowLogIn": "Vous pouvez maintenant vous connecter à votre compte BenGER.",
+    "resendPrompt": "Vous n'avez pas reçu d'e-mail ou le lien a expiré ? Saisissez votre adresse pour recevoir un nouveau lien de vérification.",
+    "emailInputLabel": "Adresse e-mail",
+    "requestNewLink": "Demandez un nouveau lien de vérification pour votre adresse e-mail."
+  },
+  "emailChange": {
+    "title": "Confirmer votre nouvelle adresse e-mail",
+    "description": "Appuyez sur le bouton pour faire de la nouvelle adresse l'adresse e-mail de votre compte. Vous vous connecterez ensuite avec elle.",
+    "confirm": "Confirmer la nouvelle adresse",
+    "confirming": "Confirmation...",
+    "success": "Adresse e-mail modifiée",
+    "successDescription": "Vous vous connectez désormais avec {email}.",
+    "toLogin": "Aller à la connexion",
+    "invalid": "Ce lien de confirmation est invalide, a expiré ou a déjà été utilisé. Vous pouvez en demander un nouveau sur votre page de profil.",
+    "taken": "Un autre compte utilise désormais cette adresse, votre adresse e-mail n'a donc pas été modifiée."
   },
   "passwordReset": {
     "title": "Réinitialiser le mot de passe",
@@ -7744,7 +7769,6 @@
     "email": "E-mail :",
     "expires": "Expire le :",
     "expired": "Cette invitation a expiré et ne peut plus être acceptée.",
-    "emailMismatch": "Cette invitation est destinée à {invitedEmail}, mais vous êtes connecté en tant que {currentEmail}. Veuillez vous connecter avec le bon compte ou contacter la personne qui vous a invité.",
     "emailLabel": "E-mail",
     "fullName": "Nom complet",
     "fullNamePlaceholder": "Saisissez votre nom complet",
@@ -7767,7 +7791,8 @@
     "accepted": "Vous avez rejoint {organizationName}.",
     "cancel": "Annuler",
     "acceptFailed": "Impossible d'accepter l'invitation",
-    "createAccountFailed": "Impossible de créer le compte"
+    "createAccountFailed": "Impossible de créer le compte",
+    "acceptWithCurrentAccount": "Cette invitation a été envoyée à {invitedEmail}. Vous êtes connecté en tant que {currentEmail} : si vous acceptez, ce compte rejoint l'organisation. Pour accepter avec un autre compte, déconnectez-vous d'abord."
   },
   "completeProfile": {
     "loading": "Chargement du profil...",

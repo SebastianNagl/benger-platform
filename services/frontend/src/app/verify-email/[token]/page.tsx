@@ -197,13 +197,15 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
               <div className="space-y-3">
                 <Button
                   variant="filled"
-                  onClick={() => router.push('/verify-email')}
+                  onClick={() =>
+                    router.push('/verify-email?messageKey=requestNewLink')
+                  }
                   className="w-full"
                 >
                   {t('emailVerification.resend')}
                 </Button>
                 <Button
-                  onClick={() => router.push('/register')}
+                  onClick={() => router.push('/login')}
                   variant="outline"
                   className="w-full"
                 >

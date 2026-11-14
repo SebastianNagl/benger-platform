@@ -44,6 +44,7 @@ export function ConditionalLayout({
     '/register', // Registration page
     '/reset-password', // Password reset (includes token routes)
     '/verify-email', // Email verification (includes token routes)
+    '/confirm-email-change', // Mailed email-change confirmation (token route)
     '/accept-invitation', // Organization invitation (includes token routes)
     '/shares', // Exam-share join page (includes token routes) — clean, chrome-less (Issue #35)
     // LMS launch pages that run before (or without) a session: no sidebar,

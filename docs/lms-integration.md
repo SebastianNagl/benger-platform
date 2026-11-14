@@ -981,9 +981,9 @@ connections, anonymize the accounts that an LMS launch created. In the panel
 this is **LMS accounts**, then **Anonymize**. A preview shows what will be
 removed and kept. It cannot be undone.
 
-- **Removed**: name, email address, password, parked address, reset and
-  verification tokens, research profile answers, personal API keys, the LMS
-  identity links with their name and email snapshot and consent fields, the
+- **Removed**: name, email address, password, parked address, pending email
+  change, reset and verification tokens, research profile answers, personal
+  API keys, the LMS identity links with their name and email snapshot and consent fields, the
   account's grade transfer rows, all stored sign-in sessions (open and
   ended ones), group memberships, and notifications that name the person.
   The preview names how many LMS links, grade transfers and sessions go and

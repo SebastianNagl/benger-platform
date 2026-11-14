@@ -651,21 +651,6 @@ class TestAcceptInvitation:
         assert exc_info.value.status_code == 400
         assert "expired" in str(exc_info.value.detail)
 
-    @pytest.mark.asyncio
-    async def test_accept_invitation_email_mismatch(self, mock_invitation):
-        """Test accepting invitation with wrong email"""
-        mock_db = Mock(spec=Session)
-        mock_user = Mock(spec=User)
-        mock_user.email = "different@example.com"
-
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_invitation
-
-        with pytest.raises(HTTPException) as exc_info:
-            accept_invitation(token="test-token-123", current_user=mock_user, db=mock_db)
-
-        assert exc_info.value.status_code == 400
-        assert "not for your email" in str(exc_info.value.detail)
-
 
 class TestListInvitations:
     """Test listing organization invitations.

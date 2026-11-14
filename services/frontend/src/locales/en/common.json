@@ -2364,7 +2364,16 @@
       "ST": "Saxony-Anhalt",
       "SH": "Schleswig-Holstein",
       "TH": "Thuringia"
-    }
+    },
+    "emailChangeHint": "A new address takes effect once you open the confirmation link we send to it. Until then you keep signing in with your current address.",
+    "emailChangeSent": "We sent a confirmation link to {email}. Your address changes once you open it; until then you sign in with {current}.",
+    "emailChangeNotSent": "We could not send the confirmation link to {email}. Please try again with \"Resend link\".",
+    "emailChangeResend": "Resend link",
+    "emailChangeCancel": "Cancel change",
+    "emailChangeResent": "A new confirmation link was sent to {email}.",
+    "emailChangeCancelled": "The email change was cancelled. Your address stays as it is.",
+    "emailChangeRequested": "Profile saved. We sent a confirmation link to {email}.",
+    "emailChangeActionFailed": "That did not work. Please try again."
   },
   "leaderboards": {
     "title": "Leaderboards",
@@ -2669,7 +2678,9 @@
       "description": "You're now a member of your organization. Sign in with your new password to get started.",
       "redirecting": "Taking you to the sign-in page in a moment.",
       "loginNow": "Sign in now"
-    }
+    },
+    "emailTaken": "An account with this email address already exists. If it is yours, reset its password: that also confirms the address and gets you back in.",
+    "emailTakenResetPassword": "Reset password"
   },
   "dataManagement": {
     "title": "Data Management",
@@ -7196,7 +7207,7 @@
     "didntReceive": "Didn't receive the email?",
     "resend": "Resend verification email",
     "resending": "Resending...",
-    "resent": "Verification email sent",
+    "resent": "If this address belongs to an account that still needs verifying, a new link is on its way. Please also check your spam folder.",
     "resendFailed": "Failed to send email",
     "verifying": "Verifying your email...",
     "verified": "Email Verified!",
@@ -7278,7 +7289,21 @@
       }
     },
     "redirectingToLogin": "You will be redirected to the login page in a few seconds.",
-    "canNowLogIn": "You can now log in to your BenGER account."
+    "canNowLogIn": "You can now log in to your BenGER account.",
+    "resendPrompt": "No email received, or the link expired? Enter your address to get a new verification link.",
+    "emailInputLabel": "Email address",
+    "requestNewLink": "Request a new verification link for your email address."
+  },
+  "emailChange": {
+    "title": "Confirm your new email address",
+    "description": "Press the button to make the new address the email address of your account. You then sign in with it.",
+    "confirm": "Confirm new address",
+    "confirming": "Confirming...",
+    "success": "Email address changed",
+    "successDescription": "From now on you sign in with {email}.",
+    "toLogin": "Go to sign in",
+    "invalid": "This confirmation link is invalid, has expired or was already used. You can request a new one on your profile page.",
+    "taken": "Another account now uses this address, so your email address was not changed."
   },
   "passwordReset": {
     "title": "Reset Password",
@@ -7625,7 +7650,6 @@
     "email": "Email:",
     "expires": "Expires:",
     "expired": "This invitation has expired and can no longer be accepted.",
-    "emailMismatch": "This invitation is for {invitedEmail}, but you're logged in as {currentEmail}. Please log in with the correct account or contact the inviter.",
     "emailLabel": "Email",
     "fullName": "Full Name",
     "fullNamePlaceholder": "Enter your full name",
@@ -7648,7 +7672,8 @@
     "accepted": "You have joined {organizationName}.",
     "cancel": "Cancel",
     "acceptFailed": "Failed to accept invitation",
-    "createAccountFailed": "Failed to create account"
+    "createAccountFailed": "Failed to create account",
+    "acceptWithCurrentAccount": "This invitation was sent to {invitedEmail}. You are signed in as {currentEmail}: if you accept, this account joins the organization. To accept with another account, sign out first."
   },
   "completeProfile": {
     "loading": "Loading profile...",

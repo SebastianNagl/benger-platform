@@ -354,38 +354,6 @@ class TestUpdateUserProfile:
         assert "<a" not in user.name
         assert "&lt;a href=" in user.name
 
-    def test_update_email_resets_verification(self):
-        from auth_module.user_service import update_user_profile
-
-        db = MagicMock()
-        user = self._make_mock_user()
-        user.email = "old@example.com"
-        user.email_verified = True
-
-        with patch("auth_module.user_service.get_user_by_id", return_value=user):
-            with patch("auth_module.user_service.get_user_by_email", return_value=None):
-                with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=[]):
-                    with patch("auth_module.user_service.create_profile_snapshot", return_value={}):
-                        result = update_user_profile(db, "user-id", email="new@example.com")  # noqa: F841
-
-        assert user.email == "new@example.com"
-        assert user.email_verified == False  # noqa: E712
-
-    def test_update_email_already_taken(self):
-        from auth_module.user_service import update_user_profile
-
-        db = MagicMock()
-        user = self._make_mock_user()
-        user.email = "old@example.com"
-        other_user = Mock(id="other-id")
-
-        with patch("auth_module.user_service.get_user_by_id", return_value=user):
-            with patch("auth_module.user_service.get_user_by_email", return_value=other_user):
-                with pytest.raises(HTTPException) as exc_info:
-                    update_user_profile(db, "user-id", email="taken@example.com")
-                assert exc_info.value.status_code == 400
-                assert "already registered" in exc_info.value.detail
-
     def test_update_legal_expertise_invalid(self):
         from auth_module.user_service import update_user_profile
 

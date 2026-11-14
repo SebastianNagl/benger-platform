@@ -25,6 +25,11 @@ import { Suspense, useEffect, useState } from 'react'
 
 const TOTAL_STEPS = 5
 
+// The API's signup answer for an address that already has an account. The
+// page then points to "Forgot password": resetting the password also
+// verifies the address, so it is the way back into that account.
+const EMAIL_TAKEN_DETAIL = 'Email already registered'
+
 // How long the "account created" screen stays up after an invitation signup
 // before we hand over to the login page.
 const INVITED_SUCCESS_REDIRECT_MS = 3000
@@ -1202,9 +1207,31 @@ export default function RegisterPage() {
                 className="rounded-md bg-red-50 p-4 dark:bg-red-900/20"
                 data-testid="auth-register-error-message"
               >
-                <div className="text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </div>
+                {error === EMAIL_TAKEN_DETAIL ? (
+                  <div className="space-y-2 text-sm text-red-700 dark:text-red-400">
+                    <p>{t('register.emailTaken')}</p>
+                    <p>
+                      <Link
+                        href={`/reset-password?email=${encodeURIComponent(formData.email.trim())}`}
+                        className="font-medium underline hover:text-red-600 dark:hover:text-red-300"
+                        data-testid="register-email-taken-reset-link"
+                      >
+                        {t('register.emailTakenResetPassword')}
+                      </Link>
+                      {' · '}
+                      <Link
+                        href="/login"
+                        className="font-medium underline hover:text-red-600 dark:hover:text-red-300"
+                      >
+                        {t('register.login')}
+                      </Link>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-700 dark:text-red-400">
+                    {error}
+                  </div>
+                )}
               </div>
             )}
 

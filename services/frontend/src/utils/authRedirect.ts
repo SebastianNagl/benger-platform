@@ -12,6 +12,9 @@ export const publicRoutes = [
   '/activate', // Account activation (Konto aktivieren) — the mailed link is
   // clicked without a session; the token in the URL is the credential.
   '/verify-email', // Email verification
+  '/confirm-email-change', // Mailed email-change confirmation
+  // (/confirm-email-change/<token>), opened on any device, often without a
+  // session; the token in the URL is the credential.
   '/accept-invitation', // Organization invitation acceptance
   '/shares', // Exam-share join page — invitees land here before logging in (Issue #35)
   '/lti/error', // LTI launch errors: most failures (invalid token, disabled

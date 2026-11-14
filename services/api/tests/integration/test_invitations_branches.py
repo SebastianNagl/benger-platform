@@ -16,7 +16,8 @@ Endpoints covered here:
 - ``validate_invitation_token`` : not-found 404, already-accepted 400.
 - ``get_invitation_by_token``  : not-found 404, expired 400, already-accepted 400.
 - ``accept_invitation``        : success + membership persisted + invitation
-  marked accepted, expired 400, already-accepted 400, email-mismatch 400,
+  marked accepted, expired 400, already-accepted 400, accepting with an
+  account under another address, a wrong token 404,
   already-member 400, profile-completion short-circuit (no membership written).
 - ``cancel_invitation``        : not-found 404, inviter-can-cancel branch,
   non-admin-non-inviter 403, row deleted.
@@ -761,29 +762,44 @@ class TestAcceptInvitation:
         assert resp.status_code == 400
         assert "already been accepted" in resp.json()["detail"]
 
-    def test_accept_email_mismatch_400(self, client, test_db, test_users, test_org):
-        """The authenticated user's email differs from the invitation email."""
+    def test_accept_with_account_under_another_address(
+        self, client, test_db, test_users, test_org
+    ):
+        """Holding the mailed token is the proof: the signed-in account joins
+        even when its address differs from the invited one, so nobody has to
+        change their account email to accept."""
+        signed_in = _make_user(test_db, f"other-{uuid.uuid4().hex[:8]}@example.com")
         token = _uid()
         _make_invitation(
             test_db,
             test_org.id,
             test_users[0].id,
-            email="someoneelse@example.com",
+            email="Invited.Person@Example.com",
             token=token,
         )
-        # annotator's email is annotator@test.com, not the invitation email.
         resp = client.post(
-            f"/api/invitations/accept/{token}",
-            headers=_bearer(test_users[2]),
+            f"/api/invitations/accept/{token}", headers=_bearer(signed_in)
         )
-        assert resp.status_code == 400
-        assert "not for your email" in resp.json()["detail"]
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["organization_id"] == test_org.id
 
-        # The mismatched accept was rejected — the invitation stays unaccepted.
-        # (test_users[2] may already be an org member from the fixture, so
-        # assert on the invitation state rather than a membership count.)
-        inv = test_db.query(Invitation).filter(Invitation.token == token).first()
-        assert inv is not None and inv.accepted_at is None
+        test_db.expire_all()
+        inv = test_db.query(Invitation).filter(Invitation.token == token).one()
+        assert inv.accepted is True and inv.accepted_at is not None
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter_by(user_id=signed_in.id, organization_id=test_org.id)
+            .one()
+        )
+        assert membership.is_active is True
+
+        # The token works once: a second account cannot reuse it.
+        someone_else = _make_user(test_db, f"third-{uuid.uuid4().hex[:8]}@example.com")
+        again = client.post(
+            f"/api/invitations/accept/{token}", headers=_bearer(someone_else)
+        )
+        assert again.status_code == 400
+        assert "already been accepted" in again.json()["detail"]
 
     def test_accept_already_member_400(self, client, test_db, test_users, test_org):
         """The invited email matches a user who is already an active member."""

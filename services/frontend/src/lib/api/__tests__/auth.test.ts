@@ -288,6 +288,37 @@ describe('AuthClient', () => {
     })
   })
 
+  describe('email change', () => {
+    it('resends the confirmation link in the given language', async () => {
+      const mockRequest = jest
+        .spyOn(client as any, 'request')
+        .mockResolvedValue({ id: 'user-123', pending_email: 'n@example.org' })
+
+      const profile = await client.resendEmailChange('fr')
+
+      expect(mockRequest).toHaveBeenCalledWith('/auth/email-change/resend', {
+        method: 'POST',
+        body: JSON.stringify({ language: 'fr' }),
+      })
+      expect(profile).toEqual({
+        id: 'user-123',
+        pending_email: 'n@example.org',
+      })
+    })
+
+    it('cancels the pending change', async () => {
+      const mockRequest = jest
+        .spyOn(client as any, 'request')
+        .mockResolvedValue({ id: 'user-123', pending_email: null })
+
+      await client.cancelEmailChange()
+
+      expect(mockRequest).toHaveBeenCalledWith('/auth/email-change', {
+        method: 'DELETE',
+      })
+    })
+  })
+
   describe('updateProfile', () => {
     it('should update user profile successfully', async () => {
       const mockRequest = jest

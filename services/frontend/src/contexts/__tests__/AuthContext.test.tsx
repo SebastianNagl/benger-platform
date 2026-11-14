@@ -436,6 +436,56 @@ describe('AuthContext', () => {
       )
     })
 
+    it('passes an email login to the verification page for its resend form', async () => {
+      mockApiClient.login.mockRejectedValue(
+        new Error('Email verification required'),
+      )
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      )
+
+      const { result } = renderHook(() => useAuth(), { wrapper })
+      await waitForInit()
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      await act(async () => {
+        await result.current.login(' Stuck+1@Example.org ', 'password123')
+      })
+
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        '/verify-email?messageKey=verifyEmailRequired&email=Stuck%2B1%40Example.org',
+      )
+    })
+
+    it('passes no address when the login was a username', async () => {
+      mockApiClient.login.mockRejectedValue(
+        new Error('Email verification required'),
+      )
+
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AuthProvider>{children}</AuthProvider>
+      )
+
+      const { result } = renderHook(() => useAuth(), { wrapper })
+      await waitForInit()
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      await act(async () => {
+        await result.current.login('testuser', 'password123')
+      })
+
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        '/verify-email?messageKey=verifyEmailRequired',
+      )
+    })
+
     it('throws error on other login failures', async () => {
       mockApiClient.login.mockRejectedValue(new Error('Invalid credentials'))
 
