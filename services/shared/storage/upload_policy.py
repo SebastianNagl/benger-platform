@@ -143,6 +143,36 @@ def content_type_for_filename(filename: Optional[str]) -> Optional[str]:
     return _EXTENSION_TYPES.get(ext)
 
 
+# Content type of an import upload by file name, as the export stores the
+# same formats (export_stream.EXPORT_FORMATS). Longest suffix first, so a
+# gzipped export is not taken for its inner format.
+_IMPORT_SUFFIX_TYPES = (
+    (".gz", "application/gzip"),
+    (".ndjson", "application/x-ndjson"),
+    (".json", "application/json"),
+    (".csv", "text/csv"),
+    (".tsv", "text/tab-separated-values"),
+    (".txt", "text/plain"),
+    (".apkg", "application/zip"),
+    (".zip", "application/zip"),
+)
+
+
+def import_content_type(filename: Optional[str]) -> str:
+    """Content type a presigned import upload of ``filename`` is stored with.
+
+    The upload policy pins the type, so it has to match the file: a
+    ``.ndjson.gz`` export used to be stored as ``application/json``. An
+    unknown extension is stored as opaque bytes; the importer detects the
+    format from the key and the content, never from this type.
+    """
+    lowered = (filename or "").lower()
+    for suffix, content_type in _IMPORT_SUFFIX_TYPES:
+        if lowered.endswith(suffix):
+            return content_type
+    return "application/octet-stream"
+
+
 def resolve_client_content_type(content_type: Optional[str], filename: Optional[str]) -> str:
     """Validated content type for a client upload, or raise 415.
 

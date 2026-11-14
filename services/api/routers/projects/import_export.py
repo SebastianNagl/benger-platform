@@ -82,7 +82,7 @@ from routers.projects.helpers import (  # noqa: E402
     require_org_key_own_organization,
 )
 
-from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES  # noqa: E402
+from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES, import_content_type  # noqa: E402
 from schemas.import_schemas import (  # noqa: E402
     IMPORT_ERROR_RESPONSES,
     FullImportJobRequest,
@@ -596,8 +596,9 @@ async def create_import_upload_url(
     upload = object_storage.get_upload_url(
         filename=filename,
         file_type="imports",
-        user_id=project_id,
-        content_type="application/json",
+        user_id=current_user.id,
+        key_scope=project_id,
+        content_type=import_content_type(filename),
         max_size=_IMPORT_UPLOAD_MAX_BYTES,
     )
     return upload
@@ -1113,7 +1114,7 @@ async def create_full_import_upload_url(
         filename=filename,
         file_type="imports",
         user_id=current_user.id,
-        content_type="application/json",
+        content_type=import_content_type(filename),
         max_size=_IMPORT_UPLOAD_MAX_BYTES,
     )
     return upload

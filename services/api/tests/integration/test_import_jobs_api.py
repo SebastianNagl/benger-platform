@@ -219,13 +219,38 @@ class TestCreateImportUploadUrl:
         assert resp.json()["file_key"] == _valid_key(project.id)
         # Key must be scoped to this project so the later create-job can verify it.
         assert mock_url.call_args.kwargs["file_type"] == "imports"
-        assert mock_url.call_args.kwargs["user_id"] == project.id
+        assert mock_url.call_args.kwargs["key_scope"] == project.id
+        # The policy names the uploader, not the project.
+        assert mock_url.call_args.kwargs["user_id"] == admin.id
+        assert mock_url.call_args.kwargs["content_type"] == "application/json"
         # The one import cap; the largest real export (ZJS-Fälle, 1.99 GB as
         # ndjson_gz) must use well under half of it.
         from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
 
         assert mock_url.call_args.kwargs["max_size"] == IMPORT_UPLOAD_MAX_BYTES
         assert IMPORT_UPLOAD_MAX_BYTES >= 2 * 1_998_469_026
+
+    @pytest.mark.asyncio
+    async def test_gzipped_export_is_signed_as_gzip(self, async_test_client, async_test_db):
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
+            "routers.projects.import_export.object_storage.get_upload_url",
+            return_value={"upload_url": "u", "method": "POST", "file_key": "k"},
+        ) as mock_url:
+            resp = await async_test_client.post(
+                f"/api/projects/{project.id}/imports/upload-url"
+                "?filename=ZJS-Faelle.ndjson.gz",
+            )
+            full = await async_test_client.post(
+                "/api/projects/project-imports/upload-url?filename=export.ndjson.gz",
+            )
+        assert resp.status_code == 200 and full.status_code == 200
+        project_call, full_call = mock_url.call_args_list
+        assert project_call.kwargs["content_type"] == "application/gzip"
+        assert full_call.kwargs["content_type"] == "application/gzip"
+        assert full_call.kwargs["user_id"] == admin.id
 
     @pytest.mark.asyncio
     async def test_403_for_non_writer(self, async_test_client, async_test_db):
