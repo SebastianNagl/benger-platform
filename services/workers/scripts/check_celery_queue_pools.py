@@ -11,7 +11,16 @@ only mounts ``services/workers`` and ``services/shared`` -- ``infra/helm`` is no
 reachable from inside it. This runs in the "Python Lint" CI job, which has the
 full repo checked out, and via ``make check-queue-pools``.
 
-Exit 0 = contract holds. Exit 1 = a queue is stranded, double-served, or unknown.
+It also asserts the CPU floor of the probes: every worker pool, in every
+values file, must be allowed at least ``MIN_POOL_CPU_MILLIS`` of CPU. Both
+probes of a pool run ``celery inspect ping``, a fresh import of ``tasks.py``
+inside the pod's cgroup. Below that floor the import does not finish within the
+probe timeout, and the pod is restarted by its liveness probe after most
+deploys (prod ``aux`` at 500m: 18 restarts in 7 days up to 2026-11-11, one
+import took 44 s against a timeout of 25 s; the pools at 1000m had none).
+
+Exit 0 = contract holds. Exit 1 = a queue is stranded, double-served, or unknown,
+or a pool is below the CPU floor.
 """
 
 from __future__ import annotations
@@ -21,9 +30,18 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-VALUES = REPO_ROOT / "infra" / "helm" / "benger" / "values.yaml"
+# Inside the workers test container this file sits at /app/scripts, three
+# levels above do not exist there. The suite imports the module for the pure
+# functions below; main() runs only where the whole repo is checked out.
+_HERE = Path(__file__).resolve()
+REPO_ROOT = _HERE.parents[3] if len(_HERE.parents) > 3 else _HERE.parent
+CHART = REPO_ROOT / "infra" / "helm" / "benger"
+VALUES = CHART / "values.yaml"
+# The environment files merge key-by-key over ``workerPools`` of VALUES.
+OVERLAY_VALUES = (CHART / "values-staging.yaml", CHART / "values-demo.yaml")
 SHARED = REPO_ROOT / "services" / "shared"
+# What the exec probes of a worker pool need (see the module docstring).
+MIN_POOL_CPU_MILLIS = 1000
 
 
 def _load_queue_contract():
@@ -56,6 +74,57 @@ def _pool_queues(values: dict) -> dict[str, list[str]]:
         pools[name] = list(pool_queues)
 
     return pools
+
+
+def cpu_millis(value) -> float | None:
+    """A Kubernetes CPU quantity in millicores (``"500m"`` -> 500, ``1`` or
+    ``"1.5"`` -> 1000 / 1500), or None for anything else."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) * 1000
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return float(text[:-1]) if text.endswith("m") else float(text) * 1000
+        except ValueError:
+            return None
+    return None
+
+
+def pool_cpu_limits(values: dict) -> dict[str, object]:
+    """``pool name -> resources.limits.cpu`` for every pool a values document
+    sizes (the bulk ``workers`` pool and each ``workerPools`` entry that states
+    resources; an overlay names only what it overrides)."""
+    limits: dict[str, object] = {}
+    workers = values.get("workers") or {}
+    if isinstance(workers.get("resources"), dict):
+        limits[workers.get("name", "workers")] = (workers["resources"].get("limits") or {}).get("cpu")
+    for name, pool in (values.get("workerPools") or {}).items():
+        if isinstance(pool, dict) and isinstance(pool.get("resources"), dict):
+            limits[name] = (pool["resources"].get("limits") or {}).get("cpu")
+    return limits
+
+
+def cpu_floor_errors(limits_by_file: dict[str, dict[str, object]], floor: int = MIN_POOL_CPU_MILLIS) -> list[str]:
+    """One message per pool whose CPU limit is below ``floor`` (or cannot be
+    read), across the given values files."""
+    errors: list[str] = []
+    for file_name, limits in limits_by_file.items():
+        for pool, raw in sorted(limits.items()):
+            millis = cpu_millis(raw)
+            if millis is None:
+                errors.append(
+                    f"{file_name}: pool {pool!r} states no readable CPU limit ({raw!r}); "
+                    f"its probes need at least {floor}m"
+                )
+            elif millis < floor:
+                errors.append(
+                    f"{file_name}: pool {pool!r} is limited to {raw} CPU, below the {floor}m its "
+                    "probes need: `celery inspect ping` re-imports tasks.py in the pod, and below "
+                    "the floor the liveness probe times out and restarts the pod after deploys"
+                )
+    return errors
 
 
 def main() -> int:
@@ -108,6 +177,13 @@ def main() -> int:
             f"pools consume queues unknown to celery_queues: {sorted(unknown)} -- "
             "either a typo, or a queue that needs adding to QUEUES"
         )
+
+    # 5. Every pool gets the CPU its probes need, in every environment.
+    limits_by_file = {VALUES.name: pool_cpu_limits(values)}
+    for overlay in OVERLAY_VALUES:
+        if overlay.exists():
+            limits_by_file[overlay.name] = pool_cpu_limits(yaml.safe_load(overlay.read_text()) or {})
+    errors.extend(cpu_floor_errors(limits_by_file))
 
     if errors:
         print("QUEUE/POOL CONTRACT VIOLATED:\n")

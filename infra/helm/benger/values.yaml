@@ -604,9 +604,17 @@ workerPools:
     prefetchMultiplier: 4
     maxTasksPerChild: 200
     maxMemoryPerChildKb: 350000  # ~340 MB; 200 + 2*(340+50) + 360 = ~1340 MB
+    # CPU limit 1000m, not 500m: both probes spawn `celery inspect ping`, a
+    # fresh import of tasks.py, inside this cgroup. At 500m one such import
+    # took 44 s on prod (2026-11-11, against 5 s in the `fast` pool at 1000m)
+    # and the liveness probe allows 25 s, so the pod failed five probes in a
+    # row and was restarted after nearly every deploy: 18 restarts over 14
+    # pods in 7 days, while the pools at 1000m had none. The request stays at
+    # 50m, so nothing more is reserved on the node. The floor is enforced by
+    # services/workers/scripts/check_celery_queue_pools.py.
     resources:
       limits:
-        cpu: 500m
+        cpu: 1000m
         memory: 1536Mi
       requests:
         cpu: 50m

@@ -14,7 +14,7 @@ dependencies = [
     "fastapi==0.162.0",
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.1",
-    "python-multipart==0.0.32",
+    "python-multipart==0.0.33",
     "PyJWT[crypto]==2.15.1",
     "cryptography>=46.0.0,<51.0.0",
     # bcrypt 5 raises on >72-byte passwords instead of silently truncating;
