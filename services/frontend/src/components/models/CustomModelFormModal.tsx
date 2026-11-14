@@ -73,11 +73,16 @@ interface FormState {
   base_url: string
   endpoint_model_name: string
   requires_api_key: boolean
+  max_concurrent_requests: string
   input_cost: string
   output_cost: string
   api_key: string
   reasoning_param: string
 }
+
+// Bounds of llm_models.max_concurrent_requests (CustomModelCreate); empty
+// means the worker default.
+export const MAX_CONCURRENT_REQUESTS_LIMIT = 256
 
 // The reasoning knobs the worker can forward — mirrors the backend
 // allowlist in OpenAICompatibleService (_REASONING_PARAMS). 'none' keeps
@@ -95,6 +100,7 @@ const emptyForm: FormState = {
   base_url: '',
   endpoint_model_name: '',
   requires_api_key: true,
+  max_concurrent_requests: '',
   input_cost: '',
   output_cost: '',
   api_key: '',
@@ -120,6 +126,10 @@ function formFromModel(model: CustomModel): FormState {
     base_url: model.base_url ?? '',
     endpoint_model_name: model.endpoint_model_name ?? '',
     requires_api_key: model.requires_api_key,
+    max_concurrent_requests:
+      model.max_concurrent_requests != null
+        ? String(model.max_concurrent_requests)
+        : '',
     input_cost:
       model.input_cost_per_million != null
         ? String(model.input_cost_per_million)
@@ -303,6 +313,21 @@ export function CustomModelFormModal({
       next.endpoint_model_name = t('customModels.form.endpointModelNameTooLong')
     }
 
+    const concurrency = form.max_concurrent_requests.trim()
+    if (concurrency !== '') {
+      const value = Number(concurrency)
+      if (
+        !Number.isInteger(value) ||
+        value < 1 ||
+        value > MAX_CONCURRENT_REQUESTS_LIMIT
+      ) {
+        next.max_concurrent_requests = t(
+          'customModels.form.maxConcurrentRequestsInvalid',
+          { max: MAX_CONCURRENT_REQUESTS_LIMIT },
+        )
+      }
+    }
+
     const inputCost = form.input_cost.trim()
     const outputCost = form.output_cost.trim()
     if ((inputCost === '') !== (outputCost === '')) {
@@ -332,6 +357,11 @@ export function CustomModelFormModal({
       requires_api_key: form.requires_api_key,
     }
     if (form.description.trim()) payload.description = form.description.trim()
+    if (form.max_concurrent_requests.trim() !== '') {
+      payload.max_concurrent_requests = Number(
+        form.max_concurrent_requests.trim(),
+      )
+    }
     if (form.input_cost.trim() !== '') {
       payload.input_cost_per_million = Number(form.input_cost.trim())
       payload.output_cost_per_million = Number(form.output_cost.trim())
@@ -364,6 +394,14 @@ export function CustomModelFormModal({
 
     if (form.requires_api_key !== original.requires_api_key) {
       payload.requires_api_key = form.requires_api_key
+    }
+
+    const concurrency =
+      form.max_concurrent_requests.trim() === ''
+        ? null
+        : Number(form.max_concurrent_requests.trim())
+    if (concurrency !== (original.max_concurrent_requests ?? null)) {
+      payload.max_concurrent_requests = concurrency
     }
 
     const inputCost =
@@ -719,6 +757,33 @@ export function CustomModelFormModal({
                     </p>
                   </div>
                 )}
+
+                {/* Concurrency limit (llm_models.max_concurrent_requests) */}
+                <div>
+                  <label
+                    htmlFor="custom-model-max-concurrent-requests"
+                    className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  >
+                    {t('customModels.form.maxConcurrentRequests')}
+                  </label>
+                  <Input
+                    id="custom-model-max-concurrent-requests"
+                    type="number"
+                    min={1}
+                    max={MAX_CONCURRENT_REQUESTS_LIMIT}
+                    step={1}
+                    value={form.max_concurrent_requests}
+                    onChange={(e) =>
+                      setField('max_concurrent_requests', e.target.value)
+                    }
+                    placeholder="2"
+                    data-testid="custom-model-max-concurrent-requests-input"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t('customModels.form.maxConcurrentRequestsHelp')}
+                  </p>
+                  {fieldError('max_concurrent_requests')}
+                </div>
 
                 {/* Pricing */}
                 <div>

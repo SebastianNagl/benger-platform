@@ -550,4 +550,95 @@ describe('CustomModelFormModal', () => {
       expect('default_config' in payload).toBe(false)
     })
   })
+
+  describe('Concurrent requests (max_concurrent_requests)', () => {
+    const limitInput = () =>
+      screen.getByTestId(
+        'custom-model-max-concurrent-requests-input',
+      ) as HTMLInputElement
+
+    it('create: an empty field sends no limit (the default applies)', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      await fillRequired(user)
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect('max_concurrent_requests' in payload).toBe(false)
+    })
+
+    it('create: sends the typed limit', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      await fillRequired(user)
+      await user.type(limitInput(), '3')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect(payload.max_concurrent_requests).toBe(3)
+    })
+
+    it.each(['0', '257', '1.5'])(
+      'rejects %s before calling the API',
+      async (value) => {
+        const user = userEvent.setup()
+        render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+        await fillRequired(user)
+        await user.type(limitInput(), value)
+        await user.click(screen.getByTestId('custom-model-form-submit'))
+
+        expect(
+          await screen.findByText(
+            'customModels.form.maxConcurrentRequestsInvalid',
+          ),
+        ).toBeInTheDocument()
+        expect(customModelsAPI.create).not.toHaveBeenCalled()
+      },
+    )
+
+    it('edit: prefills the stored limit and clearing it resets to the default', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          model={{ ...existingModel, max_concurrent_requests: 4 }}
+        />,
+      )
+
+      expect(limitInput().value).toBe('4')
+      await user.clear(limitInput())
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() =>
+        expect(customModelsAPI.update).toHaveBeenCalledWith('custom-42', {
+          max_concurrent_requests: null,
+        }),
+      )
+    })
+
+    it('edit: an unchanged limit is not sent', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          model={{ ...existingModel, max_concurrent_requests: 4 }}
+        />,
+      )
+
+      await user.clear(screen.getByTestId('custom-model-name-input'))
+      await user.type(screen.getByTestId('custom-model-name-input'), 'Renamed')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect('max_concurrent_requests' in payload).toBe(false)
+    })
+  })
 })
