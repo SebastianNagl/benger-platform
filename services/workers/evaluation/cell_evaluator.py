@@ -1014,7 +1014,7 @@ def evaluate_generation_cell_impl(
         # `tick` to connected EvaluationResults clients. The handler
         # subscribes to `evaluation:progress:{project_id}` and re-fetches
         # the task-model view on each tick.
-        if n_inserted > 0:
+        if n_inserted or n_passed or n_failed:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {
@@ -1672,7 +1672,7 @@ def evaluate_annotation_cell_impl(
         )
         db.commit()
         # Same as the gen cell — broadcast so the API WS pushes a tick.
-        if n_inserted > 0:
+        if n_inserted or n_passed or n_failed:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {

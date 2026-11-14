@@ -10,7 +10,7 @@ What's being pinned:
   accept. A drift here silently breaks dispatch at runtime.
 - The orchestrator actually uses Celery `chord` (no longer iterates
   in-process) and dispatches sub-tasks to `queue="evaluation"`.
-- Sub-tasks use the bulk-upsert helper with `ON CONFLICT DO NOTHING`
+- Sub-tasks use the bulk-upsert helper against `uq_task_evaluations_cell`
   (idempotent retries; defense-in-depth against concurrent triggers).
 - The atomic counter-bump SQL pattern is in place (not read-modify-write).
 - The finalizer has the idempotency guard against chord redelivery.
@@ -166,20 +166,6 @@ def test_sub_tasks_dispatch_to_evaluation_queue():
     assert 'queue="' not in src.split("def run_evaluation")[-1].split("def ")[0], (
         "orchestrator signatures must not hardcode a queue= kwarg; routing is "
         "owned by services/shared/celery_queues.py"
-    )
-
-
-def test_bulk_upsert_uses_on_conflict_do_nothing():
-    """Sub-tasks must use `ON CONFLICT DO NOTHING` against the partial
-    unique index from migration 048. Without this, concurrent retries
-    or chord redeliveries duplicate-write TaskEvaluation rows and
-    pollute the metric aggregates."""
-    src = _tasks_source()
-    assert "on_conflict_do_nothing" in src, (
-        "sub-tasks must use postgresql.insert(...).on_conflict_do_nothing()"
-    )
-    assert "_bulk_upsert_task_evaluations" in src, (
-        "expected the shared bulk-upsert helper to be defined and used"
     )
 
 
@@ -421,16 +407,16 @@ def test_bulk_upsert_does_not_null_fill_to_preserve_server_defaults():
     )
 
 
-def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
+def test_bulk_upsert_replaces_only_error_rows_returning_passed():
     """Real check on the SQL that `_bulk_upsert_task_evaluations`
     generates. Source-grep tests catch deleted call sites but miss
-    a refactor that e.g. swaps `.on_conflict_do_nothing()` for
-    `.on_conflict_do_update(...)` or drops the RETURNING clause —
-    both would silently break the redelivery-safe counter math.
+    a refactor that e.g. drops the conflict target, lets a conflict
+    overwrite any row, or drops the RETURNING clause: each would
+    silently break the redelivery-safe counter math.
 
     Compiles the actual SQLAlchemy statement with literal binds and
     asserts the dialect-rendered SQL contains the two clauses we
-    depend on (`ON CONFLICT DO NOTHING` and `RETURNING ...passed`).
+    depend on (the conflict handling and `RETURNING ...passed`).
     """
     from unittest.mock import MagicMock
     from sqlalchemy.dialects import postgresql
@@ -478,9 +464,13 @@ def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
             compile_kwargs={"literal_binds": False},
         )
     ).upper()
-    assert "ON CONFLICT DO NOTHING" in compiled, (
-        "_bulk_upsert_task_evaluations must emit ON CONFLICT DO NOTHING "
-        "so redelivered cells silently skip-insert instead of erroring"
+    # A conflict only replaces a failed error row (a retry regrading a
+    # rate-limited cell); a redelivered cell's scored rows are kept.
+    assert "ON CONFLICT (" in compiled and "DO UPDATE SET" in compiled, (
+        "_bulk_upsert_task_evaluations must target uq_task_evaluations_cell"
+    )
+    assert "WHERE TASK_EVALUATIONS.ERROR_MESSAGE IS NOT NULL" in compiled, (
+        "only an existing error row may be replaced on conflict"
     )
     assert "RETURNING" in compiled, (
         "_bulk_upsert_task_evaluations must use RETURNING so caller can "

@@ -278,6 +278,86 @@ class TestResumeMissingOnly:
         assert regraded.created_at >= dispatched_at
 
 
+    def test_retry_replaces_a_rate_limited_row_with_its_regrade(
+        self, db_conn, make_user, make_llm_model, make_project, make_task,
+        make_generation, make_evaluation_run, exact_match_config,
+    ):
+        """A retry regrades into the same run and judge run, so the regraded
+        row has the key of the earlier rate-limited row. It used to be
+        dropped on that conflict: the retry paid for the call and the cell
+        kept its error row for good."""
+        _, project, run, _, _, gen_a, gen_b = _build_scenario(
+            db_conn, make_user, make_llm_model, make_project, make_task,
+            make_generation, make_evaluation_run,
+        )
+        config = exact_match_config()
+        tasks.run_evaluation(
+            evaluation_id=run.id,
+            project_id=project.id,
+            evaluation_configs=[config],
+        )
+        db_conn.expire_all()
+        # gen_a ("ja" == "ja") passed, gen_b ("nein") failed: 2 samples.
+        assert run.samples_evaluated == 2
+        assert (run.eval_metadata["samples_passed"], run.eval_metadata["samples_failed"]) == (1, 1)
+
+        # Make gen_a's row the attempt that hit a rate limit, counted failed.
+        limited = (
+            db_conn.query(TaskEvaluation)
+            .filter(
+                TaskEvaluation.evaluation_id == run.id,
+                TaskEvaluation.generation_id == gen_a.id,
+            )
+            .one()
+        )
+        limited_id = limited.id
+        limited.metrics = {"exact_match": {"value": None, "error": "Error code: 429 rate limit"}}
+        limited.passed = False
+        limited.error_message = "Error code: 429 rate limit"
+        meta = dict(run.eval_metadata)
+        meta.update({"samples_passed": 0, "samples_failed": 2})
+        run.eval_metadata = meta
+        run.status = "failed"
+        db_conn.commit()
+
+        db_conn.query(EvaluationRun).filter(EvaluationRun.id == run.id).update(
+            {"status": "pending"}
+        )
+        db_conn.commit()
+        tasks.run_evaluation(
+            evaluation_id=run.id,
+            project_id=project.id,
+            evaluation_configs=[config],
+            evaluate_missing_only=True,
+        )
+        db_conn.expire_all()
+
+        # Only the rate-limited cell was re-dispatched; gen_b counts as graded.
+        assert run.eval_metadata["cells_dispatched"] == 1
+        assert run.eval_metadata["cells_graded_before_dispatch"] == 1
+        rows = (
+            db_conn.query(TaskEvaluation)
+            .filter(
+                TaskEvaluation.evaluation_id == run.id,
+                TaskEvaluation.generation_id == gen_a.id,
+            )
+            .all()
+        )
+        assert len(rows) == 1
+        regraded = rows[0]
+        assert regraded.id == limited_id
+        assert regraded.error_message is None
+        assert regraded.passed is True
+        # Written for this dispatch, so the run's progress counts the cell.
+        dispatched_at = datetime.fromisoformat(run.eval_metadata["dispatched_at"])
+        assert regraded.created_at >= dispatched_at
+        # The replaced row was counted once already: no new sample, one
+        # count moves from failed to passed.
+        assert run.samples_evaluated == 2
+        assert (run.eval_metadata["samples_passed"], run.eval_metadata["samples_failed"]) == (1, 1)
+        assert run.status == "completed"
+
+
 class TestMetricParametersNoneCrashFix:
     def test_llm_judge_config_with_null_metric_parameters_does_not_crash(
         self, db_conn, make_user, make_llm_model, make_project, make_task,

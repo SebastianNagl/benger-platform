@@ -37,6 +37,7 @@ from typing import Dict, List, Optional
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth_module.dependencies import require_user
@@ -1423,11 +1424,29 @@ class TestEvaluationStatus:
         }
         assert await _progress("running", retried) == 66.7
         assert await _listed() == (4, 6)
-        regraded = [("cfg2", "answer")]
-        _rows(gens[2], regraded, at=retry_at + timedelta(seconds=1))
+
+        async def _regrade(subject):
+            # The worker's upsert replaces the error rows on the same key.
+            col = (
+                TaskEvaluation.generation_id if subject in gens
+                else TaskEvaluation.annotation_id
+            )
+            for row in (
+                await async_test_db.execute(
+                    select(TaskEvaluation).where(
+                        TaskEvaluation.evaluation_id == eval_id, col == subject.id
+                    )
+                )
+            ).scalars():
+                row.metrics = {"score": 1.0}
+                row.passed = True
+                row.error_message = None
+                row.created_at = retry_at + timedelta(seconds=1)
+
+        await _regrade(gens[2])
         assert await _progress("running", retried) == 83.3
         assert await _listed() == (5, 6)
-        _rows(anns[2], regraded, at=retry_at + timedelta(seconds=1))
+        await _regrade(anns[2])
         assert await _progress("running", retried) == 100.0
 
         # Not dispatched yet: unknown, not zero.

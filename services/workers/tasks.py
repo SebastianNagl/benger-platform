@@ -4237,31 +4237,50 @@ def _classify_cell_failure(exc: BaseException) -> str:
 def _bulk_upsert_task_evaluations(
     db, rows: List[Dict[str, Any]]
 ) -> Tuple[int, int, int]:
-    """Insert TaskEvaluation rows with `ON CONFLICT DO NOTHING` against
-    the partial unique index `uq_task_evaluations_cell` from migration 048.
+    """Insert TaskEvaluation rows against the partial unique index
+    `uq_task_evaluations_cell` (migration 049). On a conflict the new row
+    replaces the existing one only when that row is a failed, unscored
+    error row: a retry or resume regrades into the same run and judge run,
+    so its rows carry the key of the attempt that hit a rate limit or a
+    timeout. Any other conflict is dropped.
 
-    Returns `(rows_actually_inserted, passed_count, failed_count)` —
-    counts derived from `RETURNING passed` so the caller can bump parent
-    counters by the *real* number of rows that landed, not by the number
-    requested. On a Celery message redelivery, all rows hit conflict and
-    `(0, 0, 0)` is returned: the redelivered task contributes nothing to
+    Returns the parent counter deltas `(rows_added, passed, failed)`,
+    derived from `RETURNING` so the caller bumps by what really landed,
+    not by what it requested. A replaced row was counted once already as
+    a failed sample, so it adds no row and moves its count from failed to
+    passed when the regrade passed. On a Celery message redelivery, all
+    rows hit conflict and `(0, 0, 0)` is returned: the redelivered task
+    contributes nothing to
     `samples_evaluated` / `samples_passed` / `samples_failed`, eliminating
     the double-bump race that an unconditional `samples_evaluated += N`
     would have on retry.
 
-    SQLAlchemy's bare `ON CONFLICT DO NOTHING` (no `index_elements`)
-    catches any unique-constraint violation. The only partial unique
-    index on this table is `uq_task_evaluations_cell` (migration 048);
     UUID PKs are generated fresh per insert so PK collisions are
-    statistically impossible. If a future migration adds another unique
-    index here, tighten this to `index_where=` to pin the conflict
-    target.
+    statistically impossible.
     """
     if not rows:
         return (0, 0, 0)
     from collections import defaultdict
+    from sqlalchemy import and_, func, literal_column, not_
     from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from evaluation_planning import _SCORED_METRICS_SQL
     from models import TaskEvaluation
+
+    table = TaskEvaluation.__table__
+    sentinel = literal_column("'00000000-0000-0000-0000-000000000000'")
+    cell_key = [
+        table.c.evaluation_id,
+        table.c.judge_run_id,
+        func.coalesce(table.c.generation_id, sentinel),
+        func.coalesce(table.c.annotation_id, sentinel),
+        table.c.field_name,
+        func.coalesce(table.c.created_by, sentinel),
+    ]
+    replaceable = and_(
+        table.c.error_message.isnot(None),
+        not_(table.c.passed),
+        not_(literal_column(_SCORED_METRICS_SQL)),
+    )
 
     # The cell sub-task's `sample_results` mixes rows from
     # `SampleEvaluator.evaluate_sample()` (which return full payloads
@@ -4284,26 +4303,50 @@ def _bulk_upsert_task_evaluations(
     # Fix: group rows by their column keyset, then one multi-row
     # INSERT per group. Each group has a consistent column list,
     # server defaults still apply to columns NO row in the group
-    # provides, and `ON CONFLICT DO NOTHING` + `RETURNING passed`
-    # work per-group exactly as before.
+    # provides, and the conflict handling + `RETURNING` work per-group.
     groups = defaultdict(list)
+    seen_keys = set()
     for r in rows:
+        key = tuple(
+            r.get(c)
+            for c in (
+                "evaluation_id", "judge_run_id", "generation_id",
+                "annotation_id", "field_name", "created_by",
+            )
+        )
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
         groups[tuple(sorted(r.keys()))].append(r)
 
-    n_inserted = n_passed = 0
+    n_added = n_passed = n_failed = 0
     for _, group_rows in groups.items():
+        stmt = pg_insert(table).values(group_rows)
         stmt = (
-            pg_insert(TaskEvaluation.__table__)
-            .values(group_rows)
-            .on_conflict_do_nothing()
-            .returning(TaskEvaluation.__table__.c.passed)
+            stmt.on_conflict_do_update(
+                index_elements=cell_key,
+                index_where=table.c.evaluation_id.isnot(None),
+                set_={
+                    **{
+                        c.name: stmt.excluded[c.name]
+                        for c in table.columns
+                        if c.name not in ("id", "created_at")
+                    },
+                    "created_at": func.now(),
+                },
+                where=replaceable,
+            )
+            .returning(table.c.passed, literal_column("(xmax = 0)").label("inserted"))
         )
-        result = db.execute(stmt)
-        returned = result.fetchall()
-        n_inserted += len(returned)
-        n_passed += sum(1 for r in returned if r.passed)
-    n_failed = n_inserted - n_passed
-    return (n_inserted, n_passed, n_failed)
+        for r in db.execute(stmt).fetchall():
+            if r.inserted:
+                n_added += 1
+                n_passed += 1 if r.passed else 0
+                n_failed += 0 if r.passed else 1
+            elif r.passed:
+                n_passed += 1
+                n_failed -= 1
+    return (n_added, n_passed, n_failed)
 
 
 def _bump_evaluation_counters(

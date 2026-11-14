@@ -659,8 +659,8 @@ class TestBulkUpsertCounts:
         def fake_execute(stmt):
             result = MagicMock()
             result.fetchall.return_value = [
-                types.SimpleNamespace(passed=True),
-                types.SimpleNamespace(passed=False),
+                types.SimpleNamespace(passed=True, inserted=True),
+                types.SimpleNamespace(passed=False, inserted=True),
             ]
             return result
 
@@ -677,6 +677,33 @@ class TestBulkUpsertCounts:
         ]
         inserted, passed, failed = _bulk_upsert_task_evaluations(db, rows)
         assert (inserted, passed, failed) == (2, 1, 1)
+
+    def test_a_replaced_error_row_moves_its_count_instead_of_adding_one(self):
+        # A retry regrades a rate-limited cell into the same key: the row
+        # replaces the earlier failed error row, which the run already
+        # counted once as a failed sample. Replacements that pass move one
+        # count from failed to passed; one that fails again changes nothing.
+        def fake_execute(stmt):
+            result = MagicMock()
+            result.fetchall.return_value = [
+                types.SimpleNamespace(passed=True, inserted=False),
+                types.SimpleNamespace(passed=False, inserted=False),
+                types.SimpleNamespace(passed=False, inserted=True),
+            ]
+            return result
+
+        db = MagicMock()
+        db.execute.side_effect = fake_execute
+        rows = [
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "evaluation_id": "e",
+                "field_name": "f|p|r",
+                "metrics": {},
+                "passed": True,
+            }
+        ]
+        assert _bulk_upsert_task_evaluations(db, rows) == (1, 1, 0)
 
 
 # ===========================================================================
