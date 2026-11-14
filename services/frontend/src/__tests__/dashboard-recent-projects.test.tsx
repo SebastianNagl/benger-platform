@@ -86,16 +86,16 @@ const recentResponse = [
   project('p4', 'Fourth newest', '2026-11-11T00:00:00Z'),
 ]
 
-const renderDashboard = () => {
-  const queryClient = new QueryClient({
+const renderDashboard = (
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  })
-  return render(
+  }),
+) =>
+  render(
     <QueryClientProvider client={queryClient}>
       <DashboardPage />
     </QueryClientProvider>,
   )
-}
 
 const recentTitles = async () => {
   const heading = await screen.findByText('Aktuelle Projekte')
@@ -171,5 +171,36 @@ describe('Dashboard recent projects', () => {
       'p2',
       'p4',
     ])
+  })
+
+  it('refreshes the list on a return visit after a project was created elsewhere', async () => {
+    // The app's real cache settings: data stays fresh for 60 s.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    })
+    const first = renderDashboard(queryClient)
+    expect(await recentTitles()).toHaveLength(5)
+    first.unmount()
+
+    const created = project('p0', 'Just created', '2026-11-14T12:00:00Z')
+    ;(projectsAPI.list as jest.Mock).mockResolvedValue({
+      items: [created, ...recentResponse.filter((p) => p.id !== 'p5')],
+      total: 8,
+      page: 1,
+      page_size: 5,
+      pages: 2,
+    })
+
+    renderDashboard(queryClient)
+    await waitFor(() => expect(projectsAPI.list).toHaveBeenCalledTimes(2))
+    await waitFor(async () =>
+      expect(await recentTitles()).toEqual([
+        'Just created',
+        'Newest',
+        'Second newest',
+        'Third newest',
+        'Fourth newest',
+      ]),
+    )
   })
 })

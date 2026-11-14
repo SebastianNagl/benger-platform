@@ -41,8 +41,9 @@ export default function DashboardPage() {
   }, [errorParam, router])
 
   // React Query caches these for 60 s (the global default), so navigating
-  // dashboard → projects → dashboard serves the second visit from memory
-  // instead of refetching both endpoints.
+  // dashboard → projects → dashboard renders the second visit from memory.
+  // The recent projects are still refetched in the background on every
+  // visit, so a project created, deleted or archived elsewhere shows up.
   //
   // The recent projects are fetched straight from the API into this query,
   // not through the shared project store: the store's fetchProjects inherits
@@ -54,6 +55,7 @@ export default function DashboardPage() {
     queryKey: ['dashboard', 'recentProjects', RECENT_PROJECTS_COUNT],
     queryFn: () =>
       projectsAPI.list(1, RECENT_PROJECTS_COUNT, undefined, false, false),
+    refetchOnMount: 'always',
   })
 
   const statsQuery = useQuery({
