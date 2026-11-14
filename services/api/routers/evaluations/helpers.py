@@ -126,6 +126,8 @@ class EvaluationStatus(BaseModel):
     id: str
     status: str  # pending, running, completed, failed
     message: Optional[str] = None
+    # Percent done (0-100): samples evaluated over the cells dispatched; None
+    # before the run has dispatched its cells.
     progress: Optional[float] = None
 
 

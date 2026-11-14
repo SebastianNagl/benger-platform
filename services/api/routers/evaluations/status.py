@@ -65,7 +65,24 @@ async def get_evaluation_status(
         id=evaluation.id,
         status=evaluation.status,
         message=evaluation.error_message or "Evaluation status",
+        progress=_run_progress(evaluation),
     )
+
+
+def _run_progress(evaluation: DBEvaluationRun) -> Optional[float]:
+    """Percent of the run done: ``samples_evaluated`` over the cells the run
+    dispatched (``eval_metadata.cells_dispatched``), the count the in-flight
+    banner shows as "571/581". A cell can write more than one row (several
+    fields or judge runs), so it is capped at 100 until the run completes.
+    None while nothing is dispatched yet."""
+    if evaluation.status == "completed":
+        return 100.0
+    meta = evaluation.eval_metadata if isinstance(evaluation.eval_metadata, dict) else {}
+    cells = meta.get("cells_dispatched")
+    if not isinstance(cells, int) or isinstance(cells, bool) or cells <= 0:
+        return None
+    done = evaluation.samples_evaluated or 0
+    return round(min(100.0, 100.0 * done / cells), 1)
 
 
 @router.get("/stream/{evaluation_id}")

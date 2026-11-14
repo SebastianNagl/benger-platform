@@ -1327,6 +1327,39 @@ class TestEvaluationStatus:
         body = resp.json()
         assert body["id"] == eval_id
         assert body["status"] == "completed"
+        assert body["progress"] == 100.0
+
+    @pytest.mark.asyncio
+    async def test_running_evaluation_reports_progress(
+        self, async_test_client, async_test_db
+    ):
+        """progress was null throughout a run, so a client polling this route
+        saw no movement (ZJS Fälle: 571 of 581 cells done after 34 minutes)."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _create_eval_project_async(async_test_db, owner, org)
+        run = data["evaluation_runs"][0]
+        eval_id = run.id
+
+        async def _progress(status, samples, meta):
+            run.status = status
+            run.samples_evaluated = samples
+            run.eval_metadata = meta
+            await async_test_db.commit()
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/evaluation/status/{eval_id}",
+                )
+            assert resp.status_code == 200, resp.text
+            return resp.json()["progress"]
+
+        assert await _progress("running", 571, {"cells_dispatched": 581}) == 98.3
+        assert await _progress("running", 0, {"cells_dispatched": 581}) == 0.0
+        # Several fields per cell write more rows than cells.
+        assert await _progress("running", 1200, {"cells_dispatched": 581}) == 100.0
+        # Not dispatched yet: unknown, not zero.
+        assert await _progress("pending", 0, {}) is None
+        assert await _progress("failed", 10, {"cells_dispatched": 20}) == 50.0
 
     @pytest.mark.asyncio
     async def test_get_evaluation_status_not_found(
