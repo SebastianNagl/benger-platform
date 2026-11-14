@@ -140,9 +140,11 @@ class TestGenerationTask:
     """``tasks.generate_response`` takes a slot before it calls the model."""
 
     def _run(self, client, model_id, limit, impl):
-        with patch.object(tasks, "_get_progress_redis", return_value=client), patch.object(
-            endpoint_slots, "model_limit", return_value=limit
-        ), patch.object(tasks, "generate_response_impl", side_effect=impl):
+        with (
+            patch.object(tasks, "_get_progress_redis", return_value=client),
+            patch.object(endpoint_slots, "model_limit", return_value=limit),
+            patch.object(tasks, "generate_response_impl", side_effect=impl),
+        ):
             return tasks.generate_response.run(
                 "gen-1", "proj-1", "task-1", model_id, None, False, None, 0
             )
@@ -230,10 +232,11 @@ class TestGenerationTask:
                 except Retry:
                     time.sleep(0.01)
 
-        with patch.object(tasks, "_get_progress_redis", return_value=client), patch.object(
-            endpoint_slots, "model_limit", return_value=2
-        ), patch.object(tasks, "generate_response_impl", side_effect=impl), patch.object(
-            tasks.generate_response, "retry", side_effect=Retry("busy")
+        with (
+            patch.object(tasks, "_get_progress_redis", return_value=client),
+            patch.object(endpoint_slots, "model_limit", return_value=2),
+            patch.object(tasks, "generate_response_impl", side_effect=impl),
+            patch.object(tasks.generate_response, "retry", side_effect=Retry("busy")),
         ):
             threads = [threading.Thread(target=job, args=(i,)) for i in range(8)]
             for t in threads:

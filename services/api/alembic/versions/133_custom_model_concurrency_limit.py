@@ -19,7 +19,6 @@ from sqlalchemy import inspect
 from alembic import op
 import sqlalchemy as sa
 
-
 revision = "133_custom_model_concurrency_limit"
 down_revision = "132_refresh_token_rotation"
 branch_labels = None
@@ -38,9 +37,7 @@ def _columns() -> set:
 
 
 def _checks() -> set:
-    return {
-        ck["name"] for ck in inspect(op.get_bind()).get_check_constraints(_TABLE)
-    }
+    return {ck["name"] for ck in inspect(op.get_bind()).get_check_constraints(_TABLE)}
 
 
 def upgrade() -> None:
