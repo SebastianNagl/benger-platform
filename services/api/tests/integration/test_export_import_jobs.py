@@ -8,6 +8,7 @@ defaults and the CHECK constraints that guard ``status`` and ``progress``.
 import uuid
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from models import ExportJob, ImportJob, JobStatus, User
@@ -149,3 +150,38 @@ class TestImportJobModel:
         test_db.flush()
         test_db.refresh(job)
         assert job.result == summary
+
+
+@pytest.mark.integration
+class TestJobCompletionTime:
+    """``updated_at`` of a job is when the job last changed, i.e. its
+    completion time once it is final. The export worker streams the whole
+    export inside one transaction and marks the job completed at its end;
+    Postgres ``now()`` is the start of the transaction, so an ``updated_at``
+    taken from it showed a 529 s export as finished about 1 s after it was
+    created. One transaction that outlives a sleep reproduces that here."""
+
+    @pytest.mark.parametrize("model", [ExportJob, ImportJob])
+    def test_completion_in_a_long_transaction_records_the_wall_clock(
+        self, test_db, project_and_user, model
+    ):
+        project, user = project_and_user
+        job = model(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            requested_by=user.id,
+            format="ndjson_gz",
+            object_key="imports/u1/file.json" if model is ImportJob else None,
+        )
+        test_db.add(job)
+        test_db.flush()
+        test_db.refresh(job)
+        created = job.created_at
+
+        test_db.execute(text("SELECT pg_sleep(0.3)"))
+        job.status = "completed"
+        job.progress = 100
+        test_db.flush()
+        test_db.refresh(job)
+
+        assert (job.updated_at - created).total_seconds() >= 0.3
