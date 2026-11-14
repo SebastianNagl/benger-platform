@@ -77,13 +77,17 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-// Mock the project store
-jest.mock('@/stores/projectStore', () => ({
-  useProjectStore: () => ({
-    projects: [],
-    fetchProjects: jest.fn(),
-    loading: false,
-  }),
+// Mock the recent projects request
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: {
+    list: jest.fn().mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 5,
+      pages: 1,
+    }),
+  },
 }))
 
 // Mock the API
