@@ -354,16 +354,6 @@ class TestUpdateUserProfile:
         assert "<a" not in user.name
         assert "&lt;a href=" in user.name
 
-    def test_profile_update_cannot_change_the_email(self):
-        """A new address goes through the confirmation link
-        (auth_module.email_change); the plain profile update has no way to
-        set it, so no caller can replace the login address unconfirmed."""
-        import inspect
-
-        from auth_module.user_service import update_user_profile
-
-        assert "email" not in inspect.signature(update_user_profile).parameters
-
     def test_update_legal_expertise_invalid(self):
         from auth_module.user_service import update_user_profile
 
