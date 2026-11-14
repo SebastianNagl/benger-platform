@@ -2334,6 +2334,26 @@ def run_evaluation(
             # Persist dispatch metadata so finalize can find judge_run IDs
             # when building the `judges_by_config` summary.
             cells_dispatched = len(gen_cells) + len(ann_cells)
+            # A resume or retry dispatches only the cells left; the run's
+            # progress counts the cells it graded before against its total.
+            from models import TaskEvaluation
+
+            dispatched_gen_ids = {gen_id for _t, gen_id, _d in gen_cells}
+            dispatched_ann_ids = {ann_id for _t, ann_id, _d in ann_cells}
+            graded_gen_ids = set()
+            graded_ann_ids = set()
+            for graded_gen_id, graded_ann_id in (
+                db.query(TaskEvaluation.generation_id, TaskEvaluation.annotation_id)
+                .filter(TaskEvaluation.evaluation_id == evaluation_id)
+                .distinct()
+            ):
+                if graded_gen_id is not None:
+                    graded_gen_ids.add(graded_gen_id)
+                if graded_ann_id is not None:
+                    graded_ann_ids.add(graded_ann_id)
+            cells_graded_before_dispatch = len(graded_gen_ids - dispatched_gen_ids) + len(
+                graded_ann_ids - dispatched_ann_ids
+            )
             from sqlalchemy.orm.attributes import flag_modified
 
             # Raw pool counts distinguish "the filters excluded everything"
@@ -2412,6 +2432,7 @@ def run_evaluation(
                 **(evaluation.eval_metadata or {}),
                 "dispatched_at": datetime.now().isoformat(),
                 "cells_dispatched": cells_dispatched,
+                "cells_graded_before_dispatch": cells_graded_before_dispatch,
                 "judge_run_ids_by_config": judge_run_ids_by_config_serializable,
                 "gen_cells_dispatched": len(gen_cells),
                 "ann_cells_dispatched": len(ann_cells),

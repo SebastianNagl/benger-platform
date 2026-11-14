@@ -48,7 +48,9 @@ const baseRun = (id: string, overrides: any = {}) => ({
   evaluation_id: id,
   status: 'running',
   samples_evaluated: 0,
-  eval_metadata: { cells_dispatched: 100, failures_by_reason: {} },
+  cells_completed: 0,
+  cells_total: 100,
+  failures_by_reason: {},
   ...overrides,
 })
 
@@ -81,16 +83,19 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[
           baseRun('aabbccddee112233', {
-            samples_evaluated: 42,
-            eval_metadata: { cells_dispatched: 100 },
+            // Two field keys per cell: 84 rows for 42 graded cells.
+            samples_evaluated: 84,
+            cells_completed: 42,
+            cells_total: 100,
           }),
         ]}
         onChanged={jest.fn()}
       />,
     )
-    // Shows the truncated id + progress.
+    // Shows the truncated id + graded cells over the run's cells.
     expect(screen.getByText(/aabbccdd/)).toBeInTheDocument()
     expect(screen.getByText(/42\/100/)).toBeInTheDocument()
+    expect(screen.queryByText(/84\/100/)).not.toBeInTheDocument()
     // The role="status" + aria-live announce live changes for SRs.
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite')
@@ -200,16 +205,10 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[
           baseRun('r1', {
-            eval_metadata: {
-              cells_dispatched: 100,
-              failures_by_reason: { rate_limit: 5, timeout: 1 },
-            },
+            failures_by_reason: { rate_limit: 5, timeout: 1 },
           }),
           baseRun('r2', {
-            eval_metadata: {
-              cells_dispatched: 100,
-              failures_by_reason: { rate_limit: 3, content_policy: 2 },
-            },
+            failures_by_reason: { rate_limit: 3, content_policy: 2 },
           }),
         ]}
         onChanged={jest.fn()}
@@ -381,10 +380,7 @@ describe('InflightRunsBanner', () => {
         projectId={PROJECT_ID}
         evaluations={[
           baseRun('r1', {
-            eval_metadata: {
-              cells_dispatched: 100,
-              failures_by_reason: reasons,
-            },
+            failures_by_reason: reasons,
           }),
         ]}
         onChanged={jest.fn()}

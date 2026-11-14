@@ -223,6 +223,47 @@ class TestResumeMissingOnly:
         assert run.status == "completed"
 
 
+    def test_resume_counts_the_cells_graded_before_dispatch(
+        self, db_conn, make_user, make_llm_model, make_project, make_task,
+        make_generation, make_evaluation_run, exact_match_config,
+    ):
+        """A resume dispatches only the cells left, so the run's progress
+        needs the cells it graded before to keep its total at 2 cells."""
+        _, project, run, _, _, gen_a, gen_b = _build_scenario(
+            db_conn, make_user, make_llm_model, make_project, make_task,
+            make_generation, make_evaluation_run,
+        )
+        config = exact_match_config()
+        tasks.run_evaluation(
+            evaluation_id=run.id,
+            project_id=project.id,
+            evaluation_configs=[config],
+        )
+        db_conn.expire_all()
+        assert run.eval_metadata["cells_dispatched"] == 2
+        assert run.eval_metadata["cells_graded_before_dispatch"] == 0
+
+        # The paused attempt graded only gen_a.
+        db_conn.query(TaskEvaluation).filter(
+            TaskEvaluation.evaluation_id == run.id,
+            TaskEvaluation.generation_id == gen_b.id,
+        ).delete()
+        db_conn.query(EvaluationRun).filter(EvaluationRun.id == run.id).update(
+            {"status": "pending"}
+        )
+        db_conn.commit()
+
+        tasks.run_evaluation(
+            evaluation_id=run.id,
+            project_id=project.id,
+            evaluation_configs=[config],
+            evaluate_missing_only=True,
+        )
+        db_conn.expire_all()
+        assert run.eval_metadata["cells_dispatched"] == 1
+        assert run.eval_metadata["cells_graded_before_dispatch"] == 1
+
+
 class TestMetricParametersNoneCrashFix:
     def test_llm_judge_config_with_null_metric_parameters_does_not_crash(
         self, db_conn, make_user, make_llm_model, make_project, make_task,

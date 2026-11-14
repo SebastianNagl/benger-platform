@@ -11,6 +11,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # does NOT export the score-coercion helper. Import it explicitly from the
 # results package (same source `models_methods` uses) so the aggregate-score
 # calc below can coerce both bare-float and {value,…} metric shapes.
+from routers.evaluations.helpers import run_cells_completed, run_cells_total  # noqa: E402
 from routers.evaluations.results._common import _coerce_metric_value  # noqa: E402,F401
 from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS  # noqa: E402
 
@@ -275,6 +276,11 @@ async def get_project_evaluation_results(
                         else (evaluation.samples_evaluated or 0)
                     ),
                     "sample_results_count": sample_results_count,
+                    "cells_completed": await run_cells_completed(db, evaluation.id),
+                    "cells_total": run_cells_total(evaluation),
+                    "failures_by_reason": (evaluation.eval_metadata or {}).get(
+                        "failures_by_reason"
+                    ),
                     "error_message": evaluation.error_message,
                     "evaluation_configs": eval_configs,
                     "results_by_config": parsed_results,

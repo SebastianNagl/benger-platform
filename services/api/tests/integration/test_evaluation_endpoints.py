@@ -1334,16 +1334,42 @@ class TestEvaluationStatus:
         self, async_test_client, async_test_db
     ):
         """progress was null throughout a run, so a client polling this route
-        saw no movement (ZJS Fälle: 571 of 581 cells done after 34 minutes)."""
+        saw no movement (ZJS Fälle: 571 of 581 cells done after 34 minutes).
+        It counts graded cells, not rows: a cell writes one row per config
+        and field, so rows outnumber cells and must not reach 100 early."""
         owner = await _make_owner(async_test_db)
         org = await _make_org(async_test_db)
-        data = await _create_eval_project_async(async_test_db, owner, org)
+        data = await _create_eval_project_async(
+            async_test_db, owner, org, with_task_evaluations=False
+        )
         run = data["evaluation_runs"][0]
+        judge_run = run._test_judge_run
         eval_id = run.id
+        gens = data["generations"]
+        anns = data["annotations"]
+        # 3 generations + 3 answers dispatched: 6 cells.
+        dispatched = {"evaluation_type": "evaluation", "cells_dispatched": 6}
 
-        async def _progress(status, samples, meta):
+        def _rows(subject, keys):
+            for config_id, field in keys:
+                async_test_db.add(TaskEvaluation(
+                    id=_uid(),
+                    evaluation_id=eval_id,
+                    judge_run_id=judge_run.id,
+                    task_id=subject.task_id,
+                    generation_id=subject.id if subject in gens else None,
+                    annotation_id=subject.id if subject in anns else None,
+                    field_name=f"{config_id}|{field}|{field}",
+                    evaluation_config_id=config_id,
+                    answer_type="text",
+                    ground_truth={"value": "Ja"},
+                    prediction={"value": "Ja"},
+                    metrics={"score": 1.0},
+                    passed=True,
+                ))
+
+        async def _progress(status, meta):
             run.status = status
-            run.samples_evaluated = samples
             run.eval_metadata = meta
             await async_test_db.commit()
             with _as_user(owner):
@@ -1353,13 +1379,39 @@ class TestEvaluationStatus:
             assert resp.status_code == 200, resp.text
             return resp.json()["progress"]
 
-        assert await _progress("running", 571, {"cells_dispatched": 581}) == 98.3
-        assert await _progress("running", 0, {"cells_dispatched": 581}) == 0.0
-        # Several fields per cell write more rows than cells.
-        assert await _progress("running", 1200, {"cells_dispatched": 581}) == 100.0
+        assert await _progress("running", dispatched) == 0.0
+        # Two configs on one generation: 2 rows, 1 cell.
+        _rows(gens[0], [("cfg1", "answer_type"), ("cfg2", "answer")])
+        assert await _progress("running", dispatched) == 16.7
+        # Two fields of one config on a generation and on answers.
+        both_fields = [("cfg1", "answer_type"), ("cfg1", "answer")]
+        for subject in (gens[1], gens[2], anns[0], anns[1]):
+            _rows(subject, both_fields)
+        # 10 rows for 5 of 6 cells: below 100 until the last cell has rows.
+        assert await _progress("running", dispatched) == 83.3
+        # A resume dispatched the 2 cells left after 4 were graded.
+        resumed = {
+            "evaluation_type": "evaluation",
+            "cells_dispatched": 2,
+            "cells_graded_before_dispatch": 4,
+        }
+        assert await _progress("running", resumed) == 83.3
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"/api/evaluations/run/results/project/{data['project'].id}",
+            )
+        assert resp.status_code == 200, resp.text
+        listed = next(
+            e for e in resp.json()["evaluations"] if e["evaluation_id"] == eval_id
+        )
+        assert (listed["cells_completed"], listed["cells_total"]) == (5, 6)
+
+        _rows(anns[2], both_fields)
+        assert await _progress("running", dispatched) == 100.0
         # Not dispatched yet: unknown, not zero.
-        assert await _progress("pending", 0, {}) is None
-        assert await _progress("failed", 10, {"cells_dispatched": 20}) == 50.0
+        assert await _progress("pending", {"evaluation_type": "evaluation"}) is None
+        assert await _progress("completed", dispatched) == 100.0
 
     @pytest.mark.asyncio
     async def test_get_evaluation_status_not_found(
