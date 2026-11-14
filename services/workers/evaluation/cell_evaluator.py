@@ -342,7 +342,8 @@ def evaluate_generation_cell_impl(
     Loads the generation, task (and ground-truth annotation when needed),
     reconstructs its own LLM judge evaluators per process, runs all
     `configs_for_cell` × field_pairs × judges, and writes the resulting
-    TaskEvaluation rows via `ON CONFLICT DO NOTHING` so retries are
+    TaskEvaluation rows via `_bulk_upsert_task_evaluations` (a conflict is
+    dropped unless it replaces a retryable error row) so retries are
     idempotent. At the end, atomically bumps the parent EvaluationRun's
     `samples_evaluated`/`samples_passed`/`samples_failed` counters.
 
@@ -461,8 +462,8 @@ def evaluate_generation_cell_impl(
         # Pre-normalize the orchestrator-supplied "already done" set so the
         # per-field-pair skip check below is a cheap set membership lookup
         # instead of re-normalizing each iteration. Skipping here avoids the
-        # wasted LLM-judge call that would otherwise happen (the ON CONFLICT
-        # DO NOTHING insert would drop the row, but the LLM call already
+        # wasted LLM-judge call that would otherwise happen (the upsert
+        # would drop the row on a graded cell, but the LLM call already
         # happened — burning quota). Mirror of the legacy skip at
         # ex-`tasks.py:2906-2909`.
         _already_done_normalized = {
@@ -1001,7 +1002,9 @@ def evaluate_generation_cell_impl(
         # redelivery, all rows conflict and `n_inserted == 0`, so the
         # redelivered task contributes nothing to the parent counters
         # — defense against the `acks_late=True` double-bump path.
-        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
+        n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
+            db, sample_results
+        )
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
@@ -1014,7 +1017,7 @@ def evaluate_generation_cell_impl(
         # `tick` to connected EvaluationResults clients. The handler
         # subscribes to `evaluation:progress:{project_id}` and re-fetches
         # the task-model view on each tick.
-        if n_inserted > 0:
+        if n_written:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {
@@ -1662,7 +1665,9 @@ def evaluate_annotation_cell_impl(
                             local_samples_failed += 1
 
         # Bump by RETURNING-derived counts — see gen sub-task for rationale.
-        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
+        n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
+            db, sample_results
+        )
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
@@ -1672,7 +1677,7 @@ def evaluate_annotation_cell_impl(
         )
         db.commit()
         # Same as the gen cell — broadcast so the API WS pushes a tick.
-        if n_inserted > 0:
+        if n_written:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {

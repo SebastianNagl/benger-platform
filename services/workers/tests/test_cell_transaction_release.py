@@ -97,7 +97,7 @@ def _run_cell(db, judges_by_config, configs):
     def _upsert(session, rows):
         session.in_tx = True
         session.events.append("upsert")
-        return len(rows), len(rows), 0
+        return len(rows), len(rows), 0, len(rows)
 
     def _bump(session, **kwargs):
         session.in_tx = True

@@ -36,10 +36,11 @@ type EvaluationLike = {
   status: string
   samples_evaluated?: number
   created_at?: string | null
-  eval_metadata?: {
-    cells_dispatched?: number
-    failures_by_reason?: Record<string, number>
-  } | null
+  /** Cells (generations, answers) with at least one graded row. */
+  cells_completed?: number
+  /** The run's cells; null before it dispatched. */
+  cells_total?: number | null
+  failures_by_reason?: Record<string, number> | null
 }
 
 export interface InflightRunsBannerProps {
@@ -204,7 +205,7 @@ export function InflightRunsBanner({
   const failureBuckets = (() => {
     const totals: Record<string, number> = {}
     for (const e of inflight) {
-      const reasons = e.eval_metadata?.failures_by_reason
+      const reasons = e.failures_by_reason
       if (!reasons) continue
       for (const [reason, n] of Object.entries(reasons)) {
         totals[reason] = (totals[reason] ?? 0) + n
@@ -219,11 +220,11 @@ export function InflightRunsBanner({
     'inline-flex items-center gap-1 rounded border border-amber-400 px-2 py-0.5 text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-600 dark:text-amber-100 dark:hover:bg-amber-800/30'
 
   const renderRow = (e: EvaluationLike) => {
-    const cells = e.eval_metadata?.cells_dispatched ?? null
+    const cells = e.cells_total ?? null
     const evald = e.samples_evaluated ?? 0
     const progress =
       cells && cells > 0
-        ? ` — ${evald}/${cells}`
+        ? ` — ${e.cells_completed ?? 0}/${cells}`
         : evald > 0
           ? ` — ${evald} ${t('evaluation.inflight.samples')}`
           : ''

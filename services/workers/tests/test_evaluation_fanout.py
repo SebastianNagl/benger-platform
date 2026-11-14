@@ -10,8 +10,9 @@ What's being pinned:
   accept. A drift here silently breaks dispatch at runtime.
 - The orchestrator actually uses Celery `chord` (no longer iterates
   in-process) and dispatches sub-tasks to `queue="evaluation"`.
-- Sub-tasks use the bulk-upsert helper with `ON CONFLICT DO NOTHING`
-  (idempotent retries; defense-in-depth against concurrent triggers).
+- Sub-tasks use the bulk-upsert helper (its conflict handling against
+  `uq_task_evaluations_cell` is tested against the real index in
+  `tests/integration/test_orchestration_branches_e2e.py`).
 - The atomic counter-bump SQL pattern is in place (not read-modify-write).
 - The finalizer has the idempotency guard against chord redelivery.
 - Sub-tasks never call `_create_judge_run` — that race-prone helper
@@ -166,44 +167,6 @@ def test_sub_tasks_dispatch_to_evaluation_queue():
     assert 'queue="' not in src.split("def run_evaluation")[-1].split("def ")[0], (
         "orchestrator signatures must not hardcode a queue= kwarg; routing is "
         "owned by services/shared/celery_queues.py"
-    )
-
-
-def test_bulk_upsert_uses_on_conflict_do_nothing():
-    """Sub-tasks must use `ON CONFLICT DO NOTHING` against the partial
-    unique index from migration 048. Without this, concurrent retries
-    or chord redeliveries duplicate-write TaskEvaluation rows and
-    pollute the metric aggregates."""
-    src = _tasks_source()
-    assert "on_conflict_do_nothing" in src, (
-        "sub-tasks must use postgresql.insert(...).on_conflict_do_nothing()"
-    )
-    assert "_bulk_upsert_task_evaluations" in src, (
-        "expected the shared bulk-upsert helper to be defined and used"
-    )
-
-
-def test_bulk_upsert_returns_actual_inserts_for_redelivery_safety():
-    """`_bulk_upsert_task_evaluations` must use `RETURNING` and return
-    the count of rows that ACTUALLY landed (after `ON CONFLICT DO
-    NOTHING` skipped duplicates). Sub-tasks must bump the parent
-    counter by this returned count, NOT by the requested count.
-
-    Why: with `acks_late=True`, a worker crashing between task
-    completion and ack triggers Celery to redeliver. The redelivered
-    task re-runs, all its inserts conflict (returning 0 rows), and the
-    counter bump must be 0 — otherwise `samples_evaluated` over-counts
-    and `samples_passed`/`samples_failed` drift from reality."""
-    src = _tasks_source()
-    assert ".returning(" in src, (
-        "_bulk_upsert_task_evaluations must use RETURNING so callers "
-        "can bump by the actually-inserted count, not the requested count"
-    )
-    # The sub-tasks must unpack and use the three-tuple return. The cell bodies
-    # live in cell_evaluator now (the helper itself stays in tasks.py).
-    assert "n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations" in _cell_source(), (
-        "sub-tasks must derive counter-bump values from the helper's "
-        "RETURNING-derived tuple, not from local in-loop tallies"
     )
 
 
@@ -418,77 +381,6 @@ def test_bulk_upsert_does_not_null_fill_to_preserve_server_defaults():
     assert "sorted(r.keys())" in src or "tuple(sorted" in src, (
         "helper must key the per-keyset grouping on a stable tuple "
         "(sorted column names)"
-    )
-
-
-def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
-    """Real check on the SQL that `_bulk_upsert_task_evaluations`
-    generates. Source-grep tests catch deleted call sites but miss
-    a refactor that e.g. swaps `.on_conflict_do_nothing()` for
-    `.on_conflict_do_update(...)` or drops the RETURNING clause —
-    both would silently break the redelivery-safe counter math.
-
-    Compiles the actual SQLAlchemy statement with literal binds and
-    asserts the dialect-rendered SQL contains the two clauses we
-    depend on (`ON CONFLICT DO NOTHING` and `RETURNING ...passed`).
-    """
-    from unittest.mock import MagicMock
-    from sqlalchemy.dialects import postgresql
-
-    # Stub the import of `tasks` enough that `_bulk_upsert_task_evaluations`
-    # is callable. The function constructs and executes a stmt — patch
-    # `db.execute` to capture the stmt, then compile it ourselves.
-    from tasks import _bulk_upsert_task_evaluations
-
-    captured = {}
-
-    def fake_execute(stmt):
-        captured["stmt"] = stmt
-        # Empty result set so the function returns (0, 0, 0) cleanly.
-        result = MagicMock()
-        result.fetchall.return_value = []
-        return result
-
-    fake_db = MagicMock()
-    fake_db.execute.side_effect = fake_execute
-
-    rows = [{
-        "id": "11111111-1111-1111-1111-111111111111",
-        "evaluation_id": "22222222-2222-2222-2222-222222222222",
-        "judge_run_id": "33333333-3333-3333-3333-333333333333",
-        "task_id": "44444444-4444-4444-4444-444444444444",
-        "generation_id": "55555555-5555-5555-5555-555555555555",
-        "annotation_id": None,
-        "field_name": "cfg|p|r",
-        "answer_type": "text",
-        "ground_truth": "x",
-        "prediction": "y",
-        "metrics": {},
-        "passed": False,
-    }]
-    result = _bulk_upsert_task_evaluations(fake_db, rows)
-
-    # Function contract: empty fetchall → (0, 0, 0) regardless of input size.
-    assert result == (0, 0, 0)
-    # Captured stmt compiles with the postgresql dialect and contains
-    # the two clauses we care about.
-    compiled = str(
-        captured["stmt"].compile(
-            dialect=postgresql.dialect(),
-            compile_kwargs={"literal_binds": False},
-        )
-    ).upper()
-    assert "ON CONFLICT DO NOTHING" in compiled, (
-        "_bulk_upsert_task_evaluations must emit ON CONFLICT DO NOTHING "
-        "so redelivered cells silently skip-insert instead of erroring"
-    )
-    assert "RETURNING" in compiled, (
-        "_bulk_upsert_task_evaluations must use RETURNING so caller can "
-        "bump parent counter by actual inserted count, not requested count"
-    )
-    assert "PASSED" in compiled, (
-        "RETURNING clause must include `passed` so the helper can split "
-        "(n_inserted, n_passed, n_failed)"
     )
 
 

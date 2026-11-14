@@ -162,8 +162,8 @@ def test_idempotent_redispatch_and_double_finalize(
     )
     assert rows_after_first == 2
 
-    # Re-dispatch into the SAME run: reset to pending and re-run. The bare
-    # ON CONFLICT DO NOTHING against uq_task_evaluations_cell must keep the
+    # Re-dispatch into the SAME run: reset to pending and re-run. The
+    # conflict on uq_task_evaluations_cell (scored rows are kept) must keep the
     # row count at exactly 2 and not double-count samples_evaluated (the
     # counter bumps by the RETURNING count, which is 0 on full conflict).
     run.status = "pending"

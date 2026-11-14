@@ -279,3 +279,29 @@ class TestImportUploadCap:
 
         monkeypatch.delenv("IMPORT_MAX_DECOMPRESSED_BYTES", raising=False)
         assert max_decompressed_bytes() == 40 * 1024**3
+
+
+class TestImportContentType:
+    """The presigned import policy pins the stored type to the file, not to
+    JSON for every file (a ``.ndjson.gz`` export was stored as JSON)."""
+
+    @pytest.mark.parametrize(
+        "filename, expected",
+        [
+            ("ZJS-Faelle.ndjson.gz", "application/gzip"),
+            ("export.JSON.GZ", "application/gzip"),
+            ("export.ndjson", "application/x-ndjson"),
+            ("import.json", "application/json"),
+            ("tasks.csv", "text/csv"),
+            ("tasks.tsv", "text/tab-separated-values"),
+            ("tasks.txt", "text/plain"),
+            ("deck.apkg", "application/zip"),
+            ("no-extension", "application/octet-stream"),
+            ("", "application/octet-stream"),
+        ],
+    )
+    def test_type_follows_the_file_name(self, filename, expected):
+        from storage.upload_policy import import_content_type
+
+        assert import_content_type(filename) == expected
+        assert not is_scriptable_content_type(expected)
