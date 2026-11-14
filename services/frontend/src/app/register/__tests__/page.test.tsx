@@ -506,6 +506,32 @@ describe('RegisterPage', () => {
       })
     })
 
+    it('points a taken address to the password reset', async () => {
+      // Resetting the password also verifies the address, so it is the
+      // way back into an account whose address someone cannot register.
+      const user = userEvent.setup()
+      mockSignup.mockRejectedValue(new Error('Email already registered'))
+
+      render(<RegisterPage />)
+
+      await navigateToStep(user, 5)
+      await fillStep5(user)
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+
+      const resetLink = await screen.findByTestId(
+        'register-email-taken-reset-link',
+      )
+      expect(resetLink.getAttribute('href')).toMatch(
+        /^\/reset-password\?email=/,
+      )
+      expect(
+        screen.getByTestId('auth-register-error-message'),
+      ).toHaveTextContent('register.emailTaken')
+      expect(
+        screen.getByTestId('auth-register-error-message'),
+      ).not.toHaveTextContent('Email already registered')
+    })
+
     it('should display generic error for non-Error objects', async () => {
       const user = userEvent.setup()
       mockSignup.mockRejectedValue('String error')

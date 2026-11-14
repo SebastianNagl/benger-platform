@@ -840,7 +840,6 @@ def update_user_profile(
     db: Session,
     user_id: str,
     name: Optional[str] = None,
-    email: Optional[str] = None,
     use_pseudonym: Optional[bool] = None,
     age: Optional[int] = None,
     job: Optional[str] = None,
@@ -868,14 +867,19 @@ def update_user_profile(
     ptt_a_scores: Optional[dict] = None,
     ki_experience_scores: Optional[dict] = None,
 ) -> Optional[User]:
-    """Update user profile information"""
+    """Update user profile information.
+
+    The email address is not changed here: a new address waits for its
+    confirmation link (``auth_module.email_change``), so the login address
+    stays verified until the new one is proven.
+    """
     user = get_user_by_id(db, user_id)
     if not user:
         return None
 
     # Capture old values of profile fields before applying updates (for change tracking)
     _tracked_fields = [
-        "name", "email", "use_pseudonym", "age", "job", "years_of_experience",
+        "name", "use_pseudonym", "age", "job", "years_of_experience",
         "legal_expertise_level", "german_proficiency", "degree_program_type",
         "current_semester", "legal_specializations",
         "german_state_exams_count", "german_state_exams_data", "exam_bundesland",
@@ -893,49 +897,11 @@ def update_user_profile(
             _val = _val.value
         _old_values[_f] = _val
 
-    # Check if new email is provided and validate it
-    if email and email != user.email:
-        # Import email validation
-        try:
-            from email_validation import validate_email_with_details
-        except ImportError:
-            # Fallback to basic validation if module not available
-            def validate_email_with_details(email):
-                if "@" not in email or "." not in email:
-                    return False, "Invalid email format"
-                return True, None
-
-        # Validate email format
-        is_valid, error_msg = validate_email_with_details(email)
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid email address: {error_msg}",
-            )
-
-        # Check if email is already taken by another user
-        existing_email_user = get_user_by_email(db, email)
-        if existing_email_user and existing_email_user.id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered to another user",
-            )
-
     # Update fields if provided
     if name is not None:
         # Same sanitiser as signup: the name is interpolated into mails and
         # rendered across the UI.
         user.name = sanitize_user_input(name)
-    if email is not None and email != user.email:
-        user.email = email
-        # Reset email verification when email changes
-        if hasattr(user, "email_verified"):
-            user.email_verified = False
-        # A reset or activation link mailed to the old address must not
-        # verify the new one (both confirm paths verify user.email).
-        user.password_reset_token = None
-        user.password_reset_expires = None
-
     # Update pseudonym privacy preference (Issue #790)
     if use_pseudonym is not None:
         user.use_pseudonym = use_pseudonym
@@ -1073,19 +1039,7 @@ def update_user_profile(
     _changed_fields = [f for f in _tracked_fields if _old_values[f] != _new_values[f]]
 
     if _changed_fields:
-        from datetime import datetime, timezone
-        from models import UserProfileHistory
-
-        snapshot = create_profile_snapshot(user)
-        history_entry = UserProfileHistory(
-            id=str(uuid.uuid4()),
-            user_id=user_id,
-            changed_at=datetime.now(timezone.utc),
-            change_type="update",
-            snapshot=snapshot,
-            changed_fields=_changed_fields,
-        )
-        db.add(history_entry)
+        record_profile_history(db, user, change_type="update", changed_fields=_changed_fields)
 
     db.commit()
     db.refresh(user)
@@ -1278,6 +1232,24 @@ def check_confirmation_due(user) -> tuple:
         return True, next_deadline
 
     return False, next_deadline
+
+
+def record_profile_history(db: Session, user, *, change_type: str, changed_fields: list) -> None:
+    """Add a profile-history row with a snapshot of ``user`` (caller commits)."""
+    from datetime import datetime, timezone
+
+    from models import UserProfileHistory
+
+    db.add(
+        UserProfileHistory(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            changed_at=datetime.now(timezone.utc),
+            change_type=change_type,
+            snapshot=create_profile_snapshot(user),
+            changed_fields=changed_fields,
+        )
+    )
 
 
 def create_profile_snapshot(user) -> dict:

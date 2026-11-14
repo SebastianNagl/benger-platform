@@ -2364,7 +2364,16 @@
       "ST": "Sachsen-Anhalt",
       "SH": "Schleswig-Holstein",
       "TH": "Thüringen"
-    }
+    },
+    "emailChangeHint": "Eine neue Adresse gilt erst, wenn du den Bestätigungslink öffnest, den wir an sie schicken. Bis dahin meldest du dich weiter mit deiner bisherigen Adresse an.",
+    "emailChangeSent": "Wir haben einen Bestätigungslink an {email} geschickt. Deine Adresse ändert sich, sobald du ihn öffnest; bis dahin meldest du dich mit {current} an.",
+    "emailChangeNotSent": "Wir konnten den Bestätigungslink an {email} nicht senden. Versuche es bitte mit „Link erneut senden“ noch einmal.",
+    "emailChangeResend": "Link erneut senden",
+    "emailChangeCancel": "Änderung verwerfen",
+    "emailChangeResent": "Ein neuer Bestätigungslink wurde an {email} geschickt.",
+    "emailChangeCancelled": "Die Änderung der E-Mail-Adresse wurde verworfen. Deine Adresse bleibt, wie sie ist.",
+    "emailChangeRequested": "Profil gespeichert. Wir haben einen Bestätigungslink an {email} geschickt.",
+    "emailChangeActionFailed": "Das hat nicht geklappt. Bitte versuche es noch einmal."
   },
   "leaderboards": {
     "title": "Bestenlisten",
@@ -2669,7 +2678,9 @@
       "description": "Du bist jetzt Mitglied deiner Organisation. Melde dich mit deinem neuen Passwort an, um loszulegen.",
       "redirecting": "Du wirst gleich zur Anmeldung weitergeleitet.",
       "loginNow": "Jetzt anmelden"
-    }
+    },
+    "emailTaken": "Zu dieser E-Mail-Adresse gibt es schon ein Konto. Wenn es deins ist, setze das Passwort zurück: Das bestätigt auch die Adresse und bringt dich wieder hinein.",
+    "emailTakenResetPassword": "Passwort zurücksetzen"
   },
   "dataManagement": {
     "title": "Datenmanagement",
@@ -7196,7 +7207,7 @@
     "didntReceive": "E-Mail nicht erhalten?",
     "resend": "Verifizierungs-E-Mail erneut senden",
     "resending": "Wird erneut gesendet...",
-    "resent": "Verifizierungs-E-Mail gesendet",
+    "resent": "Falls zu dieser Adresse ein Konto gehört, das noch nicht verifiziert ist, ist ein neuer Link unterwegs. Schau bitte auch im Spam-Ordner nach.",
     "resendFailed": "Fehler beim Senden der E-Mail",
     "verifying": "Deine E-Mail wird verifiziert...",
     "verified": "E-Mail verifiziert!",
@@ -7278,7 +7289,21 @@
       }
     },
     "redirectingToLogin": "Du wirst in wenigen Sekunden zur Anmeldeseite weitergeleitet.",
-    "canNowLogIn": "Du kannst dich jetzt bei deinem BenGER-Konto anmelden."
+    "canNowLogIn": "Du kannst dich jetzt bei deinem BenGER-Konto anmelden.",
+    "resendPrompt": "Keine E-Mail erhalten oder ist der Link abgelaufen? Gib deine Adresse ein, um einen neuen Verifizierungslink zu bekommen.",
+    "emailInputLabel": "E-Mail-Adresse",
+    "requestNewLink": "Fordere einen neuen Verifizierungslink für deine E-Mail-Adresse an."
+  },
+  "emailChange": {
+    "title": "Neue E-Mail-Adresse bestätigen",
+    "description": "Drücke den Button, um die neue Adresse zur E-Mail-Adresse deines Kontos zu machen. Danach meldest du dich mit ihr an.",
+    "confirm": "Neue Adresse bestätigen",
+    "confirming": "Wird bestätigt...",
+    "success": "E-Mail-Adresse geändert",
+    "successDescription": "Ab jetzt meldest du dich mit {email} an.",
+    "toLogin": "Zur Anmeldung",
+    "invalid": "Dieser Bestätigungslink ist ungültig, abgelaufen oder wurde schon verwendet. Auf deiner Profilseite kannst du einen neuen anfordern.",
+    "taken": "Ein anderes Konto verwendet diese Adresse inzwischen, deshalb wurde deine E-Mail-Adresse nicht geändert."
   },
   "passwordReset": {
     "title": "Passwort zurücksetzen",
@@ -7744,7 +7769,6 @@
     "email": "E-Mail:",
     "expires": "Läuft ab:",
     "expired": "Diese Einladung ist abgelaufen und kann nicht mehr angenommen werden.",
-    "emailMismatch": "Diese Einladung ist für {invitedEmail}, aber du bist als {currentEmail} angemeldet. Bitte melde dich mit dem richtigen Konto an oder kontaktiere den Einladenden.",
     "emailLabel": "E-Mail",
     "fullName": "Vollständiger Name",
     "fullNamePlaceholder": "Gib deinen vollständigen Namen ein",
@@ -7767,7 +7791,8 @@
     "accepted": "Du bist {organizationName} beigetreten.",
     "cancel": "Abbrechen",
     "acceptFailed": "Einladung konnte nicht angenommen werden",
-    "createAccountFailed": "Konto konnte nicht erstellt werden"
+    "createAccountFailed": "Konto konnte nicht erstellt werden",
+    "acceptWithCurrentAccount": "Diese Einladung wurde an {invitedEmail} geschickt. Du bist als {currentEmail} angemeldet: Wenn du annimmst, tritt dieses Konto der Organisation bei. Um mit einem anderen Konto anzunehmen, melde dich zuerst ab."
   },
   "completeProfile": {
     "loading": "Profil wird geladen...",

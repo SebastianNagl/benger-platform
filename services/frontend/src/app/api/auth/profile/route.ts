@@ -1,4 +1,8 @@
-import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import {
+  forwardedForHeaders,
+  getExternalHost,
+  getInternalApiUrl,
+} from '@/lib/utils/apiUrl'
 import { readJsonBody } from '@/lib/utils/jsonBody'
 import { proxyAuthHeaders } from '@/lib/utils/proxyAuthHeaders'
 import { NextRequest, NextResponse } from 'next/server'
@@ -42,11 +46,16 @@ export async function PUT(request: NextRequest) {
     if (!parsed.ok) return parsed.response
     const body = parsed.body
 
-    // Forward the request to the backend with cookies
+    // Forward the request to the backend with cookies. A changed email
+    // address gets a confirmation mail: the external host brands it and its
+    // link (Vertretbar on vertretbar.net), as for the verification mail, and
+    // the client address feeds the API's per-IP limits.
     const backendResponse = await fetch(`${apiBaseUrl}/api/auth/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'x-forwarded-host': getExternalHost(request),
+        ...forwardedForHeaders(request),
         ...proxyAuthHeaders(request),
       },
       body: JSON.stringify(body),

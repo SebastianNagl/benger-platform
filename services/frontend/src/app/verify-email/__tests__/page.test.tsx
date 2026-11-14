@@ -232,49 +232,58 @@ describe('VerifyEmailPage', () => {
   })
 
   describe('Resend Verification', () => {
-    it('should show resend button on error with email', async () => {
-      mockSearchParams.set('token', 'invalid-token')
-      ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({
-          detail: 'Token expired',
-          email: 'test@example.com',
-        }),
-      })
-
-      // First call for verification
-      render(<VerifyEmailPage />)
-
-      // Wait for error state
-      await waitFor(() => {
-        expect(
-          screen.getByText('emailVerification.invalid'),
-        ).toBeInTheDocument()
-      })
-
-      // Note: The component doesn't expose email on error, so resend button won't show
-      // This test verifies that behavior
-      expect(
-        screen.queryByText('emailVerification.resend'),
-      ).not.toBeInTheDocument()
+    // Regression: after a login refused for an unverified address the page
+    // used to show no resend control at all, so an account whose address
+    // never got a mail stayed locked out.
+    beforeEach(() => {
+      ;(useI18n as jest.Mock).mockReturnValue({ t: mockT, locale: 'de' })
     })
 
-    it('should call resend API when resend button clicked', async () => {
+    it('offers a prefilled resend after the login 403 and sends it', async () => {
+      const user = userEvent.setup()
+      mockSearchParams.set('messageKey', 'verifyEmailRequired')
+      mockSearchParams.set('email', 'stuck@example.org')
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      })
+
+      render(<VerifyEmailPage />)
+
+      const input = await screen.findByTestId('verify-email-resend-input')
+      expect(input).toHaveValue('stuck@example.org')
+      expect(
+        screen.getByText('emailVerification.verifyEmailRequired'),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('verify-email-resend-button'))
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          '/api/auth/resend-verification',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              email: 'stuck@example.org',
+              language: 'de',
+            }),
+          }),
+        )
+      })
+      expect(
+        await screen.findByTestId('verify-email-resend-message'),
+      ).toHaveTextContent('emailVerification.resent')
+    })
+
+    it('offers the resend on an invalid or expired link too', async () => {
       const user = userEvent.setup()
       mockSearchParams.set('token', 'expired-token')
-      ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
-
-      // Mock verification failure with email
       ;(global.fetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: false,
           json: async () => ({ detail: 'Token expired' }),
         })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({}),
-        })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
 
       render(<VerifyEmailPage />)
 
@@ -283,10 +292,72 @@ describe('VerifyEmailPage', () => {
           screen.getByText('emailVerification.invalid'),
         ).toBeInTheDocument()
       })
+      const button = screen.getByTestId('verify-email-resend-button')
+      expect(button).toBeDisabled()
 
-      // Manually set email for testing (in real app, email comes from error response)
-      // Note: Current implementation doesn't expose email in error state
-      // so this test documents the limitation
+      await user.type(
+        screen.getByTestId('verify-email-resend-input'),
+        'typed@example.org',
+      )
+      await user.click(button)
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenLastCalledWith(
+          '/api/auth/resend-verification',
+          expect.objectContaining({
+            body: JSON.stringify({
+              email: 'typed@example.org',
+              language: 'de',
+            }),
+          }),
+        )
+      })
+    })
+
+    it('offers the resend when sent here to request a new link', () => {
+      mockSearchParams.set('messageKey', 'requestNewLink')
+
+      render(<VerifyEmailPage />)
+
+      expect(
+        screen.getByText('emailVerification.requestNewLink'),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('verify-email-resend-form')).toBeInTheDocument()
+    })
+
+    it('reports a rate limit instead of claiming success', async () => {
+      const user = userEvent.setup()
+      mockSearchParams.set('messageKey', 'verifyEmailRequired')
+      mockSearchParams.set('email', 'stuck@example.org')
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({
+          detail: { code: 'rate_limited', retry_after: 600 },
+        }),
+      })
+
+      render(<VerifyEmailPage />)
+      await user.click(await screen.findByTestId('verify-email-resend-button'))
+
+      const message = await screen.findByTestId('verify-email-resend-message')
+      expect(message).not.toHaveTextContent('emailVerification.resent')
+      expect(message.textContent).not.toBe('')
+    })
+
+    it('reports a failed request', async () => {
+      const user = userEvent.setup()
+      mockSearchParams.set('messageKey', 'verifyEmailRequired')
+      mockSearchParams.set('email', 'stuck@example.org')
+      ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('offline'))
+      jest.spyOn(console, 'error').mockImplementation(() => {})
+
+      render(<VerifyEmailPage />)
+      await user.click(await screen.findByTestId('verify-email-resend-button'))
+
+      expect(
+        await screen.findByTestId('verify-email-resend-message'),
+      ).toHaveTextContent('emailVerification.resendFailed')
     })
   })
 

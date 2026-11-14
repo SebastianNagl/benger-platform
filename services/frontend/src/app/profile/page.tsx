@@ -25,13 +25,14 @@ import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
+import { rateLimitMessage } from '@/lib/api/errors'
 import type { ProfileHistoryEntry } from '@/lib/api/types'
 import { useSlot } from '@/lib/extensions/slots'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export default function ProfilePage() {
   const { user, updateUser, apiClient } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   // Extended-only, self-saving settings sections (e.g. the exam interface
   // layout). Rendered OUTSIDE the profile-form save path: these sections own
@@ -44,6 +45,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [emailChangeBusy, setEmailChangeBusy] = useState(false)
   const [legalExperienceExpanded, setLegalExperienceExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('profile_legal_experience_expanded')
@@ -264,7 +266,17 @@ export default function ProfilePage() {
     try {
       setProfileLoading(true)
 
-      const updatedProfile = await apiClient.updateProfile(profileForm)
+      // A changed address is not applied directly: the API keeps the
+      // current one and mails a confirmation link to the new one.
+      const requestedEmail = profileForm.email.trim().toLowerCase()
+      const emailChangeRequested =
+        requestedEmail !== '' &&
+        requestedEmail !== (profile?.email ?? '').trim().toLowerCase()
+
+      const updatedProfile: UserProfile = await apiClient.updateProfile({
+        ...profileForm,
+        language: locale,
+      })
 
       setProfile(updatedProfile)
       // Update profileForm from the response to ensure displayed values match DB
@@ -273,7 +285,24 @@ export default function ProfilePage() {
       skipLoadProfileRef.current = true
       // Update the auth context (never the view mode, see the helper)
       updateUser(authUserPatchFromProfile(updatedProfile))
-      addToast(t('profile.updateSuccess'), 'success')
+      if (
+        emailChangeRequested &&
+        updatedProfile.pending_email === requestedEmail
+      ) {
+        if (updatedProfile.pending_email_sent_at) {
+          addToast(
+            t('profile.emailChangeRequested', { email: requestedEmail }),
+            'success',
+          )
+        } else {
+          addToast(
+            t('profile.emailChangeNotSent', { email: requestedEmail }),
+            'warning',
+          )
+        }
+      } else {
+        addToast(t('profile.updateSuccess'), 'success')
+      }
     } catch (error: unknown) {
       console.error('Failed to update profile:', error)
       const errorMessage =
@@ -281,6 +310,55 @@ export default function ProfilePage() {
       addToast(errorMessage, 'error')
     } finally {
       setProfileLoading(false)
+    }
+  }
+
+  const applyEmailChangeProfile = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile)
+    setProfileForm((form) => ({ ...form, email: updatedProfile.email }))
+  }
+
+  const handleResendEmailChange = async () => {
+    try {
+      setEmailChangeBusy(true)
+      const updatedProfile: UserProfile =
+        await apiClient.resendEmailChange(locale)
+      applyEmailChangeProfile(updatedProfile)
+      if (updatedProfile.pending_email_sent_at) {
+        addToast(
+          t('profile.emailChangeResent', {
+            email: updatedProfile.pending_email ?? '',
+          }),
+          'success',
+        )
+      } else {
+        addToast(
+          t('profile.emailChangeNotSent', {
+            email: updatedProfile.pending_email ?? '',
+          }),
+          'warning',
+        )
+      }
+    } catch (error: unknown) {
+      addToast(
+        rateLimitMessage(error, t) ?? t('profile.emailChangeActionFailed'),
+        'error',
+      )
+    } finally {
+      setEmailChangeBusy(false)
+    }
+  }
+
+  const handleCancelEmailChange = async () => {
+    try {
+      setEmailChangeBusy(true)
+      const updatedProfile: UserProfile = await apiClient.cancelEmailChange()
+      applyEmailChangeProfile(updatedProfile)
+      addToast(t('profile.emailChangeCancelled'), 'success')
+    } catch {
+      addToast(t('profile.emailChangeActionFailed'), 'error')
+    } finally {
+      setEmailChangeBusy(false)
     }
   }
 
@@ -337,6 +415,9 @@ export default function ProfilePage() {
               profile={profile}
               profileForm={profileForm}
               setProfileForm={setProfileForm}
+              onResendEmailChange={handleResendEmailChange}
+              onCancelEmailChange={handleCancelEmailChange}
+              emailChangeBusy={emailChangeBusy}
             />
 
             {/* Demographic Information - moved out of collapsible */}

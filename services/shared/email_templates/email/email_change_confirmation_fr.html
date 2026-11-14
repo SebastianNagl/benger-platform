@@ -1,0 +1,19 @@
+Subject: Confirmez votre nouvelle adresse e-mail pour {{ brand_name }}
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Confirmer votre nouvelle adresse e-mail</h2>
+    <p>Bonjour {{ user_name }},</p>
+    <p>Vous avez demandé à utiliser {{ new_email }} comme adresse e-mail de votre compte {{ brand_name }}{% if frontend_host %} sur {{ frontend_host }}{% endif %}. Tant que vous ne l'avez pas confirmée, vous continuez à vous connecter avec votre adresse actuelle.</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ confirm_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Confirmer la nouvelle adresse
+        </a>
+    </p>
+    <p>Ou copiez ce lien dans votre navigateur :</p>
+    <p style="color: #059669;">{{ confirm_url }}</p>
+    <p><strong>Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</strong> Le compte restera alors inchangé.</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        Ce lien est valable {{ expiry_hours }} heures et ne fonctionne qu'une seule fois.
+    </p>
+</body>
+</html>

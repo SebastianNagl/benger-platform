@@ -21,7 +21,18 @@ class UserUpdate(BaseModel):
     """Model for updating user profile information (Issue #1206)"""
 
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="Full name")
-    email: Optional[EmailStr] = Field(None, description="Email address")
+    email: Optional[EmailStr] = Field(
+        None,
+        description=(
+            "New email address. It becomes the login address only once the "
+            "confirmation link mailed to it is used (pending_email until then)."
+        ),
+    )
+    language: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="UI language for the email-change confirmation mail (en, de or fr)",
+    )
 
     # Pseudonymization privacy preference (Issue #790)
     use_pseudonym: Optional[bool] = Field(None)
@@ -254,6 +265,18 @@ class AccountActivateConfirm(BaseModel):
     confirm_password: str = Field(..., description="Confirm new password")
 
 
+class EmailChangeConfirmRequest(BaseModel):
+    """Confirm an email change with the token mailed to the new address."""
+
+    token: str = Field(..., min_length=1, max_length=256, description="Token from the confirmation email")
+
+
+class EmailChangeResendRequest(BaseModel):
+    """Resend the email-change confirmation link."""
+
+    language: Optional[str] = Field(None, max_length=10, description="Mail language (en, de or fr)")
+
+
 class EmailVerificationRequest(BaseModel):
     """Model for email verification"""
 
@@ -274,6 +297,10 @@ class UserProfile(BaseModel):
     username: str
     email: str
     name: str
+    # Email change waiting for its confirmation link (auth_module.email_change):
+    # the requested address, and when the link was mailed (None: not sent).
+    pending_email: Optional[str] = None
+    pending_email_sent_at: Optional[str] = None
     role: Optional[str] = None
     is_superadmin: bool
     is_active: bool

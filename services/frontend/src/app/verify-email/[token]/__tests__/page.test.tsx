@@ -495,7 +495,10 @@ describe('VerifyTokenPage', () => {
       const resendButton = screen.getByText('emailVerification.resend')
       await user.click(resendButton)
 
-      expect(mockRouterPush).toHaveBeenCalledWith('/verify-email')
+      // The verification page then shows its resend form.
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        '/verify-email?messageKey=requestNewLink',
+      )
     })
 
     it('should have back to login button on error', async () => {
@@ -518,7 +521,7 @@ describe('VerifyTokenPage', () => {
       const backButton = screen.getByText('passwordReset.backToLogin')
       await user.click(backButton)
 
-      expect(mockRouterPush).toHaveBeenCalledWith('/register')
+      expect(mockRouterPush).toHaveBeenCalledWith('/login')
     })
   })
 

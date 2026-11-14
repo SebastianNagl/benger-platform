@@ -386,7 +386,7 @@ class TestAuthRouter:
             app.dependency_overrides[get_db] = override_get_db
 
             try:
-                update_data = {"name": "Updated Name", "email": "test@example.com"}
+                update_data = {"name": "Updated Name"}
 
                 response = client.put("/api/auth/profile", json=update_data)
 

@@ -53,6 +53,9 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/auth/check-profile-status` | `account:read` | any |
 | POST | `/api/auth/complete-profile` | never |  |
 | POST | `/api/auth/confirm-profile` | never |  |
+| DELETE | `/api/auth/email-change` | never |  |
+| POST | `/api/auth/email-change/confirm` | never |  |
+| POST | `/api/auth/email-change/resend` | never |  |
 | POST | `/api/auth/login` | never |  |
 | POST | `/api/auth/logout` | never |  |
 | POST | `/api/auth/logout-all` | never |  |

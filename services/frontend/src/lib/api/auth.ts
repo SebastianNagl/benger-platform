@@ -168,7 +168,10 @@ export class AuthClient extends BaseApiClient {
    */
   async updateProfile(profileData: {
     name?: string
+    // A new address is not applied directly: it becomes pending_email and a
+    // confirmation link is mailed to it (in `language`).
     email?: string
+    language?: string
     use_pseudonym?: boolean
     timezone?: string
     enable_quiet_hours?: boolean
@@ -220,6 +223,24 @@ export class AuthClient extends BaseApiClient {
     // Saving profile also confirms it (Issue #1206), so invalidate the status cache
     this.invalidateCache('/auth/mandatory-profile-status')
     return result
+  }
+
+  /**
+   * Mail a new confirmation link to the pending email address. Returns the
+   * updated profile (`pending_email_sent_at` is null when sending failed).
+   */
+  async resendEmailChange(language?: string): Promise<User> {
+    return this.request('/auth/email-change/resend', {
+      method: 'POST',
+      body: JSON.stringify({ language }),
+    })
+  }
+
+  /**
+   * Drop the pending email change; links already mailed stop working.
+   */
+  async cancelEmailChange(): Promise<User> {
+    return this.request('/auth/email-change', { method: 'DELETE' })
   }
 
   /**

@@ -28,6 +28,7 @@ jest.mock('next/navigation', () => ({
 jest.mock('@heroicons/react/24/outline', () => ({
   CheckCircleIcon: () => <div data-testid="check-icon" />,
   ExclamationTriangleIcon: () => <div data-testid="warning-icon" />,
+  InformationCircleIcon: () => <div data-testid="info-icon" />,
   UserPlusIcon: () => <div data-testid="user-plus-icon" />,
   BuildingOfficeIcon: () => <div data-testid="building-icon" />,
   ClockIcon: () => <div data-testid="clock-icon" />,
@@ -89,8 +90,8 @@ const translations: Record<string, string | ((params: any) => string)> = {
   'invitation.email': 'Email',
   'invitation.expires': 'Expires:',
   'invitation.expired': 'This invitation has expired.',
-  'invitation.emailMismatch': (params: any) =>
-    `This invitation is for ${params.invitedEmail}, but you're logged in as ${params.currentEmail}.`,
+  'invitation.acceptWithCurrentAccount': (params: any) =>
+    `This invitation was sent to ${params.invitedEmail}. You are signed in as ${params.currentEmail}: if you accept, this account joins the organization.`,
   'invitation.welcomeTo': (params: any) =>
     `Welcome to ${params.organizationName}!`,
   'invitation.joinedSuccess': (params: any) =>
@@ -256,16 +257,44 @@ describe('AcceptInvitationPage', () => {
     )
   })
 
-  it('should show warning for email mismatch', async () => {
+  it('lets a signed-in account under another address accept', async () => {
+    // Holding the invitation link proves receipt; the account's address
+    // does not have to match the invited one (no email change needed).
     const params = Promise.resolve({ token: 'test-token-123' })
-    const authenticatedUser = {
-      id: 'user-456',
-      email: 'different@example.com',
-      name: 'Different User',
-    }
-
     ;(useAuth as jest.Mock).mockReturnValue({
-      user: authenticatedUser,
+      user: {
+        id: 'user-456',
+        email: 'different@example.com',
+        name: 'Different User',
+      },
+      refreshAuth: jest.fn(),
+    })
+    ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
+    ;(api.acceptInvitation as jest.Mock).mockResolvedValue({})
+
+    render(<AcceptInvitationPage params={params} />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('invitation-other-account-note'),
+      ).toHaveTextContent(
+        'This invitation was sent to test@example.com. You are signed in as different@example.com',
+      )
+    })
+
+    const acceptButton = screen.getByText('Accept Invitation').closest('button')
+    expect(acceptButton).toBeEnabled()
+    fireEvent.click(acceptButton!)
+
+    await waitFor(() => {
+      expect(api.acceptInvitation).toHaveBeenCalledWith('test-token-123')
+    })
+  })
+
+  it('compares the addresses case-insensitively', async () => {
+    const params = Promise.resolve({ token: 'test-token-123' })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { id: 'user-456', email: 'Test@Example.COM', name: 'Same User' },
       refreshAuth: jest.fn(),
     })
     ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
@@ -273,17 +302,41 @@ describe('AcceptInvitationPage', () => {
     render(<AcceptInvitationPage params={params} />)
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/This invitation is for test@example.com/),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText(/you're logged in as different@example.com/),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByTestId('invitation-other-account-note'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Accept Invitation').closest('button'),
+    ).toBeEnabled()
+  })
+
+  it('shows a failed accept inline and keeps the invitation on screen', async () => {
+    const params = Promise.resolve({ token: 'test-token-123' })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { id: 'user-456', email: 'test@example.com', name: 'Test User' },
+      refreshAuth: jest.fn(),
+    })
+    ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
+    ;(api.acceptInvitation as jest.Mock).mockRejectedValue({
+      response: { data: { detail: 'Invitation has already been accepted' } },
     })
 
-    // Accept button should be disabled
-    const acceptButton = screen.getByText('Accept Invitation')
-    expect(acceptButton.closest('button')).toBeDisabled()
+    render(<AcceptInvitationPage params={params} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Accept Invitation').closest('button')!)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Invitation has already been accepted',
+      )
+    })
+    expect(screen.queryByText('Invalid Invitation')).not.toBeInTheDocument()
+    expect(screen.getByText('Accept Invitation')).toBeInTheDocument()
   })
 
   it('should show expired invitation warning', async () => {

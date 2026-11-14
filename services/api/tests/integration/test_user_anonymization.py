@@ -22,6 +22,7 @@ from sqlalchemy import select
 from starlette.requests import Request
 
 import extensions
+from auth_module import email_change
 from auth_module.dependencies import get_current_user, require_user
 from auth_module.service import (
     authenticate_user,
@@ -80,6 +81,7 @@ from tests.fixtures.lti_admin_world import (
 )
 
 PASSWORD = "Secret-Passw0rd!"
+EMAIL_CHANGE_TOKEN = "email-change-token"
 
 
 @pytest.fixture(autouse=True)
@@ -123,6 +125,9 @@ async def _student_with_everything(db):
     student.password_reset_token = "reset-token"
     student.password_reset_expires = now + timedelta(hours=1)
     student.pending_activation_email = "erika.private@example.org"
+    student.pending_email = "erika.new@example.org"
+    student.pending_email_token = email_change.hash_token(EMAIL_CHANGE_TOKEN)
+    student.pending_email_sent_at = now
     student.email_verification_token = "verify-token"
     student.email_verification_sent_at = now
     student.email_verified = True
@@ -420,6 +425,30 @@ async def test_anonymize_scrubs_every_identity_field(async_test_db):
     # Kept: the research consent.
     assert user.research_data_consent_accepted_at is not None
     assert result.warnings == [ua.WARNING_HAS_PASSWORD]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_anonymize_kills_a_pending_email_change(async_test_db):
+    """The mailed confirmation link must not turn the parked address back
+    into the anonymized account's login address."""
+    db = async_test_db
+    w = await _student_with_everything(db)
+
+    await _anonymize(db, w.student.id, actor_id=w.teacher.id)
+
+    user = await _reload_user(db, w.student.id)
+    assert user.pending_email is None
+    assert user.pending_email_token is None
+    assert user.pending_email_sent_at is None
+    with pytest.raises(HTTPException) as exc:
+        await db.run_sync(
+            lambda session: email_change.confirm_email_change(session, EMAIL_CHANGE_TOKEN)
+        )
+    assert exc.value.status_code == 400
+    assert exc.value.detail == {"code": "invalid_or_expired"}
+    user = await _reload_user(db, w.student.id)
+    assert user.email == f"{user.username}@anonymized.invalid"
 
 
 @pytest.mark.integration
