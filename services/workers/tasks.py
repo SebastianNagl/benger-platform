@@ -1728,6 +1728,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
 @app.task(
     name="tasks.generate_response",
     bind=True,
+    max_retries=None,
     acks_late=True,
     reject_on_worker_lost=True,
 )
@@ -1756,7 +1757,7 @@ def generate_response(
         )
     except endpoint_slots.EndpointBusy as busy:
         logger.debug(f"⏳ {busy}")
-        raise self.retry(countdown=busy.retry_in, max_retries=None)
+        raise self.retry(countdown=busy.retry_in)
     try:
         return generate_response_impl(
             generation_id,

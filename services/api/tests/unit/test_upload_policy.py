@@ -250,6 +250,8 @@ class TestImportUploadCap:
             ("0", 5 * 1024**3),
             ("-5", 5 * 1024**3),
             ("4GiB", 5 * 1024**3),
+            ("6442450944", 5 * 1024**3),
+            ("5368709121", 5 * 1024**3),
         ],
     )
     def test_read_from_the_environment(self, monkeypatch, raw, expected):
@@ -272,8 +274,8 @@ class TestImportUploadCap:
         conditions = service.s3_client.generate_presigned_post.call_args.kwargs["Conditions"]
         assert ["content-length-range", 0, IMPORT_UPLOAD_MAX_BYTES] in conditions
 
-    def test_decompression_cap_follows_the_upload_cap(self, monkeypatch):
+    def test_decompression_cap_does_not_follow_the_upload_cap(self, monkeypatch):
         from import_stream import max_decompressed_bytes
 
         monkeypatch.delenv("IMPORT_MAX_DECOMPRESSED_BYTES", raising=False)
-        assert max_decompressed_bytes() == 20 * IMPORT_UPLOAD_MAX_BYTES
+        assert max_decompressed_bytes() == 40 * 1024**3

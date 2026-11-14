@@ -248,20 +248,24 @@ _DEFAULT_IMPORT_UPLOAD_MAX_BYTES = SINGLE_UPLOAD_MAX_BYTES
 def _import_upload_max_bytes() -> int:
     """``IMPORT_UPLOAD_MAX_BYTES`` (bytes) from the environment, else 5 GiB.
 
-    A value that is not a positive integer keeps the default."""
+    A value that is not a positive integer keeps the default, and a value
+    above the single-upload maximum is lowered to it, since one presigned POST
+    cannot carry more."""
     raw = os.environ.get("IMPORT_UPLOAD_MAX_BYTES", "").strip()
     try:
         value = int(raw) if raw else 0
     except ValueError:
         value = 0
-    return value if value > 0 else _DEFAULT_IMPORT_UPLOAD_MAX_BYTES
+    if value <= 0:
+        return _DEFAULT_IMPORT_UPLOAD_MAX_BYTES
+    return min(value, SINGLE_UPLOAD_MAX_BYTES)
 
 
 # Ceiling of a project import, the one number every import surface checks:
 # the content-length-range of the presigned upload policy
 # (/imports/upload-url, /project-imports/upload-url), the cloud-import size
-# check in the worker, the decompression cap (import_stream, 20 times this)
-# and the /health free-space warning. The default is the single-upload
+# check in the worker and the /health free-space warning. The decompression
+# cap is separate (import_stream.max_decompressed_bytes). The default is the single-upload
 # maximum, so the largest real export (the ZJS-Fälle project, 1.99 GB as
 # ndjson_gz) uses less than 40% of it. Set IMPORT_UPLOAD_MAX_BYTES on api and
 # workers alike (the Helm chart does, from minio.importUploadMaxBytes).

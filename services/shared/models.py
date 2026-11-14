@@ -3716,7 +3716,7 @@ class ImportJob(Base):
     # When the job last changed, so its completion time once it is final.
     # clock_timestamp(), not now(): the worker streams the whole job inside
     # one transaction, and now() is the start of that transaction, which put
-    # the completion of a 529 s export about 1 s after its creation.
+    # the completion of a long import next to its creation, as it did for exports.
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

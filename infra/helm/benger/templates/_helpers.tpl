@@ -35,6 +35,11 @@ credentials, so the app authenticates as the MinIO root user.
 - name: IMPORT_UPLOAD_MAX_BYTES
   value: {{ . | int64 | toString | quote }}
 {{- end }}
+{{- with .Values.minio.importMaxDecompressedBytes }}
+# What a compressed import may inflate to (import_stream.max_decompressed_bytes).
+- name: IMPORT_MAX_DECOMPRESSED_BYTES
+  value: {{ . | int64 | toString | quote }}
+{{- end }}
 - name: S3_ACCESS_KEY
   valueFrom:
     secretKeyRef:

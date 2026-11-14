@@ -181,10 +181,27 @@ class TestGenerationTask:
 
         impl.assert_not_called()
         kwargs = retry.call_args.kwargs
-        assert kwargs["max_retries"] is None
         low, high = endpoint_slots.RETRY_DELAY_RANGE
         assert low <= kwargs["countdown"] <= high
         assert client.zcard(slot_key(model_id)) == 2
+
+    def test_a_long_wait_never_exhausts_the_retry_budget(self, client, model_id):
+        """Through Celery's own retry, a job that already waited for many
+        turns is requeued again rather than given up (Celery's default budget
+        is 3 retries, after which retry() raises MaxRetriesExceededError)."""
+        acquire(client, model_id, "running-1", limit=1, lease_seconds=60)
+        impl = MagicMock()
+
+        tasks.generate_response.push_request(
+            id="waiting-job", retries=50, called_directly=False, is_eager=True
+        )
+        try:
+            with pytest.raises(Retry):
+                self._run(client, model_id, 1, impl)
+        finally:
+            tasks.generate_response.pop_request()
+
+        impl.assert_not_called()
 
     def test_concurrent_jobs_never_exceed_the_limit(self, client, model_id):
         """Eight jobs against an endpoint limited to 2: at most 2 requests are

@@ -174,16 +174,17 @@ An upload may be at most 5 GiB, the largest object S3 takes in one upload;
 the presigned policy refuses a larger file. The cap is
 `IMPORT_UPLOAD_MAX_BYTES` (bytes, Helm value `minio.importUploadMaxBytes`),
 set on the API and the workers alike, because the same number bounds a cloud
-import in the worker. Object storage needs at least that much free space, or
+import in the worker. A value above 5 GiB is lowered to 5 GiB. Object storage needs at least that much free space, or
 MinIO refuses every import upload with 507; `/health` reports
 `low_free_space` below it. A file of several GB takes minutes to upload, so
 the proxy in front of the storage host must allow long requests (see
 `infra/k3s/traefik-config.yaml`).
 
-A compressed upload (gzip or zip) may inflate to at most 20 times the upload
-cap (100 GiB at the default); past that the job fails with 413
-`import_too_large`. Set `IMPORT_MAX_DECOMPRESSED_BYTES` (bytes) on the workers
-to change the limit.
+A compressed upload (gzip or zip) may inflate to at most 40 GiB on the
+worker's temp disk; past that the job fails with 413 `import_too_large`. The
+limit is `IMPORT_MAX_DECOMPRESSED_BYTES` (bytes, Helm value
+`minio.importMaxDecompressedBytes`) and does not change with the upload cap,
+so raising the upload cap does not raise the temp disk an import may use.
 
 Task assignments travel with their target: a row that assigns the whole task
 and the rows Korrektur creates for single items of it (an annotation or a
