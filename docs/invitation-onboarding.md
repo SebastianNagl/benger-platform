@@ -171,7 +171,7 @@ Updated to handle invitation tokens in URL parameters for seamless flow.
 ## Security Considerations
 
 1. **Token Validation**: All invitation tokens are validated for expiry and authenticity
-2. **Email Matching**: Ensures invitation email matches the user attempting to accept
+2. **Token Possession**: Accepting via `POST /invitations/accept/{token}` does not compare the account's address with the invited one; the token was mailed to the invited address, so holding it proves receipt, and the signed-in account accepts whatever its own address is
 3. **Password Requirements**: Profile completion enforces same password strength as registration
 
 ## Testing

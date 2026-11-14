@@ -227,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         publicRoutes.includes(currentPath) ||
         currentPath.startsWith('/about') ||
         currentPath.startsWith('/verify-email') ||
+        currentPath.startsWith('/confirm-email-change') ||
         currentPath.startsWith('/accept-invitation') ||
         currentPath.startsWith('/reset-password') ||
         currentPath.startsWith('/activate')
@@ -466,8 +467,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (error.message.includes('Email verification required') ||
             error.message.includes('403'))
         ) {
-          // Redirect to email verification page
-          router.push('/verify-email?messageKey=verifyEmailRequired')
+          // Redirect to email verification page. A login typed as an
+          // address fills its resend form, so a new link is one click away.
+          const emailQuery = username.includes('@')
+            ? `&email=${encodeURIComponent(username.trim())}`
+            : ''
+          router.push(
+            `/verify-email?messageKey=verifyEmailRequired${emailQuery}`,
+          )
           return
         }
 
@@ -554,7 +561,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Otherwise, redirect to email verification.
         if (!invitationToken) {
           // Regular signup needs email verification
-          router.push('/verify-email?messageKey=registrationSuccess')
+          router.push(
+            `/verify-email?messageKey=registrationSuccess&email=${encodeURIComponent(email.trim())}`,
+          )
         }
       } catch (error) {
         // Signup error

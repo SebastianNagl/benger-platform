@@ -39,6 +39,7 @@ describe('authRedirect', () => {
         '/reset-password',
         '/activate',
         '/verify-email',
+        '/confirm-email-change',
         '/accept-invitation',
         '/shares',
         '/lti/error',
@@ -52,7 +53,7 @@ describe('authRedirect', () => {
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(17)
+      expect(publicRoutes).toHaveLength(18)
     })
 
     it('keeps the LMS consent and linking pages public but the teacher pages protected', () => {

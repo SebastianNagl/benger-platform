@@ -182,6 +182,8 @@ export class ApiClient {
     this.logout = safeBind(this.authClient, 'logout')
     this.getProfile = safeBind(this.authClient, 'getProfile')
     this.updateProfile = safeBind(this.authClient, 'updateProfile')
+    this.resendEmailChange = safeBind(this.authClient, 'resendEmailChange')
+    this.cancelEmailChange = safeBind(this.authClient, 'cancelEmailChange')
     this.changePassword = safeBind(this.authClient, 'changePassword')
     this.getMandatoryProfileStatus = safeBind(
       this.authClient,
@@ -486,6 +488,8 @@ export class ApiClient {
   logout: any
   getProfile: any
   updateProfile: any
+  resendEmailChange: any
+  cancelEmailChange: any
   changePassword: any
   getMandatoryProfileStatus: any
   confirmProfile: any

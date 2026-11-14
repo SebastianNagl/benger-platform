@@ -389,6 +389,10 @@ async def list_projects(
                     ProjectOrganization.organization
                 ),
             )
+            # Newest first, with the id as tie-breaker, so pages are stable
+            # (no row on two pages or on none) and page 1 holds the newest
+            # projects, which the dashboard's recent list relies on.
+            .order_by(Project.created_at.desc(), Project.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

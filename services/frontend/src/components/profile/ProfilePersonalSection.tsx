@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 
@@ -9,14 +10,25 @@ interface ProfilePersonalSectionProps {
   profile: UserProfile | null
   profileForm: ProfileFormData
   setProfileForm: SetProfileForm
+  /** Mail a new link to the pending address (shown while one is pending). */
+  onResendEmailChange?: () => void
+  /** Drop the pending address. */
+  onCancelEmailChange?: () => void
+  /** A resend or cancel request is running. */
+  emailChangeBusy?: boolean
 }
 
 export function ProfilePersonalSection({
   profile,
   profileForm,
   setProfileForm,
+  onResendEmailChange,
+  onCancelEmailChange,
+  emailChangeBusy = false,
 }: ProfilePersonalSectionProps) {
   const { t } = useI18n()
+  const pendingEmail = profile?.pending_email || null
+  const pendingSent = Boolean(profile?.pending_email_sent_at)
 
   return (
     <div>
@@ -107,8 +119,55 @@ export function ProfilePersonalSection({
               })
             }
             autoComplete="email"
+            aria-describedby="email-change-hint"
             required
           />
+          <p
+            id="email-change-hint"
+            className="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
+          >
+            {t('profile.emailChangeHint')}
+          </p>
+          {pendingEmail && (
+            <div
+              className={`mt-3 rounded-md border p-3 text-sm ${
+                pendingSent
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100'
+                  : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100'
+              }`}
+              role="status"
+              data-testid="profile-email-change-pending"
+            >
+              <p>
+                {pendingSent
+                  ? t('profile.emailChangeSent', {
+                      email: pendingEmail,
+                      current: profile?.email ?? '',
+                    })
+                  : t('profile.emailChangeNotSent', { email: pendingEmail })}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onResendEmailChange}
+                  disabled={emailChangeBusy || !onResendEmailChange}
+                  data-testid="profile-email-change-resend"
+                >
+                  {t('profile.emailChangeResend')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancelEmailChange}
+                  disabled={emailChangeBusy || !onCancelEmailChange}
+                  data-testid="profile-email-change-cancel"
+                >
+                  {t('profile.emailChangeCancel')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

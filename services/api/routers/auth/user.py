@@ -1,4 +1,9 @@
 """Auth: user info and profile handlers."""
+import asyncio
+
+from auth_module import email_change
+from services import auth_rate_limit
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 
@@ -64,6 +69,10 @@ from auth_module.serialization import ensure_dict as _ensure_dict  # noqa: E402,
 from auth_module.serialization import iso_or_none as _iso_or_none  # noqa: E402
 
 
+def _str_or_none(value) -> Optional[str]:
+    return value if isinstance(value, str) else None
+
+
 def _profile_kwargs(db_user, *, role) -> dict:
     """The full UserProfile field mapping from a DB user — the single source of
     truth shared by the sync and async builders (which differ ONLY in how they
@@ -75,6 +84,8 @@ def _profile_kwargs(db_user, *, role) -> dict:
         username=db_user.username,
         email=db_user.email,
         name=db_user.name,
+        pending_email=_str_or_none(getattr(db_user, "pending_email", None)),
+        pending_email_sent_at=_iso_or_none(getattr(db_user, "pending_email_sent_at", None)),
         role=role,
         is_superadmin=db_user.is_superadmin,
         is_active=db_user.is_active,
@@ -495,24 +506,47 @@ async def get_user_profile(
 
 
 @router.put("/profile", response_model=UserProfile)
-def update_profile(
+async def update_profile(
     profile_data: UserUpdate,
+    request: Request,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     """Update current user's profile information.
 
-    Stays on the SYNC DB lane: ``update_user_profile`` carries
-    profile-history snapshotting / mandatory-field side effects and has no
-    async twin (intentionally — converting it is out of scope for this
-    migration). The read profile endpoints (/profile GET, /me, /me/contexts,
-    history, status, confirm) are on the async lane.
+    A new email address does not replace the login address: it is stored as
+    ``pending_email`` and a confirmation link is mailed to it
+    (``auth_module.email_change``). The response carries ``pending_email``
+    and ``pending_email_sent_at`` (None when the mail could not be sent).
+
+    The DB work stays on the SYNC lane (in a worker thread):
+    ``update_user_profile`` carries profile-history snapshotting /
+    mandatory-field side effects and has no async twin. The read profile
+    endpoints (/profile GET, /me, /me/contexts, history, status, confirm) are
+    on the async lane.
     """
-    updated_user = update_user_profile(
+    from models import User as DBUser
+
+    db_user = await asyncio.to_thread(
+        lambda: db.query(DBUser).filter(DBUser.id == current_user.id).first()
+    )
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Validate a requested address before anything is saved.
+    new_email = None
+    if profile_data.email is not None:
+        new_email = await asyncio.to_thread(
+            email_change.requested_email_change, db, db_user, profile_data.email
+        )
+    if new_email:
+        await asyncio.to_thread(_enforce_email_change_mail_limits, request, db_user, new_email)
+
+    updated_user = await asyncio.to_thread(
+        update_user_profile,
         db=db,
         user_id=current_user.id,
         name=profile_data.name,
-        email=profile_data.email,
         use_pseudonym=profile_data.use_pseudonym,
         age=profile_data.age,
         job=profile_data.job,
@@ -542,7 +576,41 @@ def update_profile(
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    return _build_user_profile_response(updated_user, db)
+    if new_email:
+        token = email_change.stage_email_change(updated_user, new_email)
+        await asyncio.to_thread(db.commit)
+        await email_change.send_email_change_mail(
+            db,
+            updated_user,
+            token,
+            host=_request_host(request),
+            language=profile_data.language,
+        )
+
+    return await asyncio.to_thread(_build_user_profile_response, updated_user, db)
+
+
+def _request_host(request: Optional[Request]) -> Optional[str]:
+    if request is None:
+        return None
+    return request.headers.get("x-forwarded-host") or request.headers.get("host")
+
+
+def _enforce_email_change_mail_limits(request, db_user, new_email: str) -> None:
+    """Confirmation mails go to addresses the caller types, so cap them per
+    account and per target address (429 ``rate_limited``)."""
+    auth_rate_limit.enforce_account_limit(
+        request,
+        f"user:{db_user.id}",
+        auth_rate_limit.EMAIL_CHANGE_MAIL,
+        auth_rate_limit.EMAIL_CHANGE_USER_LIMIT,
+    )
+    auth_rate_limit.enforce_account_limit(
+        request,
+        new_email,
+        auth_rate_limit.EMAIL_CHANGE_MAIL,
+        auth_rate_limit.MAIL_ACCOUNT_LIMIT,
+    )
 
 
 @router.put("/me/ui-mode", response_model=UserProfile)

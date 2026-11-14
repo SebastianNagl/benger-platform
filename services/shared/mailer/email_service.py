@@ -485,6 +485,91 @@ class EmailService:
             strict=True,
         )
 
+    def build_email_change_confirmation_email(
+        self,
+        *,
+        confirm_url: str,
+        new_email: str,
+        user_name: Optional[str] = None,
+        brand_name: str = "BenGER",
+        frontend_host: str = "",
+        language: str = "en",
+        expiry_hours: int = 48,
+    ) -> tuple[str, str]:
+        """Render the email-change confirmation email -> (subject, html_body).
+
+        Sent to the NEW address when a user changes their email on the profile
+        page; ``confirm_url`` opens /confirm-email-change/<token>, where a
+        button (not the page load) swaps the address in. The mail never names
+        the current address: a mistyped new address must not learn it.
+        Template files email_change_confirmation(.html|_de.html|_fr.html).
+        """
+        template = _localized_template("email_change_confirmation", language, fallback="en")
+        return self._render_template(
+            template,
+            {
+                "confirm_url": confirm_url,
+                "new_email": new_email,
+                # Stored names are already HTML-escaped by the profile
+                # sanitiser; the template autoescapes once more.
+                "user_name": html.unescape(user_name or ""),
+                "brand_name": brand_name,
+                "frontend_host": frontend_host,
+                "expiry_hours": expiry_hours,
+            },
+            strict=True,
+        )
+
+    async def send_email_change_confirmation_email(
+        self,
+        *,
+        to_email: str,
+        confirm_url: str,
+        user_name: Optional[str] = None,
+        language: str = "en",
+        from_address: Optional[str] = None,
+        from_name: Optional[str] = None,
+        brand_name: str = "BenGER",
+        frontend_host: str = "",
+        expiry_hours: int = 48,
+    ) -> bool:
+        """Send the email-change confirmation link to the new address.
+
+        Returns True once the mail provider accepted the message.
+        """
+        if not self.mail_enabled:
+            logger.debug("Email not sent: Mail service is disabled")
+            return False
+
+        try:
+            subject, html_body = self.build_email_change_confirmation_email(
+                confirm_url=confirm_url,
+                new_email=to_email,
+                user_name=user_name,
+                brand_name=brand_name,
+                frontend_host=frontend_host,
+                language=language,
+                expiry_hours=expiry_hours,
+            )
+            result = await asyncio.to_thread(
+                self.mail_client.send_message,
+                to=[to_email],
+                subject=subject,
+                html_body=html_body,
+                from_address=from_address,
+                from_name=from_name,
+                disable_tracking=True,
+                essential=True,
+            )
+            if result.get("status") == "success":
+                logger.info(f"Email change confirmation sent to {mask_email(to_email)}")
+                return True
+            logger.error(f"Failed to send email change confirmation: {result.get('error')}")
+            return False
+        except Exception as e:
+            logger.error(f"Error sending email change confirmation: {str(e)}")
+            return False
+
     async def send_invitation_email(
         self,
         to_email: str,

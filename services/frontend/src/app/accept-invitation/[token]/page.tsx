@@ -13,6 +13,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  InformationCircleIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
@@ -29,7 +30,9 @@ export default function AcceptInvitationPage({
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
+  // A load failure replaces the page; an accept failure shows inline.
   const [error, setError] = useState<string | null>(null)
+  const [acceptError, setAcceptError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [token, setToken] = useState<string | null>(null)
 
@@ -75,7 +78,7 @@ export default function AcceptInvitationPage({
 
     try {
       setAccepting(true)
-      setError(null)
+      setAcceptError(null)
 
       await api.acceptInvitation(token)
       setSuccess(true)
@@ -96,7 +99,7 @@ export default function AcceptInvitationPage({
       }, 2000)
     } catch (err: any) {
       console.error('Failed to accept invitation:', err)
-      setError(err.response?.data?.detail || t('invitation.acceptFailed'))
+      setAcceptError(err.response?.data?.detail || t('invitation.acceptFailed'))
     } finally {
       setAccepting(false)
     }
@@ -175,6 +178,13 @@ export default function AcceptInvitationPage({
   }
 
   const expired = isExpired(invitation.expires_at)
+  // Addresses compare case-insensitively, as the API does. A different
+  // address does not block: the invitation link reached its addressee, so
+  // the signed-in account may accept it.
+  const signedInAsOtherAddress =
+    !!user &&
+    (user.email ?? '').trim().toLowerCase() !==
+      (invitation.email ?? '').trim().toLowerCase()
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
@@ -250,11 +260,16 @@ export default function AcceptInvitationPage({
             </div>
 
             {/* Error Message */}
-            {error && (
-              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+            {acceptError && (
+              <div
+                className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+                role="alert"
+              >
                 <div className="flex">
                   <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-red-400" />
-                  <div className="text-red-800 dark:text-red-200">{error}</div>
+                  <div className="text-red-800 dark:text-red-200">
+                    {acceptError}
+                  </div>
                 </div>
               </div>
             )}
@@ -271,13 +286,16 @@ export default function AcceptInvitationPage({
               </div>
             )}
 
-            {/* Email Mismatch Warning */}
-            {user && user.email !== invitation.email && (
-              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+            {/* Signed in with an account under another address */}
+            {user && signedInAsOtherAddress && (
+              <div
+                className="mb-6 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
+                data-testid="invitation-other-account-note"
+              >
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-amber-400" />
-                  <div className="text-amber-800 dark:text-amber-200">
-                    {t('invitation.emailMismatch', {
+                  <InformationCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-zinc-400" />
+                  <div className="text-zinc-700 dark:text-zinc-300">
+                    {t('invitation.acceptWithCurrentAccount', {
                       invitedEmail: invitation.email,
                       currentEmail: user.email,
                     })}
@@ -320,9 +338,7 @@ export default function AcceptInvitationPage({
               ) : (
                 <Button
                   onClick={handleAcceptInvitation}
-                  disabled={
-                    accepting || expired || user.email !== invitation.email
-                  }
+                  disabled={accepting || expired}
                   className="w-full"
                 >
                   {accepting ? (

@@ -318,6 +318,40 @@ class TestProjectCrudIntegration:
         assert len(data["items"]) <= 2
 
     @pytest.mark.asyncio
+    async def test_list_projects_newest_first_across_pages(
+        self, async_test_client, async_test_db
+    ):
+        """Pages are ordered newest first and never repeat or drop a project.
+
+        The dashboard's recent projects read page 1 and rely on it holding
+        the newest projects, whatever order the rows were inserted in.
+        """
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ids_by_day = {}
+        # Inserted out of creation order on purpose.
+        for day in (3, 1, 5, 2, 4):
+            p = await self._create_project(
+                async_test_db, org.id, admin.id, title=f"Ordered Project {day}"
+            )
+            p.created_at = base.replace(day=day)
+            ids_by_day[day] = p.id
+        await async_test_db.commit()
+
+        seen = []
+        with _as_user(admin):
+            for page in (1, 2, 3):
+                response = await async_test_client.get(
+                    f"/api/projects/?page={page}&page_size=2&search=Ordered Project"
+                )
+                assert response.status_code == 200
+                seen.extend(item["id"] for item in response.json()["items"])
+
+        assert seen == [ids_by_day[d] for d in (5, 4, 3, 2, 1)]
+
+    @pytest.mark.asyncio
     async def test_annotator_cannot_create_project(
         self, async_test_client, async_test_db
     ):

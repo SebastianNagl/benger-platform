@@ -637,7 +637,6 @@ class TestAuthRouterExtended:
             try:
                 response = client.put("/api/auth/profile", json={
                     "name": "Updated",
-                    "email": "test@example.com",
                 })
                 assert response.status_code == status.HTTP_404_NOT_FOUND
             finally:
