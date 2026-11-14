@@ -6,8 +6,8 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { projectsAPI } from '@/lib/api/projects'
 import { intlTag } from '@/lib/i18n/locales'
-import { useProjectStore } from '@/stores/projectStore'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -18,9 +18,11 @@ import { useEffect, useState } from 'react'
 const formatStatCount = (n: number): string =>
   n >= 100000 ? `${Math.floor(n / 1000)}k` : String(n)
 
+// "Aktuelle Projekte" shows the newest projects by creation date.
+const RECENT_PROJECTS_COUNT = 5
+
 export default function DashboardPage() {
   const { t, locale } = useI18n()
-  const { projects, fetchProjects } = useProjectStore()
   const { user, organizations } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,17 +42,18 @@ export default function DashboardPage() {
 
   // React Query caches these for 60 s (the global default), so navigating
   // dashboard → projects → dashboard serves the second visit from memory
-  // instead of refetching both endpoints. The projects fetch still hydrates
-  // the Zustand store via the existing fetchProjects side-effect so
-  // downstream consumers stay in sync — and the queryFn returns `true`
-  // (not the implicit `undefined` Zustand actions return) because React
-  // Query v5 throws when a queryFn resolves to undefined.
+  // instead of refetching both endpoints.
+  //
+  // The recent projects are fetched straight from the API into this query,
+  // not through the shared project store: the store's fetchProjects inherits
+  // the projects page's search, archive and visibility filters, and the
+  // projects page overwrites the store's list with its filtered result. The
+  // list endpoint returns newest first, so page 1 holds the newest active
+  // projects in the default visibility.
   const projectsQuery = useQuery({
-    queryKey: ['dashboard', 'projects', 1, 100],
-    queryFn: async () => {
-      await fetchProjects(1, 100)
-      return true
-    },
+    queryKey: ['dashboard', 'recentProjects', RECENT_PROJECTS_COUNT],
+    queryFn: () =>
+      projectsAPI.list(1, RECENT_PROJECTS_COUNT, undefined, false, false),
   })
 
   const statsQuery = useQuery({
@@ -85,13 +88,14 @@ export default function DashboardPage() {
   const loading = projectsQuery.isLoading
   const statsLoading = statsQuery.isLoading
 
-  const recentProjects =
-    projects
-      ?.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      )
-      .slice(0, 5) || []
+  // Sort a copy: the order must not depend on the response order, and the
+  // query data must not be mutated in place.
+  const recentProjects = [...(projectsQuery.data?.items ?? [])]
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
+    .slice(0, RECENT_PROJECTS_COUNT)
 
   if (loading || statsLoading) {
     return (

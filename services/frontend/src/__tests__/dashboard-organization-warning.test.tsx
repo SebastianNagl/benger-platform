@@ -41,8 +41,8 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
-jest.mock('@/stores/projectStore', () => ({
-  useProjectStore: jest.fn(),
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: { list: jest.fn() },
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: jest.fn(),
@@ -65,7 +65,7 @@ jest.mock('next/link', () => {
 import DashboardPage from '@/app/dashboard/page'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { useProjectStore } from '@/stores/projectStore'
+import { projectsAPI } from '@/lib/api/projects'
 
 describe('Dashboard Organization Warning', () => {
   const mockT = (key: string) => {
@@ -124,10 +124,12 @@ describe('Dashboard Organization Warning', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: mockT,
     })
-    ;(useProjectStore as jest.Mock).mockReturnValue({
-      projects: mockProjects,
-      fetchProjects: jest.fn().mockResolvedValue(undefined),
-      loading: false,
+    ;(projectsAPI.list as jest.Mock).mockResolvedValue({
+      items: mockProjects,
+      total: mockProjects.length,
+      page: 1,
+      page_size: 5,
+      pages: 1,
     })
   })
 
@@ -275,11 +277,8 @@ describe('Dashboard Organization Warning', () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         organizations: [],
       })
-      ;(useProjectStore as jest.Mock).mockReturnValue({
-        projects: [],
-        fetchProjects: jest.fn(),
-        loading: true, // Still loading
-      })
+      // The recent projects request never settles: still loading.
+      ;(projectsAPI.list as jest.Mock).mockReturnValue(new Promise(() => {}))
 
       render(<DashboardPage />)
 
