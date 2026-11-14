@@ -41,6 +41,7 @@ from project_models import (
     Project,
     ProjectOrganization,
     Task,
+    TaskAssignment,
 )
 from routers.projects._export_stream import (
     export_format_is_gzipped,
@@ -1543,3 +1544,86 @@ class TestTaskExportRejectedByProjectImport:
             test_db, io.BytesIO(json.dumps(doc).encode("utf-8")), admin.id
         )
         assert result["project_id"]
+
+
+@pytest.mark.integration
+class TestTaskAssignmentRoundtrip:
+    """Korrektur assigns single items of a task (one annotation, one
+    generation) besides whole tasks, so one (task, user) pair legitimately
+    holds several rows that differ in ``target_type`` and ``target_id``. A
+    round trip keeps every such row and points its target at the imported
+    copy of the item."""
+
+    def _seed(self, db, project, admin):
+        task = db.query(Task).filter(Task.project_id == project.id).order_by(Task.inner_id).first()
+        ann = db.query(Annotation).filter(Annotation.task_id == task.id).one()
+        gen = db.query(Generation).filter(Generation.task_id == task.id).one()
+        for target_type, target_id in (("task", None), ("annotation", ann.id), ("generation", gen.id)):
+            db.add(
+                TaskAssignment(
+                    id=_uid(),
+                    task_id=task.id,
+                    user_id=admin.id,
+                    assigned_by=admin.id,
+                    target_type=target_type,
+                    target_id=target_id,
+                    status="assigned",
+                    notes=f"for {target_type}",
+                )
+            )
+        db.commit()
+        return task
+
+    def _imported(self, db, project_id):
+        return (
+            db.query(TaskAssignment)
+            .join(Task, Task.id == TaskAssignment.task_id)
+            .filter(Task.project_id == project_id)
+            .all()
+        )
+
+    @pytest.mark.parametrize("fmt", ["ndjson", "comprehensive"])
+    def test_item_level_assignments_survive(self, test_db, full_project, fmt):
+        project, admin = full_project
+        self._seed(test_db, project, admin)
+        if fmt == "ndjson":
+            body = _export_ndjson(test_db, project)
+        else:
+            body = "".join(stream_comprehensive_project_data_json(test_db, project.id))
+
+        result = run_full_project_import(test_db, io.BytesIO(body.encode("utf-8")), admin.id)
+        new_pid = result["project_id"]
+
+        rows = self._imported(test_db, new_pid)
+        by_type = {r.target_type: r for r in rows}
+        assert sorted(by_type) == ["annotation", "generation", "task"]
+        assert len(rows) == 3
+        assert result["statistics"]["imported_counts"]["task_assignments"] == 3
+
+        new_task_ids = {t.id for t in test_db.query(Task).filter(Task.project_id == new_pid)}
+        new_ann_ids = {
+            a.id for a in test_db.query(Annotation).filter(Annotation.project_id == new_pid)
+        }
+        new_gen_ids = {
+            g.id for g in test_db.query(Generation).filter(Generation.task_id.in_(new_task_ids))
+        }
+        assert by_type["task"].target_id is None
+        assert by_type["annotation"].target_id in new_ann_ids
+        assert by_type["generation"].target_id in new_gen_ids
+        assert {r.task_id for r in rows} <= new_task_ids
+        assert by_type["annotation"].notes == "for annotation"
+
+    def test_item_whose_target_is_not_exported_is_skipped(self, test_db, full_project):
+        project, admin = full_project
+        self._seed(test_db, project, admin)
+        records = [json.loads(line) for line in _export_ndjson(test_db, project).splitlines()]
+        for r in records:
+            if r["_type"] == "task_assignment" and r.get("target_type") == "annotation":
+                r["target_id"] = _uid()
+        body = "\n".join(json.dumps(r) for r in records) + "\n"
+
+        result = run_full_project_import(test_db, io.BytesIO(body.encode("utf-8")), admin.id)
+
+        rows = self._imported(test_db, result["project_id"])
+        assert sorted(r.target_type for r in rows) == ["generation", "task"]
+        assert result["statistics"]["imported_counts"]["task_assignments"] == 2
