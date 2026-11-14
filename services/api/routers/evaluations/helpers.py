@@ -26,19 +26,40 @@ celery_app = get_celery_app()
 # ============= Helper Functions =============
 
 
-async def run_cells_completed(db: AsyncSession, evaluation_id: str) -> int:
-    """Cells (generations and answers) the run has at least one
-    TaskEvaluation row for. A cell writes one row per field key and judge
-    run, so ``samples_evaluated`` counts rows, not cells."""
-    gens, anns = (
-        await db.execute(
-            select(
-                func.count(distinct(TaskEvaluation.generation_id)),
-                func.count(distinct(TaskEvaluation.annotation_id)),
-            ).where(TaskEvaluation.evaluation_id == evaluation_id)
-        )
-    ).one()
-    return int(gens or 0) + int(anns or 0)
+async def run_cells_completed(db: AsyncSession, evaluation) -> int:
+    """Cells (generations and answers) the run has graded: those graded
+    before its latest dispatch plus the dispatched cells with a
+    TaskEvaluation row written since. Rows an earlier attempt left on a
+    re-dispatched cell (a failed judge call) do not count. A cell writes one
+    row per field key and judge run, so ``samples_evaluated`` counts rows,
+    not cells."""
+    meta = evaluation.eval_metadata if isinstance(evaluation.eval_metadata, dict) else {}
+    before = meta.get("cells_graded_before_dispatch", 0)
+    if not isinstance(before, int) or isinstance(before, bool):
+        before = 0
+    query = select(
+        func.count(distinct(TaskEvaluation.generation_id)),
+        func.count(distinct(TaskEvaluation.annotation_id)),
+    ).where(TaskEvaluation.evaluation_id == evaluation.id)
+    dispatched_at = _parse_aware(meta.get("dispatched_at"))
+    if dispatched_at is not None:
+        query = query.where(TaskEvaluation.created_at >= dispatched_at)
+    else:
+        before = 0
+    gens, anns = (await db.execute(query)).one()
+    return before + int(gens or 0) + int(anns or 0)
+
+
+def _parse_aware(value) -> Optional[datetime]:
+    """A timezone-aware ISO timestamp, else None (absent or a legacy naive
+    worker-local time that cannot be compared with ``created_at``)."""
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
 
 
 def run_cells_total(evaluation) -> Optional[int]:

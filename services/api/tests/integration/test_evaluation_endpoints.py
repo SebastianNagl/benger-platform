@@ -1347,10 +1347,15 @@ class TestEvaluationStatus:
         eval_id = run.id
         gens = data["generations"]
         anns = data["annotations"]
+        dispatched_at = datetime.now(timezone.utc)
         # 3 generations + 3 answers dispatched: 6 cells.
-        dispatched = {"evaluation_type": "evaluation", "cells_dispatched": 6}
+        dispatched = {
+            "evaluation_type": "evaluation",
+            "cells_dispatched": 6,
+            "dispatched_at": dispatched_at.isoformat(),
+        }
 
-        def _rows(subject, keys):
+        def _rows(subject, keys, *, at, error=None):
             for config_id, field in keys:
                 async_test_db.add(TaskEvaluation(
                     id=_uid(),
@@ -1364,8 +1369,10 @@ class TestEvaluationStatus:
                     answer_type="text",
                     ground_truth={"value": "Ja"},
                     prediction={"value": "Ja"},
-                    metrics={"score": 1.0},
-                    passed=True,
+                    metrics={} if error else {"score": 1.0},
+                    passed=not error,
+                    error_message=error,
+                    created_at=at,
                 ))
 
         async def _progress(status, meta):
@@ -1379,39 +1386,53 @@ class TestEvaluationStatus:
             assert resp.status_code == 200, resp.text
             return resp.json()["progress"]
 
+        async def _listed():
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/run/results/project/{data['project'].id}",
+                )
+            assert resp.status_code == 200, resp.text
+            listed = next(
+                e for e in resp.json()["evaluations"] if e["evaluation_id"] == eval_id
+            )
+            return listed["cells_completed"], listed["cells_total"]
+
+        graded = dispatched_at + timedelta(seconds=1)
         assert await _progress("running", dispatched) == 0.0
         # Two configs on one generation: 2 rows, 1 cell.
-        _rows(gens[0], [("cfg1", "answer_type"), ("cfg2", "answer")])
+        _rows(gens[0], [("cfg1", "answer_type"), ("cfg2", "answer")], at=graded)
         assert await _progress("running", dispatched) == 16.7
         # Two fields of one config on a generation and on answers.
         both_fields = [("cfg1", "answer_type"), ("cfg1", "answer")]
-        for subject in (gens[1], gens[2], anns[0], anns[1]):
-            _rows(subject, both_fields)
-        # 10 rows for 5 of 6 cells: below 100 until the last cell has rows.
-        assert await _progress("running", dispatched) == 83.3
-        # A resume dispatched the 2 cells left after 4 were graded.
-        resumed = {
+        for subject in (gens[1], anns[0], anns[1]):
+            _rows(subject, both_fields, at=graded)
+        # The last two cells only got rate-limited judge calls.
+        for subject in (gens[2], anns[2]):
+            _rows(subject, both_fields, at=graded, error="Error code: 429")
+        # 12 rows for 6 of 6 cells.
+        assert await _progress("running", dispatched) == 100.0
+
+        # The run failed and a retry re-dispatched the 2 rate-limited cells:
+        # their error rows predate the retry, so they are not done yet.
+        retry_at = graded + timedelta(hours=1)
+        retried = {
             "evaluation_type": "evaluation",
             "cells_dispatched": 2,
             "cells_graded_before_dispatch": 4,
+            "dispatched_at": retry_at.isoformat(),
         }
-        assert await _progress("running", resumed) == 83.3
+        assert await _progress("running", retried) == 66.7
+        assert await _listed() == (4, 6)
+        regraded = [("cfg2", "answer")]
+        _rows(gens[2], regraded, at=retry_at + timedelta(seconds=1))
+        assert await _progress("running", retried) == 83.3
+        assert await _listed() == (5, 6)
+        _rows(anns[2], regraded, at=retry_at + timedelta(seconds=1))
+        assert await _progress("running", retried) == 100.0
 
-        with _as_user(owner):
-            resp = await async_test_client.get(
-                f"/api/evaluations/run/results/project/{data['project'].id}",
-            )
-        assert resp.status_code == 200, resp.text
-        listed = next(
-            e for e in resp.json()["evaluations"] if e["evaluation_id"] == eval_id
-        )
-        assert (listed["cells_completed"], listed["cells_total"]) == (5, 6)
-
-        _rows(anns[2], both_fields)
-        assert await _progress("running", dispatched) == 100.0
         # Not dispatched yet: unknown, not zero.
         assert await _progress("pending", {"evaluation_type": "evaluation"}) is None
-        assert await _progress("completed", dispatched) == 100.0
+        assert await _progress("completed", retried) == 100.0
 
     @pytest.mark.asyncio
     async def test_get_evaluation_status_not_found(

@@ -2354,6 +2354,9 @@ def run_evaluation(
             cells_graded_before_dispatch = len(graded_gen_ids - dispatched_gen_ids) + len(
                 graded_ann_ids - dispatched_ann_ids
             )
+            from sqlalchemy import func as _sql_func
+
+            dispatched_at = db.query(_sql_func.clock_timestamp()).scalar().isoformat()
             from sqlalchemy.orm.attributes import flag_modified
 
             # Raw pool counts distinguish "the filters excluded everything"
@@ -2430,7 +2433,7 @@ def run_evaluation(
 
             evaluation.eval_metadata = {
                 **(evaluation.eval_metadata or {}),
-                "dispatched_at": datetime.now().isoformat(),
+                "dispatched_at": dispatched_at,
                 "cells_dispatched": cells_dispatched,
                 "cells_graded_before_dispatch": cells_graded_before_dispatch,
                 "judge_run_ids_by_config": judge_run_ids_by_config_serializable,

@@ -15,6 +15,8 @@ What 'paused' must mean in the worker:
   the orchestrator missing-only reuses completed rows and finishes the run.
 """
 
+from datetime import datetime
+
 import pytest
 
 import tasks
@@ -262,6 +264,18 @@ class TestResumeMissingOnly:
         db_conn.expire_all()
         assert run.eval_metadata["cells_dispatched"] == 1
         assert run.eval_metadata["cells_graded_before_dispatch"] == 1
+        # The DB clock, comparable with the rows' created_at.
+        dispatched_at = datetime.fromisoformat(run.eval_metadata["dispatched_at"])
+        assert dispatched_at.tzinfo is not None
+        regraded = (
+            db_conn.query(TaskEvaluation)
+            .filter(
+                TaskEvaluation.evaluation_id == run.id,
+                TaskEvaluation.generation_id == gen_b.id,
+            )
+            .one()
+        )
+        assert regraded.created_at >= dispatched_at
 
 
 class TestMetricParametersNoneCrashFix:

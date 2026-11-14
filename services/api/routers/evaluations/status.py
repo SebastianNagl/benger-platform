@@ -68,7 +68,7 @@ async def get_evaluation_status(
         status=evaluation.status,
         message=evaluation.error_message or "Evaluation status",
         progress=run_progress(
-            evaluation, await run_cells_completed(db, evaluation.id)
+            evaluation, await run_cells_completed(db, evaluation)
         ),
     )
 

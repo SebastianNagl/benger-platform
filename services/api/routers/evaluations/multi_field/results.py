@@ -276,7 +276,7 @@ async def get_project_evaluation_results(
                         else (evaluation.samples_evaluated or 0)
                     ),
                     "sample_results_count": sample_results_count,
-                    "cells_completed": await run_cells_completed(db, evaluation.id),
+                    "cells_completed": await run_cells_completed(db, evaluation),
                     "cells_total": run_cells_total(evaluation),
                     "failures_by_reason": (evaluation.eval_metadata or {}).get(
                         "failures_by_reason"
