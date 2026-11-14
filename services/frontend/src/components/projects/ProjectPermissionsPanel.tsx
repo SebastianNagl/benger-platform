@@ -561,6 +561,7 @@ export function ProjectPermissionsPanel({
                             {t('project.permissions.groupScopeLabel')}
                           </label>
                           <Select
+                            searchable
                             disabled={locked || readOnly}
                             value={
                               selectedGroupByOrg[org.id] ||
@@ -582,7 +583,7 @@ export function ProjectPermissionsPanel({
                             </SelectTrigger>
                             <SelectContent>
                               {orgWideAllowed && (
-                                <SelectItem value={ORG_WIDE}>
+                                <SelectItem pinned value={ORG_WIDE}>
                                   {t('project.permissions.groupScopeOrgWide')}
                                 </SelectItem>
                               )}

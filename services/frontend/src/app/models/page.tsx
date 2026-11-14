@@ -231,12 +231,16 @@ export default function ModelsPage() {
             }}
           >
             <FilterToolbar.Field label={t('models.allProviders')}>
-              <Select value={providerFilter} onValueChange={setProviderFilter}>
+              <Select
+                searchable
+                value={providerFilter}
+                onValueChange={setProviderFilter}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder={t('models.allProviders')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">
+                  <SelectItem pinned value="all">
                     {t('models.allProviders')}
                   </SelectItem>
                   {providers.map((provider) => (

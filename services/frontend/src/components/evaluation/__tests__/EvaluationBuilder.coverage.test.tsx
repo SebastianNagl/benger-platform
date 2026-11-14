@@ -400,14 +400,23 @@ describe('BYOM judge gating (credential-less custom judges)', () => {
     const user = userEvent.setup()
     await gotoParameters(user, 'llm_judge_classic')
 
-    // Grouped section headers render inside the judge select (the
-    // customSection header also appears once in the ensemble grid).
-    expect(
-      screen.getByText('customModels.picker.officialSection'),
-    ).toBeInTheDocument()
+    // The judge select groups official judges above custom ones (its
+    // headings are SelectGroupLabels, which a native select cannot show);
+    // the customSection header also appears in the ensemble grid.
     expect(
       screen.getAllByText('customModels.picker.customSection').length,
     ).toBeGreaterThanOrEqual(1)
+    const judgeSelect = (
+      document.querySelector(
+        'option[value="custom-nokey"]',
+      ) as HTMLOptionElement
+    ).parentElement as HTMLSelectElement
+    const judgeValues = Array.from(judgeSelect.options, (o) => o.value)
+    const firstCustom = judgeValues.findIndex((v) => v.startsWith('custom-'))
+    expect(firstCustom).toBeGreaterThan(0)
+    expect(
+      judgeValues.slice(firstCustom).every((v) => v.startsWith('custom-')),
+    ).toBe(true)
 
     const locked = document.querySelector(
       'option[value="custom-nokey"]',

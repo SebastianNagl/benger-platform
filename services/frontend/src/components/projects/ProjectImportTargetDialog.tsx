@@ -183,6 +183,7 @@ export function ProjectImportTargetDialog({
             {t('projects.list.importTargetGroupLabel')}
           </label>
           <Select
+            searchable
             value={groupId || (orgWideAllowed ? ORG_WIDE : '')}
             onValueChange={(v) => onGroupChange?.(v === ORG_WIDE ? null : v)}
           >
@@ -195,7 +196,7 @@ export function ProjectImportTargetDialog({
             </SelectTrigger>
             <SelectContent>
               {orgWideAllowed && (
-                <SelectItem value={ORG_WIDE}>
+                <SelectItem pinned value={ORG_WIDE}>
                   {t('projects.list.importTargetGroupOrgWide')}
                 </SelectItem>
               )}

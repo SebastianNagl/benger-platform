@@ -433,6 +433,7 @@ export function AccessKeyCreateForm({
                 {t('accessKeys.form.groupLabel')}
               </label>
               <Select
+                searchable
                 // Group admins get no org-wide option: until a group is
                 // picked, show the placeholder rather than the sentinel.
                 value={groupId || (isOrgAdmin ? ORG_WIDE : '')}
@@ -447,7 +448,7 @@ export function AccessKeyCreateForm({
                 </SelectTrigger>
                 <SelectContent>
                   {isOrgAdmin && (
-                    <SelectItem value={ORG_WIDE}>
+                    <SelectItem pinned value={ORG_WIDE}>
                       {t('accessKeys.orgWide')}
                     </SelectItem>
                   )}

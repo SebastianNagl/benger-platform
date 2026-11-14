@@ -378,7 +378,11 @@ export function CloudImportPanel({
           <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
             {t('dataImport.cloud.organization')}
           </label>
-          <Select value={organizationId} onValueChange={handleOrgChange}>
+          <Select
+            searchable
+            value={organizationId}
+            onValueChange={handleOrgChange}
+          >
             <SelectTrigger data-testid="cloud-import-org-select">
               <SelectValue
                 placeholder={t('dataImport.cloud.selectOrganization')}
@@ -398,6 +402,7 @@ export function CloudImportPanel({
             {t('dataImport.cloud.connection')}
           </label>
           <Select
+            searchable
             value={connectionId}
             onValueChange={handleConnectionChange}
             disabled={!organizationId || connectionsLoading}

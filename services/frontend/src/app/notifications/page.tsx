@@ -525,12 +525,14 @@ function NotificationsPageContent() {
         </FilterToolbar.Field>
 
         <FilterToolbar.Field label={t('notifications.allTypes')}>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select searchable value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('notifications.allTypes')}</SelectItem>
+              <SelectItem pinned value="all">
+                {t('notifications.allTypes')}
+              </SelectItem>
               {Array.from(availableTypes).map((type) => (
                 <SelectItem key={type} value={type}>
                   {type
