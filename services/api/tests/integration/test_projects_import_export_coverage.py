@@ -308,7 +308,12 @@ class TestFullProjectImportUploadUrl:
         # Key is scoped to the requesting USER (not a project).
         assert mock_url.call_args.kwargs["file_type"] == "imports"
         assert mock_url.call_args.kwargs["user_id"] == admin.id
-        assert mock_url.call_args.kwargs["max_size"] > 0
+        # The one import cap; the largest real export (ZJS-Fälle, 1.99 GB as
+        # ndjson_gz) must use well under half of it.
+        from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
+
+        assert mock_url.call_args.kwargs["max_size"] == IMPORT_UPLOAD_MAX_BYTES
+        assert IMPORT_UPLOAD_MAX_BYTES >= 2 * 1_998_469_026
 
 
 @pytest.mark.integration

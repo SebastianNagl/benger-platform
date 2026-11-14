@@ -14,6 +14,8 @@ names, and decorator args) remain in ``tasks.py`` and delegate here.
 import tasks
 from typing import Any, Dict, List, Optional
 
+from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
+
 # S3/MinIO require every multipart part EXCEPT the last to be >= 5MB. We buffer
 # to 8MB before flushing a part; 8MB x 10_000 parts (the S3 part-count ceiling)
 # = 80GB, far beyond any realistic export.
@@ -24,10 +26,11 @@ _EXPORT_PART_SIZE = 8 * 1024 * 1024
 # heap during download stays bounded the same way.
 _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
-# Cap for a cloud-import source object (customer bucket). Mirrors the API's
-# _IMPORT_UPLOAD_MAX_BYTES presigned-upload cap so both import surfaces bound
-# the artifact the same way; checked via head_object BEFORE downloading.
-_CLOUD_IMPORT_MAX_BYTES = 2 * 1024 * 1024 * 1024
+# Cap for a cloud-import source object (customer bucket): the same import cap
+# as the presigned upload (upload_policy.IMPORT_UPLOAD_MAX_BYTES), so both
+# import surfaces bound the artifact alike; checked via head_object BEFORE
+# downloading.
+_CLOUD_IMPORT_MAX_BYTES = IMPORT_UPLOAD_MAX_BYTES
 
 # Cloud-import extensions dispatched to the tabular driver; everything else
 # runs through the regular nested JSON driver.

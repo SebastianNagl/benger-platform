@@ -103,12 +103,13 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: ["server", "/data"]
-    # Ephemeral - no persistent volumes. At least the 2 GiB import upload
+    # Ephemeral - no persistent volumes. At least the 5 GiB import upload
     # cap (upload_policy.IMPORT_UPLOAD_MAX_BYTES): MinIO refuses a presigned
     # upload whose policy maximum exceeds its free space, so a smaller tmpfs
-    # fails every import upload above about 128 KB with 507.
+    # fails every import upload above about 128 KB with 507. The size is a
+    # ceiling, not a reservation: tmpfs only holds what is written.
     tmpfs:
-      - /data:size=3G
+      - /data:size=6G
     networks:
       - benger-test-network
     healthcheck:

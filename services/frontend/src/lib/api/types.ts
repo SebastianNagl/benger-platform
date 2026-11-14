@@ -538,6 +538,8 @@ export interface CustomModel {
   base_url: string
   endpoint_model_name: string
   requires_api_key: boolean
+  /** Requests generation runs keep in flight at once; null = default (2). */
+  max_concurrent_requests?: number | null
   input_cost_per_million: number | null
   output_cost_per_million: number | null
   parameter_constraints?: ParameterConstraints | null
@@ -561,6 +563,7 @@ export interface CustomModelCreate {
   base_url: string
   endpoint_model_name: string
   requires_api_key: boolean
+  max_concurrent_requests?: number
   input_cost_per_million?: number
   output_cost_per_million?: number
   api_key?: string
@@ -573,6 +576,8 @@ export interface CustomModelUpdate {
   base_url?: string
   endpoint_model_name?: string
   requires_api_key?: boolean
+  /** null resets to the default. */
+  max_concurrent_requests?: number | null
   input_cost_per_million?: number | null
   output_cost_per_million?: number | null
   default_config?: Record<string, unknown>

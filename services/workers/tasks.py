@@ -1718,12 +1718,22 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
 # (2100s, shared/celery_queues.py) stays well below the Redis broker
 # visibility_timeout (7200s, worker_celery.py), so a slow but healthy call is
 # never redelivered while it is still running.
+#
+# A trial for a custom (BYOM) model first takes one of the model's request
+# slots (generation/endpoint_slots.py, llm_models.max_concurrent_requests).
+# With all taken it goes back to the queue for a few seconds rather than
+# sending its request into the provider's queue, where the wait would count
+# toward this task's time limit. The retry keeps the task id, so stop and
+# supersede still revoke it, and does not count against any retry budget.
 @app.task(
     name="tasks.generate_response",
+    bind=True,
+    max_retries=None,
     acks_late=True,
     reject_on_worker_lost=True,
 )
 def generate_response(
+    self,
     generation_id: str,
     project_id: str,
     task_id: str,
@@ -1733,16 +1743,35 @@ def generate_response(
     organization_id: str = None,
     run_index: int = 0,
 ) -> Dict[str, Any]:
-    return generate_response_impl(
-        generation_id,
-        project_id,
-        task_id,
-        model_id,
-        structure_key,
-        force_rerun,
-        organization_id,
-        run_index,
-    )
+    import celery_queues
+    from generation import endpoint_slots
+
+    try:
+        slot = endpoint_slots.acquire_for_job(
+            model_id,
+            self.request.id,
+            redis_client_factory=_get_progress_redis,
+            session_factory=SessionLocal,
+            # Outlives the hard limit, so a killed job's slot frees by expiry.
+            lease_seconds=celery_queues.time_limits_for("tasks.generate_response")[1] + 60,
+        )
+    except endpoint_slots.EndpointBusy as busy:
+        logger.debug(f"⏳ {busy}")
+        raise self.retry(countdown=busy.retry_in)
+    try:
+        return generate_response_impl(
+            generation_id,
+            project_id,
+            task_id,
+            model_id,
+            structure_key,
+            force_rerun,
+            organization_id,
+            run_index,
+        )
+    finally:
+        if slot is not None:
+            slot.release()
 
 
 # =============================================================================

@@ -2694,6 +2694,11 @@ class LLMModel(Base):
     # False = open endpoint (e.g. local vLLM/Ollama) — runs without a
     # per-user credential from custom_model_credentials.
     requires_api_key = Column(Boolean, default=True, server_default=sa.true(), nullable=False)
+    # Requests to a custom endpoint that generation runs keep in flight at
+    # once (migration 133); NULL = the worker default
+    # (generation/endpoint_slots.py). Further jobs wait in the Celery queue,
+    # not at the provider, where the wait would count toward their time limit.
+    max_concurrent_requests = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -2717,6 +2722,10 @@ class LLMModel(Base):
         sa.CheckConstraint(
             "NOT is_official OR (NOT is_private AND NOT is_public)",
             name="ck_llm_models_official_no_visibility_flags",
+        ),
+        sa.CheckConstraint(
+            "max_concurrent_requests IS NULL OR max_concurrent_requests >= 1",
+            name="ck_llm_models_max_concurrent_requests_positive",
         ),
         sa.Index(
             "ix_llm_models_is_public",
@@ -3614,10 +3623,14 @@ class ExportJob(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # When the job last changed, so its completion time once it is final.
+    # clock_timestamp(), not now(): the worker streams the whole job inside
+    # one transaction, and now() is the start of that transaction, which put
+    # the completion of a 529 s export about 1 s after its creation.
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
-        onupdate=func.now(),
+        onupdate=func.clock_timestamp(),
         nullable=False,
     )
     # When the stored artifact (and its presigned download) is no longer valid.
@@ -3700,10 +3713,14 @@ class ImportJob(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # When the job last changed, so its completion time once it is final.
+    # clock_timestamp(), not now(): the worker streams the whole job inside
+    # one transaction, and now() is the start of that transaction, which put
+    # the completion of a long import next to its creation, as it did for exports.
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
-        onupdate=func.now(),
+        onupdate=func.clock_timestamp(),
         nullable=False,
     )
     expires_at = Column(DateTime(timezone=True), nullable=True)

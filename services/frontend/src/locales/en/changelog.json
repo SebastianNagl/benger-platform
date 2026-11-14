@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-11-14-custom-model-concurrency": "Custom models have a new setting, “Concurrent requests”: how many requests a generation run sends to the endpoint at the same time (2 unless you set it). Further jobs wait in BenGER’s queue instead of at the provider, so a server that handles only a few requests at once no longer makes long runs fail on the time limit.",
     "2026-11-13-model-reasoning": "When a model returns its reasoning next to the answer, BenGER now stores it: you find it in the generation view in a collapsed section below the answer, and project exports include it. The reasoning of a judge model is stored with each evaluation too. Parsing and scoring still use the answer only.",
     "2026-11-12-open-deleted-projects": "Deleted projects can now be opened: the deleted projects list shows superadmins the same table as the active and archived lists, and a click opens a project so you can see its contents without restoring it first. A notice at the top of the page says it is deleted and offers the restore.",
     "2026-11-11-lti-openolat": "You can now connect OpenOlat too: the “Connect learning platform” panel lists OpenOlat as a learning platform of its own, and the guide “How do I connect OpenOlat?” walks you through the setup.",

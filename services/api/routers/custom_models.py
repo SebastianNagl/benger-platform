@@ -144,6 +144,16 @@ class CustomModelCreate(BaseModel):
     base_url: str = Field(..., max_length=500)  # llm_models.base_url is String(500)
     endpoint_model_name: str = Field(..., min_length=1, max_length=255)
     requires_api_key: bool = True
+    max_concurrent_requests: Optional[int] = Field(
+        None,
+        ge=1,
+        le=256,
+        strict=True,
+        description=(
+            "Requests generation runs keep in flight at once against this "
+            "endpoint; further jobs wait in the queue. Null = the default (2)."
+        ),
+    )
     model_type: str = "chat"
     capabilities: List[str] = ["text_generation"]
     input_cost_per_million: Optional[float] = Field(None, ge=0)
@@ -165,6 +175,17 @@ class CustomModelUpdate(BaseModel):
     description: Optional[str] = None
     endpoint_model_name: Optional[str] = Field(None, min_length=1, max_length=255)
     requires_api_key: Optional[bool] = None
+    # Null resets to the default.
+    max_concurrent_requests: Optional[int] = Field(
+        None,
+        ge=1,
+        le=256,
+        strict=True,
+        description=(
+            "Requests generation runs keep in flight at once against this "
+            "endpoint; further jobs wait in the queue. Null = the default (2)."
+        ),
+    )
     model_type: Optional[str] = None
     capabilities: Optional[List[str]] = None
     input_cost_per_million: Optional[float] = Field(None, ge=0)
@@ -243,6 +264,8 @@ class CustomModelResponse(BaseModel):
     base_url: str
     endpoint_model_name: str
     requires_api_key: bool = True
+    # Null = the worker default (generation/endpoint_slots.py).
+    max_concurrent_requests: Optional[int] = None
     # Caller-specific annotations
     organization_ids: List[str] = []
     has_credential: bool = False
@@ -281,6 +304,7 @@ def _to_response(
         base_url=model.base_url,
         endpoint_model_name=model.endpoint_model_name,
         requires_api_key=model.requires_api_key,
+        max_concurrent_requests=model.max_concurrent_requests,
         organization_ids=organization_ids,
         has_credential=has_credential,
         can_edit=can_edit,
@@ -375,6 +399,7 @@ async def create_custom_model(
         base_url=normalized_url,
         endpoint_model_name=body.endpoint_model_name,
         requires_api_key=body.requires_api_key,
+        max_concurrent_requests=body.max_concurrent_requests,
     )
     db.add(model)
     if share_org_id is not None:

@@ -389,7 +389,7 @@
         "**JSON** : un tableau d'objets `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Un objet contenant `data` est repris tel quel.",
         "**CSV/TSV** : la première ligne contient les noms de colonnes. **TXT** : chaque ligne devient une tâche avec le champ `text`.",
         "Les noms de champ sont associés sans tenir compte de la casse. `Sachverhalt` dans le fichier correspond à `$sachverhalt` dans le modèle.",
-        "Fichiers jusqu'à 2 Go. Enregistrez les fichiers texte en **UTF-8**, sinon les caractères accentués s'affichent mal."
+        "Fichiers jusqu'à 5 Go. Enregistrez les fichiers texte en **UTF-8**, sinon les caractères accentués s'affichent mal."
       ],
       "pitfalls": [
         "Le CSV est simplement découpé à chaque virgule. **Les virgules ou retours à la ligne à l'intérieur des cellules cassent la ligne.** Utilisez JSON pour les textes longs.",
@@ -1351,7 +1351,8 @@
         "Pour Python, il existe le paquet `benger-client` dans le dossier `clients/python` du dépôt de la plateforme. Une fois installé, vous vous connectez avec `from benger_client import BengerClient`.",
         "La référence sous `/api/v1/reference` recense tous les points d'accès avec leurs champs et l'autorisation nécessaire.",
         "La génération et l'évaluation s'exécutent en arrière-plan. Interrogez l'état toutes les quelques secondes au lieu d'attendre la réponse de l'appel de lancement.",
-        "Avec `\"mode\": \"missing\"` et sans `force_rerun`, un script interrompu reprend là où il s'était arrêté lors de son exécution suivante."
+        "Avec `\"mode\": \"missing\"` et sans `force_rerun`, un script interrompu reprend là où il s'était arrêté lors de son exécution suivante.",
+        "Si votre serveur ne traite que quelques requêtes à la fois, enregistrez le modèle avec `max_concurrent_requests` égal à ce nombre (2 sans indication). BenGER n’envoie alors pas plus de requêtes à la fois, et les tâches suivantes attendent dans sa file au lieu d’atteindre leur limite de temps sur votre serveur."
       ],
       "pitfalls": [
         "Une clé limitée à certains projets n'atteint que ces projets et n'en crée pas de nouveaux. Un pipeline qui crée ses propres projets a besoin d'une clé sans limitation de projet.",

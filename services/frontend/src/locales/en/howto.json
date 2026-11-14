@@ -352,7 +352,7 @@
         "**JSON**: an array of objects `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. An object that already has a `data` key is taken as is.",
         "**CSV/TSV**: the first line holds the column names. **TXT**: every line becomes a task with the field `text`.",
         "Field names are matched case-insensitively. `Sachverhalt` in the file matches `$sachverhalt` in the template.",
-        "Files up to 2 GB. Save text files as **UTF-8**, otherwise umlauts break."
+        "Files up to 5 GB. Save text files as **UTF-8**, otherwise umlauts break."
       ],
       "pitfalls": [
         "CSV is split on the comma, plainly. **Commas or line breaks inside cells tear the row apart.** Use JSON for running text.",
@@ -1209,7 +1209,8 @@
         "For Python there is the `benger-client` package in the `clients/python` folder of the platform repository. After installing it you connect with `from benger_client import BengerClient`.",
         "The reference at `/api/v1/reference` lists every endpoint with its fields and the permission it needs.",
         "Generation and evaluation run in the background. Poll the status every few seconds instead of waiting on the start call.",
-        "With `\"mode\": \"missing\"` and without `force_rerun`, an interrupted script picks up where it stopped on its next run."
+        "With `\"mode\": \"missing\"` and without `force_rerun`, an interrupted script picks up where it stopped on its next run.",
+        "If your server answers only a few requests at a time, register the model with `max_concurrent_requests` set to that number (2 when left out). BenGER then sends no more requests at once, and further jobs wait in its queue instead of running into their time limit at your server."
       ],
       "pitfalls": [
         "A key limited to single projects only reaches those projects and creates no new ones. A pipeline that creates its own projects needs a key without a project limit.",
