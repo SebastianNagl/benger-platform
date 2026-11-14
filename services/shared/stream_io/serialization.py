@@ -184,6 +184,11 @@ def serialize_task_assignment_row(a) -> dict:
         "task_id": a.task_id,
         "user_id": a.user_id,
         "assigned_by": a.assigned_by,
+        # What the row assigns: the whole task ("task", no target_id) or one
+        # item of it that Korrektur hands out ("annotation" / "generation"
+        # with that row's id). One (task, user) pair holds one row per target.
+        "target_type": a.target_type,
+        "target_id": a.target_id,
         "status": a.status,
         "priority": a.priority,
         "due_date": _iso(a.due_date),

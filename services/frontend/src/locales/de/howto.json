@@ -409,7 +409,7 @@
         "**JSON**: ein Array von Objekten `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Ein Objekt mit `data` darin wird unverändert übernommen.",
         "**CSV/TSV**: erste Zeile sind die Spaltennamen. **TXT**: jede Zeile wird eine Aufgabe mit dem Feld `text`.",
         "Feldnamen werden ohne Rücksicht auf Groß-/Kleinschreibung zugeordnet. `Sachverhalt` in der Datei passt zu `$sachverhalt` in der Vorlage.",
-        "Dateien bis 2 GB. Speichere Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
+        "Dateien bis 5 GB. Speichere Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
       ],
       "pitfalls": [
         "CSV wird einfach am Komma getrennt. **Kommas oder Zeilenumbrüche innerhalb von Zellen zerreißen die Zeile.** Nutze für Fließtexte JSON.",
@@ -1323,7 +1323,8 @@
         "Für Python gibt es den Client `benger-client` im Ordner `clients/python` des Plattform-Repositorys. Nach der Installation verbindest du dich mit `from benger_client import BengerClient`.",
         "Alle Endpunkte mit ihren Feldern und der jeweils nötigen Berechtigung findest du in der Referenz unter `/api/v1/reference`.",
         "Generierung und Evaluation laufen im Hintergrund. Frag den Stand alle paar Sekunden ab, statt auf den Start-Aufruf zu warten.",
-        "Mit `\"mode\": \"missing\"` und ohne `force_rerun` setzt ein abgebrochenes Skript beim nächsten Lauf dort fort, wo es aufgehört hat."
+        "Mit `\"mode\": \"missing\"` und ohne `force_rerun` setzt ein abgebrochenes Skript beim nächsten Lauf dort fort, wo es aufgehört hat.",
+        "Bearbeitet Ihr Server nur wenige Anfragen gleichzeitig, registrieren Sie das Modell mit `max_concurrent_requests` auf genau diese Zahl (ohne Angabe 2). BenGER schickt dann nicht mehr Anfragen auf einmal, und weitere Aufgaben warten in seiner Warteschlange, statt bei Ihrem Server in ihr Zeitlimit zu laufen."
       ],
       "pitfalls": [
         "Ein Schlüssel, der auf einzelne Projekte beschränkt ist, erreicht nur diese Projekte und legt keine neuen an. Für eine Pipeline, die eigene Projekte anlegt, brauchst du einen Schlüssel ohne Projektbeschränkung.",

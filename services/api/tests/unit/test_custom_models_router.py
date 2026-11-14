@@ -378,6 +378,96 @@ class TestParameterConstraintsValidation:
         assert response.json()["parameter_constraints"] == {"max_tokens": {"max": 16000}}
 
 
+class TestConcurrencyLimit:
+    """``max_concurrent_requests``: how many requests generation keeps in
+    flight against the endpoint; null means the worker default."""
+
+    @pytest.mark.asyncio
+    async def test_create_stores_the_limit(self, async_test_client, async_test_db):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Qwen on the lab server",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "qwen3-4b",
+                    "max_concurrent_requests": 2,
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["max_concurrent_requests"] == 2
+        row = await async_test_db.get(DBLLMModel, response.json()["id"])
+        assert row.max_concurrent_requests == 2
+
+    @pytest.mark.asyncio
+    async def test_create_without_limit_keeps_the_default(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Default limit",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "qwen3-4b",
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["max_concurrent_requests"] is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad", [0, -1, 257, "two", True])
+    async def test_out_of_range_is_refused(self, async_test_client, async_test_db, bad):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"max_concurrent_requests": bad},
+            )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.asyncio
+    async def test_patch_sets_and_null_resets(self, async_test_client, async_test_db):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            set_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"max_concurrent_requests": 8},
+            )
+            other_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}", json={"description": "lab"}
+            )
+            reset_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"max_concurrent_requests": None},
+            )
+        assert set_response.json()["max_concurrent_requests"] == 8
+        # A PATCH that does not name the limit keeps it.
+        assert other_response.json()["max_concurrent_requests"] == 8
+        assert reset_response.status_code == status.HTTP_200_OK
+        assert reset_response.json()["max_concurrent_requests"] is None
+
+
 class TestOrgSharedAccess:
     @pytest.mark.asyncio
     async def test_org_member_can_read_but_not_modify(

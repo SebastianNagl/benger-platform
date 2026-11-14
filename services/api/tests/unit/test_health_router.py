@@ -574,7 +574,9 @@ class TestHealthStorageFreeSpace:
         assert data["storage_free_bytes"] == 1024 ** 3
 
     def test_enough_free_space_is_healthy(self):
-        data = self._get(3 * 1024 ** 3).json()
+        from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
+
+        data = self._get(IMPORT_UPLOAD_MAX_BYTES + 1024 ** 3).json()
         assert data["status"] == "healthy"
         assert data["storage"] == "ok"
 

@@ -99,7 +99,6 @@ from serializers import CALL_TELEMETRY_FIELDS, _parse_iso
 # Shared batch helper extracted alongside the export side. See
 # stream_io/__init__.py for why the package is named stream_io and not io.
 from stream_io.batch_utils import flush_every, stream_array_rows
-from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -1449,7 +1448,7 @@ class _FullImportContext:
         "active_annotation_keys",
         "skipped_annotations",
         "stub_users_created",
-        "task_level_assignment_keys",
+        "assignment_keys",
         "model_id_map",
         "run_indexes",
         "organization_id",
@@ -1503,18 +1502,22 @@ class _FullImportContext:
         # opinion (see _insert_grading_feedback).
         self.matched_user_ids: Dict[str, str] = {}
         self.grading_feedback_seen: set = set()
-        # (new task id, new user id) of imported active annotations and of
-        # imported task-level assignments. Several exported accounts can map
-        # to the same user (the importer fallback), and both tables allow one
-        # such row per pair (uq_annotations_active_task_user,
-        # uniq_task_level_assignment); a second one would fail the import.
+        # (new task id, new user id) of imported active annotations. Several
+        # exported accounts can map to the same user (the importer fallback),
+        # and the table allows one such row per pair
+        # (uq_annotations_active_task_user); a second one would fail the
+        # import.
         self.active_annotation_keys: Set[tuple] = set()
         # Answers dropped because their author collapsed onto a user who
         # already holds the task's active annotation. Reported in the stats.
         self.skipped_annotations = 0
         # Placeholder accounts created for exported users unknown here.
         self.stub_users_created = 0
-        self.task_level_assignment_keys: Set[tuple] = set()
+        # (new task id, new user id, target type, new target id) of imported
+        # task assignments, task-level and item-level alike, for the same
+        # reason: the partial unique indexes on task_assignments allow one row
+        # per key.
+        self.assignment_keys: Set[tuple] = set()
         self.task_counter = 1
         self.te_seen = 0
         self.comment_id_mapping: Dict[str, str] = {}
@@ -2345,30 +2348,51 @@ def _insert_grading_feedback(ctx: _FullImportContext, fb: dict) -> None:
 
 
 def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> None:
-    old_assignment_id = assignment_data.get("id", str(uuid.uuid4()))
-    new_assignment_id = str(uuid.uuid4())
-    ctx.id_mappings["task_assignments"][old_assignment_id] = new_assignment_id
-
     task_id = ctx.id_mappings["tasks"].get(assignment_data.get("task_id"))
     assignment_user_id = ctx.id_mappings["users"].get(assignment_data.get("user_id"))
     assigned_by = ctx.id_mappings["users"].get(
         assignment_data.get("assigned_by"), ctx.user_id
     )
+    if not (task_id and assignment_user_id):  # Only import if both mappings exist
+        return
 
-    if task_id and assignment_user_id:  # Only import if both mappings exist
-        # Exports carry task-level assignments only, and at most one per
-        # (task, user) may exist; collapsed users would repeat the pair.
-        key = (task_id, assignment_user_id)
-        if key in ctx.task_level_assignment_keys:
+    # A row assigns the whole task (target_type "task", exports before
+    # target_type was written carry only these) or one item of it that
+    # Korrektur hands out: an annotation or a generation, whose id is
+    # remapped to the imported copy. An item whose row did not come along
+    # has nothing to point at and is dropped.
+    target_type = assignment_data.get("target_type") or "task"
+    target_id = None
+    if target_type != "task":
+        mapping = {
+            "annotation": ctx.id_mappings["annotations"],
+            "generation": ctx.id_mappings["generations"],
+        }.get(target_type)
+        target_id = mapping.get(assignment_data.get("target_id")) if mapping else None
+        if not target_id:
             return
-        ctx.task_level_assignment_keys.add(key)
-        # TaskAssignment has no project column (the task carries it); passing
-        # one made every import of a project with assignments fail.
-        new_assignment = TaskAssignment(
+
+    # At most one row per (task, user, target) may exist (the partial unique
+    # indexes on task_assignments); users collapsed onto one account by the
+    # import would repeat the key.
+    key = (task_id, assignment_user_id, target_type, target_id)
+    if key in ctx.assignment_keys:
+        return
+    ctx.assignment_keys.add(key)
+
+    old_assignment_id = assignment_data.get("id") or str(uuid.uuid4())
+    new_assignment_id = str(uuid.uuid4())
+    ctx.id_mappings["task_assignments"][old_assignment_id] = new_assignment_id
+    # TaskAssignment has no project column (the task carries it); passing
+    # one made every import of a project with assignments fail.
+    ctx.db.add(
+        TaskAssignment(
             id=new_assignment_id,
             task_id=task_id,
             user_id=assignment_user_id,
             assigned_by=assigned_by,
+            target_type=target_type,
+            target_id=target_id,
             status=assignment_data.get("status", "assigned"),
             priority=_setting(assignment_data, "priority", 0),
             notes=assignment_data.get("notes"),
@@ -2376,8 +2400,7 @@ def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> N
                 assignment_data, "due_date", "assigned_at", "started_at", "completed_at"
             ),
         )
-
-        ctx.db.add(new_assignment)
+    )
 
 
 def _insert_post_annotation_response(ctx: _FullImportContext, par_data: dict) -> None:
@@ -3012,16 +3035,18 @@ _GZIP_MAGIC = b"\x1f\x8b"
 # disk past 4MB instead of ballooning resident memory.
 _DECOMPRESS_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
-# Default cap on what a compressed upload may inflate to: a 2 GiB gzip of
-# compressible data could otherwise fill about 2 TB of worker temp disk.
-_DEFAULT_MAX_DECOMPRESSED_BYTES = 20 * IMPORT_UPLOAD_MAX_BYTES
+# Default cap on what a compressed upload may inflate to: a gzip at the upload
+# cap made of compressible data could otherwise inflate about a thousandfold
+# and fill the worker's temp disk. Fixed rather than tied to the upload cap, so
+# raising the upload cap does not raise the temp disk an import may use.
+_DEFAULT_MAX_DECOMPRESSED_BYTES = 40 * 1024**3
 _COPY_CHUNK = 1024 * 1024
 
 
 def max_decompressed_bytes() -> int:
     """The decompressed-size cap of an import, from
-    ``IMPORT_MAX_DECOMPRESSED_BYTES`` (bytes; default 20 times the upload
-    cap). Read per call so a deployment change needs no code change."""
+    ``IMPORT_MAX_DECOMPRESSED_BYTES`` (bytes; default 40 GiB). Read per
+    call so a deployment change needs no code change."""
     raw = os.environ.get("IMPORT_MAX_DECOMPRESSED_BYTES")
     try:
         value = int(raw) if raw else 0
