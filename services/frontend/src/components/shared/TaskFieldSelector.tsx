@@ -1,14 +1,16 @@
 'use client'
 
 import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectGroupLabel,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
-import { Listbox } from '@headlessui/react'
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  ExclamationCircleIcon,
-} from '@heroicons/react/24/outline'
+import { ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import { LoadingSpinner } from './LoadingSpinner'
@@ -151,137 +153,97 @@ export function TaskFieldSelector({
 
   return (
     <div className={clsx('relative', className)}>
-      <Listbox value={value} onChange={onChange} disabled={disabled}>
-        <div className="relative">
-          <Listbox.Button
+      <Select
+        searchable
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        emptyMessage={
+          fields.length === 0 ? t('taskFields.noFields') : undefined
+        }
+      >
+        <SelectTrigger>
+          <span
             className={clsx(
-              'relative w-full cursor-default rounded-md border border-zinc-300 bg-white py-2 pr-10 pl-3 text-left shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-700 dark:bg-zinc-800',
-              'disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:disabled:bg-zinc-900',
+              'block truncate',
+              value
+                ? 'text-zinc-900 dark:text-white'
+                : 'text-zinc-500 dark:text-zinc-400',
             )}
           >
-            <span
-              className={clsx(
-                'block truncate',
-                value
-                  ? 'text-zinc-900 dark:text-white'
-                  : 'text-zinc-500 dark:text-zinc-400',
-              )}
-            >
-              {selectedField ? (
-                <span className="flex items-center gap-2">
-                  <code className="rounded bg-zinc-100 px-1 font-mono text-xs dark:bg-zinc-700">
-                    {selectedField.path}
-                  </code>
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    {selectedField.display_name}
-                  </span>
-                </span>
-              ) : value ? (
+            {selectedField ? (
+              <span className="flex items-center gap-2">
                 <code className="rounded bg-zinc-100 px-1 font-mono text-xs dark:bg-zinc-700">
-                  {value}
+                  {selectedField.path}
                 </code>
-              ) : (
-                placeholder || t('taskFields.selectField')
-              )}
-            </span>
-            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-              <ChevronDownIcon
-                className="h-4 w-4 text-zinc-400"
-                aria-hidden="true"
-              />
-            </span>
-          </Listbox.Button>
-
-          <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm dark:bg-zinc-800">
-            {fields.length === 0 ? (
-              <div className="px-4 py-2 text-sm text-zinc-500">
-                {t('taskFields.noFields')}
-              </div>
+                <span className="truncate text-zinc-500 dark:text-zinc-400">
+                  {selectedField.display_name}
+                </span>
+              </span>
+            ) : value ? (
+              <code className="rounded bg-zinc-100 px-1 font-mono text-xs dark:bg-zinc-700">
+                {value}
+              </code>
             ) : (
-              <>
-                {topLevelFields.length > 0 && (
-                  <div>
-                    <div className="px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                      {t('taskFields.topLevelFields')}
-                    </div>
-                    {topLevelFields.map((field) => (
-                      <FieldOption key={field.path} field={field} />
-                    ))}
-                  </div>
-                )}
-
-                {nestedFields.length > 0 && (
-                  <div>
-                    <div className="mt-2 border-t border-zinc-200 px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400">
-                      {t('taskFields.nestedFields')}
-                    </div>
-                    {nestedFields.map((field) => (
-                      <FieldOption key={field.path} field={field} />
-                    ))}
-                  </div>
-                )}
-
-                {allowManualEntry && (
-                  <div className="mt-2 border-t border-zinc-200 dark:border-zinc-700">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setIsManualMode(true)
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
-                    >
-                      {t('taskFields.enterManually')}
-                    </button>
-                  </div>
-                )}
-              </>
+              placeholder || t('taskFields.selectField')
             )}
-          </Listbox.Options>
-        </div>
-      </Listbox>
+          </span>
+        </SelectTrigger>
+
+        <SelectContent>
+          {topLevelFields.length > 0 && (
+            <SelectGroupLabel>
+              {t('taskFields.topLevelFields')}
+            </SelectGroupLabel>
+          )}
+          {topLevelFields.map((field) => fieldOption(field))}
+
+          {nestedFields.length > 0 && (
+            <SelectGroupLabel>{t('taskFields.nestedFields')}</SelectGroupLabel>
+          )}
+          {nestedFields.map((field) => fieldOption(field))}
+
+          {allowManualEntry && (
+            <div className="mt-1 border-t border-zinc-200 dark:border-zinc-700">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  setIsManualMode(true)
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+              >
+                {t('taskFields.enterManually')}
+              </button>
+            </div>
+          )}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
 
-interface FieldOptionProps {
-  field: TaskFieldInfo
-}
-
-function FieldOption({ field }: FieldOptionProps) {
+/** One field: its path and name sort and search; the sample is a hint. */
+function fieldOption(field: TaskFieldInfo) {
   return (
-    <Listbox.Option
+    <SelectItem
+      key={field.path}
       value={field.path}
-      className={({ active }) =>
-        clsx(
-          'relative cursor-default py-2 pr-4 pl-10 select-none',
-          active
-            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
-            : 'text-zinc-900 dark:text-zinc-100',
-        )
-      }
+      textValue={`${field.path} ${field.display_name}`}
     >
-      {({ selected }) => (
-        <>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <code className="rounded bg-zinc-100 px-1 font-mono text-xs dark:bg-zinc-700">
-                {field.path}
-              </code>
-              <span className="text-sm font-medium">{field.display_name}</span>
-            </div>
-            {field.sample_value && (
-              <span className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-                {field.sample_value}
-              </span>
-            )}
-          </div>
-          {selected && (
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-600 dark:text-emerald-400">
-              <CheckIcon className="h-5 w-5" aria-hidden="true" />
-            </span>
-          )}
-        </>
-      )}
-    </Listbox.Option>
+      <span className="flex flex-col">
+        <span className="flex items-center gap-2">
+          <code className="rounded bg-zinc-100 px-1 font-mono text-xs dark:bg-zinc-700">
+            {field.path}
+          </code>
+          <span className="text-sm font-medium">{field.display_name}</span>
+        </span>
+        {field.sample_value && (
+          <span className="mt-0.5 truncate text-xs font-normal text-zinc-500 dark:text-zinc-400">
+            {field.sample_value}
+          </span>
+        )}
+      </span>
+    </SelectItem>
   )
 }

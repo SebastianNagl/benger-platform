@@ -4042,7 +4042,8 @@
     "clear": "Effacer la sélection",
     "menu": "Menu",
     "refresh": "Actualiser",
-    "unknownUser": "Utilisateur inconnu"
+    "unknownUser": "Utilisateur inconnu",
+    "noMatches": "Aucun résultat"
   },
   "validation": {
     "required": "Ce champ est obligatoire",

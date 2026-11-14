@@ -1040,6 +1040,7 @@ export function OrganizationsTab() {
             {t('admin.organizations.groups.inviteGroupLabel')}
           </label>
           <Select
+            searchable
             value={inviteGroupId}
             onValueChange={handleInviteGroupChange}
             displayValue={inviteGroupDisplayValue(inviteGroupId)}
@@ -1051,7 +1052,7 @@ export function OrganizationsTab() {
             </SelectTrigger>
             <SelectContent>
               {!inviteViaGroupOnly && (
-                <SelectItem value="">
+                <SelectItem pinned value="">
                   {t('admin.organizations.groups.inviteGroupNone')}
                 </SelectItem>
               )}
@@ -1915,6 +1916,7 @@ export function OrganizationsTab() {
                     {t('admin.organizations.selectUser')}
                   </label>
                   <Select
+                    searchable
                     value={selectedUserId}
                     onValueChange={setSelectedUserId}
                     displayValue={
@@ -1996,6 +1998,7 @@ export function OrganizationsTab() {
                       {t('admin.organizations.groups.addUserGroupLabel')}
                     </label>
                     <Select
+                      searchable
                       value={addUserGroupId}
                       onValueChange={setAddUserGroupId}
                       displayValue={inviteGroupDisplayValue(addUserGroupId)}
@@ -2008,7 +2011,7 @@ export function OrganizationsTab() {
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">
+                        <SelectItem pinned value="">
                           {t('admin.organizations.groups.inviteGroupNone')}
                         </SelectItem>
                         {addUserSelectableGroups.map((group) => (

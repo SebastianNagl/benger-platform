@@ -655,7 +655,7 @@ function AllowlistEditor({
           </label>
           <div className="mt-1 flex gap-2">
             <div className="min-w-0 flex-1">
-              <Select value={orgId} onValueChange={setOrgId}>
+              <Select searchable value={orgId} onValueChange={setOrgId}>
                 <SelectTrigger
                   id={`ff-org-select-${row.name}`}
                   data-testid={`ff-org-select-${row.name}`}

@@ -1411,6 +1411,7 @@ export default function AdminUsersPage() {
                     {t('admin.usersPage.selectUser')}
                   </label>
                   <Select
+                    searchable
                     value={selectedUserId}
                     onValueChange={setSelectedUserId}
                     displayValue={
