@@ -1,0 +1,41 @@
+# Traefik settings of the K3s cluster that runs BenGER (prod, staging, demo).
+#
+# K3s bundles Traefik in kube-system and installs it from its own HelmChart,
+# so the Benger chart cannot set Traefik's static options; this
+# HelmChartConfig does. It is cluster-wide (one per cluster, name and
+# namespace fixed by K3s), which is why it lives here and not in a release
+# of infra/helm/benger. Apply it once per cluster and again after a change:
+#
+#   cp infra/k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+#
+# on the K3s server (K3s applies files in that directory by itself), or
+# `kubectl apply -f infra/k3s/traefik-config.yaml`. If the server already has
+# a traefik-config.yaml, merge valuesContent into it: K3s keeps one
+# HelmChartConfig named traefik, so a second file replaces the first.
+# Traefik restarts once with the new arguments.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      websecure:
+        transport:
+          respondingTimeouts:
+            # How long Traefik waits for a whole request, body included.
+            # Traefik v3 defaults to 60 s, which cut every presigned upload
+            # to the storage host (storage.<domain>) at about 60 s: 321 MB at
+            # 5.3 MB/s, while a project import may be 5 GiB
+            # (upload_policy.IMPORT_UPLOAD_MAX_BYTES, Helm value
+            # minio.importUploadMaxBytes). 3600 s is the lifetime of the
+            # presigned upload policy, and carries a 5 GiB upload at
+            # 1.5 MB/s. Traefik sets this per entrypoint, not per route, so
+            # it applies to every HTTPS host of the cluster, and it also
+            # bounds how long a client may take to send its headers: the
+            # price of long uploads is less protection against very slow
+            # clients. Idle keep-alive connections still close after
+            # idleTimeout (180 s). Keep it at least
+            # importUploadMaxBytes / the slowest uplink to support.
+            readTimeout: 3600s

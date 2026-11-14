@@ -954,6 +954,14 @@ minio:
   # enabled — SigV4 binds the host, so this is the host the URL is signed for.
   # Covered by the existing wildcard cert (*.what-a-benger.net).
   publicHost: storage.what-a-benger.net
+  # Largest project import a client may upload (bytes), set as
+  # IMPORT_UPLOAD_MAX_BYTES on api and workers: the presigned policy's
+  # content-length-range, the cloud-import check and (times 20) the
+  # decompression cap. 5 GiB is the single-upload maximum of S3. MinIO refuses
+  # every import upload while its free space is below this, and the proxy in
+  # front of publicHost must let an upload of this size finish
+  # (infra/k3s/traefik-config.yaml).
+  importUploadMaxBytes: 5368709120
   credentialsSecret: benger-minio-credentials
   accessKeySecretKey: access-key
   secretKeySecretKey: secret-key

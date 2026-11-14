@@ -13,6 +13,8 @@ import pytest
 
 from storage.upload_policy import (
     DEFAULT_MAX_UPLOAD_BYTES,
+    IMPORT_UPLOAD_MAX_BYTES,
+    SINGLE_UPLOAD_MAX_BYTES,
     UploadPolicyError,
     clamp_download_expiry,
     clamp_max_size,
@@ -230,3 +232,48 @@ class TestObjectStorageDefaults:
         params = service.s3_client.generate_presigned_url.call_args.kwargs["Params"]
         assert params["ResponseContentType"] == "application/octet-stream"
         assert params["ResponseContentDisposition"] == "inline"
+
+
+@pytest.mark.unit
+class TestImportUploadCap:
+    """One configurable cap bounds a project import (IMPORT_UPLOAD_MAX_BYTES)."""
+
+    def test_default_is_the_single_upload_maximum(self):
+        assert IMPORT_UPLOAD_MAX_BYTES == SINGLE_UPLOAD_MAX_BYTES == 5 * 1024**3
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("3221225472", 3 * 1024**3),
+            (" 1048576 ", 1024**2),
+            ("", 5 * 1024**3),
+            ("0", 5 * 1024**3),
+            ("-5", 5 * 1024**3),
+            ("4GiB", 5 * 1024**3),
+        ],
+    )
+    def test_read_from_the_environment(self, monkeypatch, raw, expected):
+        from storage.upload_policy import _import_upload_max_bytes
+
+        monkeypatch.setenv("IMPORT_UPLOAD_MAX_BYTES", raw)
+        assert _import_upload_max_bytes() == expected
+
+    def test_import_policy_carries_the_cap(self):
+        service = _s3_service()
+        service.PREFIXES = {"imports": "imports/{year}/{month}"}
+        service.s3_client.generate_presigned_post.return_value = {"url": "u", "fields": {}}
+        service.get_upload_url(
+            "zjs.ndjson.gz",
+            file_type="imports",
+            user_id="p1",
+            content_type="application/json",
+            max_size=IMPORT_UPLOAD_MAX_BYTES,
+        )
+        conditions = service.s3_client.generate_presigned_post.call_args.kwargs["Conditions"]
+        assert ["content-length-range", 0, IMPORT_UPLOAD_MAX_BYTES] in conditions
+
+    def test_decompression_cap_follows_the_upload_cap(self, monkeypatch):
+        from import_stream import max_decompressed_bytes
+
+        monkeypatch.delenv("IMPORT_MAX_DECOMPRESSED_BYTES", raising=False)
+        assert max_decompressed_bytes() == 20 * IMPORT_UPLOAD_MAX_BYTES

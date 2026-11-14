@@ -409,7 +409,7 @@
         "**JSON**: ein Array von Objekten `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Ein Objekt mit `data` darin wird unverändert übernommen.",
         "**CSV/TSV**: erste Zeile sind die Spaltennamen. **TXT**: jede Zeile wird eine Aufgabe mit dem Feld `text`.",
         "Feldnamen werden ohne Rücksicht auf Groß-/Kleinschreibung zugeordnet. `Sachverhalt` in der Datei passt zu `$sachverhalt` in der Vorlage.",
-        "Dateien bis 2 GB. Speichere Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
+        "Dateien bis 5 GB. Speichere Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
       ],
       "pitfalls": [
         "CSV wird einfach am Komma getrennt. **Kommas oder Zeilenumbrüche innerhalb von Zellen zerreißen die Zeile.** Nutze für Fließtexte JSON.",

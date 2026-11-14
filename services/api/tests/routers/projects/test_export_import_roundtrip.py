@@ -3015,8 +3015,9 @@ class TestDecompressedSizeCap:
 
     def test_default_cap_is_twenty_times_the_upload_cap(self, monkeypatch):
         from routers.projects._import_stream import max_decompressed_bytes
+        from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES
 
         monkeypatch.delenv("IMPORT_MAX_DECOMPRESSED_BYTES", raising=False)
-        assert max_decompressed_bytes() == 20 * 2 * 1024 ** 3
+        assert max_decompressed_bytes() == 20 * IMPORT_UPLOAD_MAX_BYTES
         monkeypatch.setenv("IMPORT_MAX_DECOMPRESSED_BYTES", "not-a-number")
-        assert max_decompressed_bytes() == 20 * 2 * 1024 ** 3
+        assert max_decompressed_bytes() == 20 * IMPORT_UPLOAD_MAX_BYTES

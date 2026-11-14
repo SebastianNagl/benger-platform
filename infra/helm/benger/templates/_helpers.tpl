@@ -29,6 +29,12 @@ credentials, so the app authenticates as the MinIO root user.
   value: {{ .Values.minio.region | default "us-east-1" | quote }}
 - name: STORAGE_BASE_URL
   value: {{ printf "https://%s" (required "minio.publicHost is required when minio.enabled=true" .Values.minio.publicHost) | quote }}
+{{- with .Values.minio.importUploadMaxBytes }}
+# The one import cap (storage/upload_policy.py), on api and workers alike so
+# the upload policy and the worker checks agree.
+- name: IMPORT_UPLOAD_MAX_BYTES
+  value: {{ . | int64 | toString | quote }}
+{{- end }}
 - name: S3_ACCESS_KEY
   valueFrom:
     secretKeyRef:

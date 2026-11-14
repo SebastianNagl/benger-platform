@@ -170,9 +170,27 @@ HTTP-style status, e.g. 409) and `error_code`, a stable token such as
 `merge_task_mismatch`, `merge_unknown_models`, `task_export_not_project` or
 `import_too_large`.
 
-A compressed upload (gzip or zip) may inflate to at most 20 times the 2 GiB
-upload cap; past that the job fails with 413 `import_too_large`. Set
-`IMPORT_MAX_DECOMPRESSED_BYTES` (bytes) on the workers to change the limit.
+An upload may be at most 5 GiB, the largest object S3 takes in one upload;
+the presigned policy refuses a larger file. The cap is
+`IMPORT_UPLOAD_MAX_BYTES` (bytes, Helm value `minio.importUploadMaxBytes`),
+set on the API and the workers alike, because the same number bounds a cloud
+import in the worker. Object storage needs at least that much free space, or
+MinIO refuses every import upload with 507; `/health` reports
+`low_free_space` below it. A file of several GB takes minutes to upload, so
+the proxy in front of the storage host must allow long requests (see
+`infra/k3s/traefik-config.yaml`).
+
+A compressed upload (gzip or zip) may inflate to at most 20 times the upload
+cap (100 GiB at the default); past that the job fails with 413
+`import_too_large`. Set `IMPORT_MAX_DECOMPRESSED_BYTES` (bytes) on the workers
+to change the limit.
+
+Task assignments travel with their target: a row that assigns the whole task
+and the rows Korrektur creates for single items of it (an annotation or a
+generation, `target_type` and `target_id`) are all exported and imported, the
+item rows pointing at the imported copy of their item. Exports written before
+these fields existed carry the item rows without their target, so importing
+one keeps only one assignment per task and user; export again to keep them all.
 
 Imported generation jobs are attributed to the organization that owns the
 project they land in (the organization the import names, or the merge target's

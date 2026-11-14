@@ -125,6 +125,15 @@ docker --version
 helm version
 ```
 
+The Traefik that K3s bundles waits at most 60 s for a request body, which cuts
+large presigned uploads to the storage host (project imports may be up to
+5 GiB). Raise that limit once per cluster with the HelmChartConfig in
+`infra/k3s/traefik-config.yaml`; its comments say how to apply it:
+
+```bash
+sudo cp infra/k3s/traefik-config.yaml /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+```
+
 ---
 
 ## 🎯 Automated Deployment (Recommended)

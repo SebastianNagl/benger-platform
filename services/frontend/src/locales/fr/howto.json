@@ -389,7 +389,7 @@
         "**JSON** : un tableau d'objets `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Un objet contenant `data` est repris tel quel.",
         "**CSV/TSV** : la première ligne contient les noms de colonnes. **TXT** : chaque ligne devient une tâche avec le champ `text`.",
         "Les noms de champ sont associés sans tenir compte de la casse. `Sachverhalt` dans le fichier correspond à `$sachverhalt` dans le modèle.",
-        "Fichiers jusqu'à 2 Go. Enregistrez les fichiers texte en **UTF-8**, sinon les caractères accentués s'affichent mal."
+        "Fichiers jusqu'à 5 Go. Enregistrez les fichiers texte en **UTF-8**, sinon les caractères accentués s'affichent mal."
       ],
       "pitfalls": [
         "Le CSV est simplement découpé à chaque virgule. **Les virgules ou retours à la ligne à l'intérieur des cellules cassent la ligne.** Utilisez JSON pour les textes longs.",
