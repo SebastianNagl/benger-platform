@@ -144,8 +144,8 @@ def content_type_for_filename(filename: Optional[str]) -> Optional[str]:
 
 
 # Content type of an import upload by file name, as the export stores the
-# same formats (export_stream.EXPORT_FORMATS). Longest suffix first, so a
-# gzipped export is not taken for its inner format.
+# same formats (export_stream.EXPORT_FORMATS). The outer extension is checked
+# first, so a gzipped export is not taken for its inner format.
 _IMPORT_SUFFIX_TYPES = (
     (".gz", "application/gzip"),
     (".ndjson", "application/x-ndjson"),

@@ -3737,8 +3737,9 @@ else:
 #     so the first cell per worker pays the load cost and the rest are free.
 #   * `evaluate_missing_only` double-eval → orchestrator pre-filters
 #     `configs_for_cell` against the existing-evaluations set; the partial
-#     unique index from migration 048 plus `ON CONFLICT DO NOTHING` at
-#     insert time is the defense-in-depth against concurrent triggers.
+#     unique index from migration 049 plus `_bulk_upsert_task_evaluations`
+#     (which only replaces a retryable error row) at insert time is the
+#     defense-in-depth against concurrent triggers.
 #   * `samples_evaluated` lost updates → SQL `UPDATE ... SET col = col + :n`
 #     from each sub-task; Postgres serializes on the row.
 #   * Parent status finalization race → Celery chord callback fires
@@ -4250,9 +4251,9 @@ def _bulk_upsert_task_evaluations(
     was counted once already as a failed sample, so it adds no row and
     moves its count from failed to passed when the regrade passed.
     `rows_written` counts inserted plus replaced rows: a replaced row that
-    failed again changes no counter but is still new work to report. On a Celery message redelivery, all
-    rows hit conflict and `(0, 0, 0, 0)` is returned: the redelivered task
-    contributes nothing to
+    failed again changes no counter but is still new work to report. On a
+    Celery message redelivery, all rows hit conflict and `(0, 0, 0, 0)` is
+    returned: the redelivered task contributes nothing to
     `samples_evaluated` / `samples_passed` / `samples_failed`, eliminating
     the double-bump race that an unconditional `samples_evaluated += N`
     would have on retry.
