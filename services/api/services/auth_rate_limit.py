@@ -74,6 +74,8 @@ VERIFICATION_MAIL = "auth_verify_mail"
 PASSWORD_RESET_TOKEN = "auth_reset_token"
 ACCOUNT_ACTIVATION = "auth_activate"
 SIGNUP = "auth_signup"
+EMAIL_CHANGE_MAIL = "auth_email_change_mail"
+EMAIL_CHANGE_TOKEN = "auth_email_change_token"
 
 #: Per-IP limits: bucket -> (environment variable, default max, window seconds).
 IP_LIMITS: Dict[str, Tuple[str, int, int]] = {
@@ -83,6 +85,7 @@ IP_LIMITS: Dict[str, Tuple[str, int, int]] = {
     PASSWORD_RESET_TOKEN: ("AUTH_IP_LIMIT_RESET_PASSWORD", 40, 60 * 60),
     ACCOUNT_ACTIVATION: ("AUTH_IP_LIMIT_ACTIVATE", 40, 60 * 60),
     SIGNUP: ("AUTH_IP_LIMIT_SIGNUP", 40, 60 * 60),
+    EMAIL_CHANGE_TOKEN: ("AUTH_IP_LIMIT_EMAIL_CHANGE_CONFIRM", 40, 60 * 60),
 }
 
 LOGIN_FREE_FAILURES = 10
@@ -90,6 +93,9 @@ LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
 LOGIN_COOLDOWN_SECONDS = 60
 
 MAIL_ACCOUNT_LIMIT: Limit = (3, 60 * 60)
+#: Email-change confirmation mails one account may trigger per hour, to any
+#: addresses (the per-address cap is MAIL_ACCOUNT_LIMIT).
+EMAIL_CHANGE_USER_LIMIT: Limit = (10, 60 * 60)
 
 #: Retry-After sent with a fail-closed 503.
 UNAVAILABLE_RETRY_AFTER = 30

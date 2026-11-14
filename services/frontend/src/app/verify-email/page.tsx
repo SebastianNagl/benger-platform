@@ -3,6 +3,7 @@
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { rateLimitMessage } from '@/lib/api/errors'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
@@ -17,6 +18,9 @@ export default function VerifyEmailPage() {
   const searchParams = useSearchParams()
   const token = searchParams?.get('token')
   const messageKey = searchParams?.get('messageKey')
+  // The login (or signup) that sent the user here passes the address it
+  // used, so the resend form below starts filled in.
+  const emailParam = searchParams?.get('email') ?? ''
   const { t, locale } = useI18n()
 
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
@@ -37,6 +41,11 @@ export default function VerifyEmailPage() {
   >('loading')
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState('')
+  const [resendEmail, setResendEmail] = useState(emailParam)
+  const [resendStatus, setResendStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'error'
+  >('idle')
+  const [resendMessage, setResendMessage] = useState('')
 
   const verifyEmail = useCallback(
     async (verificationToken: string) => {
@@ -90,9 +99,16 @@ export default function VerifyEmailPage() {
     }
   }, [token, messageKey, t, verifyEmail])
 
-  const handleResendVerification = async () => {
-    if (!email) return
+  // Always available outside the success state: after a login refused for
+  // an unverified address, after signup, and for an invalid or expired link.
+  // The API answers the same way whether or not the address has an account.
+  const handleResendVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const address = resendEmail.trim()
+    if (!address) return
 
+    setResendStatus('sending')
+    setResendMessage('')
     try {
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
@@ -100,25 +116,81 @@ export default function VerifyEmailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email,
+          email: address,
           language: locale,
         }),
       })
 
       if (response.ok) {
-        setMessage(t('emailVerification.resent'))
-      } else if (response.status === 429) {
-        const limited = rateLimitMessage(
-          429,
-          t,
-          await response.json().catch(() => null),
-        )
-        if (limited) setMessage(limited)
+        setResendStatus('sent')
+        setResendMessage(t('emailVerification.resent'))
+        return
       }
+      const limited = rateLimitMessage(
+        response.status,
+        t,
+        await response.json().catch(() => null),
+      )
+      setResendStatus('error')
+      setResendMessage(limited ?? t('emailVerification.resendFailed'))
     } catch (error) {
       console.error('Error resending verification:', error)
+      setResendStatus('error')
+      setResendMessage(t('emailVerification.resendFailed'))
     }
   }
+
+  const resendForm = (
+    <form
+      onSubmit={handleResendVerification}
+      className="mt-6 space-y-3 text-left"
+      data-testid="verify-email-resend-form"
+    >
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        {t('emailVerification.resendPrompt')}
+      </p>
+      <label
+        htmlFor="resend-email"
+        className="block text-sm font-medium text-zinc-900 dark:text-white"
+      >
+        {t('emailVerification.emailInputLabel')}
+      </label>
+      <Input
+        id="resend-email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        required
+        value={resendEmail}
+        onChange={(e) => setResendEmail(e.target.value)}
+        data-testid="verify-email-resend-input"
+      />
+      <Button
+        type="submit"
+        variant="filled"
+        className="w-full"
+        disabled={resendStatus === 'sending' || !resendEmail.trim()}
+        data-testid="verify-email-resend-button"
+      >
+        {resendStatus === 'sending'
+          ? t('emailVerification.resending')
+          : t('emailVerification.resend')}
+      </Button>
+      {resendMessage && (
+        <p
+          role="status"
+          className={`text-sm ${
+            resendStatus === 'error'
+              ? 'text-red-700 dark:text-red-400'
+              : 'text-emerald-700 dark:text-emerald-400'
+          }`}
+          data-testid="verify-email-resend-message"
+        >
+          {resendMessage}
+        </p>
+      )}
+    </form>
+  )
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900">
@@ -232,6 +304,7 @@ export default function VerifyEmailPage() {
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 {message}
               </p>
+              {resendForm}
               <div className="mt-6">
                 <Link
                   href="/login"
@@ -267,17 +340,9 @@ export default function VerifyEmailPage() {
                 {message}
               </p>
 
-              <div className="mt-6 space-y-4">
-                {email && (
-                  <Button
-                    variant="filled"
-                    onClick={handleResendVerification}
-                    className="w-full"
-                  >
-                    {t('emailVerification.resend')}
-                  </Button>
-                )}
+              {resendForm}
 
+              <div className="mt-6 space-y-4">
                 <div>
                   <Link
                     href="/login"

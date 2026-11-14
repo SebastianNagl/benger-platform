@@ -1137,12 +1137,13 @@ def accept_invitation(
             detail="Invitation has already been accepted",
         )
 
-    # Check if the current user's email matches the invitation
-    if (current_user.email or "").strip().lower() != (invitation.email or "").strip().lower():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This invitation is not for your email address",
-        )
+    # No comparison of the account's address with the invited one: the token
+    # was mailed to the invited address, so holding it proves receipt, and
+    # the person may accept with whichever account they are signed in to.
+    # (Comparing addresses forced people to change their account email to
+    # the invited one first, and an unverified profile address could pass it.)
+    # The checks above keep a used, expired or cancelled (deleted)
+    # invitation from being accepted again.
 
     # Check if user is already a member. Removed (inactive) rows count too:
     # (user, org) is unique, so a removed member comes back by reactivating

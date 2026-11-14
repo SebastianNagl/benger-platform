@@ -8,10 +8,13 @@ import { useI18n } from '@/contexts/I18nContext'
 import { rateLimitMessage } from '@/lib/api/errors'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export default function ResetPasswordPage() {
-  const [email, setEmail] = useState('')
+  // The register page links here with the address it found taken.
+  const searchParams = useSearchParams()
+  const [email, setEmail] = useState(searchParams?.get('email') ?? '')
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

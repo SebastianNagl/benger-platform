@@ -15,6 +15,10 @@ export interface UserProfile {
   id: string
   username: string
   email: string
+  // Email change waiting for its confirmation link: the requested address
+  // and when the link was mailed (null when sending failed).
+  pending_email?: string | null
+  pending_email_sent_at?: string | null
   name: string
   is_superadmin: boolean
   is_active: boolean

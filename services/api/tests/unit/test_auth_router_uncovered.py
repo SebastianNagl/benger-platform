@@ -806,12 +806,14 @@ class TestProfileEndpoints:
 
         user = _mock_user()
         db = _mock_db()
+        db.query.return_value.first.return_value = user
         updated_user = _mock_user()
         mock_update.return_value = updated_user
         mock_build.return_value = Mock(id="user-123")
 
-        result = update_profile(  # noqa: F841
+        result = await update_profile(  # noqa: F841
             profile_data=UserUpdate(name="New Name"),
+            request=None,
             current_user=user,
             db=db,
         )
@@ -827,8 +829,9 @@ class TestProfileEndpoints:
         db = _mock_db()
 
         with pytest.raises(HTTPException) as exc_info:
-            update_profile(
+            await update_profile(
                 profile_data=UserUpdate(name="New Name"),
+                request=None,
                 current_user=user,
                 db=db,
             )

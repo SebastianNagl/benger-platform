@@ -178,6 +178,15 @@ class User(Base):
     # access): the address entered in the fallback flow parks here and is
     # adopted onto ``email`` only when the activation link is clicked.
     pending_activation_email = Column(String(255), nullable=True)
+    # Email change from the profile page (migration 134): the new address
+    # parks here, lowercased, while ``email`` stays the verified login
+    # address. A link mailed to the new address swaps it in
+    # (auth_module.email_change). Only the token's SHA-256 digest is stored;
+    # ``pending_email_sent_at`` is set once that mail was accepted for
+    # delivery and starts the link's validity.
+    pending_email = Column(String(255), nullable=True)
+    pending_email_token = Column(String(64), nullable=True, index=True)
+    pending_email_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)  # Now nullable for invited users
