@@ -292,6 +292,22 @@ _SCORED_METRICS_SQL = (
 )
 
 
+# SQL twin of ``_row_is_terminal_error`` over ``task_evaluations.metrics``:
+# a metric blob carries an error that ``_error_is_retryable`` does not accept.
+_TERMINAL_ERROR_SQL = (
+    "jsonb_path_exists(task_evaluations.metrics, "
+    "'$.keyvalue() ? (@.key != \"error\" "
+    "&& exists(@.value.error ? ((@.type() == \"string\" && @ != \"\") "
+    "|| @.type() == \"object\" || @.type() == \"array\" || @ == true)) "
+    "&& !exists(@.value.error ? (@ like_regex \""
+    + "|".join(_RETRYABLE_ERROR_MARKERS)
+    + "\" flag \"i\")) "
+    "&& !exists(@.value.details.call_metadata.error_type ? ("
+    + " || ".join(f'@ == "{t}"' for t in sorted(_RETRYABLE_ERROR_TYPES))
+    + ")))', '{}', true)"
+)
+
+
 # Bound ids per query when fetching the blobs of unscored rows.
 _METRICS_FETCH_CHUNK = 1000
 

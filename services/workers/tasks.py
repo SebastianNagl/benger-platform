@@ -4236,7 +4236,7 @@ def _classify_cell_failure(exc: BaseException) -> str:
 
 def _bulk_upsert_task_evaluations(
     db, rows: List[Dict[str, Any]]
-) -> Tuple[int, int, int]:
+) -> Tuple[int, int, int, int]:
     """Insert TaskEvaluation rows against the partial unique index
     `uq_task_evaluations_cell` (migration 049). On a conflict the new row
     replaces the existing one only when that row is a failed, unscored
@@ -4244,12 +4244,14 @@ def _bulk_upsert_task_evaluations(
     so its rows carry the key of the attempt that hit a rate limit or a
     timeout. Any other conflict is dropped.
 
-    Returns the parent counter deltas `(rows_added, passed, failed)`,
-    derived from `RETURNING` so the caller bumps by what really landed,
-    not by what it requested. A replaced row was counted once already as
-    a failed sample, so it adds no row and moves its count from failed to
-    passed when the regrade passed. On a Celery message redelivery, all
-    rows hit conflict and `(0, 0, 0)` is returned: the redelivered task
+    Returns `(rows_added, passed, failed, rows_written)`. The first three
+    are the parent counter deltas, derived from `RETURNING` so the caller
+    bumps by what really landed, not by what it requested. A replaced row
+    was counted once already as a failed sample, so it adds no row and
+    moves its count from failed to passed when the regrade passed.
+    `rows_written` counts inserted plus replaced rows: a replaced row that
+    failed again changes no counter but is still new work to report. On a Celery message redelivery, all
+    rows hit conflict and `(0, 0, 0, 0)` is returned: the redelivered task
     contributes nothing to
     `samples_evaluated` / `samples_passed` / `samples_failed`, eliminating
     the double-bump race that an unconditional `samples_evaluated += N`
@@ -4259,11 +4261,11 @@ def _bulk_upsert_task_evaluations(
     statistically impossible.
     """
     if not rows:
-        return (0, 0, 0)
+        return (0, 0, 0, 0)
     from collections import defaultdict
     from sqlalchemy import and_, func, literal_column, not_
     from sqlalchemy.dialects.postgresql import insert as pg_insert
-    from evaluation_planning import _SCORED_METRICS_SQL
+    from evaluation_planning import _SCORED_METRICS_SQL, _TERMINAL_ERROR_SQL
     from models import TaskEvaluation
 
     table = TaskEvaluation.__table__
@@ -4280,6 +4282,7 @@ def _bulk_upsert_task_evaluations(
         table.c.error_message.isnot(None),
         not_(table.c.passed),
         not_(literal_column(_SCORED_METRICS_SQL)),
+        not_(literal_column(_TERMINAL_ERROR_SQL)),
     )
 
     # The cell sub-task's `sample_results` mixes rows from
@@ -4319,7 +4322,7 @@ def _bulk_upsert_task_evaluations(
         seen_keys.add(key)
         groups[tuple(sorted(r.keys()))].append(r)
 
-    n_added = n_passed = n_failed = 0
+    n_added = n_passed = n_failed = n_written = 0
     for _, group_rows in groups.items():
         stmt = pg_insert(table).values(group_rows)
         stmt = (
@@ -4339,6 +4342,7 @@ def _bulk_upsert_task_evaluations(
             .returning(table.c.passed, literal_column("(xmax = 0)").label("inserted"))
         )
         for r in db.execute(stmt).fetchall():
+            n_written += 1
             if r.inserted:
                 n_added += 1
                 n_passed += 1 if r.passed else 0
@@ -4346,7 +4350,7 @@ def _bulk_upsert_task_evaluations(
             elif r.passed:
                 n_passed += 1
                 n_failed -= 1
-    return (n_added, n_passed, n_failed)
+    return (n_added, n_passed, n_failed, n_written)
 
 
 def _bump_evaluation_counters(

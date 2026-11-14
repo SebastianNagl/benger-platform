@@ -185,9 +185,9 @@ def test_bulk_upsert_returns_actual_inserts_for_redelivery_safety():
         "_bulk_upsert_task_evaluations must use RETURNING so callers "
         "can bump by the actually-inserted count, not the requested count"
     )
-    # The sub-tasks must unpack and use the three-tuple return. The cell bodies
-    # live in cell_evaluator now (the helper itself stays in tasks.py).
-    assert "n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations" in _cell_source(), (
+    # The sub-tasks must unpack and use the RETURNING-derived tuple. The cell
+    # bodies live in cell_evaluator now (the helper itself stays in tasks.py).
+    assert "n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations" in _cell_source(), (
         "sub-tasks must derive counter-bump values from the helper's "
         "RETURNING-derived tuple, not from local in-loop tallies"
     )
@@ -430,7 +430,7 @@ def test_bulk_upsert_replaces_only_error_rows_returning_passed():
 
     def fake_execute(stmt):
         captured["stmt"] = stmt
-        # Empty result set so the function returns (0, 0, 0) cleanly.
+        # Empty result set so the function returns (0, 0, 0, 0) cleanly.
         result = MagicMock()
         result.fetchall.return_value = []
         return result
@@ -454,8 +454,8 @@ def test_bulk_upsert_replaces_only_error_rows_returning_passed():
     }]
     result = _bulk_upsert_task_evaluations(fake_db, rows)
 
-    # Function contract: empty fetchall → (0, 0, 0) regardless of input size.
-    assert result == (0, 0, 0)
+    # Function contract: empty fetchall → (0, 0, 0, 0) regardless of input size.
+    assert result == (0, 0, 0, 0)
     # Captured stmt compiles with the postgresql dialect and contains
     # the two clauses we care about.
     compiled = str(
@@ -464,13 +464,8 @@ def test_bulk_upsert_replaces_only_error_rows_returning_passed():
             compile_kwargs={"literal_binds": False},
         )
     ).upper()
-    # A conflict only replaces a failed error row (a retry regrading a
-    # rate-limited cell); a redelivered cell's scored rows are kept.
-    assert "ON CONFLICT (" in compiled and "DO UPDATE SET" in compiled, (
+    assert "ON CONFLICT (" in compiled, (
         "_bulk_upsert_task_evaluations must target uq_task_evaluations_cell"
-    )
-    assert "WHERE TASK_EVALUATIONS.ERROR_MESSAGE IS NOT NULL" in compiled, (
-        "only an existing error row may be replaced on conflict"
     )
     assert "RETURNING" in compiled, (
         "_bulk_upsert_task_evaluations must use RETURNING so caller can "

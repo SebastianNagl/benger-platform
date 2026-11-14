@@ -1001,7 +1001,9 @@ def evaluate_generation_cell_impl(
         # redelivery, all rows conflict and `n_inserted == 0`, so the
         # redelivered task contributes nothing to the parent counters
         # — defense against the `acks_late=True` double-bump path.
-        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
+        n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
+            db, sample_results
+        )
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
@@ -1014,7 +1016,7 @@ def evaluate_generation_cell_impl(
         # `tick` to connected EvaluationResults clients. The handler
         # subscribes to `evaluation:progress:{project_id}` and re-fetches
         # the task-model view on each tick.
-        if n_inserted or n_passed or n_failed:
+        if n_written:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {
@@ -1662,7 +1664,9 @@ def evaluate_annotation_cell_impl(
                             local_samples_failed += 1
 
         # Bump by RETURNING-derived counts — see gen sub-task for rationale.
-        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
+        n_inserted, n_passed, n_failed, n_written = _bulk_upsert_task_evaluations(
+            db, sample_results
+        )
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
@@ -1672,7 +1676,7 @@ def evaluate_annotation_cell_impl(
         )
         db.commit()
         # Same as the gen cell — broadcast so the API WS pushes a tick.
-        if n_inserted or n_passed or n_failed:
+        if n_written:
             _publish_progress(
                 f"evaluation:progress:{project_id}",
                 {
