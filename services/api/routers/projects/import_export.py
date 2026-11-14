@@ -73,7 +73,6 @@ from project_models import (  # noqa: E402
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
-    check_user_can_edit_project,
     check_user_can_edit_project_async,
     can_read_all_task_content,
     can_read_all_task_content_async,
