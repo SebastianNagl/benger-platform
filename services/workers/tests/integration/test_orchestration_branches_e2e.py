@@ -2439,7 +2439,8 @@ def test_upsert_keeps_graded_rows_and_replaces_retryable_error_rows(
     """A retry regrades into the same run and judge run, so its rows hit the
     cell key of the earlier attempt. Only rows the missing-only skip set
     does not count as graded (``_row_has_score`` / ``_row_is_terminal_error``)
-    may be replaced; a scored row or a terminal error stays as it was."""
+    may be replaced; a scored row, a terminal error or a row counted as
+    passed stays as it was."""
     import uuid as _uuid
     from datetime import datetime, timezone
 
@@ -2470,6 +2471,12 @@ def test_upsert_keeps_graded_rows_and_replaces_retryable_error_rows(
             {"llm_judge_custom": {"value": None, "error": "Error code: 429 rate limit"}},
             False, "Error code: 429 rate limit",
         ),
+        # Counted as a passed sample: replacing it would move a count off
+        # passed that the counter deltas never put there.
+        "passed_error": (
+            {"llm_judge_custom": {"value": None, "error": "Error code: 429 rate limit"}},
+            True, "Error code: 429 rate limit",
+        ),
         "timed_out": (
             {"llm_judge_custom": {
                 "value": None, "error": "boom",
@@ -2479,10 +2486,12 @@ def test_upsert_keeps_graded_rows_and_replaces_retryable_error_rows(
         ),
     }
     graded = {"scored", "terminal"}
-    for name, (metrics, _, _) in seeded.items():
+    for name in ("scored", "terminal", "rate_limited", "timed_out"):
+        metrics = seeded[name][0]
         assert (_row_has_score(metrics) or _row_is_terminal_error(metrics)) == (
             name in graded
         )
+    kept = graded | {"passed_error"}
     ids = {}
     for name, (metrics, passed, error) in seeded.items():
         ids[name] = _uid()
@@ -2516,10 +2525,10 @@ def test_upsert_keeps_graded_rows_and_replaces_retryable_error_rows(
             .one()
         )
 
-    assert _regrade(sorted(graded)) == (0, 0, 0, 0)
+    assert _regrade(sorted(kept)) == (0, 0, 0, 0)
     db_conn.commit()
     db_conn.expire_all()
-    for name in graded:
+    for name in kept:
         metrics, passed, error = seeded[name]
         row = _row(name)
         assert (row.id, row.metrics, row.passed, row.error_message, row.created_at) == (
