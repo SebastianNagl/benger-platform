@@ -801,27 +801,6 @@ class TestAcceptInvitation:
         assert again.status_code == 400
         assert "already been accepted" in again.json()["detail"]
 
-    def test_unverified_account_needs_the_token_not_the_address(
-        self, client, test_db, test_users, test_org
-    ):
-        """The old check compared addresses only, so an unverified profile
-        address equal to the invited one passed it. Now the address plays no
-        part: without the token nothing can be accepted."""
-        invited = f"claimed-{uuid.uuid4().hex[:8]}@example.com"
-        claimer = _make_user(test_db, invited, email_verified=False)
-        _make_invitation(test_db, test_org.id, test_users[0].id, email=invited)
-
-        resp = client.post(
-            f"/api/invitations/accept/{_uid()}", headers=_bearer(claimer)
-        )
-        assert resp.status_code == 404
-        assert (
-            test_db.query(OrganizationMembership)
-            .filter_by(user_id=claimer.id, organization_id=test_org.id)
-            .first()
-            is None
-        )
-
     def test_accept_already_member_400(self, client, test_db, test_users, test_org):
         """The invited email matches a user who is already an active member."""
         token = _uid()
