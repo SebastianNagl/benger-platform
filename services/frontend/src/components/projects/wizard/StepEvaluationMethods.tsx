@@ -410,6 +410,7 @@ export function StepEvaluationMethods({
                                 )}
                               </Label>
                               <Select
+                                searchable
                                 value={config.prediction_fields[0] || ''}
                                 onValueChange={(val) =>
                                   updateConfig(config.id, 'prediction_fields', [
@@ -430,6 +431,9 @@ export function StepEvaluationMethods({
                                         <SelectItem
                                           key={opt.value}
                                           value={opt.value}
+                                          // "All model responses" before
+                                          // "All human annotations".
+                                          pinned={group.kind === 'special'}
                                         >
                                           {labelFor(opt)}
                                         </SelectItem>
@@ -449,6 +453,7 @@ export function StepEvaluationMethods({
                                 )}
                               </Label>
                               <Select
+                                searchable
                                 value={config.reference_fields[0] || ''}
                                 onValueChange={(val) =>
                                   updateConfig(config.id, 'reference_fields', [
@@ -482,6 +487,7 @@ export function StepEvaluationMethods({
                                   )}
                                 </Label>
                                 <Select
+                                  searchable
                                   value={
                                     (config.metric_parameters as any)
                                       ?.judge_model ||

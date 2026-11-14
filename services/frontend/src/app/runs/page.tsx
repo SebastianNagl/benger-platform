@@ -256,6 +256,7 @@ export default function RunsPage() {
           {t('runs.filterProject')}
         </label>
         <Select
+          searchable
           value={projectFilter || ALL}
           onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
         >
@@ -267,7 +268,9 @@ export default function RunsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>{t('runs.allProjects')}</SelectItem>
+            <SelectItem pinned value={ALL}>
+              {t('runs.allProjects')}
+            </SelectItem>
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.title}

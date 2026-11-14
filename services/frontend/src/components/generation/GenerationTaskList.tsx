@@ -456,6 +456,7 @@ export function GenerationTaskList({
     projects && onProjectChange ? (
       <div className="w-56">
         <Select
+          searchable
           value={selectedProject?.id?.toString() ?? ''}
           onValueChange={(id) => {
             const project = projects.find((p) => p.id.toString() === id)
@@ -534,6 +535,7 @@ export function GenerationTaskList({
       {(data?.structures?.length ?? 0) > 1 && (
         <FilterToolbar.Field label={t('generation.taskList.structures')}>
           <Select
+            searchable
             value={structureFilter || ''}
             onValueChange={(v) => setStructureFilter(v || null)}
           >
@@ -543,7 +545,7 @@ export function GenerationTaskList({
               />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">
+              <SelectItem pinned value="">
                 {t('generation.taskList.allStructures')}
               </SelectItem>
               {(data?.structures ?? []).map((key) => {

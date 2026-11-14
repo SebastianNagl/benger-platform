@@ -992,7 +992,11 @@ export default function EvaluationDashboard({
               <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {t('evaluations.detail.selectMetric')}
               </label>
-              <Select value={selectedMetric} onValueChange={handleMetricChange}>
+              <Select
+                searchable
+                value={selectedMetric}
+                onValueChange={handleMetricChange}
+              >
                 <SelectTrigger>
                   <SelectValue
                     placeholder={t('evaluations.detail.selectMetric')}

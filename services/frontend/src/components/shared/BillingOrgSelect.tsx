@@ -50,6 +50,7 @@ export function BillingOrgSelect({ projectId }: { projectId?: string | null }) {
       {/* The default entry has the empty value, which the shared Select
           cannot look up on its own, so the trigger text is passed in. */}
       <Select
+        searchable
         value={value}
         onValueChange={(next) => setBillingOrganizationId(next || null)}
         displayValue={
@@ -60,7 +61,9 @@ export function BillingOrgSelect({ projectId }: { projectId?: string | null }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">{defaultLabel}</SelectItem>
+          <SelectItem pinned value="">
+            {defaultLabel}
+          </SelectItem>
           {options.map((o) => (
             <SelectItem key={o.id} value={o.id}>
               {describe(o.name, o.providers)}

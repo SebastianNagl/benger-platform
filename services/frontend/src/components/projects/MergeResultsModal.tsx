@@ -21,6 +21,13 @@
 
 import { Button } from '@/components/shared/Button'
 import { Dialog } from '@/components/shared/Dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -273,41 +280,51 @@ export function MergeResultsModal({
                             </div>
                           </td>
                           <td className="py-1">
-                            <select
+                            <Select
+                              searchable
                               value={targets[model.source_model_id] || ''}
                               disabled={busy}
-                              onChange={(e) =>
+                              onValueChange={(value) =>
                                 setTargets((current) => ({
                                   ...current,
-                                  [model.source_model_id]: e.target.value,
+                                  [model.source_model_id]: value,
                                 }))
                               }
-                              aria-label={t('projects.mergeImport.targetFor', {
-                                model: model.source_model_id,
-                              })}
-                              aria-invalid={missing}
-                              className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm dark:bg-zinc-900 dark:text-white ${
-                                missing
-                                  ? 'border-red-400 dark:border-red-700'
-                                  : 'border-zinc-300 dark:border-zinc-700'
-                              }`}
-                              data-testid={`merge-model-target-${index}`}
                             >
-                              <option value="">
-                                {model.known
-                                  ? t('projects.mergeImport.keepModel', {
-                                      model: model.name || model.model_id,
-                                    })
-                                  : t('projects.mergeImport.chooseModel')}
-                              </option>
-                              {preview.available_models.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                  {option.is_custom
-                                    ? `${option.name} (${option.id})`
-                                    : option.name}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger
+                                aria-label={t(
+                                  'projects.mergeImport.targetFor',
+                                  {
+                                    model: model.source_model_id,
+                                  },
+                                )}
+                                aria-invalid={missing}
+                                className={
+                                  missing
+                                    ? 'ring-red-400 dark:ring-red-700'
+                                    : undefined
+                                }
+                                data-testid={`merge-model-target-${index}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem pinned value="">
+                                  {model.known
+                                    ? t('projects.mergeImport.keepModel', {
+                                        model: model.name || model.model_id,
+                                      })
+                                    : t('projects.mergeImport.chooseModel')}
+                                </SelectItem>
+                                {preview.available_models.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.is_custom
+                                      ? `${option.name} (${option.id})`
+                                      : option.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             {missing && (
                               <p className="mt-1 text-xs text-red-700 dark:text-red-300">
                                 {t('projects.mergeImport.unknownModel')}

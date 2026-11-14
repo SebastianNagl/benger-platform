@@ -4042,7 +4042,8 @@
     "clear": "Auswahl aufheben",
     "menu": "Menü",
     "refresh": "Aktualisieren",
-    "unknownUser": "Unbekannter Nutzer"
+    "unknownUser": "Unbekannter Nutzer",
+    "noMatches": "Keine Treffer"
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",

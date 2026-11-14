@@ -1114,6 +1114,7 @@ export function EvaluationResults({
                 : t('evaluation.multiFieldResults.selectMetric')
               return (
                 <Select
+                  searchable
                   value={selectedMetricRunId}
                   onValueChange={(v) => {
                     setSelectedMetricRunId(v)

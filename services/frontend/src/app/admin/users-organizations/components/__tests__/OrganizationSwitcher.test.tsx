@@ -1,13 +1,17 @@
 /**
  * Organizations page switcher (#385): alphabetical, searchable, and built on
- * Headless UI so it closes on Escape / outside click and works by keyboard.
+ * the shared searchable Select so it closes on Escape / outside click and
+ * works by keyboard.
  */
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import {
-  OrganizationSwitcher,
-  sortOrganizationsByName,
-} from '../OrganizationSwitcher'
+import { OrganizationSwitcher } from '../OrganizationSwitcher'
+
+// jest.config maps the alias to the native-select mock; this suite checks
+// the real searchable list.
+jest.mock('@/components/shared/Select', () =>
+  jest.requireActual('../../../../../components/shared/Select'),
+)
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -47,24 +51,6 @@ const optionNames = (listbox: HTMLElement) =>
   within(listbox)
     .getAllByRole('option')
     .map((o) => o.querySelector('span > span')?.textContent)
-
-describe('sortOrganizationsByName', () => {
-  it('sorts case-insensitively with German collation', () => {
-    expect(sortOrganizationsByName(ORGS).map((o) => o.name)).toEqual([
-      'Aachen',
-      'Ärztekammer',
-      'bonn',
-      'Coburg',
-      'Zeppelin Uni',
-    ])
-  })
-
-  it('does not mutate its input', () => {
-    const input = [...ORGS]
-    sortOrganizationsByName(input)
-    expect(input).toEqual(ORGS)
-  })
-})
 
 describe('OrganizationSwitcher', () => {
   it('shows the selected org on the trigger', () => {
@@ -110,9 +96,7 @@ describe('OrganizationSwitcher', () => {
     await openSwitcher()
     await userEvent.type(screen.getByRole('combobox'), 'xyz')
     expect(screen.queryAllByRole('option')).toHaveLength(0)
-    expect(
-      screen.getByText('admin.organizations.noOrganizations'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('common.noMatches')).toBeInTheDocument()
   })
 
   it('marks the selected organization', async () => {
@@ -120,7 +104,7 @@ describe('OrganizationSwitcher', () => {
     const listbox = await openSwitcher()
     const selected = within(listbox).getByRole('option', { selected: true })
     expect(selected).toHaveTextContent('Coburg')
-    expect(selected.querySelector('.text-amber-600')).not.toBeNull()
+    expect(selected.querySelector('svg')).not.toBeNull()
   })
 
   it('calls onSelect and closes when an option is clicked', async () => {

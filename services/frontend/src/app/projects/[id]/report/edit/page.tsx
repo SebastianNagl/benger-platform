@@ -825,6 +825,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       {t('reports.editor.primaryMetricHint')}
                     </p>
                     <Select
+                      searchable
                       value={state.primaryMetric || NO_PRIMARY_METRIC}
                       onValueChange={(v) =>
                         handlePrimaryMetricChange(
@@ -836,7 +837,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NO_PRIMARY_METRIC}>
+                        <SelectItem pinned value={NO_PRIMARY_METRIC}>
                           {t('reports.editor.none')}
                         </SelectItem>
                         {primaryMetricOptions.map((m) => (
@@ -862,6 +863,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       </p>
                     ) : (
                       <Select
+                        searchable
                         value={state.primaryConfigId ?? ''}
                         onValueChange={(v) =>
                           update({ primaryConfigId: v || null })
