@@ -512,6 +512,7 @@ export function StepProjectInfo({
                             )}
                           </label>
                           <Select
+                            searchable
                             value={
                               data.organizationGroupIds[org.id] ||
                               (orgWideAllowed ? ORG_WIDE : '')
@@ -529,7 +530,7 @@ export function StepProjectInfo({
                             </SelectTrigger>
                             <SelectContent>
                               {orgWideAllowed && (
-                                <SelectItem value={ORG_WIDE}>
+                                <SelectItem pinned value={ORG_WIDE}>
                                   {t(
                                     'projects.creation.wizard.step1.groupScopeOrgWide',
                                   )}

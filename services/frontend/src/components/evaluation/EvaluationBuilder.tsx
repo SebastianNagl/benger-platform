@@ -24,6 +24,7 @@ import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
+  SelectGroupLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -186,9 +187,9 @@ export function EvaluationBuilder({
   const renderJudgeModelOptions = () => (
     <>
       {customJudges.length > 0 && officialJudges.length > 0 && (
-        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
+        <SelectGroupLabel>
           {t('customModels.picker.officialSection')}
-        </div>
+        </SelectGroupLabel>
       )}
       {officialJudges.map((model) => (
         <SelectItem key={model.id} value={model.id}>
@@ -196,14 +197,19 @@ export function EvaluationBuilder({
         </SelectItem>
       ))}
       {customJudges.length > 0 && (
-        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
+        <SelectGroupLabel>
           {t('customModels.picker.customSection')}
-        </div>
+        </SelectGroupLabel>
       )}
       {customJudges.map((model) => {
         const missing = isJudgeMissingCredential(model)
         return (
-          <SelectItem key={model.id} value={model.id} disabled={missing}>
+          <SelectItem
+            key={model.id}
+            value={model.id}
+            disabled={missing}
+            textValue={`${model.name} (${model.provider})`}
+          >
             {model.name} ({model.provider})
             {missing && (
               <span className="ml-2 text-xs text-amber-600">
@@ -808,6 +814,7 @@ export function EvaluationBuilder({
                     {t('evaluationBuilder.parameters.judgeModel')}
                   </label>
                   <Select
+                    searchable
                     value={
                       newEvaluation.metric_parameters.judge_model ||
                       DEFAULT_MODEL_ID
@@ -1009,6 +1016,7 @@ export function EvaluationBuilder({
                     {t('evaluationBuilder.parameters.judgeModel')}
                   </label>
                   <Select
+                    searchable
                     value={
                       newEvaluation.metric_parameters.judge_model ||
                       DEFAULT_MODEL_ID

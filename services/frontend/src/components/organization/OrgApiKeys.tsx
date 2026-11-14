@@ -616,6 +616,7 @@ export function OrgApiKeys({
                     {t('organization.apiKeys.scopeLabel')}
                   </label>
                   <Select
+                    searchable
                     // Non-admins get no org-wide option: show the
                     // placeholder until the first group is pinned.
                     value={scopeGroupId ?? (isAdmin ? ORG_WIDE_SCOPE : '')}
@@ -634,7 +635,7 @@ export function OrgApiKeys({
                     </SelectTrigger>
                     <SelectContent>
                       {isAdmin && (
-                        <SelectItem value={ORG_WIDE_SCOPE}>
+                        <SelectItem pinned value={ORG_WIDE_SCOPE}>
                           {t('organization.apiKeys.scopeOrgWide')}
                         </SelectItem>
                       )}

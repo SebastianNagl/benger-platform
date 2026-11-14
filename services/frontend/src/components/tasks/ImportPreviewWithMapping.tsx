@@ -419,6 +419,7 @@ export function ImportPreviewWithMapping({
                           <ArrowRightIcon className="h-4 w-4 text-zinc-400" />
 
                           <Select
+                            searchable
                             value={customMappings.get(sourceField) || 'none'}
                             onValueChange={(v) => handleMapping(sourceField, v)}
                           >
@@ -426,7 +427,7 @@ export function ImportPreviewWithMapping({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">
+                              <SelectItem pinned value="none">
                                 <span className="text-zinc-500">
                                   {t('tasks.import.skipField')}
                                 </span>

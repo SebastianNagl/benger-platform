@@ -386,13 +386,20 @@ describe('ReportEditorPage', () => {
         'reports.editor.primaryMetric',
       ) as HTMLSelectElement
       expect(select.value).toBe('llm_judge_falloesung')
+      // "No primary metric" stays on top; the metrics follow by label.
       const values = Array.from(select.options).map((o) => o.value)
       expect(values).toEqual([
         '__none__',
+        'bleu',
         'llm_judge_falloesung',
         'korrektur_falloesung',
-        'bleu',
       ])
+      const labels = Array.from(select.options)
+        .slice(1)
+        .map((o) => o.textContent ?? '')
+      expect(labels).toEqual(
+        [...labels].sort((a, b) => a.localeCompare(b, 'de')),
+      )
       // Registry display name wins over the snapshot name.
       expect(
         Array.from(select.options).find((o) => o.value === 'bleu')?.textContent,

@@ -4042,7 +4042,8 @@
     "clear": "Clear selection",
     "menu": "Menu",
     "refresh": "Refresh",
-    "unknownUser": "Unknown user"
+    "unknownUser": "Unknown user",
+    "noMatches": "No matches"
   },
   "validation": {
     "required": "This field is required",

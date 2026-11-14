@@ -553,7 +553,11 @@ export function OrgGroups({
                       <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {t('admin.organizations.groups.addMemberLabel')}
                       </label>
-                      <Select value={addUserId} onValueChange={setAddUserId}>
+                      <Select
+                        searchable
+                        value={addUserId}
+                        onValueChange={setAddUserId}
+                      >
                         <SelectTrigger data-testid="group-add-member-select">
                           <SelectValue
                             placeholder={t(

@@ -28,7 +28,6 @@ import {
 } from '@/lib/api/evaluation-types'
 import type { LLMLeaderboardEntry } from '@/lib/api/leaderboards'
 import { intlTag } from '@/lib/i18n/locales'
-import { Menu } from '@headlessui/react'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid'
 import {
   ChartBarIcon,
@@ -289,14 +288,6 @@ export function LLMLeaderboardTable() {
   // produces a dimensionally weird number; we gate the toggle.
   const currentMetricSummable = getMetricSummable(metric)
 
-  const toggleProject = (projectId: string) => {
-    setSelectedProjectIds((prev) =>
-      prev.includes(projectId)
-        ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId],
-    )
-  }
-
   // Get the score to display based on selected metric. The synthetic
   // 'average' metric is gone (PR #116); read the per-metric value directly.
   const getDisplayScore = (entry: LLMLeaderboardEntry): number | null => {
@@ -374,8 +365,12 @@ export function LLMLeaderboardTable() {
   const projectsMenu = (
     <>
       {/* Project Filter */}
-      <Menu as="div" className="relative">
-        <Menu.Button as={Button} variant="outline" className="gap-2">
+      <Select
+        multiple
+        value={selectedProjectIds}
+        onValueChange={setSelectedProjectIds}
+      >
+        <SelectTrigger as={Button} variant="outline" unstyled className="gap-2">
           <FunnelIcon className="h-4 w-4" />
           <span>
             {selectedProjectIds.length > 0
@@ -390,37 +385,29 @@ export function LLMLeaderboardTable() {
             </span>
           )}
           <ChevronDownIcon className="h-4 w-4" />
-        </Menu.Button>
-        <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+        </SelectTrigger>
+        <SelectContent>
           {projects.map((project) => (
-            <Menu.Item key={project.id}>
-              {({ active }) => (
-                <button
-                  className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                    active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                  }`}
-                  onClick={() => toggleProject(project.id)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedProjectIds.includes(project.id)}
-                    onChange={() => {}}
-                    className="mr-3 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span className="truncate text-zinc-900 dark:text-zinc-100">
-                    {project.title}
-                  </span>
-                </button>
-              )}
-            </Menu.Item>
+            <SelectItem key={project.id} value={project.id}>
+              {project.title}
+            </SelectItem>
           ))}
-        </Menu.Items>
-      </Menu>
+        </SelectContent>
+      </Select>
 
       {/* Evaluation Types Filter */}
       {availableEvaluationTypes.length > 0 && (
-        <Menu as="div" className="relative">
-          <Menu.Button as={Button} variant="outline" className="gap-2">
+        <Select
+          multiple
+          value={selectedEvaluationTypes}
+          onValueChange={setSelectedEvaluationTypes}
+        >
+          <SelectTrigger
+            as={Button}
+            variant="outline"
+            unstyled
+            className="gap-2"
+          >
             <ChartBarIcon className="h-4 w-4" />
             <span>
               {selectedEvaluationTypes.length > 0
@@ -435,38 +422,15 @@ export function LLMLeaderboardTable() {
               </span>
             )}
             <ChevronDownIcon className="h-4 w-4" />
-          </Menu.Button>
-          <Menu.Items className="absolute right-0 z-10 mt-2 max-h-60 w-64 overflow-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-900">
+          </SelectTrigger>
+          <SelectContent>
             {availableEvaluationTypes.map((evalType) => (
-              <Menu.Item key={evalType}>
-                {({ active }) => (
-                  <button
-                    className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                      active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
-                    }`}
-                    onClick={() =>
-                      setSelectedEvaluationTypes((prev) =>
-                        prev.includes(evalType)
-                          ? prev.filter((t) => t !== evalType)
-                          : [...prev, evalType],
-                      )
-                    }
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedEvaluationTypes.includes(evalType)}
-                      onChange={() => {}}
-                      className="mr-3 h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span className="truncate text-zinc-900 dark:text-zinc-100">
-                      {evalType}
-                    </span>
-                  </button>
-                )}
-              </Menu.Item>
+              <SelectItem key={evalType} value={evalType}>
+                {evalType}
+              </SelectItem>
             ))}
-          </Menu.Items>
-        </Menu>
+          </SelectContent>
+        </Select>
       )}
     </>
   )
@@ -527,7 +491,7 @@ export function LLMLeaderboardTable() {
         </FilterToolbar.Field>
 
         <FilterToolbar.Field label={t('leaderboards.llm.selectMetric')}>
-          <Select value={metric} onValueChange={setMetric}>
+          <Select searchable value={metric} onValueChange={setMetric}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

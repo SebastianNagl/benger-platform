@@ -188,6 +188,7 @@ export default function AdminAccessKeysPage() {
                 {t('accessKeys.admin.filterOrg')}
               </span>
               <Select
+                searchable
                 value={orgFilter || ALL}
                 onValueChange={(v) => setOrgFilter(fromSelect(v))}
               >
@@ -199,7 +200,7 @@ export default function AdminAccessKeysPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>
+                  <SelectItem pinned value={ALL}>
                     {t('accessKeys.admin.allOrgs')}
                   </SelectItem>
                   {organizations.map((o) => (
