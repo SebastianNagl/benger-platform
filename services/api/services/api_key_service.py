@@ -426,20 +426,10 @@ def role_at_least(role: Any, minimum: Any) -> bool:
     return _ROLE_RANK.get(value, 0) >= _ROLE_RANK.get(floor, 99)
 
 
-def _was_sent(payload: Any, name: str) -> bool:
-    """Whether the request named ``name`` at all (an explicit null counts)."""
-    if isinstance(payload, dict):
-        return name in payload
-    fields_set = getattr(payload, "model_fields_set", None)
-    if fields_set is not None:
-        return name in fields_set
-    return hasattr(payload, name)
-
-
-def _create_expiry(payload: Any) -> Optional[datetime]:
+def _create_expiry(payload: dict) -> Optional[datetime]:
     """``expires_at`` of a new key: the sent value (null = never expires),
     or :data:`DEFAULT_KEY_EXPIRY_DAYS` from now when the field is omitted."""
-    if not _was_sent(payload, "expires_at"):
+    if "expires_at" not in payload:
         return _now() + timedelta(days=DEFAULT_KEY_EXPIRY_DAYS)
     return _validate_expiry(_field(payload, "expires_at"))
 

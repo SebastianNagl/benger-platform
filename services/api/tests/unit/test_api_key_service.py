@@ -213,15 +213,12 @@ def test_expired_key_rejected(test_db):
     assert _code(ei) == "api_key_expired"
 
 
-@pytest.mark.parametrize("as_model", [False, True], ids=["dict", "schema"])
-def test_create_expiry_defaults_to_90_days_only_when_omitted(as_model):
+def test_create_expiry_defaults_to_90_days_only_when_omitted():
     """A key created without ``expires_at`` expires in 90 days, as the UI
     preselects; an explicit null keeps the UI's "never" (no expiry)."""
-    from schemas.access_key_schemas import AccessKeyCreate
 
     def payload(**extra):
-        body = {"name": "k", **extra}
-        return AccessKeyCreate(**body) if as_model else body
+        return {"name": "k", **extra}
 
     before = datetime.now(timezone.utc)
     default = svc._create_expiry(payload())
