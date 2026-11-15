@@ -217,9 +217,9 @@ returns `{id, status, message, progress}`, where `progress` is null until
 the run is dispatched and then 0-100. `GET
 /api/evaluations/run/results/{evaluation_id}` returns the results of one
 run, `GET /api/evaluations/run/results/project/{id}` those of the whole
-project. The status route names no project, so a key limited to projects
-or a group gets 403 `key_project_restricted` there; poll with an
-unrestricted key or read the run through the project's results.
+project. Both routes check the project the evaluation belongs to, so a
+key limited to projects or a group can poll its own runs, and a run of
+any other project answers 404 `not_found`.
 
 Which metrics exist and which fields they read: `GET
 /api/evaluations/supported-metrics` and `GET
