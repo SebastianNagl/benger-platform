@@ -147,6 +147,17 @@ async def _check_personal_projects(
         )
 
 
+def _create_data(payload: AccessKeyCreate, scopes: List[str]) -> dict:
+    """The create payload for the service with the validated ``scopes``.
+    An omitted ``expires_at`` stays omitted, so the service applies its
+    90-day default; an explicit null still means "never expires"."""
+    data = payload.model_dump()
+    if "expires_at" not in payload.model_fields_set:
+        del data["expires_at"]
+    data["scopes"] = scopes
+    return data
+
+
 def _grant_context(request: Request, **kw) -> GrantContext:
     """Who grants: a browser session, or an access key (``keys:manage``),
     which never grants more than it holds and must not be project-bound."""
@@ -366,8 +377,7 @@ async def create_org_key(
             "too_many_keys",
             f"An organization can hold at most {MAX_ACTIVE_ORG_KEYS} active keys",
         )
-    data = payload.model_dump()
-    data["scopes"] = scopes
+    data = _create_data(payload, scopes)
     key, plain = await svc.create_org_key(db, current_user.id, org_id, data)
     await db.commit()
     logger.info(
@@ -512,8 +522,7 @@ async def create_my_key(
             "too_many_keys",
             f"You can hold at most {MAX_ACTIVE_PERSONAL_KEYS} active keys",
         )
-    data = payload.model_dump()
-    data["scopes"] = scopes
+    data = _create_data(payload, scopes)
     key, plain = await svc.create_personal_key(db, current_user.id, data)
     await db.commit()
     logger.info("Personal access key %s created by user %s", key.key_prefix, current_user.id)

@@ -104,9 +104,9 @@ services:
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"  # Configurable port for development
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-dev-redis-123}
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-123}
     volumes:
       - redis-data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -156,12 +156,12 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-123}
+      REDIS_URI: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
       
       # Celery
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
       
       # JWT
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
@@ -290,12 +290,12 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-123}
+      REDIS_URI: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
       
       # Worker settings
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-dev-redis-123}@redis:6379/0
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
       INTERNAL_API_URL: http://api:8000
 

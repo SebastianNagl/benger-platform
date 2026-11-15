@@ -24,7 +24,10 @@ versioned and may change with any release, so prefer `/api/v1` where it
 covers your need.
 
 * Live reference: `GET /api/v1/docs` (Swagger UI) and
-  `GET /api/v1/openapi.json` on any deployment. Both are public.
+  `GET /api/v1/openapi.json`. Both need no login but sit behind the
+  `public_api` feature flag: they answer `404 feature_disabled` unless the
+  flag lets the caller in, and anonymous callers pass only while the flag is
+  set to everyone ([Availability](api-keys.md#availability)).
 * Committed snapshot: [`api-docs/openapi-v1.json`](api-docs/openapi-v1.json)
   (regenerate with `make generate-public-api-docs`).
 * Key model, service accounts and the usage log: [API keys](api-keys.md).
@@ -35,6 +38,9 @@ covers your need.
 
 ## Authentication
 
+The whole API is switched on per deployment by the `public_api` feature
+flag; while it is off for the caller every route answers
+`404 feature_disabled` (see [Availability](api-keys.md#availability)).
 Every request (except the two documentation endpoints) carries an access key:
 
 ```
@@ -54,7 +60,8 @@ Authorization: Bearer bgr_<env>_<id>_<secret>
 
 **Personal keys** act as their owner and see what the owner sees.
 **Organisation keys** act as their own service account with the role chosen
-at creation (ANNOTATOR or CONTRIBUTOR, never admin), optionally restricted to
+at creation (ANNOTATOR, CONTRIBUTOR or ORG_ADMIN; only an org-wide admin can
+create an ORG_ADMIN key, and it is always org-wide), optionally restricted to
 one group of the organisation. Either kind can be limited to a list of
 projects. A browser session also works on `/api/v1` (the session token is
 read from the `Authorization` header first); it passes every scope check.
@@ -97,7 +104,7 @@ endpoints on this page:
 | (none) | `GET /api/v1/me` |
 | `projects:read` | listing and reading projects |
 | `tasks:read` | reading tasks (blinded, see below) |
-| `tasks:read_reference` | reading tasks with reference solutions; also required for exports. Only grantable to personal keys and CONTRIBUTOR organisation keys |
+| `tasks:read_reference` | reading tasks with reference solutions; also required for exports. Only grantable to personal keys and CONTRIBUTOR or ORG_ADMIN organisation keys |
 | `exports:read` | starting, polling and downloading exports |
 
 The other scopes (`runs:*`, `evaluations:*`, `results:read`, `models:*`,
@@ -119,8 +126,8 @@ packages) can add scopes and endpoints of their own under `/api/v1/<overlay>`.
 | `POST /api/v1/projects/{project_id}/exports` | `exports:read`, `tasks:read_reference` | start an export job (idempotent) |
 | `GET /api/v1/exports/{job_id}` | `exports:read`, `tasks:read_reference` | poll an export job |
 | `GET /api/v1/exports/{job_id}/download` | `exports:read`, `tasks:read_reference` | `302` to a presigned download URL (valid 5 minutes) |
-| `GET /api/v1/openapi.json`, `GET /api/v1/docs` | public | the spec and Swagger UI |
-| `GET /api/v1/reference/openapi.json`, `GET /api/v1/reference` | public | spec and Swagger UI of the [full API](full-api.md) |
+| `GET /api/v1/openapi.json`, `GET /api/v1/docs` | no login (behind the `public_api` flag) | the spec and Swagger UI |
+| `GET /api/v1/reference/openapi.json`, `GET /api/v1/reference` | no login (behind the `public_api` flag) | spec and Swagger UI of the [full API](full-api.md) |
 
 ### Projects
 
@@ -235,7 +242,11 @@ calling key (or session user) and route.
 
 ## Rate limits
 
-Each key has a per-minute and a per-day budget (shown in `/api/v1/me`).
+Each key has a per-minute and a per-day budget (shown in `/api/v1/me`). The
+defaults are 120 requests per minute and 20,000 per day; a key can be given
+its own values up to the deployment maximum (by default 600 per minute and
+100,000 per day), and a higher value is refused with
+`422 rate_limit_too_high` (details in [API keys](api-keys.md#rate-limits)).
 Every answer to a key request carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
 `X-RateLimit-Reset` (Unix time of the window end). An exhausted budget
 answers `429 rate_limited` with `Retry-After` in seconds. Back off for that
@@ -243,7 +254,11 @@ long; do not retry in a tight loop. Sessions are not limited here.
 
 ## Errors
 
-All errors on `/api/v1` use one envelope:
+All errors on `/api/v1` use one envelope (the [full API](full-api.md) does
+not: its routes answer in FastAPI's shape, usually
+`{"detail": {"code": "...", "message": "..."}}`, so a client that calls both
+reads the code from `error.code` on `/api/v1` and from `detail.code`
+elsewhere):
 
 ```json
 {
@@ -268,6 +283,7 @@ Common codes:
 | 403 | `insufficient_scope` | the key lacks a scope |
 | 403 | `forbidden`, `organization_inactive`, `project_window_upcoming` | role, organisation or time window forbids it |
 | 404 | `not_found`, `task_not_found`, `export_not_found`, `export_not_ready` | unknown, invisible or not ready |
+| 404 | `feature_disabled` | the `public_api` feature flag is off for the caller |
 | 409 | `idempotency_in_progress` | duplicate POST still running |
 | 410 | `export_expired` | start a new export |
 | 422 | `validation_error`, `idempotency_key_reused` | invalid body or query (`details.errors` lists the fields) |

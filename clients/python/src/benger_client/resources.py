@@ -194,6 +194,9 @@ class Imports(_Resource):
         source: ImportSource,
         *,
         filename: str | None = None,
+        mode: str | None = None,
+        dry_run: bool = False,
+        model_id_map: Mapping[str, str] | None = None,
         wait: bool = True,
         timeout: float = 1800.0,
         interval: float = 2.0,
@@ -209,12 +212,28 @@ class Imports(_Resource):
         counts such as ``created_tasks``) and raises
         :class:`~benger_client.errors.BengerJobError` if it failed. With
         ``wait=False`` returns ``{"job_id", "status"}`` right away.
+
+        ``mode="merge"`` takes a full project export (comprehensive JSON or
+        NDJSON) of this project or a copy of it and adds only the generation
+        and evaluation results this project does not hold yet; the source is
+        then sent as is. ``model_id_map`` (merge only) translates model ids of
+        the file to models of this deployment. ``dry_run=True`` (merge only)
+        rolls the merge back and completes with the preview in
+        ``result.statistics``.
         """
-        content, name = _read_source(source, filename, wrap_list=True)
+        merge = mode == "merge"
+        content, name = _read_source(source, filename, wrap_list=not merge)
         base = f"/api/projects/{_q(project_id)}/imports"
         upload = self._client.post(f"{base}/upload-url", params={"filename": name})
         object_key = self._put_to_storage(upload, content, name)
-        job = self._client.post(base, json={"object_key": object_key})
+        body: dict[str, Any] = {"object_key": object_key}
+        if mode is not None:
+            body["mode"] = mode
+        if dry_run:
+            body["dry_run"] = True
+        if model_id_map is not None:
+            body["model_id_map"] = dict(model_id_map)
+        job = self._client.post(base, json=body)
         if not wait:
             return job
         return self.wait(job["job_id"], project_id=project_id, timeout=timeout, interval=interval)
@@ -352,6 +371,7 @@ class Models(_Resource):
         output_cost_per_million: float | None = None,
         parameter_constraints: Mapping[str, Any] | None = None,
         default_config: Mapping[str, Any] | None = None,
+        max_concurrent_requests: int | None = None,
     ) -> dict[str, Any]:
         """Register an OpenAI-compatible endpoint as a model (``POST /api/custom-models/``,
         scope ``models:manage``).
@@ -364,7 +384,9 @@ class Models(_Resource):
         private; use its ``id`` (``custom-<uuid>``) in generation configs.
         ``parameter_constraints`` example:
         ``{"temperature": {"supported": True, "min": 0, "max": 1},
-        "max_tokens": {"max": 8192}}``.
+        "max_tokens": {"max": 8192}}``. ``max_concurrent_requests`` (1-256)
+        caps how many requests BenGER sends to the endpoint at once; unset
+        uses the server default.
         """
         body = _drop_none(
             {
@@ -382,6 +404,7 @@ class Models(_Resource):
                 if parameter_constraints is not None
                 else None,
                 "default_config": dict(default_config) if default_config is not None else None,
+                "max_concurrent_requests": max_concurrent_requests,
             }
         )
         return self._client.post("/api/custom-models/", json=body)
@@ -483,8 +506,8 @@ class Generation(_Resource):
 
         Sends ``PATCH /api/projects/{id}`` with ``generation_config``, which
         the server deep-merges, so keys you do not send survive.
-        (``PUT /api/projects/{id}/generation-config`` would replace the whole
-        document.) ``models`` becomes ``selected_configuration.models``
+        (``PUT /api/projects/{id}/generation-config`` deep-merges the same
+        way.) ``models`` becomes ``selected_configuration.models``
         (catalog ids or ``custom-...`` ids); ``prompt_structures`` maps a
         structure key to ``{"name", "system_prompt", "instruction_prompt", ...}``.
         Returns the updated project.
@@ -749,7 +772,11 @@ class Evaluations(_Resource):
         return self._client.post("/api/evaluations/run", json=body)
 
     def status(self, evaluation_id: str, *, project_id: str | None = None) -> dict[str, Any]:
-        """``{id, status, message}`` of a run.
+        """``{id, status, message, progress}`` of a run.
+
+        ``progress`` is the percent of graded cells (``100.0`` once completed,
+        ``None`` while unknown); the project-scoped lookup reports ``None``
+        until the run completes.
 
         Uses ``GET /api/evaluations/evaluation/status/{id}``. A key limited to
         a project list cannot call that route (it names no project); pass
@@ -768,8 +795,14 @@ class Evaluations(_Resource):
                     "id": run["id"],
                     "status": run.get("status"),
                     "message": run.get("error_message"),
+                    "progress": 100.0 if run.get("status") == "completed" else None,
                 }
-        return {"id": evaluation_id, "status": "missing", "message": "Run not listed"}
+        return {
+            "id": evaluation_id,
+            "status": "missing",
+            "message": "Run not listed",
+            "progress": None,
+        }
 
     def wait(
         self,

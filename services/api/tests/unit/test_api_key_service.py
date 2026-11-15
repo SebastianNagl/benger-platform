@@ -213,6 +213,23 @@ def test_expired_key_rejected(test_db):
     assert _code(ei) == "api_key_expired"
 
 
+def test_create_expiry_defaults_to_90_days_only_when_omitted():
+    """A key created without ``expires_at`` expires in 90 days, as the UI
+    preselects; an explicit null keeps the UI's "never" (no expiry)."""
+
+    def payload(**extra):
+        return {"name": "k", **extra}
+
+    before = datetime.now(timezone.utc)
+    default = svc._create_expiry(payload())
+    after = datetime.now(timezone.utc)
+    assert svc.DEFAULT_KEY_EXPIRY_DAYS == 90
+    assert before + timedelta(days=90) <= default <= after + timedelta(days=90)
+    assert svc._create_expiry(payload(expires_at=None)) is None
+    explicit = datetime.now(timezone.utc) + timedelta(days=7)
+    assert svc._create_expiry(payload(expires_at=explicit)) == explicit
+
+
 def test_past_expiry_refused_at_creation(test_db):
     world = seed_world_sync(test_db)
     with pytest.raises(HTTPException) as ei:

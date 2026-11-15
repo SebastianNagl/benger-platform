@@ -138,7 +138,7 @@ When developing API endpoints, the auto-authenticated session provides:
 Example API testing:
 ```javascript
 // The auto-auth session includes these headers automatically
-const response = await fetch('http://benger.localhost/api/v1/tasks', {
+const response = await fetch('http://benger.localhost/api/v1/projects/<project_id>/tasks', {
   credentials: 'include' // Uses the auto-auth session
 })
 ```
@@ -175,11 +175,8 @@ The auto-authentication is implemented in:
 - **AuthContext**: `/services/frontend/src/contexts/AuthContext.tsx`
 - **Environment Config**: `/infra/docker-compose.yml`
 - **Visual Indicators**: `/services/frontend/src/components/dev/DevModeIndicator.tsx`
-- **Tests**: `/services/frontend/src/__tests__/auth/auto-auth-dev.test.tsx`
 
 ### Related Documentation
 
-- [Local Development Setup](./LOCAL_DEVELOPMENT.md)
-- [Docker Development](./DOCKER_DEVELOPMENT.md)
-- [Authentication System](./AUTHENTICATION.md)
-- [Environment Variables](./ENVIRONMENT_VARIABLES.md)
+- [Authentication Configuration](./authentication.md)
+- [Environment Variables](./environment-variables.md)

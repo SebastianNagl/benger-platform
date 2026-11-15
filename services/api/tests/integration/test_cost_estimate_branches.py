@@ -581,7 +581,10 @@ class TestGenerationCells:
         """Two structure_keys × 3 tasks → 6 cells under mode='all'."""
         actor = await _seed_user(async_test_db)
         await _seed_model(async_test_db, PRICED_MODEL)
-        project = await _seed_project(async_test_db, actor, num_tasks=3)
+        project = await _seed_project(
+            async_test_db, actor, num_tasks=3,
+            generation_config={"prompt_structures": {"s1": {}, "s2": {}}},
+        )
         pid = project.id
         await async_test_db.commit()
         with _as_user(actor):
@@ -621,6 +624,37 @@ class TestGenerationCells:
             )
         assert resp.status_code == 422, resp.text
         assert "structure_keys is required" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "generation_config",
+        [{}, {"prompt_structures": {}}, {"prompt_structures": {"s1": {}}}],
+        ids=["no-structures-key", "empty-structures", "other-structure"],
+    )
+    async def test_unknown_structure_keys_are_400(
+        self, async_test_client, async_test_db, generation_config
+    ):
+        """Same rule as the generate endpoint: structure_keys the project
+        does not define are a 400, also when it has no structures at all,
+        instead of pricing cells a run could never generate."""
+        actor = await _seed_user(async_test_db)
+        await _seed_model(async_test_db, PRICED_MODEL)
+        project = await _seed_project(
+            async_test_db, actor, num_tasks=3, generation_config=generation_config,
+        )
+        pid = project.id
+        await async_test_db.commit()
+        with _as_user(actor):
+            resp = await _post(
+                async_test_client,
+                project_id=pid,
+                mode="generation",
+                model_ids=[PRICED_MODEL],
+                generation_mode="missing",
+                structure_keys=["default"],
+            )
+        assert resp.status_code == 400, resp.text
+        assert "Unknown structure keys: ['default']" in resp.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_empty_structure_selection_prices_nothing(

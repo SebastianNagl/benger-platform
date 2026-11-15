@@ -20,7 +20,7 @@ The export system captures ALL project data including:
 - ✅ LLM generations and responses
 - ✅ Evaluation results
 - ✅ Task assignments (project membership comes from organizations and is not exported)
-- ✅ User references for mapping
+- ✅ Pseudonymous user placeholders
 
 ### Intelligent Import System
 The import system provides:
@@ -111,9 +111,21 @@ GET  /api/projects/{project_id}/exports/{job_id}
 GET  /api/projects/{project_id}/exports/{job_id}/download
 ```
 
-`format` is `ndjson_gz` (recommended), `ndjson` or `comprehensive` for a full
-project export. The synchronous projects-list export is still there for a few
-small projects:
+`format` is a query parameter: `ndjson_gz` (recommended), `ndjson` or
+`comprehensive` for a full project export. The `POST` answers `202` with
+`{job_id, status}`. Polling the job returns `job_id`, `project_id`, `format`,
+`status` (`pending`, `running`, `completed`, `failed`), `progress`,
+`byte_size`, `error_message`, `created_at`, `updated_at` and `expires_at`
+(when the stored file is deleted). There is no `completed_at`: once `status`
+is `completed`, `updated_at` is the time the job finished. The download route
+answers with a `302` to a presigned URL; with `?json=1` it returns
+`{"url": ..., "expires_in": 300}` instead, a URL valid for five minutes. It
+answers `404` until the job is completed and `410` once the file has expired.
+
+The synchronous projects-list export is still there for a few
+small projects (`<token>` here and below is an access key, `bgr_...`, or the
+`access_token` from `POST /api/auth/token`, see
+[API and script authentication](setup/authentication.md#api-and-script-authentication)):
 
 ```http
 POST /api/projects/bulk-export-full
@@ -138,6 +150,15 @@ POST /api/projects/project-imports/upload-url?filename=project.ndjson.gz
 POST /api/projects/project-imports
 GET  /api/projects/project-imports/{job_id}
 ```
+
+The upload-url response is
+`{upload_url, method, file_key, fields, expires_at}`. `filename` is a query
+parameter that sets the content type the upload policy pins, so pass the real
+name (`?filename=<name>.ndjson.gz` for a gzip export). Upload with a multipart
+`POST` to `upload_url`: send every entry of `fields` unchanged, then the file
+last as the form field `file`. The upload goes straight to object storage, so
+send no `Authorization` header there and never the BenGER key. The
+`file_key` then goes into the job body as `object_key`.
 
 The job body of `POST /api/projects/project-imports` (create a new project):
 
@@ -168,7 +189,9 @@ the created or targeted `project_id`, the importer's `result` with its
 statistics, and for a refused import `error_message` plus `error_status` (the
 HTTP-style status, e.g. 409) and `error_code`, a stable token such as
 `merge_task_mismatch`, `merge_unknown_models`, `task_export_not_project` or
-`import_too_large`.
+`import_too_large`. The job also carries `format`, `progress`, `byte_size`,
+`created_at`, `updated_at` and `expires_at`. There is no `completed_at`: once
+`status` is `completed` or `failed`, `updated_at` is the time the job finished.
 
 An upload may be at most 5 GiB, the largest object S3 takes in one upload;
 the presigned policy refuses a larger file. The cap is
@@ -256,17 +279,18 @@ model is shown, with a copy button, in its expanded row on the models page.
 
 ### Export Format Structure
 
+The comprehensive JSON export (`format=comprehensive`) has these top-level
+keys; the NDJSON export carries the same data as one record per line.
+
 ```json
 {
   "format_version": "1.0.0",
-  "exported_at": "2025-01-01T12:00:00Z",
-  "exporter_version": "1.0.0",
+  "exported_at": "2025-01-01T12:00:00",
+  "exported_by": "user-id",
   "project": {
     "id": "project-id",
     "title": "Project Title",
     "description": "Project description",
-    "is_public": false,
-    "is_archived": false,
     "created_at": "2025-01-01T10:00:00Z",
     "updated_at": "2025-01-01T11:00:00Z"
   },
@@ -280,15 +304,25 @@ model is shown, with a copy button, in its expanded row on the models page.
       "created_at": "2025-01-01T10:30:00Z"
     }
   ],
+  "task_rubrics": [...],
   "annotations": [...],
-  "predictions": [...],
+  "predictions": [],
   "generations": [...],
+  "response_generations": [...],
+  "task_assignments": [...],
   "evaluations": [...],
+  "evaluation_metrics": [...],
+  "evaluation_judge_runs": [...],
+  "task_evaluations": [...],
+  "human_evaluation_configs": [...],
+  "human_evaluation_sessions": [...],
+  "human_evaluation_results": [...],
+  "preference_rankings": [...],
+  "likert_scale_evaluations": [...],
+  "korrektur_comments": [...],
+  "grading_feedback": [...],
+  "post_annotation_responses": [...],
   "users": [...],
-  "metadata": {
-    "export_reason": "Migration",
-    "included_data": ["tasks", "annotations", "predictions"]
-  },
   "statistics": {
     "total_tasks": 100,
     "total_annotations": 50
@@ -296,12 +330,24 @@ model is shown, with a copy button, in its expanded row on the models page.
 }
 ```
 
+`evaluations` holds the project's evaluation runs, `task_assignments` the task
+assignments (see above), and `users` the pseudonymous user placeholders.
+
 ## Security Considerations
 
 ### Permissions
-- **Export**: Users can export projects they have access to
-- **Import**: Users need project creation permissions
-- **Superadmin**: Can export/import any project
+- **Export**: needs the effective role ORG_ADMIN or CONTRIBUTOR on the
+  project, the roles that see unblinded task data (annotators cannot export).
+  A project with a timed access window cannot be exported by non-editors
+  before the window opens.
+- **Import into an existing project** (nested or merge import): needs edit
+  rights on the project: its creator, a superadmin, or a CONTRIBUTOR or
+  ORG_ADMIN of an organisation it is attached to. Visitors of a public project
+  with `public_role=CONTRIBUTOR` may read and export it but not import into it.
+- **Import as a new project**: open to every signed-in user. Naming an
+  `organization_id` additionally needs a CONTRIBUTOR or ORG_ADMIN membership
+  there.
+- **Superadmin**: can export and import any project.
 
 ### Data Privacy
 - User passwords are NEVER exported
@@ -342,16 +388,19 @@ model is shown, with a copy button, in its expanded row on the models page.
 - **Solution**: System auto-renames duplicates
 - **Solution**: Check and merge if needed
 
-**Problem**: Large file import times out
-- **Solution**: Split into smaller files
-- **Solution**: Increase server timeout settings
-- **Solution**: Use direct API instead of UI
+**Problem**: Large file upload is cut off
+- **Cause**: an upload that breaks off after about 60 seconds points to the
+  proxy in front of object storage, not to the file size. Its timeout is set
+  in `infra/k3s/traefik-config.yaml` (3600 seconds), so a file of several GB
+  has time to arrive.
+- **Solution**: check that proxy timeout on the deployment; splitting the
+  file is not needed below the 5 GiB cap.
 
 ## Performance Guidelines
 
 ### Recommended Limits
 - **Single Export**: Up to 100 projects
-- **Single Import**: Files up to 100MB
+- **Single Import**: up to 5 GiB per file (`IMPORT_UPLOAD_MAX_BYTES`)
 - **Tasks per Project**: Up to 10,000
 - **Concurrent Operations**: 1 (UI enforced)
 
@@ -421,31 +470,56 @@ Sharing projects with external teams:
 
 ## API Client Examples
 
+`token` is an access key (`bgr_...`) or the `access_token` from
+`POST /api/auth/token`.
+
 ### Python Example
 ```python
+import os
 import time
 
 import requests
 
-# Export projects
-def export_projects(project_ids, token):
-    response = requests.post(
-        "https://benger.example.com/api/projects/bulk-export-full",
-        json={"project_ids": project_ids},
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    
-    with open("export.zip", "wb") as f:
-        f.write(response.content)
-    
-    return "export.zip"
+API = "https://benger.example.com/api/projects"
+
+
+# Export one project (background job: start, poll, download)
+def export_project(project_id, token, path="export.ndjson.gz"):
+    headers = {"Authorization": f"Bearer {token}"}
+    job = requests.post(
+        f"{API}/{project_id}/exports",
+        params={"format": "ndjson_gz"},
+        headers=headers,
+    ).json()
+    while True:
+        status = requests.get(
+            f"{API}/{project_id}/exports/{job['job_id']}", headers=headers
+        ).json()
+        if status["status"] == "completed":
+            break
+        if status["status"] == "failed":
+            raise RuntimeError(status["error_message"])
+        time.sleep(2)
+    url = requests.get(
+        f"{API}/{project_id}/exports/{job['job_id']}/download",
+        params={"json": 1},
+        headers=headers,
+    ).json()["url"]
+    # The presigned URL goes to object storage: no BenGER key there.
+    with requests.get(url, stream=True) as r, open(path, "wb") as f:
+        r.raise_for_status()
+        for chunk in r.iter_content(chunk_size=1 << 20):
+            f.write(chunk)
+    return path
 
 # Import project (background job: presign, upload, enqueue, poll)
 def import_project(file_path, token, model_id_map=None):
-    base = "https://benger.example.com/api/projects/project-imports"
+    base = f"{API}/project-imports"
     headers = {"Authorization": f"Bearer {token}"}
     upload = requests.post(
-        f"{base}/upload-url", params={"filename": file_path}, headers=headers
+        f"{base}/upload-url",
+        params={"filename": os.path.basename(file_path)},
+        headers=headers,
     ).json()
     with open(file_path, "rb") as f:
         requests.post(upload["upload_url"], data=upload["fields"], files={"file": f})
