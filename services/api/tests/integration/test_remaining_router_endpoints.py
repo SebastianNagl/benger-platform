@@ -309,15 +309,16 @@ async def _gen_make_user(db, *, is_superadmin=True, prefix="gen"):
     return u
 
 
-# Every generation runs on a prompt structure (no built-in default prompt):
-# _gen_make_project seeds one unless the config names its own.
+# Every generation runs on a prompt structure (no built-in default prompt),
+# and a run may only name structures the project defines: _gen_make_project
+# seeds one unless the config names its own.
 GEN_STRUCTURE_KEY = "s0"
 
 
 async def _gen_make_project(db, creator, *, generation_config=None, num_tasks=2):
-    if generation_config is not None and "prompt_structures" not in generation_config:
+    if generation_config is None or "prompt_structures" not in generation_config:
         generation_config = {
-            **generation_config,
+            **(generation_config or {}),
             "prompt_structures": {
                 GEN_STRUCTURE_KEY: {
                     "name": "Test",
@@ -642,9 +643,9 @@ class TestGenerationTaskListEndpoints:
 
     async def test_start_generation_all_mode(self, async_test_client, async_test_db):
         admin = await _gen_make_user(async_test_db)
+        # _gen_make_project seeds the GEN_STRUCTURE_KEY structure the run names.
         gen_config = {
             "selected_configuration": {"models": ["gpt-4o"], "active_structures": []},
-            "prompt_structures": {},
         }
         project, _ = await _gen_make_project(
             async_test_db, admin, generation_config=gen_config, num_tasks=2

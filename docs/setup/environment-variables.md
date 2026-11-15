@@ -59,7 +59,8 @@ See [API keys](../api-keys.md) for the model behind these settings.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Set it from a secret in production. Changing it invalidates every existing key. |
+| `PUBLIC_API_ENABLED` | `false` | Initial state of the `public_api` feature flag: `true` creates it as everyone, `false` as off. After that the flag at `/admin/feature-flags` decides; see [Availability](../api-keys.md#availability). |
+| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Required in production: with `ENVIRONMENT=production` the API refuses to start while it is empty. Changing it invalidates every existing key. |
 | `API_KEY_ENVIRONMENT` | `live` in production, `test` elsewhere | Key tag this deployment issues and accepts (`bgr_live_...` / `bgr_test_...`). A key from another environment is refused. |
 | `API_KEY_DEFAULT_RPM` | `120` | Requests per minute per key when the key sets no own limit. |
 | `API_KEY_DEFAULT_RPD` | `20000` | Requests per day per key when the key sets no own limit. |
@@ -69,6 +70,14 @@ See [API keys](../api-keys.md) for the model behind these settings.
 | `API_USAGE_IP_MODE` | `truncated` | How much of the client IP the usage log keeps: `full`, `truncated` (IPv4 /24, IPv6 /48) or `none`. |
 | `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |
 | `PUBLIC_API_URL` | `https://api.<domain of FRONTEND_URL>` | Base URL announced as `servers` in `/api/v1/openapi.json` and the docs. Unset with a localhost frontend, the spec names the requesting host. See [Public API](../public-api.md). |
+
+### Project imports
+Set these on the api and the workers alike (the Helm chart sets `IMPORT_UPLOAD_MAX_BYTES` from `minio.importUploadMaxBytes`). See [Project migration](../project-migration.md).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMPORT_UPLOAD_MAX_BYTES` | `5368709120` (5 GiB) | Largest import file in bytes, checked by the presigned upload policy, the cloud import and the `/health` free-space warning. A value above 5 GiB is lowered to 5 GiB, since one presigned POST cannot carry more. |
+| `IMPORT_MAX_DECOMPRESSED_BYTES` | `42949672960` (40 GiB) | Largest decompressed size of an import in bytes; a larger import is refused. |
 
 ## Workers Environment Variables
 

@@ -19,7 +19,7 @@ Who may grant a scope is data too (``ScopeDef.grantable``):
 * ``any``: every key.
 * ``full_data_role``: keys whose effective role sees unblinded task data
   (personal keys, whose owner's per-project role still applies at request
-  time, and organization keys with role CONTRIBUTOR).
+  time, and organization keys with role CONTRIBUTOR or ORG_ADMIN).
 * ``org_admin``: organization keys created by an org-wide admin.
 * ``org_admin_role``: personal keys (the owner's own role still applies at
   request time) and organization keys with role ORG_ADMIN.

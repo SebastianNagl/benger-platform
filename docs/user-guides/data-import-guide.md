@@ -163,11 +163,12 @@ Check your project's label configuration to understand required fields:
 5. Complete import
 
 ## API Import (Advanced)
-For programmatic import, use the API endpoint:
-```bash
-POST /api/projects/{project_id}/import
-Content-Type: application/json
+Programmatic imports run as background jobs in three steps: ask for a
+presigned upload URL, upload the file straight to object storage, then create
+the import job and poll it. Put the tasks into a JSON file, for example
+`tasks.json`:
 
+```json
 {
   "data": [
     {"text": "Task 1"},
@@ -175,6 +176,36 @@ Content-Type: application/json
   ]
 }
 ```
+
+`$TOKEN` is an access key (`bgr_...`) or the `access_token` from
+`POST /api/auth/token` (see
+[API and script authentication](../setup/authentication.md#api-and-script-authentication)).
+
+```bash
+API=https://your-instance
+H="Authorization: Bearer $TOKEN"
+
+# 1. Ask for a presigned upload URL
+curl -s -X POST -H "$H" \
+  "$API/api/projects/$PROJECT_ID/imports/upload-url?filename=tasks.json" > upload.json
+
+# 2. Upload the file straight to object storage: every entry of "fields"
+#    unchanged, the file last as "file", and no BenGER token
+args=()
+while IFS= read -r field; do args+=(--form-string "$field"); done \
+  < <(jq -r '.fields | to_entries[] | "\(.key)=\(.value)"' upload.json)
+curl -s "${args[@]}" -F "file=@tasks.json" "$(jq -r .upload_url upload.json)"
+
+# 3. Create the import job and poll it until status is completed or failed
+JOB=$(curl -s -X POST -H "$H" -H "Content-Type: application/json" \
+  -d "{\"object_key\": \"$(jq -r .file_key upload.json)\"}" \
+  "$API/api/projects/$PROJECT_ID/imports" | jq -r .job_id)
+curl -s -H "$H" "$API/api/projects/$PROJECT_ID/imports/$JOB"
+```
+
+Importing needs edit rights on the project. The upload rules, the job fields
+and the other import kinds are described in
+[Project migration](../project-migration.md#import-endpoints).
 
 ## Support
 If you encounter issues with data import:

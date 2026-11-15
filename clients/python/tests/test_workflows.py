@@ -356,3 +356,49 @@ def test_export_create_wait_download(client, router, tmp_path):
     assert all("Authorization" not in c.headers for c in storage_calls)
     assert client.exports.download("x1") == b'{"tasks": []}'
     assert router.calls[0].url == httpx.URL(BASE + "/api/v1/projects/p1/exports")
+
+
+def test_register_custom_sends_max_concurrent_requests(client, router):
+    router.add(
+        "POST", "/api/custom-models/", lambda r: httpx.Response(201, json={"id": "custom-1"})
+    )
+    client.models.register_custom(
+        "m", "https://inference.example.org/v1", "llama", max_concurrent_requests=4
+    )
+    (body,) = router.bodies("POST", "/api/custom-models/")
+    assert body["max_concurrent_requests"] == 4
+
+
+def test_import_upload_merge_dry_run(client, router):
+    router.add("POST", "/api/projects/p1/imports/upload-url", _upload_answer("p1"))
+    router.add("POST", STORAGE, lambda r: httpx.Response(204))
+    router.add(
+        "POST",
+        "/api/projects/p1/imports",
+        lambda r: httpx.Response(202, json={"job_id": "j1", "status": "pending"}),
+    )
+    export = [{"id": "t1"}]
+    job = client.imports.upload(
+        "p1", export, mode="merge", dry_run=True, model_id_map={"old": "new"}, wait=False
+    )
+    assert job == {"job_id": "j1", "status": "pending"}
+    (body,) = router.bodies("POST", "/api/projects/p1/imports")
+    assert body["mode"] == "merge"
+    assert body["dry_run"] is True
+    assert body["model_id_map"] == {"old": "new"}
+    # A merge source is sent as is, not wrapped into {"data": [...]}.
+    storage_call = next(c for c in router.calls if str(c.url).startswith(STORAGE))
+    assert b'[{"id": "t1"}]' in storage_call.content or b'[{"id":"t1"}]' in storage_call.content
+
+
+def test_import_upload_default_sends_only_object_key(client, router):
+    router.add("POST", "/api/projects/p1/imports/upload-url", _upload_answer("p1"))
+    router.add("POST", STORAGE, lambda r: httpx.Response(204))
+    router.add(
+        "POST",
+        "/api/projects/p1/imports",
+        lambda r: httpx.Response(202, json={"job_id": "j1", "status": "pending"}),
+    )
+    client.imports.upload("p1", [{"data": {}}], wait=False)
+    (body,) = router.bodies("POST", "/api/projects/p1/imports")
+    assert set(body) == {"object_key"}

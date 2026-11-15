@@ -195,24 +195,56 @@ Standard data files (CSV, JSON, TXT, etc.) are processed normally:
 
 ## API Integration
 
+`$TOKEN` below is an access key (`bgr_...`) or the `access_token` from
+`POST /api/auth/token` (see
+[API and script authentication](../setup/authentication.md#api-and-script-authentication)).
+Exports and imports run as background jobs; the full reference is in
+[Project migration](../project-migration.md#api-reference).
+
 ### Programmatic Export
 ```bash
-curl -X GET "https://your-instance/api/tasks/{task_id}/download" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -o export.json
+API=https://your-instance
+H="Authorization: Bearer $TOKEN"
+
+# Start the export job (format is a query parameter)
+JOB=$(curl -s -X POST -H "$H" \
+  "$API/api/projects/$PROJECT_ID/exports?format=json" | jq -r .job_id)
+
+# Poll until status is completed (or failed)
+curl -s -H "$H" "$API/api/projects/$PROJECT_ID/exports/$JOB"
+
+# Download: ?json=1 returns the presigned URL (valid five minutes) instead
+# of a redirect, so the token is never sent to object storage
+URL=$(curl -s -H "$H" "$API/api/projects/$PROJECT_ID/exports/$JOB/download?json=1" | jq -r .url)
+curl -s -o export.json "$URL"
 ```
 
 ### Programmatic Import
 ```bash
-curl -X POST "https://your-instance/api/data/upload" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "file=@your_export.json" \
-  -F "task_id=target_task_id"
+API=https://your-instance
+H="Authorization: Bearer $TOKEN"
+
+# 1. Ask for a presigned upload URL
+curl -s -X POST -H "$H" \
+  "$API/api/projects/$PROJECT_ID/imports/upload-url?filename=your_export.json" > upload.json
+
+# 2. Upload the file straight to object storage: every entry of "fields"
+#    unchanged, the file last as "file", and no BenGER token
+args=()
+while IFS= read -r field; do args+=(--form-string "$field"); done \
+  < <(jq -r '.fields | to_entries[] | "\(.key)=\(.value)"' upload.json)
+curl -s "${args[@]}" -F "file=@your_export.json" "$(jq -r .upload_url upload.json)"
+
+# 3. Create the import job and poll it until status is completed or failed
+JOB=$(curl -s -X POST -H "$H" -H "Content-Type: application/json" \
+  -d "{\"object_key\": \"$(jq -r .file_key upload.json)\"}" \
+  "$API/api/projects/$PROJECT_ID/imports" | jq -r .job_id)
+curl -s -H "$H" "$API/api/projects/$PROJECT_ID/imports/$JOB"
 ```
 
 ## Security Considerations
 
 - Exports contain complete task data including sensitive annotations
-- Access is controlled by user permissions (require_annotator level for exports)
+- Exports need the effective role CONTRIBUTOR or ORG_ADMIN on the project (annotators cannot export), because they contain unblinded task data
 - Exports include audit trail with user ID and timestamp
 - Store exported files securely according to your data governance policies 

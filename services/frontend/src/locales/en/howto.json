@@ -393,20 +393,32 @@
     },
     "export-import-project": {
       "title": "How do I export tasks or a whole project and import it again?",
-      "summary": "**Tasks** of a project: *Project data* page → export icon, gives JSON. **Whole projects** including configuration, annotations and evaluations: tick them in the project list → **Actions → Export selected projects** (ZIP). Bring them back via **More → Import project**.",
+      "summary": "**Tasks** of a project: *Project data* page → export icon, gives JSON. **Whole projects** including configuration, annotations and evaluations: tick them in the project list → **Actions → Export selected projects** (ZIP) or, for large projects, **Export as NDJSON (gzip)**. Bring them back via **More → Import project**. New results from a copy go back into the original with **Merge results** on its *Project data* page.",
       "steps": [
         "**Export tasks**: project page → *Project data* → export icon. With active filters or a selection only that subset is exported. The export runs in the background, then the download appears.",
-        "**Export project**: [Projects](/projects) → tick projects → **Actions → Export selected projects**. You get `benger-projects-full-<date>.zip`.",
-        "**Import project**: [Projects](/projects) → **More → Import project** → choose `.json` or `.zip`. The new project opens after the import."
+        "**Export project**: [Projects](/projects) → tick projects → **Actions → Export selected projects**. You get `benger-projects-full-<date>.zip`. For large projects choose **Export as NDJSON (gzip), for large projects** instead: each project is exported in the background as a `.ndjson.gz` file, and its download starts as soon as it is ready.",
+        "**Import project**: [Projects](/projects) → **More → Import project** → under **Import into** choose the organization (or a group of it) that will own the copy, or **Private** → choose a `.json`, `.ndjson`, `.gz` or `.zip` file. The new project opens after the import.",
+        "**Merge results**: if a model answered the tasks in a copy of the project, export the copy and open the *Project data* page of the original → **Merge results** (the icon with arrows pointing inward) → choose the file. **Check file** shows what the merge would add and lists the models of the file. Choose a model here for every model id that does not exist on this installation, then **Merge**."
       ],
       "pitfalls": [
         "An imported project is a copy with new IDs. Users and organizations are not copied, you set the visibility anew.",
-        "The project lands in the organization you are currently working in. In private mode the platform uses your first organization.",
+        "In the organization you import into you need the **Contributor** or **Admin** role. **Private** makes the copy visible only to you.",
+        "**Merge results** only adds generations and evaluations to tasks the project already has. If the file's tasks are not this project's, nothing is imported; import such a file as a new project instead.",
         "**Import project** only accepts project exports. Import a task export from *Project data* on the *Project data* page of an existing project.",
         "*Unsupported file format version* means the file comes from an older or foreign version. Export it again from the current platform.",
         "Very large filtered task exports are capped. Narrow the filter or export without filters."
       ],
-      "keywords": ["export", "zip", "backup", "import project", "anki"]
+      "keywords": [
+        "export",
+        "zip",
+        "backup",
+        "import project",
+        "anki",
+        "ndjson",
+        "gzip",
+        "merge results",
+        "copy"
+      ]
     },
     "labeling-templates": {
       "title": "Which labeling templates exist and when do I use which?",
@@ -571,6 +583,7 @@
         "[Models](/models) → section *My models* → **Register custom model**.",
         "**Display name**, **base URL** (e.g. `https://api.example.com/v1`), **model name at the endpoint** (the value of the `model` field).",
         "Switch off **API key required** if the endpoint is reachable without authentication (e.g. a local server). Otherwise enter **Your API key**.",
+        "**Concurrent requests**: how many requests a generation run sends to this endpoint at the same time (2 when left empty). If your server handles only a few requests at once, enter that number. Further jobs then wait in BenGER's queue instead of running into their time limit at your server.",
         "Optionally reasoning parameters and cost per million tokens (for cost reports). **Test**, then save.",
         "Sharing: in the model list set the visibility to organization or public. Only the endpoint definition is shared. Everyone stores their own key."
       ],
@@ -1150,7 +1163,7 @@
       "summary": "With an **access key** (it starts with `bgr_`). It works on the whole BenGER API, with the same endpoints the browser uses, as far as its permissions reach. As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once.",
       "steps": [
         "**Create the key**: for the organization, open [Users & organizations](/users-organizations), pick the organization and click **More** → **API access**. For yourself, go to **API access** on your [profile](/profile). Click **New key** and give it a name you will recognize later.",
-        "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark**, **Full access to your own organization** or **Full API for research pipelines** (account, projects, tasks, annotations, own models, generation, evaluations, results, exports and files). **Advanced** lists every permission you may grant for this kind of key on its own. For organization keys you also choose the role and, if needed, a group and single projects. Validity defaults to one year.",
+        "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark**, **Full access to your own organization** or **Full API for research pipelines** (account, projects, tasks, annotations, own models, generation, evaluations, results, exports and files). **Advanced** lists every permission you may grant for this kind of key on its own. For organization keys you also choose the role and, if needed, a group and single projects. **Validity** defaults to 90 days; you can also choose 30 days, 1 year or **Unlimited**.",
         "**Copy**: after **Create key** the full key appears. Copy it right away with **Copy** and keep it safe, for example in a password manager. Afterwards you only see its identifier.",
         "**Test the connection**: click **Test connection**. BenGER calls `/api/v1/me` the way your script will and shows the key's organization and permissions.",
         "**Use it in a script or runner**: take the `curl` or Python example shown. The key goes into the `Authorization: Bearer <key>` header. Store it as an environment variable or a secret of your runner, never in the source code. The full reference at `/api/v1/reference` lists every endpoint. The benchmark API `/api/v1` is described at `/api/v1/docs`."
@@ -1199,18 +1212,22 @@
       "steps": [
         "**Create the key**: on your [profile](/profile), under **API access**, create a key with **Full API for research pipelines** (see [Set up API access](/how-to#api-zugaenge)). Store it as an environment variable such as `BENGER_API_KEY` and send it with every call in the `Authorization: Bearer <key>` header.",
         "**Register the model**: send `POST /api/custom-models/` with `name`, `base_url` (the address of your OpenAI-compatible endpoint), `endpoint_model_name` and, if needed, `api_key`. The answer carries the model's `id`, which starts with `custom-`. Check the model with `POST /api/custom-models/{id}/test` and `{\"chat_ping\": true}`. BenGER then sends a short chat request to your model.",
-        "**Prepare project and tasks**: create a project with `POST /api/projects/` or pick one from `GET /api/projects/`. For the import, `POST /api/projects/{id}/imports/upload-url` hands you an upload form (`upload_url`, `fields`, `file_key`), and you upload your JSON file there. Then start the import with `POST /api/projects/{id}/imports` and `{\"object_key\": \"<file_key>\"}` and poll `GET /api/projects/{id}/imports/{job_id}` until it is done.",
+        "**Create the project**: `POST /api/projects/` with a `title` creates a private project. For a project of your organization also send its `organization_id` (listed by `GET /api/organizations/`); you need the **Contributor** or **Admin** role there. The answer carries the project's `id`. An existing project is listed by `GET /api/projects/`.",
+        "**Import the tasks**: write the tasks into a JSON file of the form `{\"data\": [{\"question\": \"…\", \"reference\": \"…\"}, …]}`, one object with the task's fields per task. A bare list is refused. `POST /api/projects/{id}/imports/upload-url?filename=tasks.json` hands you an upload form (`upload_url`, `fields`, `file_key`). Upload the file to `upload_url` as a multipart POST that carries every entry of `fields` unchanged and the file last, as the field `file`, without your BenGER key. Then start the import with `POST /api/projects/{id}/imports` and `{\"object_key\": \"<file_key>\"}` and poll `GET /api/projects/{id}/imports/{job_id}` until its `status` is `completed`.",
+        "**Write the prompt**: generation needs a prompt structure. Create one with `PUT /api/projects/{id}/generation-config/structures/{key}`, for example with the key `default` and `{\"name\": \"Default\", \"system_prompt\": \"You answer legal questions.\", \"instruction_prompt\": \"{{question}}\"}`. `{{question}}` stands for the task field of that name, and `system_prompt` is required.",
         "**Configure generation**: pick the models with `PUT /api/projects/{id}/generation-config` and `{\"selected_configuration\": {\"models\": [\"<model id>\"]}}`. The call merges what you send into the stored configuration, so prompt structures are kept.",
-        "**Start generation**: `POST /api/generation-tasks/projects/{id}/generate` with `{\"mode\": \"missing\"}` creates every missing answer, `\"all\"` creates them all anew. If the project has prompt structures, name them in `structure_keys`. Read the progress with `GET /api/projects/{id}/generation-status`.",
-        "**Configure and start evaluation**: set the metrics with `PUT /api/evaluations/projects/{id}/evaluation-config` and `{\"evaluation_configs\": [...]}`. Each entry has `id`, `metric`, `prediction_fields` and `reference_fields`. Then start `POST /api/evaluations/run` with `project_id` and the same `evaluation_configs`. The answer carries the `evaluation_id`, and `GET /api/evaluations/evaluation/status/{evaluation_id}` tells you how far it got.",
-        "**Read the results**: once the evaluation is done, `GET /api/evaluations/run/results/project/{id}` returns the project's results. You see the same results in the browser on the project page."
+        "**Start generation**: `POST /api/generation-tasks/projects/{id}/generate` with `{\"mode\": \"missing\", \"structure_keys\": [\"default\"]}` creates every missing answer, `\"all\"` creates them all anew. A project with prompt structures always needs `structure_keys`. Read the progress with `GET /api/projects/{id}/generation-status`.",
+        "**Configure and start evaluation**: set the metrics with `PUT /api/evaluations/projects/{id}/evaluation-config` and `{\"evaluation_configs\": [...]}`. Each entry has `id`, `metric`, `prediction_fields` and `reference_fields`, for example `{\"id\": \"em\", \"metric\": \"exact_match\", \"prediction_fields\": [\"__all_model__\"], \"reference_fields\": [\"reference\"]}`: `__all_model__` grades the model answers against the task field `reference`. Then start `POST /api/evaluations/run` with `project_id`, the same `evaluation_configs`, `model_ids` and `structure_keys`. The answer carries the `evaluation_id`, and `GET /api/evaluations/evaluation/status/{evaluation_id}` shows its `status` and its `progress` from 0 to 100.",
+        "**Read the results**: once the evaluation is done, `GET /api/evaluations/run/results/{evaluation_id}` returns the results of this run and `GET /api/evaluations/run/results/project/{id}` those of the whole project. You see the same results in the browser on the project page."
       ],
       "tips": [
         "For Python there is the `benger-client` package in the `clients/python` folder of the platform repository. After installing it you connect with `from benger_client import BengerClient`.",
         "The reference at `/api/v1/reference` lists every endpoint with its fields and the permission it needs.",
         "Generation and evaluation run in the background. Poll the status every few seconds instead of waiting on the start call.",
-        "With `\"mode\": \"missing\"` and without `force_rerun`, an interrupted script picks up where it stopped on its next run.",
-        "If your server answers only a few requests at a time, register the model with `max_concurrent_requests` set to that number (2 when left out). BenGER then sends no more requests at once, and further jobs wait in its queue instead of running into their time limit at your server."
+        "With `\"mode\": \"missing\"`, an interrupted script picks up where it stopped on its next run.",
+        "Before a run that costs money, `POST /api/llm-models/cost-estimate` with `project_id`, `mode` (`generation` or `evaluation`), `model_ids` and `structure_keys` estimates what it will cost.",
+        "If your server answers only a few requests at a time, register the model with `max_concurrent_requests` set to that number (2 when left out). BenGER then sends no more requests at once, and further jobs wait in its queue instead of running into their time limit at your server.",
+        "To run your model on a copy of the project and bring its results back, see [Copy a project through the API and merge the results back](/how-to#api-round-trip)."
       ],
       "pitfalls": [
         "A key limited to single projects only reaches those projects and creates no new ones. A pipeline that creates its own projects needs a key without a project limit.",
@@ -1230,9 +1247,56 @@
         "python",
         "benger-client",
         "script",
-        "automation"
+        "automation",
+        "prompt structure",
+        "cost estimate"
       ],
-      "links": ["Profile", "Set up API access"]
+      "links": [
+        "Profile",
+        "Set up API access",
+        "Copy a project through the API and merge the results back"
+      ]
+    },
+    "api-round-trip": {
+      "title": "How do I copy a project through the API and merge the results back?",
+      "summary": "Export the project as `ndjson_gz`, import the file as a new project on this or another installation, let your model answer there, export the copy and merge it back into the original with `\"mode\": \"merge\"`. Only generations and evaluations the original does not have yet are added. Check the merge with `\"dry_run\": true` first.",
+      "steps": [
+        "**Export the project**: `POST /api/projects/{id}/exports?format=ndjson_gz` starts the export (the format is a query parameter) and returns a `job_id`. Poll `GET /api/projects/{id}/exports/{job_id}` until its `status` is `completed`. `GET /api/projects/{id}/exports/{job_id}/download?json=1` then returns `{\"url\", \"expires_in\"}`; download the file from `url` within five minutes.",
+        "**Upload the file**: `POST /api/projects/project-imports/upload-url?filename=export.ndjson.gz` hands you an upload form (`upload_url`, `fields`, `file_key`). The file name sets the stored content type, so keep the `.ndjson.gz` ending. Upload the file to `upload_url` as a multipart POST with every entry of `fields` unchanged and the file last, as the field `file`, without your BenGER key.",
+        "**Import it as a new project**: `POST /api/projects/project-imports` with `{\"object_key\": \"<file_key>\", \"organization_id\": \"<organization id>\"}`. Without `organization_id` the copy becomes your private project. Poll `GET /api/projects/project-imports/{job_id}` until it is `completed`; its `project_id` is the copy.",
+        "**Generate in the copy**: run your model there as in [Evaluate a model through the API](/how-to#api-research-workflow): select it in `generation-config`, then `POST /api/generation-tasks/projects/{id}/generate` with `structure_keys`. Then export the copy as in the first step.",
+        "**Check the merge**: upload the copy's export with `POST /api/projects/{id}/imports/upload-url?filename=copy.ndjson.gz`, where `{id}` is the original project, and send `POST /api/projects/{id}/imports` with `{\"object_key\": \"<file_key>\", \"mode\": \"merge\", \"dry_run\": true, \"model_id_map\": {\"<model id in the file>\": \"<model id here>\"}}`. Poll `GET /api/projects/{id}/imports/{job_id}`. The finished job has the format `merge_preview` and lists in `result.statistics` what the merge would add and skip and which model ids of the file are unknown here. Nothing is written yet.",
+        "**Merge**: send the same call without `dry_run` and poll again. The results are added to the matching tasks of the original; then evaluate them there as usual."
+      ],
+      "tips": [
+        "A custom model gets a new id on every installation. `model_id_map` translates the ids of the file to those of the target, on the merge and also on `POST /api/projects/project-imports`. Every target must already exist on the installation you import into. When merging back from another installation, map every custom model of the file, also one you mapped on the way into the copy.",
+        "Merging the same file twice changes nothing: results the project already has are skipped.",
+        "In the browser the same steps are **Export as NDJSON (gzip)** in the project list, **More → Import project** and **Merge results** on the *Project data* page, see [How do I export tasks or a whole project and import it again?](/how-to#export-import-project)."
+      ],
+      "pitfalls": [
+        "One uploaded file may be at most 5 GiB.",
+        "A merge only adds results. It creates no tasks: if the file's tasks are not those of the project, the job fails with `merge_task_mismatch` and imports nothing.",
+        "A model id of the file that exists neither here nor in `model_id_map` stops the merge with `merge_unknown_models`. A target in `model_id_map` that does not exist is refused at once with `unknown_model_id_map_target`.",
+        "The export contains reference solutions, so it needs the **Contributor** or **Admin** role. A merge needs edit rights on the original project.",
+        "A finished export can be downloaded for seven days, until the `expires_at` of its job. After that the download answers 410 and you export again."
+      ],
+      "keywords": [
+        "api",
+        "round trip",
+        "export",
+        "import",
+        "merge",
+        "dry run",
+        "model_id_map",
+        "ndjson",
+        "copy",
+        "benchmark",
+        "another installation"
+      ],
+      "links": [
+        "Evaluate a model through the API",
+        "Export and import projects"
+      ]
     },
     "ts-no-projects": {
       "title": "“I see no projects” or “my project has disappeared”",
