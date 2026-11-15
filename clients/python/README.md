@@ -157,6 +157,7 @@ with BengerClient() as benger:
 | `projects.create(title, ...) / update(id, **fields) / delete(id)` | `POST /api/projects/`, `PATCH/DELETE /api/projects/{id}` (config fields deep-merge) |
 | `tasks.iter(project_id) / list / page / get` | `/api/v1/projects/{id}/tasks` |
 | `imports.upload(project_id, source, wait=True)` | presigned upload, `POST /api/projects/{id}/imports`, poll |
+| `imports.upload(project_id, export, mode="merge", dry_run=False, model_id_map=None)` | merges the results of a full project export that this project lacks; `dry_run=True` returns a preview in `result.statistics` |
 | `imports.create_project(source, organization_id=None)` | `/api/projects/project-imports` (comprehensive export file) |
 | `models.catalog() / list_custom() / register_custom(...) / test(id) / test_endpoint(url) / set_credential / credential_status / set_visibility / update_custom / delete` | `/api/llm_models/public/models`, `/api/custom-models/...` |
 | `generation.configure / set_structure / start / status / wait / job / task_status / result` | `PATCH /api/projects/{id}`, `/api/projects/{id}/generation-config/structures/{key}`, `/api/generation-tasks/...`, `/api/projects/{id}/generation-status` |
@@ -172,8 +173,9 @@ Notes:
   `{"data": [{"data": {...}, "meta": {...}}, ...]}`; a plain list of task
   items is wrapped for you.
 * **Generation config**: `generation.configure` patches the project, which
-  deep-merges `generation_config`. `PUT /api/projects/{id}/generation-config`
-  replaces the whole document, so prefer the helper.
+  deep-merges `generation_config` (nested objects merge, lists replace, an
+  explicit `null` deletes a key). `PUT /api/projects/{id}/generation-config`
+  deep-merges the same way.
 * **Keys limited to a project list** cannot call routes that name no
   project, such as `GET /api/evaluations/evaluation/status/{id}`. Pass
   `project_id=` to `evaluations.status` / `evaluations.wait` to poll through
