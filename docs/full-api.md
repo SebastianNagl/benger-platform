@@ -122,48 +122,157 @@ curl -s -H "$H" -H "Content-Type: application/json" -X POST "$API/api/custom-mod
   "name": "Our legal model v3",
   "base_url": "https://llm.example.org/v1",
   "endpoint_model_name": "legal-v3",
-  "api_key": "sk-..."
+  "api_key": "sk-...",
+  "max_concurrent_requests": 2
 }'
-# -> {"id": "custom-...", ...}; check it once:
-curl -s -H "$H" -X POST "$API/api/custom-models/$MODEL_ID/test"
+# -> {"id": "custom-...", ...}; check it once with a short chat request:
+curl -s -H "$H" -H "Content-Type: application/json" -X POST \
+  "$API/api/custom-models/$MODEL_ID/test" -d '{"chat_ping": true}'
 
 # 3. Select the model for the project (PATCH deep-merges generation_config)
 curl -s -H "$H" -H "Content-Type: application/json" -X PATCH "$API/api/projects/$PROJECT_ID" -d '{
   "generation_config": {"selected_configuration": {"models": ["'$MODEL_ID'"]}}
 }'
 
-# 4. Generate answers for every task still missing one, then poll
+# 4. Create the prompt structure the model answers with ({{field}} = a task field)
+curl -s -H "$H" -H "Content-Type: application/json" -X PUT \
+  "$API/api/projects/$PROJECT_ID/generation-config/structures/default" -d '{
+  "name": "Default",
+  "system_prompt": "You answer questions on German law.",
+  "instruction_prompt": "{{question}}"
+}'
+
+# 5. Estimate the cost first
+curl -s -H "$H" -H "Content-Type: application/json" -X POST "$API/api/llm-models/cost-estimate" -d '{
+  "project_id": "'$PROJECT_ID'", "mode": "generation", "model_ids": ["'$MODEL_ID'"],
+  "generation_mode": "missing", "structure_keys": ["default"]
+}'
+
+# 6. Generate answers for every task still missing one, then poll
 curl -s -H "$H" -H "Content-Type: application/json" -X POST \
-  "$API/api/generation-tasks/projects/$PROJECT_ID/generate" -d '{"mode": "missing", "model_ids": ["'$MODEL_ID'"]}'
+  "$API/api/generation-tasks/projects/$PROJECT_ID/generate" \
+  -d '{"mode": "missing", "model_ids": ["'$MODEL_ID'"], "structure_keys": ["default"]}'
 curl -s -H "$H" "$API/api/projects/$PROJECT_ID/generation-status"
 
-# 5. Evaluate the new answers against the reference field and poll
+# 7. Evaluate the new answers against the reference field and poll
 curl -s -H "$H" -H "Content-Type: application/json" -X POST "$API/api/evaluations/run" -d '{
   "project_id": "'$PROJECT_ID'",
   "model_ids": ["'$MODEL_ID'"],
+  "structure_keys": ["default"],
   "evaluation_configs": [{"id": "bleu-1", "metric": "bleu",
-    "prediction_fields": ["antwort"], "reference_fields": ["musterloesung"]}]
+    "prediction_fields": ["__all_model__"], "reference_fields": ["musterloesung"]}]
 }'
 curl -s -H "$H" "$API/api/evaluations/evaluation/status/$EVALUATION_ID"
 
-# 6. Results per task and model
+# 8. Results of this run, and per task and model for the whole project
+curl -s -H "$H" "$API/api/evaluations/run/results/$EVALUATION_ID"
 curl -s -H "$H" "$API/api/evaluations/run/results/project/$PROJECT_ID"
 ```
 
-The prompt structures of the project decide what the model sees: a project
-with structures needs `structure_keys` in step 4
-(`GET /api/projects/{id}/generation-config/structures` lists them). Which
-metrics exist and which fields they read: `GET
+`max_concurrent_requests` (1-256, default 2) is how many requests a
+generation run keeps in flight against the endpoint at once; further jobs
+wait in BenGER's queue instead of running into their time limit at a slow
+server.
+
+Generation needs a prompt structure: a project without one answers the
+generate call with 422 "This project has no prompt structure for
+generation". `PUT /api/projects/{id}/generation-config/structures/{key}`
+creates or replaces one; `name`, `system_prompt` and `instruction_prompt`
+are required, and `{{field}}` in a prompt stands for that field of the
+task. `GET /api/projects/{id}/generation-config/structures` lists the
+existing ones. A project with structures needs `structure_keys` in the
+generate call (step 6), otherwise it answers 422 and names them.
+
+`POST /api/llm-models/cost-estimate` (scope `runs:read`) takes
+`project_id`, `mode` (`generation` or `evaluation`), `model_ids` and, to
+match what the run will queue, `generation_mode` and `structure_keys`; for
+an evaluation also `evaluation_configs`, `judge_models` and
+`annotator_user_ids`. It returns `total_usd`, `per_model` and the counts it
+priced (`tasks_total`, `subject_count`).
+
+The generate call (`POST /api/generation-tasks/projects/{id}/generate`)
+takes, besides `mode` and `model_ids`:
+
+* `task_ids` (default: every task), `structure_keys`, `parameters`
+  (`temperature`, `max_tokens`, `seed`), `model_configs` (per-model
+  settings such as `max_tokens`, merged into the stored ones),
+  `runs_per_task` (1-25) and `billing_organization_id` (the organisation
+  whose provider keys pay, one of the caller's billing options);
+* `mode` is `missing`, `all` or `single`. `all` regenerates every cell and
+  cancels pending generations of the project, so only project members may
+  use it (creator, or CONTRIBUTOR or higher of an attached organisation).
+
+It answers `{project_id, mode, tasks_queued, models_count,
+generation_job_ids, estimated_time_seconds, message}`.
+
+The evaluation run (`POST /api/evaluations/run`) takes `project_id` and
+`evaluation_configs`, and optionally `task_ids`, `model_ids`,
+`annotator_user_ids` and `structure_keys` to narrow what is graded,
+`force_rerun` (default false: only cells without a result are graded),
+`batch_size`, `label_config_version`, `seed` and `billing_organization_id`.
+In `prediction_fields`, `__all_model__` grades the model generations and
+`human:<field>` a submitted annotation. The answer carries the
+`evaluation_id`. `GET /api/evaluations/evaluation/status/{evaluation_id}`
+returns `{id, status, message, progress}`, where `progress` is null until
+the run is dispatched and then 0-100. `GET
+/api/evaluations/run/results/{evaluation_id}` returns the results of one
+run, `GET /api/evaluations/run/results/project/{id}` those of the whole
+project. Both routes check the project the evaluation belongs to, so a
+key limited to projects or a group can poll its own runs, and a run of
+any other project answers 404 `not_found`.
+
+Which metrics exist and which fields they read: `GET
 /api/evaluations/supported-metrics` and `GET
 /api/evaluations/projects/{id}/available-fields`. The evaluation
 configuration shown in the app is stored with
 `PUT /api/evaluations/projects/{id}/evaluation-config` (deep merge, send
 only the keys you change); a run with inline `evaluation_configs` on a
 project that has none stores them there when the caller may edit the
-project. New tasks come in through the import flow:
-`POST /api/projects/{id}/imports/upload-url`, upload the file to the
-returned URL, then `POST /api/projects/{id}/imports` with the
-`object_key` and poll `GET /api/projects/{id}/imports/{job_id}`.
+project.
+
+### Round trip
+
+New tasks come in through the nested import: write them as
+`{"data": [{...task fields...}, ...]}`, get an upload form with
+`POST /api/projects/{id}/imports/upload-url?filename=tasks.json`, upload the
+file, then `POST /api/projects/{id}/imports` with `{"object_key":
+"<file_key>"}` and poll `GET /api/projects/{id}/imports/{job_id}`.
+
+To benchmark a model on a copy of a project (for example on another
+deployment) and bring its results back, the steps are:
+
+1. Export: `POST /api/projects/{id}/exports?format=ndjson_gz` (the format
+   is a query parameter, not a body field) returns `{job_id, status}`.
+   Poll `GET /api/projects/{id}/exports/{job_id}` until `status` is
+   `completed`, then `GET .../download?json=1` returns `{url, expires_in}`.
+2. Upload: `POST /api/projects/project-imports/upload-url?filename=<name>.ndjson.gz`
+   returns `{upload_url, method, file_key, fields, expires_at}`. POST the
+   file to `upload_url` as multipart form data with every entry of
+   `fields` unchanged and the file last as `file`; never send the BenGER
+   key to storage. `file_key` becomes the `object_key` of the next call.
+3. Import as a new project: `POST /api/projects/project-imports` with
+   `{"object_key": "<file_key>", "organization_id": "<org id>"}`
+   (without `organization_id` the copy is the caller's private project;
+   `model_id_map` translates model ids here too). Poll
+   `GET /api/projects/project-imports/{job_id}`; its `project_id` is the
+   copy.
+4. Generate in the copy as above and export it as in step 1.
+5. Merge into the original: upload the copy's export with
+   `POST /api/projects/{id}/imports/upload-url?filename=<name>.ndjson.gz`,
+   then `POST /api/projects/{id}/imports` with `{"object_key":
+   "<file_key>", "mode": "merge", "dry_run": true, "model_id_map":
+   {"<model id in the file>": "<model id here>"}}`. The dry run completes
+   with format `merge_preview` and the preview in `result.statistics`
+   without writing anything; send the same body without `dry_run` to
+   merge. Custom models get a new id on every deployment, so map every
+   custom model of the file; every target must exist here.
+6. Poll `GET /api/projects/{id}/imports/{job_id}` until `status` is
+   `completed` or `failed` (`error_code` such as `merge_task_mismatch` or
+   `merge_unknown_models`).
+
+Each uploaded file may be up to 5 GiB. The details, including what counts
+as already present: [merge results back into an existing
+project](project-migration.md#merge-import-results-back-into-an-existing-project).
 
 The same flow with the Python client:
 
