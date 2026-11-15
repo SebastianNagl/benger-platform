@@ -16,7 +16,10 @@ keys through the **full API**: the routes the browser itself uses, each
 opened for keys by a rule that names the scopes it needs.
 
 * Live reference: `GET /api/v1/reference` (Swagger UI) and
-  `GET /api/v1/reference/openapi.json` on any deployment. Each operation
+  `GET /api/v1/reference/openapi.json`. They need no login but answer
+  `404 feature_disabled` unless the `public_api` feature flag lets the caller
+  in; anonymous callers pass only while it is set to everyone
+  ([Availability](api-keys.md#availability)). Each operation
   lists its scopes under `x-benger-scopes`, and `x-benger-project-bound`
   marks routes a project-limited key may call only for its projects.
 * Every route and its rule: [full-api-routes.md](full-api-routes.md)
@@ -43,7 +46,7 @@ the API checks, in this order:
 |---|---|
 | the route accepts keys at all | `401 api_key_not_allowed_here` |
 | the key is valid, active and of this deployment | `401 invalid_api_key`, `api_key_revoked`, `api_key_expired` |
-| the API feature is switched on for the key | `404 feature_disabled` |
+| the API feature is switched on for the key ([Availability](api-keys.md#availability)) | `404 feature_disabled` |
 | the key holds the route's scopes | `403 insufficient_scope` (`required_scopes` in the body) |
 | the projects the request names are visible to the key (project list, group, no Safe Exam Browser project) | `404 not_found` |
 | a project- or group-limited key names a project on a project-level route | `403 key_project_restricted` |
@@ -54,6 +57,14 @@ key's user: a personal key has exactly its owner's rights, an organisation
 key the rights of its role (ANNOTATOR, CONTRIBUTOR or ORG_ADMIN) in its
 organisation and, for group keys, its group. A key keeps its owner's
 superadmin rights only with the scope `admin:platform`.
+
+A script that signs in with a password instead of a key can call
+`POST /api/auth/token` with `{"username": ..., "password": ...}` and send the
+`access_token` from the answer as `Authorization: Bearer <access_token>`. The
+token is valid for 60 minutes, comes without a refresh token and carries the
+user's full rights with no scopes: it acts like a browser session, so the
+key checks above do not apply to it. Request a new one when it expires. Prefer a key for
+anything that runs unattended.
 
 Errors on these routes use FastAPI's shape, usually
 `{"detail": {"code": "...", "message": "..."}}` and sometimes
@@ -97,7 +108,7 @@ writes, annotations, models, runs, evaluations, results, exports and files.
 
 The steps a research team takes to benchmark its own model on an existing
 project. `$API` is the deployment's base URL, `$KEY` a personal key (or a
-CONTRIBUTOR organisation key) with the `full_access` preset.
+CONTRIBUTOR or ORG_ADMIN organisation key) with the `full_access` preset.
 
 ```bash
 API=https://api.what-a-benger.net   # the API host; what-a-benger.net/api/... works too

@@ -6,6 +6,27 @@ every other route of the app that a rule opens for keys (the "full API").
 This page describes the model behind them. The endpoints are documented in
 [Public API](public-api.md) (`/api/v1`) and [Full API](full-api.md).
 
+## Availability
+
+The whole feature (key management, `/api/v1` with its documentation, and
+keys on the full API) is switched on by the platform feature flag
+`public_api`, which superadmins set at `/admin/feature-flags`:
+
+* **off**: nobody can use it.
+* **everyone**: every user, and anonymous callers for the public v1
+  documentation (`/api/v1/docs`, `/api/v1/openapi.json`, `/api/v1/reference`).
+* **allowlist**: only the listed users and the members of the listed
+  organisations. An organisation key passes when its organisation is listed.
+
+A change takes effect at once, without a restart. The setting
+`PUBLIC_API_ENABLED` (default `false`) only sets the state the flag row
+starts with (`true` gives everyone, `false` off); after that the flag
+decides. While the flag is off for the caller, everything gated answers
+`404 feature_disabled`, so the routes look as if they did not exist.
+`GET /api/access-keys/availability` returns `{"enabled": true}` or
+`{"enabled": false}` for the caller, and the web app uses it to show or hide
+the *API access* entry points.
+
 ## Key format
 
 ```
@@ -46,6 +67,11 @@ counts or user lists (superadmins can include them in `GET /api/users` with
 `include_service_accounts=true`). Revoking the key deactivates the service
 account and ends its memberships.
 
+A user can hold at most 25 active personal keys and an organisation at most
+200 active keys; creating one more answers `409 too_many_keys`. Every key
+that is not revoked counts, expired ones included, so revoke keys that are no
+longer needed.
+
 So that nothing an organisation key creates is stranded when the key is
 revoked, a new project (`POST /api/projects`) or a create-new import
 (`POST /api/projects/project-imports`) made with an organisation key must
@@ -77,7 +103,9 @@ Creating a key starts from a preset (`benchmark_read`, `benchmark_submit`,
 `org_full`, `full_access`); *Advanced* lists every scope the caller may
 grant. The validity defaults to 90 days (30 days, one year or
 unlimited can be chosen instead), and the optional request limits may not
-exceed the deployment maximum (see *Rate limits*). The full key
+exceed the deployment maximum (see *Rate limits*). The 90-day default belongs
+to the web UI: a key created through the API without `expires_at` never
+expires, so scripts that create keys should send `expires_at` themselves. The full key
 is shown once, together with `curl` and Python snippets and a **Test
 connection** button that calls `GET /api/v1/me` with the new key. **Renew**
 creates a key with the same settings; the old key keeps working until it is
@@ -106,7 +134,7 @@ declare their scopes, everywhere else the rule table in
 | `org:read` | reading the organisation and the key's own membership |
 | `projects:read` | reading projects |
 | `tasks:read` | reading tasks, without reference solutions |
-| `tasks:read_reference` | reading tasks with reference solutions (implies `tasks:read`; only for personal keys and CONTRIBUTOR organisation keys) |
+| `tasks:read_reference` | reading tasks with reference solutions (implies `tasks:read`; only for personal keys and CONTRIBUTOR or ORG_ADMIN organisation keys) |
 | `submissions:read`, `submissions:write` | reading and creating submissions |
 | `systems:read`, `systems:manage` | reading and registering systems |
 | `runs:read`, `runs:write` | reading and creating runs |
@@ -164,7 +192,8 @@ A missing scope answers `403 insufficient_scope` with
 ## Rate limits
 
 Each key has a per-minute and a per-day budget (its own values, or
-`API_KEY_DEFAULT_RPM` / `API_KEY_DEFAULT_RPD`). A key's own values may not
+`API_KEY_DEFAULT_RPM` / `API_KEY_DEFAULT_RPD`, default 120 per minute and
+20,000 per day). A key's own values may not
 exceed the deployment maximum (`API_KEY_MAX_RPM`, default 600 per minute, and
 `API_KEY_MAX_RPD`, default 100,000 per day): a higher value is refused with
 `422 rate_limit_too_high`, and a key stored with a higher limit is held to the
