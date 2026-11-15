@@ -62,7 +62,7 @@ def test_requested_keys_must_exist(cfg, available):
     project has no structures at all (it used to queue jobs that all fail)."""
     with pytest.raises(UnknownStructureKeys) as exc:
         run_structure_keys(cfg, ["a", "missing"])
-    assert exc.value.unknown == ["missing"] if available else ["a", "missing"]
+    assert exc.value.unknown == (["missing"] if available else ["a", "missing"])
     assert exc.value.available == available
     assert "Unknown structure keys" in str(exc.value)
 
