@@ -399,14 +399,14 @@ class TestHealthRouter:
 
         with patch.dict('sys.modules', {'database_optimization': mock_db_module}), patch(
             "redis_cache.get_cache_performance_stats"
-        ) as mock_cache_stats, patch("rate_limiter.rate_limiter") as mock_rate_limiter:
+        ) as mock_cache_stats, patch("services.rate_limiter.rate_limiter") as mock_rate_limiter:
             mock_cache_stats.return_value = {
                 "hit_rate": 0.85,
                 "memory_usage": "128MB",
                 "connected_clients": 5,
             }
 
-            mock_rate_limiter.clients = {"client1": "data", "client2": "data"}
+            mock_rate_limiter.redis_client = Mock()
 
             app.dependency_overrides[require_superadmin] = override_require_superadmin
 
@@ -421,7 +421,10 @@ class TestHealthRouter:
                 assert "rate_limiting" in data
                 assert data["database"]["avg_query_time"] == 15.2
                 assert data["cache"]["hit_rate"] == 0.85
-                assert data["rate_limiting"]["active_clients"] == 2
+                assert data["rate_limiting"]["backend"] == "redis"
+                assert data["rate_limiting"]["bearer_token_rpm"] == 1200
+                assert data["rate_limiting"]["upload_urls_per_day"] == 200
+                assert data["rate_limiting"]["max_active_runs_per_user"] == 50
             finally:
                 app.dependency_overrides.clear()
 
@@ -439,12 +442,12 @@ class TestHealthRouter:
 
         with patch.dict('sys.modules', {'database_optimization': mock_db_module}), patch(
             "redis_cache.get_cache_performance_stats"
-        ) as mock_cache_stats, patch("rate_limiter.rate_limiter") as mock_rate_limiter:
+        ) as mock_cache_stats, patch("services.rate_limiter.rate_limiter") as mock_rate_limiter:
             # Mock cache stats failure
             mock_cache_stats.side_effect = Exception("Redis connection failed")
 
-            # Mock rate limiter success
-            mock_rate_limiter.clients = {}
+            # Rate limiter on its memory fallback
+            mock_rate_limiter.redis_client = None
 
             app.dependency_overrides[require_superadmin] = override_require_superadmin
 
@@ -456,7 +459,7 @@ class TestHealthRouter:
                 assert data["database"]["avg_query_time"] == 10.5
                 assert "error" in data["cache"]
                 assert "Redis connection failed" in data["cache"]["error"]
-                assert data["rate_limiting"]["active_clients"] == 0
+                assert data["rate_limiting"]["backend"] == "memory"
             finally:
                 app.dependency_overrides.clear()
 
@@ -475,7 +478,7 @@ class TestHealthRouter:
             import_orig = __builtins__['__import__']
 
             def mock_import(name, *args, **kwargs):
-                if name in ['rate_limiter', 'database_optimization', 'redis_cache']:
+                if name in ['services.rate_limiter', 'database_optimization', 'redis_cache']:
                     raise ImportError("Services not available")
                 return import_orig(name, *args, **kwargs)
 

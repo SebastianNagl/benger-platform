@@ -63,8 +63,10 @@ A script that signs in with a password instead of a key can call
 `access_token` from the answer as `Authorization: Bearer <access_token>`. The
 token is valid for 60 minutes, comes without a refresh token and carries the
 user's full rights with no scopes: it acts like a browser session, so the
-key checks above do not apply to it. Request a new one when it expires. Prefer a key for
-anything that runs unattended.
+key checks above do not apply to it. Its requests count against a per-user
+limit instead (`BEARER_TOKEN_RPM`, see [Limits](#limits-and-good-practice)).
+Request a new one when it expires. Prefer a key for anything that runs
+unattended.
 
 Errors on these routes use FastAPI's shape, usually
 `{"detail": {"code": "...", "message": "..."}}` and sometimes
@@ -299,6 +301,26 @@ See the client README for the complete example.
   redirects or use the listed path.
 * Rate limits are the key's own (per minute and per day), shared between
   `/api/v1` and the full API. Every response carries `X-RateLimit-*`.
+* A few per-user ceilings stop runaway scripts. They sit far above what
+  heavy use needs (large benchmark round trips, scripted imports and exports,
+  many parallel evaluation runs), apply to every caller (key, script token or
+  browser) unless noted, and do not apply to superadmins. Each refusal is a
+  `429` with `Retry-After` in seconds and `{"detail": {"code": ..., "message":
+  ..., "retry_after": ...}}`. The deployment sets them; `0` switches one off
+  ([environment variables](setup/environment-variables.md#abuse-limits)):
+
+  | Limit | Default | Code |
+  |---|---|---|
+  | requests with a script token (`POST /api/auth/token`, sent as `Authorization: Bearer`), per user and minute; browser sessions and keys are not counted | 1,200 (`BEARER_TOKEN_RPM`) | `rate_limited` |
+  | import upload URLs (`POST /api/projects/{id}/imports/upload-url` and `POST /api/projects/project-imports/upload-url` together), per user in the last 24 hours | 200 (`UPLOAD_URLS_PER_DAY`) | `upload_url_limit_exceeded` |
+  | generation and evaluation runs queued or running at once, per user that starts them | 50 (`MAX_ACTIVE_RUNS_PER_USER`) | `too_many_active_runs` |
+
+  For the run limit an evaluation run is one `POST /api/evaluations/run`;
+  generation work on one project counts as one run however many starts it
+  took, so more generation on a project that already generates is never
+  refused. Starting, resuming and retrying a run are checked; the answer has
+  `limit` and `active` and `Retry-After: 60`. Wait for runs to finish, or
+  pause or stop some, then start again.
 * Long jobs (imports, exports, generation, evaluation) are asynchronous:
   start them, then poll their status route. Poll every few seconds, not in
   a tight loop.

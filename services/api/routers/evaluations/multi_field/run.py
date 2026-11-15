@@ -4,6 +4,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # the idempotency dispatch_hash in run_evaluation needs it explicitly.
 from ._common import _stdjson  # noqa: F401
 from models import User as DBUser
+from services.usage_limits import check_active_runs_sync
 
 
 def _translate_annotator_model_ids(db, project_id, model_ids, annotator_user_ids):
@@ -471,6 +472,8 @@ def run_evaluation(
                 started_at=recent_inflight.created_at,
                 human_eval_run_ids=human_run_ids,
             )
+
+        check_active_runs_sync(db, current_user)  # MAX_ACTIVE_RUNS_PER_USER
 
         evaluation = DBEvaluationRun(
             id=str(uuid.uuid4()),

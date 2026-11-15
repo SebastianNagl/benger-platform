@@ -310,17 +310,15 @@ class TestHealthEndpoints:
         def override_require_superadmin():
             return mock_superadmin
 
-        with patch("routers.health.rate_limiter", create=True) as mock_rl:
-            mock_rl.clients = {}
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            try:
-                with patch("rate_limiter.rate_limiter") as mock_rl_inner:
-                    mock_rl_inner.clients = {}
-                    response = client.get("/performance/stats")
-                    assert response.status_code == status.HTTP_200_OK
-                    data = response.json()
-                    assert "timestamp" in data
-                    assert "database" in data
-                    assert "cache" in data
-            finally:
-                app.dependency_overrides.clear()
+        app.dependency_overrides[require_superadmin] = override_require_superadmin
+        try:
+            response = client.get("/performance/stats")
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert "timestamp" in data
+            assert "database" in data
+            assert "cache" in data
+            # The real limiter: its backend, never an error entry.
+            assert data["rate_limiting"]["backend"] in ("redis", "memory")
+        finally:
+            app.dependency_overrides.clear()

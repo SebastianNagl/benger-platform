@@ -152,6 +152,20 @@ class Settings(BaseSettings):
     # key stored with a higher limit is clamped to it when it is used.
     api_key_max_rpm: int = 600
     api_key_max_rpd: int = 100000
+    # Abuse ceilings per user (services/usage_limits.py, docs/full-api.md).
+    # They sit far above what heavy legitimate use reaches and only stop
+    # runaway scripts; 0 switches a ceiling off, superadmins are exempt.
+    # BEARER_TOKEN_RPM: requests per minute made with a session token sent
+    # as ``Authorization: Bearer`` (the POST /api/auth/token script token;
+    # cookie sessions and access keys are not counted here).
+    bearer_token_rpm: int = 1200
+    # UPLOAD_URLS_PER_DAY: presigned import upload URLs per rolling 24 hours,
+    # across POST .../imports/upload-url and /project-imports/upload-url.
+    upload_urls_per_day: int = 200
+    # MAX_ACTIVE_RUNS_PER_USER: generation and evaluation runs a user may
+    # have queued or running at once (generation work on one project counts
+    # as one run).
+    max_active_runs_per_user: int = 50
     # Usage events older than this are deleted by the daily beat task.
     api_usage_retention_days: int = 400
     # How much of the client IP the usage log keeps: "full", "truncated"

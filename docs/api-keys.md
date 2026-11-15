@@ -200,7 +200,10 @@ exceed the deployment maximum (`API_KEY_MAX_RPM`, default 600 per minute, and
 `422 rate_limit_too_high`, and a key stored with a higher limit is held to the
 maximum when it is used. Responses carry
 `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`; an
-exhausted budget answers `429` with `Retry-After`.
+exhausted budget answers `429` with `Retry-After`. The per-user ceilings on
+import upload URLs and active runs apply to key requests as well, counted for
+the key's user (for an organisation key, its service account); see
+[Limits](full-api.md#limits-and-good-practice).
 
 ## Usage log and retention
 
@@ -217,3 +220,13 @@ a daily task. Deleting a user removes their personal keys and unlinks the
 usage history from them; anonymizing a user revokes their personal keys
 and removes IP and user agent from their usage history. Deleting an
 organisation or a group revokes its keys first.
+
+For alerting, the API also counts key requests and refusals as Prometheus
+counters (exported by an extension's `/internal/metrics` endpoint; the
+platform serves none itself): `benger_api_key_requests_total{status_class}`
+for every request authenticated with a key, by `2xx` ... `5xx`, and
+`benger_rate_limited_total{limit}` for every `429` of the abuse limits, with
+`limit` one of `api_key` (a key's own budget), `user_bearer`
+(`BEARER_TOKEN_RPM`), `upload_url` (`UPLOAD_URLS_PER_DAY`) and `active_runs`
+(`MAX_ACTIVE_RUNS_PER_USER`). Every series starts at 0, so `increase()` sees
+the first refusal.

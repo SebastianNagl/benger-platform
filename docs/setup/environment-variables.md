@@ -71,6 +71,15 @@ See [API keys](../api-keys.md) for the model behind these settings.
 | `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |
 | `PUBLIC_API_URL` | `https://api.<domain of FRONTEND_URL>` | Base URL announced as `servers` in `/api/v1/openapi.json` and the docs. Unset with a localhost frontend, the spec names the requesting host. See [Public API](../public-api.md). |
 
+### Abuse limits
+Per-user ceilings far above heavy legitimate use; they only stop runaway scripts. `0` switches one off, superadmins are exempt, and every refusal is a `429` with `Retry-After`. See [Limits](../full-api.md#limits-and-good-practice).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BEARER_TOKEN_RPM` | `1200` | Requests per minute and user made with a session token sent as `Authorization: Bearer` (the script token from `POST /api/auth/token`). Browser sessions (cookie) and access keys are not counted. `429 rate_limited`. |
+| `UPLOAD_URLS_PER_DAY` | `200` | Presigned import upload URLs per user in the last 24 hours, both upload-url routes together. `429 upload_url_limit_exceeded`. |
+| `MAX_ACTIVE_RUNS_PER_USER` | `50` | Generation and evaluation runs a user may have queued or running at once, checked on start, resume and retry; generation work on one project counts as one run. `429 too_many_active_runs`. |
+
 ### Project imports
 Set these on the api and the workers alike (the Helm chart sets `IMPORT_UPLOAD_MAX_BYTES` from `minio.importUploadMaxBytes`). See [Project migration](../project-migration.md).
 

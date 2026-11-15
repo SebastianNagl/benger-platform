@@ -9,7 +9,8 @@ carries an access key (``Bearer bgr_...``), this middleware:
   stored its numbers on ``request.state.rate_limit``;
 * after the response, hands one usage event to
   ``services.api_usage_writer.enqueue`` when the request was made with an
-  access key (``request.state.principal.kind == "api_key"``).
+  access key (``request.state.principal.kind == "api_key"``), and counts it
+  in ``benger_api_key_requests_total`` (``services/limit_metrics.py``).
 
 The event records the route template (:func:`route_template`), never the
 raw path, and no request or response body. The client IP is reduced per
@@ -59,11 +60,15 @@ def _carries_key(scope) -> bool:
 
 
 def _client_ip(scope) -> Optional[str]:
-    forwarded = _header(scope, b"x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """The client address as the rate limiter sees it: the rightmost
+    ``X-Forwarded-For`` entry our proxies wrote, not the leftmost one the
+    client may have sent itself (``services.rate_limiter.client_ip_from_forwarded``)."""
+    from services.rate_limiter import client_ip_from_forwarded
+
     client = scope.get("client")
-    return client[0] if client else None
+    return client_ip_from_forwarded(
+        _header(scope, b"x-forwarded-for"), client[0] if client else None
+    )
 
 
 def _int(value) -> Optional[int]:
@@ -130,6 +135,9 @@ class ApiUsageMiddleware:
         principal = state.get("principal")
         if principal is None or getattr(principal, "kind", None) != "api_key":
             return
+        from services.limit_metrics import record_key_request
+
+        record_key_request(result["status"] or 500)
         from services import api_usage_writer
         from services.api_key_service import mask_ip
 

@@ -69,6 +69,10 @@ class BengerClient:
         max_retries: how often a request is retried after a 429 (honouring
             ``Retry-After``), and, for GET/HEAD/OPTIONS and v1 POSTs carrying
             an ``Idempotency-Key``, after a 5xx or a connection error.
+        max_retry_wait: longest ``Retry-After`` (seconds) a 429 is waited
+            out for; a longer one (an exhausted daily budget, the daily
+            import-upload allowance) raises :class:`RateLimitError` at once
+            instead of sleeping for hours.
         backoff_factor: base of the exponential backoff (seconds).
         transport: optional ``httpx`` transport (tests use ``httpx.MockTransport``).
         headers: extra headers sent with every API request.
@@ -84,6 +88,7 @@ class BengerClient:
         *,
         timeout: float = 60.0,
         max_retries: int = 3,
+        max_retry_wait: float = 300.0,
         backoff_factor: float = 0.5,
         transport: httpx.BaseTransport | None = None,
         headers: Mapping[str, str] | None = None,
@@ -101,6 +106,7 @@ class BengerClient:
             self.base_url = self.base_url[: -len("/api")]
         self.timeout = timeout
         self.max_retries = max(0, int(max_retries))
+        self.max_retry_wait = max(0.0, float(max_retry_wait))
         self.backoff_factor = backoff_factor
         self._transport = transport
         self._sleep: Callable[[float], None] = time.sleep
@@ -216,13 +222,15 @@ class BengerClient:
 
             status = response.status_code
             if status == 429 and attempt < self.max_retries:
-                # Rate limits are enforced before the handler runs, so even a
-                # non-idempotent request is safe to resend.
+                # Limits refuse before anything changes, so even a
+                # non-idempotent request is safe to resend; a wait longer
+                # than max_retry_wait is left to the caller.
                 wait = parse_retry_after(response.headers.get("Retry-After"))
-                response.close()
-                self._sleep(wait if wait is not None else self._backoff(attempt))
-                attempt += 1
-                continue
+                if wait is None or wait <= self.max_retry_wait:
+                    response.close()
+                    self._sleep(wait if wait is not None else self._backoff(attempt))
+                    attempt += 1
+                    continue
             if status in RETRYABLE_STATUS and replay_safe and attempt < self.max_retries:
                 wait = parse_retry_after(response.headers.get("Retry-After"))
                 response.close()
