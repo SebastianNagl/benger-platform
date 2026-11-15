@@ -313,6 +313,23 @@ def cors_middleware_kwargs(config: "Settings") -> Optional[dict]:
     return kwargs
 
 
+def assert_api_key_pepper_configured(config: "Settings") -> None:
+    """Fail API startup in production when ``API_KEY_PEPPER`` is empty.
+
+    Without a pepper every access key is hashed unpeppered, and setting one
+    later invalidates every key already issued, so a production namespace
+    must have it before its first key. Other environments (development,
+    staging, demo, tests) may run without one.
+    """
+    if config.is_production and not (config.api_key_pepper or "").strip():
+        raise RuntimeError(
+            "API_KEY_PEPPER is empty in production. Set it from a secret "
+            "(kubectl -n <ns> create secret generic benger-api-key-pepper "
+            "--from-literal=pepper=$(openssl rand -hex 32)) before the API "
+            "starts; access keys would otherwise be hashed without a pepper."
+        )
+
+
 def docs_url_kwargs(enabled: bool) -> dict:
     """FastAPI constructor kwargs for the interactive docs.
 

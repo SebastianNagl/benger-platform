@@ -281,6 +281,38 @@ async def test_personal_keys(async_test_client, async_test_db, world):
         assert r.status_code == 200 and r.json()["status"] == "revoked"
 
 
+async def test_created_key_expires_in_90_days_unless_null_is_sent(async_test_client, world):
+    """A key created through the API without ``expires_at`` gets the UI's
+    default of 90 days; ``expires_at: null`` (the UI's "never") keeps a key
+    without expiry. Applies to personal and organization keys alike."""
+
+    def days_left(body):
+        expires = datetime.fromisoformat(body["key"]["expires_at"].replace("Z", "+00:00"))
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return (expires - datetime.now(timezone.utc)) / timedelta(days=1)
+
+    with _as(world["member"]):
+        r = await async_test_client.post(
+            "/api/users/me/access-keys", json={"name": "script", "scopes": ["projects:read"]}
+        )
+        assert r.status_code == 201, r.text
+        assert 89.9 < days_left(r.json()) <= 90
+        r = await async_test_client.post(
+            "/api/users/me/access-keys",
+            json={"name": "forever", "scopes": ["projects:read"], "expires_at": None},
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["key"]["expires_at"] is None
+    with _as(world["admin"]):
+        r = await _create_org_key(async_test_client, world)
+        assert r.status_code == 201, r.text
+        assert 89.9 < days_left(r.json()) <= 90
+        r = await _create_org_key(async_test_client, world, expires_at=None)
+        assert r.status_code == 201, r.text
+        assert r.json()["key"]["expires_at"] is None
+
+
 async def test_superadmin_list_revoke_export(async_test_client, async_test_db, world):
     with _as(world["admin"]):
         org_key = (await _create_org_key(async_test_client, world)).json()["key"]

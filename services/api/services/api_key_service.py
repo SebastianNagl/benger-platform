@@ -395,6 +395,14 @@ async def authenticate_api_key(
 # ---------------------------------------------------------------------------
 
 
+# Validity of a key created without ``expires_at``, the same 90 days the
+# access-key UI preselects (``accessKeyUtils.ts`` DEFAULT_EXPIRY), so a
+# forgotten key created by a script stops working on its own too. A key
+# without expiry stays possible, as in the UI's "never": send
+# ``expires_at: null`` explicitly.
+DEFAULT_KEY_EXPIRY_DAYS = 90
+
+
 def _field(payload: Any, name: str, default=None):
     if isinstance(payload, dict):
         return payload.get(name, default)
@@ -416,6 +424,14 @@ def role_at_least(role: Any, minimum: Any) -> bool:
     value = str(getattr(role, "value", role) or "").upper()
     floor = str(getattr(minimum, "value", minimum) or "").upper()
     return _ROLE_RANK.get(value, 0) >= _ROLE_RANK.get(floor, 99)
+
+
+def _create_expiry(payload: dict) -> Optional[datetime]:
+    """``expires_at`` of a new key: the sent value (null = never expires),
+    or :data:`DEFAULT_KEY_EXPIRY_DAYS` from now when the field is omitted."""
+    if "expires_at" not in payload:
+        return _now() + timedelta(days=DEFAULT_KEY_EXPIRY_DAYS)
+    return _validate_expiry(_field(payload, "expires_at"))
 
 
 def _validate_expiry(expires_at: Optional[datetime]) -> Optional[datetime]:
@@ -528,7 +544,7 @@ def _personal_parts(owner_user_id: str, payload: Any, created_by: Optional[str])
         created_by=str(created_by or owner_user_id),
         scopes=_field(payload, "scopes") or [],
         project_ids=_normalize_project_ids(_field(payload, "project_ids")),
-        expires_at=_validate_expiry(_field(payload, "expires_at")),
+        expires_at=_create_expiry(payload),
         rpm=_field(payload, "rate_limit_per_minute"),
         rpd=_field(payload, "rate_limit_per_day"),
     )
@@ -576,7 +592,7 @@ def _org_parts(creator_id: str, org_id: str, payload: Any):
         created_by=str(creator_id),
         scopes=_field(payload, "scopes") or [],
         project_ids=_normalize_project_ids(_field(payload, "project_ids")),
-        expires_at=_validate_expiry(_field(payload, "expires_at")),
+        expires_at=_create_expiry(payload),
         rpm=_field(payload, "rate_limit_per_minute"),
         rpd=_field(payload, "rate_limit_per_day"),
         organization_id=org_id,

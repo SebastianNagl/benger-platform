@@ -60,7 +60,7 @@ See [API keys](../api-keys.md) for the model behind these settings.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PUBLIC_API_ENABLED` | `false` | Initial state of the `public_api` feature flag: `true` creates it as everyone, `false` as off. After that the flag at `/admin/feature-flags` decides; see [Availability](../api-keys.md#availability). |
-| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Set it from a secret in production. Changing it invalidates every existing key. |
+| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Required in production: with `ENVIRONMENT=production` the API refuses to start while it is empty. Changing it invalidates every existing key. |
 | `API_KEY_ENVIRONMENT` | `live` in production, `test` elsewhere | Key tag this deployment issues and accepts (`bgr_live_...` / `bgr_test_...`). A key from another environment is refused. |
 | `API_KEY_DEFAULT_RPM` | `120` | Requests per minute per key when the key sets no own limit. |
 | `API_KEY_DEFAULT_RPD` | `20000` | Requests per day per key when the key sets no own limit. |

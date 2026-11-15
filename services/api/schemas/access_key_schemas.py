@@ -24,6 +24,9 @@ class _KeyFields(BaseModel):
 
 
 class AccessKeyCreate(_KeyFields):
+    """``expires_at`` omitted: the key expires in 90 days, as the UI
+    preselects. An explicit null creates a key that never expires."""
+
     name: str = Field(..., min_length=1, max_length=120)
     scopes: List[str] = Field(default_factory=list, max_length=100)
 

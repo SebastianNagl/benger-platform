@@ -103,9 +103,10 @@ Creating a key starts from a preset (`benchmark_read`, `benchmark_submit`,
 `org_full`, `full_access`); *Advanced* lists every scope the caller may
 grant. The validity defaults to 90 days (30 days, one year or
 unlimited can be chosen instead), and the optional request limits may not
-exceed the deployment maximum (see *Rate limits*). The 90-day default belongs
-to the web UI: a key created through the API without `expires_at` never
-expires, so scripts that create keys should send `expires_at` themselves. The full key
+exceed the deployment maximum (see *Rate limits*). A key created through the
+API (`POST` on either `access-keys` collection) without `expires_at` also
+expires after 90 days; `"expires_at": null` creates a key that never expires,
+the UI's "unlimited". The full key
 is shown once, together with `curl` and Python snippets and a **Test
 connection** button that calls `GET /api/v1/me` with the new key. **Renew**
 creates a key with the same settings; the old key keeps working until it is

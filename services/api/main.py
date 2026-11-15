@@ -42,7 +42,12 @@ if shared_dir not in sys.path:
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration
-from app.core.config import cors_middleware_kwargs, docs_url_kwargs, get_settings  # noqa: E402
+from app.core.config import (  # noqa: E402
+    assert_api_key_pepper_configured,
+    cors_middleware_kwargs,
+    docs_url_kwargs,
+    get_settings,
+)
 
 install_access_log_redaction()
 
@@ -130,6 +135,9 @@ async def lifespan(app: FastAPI):
     from auth_module.config import assert_jwt_secret_configured
 
     assert_jwt_secret_configured()
+
+    # No unpeppered access keys in production.
+    assert_api_key_pepper_configured(settings)
 
     # Deny by default: every public /api/v1 route must declare its scopes.
     from routers.v1._deps import assert_v1_routes_scoped

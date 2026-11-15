@@ -72,6 +72,40 @@ class NoPromptStructures(ValueError):
         )
 
 
+def known_structure_keys(prompt_structures) -> List[str]:
+    """Every structure key the project defines, including structures flagged
+    ``exclude_from_generation``: an explicitly requested key may name any of
+    them, but nothing else."""
+    if isinstance(prompt_structures, dict):
+        return list(prompt_structures.keys())
+    if isinstance(prompt_structures, list):
+        return [
+            ps.get("key", str(i)) if isinstance(ps, dict) else str(i)
+            for i, ps in enumerate(prompt_structures)
+        ]
+    return []
+
+
+class UnknownStructureKeys(ValueError):
+    """A run named structure keys the project does not define.
+
+    Raised also when the project has no structures at all: queuing jobs for
+    a key that does not exist only produces jobs that all fail in the
+    worker."""
+
+    def __init__(self, unknown: Sequence[str], available: Sequence[str]):
+        self.unknown = sorted(set(unknown))
+        self.available = sorted(set(available))
+        if self.available:
+            hint = f"Available: {self.available}"
+        else:
+            hint = (
+                "This project has no prompt structures. Add one in the "
+                "project's Prompts section, then start the run with it."
+            )
+        super().__init__(f"Unknown structure keys: {self.unknown}. {hint}")
+
+
 def run_structure_keys(
     generation_config: Optional[dict], requested: Optional[Sequence[str]]
 ) -> List[str]:
@@ -82,10 +116,18 @@ def run_structure_keys(
     a call that simply omitted the field generate every structure (2-3x the
     cost on ZJS and Benchathon); the dialog always sends its selection, so
     only scripts and API clients ever hit that default.
+
+    Requested keys must all exist in the project (``UnknownStructureKeys``),
+    also when it has no structures at all.
     """
+    prompt_structures = (generation_config or {}).get("prompt_structures", {})
     if requested:
+        known = known_structure_keys(prompt_structures)
+        unknown = set(requested) - set(known)
+        if unknown:
+            raise UnknownStructureKeys(unknown, known)
         return list(requested)
-    keys = implicit_structure_keys((generation_config or {}).get("prompt_structures", {}))
+    keys = implicit_structure_keys(prompt_structures)
     if keys:
         raise StructureKeysRequired(keys)
     raise NoPromptStructures()
