@@ -39,6 +39,14 @@ When `ENVIRONMENT=development`:
 - Production: Rate limiting enforced
 - Development: Can be disabled with `DEBUG_DISABLE_RATE_LIMITING=true`
 
+## API and script authentication
+
+The browser login and scripts authenticate differently:
+
+- `POST /api/auth/login` is for the browser app. It answers with `{token_type, expires_in, user}` and puts the tokens only into HttpOnly cookies (`access_token`, 60 minutes, and `refresh_token`, 7 days). The body never contains a token, so a script cannot use the login response as a bearer token.
+- `POST /api/auth/token` with `{"username": ..., "password": ...}` is for scripts. It answers with `{access_token, token_type, expires_in, user}`, sets no cookie and issues no refresh token. The token is valid for 60 minutes and carries the user's full rights (no scopes); send it as `Authorization: Bearer <access_token>` and request a new one when it expires. The app host relays this route too (`services/frontend/src/app/api/auth/token/route.ts`), so it works on both the app and the api host.
+- For long-running automation use an access key (`bgr_...`) instead. Keys are scoped, can be limited to projects and revoked, and are described in [Access keys](../api-keys.md).
+
 ## Deployment Configuration
 
 ### Helm Values
@@ -56,17 +64,6 @@ api:
   env:
     - name: ENVIRONMENT
       value: "staging"  # Override to staging
-```
-
-### Rolling Deployment Script
-The `/scripts/deploy-rolling.sh` script automatically sets the correct environment:
-```bash
-# Ensure proper environment is set based on namespace
-if [[ "$NAMESPACE" == *"staging"* ]]; then
-    kubectl set env deployment/"$deployment" ENVIRONMENT=staging -n "$NAMESPACE"
-elif [[ "$NAMESPACE" == "benger" ]]; then
-    kubectl set env deployment/"$deployment" ENVIRONMENT=production -n "$NAMESPACE"
-fi
 ```
 
 ## Verification Commands

@@ -3,8 +3,9 @@
 Key management (``routers/access_keys.py``) and the public ``/api/v1``
 surface are unreleased: they answer 404 ``feature_disabled`` unless
 ``extensions.public_api_enabled`` says the feature is on for the caller
-(the extended edition evaluates its ``public_api`` feature flag; without an
-extension the ``PUBLIC_API_ENABLED`` setting decides, default off).
+(the platform's ``public_api`` feature flag decides since core 2.42, unless an
+extension implements the hook; ``PUBLIC_API_ENABLED`` only sets the flag's
+default state, default off).
 ``GET /api/access-keys/availability`` tells the frontend whether to show the
 feature's entry points at all.
 """
