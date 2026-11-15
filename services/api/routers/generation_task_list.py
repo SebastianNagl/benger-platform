@@ -31,6 +31,7 @@ from services.generation_planning import (
     NoPromptStructures,
     run_structure_keys,
     StructureKeysRequired,
+    UnknownStructureKeys,
 )
 from routers.generation_revoke import (
     generation_run_task_ids,
@@ -707,31 +708,18 @@ async def start_generation(
     generation_config = project.generation_config or {}
     selected_config = generation_config.get("selected_configuration", {})
 
-    # Structures are checked before any config write below, so a rejected
-    # request never persists its parameters or model_configs.
-    # Validate requested structure_keys against available structures
-    if request.structure_keys:
-        prompt_structures = generation_config.get("prompt_structures", {})
-        if isinstance(prompt_structures, dict):
-            available_keys = set(prompt_structures.keys())
-        elif isinstance(prompt_structures, list):
-            available_keys = {ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)}
-        else:
-            available_keys = set()
-
-        if available_keys:
-            invalid_keys = set(request.structure_keys) - available_keys
-            if invalid_keys:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unknown structure keys: {sorted(invalid_keys)}. Available: {sorted(available_keys)}",
-                )
-
     # Structures to generate (issue #762): the requested ones, or None for a
     # project without structures. A project WITH structures must name them
     # (422), so an omitted field can't silently generate every structure.
+    # Requested keys the project does not define are a 400, also when it has
+    # no structures at all (they would only queue jobs that all fail). The
+    # cost estimate resolves structures through the same function. Checked
+    # before any config write below, so a rejected request never persists
+    # its parameters or model_configs.
     try:
         structure_keys = run_structure_keys(generation_config, request.structure_keys)
+    except UnknownStructureKeys as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except (StructureKeysRequired, NoPromptStructures) as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 

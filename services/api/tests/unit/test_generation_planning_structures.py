@@ -7,6 +7,7 @@ import pytest
 from services.generation_planning import (
     NoPromptStructures,
     StructureKeysRequired,
+    UnknownStructureKeys,
     run_structure_keys,
 )
 
@@ -44,3 +45,28 @@ def test_legacy_list_shape_also_requires_keys():
     cfg = {"prompt_structures": [{"key": "a"}, {"key": "b"}]}
     with pytest.raises(StructureKeysRequired):
         run_structure_keys(cfg, None)
+
+
+@pytest.mark.parametrize(
+    "cfg, available",
+    [
+        (None, []),
+        ({}, []),
+        ({"prompt_structures": {}}, []),
+        ({"prompt_structures": {"a": {}, "b": {}}}, ["a", "b"]),
+        ({"prompt_structures": [{"key": "a"}]}, ["a"]),
+    ],
+)
+def test_requested_keys_must_exist(cfg, available):
+    """A requested key the project does not define is refused, also when the
+    project has no structures at all (it used to queue jobs that all fail)."""
+    with pytest.raises(UnknownStructureKeys) as exc:
+        run_structure_keys(cfg, ["a", "missing"])
+    assert exc.value.unknown == ["missing"] if available else ["a", "missing"]
+    assert exc.value.available == available
+    assert "Unknown structure keys" in str(exc.value)
+
+
+def test_requested_keys_may_name_excluded_structures():
+    cfg = {"prompt_structures": {"a": {}, "rubric": {"exclude_from_generation": True}}}
+    assert run_structure_keys(cfg, ["rubric"]) == ["rubric"]

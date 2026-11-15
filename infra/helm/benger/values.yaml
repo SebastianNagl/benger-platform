@@ -61,10 +61,11 @@ api:
     maxReplicas: 3
     targetCPUUtilizationPercentage: 80
   env:
-    # API keys (public /api/v1 access, core 2.37). The pepper is optional:
-    # create `kubectl -n <ns> create secret generic benger-api-key-pepper
-    # --from-literal=pepper=$(openssl rand -hex 32)` once per namespace;
-    # without it keys are hashed unpeppered (hash_version 1 either way).
+    # API keys (public /api/v1 access, core 2.37). Create the pepper once per
+    # namespace: `kubectl -n <ns> create secret generic benger-api-key-pepper
+    # --from-literal=pepper=$(openssl rand -hex 32)`. With ENVIRONMENT
+    # "production" the API refuses to start without it; elsewhere keys are
+    # then hashed unpeppered (hash_version 1 either way).
     - name: API_KEY_PEPPER
       valueFrom:
         secretKeyRef: {name: benger-api-key-pepper, key: pepper, optional: true}

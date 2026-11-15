@@ -1011,6 +1011,47 @@ class TestStartGeneration:
         assert resp.json()["tasks_queued"] == 1
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "prompt_structures",
+        [None, {}, {"detailed": {"name": "Detailed"}}],
+        ids=["no-structures-key", "empty-structures", "other-structure"],
+    )
+    async def test_unknown_structure_keys_are_400_and_queue_nothing(
+        self, async_test_client, async_test_db, prompt_structures
+    ):
+        """Requested structure_keys the project does not define are a 400
+        that queues nothing, also when the project has no structures at all.
+        That case used to skip the check: a project without structures and
+        structure_keys ["default"] answered 200 and queued one job per task
+        that all failed with "Prompt structure 'default' not found"."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        generation_config = {"selected_configuration": {"models": ["gpt-4"]}}
+        if prompt_structures is not None:
+            generation_config["prompt_structures"] = prompt_structures
+        project = await _seed_project(
+            async_test_db, admin, generation_config=generation_config
+        )
+        for _ in range(3):
+            await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "missing", "structure_keys": ["default"]},
+            )
+            mock_celery.send_task.assert_not_called()
+        assert resp.status_code == 400, resp.text
+        assert "Unknown structure keys: ['default']" in resp.json()["detail"]
+        rows = (
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.project_id == project.id)
+            )
+        ).scalars().all()
+        assert rows == []
+
+    @pytest.mark.asyncio
     async def test_org_resolved_from_single_linked_org(
         self, async_test_client, async_test_db
     ):
