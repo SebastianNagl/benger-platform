@@ -221,6 +221,28 @@ def test_429_retries_with_retry_after(client, router, sleeps):
     assert len(router.calls) == 3
 
 
+def test_429_with_a_long_retry_after_raises_at_once(client, router, sleeps):
+    router.add(
+        "POST",
+        "/api/projects/project-imports/upload-url",
+        lambda r: httpx.Response(
+            429,
+            headers={"Retry-After": "86000"},
+            json={"detail": {"code": "upload_url_limit_exceeded", "message": "m"}},
+        ),
+    )
+    with pytest.raises(RateLimitError) as exc:
+        client.post("/api/projects/project-imports/upload-url")
+    assert exc.value.retry_after == 86000.0
+    assert len(router.calls) == 1 and sleeps == []
+    # A client that wants to wait it out can raise the cap.
+    client.max_retry_wait = 100000
+    client.max_retries = 1
+    with pytest.raises(RateLimitError):
+        client.post("/api/projects/project-imports/upload-url")
+    assert sleeps == [86000.0]
+
+
 def test_429_gives_up_after_max_retries(client, router, sleeps):
     client.max_retries = 2
     router.add(

@@ -250,7 +250,11 @@ its own values up to the deployment maximum (by default 600 per minute and
 Every answer to a key request carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and
 `X-RateLimit-Reset` (Unix time of the window end). An exhausted budget
 answers `429 rate_limited` with `Retry-After` in seconds. Back off for that
-long; do not retry in a tight loop. Sessions are not limited here.
+long; do not retry in a tight loop. Browser sessions are not limited here; a
+script token from `POST /api/auth/token` sent as `Authorization: Bearer` is
+limited per user (`BEARER_TOKEN_RPM`, default 1,200 per minute) and answers
+the same `429 rate_limited`. The per-user ceilings of the full API are listed
+under [Limits](full-api.md#limits-and-good-practice).
 
 ## Errors
 

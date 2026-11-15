@@ -24,6 +24,7 @@ from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
 from utils.json_merge import deep_merge_dicts
+from services.usage_limits import check_active_runs
 from services.generation_planning import (
     implicit_structure_keys as _implicit_structure_keys,
     plan_generation_cells,
@@ -963,6 +964,10 @@ async def start_generation(
     tasks_to_queue = await plan_generation_cells(
         db, project_id, task_ids, model_ids, structure_keys, request.mode
     )
+    if tasks_to_queue:
+        # MAX_ACTIVE_RUNS_PER_USER (services/usage_limits.py); before the
+        # "all" mode cancels anything, so a refused start changes nothing.
+        await check_active_runs(db, current_user, generation_project_id=project_id)
 
     # When running in "all" mode, cancel existing pending/running generations for this project
     # to avoid wasting API costs on duplicates that will be overwritten

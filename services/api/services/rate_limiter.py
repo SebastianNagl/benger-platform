@@ -1,18 +1,23 @@
-"""
-Rate limiting middleware for BenGER API
-Provides configurable rate limiting for different endpoints and user types
+"""Rate limiting for the BenGER API.
+
+:class:`RateLimiter` keeps its counters in Redis (with a per-process memory
+fallback) and offers two kinds of bucket: fixed windows
+(:meth:`RateLimiter.check_rate_limit`, per minute/hour/day) and a rolling
+window (:meth:`RateLimiter.check_rolling_limit`, the last N seconds). Users
+of the fixed windows: the access-key limits below, the login and token
+buckets (``services/auth_rate_limit.py``), the per-user ceilings
+(``services/usage_limits.py``) and a few route-level buckets.
 """
 
 import asyncio
 import logging
 import math
 import time
-from functools import wraps
+import uuid
 from typing import Dict, Optional, Tuple
 
 import redis
 from fastapi import HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from models import User
 
@@ -111,19 +116,6 @@ class RateLimiter:
     def _get_key(self, client_id: str, endpoint: str, window_type: str) -> str:
         """Generate Redis key for rate limiting"""
         return f"ratelimit:{client_id}:{endpoint}:{window_type}"
-
-    async def _get_count(self, key: str) -> int:
-        """Get current request count for key"""
-        try:
-            if self.redis_client:
-                count = await asyncio.to_thread(self.redis_client.get, key)
-                return int(count) if count else 0
-            else:
-                # Memory fallback
-                return self._memory_store.get(key, {}).get("count", 0)
-        except Exception as e:
-            logger.error(f"Error getting rate limit count: {e}")
-            return 0
 
     def _increment_count_sync(self, key: str, ttl: int, fail_closed: bool = False) -> int:
         """Increment request count with TTL (blocking on Redis).
@@ -295,6 +287,92 @@ class RateLimiter:
             fail_closed,
         )
 
+    def check_rolling_limit_sync(
+        self, client_id: str, endpoint: str, max_events: int, window_seconds: int
+    ) -> Optional[Dict]:
+        """Count one event against a rolling window of ``window_seconds``.
+
+        Unlike the fixed windows of :meth:`check_rate_limit_sync`, the window
+        always covers the last ``window_seconds`` (a Redis sorted set of event
+        times), so a client cannot spend the limit twice around a window
+        boundary. A refused event is not recorded, so retrying while blocked
+        does not push the block further out. Fails open on Redis errors.
+
+        Returns None if allowed, else an error dict like
+        :meth:`check_rate_limit_sync` (``retry_after`` is the time until the
+        oldest counted event leaves the window).
+        """
+        import os
+
+        if os.environ.get("TESTING") == "true":
+            return None
+        key = self._get_key(client_id, endpoint, "rolling")
+        now = time.time()
+        try:
+            count, oldest = self._record_rolling_event(key, now, max_events, window_seconds)
+        except Exception as e:
+            logger.error(f"Error checking rolling rate limit: {e}")
+            return None
+        if count <= max_events:
+            return None
+        logger.warning(
+            f"Rolling limit exceeded: {client_id} on {endpoint} ({max_events}/{window_seconds}s)"
+        )
+        reset_at = (oldest if oldest is not None else now) + window_seconds
+        return {
+            "error": "rate_limit_exceeded",
+            "message": f"Limit exceeded. Maximum {max_events} per {window_seconds} seconds.",
+            "retry_after": max(1, int(math.ceil(reset_at - now))),
+            "limit": max_events,
+            "window": window_seconds,
+            "current": count,
+            "remaining": 0,
+            "reset": int(math.ceil(reset_at)),
+        }
+
+    def _record_rolling_event(
+        self, key: str, now: float, max_events: int, window_seconds: int
+    ) -> Tuple[int, Optional[float]]:
+        """Add an event at ``now`` and return ``(count including it, time of
+        the oldest event in the window)``; over ``max_events`` the event is
+        taken back out again."""
+        cutoff = now - window_seconds
+        if self.redis_client:
+            member = f"{now:.6f}:{uuid.uuid4().hex[:8]}"
+            pipe = self.redis_client.pipeline()
+            pipe.zremrangebyscore(key, "-inf", cutoff)
+            pipe.zadd(key, {member: now})
+            pipe.zcard(key)
+            pipe.zrange(key, 0, 0, withscores=True)
+            pipe.expire(key, int(window_seconds) + 1)
+            _, _, count, oldest, _ = pipe.execute()
+            if count > max_events:
+                self.redis_client.zrem(key, member)
+            return int(count), (float(oldest[0][1]) if oldest else None)
+        if len(self._memory_store) > _MEMORY_PRUNE_THRESHOLD:
+            self._prune_memory(now)
+        entry = self._memory_store.setdefault(key, {"events": [], "expires": 0.0})
+        events = [t for t in entry.get("events", []) if t > cutoff]
+        events.append(now)
+        count = len(events)
+        if count > max_events:
+            events.pop()
+        entry["events"] = events
+        entry["expires"] = now + window_seconds
+        return count, (events[0] if events else None)
+
+    async def check_rolling_limit(
+        self, client_id: str, endpoint: str, max_events: int, window_seconds: int
+    ) -> Optional[Dict]:
+        """Async twin of :meth:`check_rolling_limit_sync`."""
+        import os
+
+        if os.environ.get("TESTING") == "true":
+            return None
+        return await asyncio.to_thread(
+            self.check_rolling_limit_sync, client_id, endpoint, max_events, window_seconds
+        )
+
 
 # Global rate limiter instance
 # Use REDIS_URI from environment if available (production), otherwise use default
@@ -302,142 +380,6 @@ import os  # noqa: E402
 
 redis_url = os.getenv("REDIS_URI", "redis://redis:6379")
 rate_limiter = RateLimiter(redis_url)
-
-# Rate limit configurations for different endpoints
-RATE_LIMITS = {
-    # Authentication endpoints - more restrictive
-    "auth": {
-        "minute": (10, 60),  # 10 requests per minute
-        "hour": (50, 3600),  # 50 requests per hour
-    },
-    # General API endpoints
-    "api": {
-        "minute": (60, 60),  # 60 requests per minute
-        "hour": (1000, 3600),  # 1000 requests per hour
-    },
-    # Task operations - moderate limits
-    "tasks": {
-        "minute": (30, 60),  # 30 requests per minute
-        "hour": (500, 3600),  # 500 requests per hour
-    },
-    # Evaluation endpoints - more restrictive due to compute cost
-    "evaluation": {
-        "minute": (5, 60),  # 5 requests per minute
-        "hour": (50, 3600),  # 50 requests per hour
-    },
-    # File uploads - very restrictive
-    "upload": {
-        "minute": (5, 60),  # 5 uploads per minute
-        "hour": (20, 3600),  # 20 uploads per hour
-    },
-    # Admin operations - restrictive
-    "admin": {
-        "minute": (20, 60),  # 20 requests per minute
-        "hour": (200, 3600),  # 200 requests per hour
-    },
-}
-
-# Enhanced rate limits for different user roles
-USER_ROLE_MULTIPLIERS = {
-    "admin": 2.0,  # Admins get 2x the limits
-    "contributor": 1.5,  # Contributors get 1.5x the limits
-    "annotator": 1.0,  # Annotators get base limits
-}
-
-
-def get_rate_limits_for_user(endpoint: str, user: Optional[User] = None) -> Dict:
-    """Get rate limits adjusted for user role"""
-    base_limits = RATE_LIMITS.get(endpoint, RATE_LIMITS["api"])
-
-    # ``role`` lives on OrganizationMembership, not on the ORM/Pydantic User —
-    # use getattr so a role-less user object falls through to base limits
-    # instead of AttributeError-500ing this path.
-    user_role = getattr(user, "role", None) if user else None
-    if user_role in USER_ROLE_MULTIPLIERS:
-        multiplier = USER_ROLE_MULTIPLIERS[user_role]
-
-        # Apply multiplier to limits
-        adjusted_limits = {}
-        for window, (max_requests, seconds) in base_limits.items():
-            adjusted_limits[window] = (int(max_requests * multiplier), seconds)
-
-        return adjusted_limits
-
-    return base_limits
-
-
-def rate_limit(endpoint: str):
-    """Decorator for rate limiting FastAPI endpoints"""
-
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Extract request and user from function arguments
-            request = None
-            user = None
-
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                elif isinstance(arg, User):
-                    user = arg
-
-            for value in kwargs.values():
-                if isinstance(value, Request):
-                    request = value
-                elif isinstance(value, User):
-                    user = value
-
-            if not request:
-                # If no request found, skip rate limiting (shouldn't happen in practice)
-                return await func(*args, **kwargs)
-
-            # Get appropriate rate limits
-            limits = get_rate_limits_for_user(endpoint, user)
-
-            # Check rate limit
-            rate_limit_error = await rate_limiter.check_rate_limit(request, endpoint, limits, user)
-
-            if rate_limit_error:
-                raise HTTPException(
-                    status_code=429,
-                    detail=rate_limit_error,
-                    headers={"Retry-After": str(rate_limit_error["retry_after"])},
-                )
-
-            # Execute original function
-            return await func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-# Middleware version for global rate limiting
-
-
-async def rate_limit_middleware(request: Request, call_next):
-    """Global rate limiting middleware"""
-
-    # Skip rate limiting for health checks and static files
-    if request.url.path in ["/health", "/docs", "/openapi.json", "/favicon.ico"]:
-        return await call_next(request)
-
-    # Apply general API rate limiting
-    limits = get_rate_limits_for_user("api")
-
-    rate_limit_error = await rate_limiter.check_rate_limit(request, "api", limits)
-
-    if rate_limit_error:
-        return JSONResponse(
-            status_code=429,
-            content=rate_limit_error,
-            headers={"Retry-After": str(rate_limit_error["retry_after"])},
-        )
-
-    response = await call_next(request)
-    return response
-
 
 # Access keys (/api/v1): per-key buckets, per minute and per day.
 
@@ -487,6 +429,9 @@ async def enforce_key_rate_limit(request: Request, principal) -> Optional[Dict]:
         except Exception:  # pragma: no cover - requests without state
             pass
     if error:
+        from services.limit_metrics import record_rate_limited
+
+        record_rate_limited("api_key")
         raise HTTPException(
             status_code=429,
             detail={

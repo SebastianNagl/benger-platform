@@ -199,3 +199,47 @@ async def test_middleware_ignores_sessions():
         r = await c.get("/api/v1/projects/p")
         assert r.status_code == 200 and "x-ratelimit-limit" not in r.headers
     assert seen == []
+
+
+async def test_middleware_counts_key_requests_by_status_class():
+    from prometheus_client import CollectorRegistry
+
+    from services import limit_metrics
+
+    registry = CollectorRegistry()
+    limit_metrics.use_registry(registry)
+    try:
+        writer.set_sink(lambda _event: None)
+        key = Principal(kind="api_key", user_id="u1", api_key_id="k", key_prefix="bgr_test_x")
+        async with AsyncClient(transport=ASGITransport(app=_app(key)), base_url="http://t") as c:
+            await c.get("/api/v1/projects/p")
+            await c.get("/api/v1/nowhere")
+        session = Principal(kind="session", user_id="u")
+        async with AsyncClient(
+            transport=ASGITransport(app=_app(session)), base_url="http://t"
+        ) as c:
+            await c.get("/api/v1/projects/p")
+
+        def count(status_class):
+            return registry.get_sample_value(
+                "benger_api_key_requests_total", {"status_class": status_class}
+            )
+
+        # The 404 had no principal (no route, no dependency): not a key request.
+        assert count("2xx") == 1
+        assert count("4xx") == 0 and count("5xx") == 0
+    finally:
+        limit_metrics.use_registry(None)
+
+
+async def test_usage_ip_is_the_rightmost_forwarded_entry():
+    """The client's own leftmost X-Forwarded-For entry must not decide the
+    logged address (it is spoofable); Traefik appends the real peer."""
+    seen = []
+    writer.set_sink(seen.append)
+    key = Principal(kind="api_key", user_id="u1", api_key_id="k", key_prefix="bgr_test_x")
+    async with AsyncClient(transport=ASGITransport(app=_app(key)), base_url="http://t") as c:
+        await c.get(
+            "/api/v1/projects/p", headers={"X-Forwarded-For": "198.51.100.7, 203.0.113.9"}
+        )
+    assert seen[0]["ip_address"] == "203.0.113.0/24"

@@ -32,6 +32,7 @@ from models import Generation as DBLLMResponse
 from models import ResponseGeneration as DBResponseGeneration
 from project_models import Project, Task
 from redis_cache import get_redis_client
+from services.usage_limits import check_active_runs
 from routers.generation_revoke import (
     generation_run_task_ids,
     send_generation_trial,
@@ -538,6 +539,7 @@ async def resume_generation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Cannot resume generation with status: {generation.status}",
             )
+        await check_active_runs(db, current_user, generation_project_id=generation.project_id)
 
         generation.status = "running"
         generation.resumed_at = datetime.now()
@@ -634,6 +636,7 @@ async def retry_generation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Cannot retry generation with status: {generation.status}",
             )
+        await check_active_runs(db, current_user, generation_project_id=generation.project_id)
 
         # Reset the lifecycle fields, then re-dispatch every run_index that has
         # no child yet (multi-run: the old code re-ran only run_index=0 via a

@@ -36,8 +36,9 @@ When `ENVIRONMENT=development`:
 - Less restrictive CORS settings
 
 ### 3. Rate Limiting
-- Production: Rate limiting enforced
-- Development: Can be disabled with `DEBUG_DISABLE_RATE_LIMITING=true`
+- Login, token and password-reset requests are limited per account and per IP (`services/api/services/auth_rate_limit.py`).
+- Requests with a script token from `POST /api/auth/token` are limited per user to `BEARER_TOKEN_RPM` (default 1200 per minute); browser sessions are not. Access keys have their own per-key limits. See [Limits](../full-api.md#limits-and-good-practice) and [Abuse limits](environment-variables.md#abuse-limits).
+- With `TESTING=true` (the test environments) these Redis-counted limits, and `UPLOAD_URLS_PER_DAY`, are not enforced; `MAX_ACTIVE_RUNS_PER_USER` is a database check and is.
 
 ## API and script authentication
 
