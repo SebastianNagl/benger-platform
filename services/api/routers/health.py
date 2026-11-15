@@ -329,7 +329,8 @@ async def get_performance_stats(current_user: User = Depends(require_superadmin)
     Returns database and cache performance metrics
     """
     try:
-        from rate_limiter import rate_limiter
+        from app.core.config import settings as _settings
+        from services.rate_limiter import rate_limiter
 
         stats = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -357,8 +358,10 @@ async def get_performance_stats(current_user: User = Depends(require_superadmin)
         # Rate limiting stats
         try:
             stats["rate_limiting"] = {
-                "active_clients": len(rate_limiter.clients),
-                "cleanup_interval": "30 seconds",
+                "backend": "redis" if rate_limiter.redis_client is not None else "memory",
+                "bearer_token_rpm": _settings.bearer_token_rpm,
+                "upload_urls_per_day": _settings.upload_urls_per_day,
+                "max_active_runs_per_user": _settings.max_active_runs_per_user,
             }
         except Exception as e:
             stats["rate_limiting"] = {"error": str(e)}

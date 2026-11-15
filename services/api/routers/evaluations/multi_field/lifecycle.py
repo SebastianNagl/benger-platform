@@ -28,6 +28,8 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from sqlalchemy import text as _sql_text
 from sqlalchemy.orm.attributes import flag_modified
 
+from services.usage_limits import check_active_runs_sync
+
 from .run import _can_launch_evaluation
 
 
@@ -217,6 +219,8 @@ def resume_evaluation_run(
     # Snapshot guard BEFORE flipping state so a snapshot-less run isn't
     # left stranded in 'pending' with nothing dispatched.
     _dispatch_snapshot_kwargs(evaluation)
+    if evaluation.status in ("paused", "cancelled"):
+        check_active_runs_sync(db, current_user)  # MAX_ACTIVE_RUNS_PER_USER
     row = db.execute(
         _sql_text(
             """
@@ -277,6 +281,8 @@ def retry_evaluation_run(
     )
     previous = evaluation.status
     _dispatch_snapshot_kwargs(evaluation)  # 409 before any state change
+    if evaluation.status == "failed":
+        check_active_runs_sync(db, current_user)  # MAX_ACTIVE_RUNS_PER_USER
     row = db.execute(
         _sql_text(
             """

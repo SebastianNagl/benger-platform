@@ -81,6 +81,7 @@ from routers.projects.helpers import (  # noqa: E402
     require_org_key_own_organization,
 )
 
+from services.usage_limits import enforce_upload_url_limit  # noqa: E402
 from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES, import_content_type  # noqa: E402
 from schemas.import_schemas import (  # noqa: E402
     IMPORT_ERROR_RESPONSES,
@@ -591,6 +592,7 @@ async def create_import_upload_url(
             ),
         )
     await _reject_import_into_linked_exam(db, project)
+    await enforce_upload_url_limit(current_user)
 
     upload = object_storage.get_upload_url(
         filename=filename,
@@ -1108,7 +1110,10 @@ async def create_full_import_upload_url(
     Any authenticated user may import a project (same gate as the create-project
     flow). The key is scoped to ``imports/.../{user_id}/`` so the later
     POST /project-imports can verify the uploaded object belongs to this user.
+    Both upload-url routes share the per-user ``UPLOAD_URLS_PER_DAY`` ceiling
+    (``services/usage_limits.py``).
     """
+    await enforce_upload_url_limit(current_user)
     upload = object_storage.get_upload_url(
         filename=filename,
         file_type="imports",
