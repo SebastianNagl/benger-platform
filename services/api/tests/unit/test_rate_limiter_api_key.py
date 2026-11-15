@@ -75,6 +75,25 @@ async def test_enforce_key_rate_limit_sets_state_and_raises_429(memory_limiter):
     await rl.enforce_key_rate_limit(_request(), _key(rpm=2, key_id="k2"))
 
 
+async def test_key_429_counts_in_the_rate_limited_metric(memory_limiter):
+    from prometheus_client import CollectorRegistry
+
+    from services import limit_metrics
+
+    registry = CollectorRegistry()
+    limit_metrics.use_registry(registry)
+    try:
+        principal = _key(rpm=1, key_id="k-metric")
+        await rl.enforce_key_rate_limit(_request(), principal)
+        with pytest.raises(HTTPException):
+            await rl.enforce_key_rate_limit(_request(), principal)
+        assert registry.get_sample_value(
+            "benger_rate_limited_total", {"limit": "api_key"}
+        ) == 1
+    finally:
+        limit_metrics.use_registry(None)
+
+
 async def test_defaults_come_from_settings(memory_limiter, monkeypatch):
     monkeypatch.setattr(settings, "api_key_default_rpm", 7)
     monkeypatch.setattr(settings, "api_key_default_rpd", 70)

@@ -241,6 +241,18 @@ def verify_token_cookie_or_header(
     return verify_token(token, expected_typ)
 
 
+def session_token_from_header(request: Request, header_first: bool = False) -> bool:
+    """Whether :func:`verify_token_cookie_or_header` (same ``header_first``)
+    reads the token from the Authorization header rather than the cookie.
+    False for requests it cannot inspect."""
+    try:
+        if not _bearer_token(request):
+            return False
+        return bool(header_first or not request.cookies.get("access_token"))
+    except Exception:
+        return False
+
+
 class WebSocketAuthError(Exception):
     """Raised when a WebSocket handshake fails authentication.
 

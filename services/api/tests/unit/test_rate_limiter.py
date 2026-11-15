@@ -3,30 +3,19 @@ Unit tests for RateLimiter
 
 Tests comprehensive rate limiting functionality including:
 - Redis and memory fallback implementations
-- Rate limit enforcement for different endpoints
-- User role-based rate limit multipliers
+- Fixed-window and rolling-window enforcement
 - Request counting and TTL management
 - Client identification (user ID vs IP)
-- Rate limit decorator and middleware
 """
 
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import Request
 
 from models import User
-from services.rate_limiter import (
-    RATE_LIMITS,
-    USER_ROLE_MULTIPLIERS,
-    RateLimiter,
-    get_rate_limits_for_user,
-    rate_limit,
-    rate_limit_middleware,
-    rate_limiter,
-)
+from services.rate_limiter import RateLimiter
 
 
 @pytest.fixture
@@ -135,25 +124,6 @@ class TestRedisOperations:
     """Test Redis-based rate limiting operations"""
 
     @pytest.mark.asyncio
-    async def test_get_count_with_redis(self, rate_limiter_with_redis):
-        """Test getting count from Redis"""
-        rate_limiter_with_redis.redis_client.get.return_value = "5"
-
-        count = await rate_limiter_with_redis._get_count("test-key")
-
-        assert count == 5
-        rate_limiter_with_redis.redis_client.get.assert_called_with("test-key")
-
-    @pytest.mark.asyncio
-    async def test_get_count_redis_empty(self, rate_limiter_with_redis):
-        """Test getting count when Redis key doesn't exist"""
-        rate_limiter_with_redis.redis_client.get.return_value = None
-
-        count = await rate_limiter_with_redis._get_count("test-key")
-
-        assert count == 0
-
-    @pytest.mark.asyncio
     async def test_increment_count_with_redis(self, rate_limiter_with_redis):
         """Test incrementing count in Redis with TTL"""
         mock_pipe = Mock()
@@ -168,28 +138,17 @@ class TestRedisOperations:
 
     @pytest.mark.asyncio
     async def test_redis_error_handling(self, rate_limiter_with_redis):
-        """Test error handling for Redis operations"""
-        rate_limiter_with_redis.redis_client.get.side_effect = Exception("Redis error")
+        """A Redis error counts the request as the first one (fail open)"""
+        rate_limiter_with_redis.redis_client.pipeline.side_effect = Exception("Redis error")
 
-        count = await rate_limiter_with_redis._get_count("test-key")
+        count = await rate_limiter_with_redis._increment_count("test-key", 60)
 
-        assert count == 0  # Should return 0 on error
+        assert count == 1
 
 
 @pytest.mark.unit
 class TestMemoryFallback:
     """Test memory-based rate limiting operations"""
-
-    @pytest.mark.asyncio
-    async def test_get_count_memory_fallback(self, rate_limiter_memory_only):
-        """Test getting count from memory store"""
-        rate_limiter_memory_only._memory_store = {
-            "test-key": {"count": 3, "expires": time.time() + 60}
-        }
-
-        count = await rate_limiter_memory_only._get_count("test-key")
-
-        assert count == 3
 
     @pytest.mark.asyncio
     async def test_increment_count_memory_fallback(self, rate_limiter_memory_only):
@@ -283,208 +242,106 @@ class TestRateLimitChecking:
             assert result is None  # Should be allowed due to TESTING flag
 
 
-@pytest.mark.unit
-class TestUserRoleLimits:
-    """Test user role-based rate limit adjustments"""
+class _FakeSortedSets:
+    """Just the sorted-set commands the rolling window uses."""
 
-    def test_get_rate_limits_for_admin(self):
-        """Test rate limits for admin users"""
-        admin_user = Mock(spec=User)
-        admin_user.role = "admin"
+    def __init__(self):
+        self.sets = {}
 
-        limits = get_rate_limits_for_user("tasks", admin_user)
+    def pipeline(self):
+        return _FakePipeline(self)
 
-        base_minute_limit = RATE_LIMITS["tasks"]["minute"][0]
-        expected_limit = int(base_minute_limit * USER_ROLE_MULTIPLIERS["admin"])
+    def zrem(self, key, member):
+        self.sets.get(key, {}).pop(member, None)
 
-        assert limits["minute"][0] == expected_limit
 
-    def test_get_rate_limits_for_contributor(self):
-        """Test rate limits for contributor users"""
-        contributor_user = Mock(spec=User)
-        contributor_user.role = "contributor"
+class _FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.ops = []
 
-        limits = get_rate_limits_for_user("tasks", contributor_user)
+    def __getattr__(self, name):
+        def queue(*args, **kwargs):
+            self.ops.append((name, args, kwargs))
 
-        base_minute_limit = RATE_LIMITS["tasks"]["minute"][0]
-        expected_limit = int(base_minute_limit * USER_ROLE_MULTIPLIERS["contributor"])
+        return queue
 
-        assert limits["minute"][0] == expected_limit
-
-    def test_get_rate_limits_for_annotator(self):
-        """Test rate limits for annotator users"""
-        annotator_user = Mock(spec=User)
-        annotator_user.role = "annotator"
-
-        limits = get_rate_limits_for_user("tasks", annotator_user)
-
-        assert limits == RATE_LIMITS["tasks"]  # Base limits
-
-    def test_get_rate_limits_without_user(self):
-        """Test rate limits for unauthenticated requests"""
-        limits = get_rate_limits_for_user("tasks", None)
-
-        assert limits == RATE_LIMITS["tasks"]  # Base limits
-
-    def test_get_rate_limits_user_without_role_attr(self):
-        """A user object with no ``role`` attribute (the real ORM/Pydantic User
-        — ``role`` lives on OrganizationMembership) must fall through to base
-        limits via getattr, NOT AttributeError-500 the request."""
-        # Mock(spec=User) has no `role` (the ORM User carries none), so
-        # accessing it would raise — exactly the production object shape.
-        roleless_user = Mock(spec=User)
-
-        limits = get_rate_limits_for_user("tasks", roleless_user)
-
-        assert limits == RATE_LIMITS["tasks"]  # Base limits, no exception
-
-    def test_get_rate_limits_unknown_endpoint(self):
-        """Test fallback to default API limits for unknown endpoint"""
-        limits = get_rate_limits_for_user("unknown", None)
-
-        assert limits == RATE_LIMITS["api"]
+    def execute(self):
+        out = []
+        for name, args, kwargs in self.ops:
+            zset = self.redis.sets.setdefault(args[0], {})
+            if name == "zremrangebyscore":
+                low = float("-inf") if args[1] == "-inf" else float(args[1])
+                gone = [m for m, score in zset.items() if low <= score <= float(args[2])]
+                for m in gone:
+                    del zset[m]
+                out.append(len(gone))
+            elif name == "zadd":
+                zset.update(args[1])
+                out.append(1)
+            elif name == "zcard":
+                out.append(len(zset))
+            elif name == "zrange":
+                ordered = sorted(zset.items(), key=lambda item: item[1])
+                out.append(ordered[args[1] : args[2] + 1])
+            else:  # expire
+                out.append(True)
+        return out
 
 
 @pytest.mark.unit
-class TestRateLimitDecorator:
-    """Test rate limit decorator functionality"""
+class TestRollingLimit:
+    """check_rolling_limit: the last N seconds, refused events not counted"""
 
-    @pytest.mark.asyncio
-    async def test_rate_limit_decorator_allowed(self):
-        """Test decorator allows request within limits"""
-        mock_func = AsyncMock(return_value="success")
-        decorated = rate_limit("test")(mock_func)
+    @pytest.fixture(params=["memory", "redis"])
+    def limiter(self, request, monkeypatch):
+        monkeypatch.setenv("TESTING", "false")
+        with patch("services.rate_limiter.redis.from_url", side_effect=Exception("down")):
+            limiter = RateLimiter("redis://test:6379")
+        if request.param == "redis":
+            limiter.redis_client = _FakeSortedSets()
+        return limiter
 
-        mock_request = Mock(spec=Request)
-        mock_request.client.host = "192.168.1.1"
-        mock_request.headers = {}
+    async def test_n_plus_first_event_is_refused(self, limiter):
+        for _ in range(3):
+            assert await limiter.check_rolling_limit("user:u1", "upload_url", 3, 86400) is None
+        error = await limiter.check_rolling_limit("user:u1", "upload_url", 3, 86400)
+        assert error is not None
+        assert error["limit"] == 3 and error["window"] == 86400
+        assert 86000 < error["retry_after"] <= 86400
+        # Another client has its own window.
+        assert await limiter.check_rolling_limit("user:u2", "upload_url", 3, 86400) is None
 
-        with patch.object(rate_limiter, "check_rate_limit", return_value=None):
-            result = await decorated(mock_request)
+    async def test_window_rolls_and_refusals_do_not_extend_it(self, limiter, monkeypatch):
+        clock = [1_000_000.0]
+        monkeypatch.setattr("services.rate_limiter.time.time", lambda: clock[0])
+        assert await limiter.check_rolling_limit("user:u1", "x", 2, 100) is None
+        clock[0] += 50
+        assert await limiter.check_rolling_limit("user:u1", "x", 2, 100) is None
+        clock[0] += 10
+        error = await limiter.check_rolling_limit("user:u1", "x", 2, 100)
+        # The first event leaves the window 100 s after it was counted.
+        assert error["retry_after"] == 40
+        clock[0] += 39
+        assert await limiter.check_rolling_limit("user:u1", "x", 2, 100) is not None
+        clock[0] += 2  # first event is out now; the refused ones never counted
+        assert await limiter.check_rolling_limit("user:u1", "x", 2, 100) is None
+        assert await limiter.check_rolling_limit("user:u1", "x", 2, 100) is not None
 
-        assert result == "success"
-        mock_func.assert_called_once()
+    async def test_redis_error_fails_open(self, monkeypatch):
+        monkeypatch.setenv("TESTING", "false")
+        with patch("services.rate_limiter.redis.from_url", side_effect=Exception("down")):
+            limiter = RateLimiter("redis://test:6379")
+        limiter.redis_client = Mock()
+        limiter.redis_client.pipeline.side_effect = Exception("Redis error")
+        assert await limiter.check_rolling_limit("user:u1", "x", 1, 60) is None
 
-    @pytest.mark.asyncio
-    async def test_rate_limit_decorator_blocked(self):
-        """Test decorator blocks request over limits"""
-        mock_func = AsyncMock(return_value="success")
-        decorated = rate_limit("test")(mock_func)
-
-        mock_request = Mock(spec=Request)
-        mock_request.client.host = "192.168.1.1"
-        mock_request.headers = {}
-
-        error_response = {"error": "rate_limit_exceeded", "retry_after": 60}
-
-        with patch.object(rate_limiter, "check_rate_limit", return_value=error_response):
-            with pytest.raises(HTTPException) as exc_info:
-                await decorated(mock_request)
-
-        assert exc_info.value.status_code == 429
-        assert exc_info.value.detail == error_response
-        mock_func.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_rate_limit_decorator_with_user(self):
-        """Test decorator with authenticated user"""
-        mock_func = AsyncMock(return_value="success")
-        decorated = rate_limit("test")(mock_func)
-
-        mock_request = Mock(spec=Request)
-        mock_user = Mock(spec=User)
-        mock_user.id = "user-123"
-        mock_user.role = "admin"
-
-        with patch.object(rate_limiter, "check_rate_limit", return_value=None) as mock_check:
-            result = await decorated(mock_request, user=mock_user)
-
-        assert result == "success"
-        # Verify user was passed to rate limit check
-        call_args = mock_check.call_args
-        assert call_args[0][3] == mock_user  # user argument
-
-
-@pytest.mark.unit
-class TestRateLimitMiddleware:
-    """Test rate limit middleware functionality"""
-
-    @pytest.mark.asyncio
-    async def test_middleware_skips_health_check(self):
-        """Test middleware skips health check endpoint"""
-        mock_request = Mock(spec=Request)
-        mock_request.url.path = "/health"
-
-        mock_call_next = AsyncMock(return_value="response")
-
-        response = await rate_limit_middleware(mock_request, mock_call_next)
-
-        assert response == "response"
-        mock_call_next.assert_called_once_with(mock_request)
-
-    @pytest.mark.asyncio
-    async def test_middleware_allows_normal_request(self):
-        """Test middleware allows request within limits"""
-        mock_request = Mock(spec=Request)
-        mock_request.url.path = "/api/tasks"
-        mock_request.client.host = "192.168.1.1"
-        mock_request.headers = {}
-
-        mock_call_next = AsyncMock(return_value="response")
-
-        with patch.object(rate_limiter, "check_rate_limit", return_value=None):
-            response = await rate_limit_middleware(mock_request, mock_call_next)
-
-        assert response == "response"
-
-    @pytest.mark.asyncio
-    async def test_middleware_blocks_over_limit(self):
-        """Test middleware blocks request over limits"""
-        mock_request = Mock(spec=Request)
-        mock_request.url.path = "/api/tasks"
-        mock_request.client.host = "192.168.1.1"
-        mock_request.headers = {}
-
-        mock_call_next = AsyncMock()
-
-        error_response = {"error": "rate_limit_exceeded", "retry_after": 60}
-
-        with patch.object(rate_limiter, "check_rate_limit", return_value=error_response):
-            response = await rate_limit_middleware(mock_request, mock_call_next)
-
-        assert isinstance(response, JSONResponse)
-        assert response.status_code == 429
-        assert response.headers["retry-after"] == "60"
-        mock_call_next.assert_not_called()
-
-
-@pytest.mark.unit
-class TestRateLimitConfigurations:
-    """Test different rate limit configurations"""
-
-    def test_auth_endpoint_limits(self):
-        """Test authentication endpoint has restrictive limits"""
-        limits = RATE_LIMITS["auth"]
-        assert limits["minute"][0] == 10  # 10 per minute
-        assert limits["hour"][0] == 50  # 50 per hour
-
-    def test_upload_endpoint_limits(self):
-        """Test upload endpoint has very restrictive limits"""
-        limits = RATE_LIMITS["upload"]
-        assert limits["minute"][0] == 5  # 5 per minute
-        assert limits["hour"][0] == 20  # 20 per hour
-
-    def test_evaluation_endpoint_limits(self):
-        """Test evaluation endpoint has restrictive limits"""
-        limits = RATE_LIMITS["evaluation"]
-        assert limits["minute"][0] == 5  # 5 per minute
-        assert limits["hour"][0] == 50  # 50 per hour
-
-    def test_general_api_limits(self):
-        """Test general API endpoint limits"""
-        limits = RATE_LIMITS["api"]
-        assert limits["minute"][0] == 60  # 60 per minute
-        assert limits["hour"][0] == 1000  # 1000 per hour
+    async def test_skipped_while_testing(self, monkeypatch):
+        monkeypatch.setenv("TESTING", "true")
+        with patch("services.rate_limiter.redis.from_url", side_effect=Exception("down")):
+            limiter = RateLimiter("redis://test:6379")
+        for _ in range(3):
+            assert await limiter.check_rolling_limit("user:u1", "x", 1, 60) is None
 
 
 @pytest.mark.unit

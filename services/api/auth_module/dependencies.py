@@ -14,7 +14,12 @@ from .user_service import get_user_by_id
 
 from .models import User
 from .principal import extract_api_key, get_principal, session_principal
-from .service import db_user_to_user, is_service_account, verify_token_cookie_or_header
+from .service import (
+    db_user_to_user,
+    is_service_account,
+    session_token_from_header,
+    verify_token_cookie_or_header,
+)
 
 #: Paths under this prefix form the public, key-capable API.
 V1_PATH_PREFIX = "/api/v1/"
@@ -151,6 +156,17 @@ def _end_auth_read(db, began_idle: bool) -> None:
         logging.getLogger(__name__).debug("auth read transaction end failed: %s", exc)
 
 
+def _limit_bearer_request(request, header_first: bool, user: User) -> None:
+    """``BEARER_TOKEN_RPM``: count a request whose session token came from
+    the Authorization header (scripts; the browser uses the cookie) and 429
+    above the limit (``services/usage_limits.py``)."""
+    if not session_token_from_header(request, header_first=header_first):
+        return
+    from services.usage_limits import enforce_bearer_rate_limit
+
+    enforce_bearer_rate_limit(request, user)
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
     """
     Get current user from token (either cookie or header)
@@ -167,10 +183,9 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
     api_key = extract_api_key(request)
     if api_key is not None:
         return _authenticate_api_key(request, db, api_key)
+    header_first = _is_v1_path(_request_path(request))
     try:
-        payload = verify_token_cookie_or_header(
-            request, header_first=_is_v1_path(_request_path(request))
-        )
+        payload = verify_token_cookie_or_header(request, header_first=header_first)
         user_id: str = payload.get("user_id")
         if user_id is None:
             return None
@@ -184,10 +199,12 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
         _set_principal(request, session_principal(db_user.id))
         user = db_user_to_user(db_user)
         _end_auth_read(db, began_idle)
-        return user
     except HTTPException:
         # Return None for optional auth instead of raising exception
         return None
+    # Outside the try: a 429 must reach the client, not degrade to anonymous.
+    _limit_bearer_request(request, header_first, user)
+    return user
 
 
 def require_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -197,7 +214,8 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     Accepts an access key (``Authorization: Bearer bgr_...``, checked first;
     outside ``/api/v1`` by ``middleware/key_gate.py``) or a session JWT (cookie first; header first on
     ``/api/v1``). Stores the caller's ``Principal`` on
-    ``request.state.principal``.
+    ``request.state.principal``. A session token read from the Authorization
+    header counts against ``BEARER_TOKEN_RPM`` (429 ``rate_limited``).
     """
     import logging
 
@@ -207,10 +225,9 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     if api_key is not None:
         return _authenticate_api_key(request, db, api_key)
 
+    header_first = _is_v1_path(_request_path(request))
     try:
-        payload = verify_token_cookie_or_header(
-            request, header_first=_is_v1_path(_request_path(request))
-        )
+        payload = verify_token_cookie_or_header(request, header_first=header_first)
         user_id: str = payload.get("user_id")
         if user_id is None:
             logger.warning("Token validation failed: no user_id in payload")
@@ -241,6 +258,7 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
         _set_principal(request, session_principal(db_user.id))
         user = db_user_to_user(db_user)
         _end_auth_read(db, began_idle)
+        _limit_bearer_request(request, header_first, user)
         return user
     except HTTPException:
         raise

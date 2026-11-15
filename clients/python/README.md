@@ -83,7 +83,8 @@ envelope `{"error": {...}}` and the full API's `{"detail": ...}`. Branch on
 ### Retries and idempotency
 
 * A `429` is retried up to `max_retries` times, waiting as long as
-  `Retry-After` says.
+  `Retry-After` says, unless that is longer than `max_retry_wait` (default
+  300 seconds): an exhausted daily budget raises `RateLimitError` at once.
 * `5xx` answers and connection errors are retried with exponential backoff
   for GET/HEAD/OPTIONS and for requests that carry an `Idempotency-Key`.
 * Every `POST` to `/api/v1/...` carries an `Idempotency-Key` (a fresh UUID
