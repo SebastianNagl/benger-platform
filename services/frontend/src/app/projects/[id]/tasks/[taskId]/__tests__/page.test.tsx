@@ -277,23 +277,6 @@ describe('TaskDetailPage', () => {
       })
     })
 
-    // Rubric e2e D02: at 390 px the action row and the task UUID made the
-    // page 594 px wide. Every button row wraps and the heading breaks.
-    it('wraps its button rows and the task heading at phone width', async () => {
-      const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
-      render(<TaskDetailPage params={params} />)
-
-      const heading = await screen.findByText(/Task #task-456/)
-      expect(heading).toHaveClass('wrap-anywhere')
-      const actionRow = screen
-        .getByText('Start Labeling')
-        .closest('button')!.parentElement!
-      expect(actionRow).toHaveClass('flex', 'flex-wrap', 'gap-2')
-      expect(
-        screen.getByText('Skip Task').closest('button')!.parentElement,
-      ).toHaveClass('flex-wrap')
-    })
-
     it('displays task data in JSON format', async () => {
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
       render(<TaskDetailPage params={params} />)

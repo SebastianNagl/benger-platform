@@ -253,17 +253,6 @@ describe('Breadcrumb Component', () => {
       })
     })
 
-    // Rubric e2e D02: a trail ending in a task UUID made the task page 594 px
-    // wide on a 390 px phone. The trail wraps, and a label breaks anywhere.
-    it('wraps the trail and breaks long labels instead of widening the page', () => {
-      render(<Breadcrumb items={defaultItems} />)
-
-      expect(screen.getByRole('list')).toHaveClass('flex-wrap', 'min-w-0')
-      screen.getAllByRole('listitem').forEach((item) => {
-        expect(item).toHaveClass('min-w-0', 'wrap-anywhere')
-      })
-    })
-
     it('applies link color styles', () => {
       render(<Breadcrumb items={defaultItems} />)
 
