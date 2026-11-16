@@ -867,6 +867,34 @@ describe('EvaluationResults', () => {
 
   // ─── Filtering ────────────────────────────────────────────────────────────
 
+  describe('Include history toggle', () => {
+    it('is checked by default and requests history, unchecking drops it', async () => {
+      setupCompletedEvaluation()
+
+      render(<EvaluationResults projectId="project-123" />)
+
+      const checkbox = await screen.findByRole('checkbox', {
+        name: /includeHistory|include history/i,
+      })
+      expect(checkbox).toBeChecked()
+      await waitFor(() => {
+        expect(mockGetProjectResultsByTaskModel).toHaveBeenCalled()
+      })
+      for (const call of mockGetProjectResultsByTaskModel.mock.calls) {
+        expect(call[2]).toBe(true)
+      }
+
+      mockGetProjectResultsByTaskModel.mockClear()
+      await userEvent.click(checkbox)
+      expect(checkbox).not.toBeChecked()
+      await waitFor(() => {
+        expect(mockGetProjectResultsByTaskModel).toHaveBeenCalled()
+      })
+      const calls = mockGetProjectResultsByTaskModel.mock.calls
+      expect(calls[calls.length - 1][2]).toBe(false)
+    })
+  })
+
   describe('Filtering evaluations', () => {
     it('filters evaluations by selectedModels in chart view', async () => {
       const eval1 = makeEvaluationResult({
