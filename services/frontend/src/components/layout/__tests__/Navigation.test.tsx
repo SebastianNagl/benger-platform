@@ -951,6 +951,21 @@ describe('Navigation', () => {
       expect(screen.queryByText('Projects')).not.toBeInTheDocument()
     })
 
+    it.each(['/reports', '/changelog'])(
+      'marks %s as the current page in the visitor sidebar',
+      (path) => {
+        mockUsePathname.mockReturnValue(path)
+
+        renderVisitor()
+
+        const current = screen
+          .getAllByRole('link')
+          .filter((link) => link.getAttribute('aria-current') === 'page')
+          .map((link) => link.getAttribute('href'))
+        expect(current).toEqual([path])
+      },
+    )
+
     it('shows the landing sections as anchors below Home', () => {
       mockUseSectionStore.mockImplementation((selector: any) => {
         const store = {
