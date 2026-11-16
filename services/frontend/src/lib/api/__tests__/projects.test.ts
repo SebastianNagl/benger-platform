@@ -9,7 +9,7 @@ import {
   Project,
   Task,
 } from '@/types/labelStudio'
-import { projectsAPI } from '../projects'
+import { ImportJobTimeoutError, projectsAPI } from '../projects'
 
 // Mock the apiClient
 jest.mock('@/lib/api', () => ({
@@ -1182,6 +1182,97 @@ describe('projectsAPI', () => {
       ).rejects.toThrow('bad payload')
 
       fetchSpy.mockRestore()
+    })
+
+    // Rubric e2e D01: a job no worker ever settles (crashed task, dead worker)
+    // kept every poller, and with it the project wizard, waiting forever.
+    describe('a job that never settles', () => {
+      let fetchSpy: jest.SpyInstance
+      beforeEach(() => {
+        fetchSpy = jest
+          .spyOn(global, 'fetch')
+          .mockResolvedValue({ ok: true } as Response)
+        ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+          if (url.includes('upload-url')) return Promise.resolve(presigned)
+          if (url.includes('cloud-imports')) {
+            return Promise.resolve({
+              jobs: [
+                { job_id: 'job-9', object_key: 'a.json', status: 'pending' },
+              ],
+            })
+          }
+          return Promise.resolve({ job_id: 'job-9', status: 'pending' })
+        })
+        ;(apiClient.get as jest.Mock).mockResolvedValue({
+          job_id: 'job-9',
+          status: 'pending',
+          error_message: null,
+          result: null,
+        })
+      })
+      afterEach(() => fetchSpy.mockRestore())
+
+      const file = () =>
+        new File(['{}'], 'data.json', { type: 'application/json' })
+
+      it('runNestedImportJob gives up at its deadline with an ImportJobTimeoutError', async () => {
+        const rejection = projectsAPI.runNestedImportJob(
+          'proj-1',
+          file(),
+          undefined,
+          {
+            pollIntervalMs: 1,
+            timeoutMs: 20,
+          },
+        )
+        await expect(rejection).rejects.toBeInstanceOf(ImportJobTimeoutError)
+        await expect(rejection).rejects.toMatchObject({
+          jobId: 'job-9',
+          lastStatus: 'pending',
+        })
+        // It polled while the deadline ran, then stopped.
+        const polls = (apiClient.get as jest.Mock).mock.calls.length
+        expect(polls).toBeGreaterThan(1)
+        await new Promise((r) => setTimeout(r, 30))
+        expect((apiClient.get as jest.Mock).mock.calls.length).toBe(polls)
+      })
+
+      it('runProjectImportJob and runCloudImportJobs share the deadline', async () => {
+        await expect(
+          projectsAPI.runProjectImportJob(file(), undefined, {
+            pollIntervalMs: 1,
+            timeoutMs: 10,
+          }),
+        ).rejects.toBeInstanceOf(ImportJobTimeoutError)
+        await expect(
+          projectsAPI.runCloudImportJobs(
+            'proj-1',
+            { connection_id: 'conn-1', object_keys: ['a.json'] },
+            undefined,
+            { pollIntervalMs: 1, timeoutMs: 10 },
+          ),
+        ).rejects.toBeInstanceOf(ImportJobTimeoutError)
+      })
+
+      it('a job that settles before the deadline still resolves', async () => {
+        ;(apiClient.get as jest.Mock)
+          .mockResolvedValueOnce({ job_id: 'job-9', status: 'running' })
+          .mockResolvedValue({
+            job_id: 'job-9',
+            status: 'completed',
+            result: null,
+          })
+        const final = await projectsAPI.runNestedImportJob(
+          'proj-1',
+          file(),
+          undefined,
+          {
+            pollIntervalMs: 1,
+            timeoutMs: 1000,
+          },
+        )
+        expect(final.status).toBe('completed')
+      })
     })
   })
 

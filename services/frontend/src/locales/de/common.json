@@ -380,13 +380,14 @@
             "label": "Füge deine Daten unten ein",
             "placeholder": "JSON-, CSV- oder Klartextdaten einfügen...",
             "lines": "{count} Zeilen",
+            "linesOne": "1 Zeile",
             "noData": "Keine Daten",
             "clear": "Löschen",
             "validate": "Daten validieren",
             "formatDetected": "Format erkannt: {format}",
             "invalidFormat": "Ungültiges Datenformat"
           },
-          "note": "Hinweis: Du kannst diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren",
+          "note": "Du kannst diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren",
           "detectedColumns": "Erkannte Spalten:"
         },
         "step3": {
@@ -939,6 +940,7 @@
       "projectCreated": "Projekt erfolgreich erstellt!",
       "orgAssignFailed": "Das Projekt wurde erstellt, aber den ausgewählten Organisationen konnte es nicht zugewiesen werden. Bitte weise sie in den Projekteinstellungen zu.",
       "importDataFailed": "Datenimport fehlgeschlagen: {error}",
+      "importDataTimeout": "Der Datenimport ist nach {minutes} Minuten nicht fertig. Das Projekt wurde angelegt; schau später nach, ob seine Aufgaben angekommen sind, oder importiere sie auf der Projektseite erneut.",
       "unknownError": "Unbekannter Fehler",
       "createFailed": "Projekt konnte nicht erstellt werden",
       "customConfigName": "Benutzerdefinierte Konfiguration",

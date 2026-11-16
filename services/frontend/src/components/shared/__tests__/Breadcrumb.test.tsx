@@ -241,7 +241,7 @@ describe('Breadcrumb Component', () => {
       render(<Breadcrumb items={defaultItems} />)
 
       const list = screen.getByRole('list')
-      expect(list).toHaveClass('flex', 'items-center', 'space-x-1', 'text-sm')
+      expect(list).toHaveClass('flex', 'items-center', 'gap-x-1', 'text-sm')
     })
 
     it('list items have flex layout', () => {

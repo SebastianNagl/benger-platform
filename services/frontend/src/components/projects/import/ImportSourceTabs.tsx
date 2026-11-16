@@ -193,18 +193,16 @@ export function ImportSourceTabs({
 
   return (
     <Tabs defaultValue={defaultTab} data-testid={`${p}-data-tabs`}>
-      <TabsList
-        className={
-          order.length === 4
-            ? 'grid w-full grid-cols-4'
-            : 'grid w-full grid-cols-3'
-        }
-      >
+      {/* TabsList is inline-flex, so the row is laid out by flex direction:
+          below sm the labels do not fit side by side (390 px phone), so the
+          triggers stack in one column instead of widening the page. */}
+      <TabsList className="w-full flex-col max-sm:items-stretch max-sm:rounded-2xl sm:flex-row">
         {order.map((tabId) => (
           <TabsTrigger
             key={tabId}
             value={tabId}
             data-testid={`${p}-${tabId}-tab`}
+            className="sm:flex-1"
           >
             {tabLabels[tabId]}
           </TabsTrigger>
@@ -305,7 +303,7 @@ export function ImportSourceTabs({
 
       <TabsContent value="paste" className="mt-6">
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
             <ExtractTextButton
               onText={(text) =>
@@ -329,11 +327,13 @@ export function ImportSourceTabs({
                 pastedData.trim() ? pastedData.trim().split('\n').length : 0
               }
             >
-              {pastedData.trim()
-                ? t('projects.creation.wizard.step2.paste.lines', {
-                    count: pastedData.trim().split('\n').length,
-                  })
-                : t('projects.creation.wizard.step2.paste.noData')}
+              {!pastedData.trim()
+                ? t('projects.creation.wizard.step2.paste.noData')
+                : pastedData.trim().split('\n').length === 1
+                  ? t('projects.creation.wizard.step2.paste.linesOne')
+                  : t('projects.creation.wizard.step2.paste.lines', {
+                      count: pastedData.trim().split('\n').length,
+                    })}
             </div>
             <div className="flex gap-2">
               <Button

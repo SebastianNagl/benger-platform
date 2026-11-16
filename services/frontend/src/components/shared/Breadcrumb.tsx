@@ -16,12 +16,15 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
   const allItems = items
 
   return (
-    <nav className="flex" aria-label={t('shared.breadcrumb.ariaLabel')}>
-      <ol className="flex items-center space-x-1 text-sm">
+    <nav className="flex min-w-0" aria-label={t('shared.breadcrumb.ariaLabel')}>
+      {/* Wraps onto more lines on a narrow screen, and a long label (a task
+          UUID) breaks anywhere, so the trail never widens the page (rubric
+          e2e D02). */}
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-sm">
         {allItems.map((item, index) => (
           <li
             key={item.href || `breadcrumb-${index}`}
-            className="flex items-center"
+            className="flex min-w-0 items-center wrap-anywhere"
           >
             {index > 0 && (
               <span className="mx-2 text-zinc-400 dark:text-zinc-600">/</span>

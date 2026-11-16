@@ -1442,7 +1442,21 @@ def _read_markdown_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
         if (match := _MD_TABLE_ROW_RE.match(line)) and not _MD_TABLE_SEP_RE.match(line)
     ]
     if len(table_rows) >= 2:
-        return _grid_from_rows(table_rows)
+        # The lines above the table ("# Bewertungsbogen E-Bike-Fall") feed the
+        # title candidate, as the paragraphs above a Word table do; dropping
+        # them made every table sheet take its file name as title (rubric e2e
+        # D11). Each becomes a one-cell row, which the outline builder takes
+        # as the title when it precedes the first step.
+        preamble: List[List[str]] = []
+        for line in lines:
+            if _MD_TABLE_ROW_RE.match(line):
+                break
+            stripped = line.strip()
+            if not stripped or stripped.startswith("```"):
+                continue
+            heading = _MD_HEADING_RE.match(stripped)
+            preamble.append([heading.group(2).strip() if heading else stripped])
+        return _grid_from_rows(preamble + table_rows)
 
     rows: List[List[str]] = []
     for line in lines:

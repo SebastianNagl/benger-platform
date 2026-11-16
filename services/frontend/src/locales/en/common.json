@@ -380,13 +380,14 @@
             "label": "Paste your data below",
             "placeholder": "Paste JSON, CSV, or plain text data...",
             "lines": "{count} lines",
+            "linesOne": "1 line",
             "noData": "No data",
             "clear": "Clear",
             "validate": "Validate Data",
             "formatDetected": "Detected format: {format}",
             "invalidFormat": "Invalid data format"
           },
-          "note": "Note: You can skip this step and import data later from the project dashboard",
+          "note": "You can skip this step and import data later from the project dashboard",
           "detectedColumns": "Detected columns:"
         },
         "step3": {
@@ -939,6 +940,7 @@
       "projectCreated": "Project created successfully!",
       "orgAssignFailed": "Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.",
       "importDataFailed": "Failed to import data: {error}",
+      "importDataTimeout": "The data import has not finished after {minutes} minutes. The project was created; open it later to check whether its tasks arrived, or import them again from the project page.",
       "unknownError": "Unknown error",
       "createFailed": "Failed to create project",
       "customConfigName": "Custom Configuration",

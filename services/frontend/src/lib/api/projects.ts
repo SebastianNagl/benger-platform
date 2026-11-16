@@ -110,6 +110,29 @@ export class ImportJobError extends Error {
   }
 }
 
+/**
+ * The Error an import poll rejects with when its job has not settled
+ * (completed or failed) before the poll's deadline: the job may still be
+ * queued or running, or its worker may have died without marking it.
+ */
+export class ImportJobTimeoutError extends Error {
+  jobId: string
+  lastStatus: ImportJobState | null
+  constructor(
+    jobId: string,
+    timeoutMs: number,
+    lastStatus: ImportJobState | null,
+  ) {
+    super(
+      `Import job ${jobId} has not finished after ${Math.round(timeoutMs / 60000)} min ` +
+        `(last status: ${lastStatus ?? 'unknown'})`,
+    )
+    this.name = 'ImportJobTimeoutError'
+    this.jobId = jobId
+    this.lastStatus = lastStatus
+  }
+}
+
 /** Request body for POST /projects/{id}/cloud-imports. */
 export interface CloudImportRequest {
   connection_id: string
@@ -155,27 +178,69 @@ const getJobStatus = (endpoint: string) => {
   return apiClient.get(endpoint, { cache: 'no-store' })
 }
 
-// Poll a project import job until it completes (resolves with it) or fails
-// (rejects with an ImportJobError); an aborted signal rejects with AbortError.
-async function pollImportJob(
-  projectId: string,
+// How long an import poll waits for its job to settle by default. An import
+// task's hard time limit is 90 min on the bulk queue (celery_queues.py,
+// QUEUE_TIME_LIMITS), so a job still pending or running after that will never
+// settle: its worker died, or no worker took it. Callers where a person
+// watches a spinner over a small import (the project wizard) pass a shorter
+// `timeoutMs`.
+export const IMPORT_POLL_TIMEOUT_MS = 95 * 60 * 1000
+
+type ImportPollOptions = {
+  pollIntervalMs?: number
+  signal?: AbortSignal
+  /** Give up with an ImportJobTimeoutError after this many ms (default IMPORT_POLL_TIMEOUT_MS). */
+  timeoutMs?: number
+}
+
+// Poll an import job until it settles: resolves with its completed or failed
+// status. An aborted signal rejects with AbortError, a job that has not
+// settled by the deadline with an ImportJobTimeoutError.
+async function pollImportJobUntilSettled(
   jobId: string,
-  callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-  options?: { pollIntervalMs?: number; signal?: AbortSignal },
+  fetchStatus: () => Promise<ImportJobStatus>,
+  onStatus?: (status: ImportJobStatus) => void,
+  options?: ImportPollOptions,
 ): Promise<ImportJobStatus> {
+  const timeoutMs = options?.timeoutMs ?? IMPORT_POLL_TIMEOUT_MS
+  const deadline = Date.now() + timeoutMs
+  let lastStatus: ImportJobState | null = null
   let attempt = 0
   for (;;) {
     if (options?.signal?.aborted) {
       throw new DOMException('Import polling aborted', 'AbortError')
     }
-    const status = await projectsAPI.getImportJob(projectId, jobId)
-    callbacks?.onStatus?.(status)
-    if (status.status === 'completed') return status
-    if (status.status === 'failed') {
-      throw new ImportJobError(status)
+    const status = await fetchStatus()
+    onStatus?.(status)
+    if (status.status === 'completed' || status.status === 'failed') {
+      return status
     }
-    await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
+    lastStatus = status.status
+    const delay = nextPollDelay(attempt++, options?.pollIntervalMs)
+    if (Date.now() + delay > deadline) {
+      throw new ImportJobTimeoutError(jobId, timeoutMs, lastStatus)
+    }
+    await sleep(delay)
   }
+}
+
+// Poll a project import job until it completes (resolves with it) or fails
+// (rejects with an ImportJobError); see pollImportJobUntilSettled for abort
+// and deadline.
+async function pollImportJob(
+  projectId: string,
+  jobId: string,
+  callbacks?: { onStatus?: (status: ImportJobStatus) => void },
+  options?: ImportPollOptions,
+): Promise<ImportJobStatus> {
+  const status = await pollImportJobUntilSettled(
+    jobId,
+    () => projectsAPI.getImportJob(projectId, jobId),
+    callbacks?.onStatus,
+    options,
+  )
+  if (status.status === 'failed') throw new ImportJobError(status)
+  return status
 }
 
 export const projectsAPI = {
@@ -815,14 +880,15 @@ export const projectsAPI = {
    * Drive a NESTED import through the async job flow: presign → upload → enqueue
    * → poll. Resolves with the final (completed) job status.
    *
-   * Throws an Error if the job fails (message = the worker's error_message), or
-   * a DOMException `AbortError` if the caller's signal is aborted while polling.
+   * Throws an Error if the job fails (message = the worker's error_message), a
+   * DOMException `AbortError` if the caller's signal is aborted while polling,
+   * or an ImportJobTimeoutError if the job has not settled by `options.timeoutMs`.
    */
   runNestedImportJob: async (
     projectId: string,
     file: File,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal },
+    options?: ImportPollOptions,
   ): Promise<ImportJobStatus> => {
     const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
@@ -850,7 +916,7 @@ export const projectsAPI = {
     projectId: string,
     objectKey: string,
     modelIdMap?: Record<string, string>,
-    options?: { pollIntervalMs?: number; signal?: AbortSignal },
+    options?: ImportPollOptions,
   ): Promise<MergePreview> => {
     const { job_id } = await projectsAPI.createImportJob(projectId, objectKey, {
       mode: 'merge',
@@ -884,9 +950,7 @@ export const projectsAPI = {
     projectId: string,
     file: File | null,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: {
-      pollIntervalMs?: number
-      signal?: AbortSignal
+    options?: ImportPollOptions & {
       modelIdMap?: Record<string, string>
       /** Key of a file already uploaded with uploadImportFile (no re-upload). */
       objectKey?: string
@@ -911,15 +975,14 @@ export const projectsAPI = {
    * `options.organizationId` is the owning org (none: a private project);
    * `options.organizationGroupId` optionally scopes it to one of its groups.
    *
-   * Throws an Error if the job fails (message = the worker's error_message), or
-   * a DOMException `AbortError` if the caller's signal is aborted while polling.
+   * Throws an Error if the job fails (message = the worker's error_message), a
+   * DOMException `AbortError` if the caller's signal is aborted while polling,
+   * or an ImportJobTimeoutError if the job has not settled by `options.timeoutMs`.
    */
   runProjectImportJob: async (
     file: File,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: {
-      pollIntervalMs?: number
-      signal?: AbortSignal
+    options?: ImportPollOptions & {
       organizationId?: string | null
       organizationGroupId?: string | null
     },
@@ -932,19 +995,14 @@ export const projectsAPI = {
       options?.organizationGroupId,
     )
 
-    let attempt = 0
-    for (;;) {
-      if (options?.signal?.aborted) {
-        throw new DOMException('Import polling aborted', 'AbortError')
-      }
-      const status = await projectsAPI.getFullImportJob(job_id)
-      callbacks?.onStatus?.(status)
-      if (status.status === 'completed') return status
-      if (status.status === 'failed') {
-        throw new ImportJobError(status)
-      }
-      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
-    }
+    const status = await pollImportJobUntilSettled(
+      job_id,
+      () => projectsAPI.getFullImportJob(job_id),
+      callbacks?.onStatus,
+      options,
+    )
+    if (status.status === 'failed') throw new ImportJobError(status)
+    return status
   },
 
   /**
@@ -979,24 +1037,17 @@ export const projectsAPI = {
     callbacks?: {
       onStatus?: (objectKey: string, status: ImportJobStatus) => void
     },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal },
+    options?: ImportPollOptions,
   ): Promise<ImportJobStatus[]> => {
     const { jobs } = await projectsAPI.createCloudImportJobs(projectId, body)
 
-    const pollJob = async (job: CloudImportJobDescriptor) => {
-      let attempt = 0
-      for (;;) {
-        if (options?.signal?.aborted) {
-          throw new DOMException('Import polling aborted', 'AbortError')
-        }
-        const status = await projectsAPI.getImportJob(projectId, job.job_id)
-        callbacks?.onStatus?.(job.object_key, status)
-        if (status.status === 'completed' || status.status === 'failed') {
-          return status
-        }
-        await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
-      }
-    }
+    const pollJob = (job: CloudImportJobDescriptor) =>
+      pollImportJobUntilSettled(
+        job.job_id,
+        () => projectsAPI.getImportJob(projectId, job.job_id),
+        (status) => callbacks?.onStatus?.(job.object_key, status),
+        options,
+      )
 
     const settled = await Promise.allSettled(jobs.map(pollJob))
     // An AbortError (or unexpected poll failure) propagates as-is.

@@ -1184,6 +1184,99 @@ class TestEvaluationsList:
         body = resp.json()
         assert isinstance(body, list)
 
+    def _seed_run(self, test_db, project_id, created_by, metrics):
+        run = EvaluationRun(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            model_id="gpt-4o",
+            evaluation_type_ids=["accuracy"],
+            metrics=metrics,
+            eval_metadata={"evaluation_type": "evaluation"},
+            status="completed",
+            samples_evaluated=3,
+            created_by=created_by,
+            created_at=datetime.utcnow(),
+        )
+        test_db.add(run)
+        test_db.commit()
+        return run
+
+    def test_project_id_narrows_the_list_to_that_project(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Rubric e2e D13: the list ignored ``project_id`` and returned every
+        reachable run."""
+        first = _create_evaluation_project(
+            test_db, test_users, test_org, with_evaluation_run=False
+        )
+        second = _create_evaluation_project(
+            test_db, test_users, test_org, with_evaluation_run=False
+        )
+        mine = self._seed_run(
+            test_db, first["project"].id, first["admin"].id, {"accuracy": 0.85}
+        )
+        self._seed_run(
+            test_db, second["project"].id, second["admin"].id, {"accuracy": 0.5}
+        )
+
+        resp = client.get(
+            f"/api/evaluations/?project_id={first['project'].id}",
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200, resp.text
+        assert [run["id"] for run in resp.json()] == [mine.id]
+
+    def test_project_id_of_an_unreachable_project_is_refused(
+        self, client, test_db, test_users, auth_headers
+    ):
+        """A project the user cannot reach answers 403, never its runs."""
+        admin = test_users[0]
+        hidden = Project(
+            id=str(uuid.uuid4()),
+            title="Private eval project",
+            label_config=LABEL_CONFIG_QA,
+            created_by=admin.id,
+            is_private=True,
+        )
+        test_db.add(hidden)
+        test_db.commit()
+        self._seed_run(test_db, hidden.id, admin.id, {"accuracy": 0.9})
+
+        resp = client.get(
+            f"/api/evaluations/?project_id={hidden.id}",
+            headers=auth_headers["annotator"],
+        )
+        assert resp.status_code == 403, resp.text
+
+    def test_legacy_list_shaped_metrics_do_not_fail_the_list(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Rubric e2e D13: one legacy run storing ``metrics`` as the list of
+        metric names made the whole list answer 500."""
+        data = _create_evaluation_project(
+            test_db, test_users, test_org, with_evaluation_run=False
+        )
+        legacy = self._seed_run(
+            test_db, data["project"].id, data["admin"].id,
+            ["bertscore", "moverscore"],
+        )
+        current = self._seed_run(
+            test_db, data["project"].id, data["admin"].id, {"accuracy": 0.85}
+        )
+
+        resp = client.get(
+            f"/api/evaluations/?project_id={data['project'].id}",
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200, resp.text
+        by_id = {run["id"]: run for run in resp.json()}
+        assert by_id[legacy.id]["metrics"] == {"bertscore": None, "moverscore": None}
+        assert by_id[current.id]["metrics"] == {"accuracy": 0.85}
+
+        # The unfiltered list survives the legacy row too.
+        resp = client.get("/api/evaluations/", headers=auth_headers["admin"])
+        assert resp.status_code == 200, resp.text
+
 
 @pytest.mark.integration
 class TestEvaluationTypes:
