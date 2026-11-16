@@ -3048,7 +3048,7 @@
       "defaultMaxTokens": "Tokens max. par défaut",
       "defaultMaxTokensDesc": "Longueur de réponse par défaut (100-16000)",
       "seed": "Seed",
-      "seedDesc": "Graine aléatoire pour la reproductibilité (par défaut : 42). Les fournisseurs sans prise en charge du seed (Anthropic, Google, Kimi/MiniMax) ignorent cette valeur.",
+      "seedDesc": "Graine aléatoire pour la reproductibilité (par défaut : 42). Les modèles sans prise en charge du seed (Anthropic, Google, Kimi/MiniMax) n’en reçoivent pas, et l’exécution indique que le seed n’a pas été envoyé.",
       "perModelTokenLimits": "Limites de tokens par modèle",
       "perModelTokenLimitsDesc": "Laissez vide pour la valeur par défaut. Définissez une valeur personnalisée pour la remplacer pour certains modèles.",
       "totalGenerationsPerTask": "Total des générations par tâche :",
@@ -3072,6 +3072,10 @@
       "fixedTemperatureOne": "{models} exige une température fixe de 1.0. Le backend remplacera la valeur pour ce modèle.",
       "fixedTemperatureOther": "{models} exigent une température fixe de 1.0. Le backend remplacera la valeur pour ces modèles.",
       "noStructures": "Ce projet n'a pas de structure de prompt pour la génération. Ajoutez-en une dans la section « Prompts » de la page du projet, puis lancez la génération."
+    },
+    "seedNotSent": {
+      "unsupportedByModel": "Le seed {seed} n’a pas été envoyé : ce modèle n’accepte pas de seed, ses réponses ont donc été générées sans.",
+      "declaredUnsupported": "Le seed {seed} n’a pas été envoyé : ce modèle personnalisé est enregistré comme n’acceptant pas de seed (parameter_constraints.seed.supported vaut false), ses réponses ont donc été générées sans."
     }
   },
   "notifications": {
@@ -9138,6 +9142,7 @@
       "status": "Statut",
       "model": "Modèle",
       "runs": "Exécutions",
+      "runsFailed": "({count} en échec)",
       "started": "Démarrée",
       "completed": "Terminée",
       "task": "Tâche",
@@ -9234,6 +9239,9 @@
       "maxConcurrentRequests": "Requêtes simultanées",
       "maxConcurrentRequestsHelp": "Nombre de requêtes qu'une génération envoie en même temps à ce point de terminaison. Les tâches suivantes attendent dans la file, pas chez le fournisseur, où l'attente compterait dans leur limite de temps. Laisser vide pour la valeur par défaut de 2.",
       "maxConcurrentRequestsInvalid": "Un nombre entier de 1 à {max}, ou vide",
+      "requestTimeoutSeconds": "Délai par requête (secondes)",
+      "requestTimeoutSecondsHelp": "Durée maximale d’une requête vers ce point de terminaison avant qu’elle soit annulée et relancée. La réponse arrive en un seul bloc : un modèle de raisonnement a donc besoin d’assez de temps pour toute sa sortie. Laisser vide pour la valeur par défaut de {default} s ; valeurs autorisées : {min} à {max} s.",
+      "requestTimeoutSecondsInvalid": "Un nombre entier de {min} à {max}, ou vide",
       "requiresApiKey": "Clé API requise",
       "requiresApiKeyHelp": "Désactivez cette option si le point de terminaison est accessible sans authentification (p. ex. un serveur Ollama local). Sinon, chaque utilisateur enregistre sa propre clé.",
       "reasoningParam": "Paramètre de raisonnement",

@@ -2708,6 +2708,11 @@ class LLMModel(Base):
     # (generation/endpoint_slots.py). Further jobs wait in the Celery queue,
     # not at the provider, where the wait would count toward their time limit.
     max_concurrent_requests = Column(Integer, nullable=True)
+    # Seconds one HTTP attempt against a custom endpoint may take (migration
+    # 135, 30-1500); NULL = the default of 300
+    # (ai_services/openai_compatible_service.py). The completion is not
+    # streamed, so a reasoning model needs enough time for its whole output.
+    request_timeout_seconds = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -2735,6 +2740,11 @@ class LLMModel(Base):
         sa.CheckConstraint(
             "max_concurrent_requests IS NULL OR max_concurrent_requests >= 1",
             name="ck_llm_models_max_concurrent_requests_positive",
+        ),
+        sa.CheckConstraint(
+            "request_timeout_seconds IS NULL OR "
+            "request_timeout_seconds BETWEEN 30 AND 1500",
+            name="ck_llm_models_request_timeout_seconds_range",
         ),
         sa.Index(
             "ix_llm_models_is_public",

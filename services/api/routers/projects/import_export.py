@@ -188,6 +188,17 @@ def _post(path: str, **kwargs):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# What a job that never reached the queue reports. The broker error itself
+# (host, port, credentials in a URL) is logged, never stored on the job: the
+# status endpoints return error_message verbatim.
+_ENQUEUE_FAILED_IMPORT = (
+    "503: queue_unavailable: The import could not be queued. Start it again."
+)
+_ENQUEUE_FAILED_EXPORT = (
+    "503: queue_unavailable: The export could not be queued. Start it again."
+)
+
+
 def _serialize_export_job(job: ExportJob) -> dict:
     return {
         "job_id": job.id,
@@ -309,7 +320,7 @@ async def enqueue_export_job(
         # failed so it isn't left pending forever, and surface 503.
         logger.error("Failed to enqueue export job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
-        job.error_message = f"Failed to enqueue export: {exc}"
+        job.error_message = _ENQUEUE_FAILED_EXPORT
         await db.commit()
         raise HTTPException(
             status_code=503, detail="Export queue unavailable, please retry"
@@ -699,7 +710,7 @@ async def create_import_job(
     except Exception as exc:
         logger.error("Failed to enqueue import job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
-        job.error_message = f"Failed to enqueue import: {exc}"
+        job.error_message = _ENQUEUE_FAILED_IMPORT
         await db.commit()
         raise HTTPException(
             status_code=503, detail="Import queue unavailable, please retry"
@@ -910,7 +921,7 @@ async def create_cloud_import_jobs(
         for job in jobs:
             if job.celery_task_id is None:
                 job.status = JobStatus.FAILED.value
-                job.error_message = f"Failed to enqueue import: {exc}"
+                job.error_message = _ENQUEUE_FAILED_IMPORT
         await db.commit()
         raise HTTPException(
             status_code=503, detail="Import queue unavailable, please retry"
@@ -1205,7 +1216,7 @@ async def create_full_import_job(
     except Exception as exc:
         logger.error("Failed to enqueue full-project import job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
-        job.error_message = f"Failed to enqueue import: {exc}"
+        job.error_message = _ENQUEUE_FAILED_IMPORT
         await db.commit()
         raise HTTPException(
             status_code=503, detail="Import queue unavailable, please retry"

@@ -452,7 +452,8 @@
         "**Fusionner les résultats** ajoute seulement des générations et des évaluations aux tâches que le projet possède déjà. Si les tâches du fichier ne sont pas celles de ce projet, rien n'est importé ; importez alors ce fichier comme nouveau projet.",
         "**Importer un projet** n'accepte que les exports de projet. Un export de tâches issu de *Données du projet* s'importe sur la page *Données du projet* d'un projet existant.",
         "*Version de format de fichier non prise en charge* signifie que le fichier provient d'une version plus ancienne ou d'une autre installation. Exportez-le à nouveau depuis la plateforme actuelle.",
-        "Les très gros exports de tâches avec filtres sont plafonnés. Restreignez davantage la sélection ou exportez sans filtre."
+        "Les très gros exports de tâches avec filtres sont plafonnés. Restreignez davantage la sélection ou exportez sans filtre.",
+        "Plusieurs imports peuvent s’exécuter en même temps. Si un import échoue, son message d’erreur dit en une phrase ce qui s’est passé ; les détails figurent dans le journal du serveur sous l’identifiant du job."
       ],
       "keywords": [
         "export",
@@ -571,9 +572,10 @@
       ],
       "tips": [
         "Les champs de référence comme `musterloesung`, `answer`, `solution`, `ground_truth` ou `annotations` ne sont jamais insérés dans les prompts. Le modèle ne peut ainsi pas voir la solution.",
-        "Les modèles des séries GPT-5 et o imposent une température de 1.0 ; le curseur est ignoré pour eux. Anthropic et Google ne prennent pas en charge le seed.",
+        "Les modèles des séries GPT-5 et o imposent une température de 1.0 ; le curseur est ignoré pour eux. Anthropic et Google ne prennent pas en charge le seed. Pour ces modèles, l’exécution enregistre et affiche que le seed n’a pas été envoyé.",
         "*Générer uniquement les manquantes* ignore les tâches dont la réponse existe déjà avec un prompt inchangé. Après une modification du prompt, elles sont régénérées.",
-        "Pour les études comportant plusieurs passages, réglez *Exécutions par tâche* sur une valeur supérieure à 1. Chaque exécution est enregistrée et évaluée séparément."
+        "Pour les études comportant plusieurs passages, réglez *Exécutions par tâche* sur une valeur supérieure à 1. Chaque exécution est enregistrée et évaluée séparément.",
+        "BenGER lit une réponse JSON d’après les noms de champs du modèle d’annotation. Une réponse qui utilise `answer`/`reasoning` (en majuscules ou minuscules) pour `kurzantwort`/`begruendung` est lue comme ces champs ; les métadonnées d’analyse de la génération indiquent les clés renommées."
       ],
       "keywords": [
         "génération",
@@ -658,13 +660,14 @@
         "**Nom d'affichage**, **URL de base** (p. ex. `https://api.example.com/v1`), **Nom du modèle au point de terminaison** (la valeur du champ `model`).",
         "Désactivez **Clé API requise** si le point de terminaison est accessible sans authentification (p. ex. un serveur local). Sinon, saisissez **Votre clé API**.",
         "**Requêtes simultanées** : combien de requêtes une exécution de génération envoie en même temps à ce point de terminaison (2 si le champ reste vide). Si votre serveur ne traite que quelques requêtes à la fois, saisissez ce nombre. Les tâches suivantes attendent alors dans la file de BenGER au lieu d'atteindre leur limite de temps sur votre serveur.",
+        "**Délai par requête (secondes)** : durée maximale d’une requête avant que BenGER l’annule et la relance (300 sans indication, de 30 à 1500). La réponse arrive en un seul bloc : un modèle de raisonnement a donc besoin d’assez de temps pour toute sa sortie ; à 125 tokens par seconde, 300 s suffisent pour environ 37 000 tokens.",
         "Facultatif : paramètres de raisonnement et coût par million de tokens (pour les rapports de coûts). **Tester**, puis enregistrer.",
         "Partager : dans la liste des modèles, réglez la visibilité sur organisation ou public. Seule la définition du point de terminaison est partagée. Chaque personne enregistre sa propre clé."
       ],
       "pitfalls": [
         "Les adresses du réseau interne (localhost, plages d'IP privées) sont bloquées pour des raisons de sécurité. Le point de terminaison doit être accessible publiquement.",
         "Avec `http://` au lieu de `https://`, la clé est transmise en clair à chaque requête.",
-        "Les modèles personnalisés sont réglés de façon prudente : pas de sortie structurée garantie, pas de seed. Pour la notation d'examens (juges), les modèles du catalogue sont plus fiables.",
+        "Les modèles personnalisés sont réglés de façon prudente : pas de sortie structurée garantie. Le seed de l’exécution est envoyé, sauf si le modèle est enregistré avec `parameter_constraints.seed.supported: false` ; ne l’indiquez que pour un point de terminaison qui refuse le champ `seed`. Pour la notation d'examens (juges), les modèles du catalogue sont plus fiables.",
         "La suppression ne fait que désactiver le modèle s'il est déjà référencé dans des résultats. Il reste visible dans les anciennes exécutions."
       ],
       "keywords": [
@@ -1363,6 +1366,7 @@
         "Avec `\"mode\": \"missing\"`, un script interrompu reprend là où il s'était arrêté lors de son exécution suivante.",
         "Avant une exécution payante, `POST /api/llm-models/cost-estimate` avec `project_id`, `mode` (`generation` ou `evaluation`), `model_ids` et `structure_keys` estime ce qu'elle coûtera.",
         "Si votre serveur ne traite que quelques requêtes à la fois, enregistrez le modèle avec `max_concurrent_requests` égal à ce nombre (2 sans indication). BenGER n’envoie alors pas plus de requêtes à la fois, et les tâches suivantes attendent dans sa file au lieu d’atteindre leur limite de temps sur votre serveur.",
+        "Si votre modèle raisonne longtemps, définissez aussi `request_timeout_seconds` (de 30 à 1500, 300 sans indication) : c’est la durée maximale d’une requête, et BenGER ne diffuse pas la réponse en continu, toute la sortie doit donc arriver dans ce délai.",
         "Pour faire tourner votre modèle sur une copie du projet et en rapatrier les résultats, consultez [Copier un projet via l'API et fusionner les résultats](/how-to#api-round-trip)."
       ],
       "pitfalls": [

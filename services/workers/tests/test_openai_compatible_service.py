@@ -172,6 +172,7 @@ class _FakeSession:
             "headers": headers or {},
             "json": json,
             "allow_redirects": allow_redirects,
+            "timeout": timeout,
         }
         _FakeSession.calls += 1
         if _FakeSession.responses:
@@ -287,6 +288,28 @@ class TestRequestShape:
 
         _service(supports_seed=False).generate("q", "s", model_name=PK, seed=1234)
         assert "seed" not in fake_http.last_call["json"]
+
+    def test_seed_is_sent_by_default_and_recorded(self, fake_http):
+        # Kolibri-1 K3: the constructor default sends the seed, and the
+        # metadata records exactly the value sent.
+        kwargs = dict(base_url=BASE_URL, api_key=KEY, endpoint_model_name=REMOTE_MODEL)
+        result = OpenAICompatibleService(**kwargs).generate(
+            "q", "s", model_name=PK, seed=42
+        )
+        assert fake_http.last_call["json"]["seed"] == 42
+        assert result["metadata"]["seed"] == 42
+
+    def test_unsent_seed_is_recorded_as_none(self, fake_http):
+        result = _service(supports_seed=False).generate("q", "s", model_name=PK, seed=42)
+        assert result["metadata"]["seed"] is None
+
+    def test_request_timeout_is_the_configured_total(self, fake_http):
+        # Kolibri-1 K2: one attempt may take timeout_s seconds in total.
+        _service().generate("q", "s", model_name=PK)
+        # The fake ClientTimeout returns its total.
+        assert fake_http.last_call["timeout"] == 300
+        _service(timeout_s=1200).generate("q", "s", model_name=PK)
+        assert fake_http.last_call["timeout"] == 1200
 
     def test_redirects_disabled(self, fake_http):
         _service().generate("q", "s", model_name=PK)
@@ -698,3 +721,10 @@ class TestE2EMode:
         assert result["success"] is True
         assert result["metadata"]["e2e_test_mode"] is True
         assert fake_http.last_call is None
+
+    def test_mock_reports_the_seed_the_real_request_would_send(self, monkeypatch):
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        sent = _service(supports_seed=True).generate("q", "s", model_name=PK, seed=9)
+        assert sent["metadata"]["seed"] == 9
+        unsent = _service(supports_seed=False).generate("q", "s", model_name=PK, seed=9)
+        assert unsent["metadata"]["seed"] is None

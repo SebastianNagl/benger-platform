@@ -503,10 +503,39 @@ class TestModelRowDispatch:
         # Credential looked up for THIS user + THIS model — never the owner.
         assert patched_credential == [("user-9", row.id)]
 
-    def test_custom_row_seed_defaults_off(self, svc, patched_credential, access_granted):
-        row = _custom_row(parameter_constraints=None)
+    @pytest.mark.parametrize(
+        "constraints",
+        [None, {}, {"seed": {}}, {"seed": {"supported": True}}, {"seed": True}, ["seed"]],
+    )
+    def test_custom_row_seed_defaults_on(
+        self, svc, patched_credential, access_granted, constraints
+    ):
+        # Kolibri-1 K3: a row that does not declare seed support sends the
+        # seed; so does a malformed declaration.
+        row = _custom_row(parameter_constraints=constraints)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert service.supports_seed is True
+
+    def test_custom_row_seed_off_only_when_declared_unsupported(
+        self, svc, patched_credential, access_granted
+    ):
+        row = _custom_row(parameter_constraints={"seed": {"supported": False}})
         service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
         assert service.supports_seed is False
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [(None, 300), (1200, 1200), (30, 30), (1500, 1500), (5, 30), (9999, 1500),
+         ("600", 300), (True, 300)],
+    )
+    def test_custom_row_request_timeout(
+        self, svc, patched_credential, access_granted, value, expected
+    ):
+        # Kolibri-1 K2: the row's request_timeout_seconds is the per-attempt
+        # HTTP timeout; unset or junk keeps 300, out of range is clamped.
+        row = _custom_row(request_timeout_seconds=value)
+        service = svc.get_ai_service_for_model_row(MagicMock(), "user-9", row)
+        assert service.timeout_s == expected
 
     def test_custom_row_reasoning_param_from_default_config(
         self, svc, patched_credential, access_granted

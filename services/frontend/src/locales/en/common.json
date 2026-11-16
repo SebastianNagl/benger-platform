@@ -3048,7 +3048,7 @@
       "defaultMaxTokens": "Default Max Tokens",
       "defaultMaxTokensDesc": "Default response length (100-16000)",
       "seed": "Seed",
-      "seedDesc": "Random seed for reproducibility (default: 42). Providers that don't accept a seed (Anthropic, Google, Kimi/MiniMax) ignore this value.",
+      "seedDesc": "Random seed for reproducibility (default: 42). Models that do not accept a seed (Anthropic, Google, Kimi/MiniMax) get none, and the run records that the seed was not sent.",
       "perModelTokenLimits": "Per-Model Token Limits",
       "perModelTokenLimitsDesc": "Leave blank to use the default. Set a custom value to override for specific models.",
       "totalGenerationsPerTask": "Total Generations Per Task:",
@@ -3072,6 +3072,10 @@
       "fixedTemperatureOne": "{models} requires fixed temperature=1.0. The backend will override for this model.",
       "fixedTemperatureOther": "{models} require fixed temperature=1.0. The backend will override for these models.",
       "noStructures": "This project has no prompt structure for generation. Add one in the \"Prompts\" section of the project page, then you can start the generation."
+    },
+    "seedNotSent": {
+      "unsupportedByModel": "Seed {seed} was not sent: this model does not accept a seed, so its answers were generated without one.",
+      "declaredUnsupported": "Seed {seed} was not sent: this custom model is registered as not accepting a seed (parameter_constraints.seed.supported is false), so its answers were generated without one."
     }
   },
   "notifications": {
@@ -9138,6 +9142,7 @@
       "status": "Status",
       "model": "Model",
       "runs": "Runs",
+      "runsFailed": "({count} failed)",
       "started": "Started",
       "completed": "Completed",
       "task": "Task",
@@ -9234,6 +9239,9 @@
       "maxConcurrentRequests": "Concurrent requests",
       "maxConcurrentRequestsHelp": "How many requests a generation run sends to this endpoint at the same time. Further jobs wait in the queue, not at the provider, where the wait would count toward their time limit. Leave empty for the default of 2.",
       "maxConcurrentRequestsInvalid": "A whole number from 1 to {max}, or empty",
+      "requestTimeoutSeconds": "Request timeout (seconds)",
+      "requestTimeoutSecondsHelp": "How long one request to this endpoint may take before it is cancelled and retried. The answer arrives in one piece, so a reasoning model needs enough time for its whole output. Leave empty for the default of {default} s; allowed are {min} to {max} s.",
+      "requestTimeoutSecondsInvalid": "A whole number from {min} to {max}, or empty",
       "requiresApiKey": "API key required",
       "requiresApiKeyHelp": "Disable if the endpoint is reachable without authentication (e.g. a local Ollama server). Otherwise every user stores their own key.",
       "reasoningParam": "Reasoning parameter",

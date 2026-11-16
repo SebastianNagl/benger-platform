@@ -125,7 +125,8 @@ curl -s -H "$H" -H "Content-Type: application/json" -X POST "$API/api/custom-mod
   "base_url": "https://llm.example.org/v1",
   "endpoint_model_name": "legal-v3",
   "api_key": "sk-...",
-  "max_concurrent_requests": 2
+  "max_concurrent_requests": 2,
+  "request_timeout_seconds": 900
 }'
 # -> {"id": "custom-...", ...}; check it once with a short chat request:
 curl -s -H "$H" -H "Content-Type: application/json" -X POST \
@@ -176,6 +177,18 @@ generation run keeps in flight against the endpoint at once; further jobs
 wait in BenGER's queue instead of running into their time limit at a slow
 server.
 
+`request_timeout_seconds` (30-1500, default 300) is how long one request to
+the endpoint may take before it is cancelled and retried (up to 5 retries).
+BenGER does not stream the answer, so the whole completion has to arrive
+within it: a reasoning model that decodes 125 tokens per second fits about
+37,000 tokens into the default. Raise it for long reasoning outputs; the
+upper bound stays below the 1,800 s time limit of a generation job.
+
+The run's seed is sent to a custom model unless the model declares
+`"parameter_constraints": {"seed": {"supported": false}}`. Declare that only
+for an endpoint that rejects the `seed` field; a run then records the seed as
+not sent (see the generate call below).
+
 Generation needs a prompt structure: a project without one answers the
 generate call with 422 "This project has no prompt structure for
 generation". `PUT /api/projects/{id}/generation-config/structures/{key}`
@@ -196,7 +209,7 @@ The generate call (`POST /api/generation-tasks/projects/{id}/generate`)
 takes, besides `mode` and `model_ids`:
 
 * `task_ids` (default: every task), `structure_keys`, `parameters`
-  (`temperature`, `max_tokens`, `seed`), `model_configs` (per-model
+  (`temperature`, `max_tokens`, `seed`, default 42), `model_configs` (per-model
   settings such as `max_tokens`, merged into the stored ones),
   `runs_per_task` (1-25) and `billing_organization_id` (the organisation
   whose provider keys pay, one of the caller's billing options);
@@ -206,6 +219,14 @@ takes, besides `mode` and `model_ids`:
 
 It answers `{project_id, mode, tasks_queued, models_count,
 generation_job_ids, estimated_time_seconds, message}`.
+
+Every generation requests a seed: the configured one, or 42 when none is
+configured. A generation stores the seed that was actually sent, both on the
+answer (`seed`) and in the run's `parameters`. A model that does not accept
+a seed (Anthropic, Google, a custom model declared without seed support) gets
+none; its answers then store `seed: null`, and the run's `parameters` and the
+answer's metadata carry `seed_not_sent: {"requested": 42, "reason":
+"unsupported_by_model" | "declared_unsupported"}`, which the run view shows.
 
 The evaluation run (`POST /api/evaluations/run`) takes `project_id` and
 `evaluation_configs`, and optionally `task_ids`, `model_ids`,

@@ -390,7 +390,10 @@ class TestCreateImportJob:
         ).scalars().first()
         assert job is not None
         assert job.status == JobStatus.FAILED.value
-        assert "broker down" in (job.error_message or "")
+        # The broker error is logged, never returned to the client.
+        assert job.error_message == (
+            "503: queue_unavailable: The import could not be queued. Start it again."
+        )
 
 
 @pytest.mark.integration

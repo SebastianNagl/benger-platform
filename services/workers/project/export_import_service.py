@@ -36,6 +36,38 @@ _CLOUD_IMPORT_MAX_BYTES = IMPORT_UPLOAD_MAX_BYTES
 # runs through the regular nested JSON driver.
 _TABULAR_EXTENSIONS = {".csv": "csv", ".tsv": "tsv", ".txt": "txt"}
 
+# Postgres error codes of a write that collided with a concurrent transaction:
+# lock_not_available (lock_timeout), deadlock_detected, serialization_failure.
+_CONCURRENT_WRITE_PGCODES = frozenset({"55P03", "40P01", "40001"})
+
+
+def public_job_error(exc: BaseException, job_id: str, action: str) -> str:
+    """The reason a failed export or import job reports to its API client.
+
+    ``error_message`` is returned verbatim by the job status endpoints, so it
+    must not carry the exception text: a database error embeds the whole SQL
+    statement with its column list (Kolibri-1 benchmark, K5: an import job
+    showed ``INSERT INTO users (... encrypted_openai_api_key ...)``), and
+    storage or broker errors embed hosts and paths. The caller logs the full
+    exception; the job keeps a short reason a person can act on.
+
+    A write that collided with a concurrent one gets the
+    ``"409: <action>_conflict: ..."`` shape (see ``split_job_error`` in the
+    API), so a client can tell it apart and simply start the job again. Every
+    other fault is reported without a status, as worker faults always were.
+    """
+    pgcode = getattr(getattr(exc, "orig", None), "pgcode", None)
+    if pgcode in _CONCURRENT_WRITE_PGCODES:
+        return (
+            f"409: {action}_conflict: Another job was writing the same data at "
+            f"the same time. Start the {action} again."
+        )
+    return (
+        f"The {action} failed because of an internal error. The server log "
+        f"has the details under job {job_id}."
+    )
+
+
 def export_project_impl(self, job_id: str) -> Dict[str, Any]:
     """Stream a project export into object storage as a multipart upload.
 
@@ -274,7 +306,7 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
             job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
             if job is not None:
                 job.status = JobStatus.FAILED.value
-                job.error_message = str(exc)[:2000]
+                job.error_message = public_job_error(exc, job_id, "export")
                 db.commit()
                 tasks._publish_progress(
                     f"export:progress:{job.project_id}",
@@ -528,7 +560,9 @@ def import_project_impl(
         tasks.logger.error(
             "import_project: job %s failed: %s", job_id, exc, exc_info=True
         )
-        if tasks._fail_import_job(db, job_id, str(exc)) is False:
+        if tasks._fail_import_job(
+            db, job_id, public_job_error(exc, job_id, "import")
+        ) is False:
             # The error came after the import committed: the job is completed
             # and so is what the caller is told.
             return {

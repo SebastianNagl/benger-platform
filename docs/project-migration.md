@@ -193,6 +193,26 @@ HTTP-style status, e.g. 409) and `error_code`, a stable token such as
 `created_at`, `updated_at` and `expires_at`. There is no `completed_at`: once
 `status` is `completed` or `failed`, `updated_at` is the time the job finished.
 
+`error_message` is always a short reason meant for the person who started
+the job, never the exception the worker hit: a database error would carry
+the whole SQL statement, storage and broker errors carry hosts and paths.
+The full error stays in the server log, and a message such as "The import
+failed because of an internal error. The server log has the details under
+job <job_id>." names the job to look it up by. Two failures carry a code a
+client can act on: 409 `import_conflict` (or `export_conflict`) when the job
+collided with another one writing the same rows at the same time, and 503
+`queue_unavailable` when the job could not be queued; start the job again in
+both cases.
+
+Imports may run at the same time, also when their exports share authors.
+The placeholder account an import creates for an author this deployment
+does not know (see above) is written and committed in a short transaction
+of its own before the import goes on, so a second import of an export by the
+same author finds it instead of waiting for the first import to finish. A
+placeholder therefore stays when its import fails later; it cannot log in,
+belongs to no organization and is reused by the next import of the same
+export.
+
 An upload may be at most 5 GiB, the largest object S3 takes in one upload;
 the presigned policy refuses a larger file. The cap is
 `IMPORT_UPLOAD_MAX_BYTES` (bytes, Helm value `minio.importUploadMaxBytes`),

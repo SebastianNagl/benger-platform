@@ -360,6 +360,32 @@ params = get_model_generation_params(
 # params['reproducibility_level'] indicates expected variance
 ```
 
+### Seed
+
+Every generation requests a seed: the configured one, or 42 when none is
+configured (also when a config stores `"seed": null`). For a run with several
+trials, trial `n` adds `n` to it. Whether the seed reaches the model depends
+on the model:
+
+- Catalog models: `constraints.seed.supported` in `llm_models.yaml`, else the
+  provider default. Anthropic and Google take no seed.
+- Custom models: the seed is sent unless the row declares
+  `parameter_constraints.seed.supported: false`. Declare that only for an
+  endpoint that rejects the `seed` field.
+
+A generation stores the seed that was actually sent (`generations.seed`, the
+run's `parameters.seed`), never a seed that stayed behind. When a requested
+seed was not sent, the answer's `response_metadata` and the run's `parameters`
+carry `seed_not_sent: {"requested": <seed>, "reason": "unsupported_by_model"
+| "declared_unsupported"}`, and the run view and the result view show a notice.
+Answers generated before 2026-11-16 may still show the configured seed in the
+run's `parameters` although none was sent; `generations.seed` was always
+correct.
+
+A seed does not make an answer reproducible under parallel load: a server
+that batches requests can return different text for identical seeded
+requests.
+
 ### For Researchers
 
 When designing benchmarks:

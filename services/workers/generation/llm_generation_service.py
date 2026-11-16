@@ -24,6 +24,59 @@ import tasks
 from typing import Any, Dict, Optional
 
 
+def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
+    """The seed a generation call requests: the resolved value as an integer,
+    or the system default (42) when none is configured.
+
+    The resolver only falls through to the default when no tier names the
+    key; a config that stores ``"seed": null`` (or a non-integer) would
+    otherwise send no seed at all. ``provenance["seed"]`` is updated to the
+    value used, with ``defaulted_from`` holding what was configured.
+    """
+    default = tasks.SYSTEM_DEFAULTS["seed"]
+    try:
+        value = None if isinstance(seed, bool) else int(seed)
+    except (TypeError, ValueError):
+        value = None
+    if value is not None and value >= 0 and float(seed) == value:
+        return value
+    entry = provenance.setdefault("seed", {})
+    entry["defaulted_from"] = seed
+    entry["value"] = default
+    entry["source"] = "system"
+    return default
+
+
+#: Why a requested seed was not sent (``seed_not_sent.reason``).
+SEED_DECLARED_UNSUPPORTED = "declared_unsupported"
+SEED_UNSUPPORTED_BY_MODEL = "unsupported_by_model"
+
+
+def _seed_not_sent(
+    requested_seed: Optional[int], metadata: Dict[str, Any], model_id: str
+) -> Optional[Dict[str, Any]]:
+    """The record of a requested seed that did not reach the provider, or None.
+
+    Every AI service reports the seed it actually sent in ``metadata["seed"]``
+    (None when it left the parameter out because the model does not take
+    one). A custom model only leaves it out when its row declares
+    ``parameter_constraints.seed.supported: false``; a catalog model when the
+    catalog or its provider says it does not accept a seed.
+    """
+    if requested_seed is None or metadata.get("seed") is not None:
+        return None
+    from generation.endpoint_slots import is_custom_model_id
+
+    return {
+        "requested": requested_seed,
+        "reason": (
+            SEED_DECLARED_UNSUPPORTED
+            if is_custom_model_id(model_id)
+            else SEED_UNSUPPORTED_BY_MODEL
+        ),
+    }
+
+
 def _reasoning_only_note(response_data: Dict[str, Any]) -> str:
     reasoning = response_data.get("reasoning")
     if isinstance(reasoning, str) and reasoning.strip():
@@ -835,7 +888,7 @@ def generate_llm_responses_impl(
 
                         temperature = _resolve("temperature")
                         max_tokens = _resolve("max_tokens")
-                        seed = _resolve("seed")
+                        seed = _resolve_seed(_resolve("seed"), _provenance)
                         if _provenance["temperature"]["source"] != "system":
                             tasks.logger.info(
                                 f"🌡️ temperature={temperature} from "
@@ -859,7 +912,7 @@ def generate_llm_responses_impl(
                             _rr = 1
                         if _rr > 1 and run_index > 0:
                             _seed_pre = seed
-                            seed = (seed or 0) + run_index
+                            seed = seed + run_index
                             tasks.logger.info(
                                 f"🎲 Multi-run trial {run_index}/{_rr}: "
                                 f"seed perturbed to {seed} for variance"
@@ -1233,6 +1286,28 @@ def generate_llm_responses_impl(
                                 f"AI service returned empty response for {model_id}"
                             )
 
+                        # A requested seed the provider was not sent is recorded,
+                        # never dropped silently (Kolibri-1 benchmark, K3), and
+                        # the run's stored parameters carry the seed that was
+                        # sent (None), with the requested one beside it.
+                        not_sent = _seed_not_sent(seed, metadata, model_id)
+                        if not_sent is not None:
+                            metadata["seed"] = None
+                            metadata["seed_not_sent"] = not_sent
+                            tasks.logger.warning(
+                                f"🎲 Seed {seed} was not sent to {model_id} "
+                                f"({not_sent['reason']})"
+                            )
+                            if _captured_parameters is not None:
+                                _captured_parameters["seed"] = None
+                                _captured_parameters["seed_not_sent"] = not_sent
+                                _seed_prov = (
+                                    _captured_parameters.get("_param_provenance") or {}
+                                ).get("seed")
+                                if isinstance(_seed_prov, dict):
+                                    _seed_prov["value"] = None
+                                    _seed_prov["not_sent"] = not_sent
+
                         tasks.logger.info(
                             f"📝 Final response_text length: {len(response_text)}"
                         )
@@ -1316,6 +1391,12 @@ def generate_llm_responses_impl(
                             "last_attempt": datetime.now().isoformat(),
                             "max_retries_reached": existing_attempts >= MAX_PARSE_RETRIES,
                         }
+                        # Answer keys the parser read as a schema field of
+                        # another name ({"answer": "kurzantwort"}), so the
+                        # stored annotation can be traced to the raw answer.
+                        mapped_keys = getattr(parse_result, "mapped_keys", None)
+                        if isinstance(mapped_keys, dict) and mapped_keys:
+                            parse_metadata["mapped_keys"] = dict(mapped_keys)
 
                         # Save response to database. The record carries the
                         # task fields the prompt drew on (prompt_inputs), not

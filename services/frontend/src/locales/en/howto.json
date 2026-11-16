@@ -406,7 +406,8 @@
         "**Merge results** only adds generations and evaluations to tasks the project already has. If the file's tasks are not this project's, nothing is imported; import such a file as a new project instead.",
         "**Import project** only accepts project exports. Import a task export from *Project data* on the *Project data* page of an existing project.",
         "*Unsupported file format version* means the file comes from an older or foreign version. Export it again from the current platform.",
-        "Very large filtered task exports are capped. Narrow the filter or export without filters."
+        "Very large filtered task exports are capped. Narrow the filter or export without filters.",
+        "Several imports may run at the same time. If an import fails, its error message says what happened in one sentence; the details are in the server log under the job id."
       ],
       "keywords": [
         "export",
@@ -508,9 +509,10 @@
       ],
       "tips": [
         "Reference fields such as `musterloesung`, `answer`, `solution`, `ground_truth` or `annotations` are never inserted into prompts, so the model cannot see the solution.",
-        "GPT-5 and o-series models enforce temperature 1.0, the slider is ignored for them. Anthropic and Google do not support a seed.",
+        "GPT-5 and o-series models enforce temperature 1.0, the slider is ignored for them. Anthropic and Google do not support a seed. For such models the run records and shows that the seed was not sent.",
         "*Generate missing only* skips tasks whose answer already exists with an unchanged prompt. After a prompt change they are regenerated.",
-        "For studies with several passes set *Runs per task* above 1. Every run is stored and evaluated separately."
+        "For studies with several passes set *Runs per task* above 1. Every run is stored and evaluated separately.",
+        "BenGER reads a JSON answer by the field names of the labeling template. An answer that uses `answer`/`reasoning` (in any capitals) for `kurzantwort`/`begruendung` is read as those fields; the generation's parse metadata lists the keys it mapped."
       ],
       "keywords": [
         "generation",
@@ -584,13 +586,14 @@
         "**Display name**, **base URL** (e.g. `https://api.example.com/v1`), **model name at the endpoint** (the value of the `model` field).",
         "Switch off **API key required** if the endpoint is reachable without authentication (e.g. a local server). Otherwise enter **Your API key**.",
         "**Concurrent requests**: how many requests a generation run sends to this endpoint at the same time (2 when left empty). If your server handles only a few requests at once, enter that number. Further jobs then wait in BenGER's queue instead of running into their time limit at your server.",
+        "**Request timeout (seconds)**: how long one request may take before BenGER cancels and retries it (300 when left empty, 30 to 1500). The answer arrives in one piece, so a reasoning model needs enough time for its whole output: at 125 tokens per second, 300 s hold about 37,000 tokens.",
         "Optionally reasoning parameters and cost per million tokens (for cost reports). **Test**, then save.",
         "Sharing: in the model list set the visibility to organization or public. Only the endpoint definition is shared. Everyone stores their own key."
       ],
       "pitfalls": [
         "Addresses on internal networks (localhost, private IP ranges) are blocked for security reasons. The endpoint must be publicly reachable.",
         "Over `http://` instead of `https://` the key travels in clear text with every request.",
-        "Custom models are configured conservatively: no guaranteed structured output, no seed. For exam grading (judges) catalog models are more reliable.",
+        "Custom models are configured conservatively: no guaranteed structured output. The run's seed is sent unless the model is registered with `parameter_constraints.seed.supported: false`; only declare that for an endpoint that rejects the `seed` field. For exam grading (judges) catalog models are more reliable.",
         "Deleting only deactivates the model if results already reference it. It stays visible in old runs."
       ],
       "keywords": [
@@ -1227,6 +1230,7 @@
         "With `\"mode\": \"missing\"`, an interrupted script picks up where it stopped on its next run.",
         "Before a run that costs money, `POST /api/llm-models/cost-estimate` with `project_id`, `mode` (`generation` or `evaluation`), `model_ids` and `structure_keys` estimates what it will cost.",
         "If your server answers only a few requests at a time, register the model with `max_concurrent_requests` set to that number (2 when left out). BenGER then sends no more requests at once, and further jobs wait in its queue instead of running into their time limit at your server.",
+        "If your model reasons at length, also set `request_timeout_seconds` (30 to 1500, 300 when left out): it is how long one request may take, and BenGER does not stream the answer, so the whole output has to arrive within it.",
         "To run your model on a copy of the project and bring its results back, see [Copy a project through the API and merge the results back](/how-to#api-round-trip)."
       ],
       "pitfalls": [
