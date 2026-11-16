@@ -11683,7 +11683,7 @@
     "sections": {
       "ours": {
         "title": "Nos publications",
-        "intro": "Les publications de la rubrique Actualités et publications de la page d'accueil, chacune avec son billet et son article."
+        "intro": "Les publications de la rubrique Actualités et publications de la page d'accueil, chacune avec son billet et, le cas échéant, son article."
       },
       "related": {
         "title": "Publications apparentées",

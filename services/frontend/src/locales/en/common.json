@@ -11683,7 +11683,7 @@
     "sections": {
       "ours": {
         "title": "Our publications",
-        "intro": "The publications from News & Publications on the landing page, each with its article and paper."
+        "intro": "The publications from News & Publications on the landing page, each with its article and, where available, the paper."
       },
       "related": {
         "title": "Related publications",

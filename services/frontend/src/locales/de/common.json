@@ -11683,7 +11683,7 @@
     "sections": {
       "ours": {
         "title": "Unsere Publikationen",
-        "intro": "Die Publikationen aus News & Publikationen auf der Startseite, jeweils mit Beitrag und Paper."
+        "intro": "Die Publikationen aus News & Publikationen auf der Startseite, jeweils mit Beitrag und, sofern vorhanden, Paper."
       },
       "related": {
         "title": "Verwandte Publikationen",
