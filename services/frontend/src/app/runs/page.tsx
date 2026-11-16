@@ -47,9 +47,20 @@ interface RunSummary {
   runs_completed?: number | null
   runs_failed?: number | null
   task_id?: string | null
+  // Evaluation runs: every model the run graded. model_id is 'unknown' for
+  // a run over several models (or over submitted answers only).
+  evaluated_model_ids?: string[] | null
   judge_models?: string[] | null
   samples_evaluated?: number | null
   metrics?: string[] | null
+}
+
+/** The models an evaluation run graded, or '—' when it graded none. */
+function evaluationModelsLabel(run: RunSummary): string {
+  if (run.evaluated_model_ids) {
+    return run.evaluated_model_ids.join(', ') || '—'
+  }
+  return run.model_id && run.model_id !== 'unknown' ? run.model_id : '—'
 }
 
 interface PaginatedRunsResponse {
@@ -428,8 +439,11 @@ export default function RunsPage() {
                     </>
                   ) : (
                     <>
-                      <td className="px-4 py-3 font-mono text-xs">
-                        {run.model_id || '—'}
+                      <td
+                        className="max-w-xs truncate px-4 py-3 font-mono text-xs"
+                        title={evaluationModelsLabel(run)}
+                      >
+                        {evaluationModelsLabel(run)}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs">
                         {run.judge_models && run.judge_models.length > 0

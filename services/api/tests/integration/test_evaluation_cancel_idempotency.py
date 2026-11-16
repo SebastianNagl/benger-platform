@@ -27,6 +27,8 @@ import pytest
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
+    Generation,
+    ResponseGeneration,
     TaskEvaluation,
     User,
 )
@@ -173,6 +175,48 @@ class TestCancelSingle:
             .count()
             == 5
         )
+
+    def test_cancel_names_the_models_its_partial_rows_graded(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Two models were in scope, but the run was cancelled after grading
+        only one model's generation: it names that model, not the scope."""
+        data = _make_project_with_inflight_eval(test_db, test_users[0], test_org)
+        run, task = data["eval_run"], data["task"]
+        run.model_id = "unknown"
+        run.eval_metadata = {
+            "evaluation_type": "evaluation",
+            "planned_model_ids": ["model-a", "model-b"],
+        }
+        job = ResponseGeneration(
+            id=_uid(), project_id=data["project"].id, task_id=task.id,
+            model_id="model-a", status="completed", created_by=test_users[0].id,
+        )
+        test_db.add(job)
+        test_db.flush()
+        gen = Generation(
+            id=_uid(), generation_id=job.id, task_id=task.id, model_id="model-a",
+            case_data="{}", response_content="A", status="completed",
+        )
+        test_db.add(gen)
+        test_db.flush()
+        test_db.add(TaskEvaluation(
+            id=_uid(), evaluation_id=run.id, judge_run_id=data["judge_run"].id,
+            task_id=task.id, generation_id=gen.id,
+            field_name="cfg|__all_model__|musterloesung", answer_type="text",
+            ground_truth="gt", prediction="A", metrics={"bleu": 0.5}, passed=True,
+        ))
+        test_db.flush()
+
+        resp = client.post(f"{BASE}/run/{run.id}/cancel", headers=auth_headers["admin"])
+        assert resp.status_code == 200, resp.text
+
+        test_db.expire_all()
+        cancelled = test_db.query(EvaluationRun).filter_by(id=run.id).one()
+        assert cancelled.status == "cancelled"
+        assert cancelled.model_id == "model-a"
+        assert cancelled.eval_metadata["evaluated_model_ids"] == ["model-a"]
+        assert cancelled.eval_metadata["cancelled_via_api"] is True
 
     def test_cancel_already_terminal_is_noop(
         self, client, test_db, test_users, auth_headers, test_org

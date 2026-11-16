@@ -81,6 +81,9 @@ interface EvaluationData {
   project_id: string
   model_id: string
   model_name?: string | null
+  // Every model the run graded. A run over several models is labelled
+  // 'unknown' in model_id; each sample row names its own model.
+  evaluated_models?: { id: string; name?: string | null }[]
   status: string
   // Set when the run failed. A run that matched nothing to grade fails with
   // a diagnostic naming the config and what to change.
@@ -505,6 +508,13 @@ export default function EvaluationDashboard({
     judgeRows.find((row) => row.metric)?.metric ?? metricKeys[0] ?? ''
 
   const evaluated = (evaluation.samples_evaluated ?? 0) > 0
+  // The models the run graded. Older API responses carry only the label,
+  // which is 'unknown' for a run over several models or submitted answers.
+  const gradedModels: { id: string; name?: string | null }[] =
+    evaluation.evaluated_models ??
+    (evaluation.model_id && evaluation.model_id !== 'unknown'
+      ? [{ id: evaluation.model_id, name: evaluation.model_name }]
+      : [])
   const samplesFailed = evaluation.eval_metadata?.samples_failed || 0
   const statusVariant =
     evaluation.status === 'completed'
@@ -598,18 +608,28 @@ export default function EvaluationDashboard({
                     {project?.title || t('evaluations.detail.openProject')}
                   </Link>
                 </span>
-                {/* A run over submitted answers has no model: the worker
-                    records 'unknown', which says nothing useful here. */}
-                {evaluation.model_id && evaluation.model_id !== 'unknown' && (
+                {/* A run over several models is labelled 'unknown' and
+                    names them in evaluated_models; a run over submitted
+                    answers has no model at all. */}
+                {gradedModels.length > 0 && (
                   <>
                     <span aria-hidden="true">·</span>
-                    <span data-testid="evaluation-detail-model">
-                      {t('evaluations.detail.model')}:{' '}
+                    <span
+                      data-testid={
+                        gradedModels.length > 1
+                          ? 'evaluation-detail-models'
+                          : 'evaluation-detail-model'
+                      }
+                    >
+                      {gradedModels.length > 1
+                        ? t('evaluations.detail.models')
+                        : t('evaluations.detail.model')}
+                      :{' '}
                       <span
                         className="font-medium text-zinc-700 dark:text-zinc-300"
-                        title={evaluation.model_id}
+                        title={gradedModels.map((m) => m.id).join(', ')}
                       >
-                        {evaluation.model_name || evaluation.model_id}
+                        {gradedModels.map((m) => m.name || m.id).join(', ')}
                       </span>
                     </span>
                   </>

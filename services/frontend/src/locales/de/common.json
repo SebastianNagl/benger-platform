@@ -7541,6 +7541,7 @@
     "detail": {
       "back": "Zurück",
       "model": "Modell",
+      "models": "Modelle",
       "project": "Projekt",
       "confusionMatrix": "Konfusionsmatrix",
       "totalSamples": "Gesamtanzahl Stichproben",

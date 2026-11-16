@@ -54,6 +54,9 @@ export interface ChartData {
 export interface SampleEvaluationResult {
   evaluation_id: string
   model_id: string
+  // Every model the run graded; model_id is 'unknown' for a run over
+  // several models (or over submitted answers only).
+  evaluated_model_ids?: string[]
   status: string
   created_at: string | null
   completed_at: string | null

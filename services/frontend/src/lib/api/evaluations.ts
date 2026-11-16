@@ -1202,6 +1202,8 @@ export class EvaluationsClient extends BaseApiClient {
     project_id: string
     evaluations: Array<{
       evaluation_id: string
+      model_id: string
+      evaluated_model_ids?: string[]
       status: string
       created_at: string | null
       completed_at: string | null

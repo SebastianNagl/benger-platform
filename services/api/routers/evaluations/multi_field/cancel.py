@@ -96,6 +96,17 @@ def _cancel_runs(
         {"ids": actually_cancelled},
     ).scalar()
 
+    from evaluation_run_models import label_run_from_rows
+    from sqlalchemy.orm.attributes import flag_modified
+
+    for run in (
+        db.query(DBEvaluationRun)
+        .filter(DBEvaluationRun.id.in_(actually_cancelled))
+        .populate_existing()
+    ):
+        label_run_from_rows(db, run)
+        flag_modified(run, "eval_metadata")
+
     db.commit()
 
     return CancelEvaluationResponse(
