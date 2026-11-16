@@ -528,7 +528,10 @@ services:
     mem_limit: 6g
     volumes:
       - ../services/workers:/app
-      - ../services/shared:/shared:ro
+      # Writable, like test-api-runner: the nightly mutation shard of
+      # response_parser.py (which lives in shared, for the API's re-parse
+      # route) mutates /shared/response_parser.py in place.
+      - ../services/shared:/shared
       # No model cache volume: the models the tests load (incl. the German
       # BERTScore model) are baked under HF_HOME=/opt/hf in workers-base and the
       # image runs with HF_HUB_OFFLINE=1, same as production.

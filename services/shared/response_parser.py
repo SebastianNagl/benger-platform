@@ -24,6 +24,56 @@ from jsonschema import validate
 ENGLISH_KEY_ALIASES = {"answer": "kurzantwort", "reasoning": "begruendung"}
 
 
+def find_prompt_structure(generation_config: Any, structure_key: Any) -> Optional[Dict]:
+    """The prompt structure ``structure_key`` names in a project's
+    ``generation_config``, or None when there is none.
+
+    ``prompt_structures`` is a list of ``{"key": ..., "structure": ...}``
+    entries (current format; an entry without ``structure`` is the structure
+    itself, and a numeric key also selects by position) or a dict keyed by
+    structure key (legacy). Generation and the re-parse route resolve a
+    structure through this one function, so a stored answer is re-read
+    against the structure a new answer would be parsed with.
+    """
+    if not structure_key or not isinstance(generation_config, dict):
+        return None
+    structures = generation_config.get("prompt_structures") or []
+    if isinstance(structures, dict):
+        return structures[structure_key] if structure_key in structures else None
+    if not isinstance(structures, list):
+        return None
+    for entry in structures:
+        if isinstance(entry, dict) and entry.get("key") == structure_key:
+            found = entry.get("structure", entry)
+            if found:
+                return found
+            break
+    try:
+        index = int(structure_key)
+    except (TypeError, ValueError):
+        return None
+    if 0 <= index < len(structures) and isinstance(structures[index], dict):
+        found = structures[index].get("structure", structures[index])
+        return found if found else None
+    return None
+
+
+def prompt_structure_keys(generation_config: Any) -> List[str]:
+    """The structure keys a project's ``generation_config`` offers, for error
+    messages (a list entry without a key is named by its position)."""
+    if not isinstance(generation_config, dict):
+        return []
+    structures = generation_config.get("prompt_structures") or []
+    if isinstance(structures, dict):
+        return list(structures.keys())
+    if isinstance(structures, list):
+        return [
+            str(entry.get("key", i)) if isinstance(entry, dict) else str(i)
+            for i, entry in enumerate(structures)
+        ]
+    return []
+
+
 @dataclass
 class ParseResult:
     """Result of parsing an LLM response."""

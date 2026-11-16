@@ -46,8 +46,10 @@ jobs:
           - name: sample_evaluator
             module: ml_evaluation/sample_evaluator.py
             tests: tests/test_sample_evaluator_properties.py tests/test_sample_evaluator_mutation_kills.py tests/test_sample_evaluator_kills_nlg_ranking.py tests/test_sample_evaluator_kills_scalar_failure.py tests/test_sample_evaluator_kills_spans_hier.py tests/test_sample_evaluator_kills_json_util_lang.py tests/test_sample_evaluator_neural_logic_kills.py tests/test_sample_evaluator_embedding_logic_kills.py tests/test_sample_evaluator_dispatch_factuality_kills.py tests/test_core_metrics_accuracy.py tests/test_hierarchical_metrics.py
+          # The parser lives in services/shared (the API's re-parse route
+          # uses it too); test-workers-runner mounts it writable at /shared.
           - name: response_parser
-            module: response_parser.py
+            module: /shared/response_parser.py
             tests: tests/test_response_parser.py tests/test_response_parser_extended.py tests/test_response_parser_coverage.py tests/test_response_parser_properties.py tests/test_response_parser_mutation_kills.py
           - name: generation_structure_parser
             module: generation_structure_parser.py

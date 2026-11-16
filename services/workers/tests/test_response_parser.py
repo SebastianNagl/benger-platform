@@ -516,3 +516,43 @@ class TestNormalizeSpan:
         )
         assert span is not None
         assert span["labels"] == ["PERSON"]
+
+
+# ---------------------------------------------------------------------------
+# find_prompt_structure / prompt_structure_keys (shared with the re-parse route)
+# ---------------------------------------------------------------------------
+
+
+class TestFindPromptStructure:
+    S = {"system_prompt": "s", "instruction_prompt": "i"}
+
+    def test_dict_format(self):
+        from response_parser import find_prompt_structure
+
+        assert find_prompt_structure({"prompt_structures": {"default": self.S}}, "default") == self.S
+        assert find_prompt_structure({"prompt_structures": {"default": self.S}}, "other") is None
+
+    def test_list_format_by_key_and_by_position(self):
+        from response_parser import find_prompt_structure
+
+        config = {"prompt_structures": [{"key": "a", "structure": self.S}, {"key": "b", **self.S}]}
+        assert find_prompt_structure(config, "a") == self.S
+        assert find_prompt_structure(config, "b") == {"key": "b", **self.S}
+        assert find_prompt_structure(config, "1") == {"key": "b", **self.S}
+        assert find_prompt_structure(config, "5") is None
+        assert find_prompt_structure(config, "zzz") is None
+
+    def test_no_key_or_config(self):
+        from response_parser import find_prompt_structure
+
+        assert find_prompt_structure({"prompt_structures": {"default": self.S}}, None) is None
+        assert find_prompt_structure(None, "default") is None
+        assert find_prompt_structure({}, "default") is None
+        assert find_prompt_structure({"prompt_structures": "bad"}, "default") is None
+
+    def test_structure_keys(self):
+        from response_parser import prompt_structure_keys
+
+        assert prompt_structure_keys({"prompt_structures": {"a": {}, "b": {}}}) == ["a", "b"]
+        assert prompt_structure_keys({"prompt_structures": [{"key": "a"}, {}]}) == ["a", "1"]
+        assert prompt_structure_keys(None) == []
