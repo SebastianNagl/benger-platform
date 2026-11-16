@@ -1163,7 +1163,7 @@
     },
     "api-zugaenge": {
       "title": "How do I set up API access for scripts or a benchmark runner?",
-      "summary": "With an **access key** (it starts with `bgr_`). It works on the whole BenGER API, with the same endpoints the browser uses, as far as its permissions reach. As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once.",
+      "summary": "With an **access key** (it starts with `bgr_`). It works on the whole BenGER API, with the same endpoints the browser uses, as far as its permissions reach. As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once. If you see no **API access** entry, the API is not switched on for your account; the platform administrators decide that.",
       "steps": [
         "**Create the key**: for the organization, open [Users & organizations](/users-organizations), pick the organization and click **More** → **API access**. For yourself, go to **API access** on your [profile](/profile). Click **New key** and give it a name you will recognize later.",
         "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark**, **Full access to your own organization** or **Full API for research pipelines** (account, projects, tasks, annotations, own models, generation, evaluations, results, exports and files). **Advanced** lists every permission you may grant for this kind of key on its own. For organization keys you also choose the role and, if needed, a group and single projects. **Validity** defaults to 90 days; you can also choose 30 days, 1 year or **Unlimited**.",
@@ -1177,10 +1177,15 @@
         "An organization key acts as its own service account. A personal key acts as you and never sees more than you do.",
         "An organization key with the **Admin** role may also manage the organization, that is members, groups and invitations. It always covers the whole organization, and only admins of the whole organization create one.",
         "The reference at `/api/v1/reference` names the permission a key needs for each endpoint.",
+        "**Limits**: by default a key may send 120 requests per minute and 20,000 per day. Every answer carries `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`.",
+        "**429 Too Many Requests** means a limit was reached, not an error in your data. The `Retry-After` header says how many seconds to wait before you try again; a well-behaved script waits that long and repeats the call. Besides the key's own budget, every user has generous ceilings: 200 import upload links in 24 hours (`upload_url_limit_exceeded`) and 50 generation and evaluation runs queued or running at once (`too_many_active_runs`).",
+        "Scripts that sign in with a password through `POST /api/auth/token` get a token valid for 60 minutes with your full rights and no scopes. Such tokens may send up to 1,200 requests per minute per user. For anything that runs unattended, prefer a key.",
+        "**Exports** need the permissions `exports:read` and `tasks:read_reference` (exports contain reference solutions). **Imports**, including merging results back, need `projects:write` and `tasks:write`. **Full API for research pipelines** contains all of them; **Full access to your own organization** can export but not import.",
         "How to register your own model and run generation and evaluation through the API is shown in [Evaluate a model through the API](/how-to#api-research-workflow)."
       ],
       "pitfalls": [
         "You only see the full key right after creating it. If you lost it, create a new one and revoke the old one.",
+        "A user can hold at most 25 active personal keys. Expired keys count until you revoke them.",
         "An organization key can read reference solutions only with the **Contributor** or **Admin** role.",
         "A key limited to single projects or a group only reaches those projects. It creates neither new projects nor further keys.",
         "Sign-in, password, sign-up and changing the email address stay in the browser. Those endpoints reject every key.",
@@ -1201,7 +1206,10 @@
         "openapi",
         "swagger",
         "full access",
-        "service account"
+        "service account",
+        "429",
+        "rate limit",
+        "retry-after"
       ],
       "links": [
         "Profile",
@@ -1231,12 +1239,14 @@
         "Before a run that costs money, `POST /api/llm-models/cost-estimate` with `project_id`, `mode` (`generation` or `evaluation`), `model_ids` and `structure_keys` estimates what it will cost.",
         "If your server answers only a few requests at a time, register the model with `max_concurrent_requests` set to that number (2 when left out). BenGER then sends no more requests at once, and further jobs wait in its queue instead of running into their time limit at your server.",
         "If your model reasons at length, also set `request_timeout_seconds` (30 to 1500, 300 when left out): it is how long one request may take, and BenGER does not stream the answer, so the whole output has to arrive within it.",
+        "Every generation sends the seed 42 unless you set another one in `parameters.seed`, so repeated runs stay comparable. If your endpoint rejects the `seed` field, register the model with `\"parameter_constraints\": {\"seed\": {\"supported\": false}}`; the run then records that no seed was sent.",
         "To run your model on a copy of the project and bring its results back, see [Copy a project through the API and merge the results back](/how-to#api-round-trip)."
       ],
       "pitfalls": [
         "A key limited to single projects only reaches those projects and creates no new ones. A pipeline that creates its own projects needs a key without a project limit.",
         "Your model must be reachable from the BenGER server. BenGER usually rejects addresses in a local network or on `localhost`.",
-        "Metrics with an LLM as judge call a provider and spend credit through your own API keys or those of your organization."
+        "Metrics with an LLM as judge call a provider and spend credit through your own API keys or those of your organization.",
+        "At most 50 generation and evaluation runs of yours may be queued or running at once. Another start answers `429 too_many_active_runs` with `Retry-After: 60`: wait for runs to finish, or pause or stop some. More generation on a project that already generates counts as the same run and is never refused."
       ],
       "keywords": [
         "api",
@@ -1253,7 +1263,8 @@
         "script",
         "automation",
         "prompt structure",
-        "cost estimate"
+        "cost estimate",
+        "seed"
       ],
       "links": [
         "Profile",
@@ -1279,9 +1290,10 @@
       ],
       "pitfalls": [
         "One uploaded file may be at most 5 GiB.",
+        "You may request at most 200 import upload links in 24 hours, for both upload routes together. Another request answers `429 upload_url_limit_exceeded`; `Retry-After` says when the next one is free.",
         "A merge only adds results. It creates no tasks: if the file's tasks are not those of the project, the job fails with `merge_task_mismatch` and imports nothing.",
         "A model id of the file that exists neither here nor in `model_id_map` stops the merge with `merge_unknown_models`. A target in `model_id_map` that does not exist is refused at once with `unknown_model_id_map_target`.",
-        "The export contains reference solutions, so it needs the **Contributor** or **Admin** role. A merge needs edit rights on the original project.",
+        "The export contains reference solutions, so it needs the **Contributor** or **Admin** role and a key with `exports:read` and `tasks:read_reference`. Importing and merging need edit rights on the target project and a key with `projects:write` and `tasks:write`. The preset **Full API for research pipelines** has all four.",
         "A finished export can be downloaded for seven days, until the `expires_at` of its job. After that the download answers 410 and you export again."
       ],
       "keywords": [
