@@ -380,13 +380,14 @@
             "label": "Paste your data below",
             "placeholder": "Paste JSON, CSV, or plain text data...",
             "lines": "{count} lines",
+            "linesOne": "1 line",
             "noData": "No data",
             "clear": "Clear",
             "validate": "Validate Data",
             "formatDetected": "Detected format: {format}",
             "invalidFormat": "Invalid data format"
           },
-          "note": "Note: You can skip this step and import data later from the project dashboard",
+          "note": "You can skip this step and import data later from the project dashboard",
           "detectedColumns": "Detected columns:"
         },
         "step3": {

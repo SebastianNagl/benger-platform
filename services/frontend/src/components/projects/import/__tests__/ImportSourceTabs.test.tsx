@@ -53,6 +53,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.step2.paste.placeholder': 'Paste here',
         'projects.creation.wizard.step2.paste.noData': 'No data',
         'projects.creation.wizard.step2.paste.lines': '{count} lines',
+        'projects.creation.wizard.step2.paste.linesOne': '1 line',
         'projects.creation.wizard.step2.paste.clear': 'Clear',
         'projects.creation.wizard.step2.paste.validate': 'Validate',
         'projects.creation.wizard.step2.paste.formatDetected':
@@ -236,6 +237,18 @@ describe('ImportSourceTabs — paste tab', () => {
     expect(screen.getByTestId('test-import-paste-line-count')).toHaveAttribute(
       'data-line-count',
       '3',
+    )
+    expect(screen.getByTestId('test-import-paste-line-count')).toHaveTextContent(
+      '3 lines',
+    )
+  })
+
+  it('uses the singular for a single pasted line', async () => {
+    const user = userEvent.setup()
+    setup({ pastedData: 'only one row' })
+    await openPasteTab(user)
+    expect(screen.getByTestId('test-import-paste-line-count')).toHaveTextContent(
+      /^1 line$/,
     )
   })
 

@@ -380,13 +380,14 @@
             "label": "Collez vos données ci-dessous",
             "placeholder": "Coller des données JSON, CSV ou en texte brut...",
             "lines": "{count} lignes",
+            "linesOne": "1 ligne",
             "noData": "Aucune donnée",
             "clear": "Effacer",
             "validate": "Valider les données",
             "formatDetected": "Format détecté : {format}",
             "invalidFormat": "Format de données invalide"
           },
-          "note": "Remarque : vous pouvez passer cette étape et importer des données plus tard depuis le tableau de bord du projet",
+          "note": "Vous pouvez passer cette étape et importer des données plus tard depuis le tableau de bord du projet",
           "detectedColumns": "Colonnes détectées :"
         },
         "step3": {

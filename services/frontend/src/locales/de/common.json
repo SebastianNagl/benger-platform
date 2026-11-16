@@ -380,13 +380,14 @@
             "label": "Füge deine Daten unten ein",
             "placeholder": "JSON-, CSV- oder Klartextdaten einfügen...",
             "lines": "{count} Zeilen",
+            "linesOne": "1 Zeile",
             "noData": "Keine Daten",
             "clear": "Löschen",
             "validate": "Daten validieren",
             "formatDetected": "Format erkannt: {format}",
             "invalidFormat": "Ungültiges Datenformat"
           },
-          "note": "Hinweis: Du kannst diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren",
+          "note": "Du kannst diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren",
           "detectedColumns": "Erkannte Spalten:"
         },
         "step3": {

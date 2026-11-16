@@ -303,7 +303,7 @@ export function ImportSourceTabs({
 
       <TabsContent value="paste" className="mt-6">
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Label>{t('projects.creation.wizard.step2.paste.label')}</Label>
             <ExtractTextButton
               onText={(text) =>
@@ -327,11 +327,13 @@ export function ImportSourceTabs({
                 pastedData.trim() ? pastedData.trim().split('\n').length : 0
               }
             >
-              {pastedData.trim()
-                ? t('projects.creation.wizard.step2.paste.lines', {
-                    count: pastedData.trim().split('\n').length,
-                  })
-                : t('projects.creation.wizard.step2.paste.noData')}
+              {!pastedData.trim()
+                ? t('projects.creation.wizard.step2.paste.noData')
+                : pastedData.trim().split('\n').length === 1
+                  ? t('projects.creation.wizard.step2.paste.linesOne')
+                  : t('projects.creation.wizard.step2.paste.lines', {
+                      count: pastedData.trim().split('\n').length,
+                    })}
             </div>
             <div className="flex gap-2">
               <Button
