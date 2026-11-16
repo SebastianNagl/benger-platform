@@ -193,18 +193,16 @@ export function ImportSourceTabs({
 
   return (
     <Tabs defaultValue={defaultTab} data-testid={`${p}-data-tabs`}>
-      <TabsList
-        className={
-          order.length === 4
-            ? 'grid w-full grid-cols-4'
-            : 'grid w-full grid-cols-3'
-        }
-      >
+      {/* TabsList is inline-flex, so the row is laid out by flex direction:
+          below sm the labels do not fit side by side (390 px phone), so the
+          triggers stack in one column instead of widening the page. */}
+      <TabsList className="w-full flex-col max-sm:items-stretch max-sm:rounded-2xl sm:flex-row">
         {order.map((tabId) => (
           <TabsTrigger
             key={tabId}
             value={tabId}
             data-testid={`${p}-${tabId}-tab`}
+            className="sm:flex-1"
           >
             {tabLabels[tabId]}
           </TabsTrigger>
