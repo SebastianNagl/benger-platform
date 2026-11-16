@@ -73,7 +73,9 @@ def worker_like_sessions(test_db):
                 text("DELETE FROM project_organizations WHERE project_id = ANY(:p)"),
                 {"p": project_ids},
             )
-            conn.execute(text("DELETE FROM projects WHERE id = ANY(:p)"), {"p": project_ids})
+            conn.execute(
+                text("DELETE FROM projects WHERE id = ANY(:p)"), {"p": project_ids}
+            )
         conn.execute(
             text("DELETE FROM users WHERE id = ANY(:u) OR email = ANY(:e)"),
             {"u": list(created["users"]), "e": list(created["emails"])},
@@ -111,7 +113,12 @@ def _export(title: str, shared_users: list, pseudonym=None) -> bytes:
                 "label_config": '<View><Text name="text" value="$text"/></View>',
             },
             "users": [
-                {"id": uid, "email": email, "name": "Source author", "pseudonym": pseudonym}
+                {
+                    "id": uid,
+                    "email": email,
+                    "name": "Source author",
+                    "pseudonym": pseudonym,
+                }
                 for uid, email in shared_users
             ],
             "tasks": [{"id": "task-1", "data": {"text": "one"}}],
@@ -154,7 +161,8 @@ def _run_overlapping_imports(factory, created, shared_users, pseudonyms=(None, N
                 db,
                 io.BytesIO(_export(title, shared_users, pseudonym)),
                 importer,
-                before_commit=before_commit and (lambda r: (db.flush(), before_commit(r))),
+                before_commit=before_commit
+                and (lambda r: (db.flush(), before_commit(r))),
             )
         except Exception as exc:  # noqa: BLE001 - the outcome is the assertion
             db.rollback()
@@ -186,7 +194,9 @@ def test_two_concurrent_imports_sharing_an_unknown_user_both_succeed(
     outcomes, titles = _run_overlapping_imports(factory, created, shared)
 
     for name in ("first", "second"):
-        assert isinstance(outcomes.get(name), dict), f"{name} import: {outcomes.get(name)!r}"
+        assert isinstance(
+            outcomes.get(name), dict
+        ), f"{name} import: {outcomes.get(name)!r}"
     with factory() as db:
         projects = db.query(Project).filter(Project.title.in_(titles)).all()
         assert len(projects) == 2
@@ -200,7 +210,10 @@ def test_two_concurrent_imports_sharing_an_unknown_user_both_succeed(
         assert len(authors) == 1
         placeholder = db.get(User, authors.pop())
         assert placeholder.email.endswith("@imported.invalid")
-        assert db.query(Task).filter(Task.project_id.in_([p.id for p in projects])).count() == 2
+        assert (
+            db.query(Task).filter(Task.project_id.in_([p.id for p in projects])).count()
+            == 2
+        )
         created["users"].add(placeholder.id)
     # Exactly one of the two imports created the placeholder.
     assert sorted(
@@ -228,7 +241,9 @@ def test_pseudonym_take_over_does_not_wait_for_an_open_import_using_the_placehol
     )
 
     for name in ("first", "second"):
-        assert isinstance(outcomes.get(name), dict), f"{name} import: {outcomes.get(name)!r}"
+        assert isinstance(
+            outcomes.get(name), dict
+        ), f"{name} import: {outcomes.get(name)!r}"
     with factory() as db:
         placeholder = (
             db.query(User).filter(User.email == f"{source_id}@imported.invalid").one()
@@ -269,7 +284,10 @@ def test_concurrent_imports_sharing_several_users_in_opposite_order_both_succeed
         db = factory()
         try:
             outcomes[name] = run_full_project_import(
-                db, io.BytesIO(_export(title, users)), importer, before_commit=before_commit
+                db,
+                io.BytesIO(_export(title, users)),
+                importer,
+                before_commit=before_commit,
             )
         except Exception as exc:  # noqa: BLE001
             db.rollback()
@@ -287,12 +305,16 @@ def test_concurrent_imports_sharing_several_users_in_opposite_order_both_succeed
         first.join(_OVERLAP_WAIT_S)
 
     for name in ("first", "second"):
-        assert isinstance(outcomes.get(name), dict), f"{name} import: {outcomes.get(name)!r}"
+        assert isinstance(
+            outcomes.get(name), dict
+        ), f"{name} import: {outcomes.get(name)!r}"
     with factory() as db:
         placeholders = (
             db.query(User).filter(User.email.like("source-%@imported.invalid")).all()
         )
-        mine = [u for u in placeholders if u.email.split("@")[0] in {s for s, _ in shared}]
+        mine = [
+            u for u in placeholders if u.email.split("@")[0] in {s for s, _ in shared}
+        ]
         assert len(mine) == 3
         created["users"].update(u.id for u in mine)
 
@@ -377,7 +399,9 @@ def test_concurrent_nested_imports_sharing_an_annotator_both_succeed(
         first.join(_OVERLAP_WAIT_S)
 
     for name in ("first", "second"):
-        assert isinstance(outcomes.get(name), dict), f"{name} import: {outcomes.get(name)!r}"
+        assert isinstance(
+            outcomes.get(name), dict
+        ), f"{name} import: {outcomes.get(name)!r}"
     with factory() as db:
         authors = {
             a.completed_by

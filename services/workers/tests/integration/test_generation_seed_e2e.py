@@ -62,8 +62,15 @@ class _SeedService:
     def is_available(self):
         return True
 
-    def generate(self, prompt=None, system_prompt=None, model_name=None,
-                 temperature=None, max_tokens=None, **kwargs):
+    def generate(
+        self,
+        prompt=None,
+        system_prompt=None,
+        model_name=None,
+        temperature=None,
+        max_tokens=None,
+        **kwargs
+    ):
         self.received_seeds.append(kwargs.get("seed"))
         sent = kwargs.get("seed") if self.supports_seed else None
         return {
@@ -75,8 +82,16 @@ class _SeedService:
         }
 
 
-def _run(db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
-         service, seed_params):
+def _run(
+    db_conn,
+    monkeypatch,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    service,
+    seed_params,
+):
     import uuid as _uuid
 
     monkeypatch.setattr(
@@ -87,9 +102,13 @@ def _run(db_conn, monkeypatch, make_user, make_llm_model, make_project, make_tas
     user = make_user()
     model = make_llm_model(provider="OpenAI")
     project = make_project(
-        created_by=user.id, label_config=None, generation_config=_gen_config(seed_params)
+        created_by=user.id,
+        label_config=None,
+        generation_config=_gen_config(seed_params),
     )
-    task = make_task(project.id, {"text": "Ist der Vertrag gültig?"}, created_by=user.id)
+    task = make_task(
+        project.id, {"text": "Ist der Vertrag gültig?"}, created_by=user.id
+    )
     rg = ResponseGeneration(
         id=str(_uuid.uuid4()),
         project_id=project.id,
@@ -122,12 +141,23 @@ def _run(db_conn, monkeypatch, make_user, make_llm_model, make_project, make_tas
 
 
 def test_null_seed_config_requests_the_default_and_stores_it(
-    db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
+    db_conn,
+    monkeypatch,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
 ):
     service = _SeedService(supports_seed=True)
     child, parent, metadata = _run(
-        db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
-        service, {"seed": None},
+        db_conn,
+        monkeypatch,
+        make_user,
+        make_llm_model,
+        make_project,
+        make_task,
+        service,
+        {"seed": None},
     )
     assert service.received_seeds == [42]
     assert child.seed == 42
@@ -141,12 +171,23 @@ def test_null_seed_config_requests_the_default_and_stores_it(
 
 
 def test_configured_seed_is_sent_and_stored(
-    db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
+    db_conn,
+    monkeypatch,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
 ):
     service = _SeedService(supports_seed=True)
     child, parent, _metadata = _run(
-        db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
-        service, {"seed": 7},
+        db_conn,
+        monkeypatch,
+        make_user,
+        make_llm_model,
+        make_project,
+        make_task,
+        service,
+        {"seed": 7},
     )
     assert service.received_seeds == [7]
     assert child.seed == 7
@@ -154,12 +195,23 @@ def test_configured_seed_is_sent_and_stored(
 
 
 def test_seed_not_sent_is_recorded_and_never_stored_as_sent(
-    db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
+    db_conn,
+    monkeypatch,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
 ):
     service = _SeedService(supports_seed=False)
     child, parent, metadata = _run(
-        db_conn, monkeypatch, make_user, make_llm_model, make_project, make_task,
-        service, {"seed": 42},
+        db_conn,
+        monkeypatch,
+        make_user,
+        make_llm_model,
+        make_project,
+        make_task,
+        service,
+        {"seed": 42},
     )
     expected = {"requested": 42, "reason": SEED_UNSUPPORTED_BY_MODEL}
     assert child.seed is None
