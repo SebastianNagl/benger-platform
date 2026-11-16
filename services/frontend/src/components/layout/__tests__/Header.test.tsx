@@ -1,11 +1,17 @@
 /**
  * @jest-environment jsdom
  */
-import { ShellVariantProvider } from '@/components/layout/ShellVariant'
-import { fireEvent, render, screen } from '@testing-library/react'
+import {
+  ShellVariantProvider,
+  useSidebarPeekStore,
+} from '@/components/layout/ShellVariant'
+import { installPointerEventPolyfill } from '@/test-utils/pointerEvent'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Header } from '../Header'
 
 /* eslint-disable react/display-name */
+
+installPointerEventPolyfill()
 
 // Mock framer-motion
 jest.mock('framer-motion', () => {
@@ -127,6 +133,14 @@ jest.mock('@/components/shared/Search', () => ({
       Mobile Search
     </button>
   ),
+}))
+
+// The visitor navigation has its own tests (PublicNavigation.test.tsx).
+jest.mock('@/components/layout/PublicNavigation', () => ({
+  usePublicNavigation: () => ({
+    inline: <nav data-testid="public-nav-inline">Visitor items</nav>,
+    menu: <button data-testid="public-nav-menu-button">Menu</button>,
+  }),
 }))
 
 // Mock Headless UI
@@ -352,9 +366,6 @@ describe('Header', () => {
     it('keeps the account menu on small screens when signed in', () => {
       render(<Header />)
       // The account menu is the only way to profile and sign-out on phones.
-      expect(screen.getByTestId('auth-button').parentElement).toHaveClass(
-        'contents',
-      )
       expect(screen.getByTestId('auth-button').parentElement).not.toHaveClass(
         'hidden',
       )
@@ -729,12 +740,92 @@ describe('Header', () => {
       expect(hrefs).not.toContain('/dashboard')
     })
 
-    it('toggles the visitor sidebar, collapsed at first', () => {
+    it('has no hamburger: the visitor navigation sits in the bar', () => {
       renderVisitor()
-      const toggle = screen.getByRole('button', { expanded: false })
-      fireEvent.click(toggle)
-      expect(screen.getByRole('button', { expanded: true })).toBe(toggle)
-      fireEvent.click(toggle)
+      expect(
+        screen.queryByRole('button', { name: /sidebar/i }),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-navigation')).not.toBeInTheDocument()
+      expect(screen.getByTestId('public-nav-inline')).toBeInTheDocument()
+      expect(screen.getByTestId('public-nav-menu-button')).toBeInTheDocument()
+    })
+  })
+
+  describe('Sidebar peek (hovering the hamburger while collapsed)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+      act(() => useSidebarPeekStore.getState().hide())
+      mockUseUIStore.mockReturnValue({
+        isSidebarHidden: true,
+        toggleSidebar: mockToggleSidebar,
+      })
+    })
+
+    afterEach(() => {
+      act(() => useSidebarPeekStore.getState().hide())
+      jest.useRealTimers()
+    })
+
+    const hamburger = () => screen.getByRole('button', { name: /sidebar/i })
+    const isPeeking = () => useSidebarPeekStore.getState().isPeeking
+
+    it('peeks on mouse hover and hides shortly after the pointer leaves', () => {
+      render(<Header />)
+      fireEvent.pointerEnter(hamburger(), { pointerType: 'mouse' })
+      expect(isPeeking()).toBe(true)
+      expect(mockToggleSidebar).not.toHaveBeenCalled()
+
+      fireEvent.pointerLeave(hamburger(), { pointerType: 'mouse' })
+      expect(isPeeking()).toBe(true)
+      act(() => jest.advanceTimersByTime(400))
+      expect(isPeeking()).toBe(false)
+    })
+
+    it('does not peek on touch; a tap pins the sidebar instead', () => {
+      render(<Header />)
+      fireEvent.pointerEnter(hamburger(), { pointerType: 'touch' })
+      expect(isPeeking()).toBe(false)
+      fireEvent.click(hamburger())
+      expect(mockToggleSidebar).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not peek while the sidebar is pinned open', () => {
+      mockUseUIStore.mockReturnValue({
+        isSidebarHidden: false,
+        toggleSidebar: mockToggleSidebar,
+      })
+      render(<Header />)
+      fireEvent.pointerEnter(hamburger(), { pointerType: 'mouse' })
+      expect(isPeeking()).toBe(false)
+    })
+
+    it('waits for the pointer to leave after collapsing with a click', () => {
+      mockUseUIStore.mockReturnValue({
+        isSidebarHidden: false,
+        toggleSidebar: mockToggleSidebar,
+      })
+      const { rerender } = render(<Header />)
+      fireEvent.click(hamburger())
+      expect(mockToggleSidebar).toHaveBeenCalledTimes(1)
+
+      // Now collapsed, with the pointer still on the hamburger.
+      mockUseUIStore.mockReturnValue({
+        isSidebarHidden: true,
+        toggleSidebar: mockToggleSidebar,
+      })
+      rerender(<Header />)
+      fireEvent.pointerEnter(hamburger(), { pointerType: 'mouse' })
+      expect(isPeeking()).toBe(false)
+
+      fireEvent.pointerLeave(hamburger(), { pointerType: 'mouse' })
+      fireEvent.pointerEnter(hamburger(), { pointerType: 'mouse' })
+      expect(isPeeking()).toBe(true)
+    })
+
+    it('ties the hamburger to the sidebar it controls', () => {
+      render(<Header />)
+      expect(hamburger()).toHaveAttribute('aria-controls', 'app-sidebar')
+      expect(hamburger()).toHaveAttribute('aria-expanded', 'false')
     })
   })
 })

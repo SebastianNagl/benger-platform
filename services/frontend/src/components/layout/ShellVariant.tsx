@@ -6,13 +6,15 @@ import { createContext, useContext } from 'react'
 import { create } from 'zustand'
 
 /**
- * Which flavour of the app shell (Layout: Header + sidebar) is rendering.
+ * Which flavour of the app shell (Layout with its Header) is rendering.
  *
- * - `app`: the signed-in workspace. The sidebar shows the workspace entries
- *   and its open/closed state is the user's persisted preference.
- * - `public`: the same shell for visitors (the landing page). The sidebar
- *   holds only what a visitor may open, starts collapsed on every visit and
- *   the header drops the parts that need a session (search, notifications).
+ * - `app`: the signed-in workspace. The sidebar holds the navigation, the
+ *   hamburger in the top bar collapses and expands it (the user's persisted
+ *   preference) and the search sits in the top bar.
+ * - `public`: the same top bar for visitors (the landing page and the public
+ *   pages). There is no sidebar and no hamburger: the landing sections and
+ *   the public pages are items of the top bar itself, and the parts that need
+ *   a session (search, notifications) are left out.
  */
 export type ShellVariant = 'app' | 'public'
 
@@ -29,24 +31,9 @@ export function useIsPublicShell(): boolean {
 }
 
 /**
- * Open/closed state of the visitor sidebar. Deliberately not persisted and
- * separate from the signed-in preference (uiStore.isSidebarHidden): a
- * visitor always lands on the collapsed shell, and opening it here never
- * changes how the workspace sidebar looks after signing in.
- */
-export const usePublicSidebarStore = create<{
-  isOpen: boolean
-  toggle: () => void
-}>()((set) => ({
-  isOpen: false,
-  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
-}))
-
-/**
- * Whether the desktop sidebar is shown, and how to toggle it, for the shell
- * variant in context. Before hydration the workspace sidebar is shown (to
- * avoid a layout shift for the common case) and the visitor sidebar is
- * collapsed, matching what each renders after hydration by default.
+ * Whether the desktop sidebar is pinned open, and how to toggle it. Before
+ * hydration the workspace sidebar is shown (to avoid a layout shift for the
+ * common case). The visitor shell has no sidebar.
  */
 export function useShellSidebar(): {
   showSidebar: boolean
@@ -54,14 +41,71 @@ export function useShellSidebar(): {
 } {
   const isPublic = useIsPublicShell()
   const { isSidebarHidden, toggleSidebar } = useUIStore()
-  const publicSidebar = usePublicSidebarStore()
   const isHydrated = useHydration()
 
   if (isPublic) {
-    return { showSidebar: publicSidebar.isOpen, toggle: publicSidebar.toggle }
+    return { showSidebar: false, toggle: () => {} }
   }
   return {
     showSidebar: isHydrated ? !isSidebarHidden : true,
     toggle: toggleSidebar,
   }
+}
+
+/** Ids that tie the hamburger and the sidebar it controls together. */
+export const SIDEBAR_ID = 'app-sidebar'
+export const SIDEBAR_TOGGLE_ID = 'app-sidebar-toggle'
+
+/** How long the peeked sidebar stays after the pointer or focus left it. */
+export const SIDEBAR_PEEK_HIDE_DELAY_MS = 300
+
+let peekHideTimer: ReturnType<typeof setTimeout> | undefined
+
+function clearPeekHideTimer() {
+  if (peekHideTimer !== undefined) {
+    clearTimeout(peekHideTimer)
+    peekHideTimer = undefined
+  }
+}
+
+/**
+ * The collapsed sidebar shown as an overlay ("peek"), the way Notion does it:
+ * pointing at the hamburger, or moving keyboard focus into the sidebar,
+ * slides it in above the page without moving the content; it hides again
+ * shortly after the pointer or focus leaves both. It never changes the
+ * persisted open/closed preference; clicking the hamburger still pins it.
+ */
+export const useSidebarPeekStore = create<{
+  isPeeking: boolean
+  /** Show the overlay now (cancels a pending hide). */
+  show: () => void
+  /** Hide the overlay after SIDEBAR_PEEK_HIDE_DELAY_MS unless shown again. */
+  hideSoon: () => void
+  /** Hide the overlay now. */
+  hide: () => void
+}>()((set) => ({
+  isPeeking: false,
+  show: () => {
+    clearPeekHideTimer()
+    set({ isPeeking: true })
+  },
+  hideSoon: () => {
+    clearPeekHideTimer()
+    peekHideTimer = setTimeout(() => {
+      peekHideTimer = undefined
+      set({ isPeeking: false })
+    }, SIDEBAR_PEEK_HIDE_DELAY_MS)
+  },
+  hide: () => {
+    clearPeekHideTimer()
+    set({ isPeeking: false })
+  },
+}))
+
+/**
+ * Pointer events that may peek the sidebar: a mouse or pen hovering. A touch
+ * has no hover; a tap on the hamburger pins the sidebar instead.
+ */
+export function isHoverPointer(event: { pointerType?: string }): boolean {
+  return event.pointerType === 'mouse' || event.pointerType === 'pen'
 }

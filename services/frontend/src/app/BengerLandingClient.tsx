@@ -7,6 +7,7 @@ import { LicenseCitationSection } from '@/components/landing/LicenseCitationSect
 import { NewsSection } from '@/components/landing/NewsSection'
 import { PeopleSection } from '@/components/landing/PeopleSection'
 import { Layout } from '@/components/layout/Layout'
+import { LANDING_SECTIONS } from '@/components/layout/PublicNavigation'
 import {
   useSectionStore,
   type Section,
@@ -19,19 +20,9 @@ import { authRedirect } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
-// The landing sections, in page order. They appear in the visitor sidebar as
-// anchors below "Home", the same way a long page's sections appear in the
-// signed-in sidebar.
-const LANDING_SECTIONS = [
-  { id: 'information', key: 'landing.nav.information' },
-  { id: 'news', key: 'landing.nav.news' },
-  { id: 'people', key: 'landing.nav.people' },
-  { id: 'license', key: 'landing.nav.license' },
-] as const
-
 /**
- * Hands the section elements to the shell's section store so the sidebar
- * highlights the sections in view (pages built from MDX do this through
+ * Hands the section elements to the shell's section store so the top bar
+ * highlights the section in view (pages built from MDX do this through
  * their headings). Re-runs when the section list changes, e.g. on a language
  * switch, because the store then replaces its entries.
  */
@@ -120,8 +111,8 @@ export default function BengerLandingClient() {
     return <VertretbarLanding />
   }
 
-  // The visitor version of the signed-in app shell: same header and
-  // sidebar, the sidebar collapsed and holding only public entries.
+  // The visitor version of the app shell: the same top bar, holding the
+  // landing sections and the public pages instead of a sidebar.
   return (
     <Layout variant="public" allSections={{ '/': landingSections }}>
       <LandingSectionTracker sections={landingSections} />
