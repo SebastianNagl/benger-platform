@@ -549,6 +549,19 @@ describe('EvaluationResults', () => {
       expect(unknownChip).toBeUndefined()
     })
 
+    it('names every model of a run over several models instead of "unknown"', async () => {
+      setupCompletedEvaluation({
+        model_id: 'unknown',
+        evaluated_model_ids: ['gpt-5.4', 'gemini-2.5-pro'],
+      })
+
+      render(<EvaluationResults projectId="project-123" />)
+
+      const chip = await screen.findByTestId('evaluation-run-models')
+      expect(chip).toHaveTextContent('gpt-5.4, gemini-2.5-pro')
+      expect(screen.queryByText('unknown')).not.toBeInTheDocument()
+    })
+
     it('renders samples evaluated count', async () => {
       setupCompletedEvaluation({ samples_evaluated: 50 })
 
@@ -923,6 +936,33 @@ describe('EvaluationResults', () => {
 
       // claude-3 model chip should NOT appear
       expect(screen.queryByText('claude-3')).not.toBeInTheDocument()
+    })
+
+    it('keeps a run over several models when one of its models is selected', async () => {
+      const multi = makeEvaluationResult({
+        evaluation_id: 'eval-multi',
+        model_id: 'unknown',
+        evaluated_model_ids: ['gpt-4', 'claude-3'],
+      })
+      const other = makeEvaluationResult({
+        evaluation_id: 'eval-other',
+        model_id: 'unknown',
+        evaluated_model_ids: ['gemini-2.5-pro'],
+      })
+      mockGetProjectEvaluationResults.mockResolvedValue(
+        makeProjectResults([multi, other]),
+      )
+      mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
+
+      render(
+        <EvaluationResults
+          projectId="project-123"
+          selectedModels={['claude-3']}
+        />,
+      )
+
+      expect(await screen.findByText('gpt-4, claude-3')).toBeInTheDocument()
+      expect(screen.queryByText('gemini-2.5-pro')).not.toBeInTheDocument()
     })
 
     it('filters by eval type - shows only llm-judge evaluations', async () => {

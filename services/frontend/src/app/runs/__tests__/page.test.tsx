@@ -131,6 +131,18 @@ describe('RunsPage', () => {
     expect(screen.queryByText('unknown')).not.toBeInTheDocument()
   })
 
+  it('shows a dash for a finished run that graded no model', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [{ ...evalRun, model_id: 'gpt-5.4', evaluated_model_ids: [] }],
+      total: 1,
+      page: 1,
+      page_size: 25,
+    })
+    render(<RunsPage />)
+    expect(await screen.findByTitle('—')).toHaveTextContent('—')
+    expect(screen.queryByText('gpt-5.4')).not.toBeInTheDocument()
+  })
+
   it('switches to generation tab and updates URL', async () => {
     mockGet
       .mockResolvedValueOnce({

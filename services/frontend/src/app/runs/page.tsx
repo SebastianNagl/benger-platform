@@ -57,8 +57,8 @@ interface RunSummary {
 
 /** The models an evaluation run graded, or '—' when it graded none. */
 function evaluationModelsLabel(run: RunSummary): string {
-  if (run.evaluated_model_ids && run.evaluated_model_ids.length > 0) {
-    return run.evaluated_model_ids.join(', ')
+  if (run.evaluated_model_ids) {
+    return run.evaluated_model_ids.join(', ') || '—'
   }
   return run.model_id && run.model_id !== 'unknown' ? run.model_id : '—'
 }

@@ -13,8 +13,9 @@ judge model). The run's own label is:
 
 ``eval_metadata["evaluated_model_ids"]`` lists the models a run graded, so
 list views can name them without reading the rows. Dispatch writes the
-models it plans to grade; the run's finalization replaces that with the
-models whose generations it actually graded.
+models it plans to grade; once the run is terminal that is replaced with
+the models whose generations it actually graded (empty when it graded
+none).
 """
 
 from collections.abc import Iterable
@@ -54,33 +55,30 @@ def graded_model_ids(db, evaluation_id: str) -> list[str]:
     return [model_id for model_id, _count in ranked]
 
 
-def label_run_from_rows(db, evaluation) -> list[str] | None:
+def label_run_from_rows(db, evaluation) -> list[str]:
     """Set ``evaluation.model_id`` and ``eval_metadata["evaluated_model_ids"]``
-    from the generations its rows graded. A run that graded no generation
-    keeps its dispatch-time label. Returns the graded models, or ``None``
-    when there were none. Does not commit; the caller flags
+    from the generations its rows graded, once the run is terminal. A run
+    that graded no generation records no model and keeps its dispatch-time
+    label. Returns the graded models. Does not commit; the caller flags
     ``eval_metadata`` as modified and commits."""
     graded = graded_model_ids(db, evaluation.id)
-    if not graded:
-        return None
-    label = run_model_label(graded)
-    evaluation.model_id = label
+    if graded:
+        evaluation.model_id = run_model_label(graded)
     evaluation.eval_metadata = {
         **(evaluation.eval_metadata or {}),
         "evaluated_model_ids": graded,
-        "evaluated_model_id": label,
+        "evaluated_model_id": evaluation.model_id,
     }
     return graded
 
 
 def run_evaluated_model_ids(model_id: str | None, eval_metadata) -> list[str]:
     """The models a stored run graded, for display: the recorded
-    ``evaluated_model_ids``, else the run's label when it names a model."""
+    ``evaluated_model_ids`` (empty for a run that graded no generation),
+    else the run's label when it names a model."""
     recorded = (eval_metadata or {}).get("evaluated_model_ids")
     if isinstance(recorded, list):
-        ids = [m for m in recorded if isinstance(m, str) and m]
-        if ids:
-            return list(dict.fromkeys(ids))
+        return list(dict.fromkeys(m for m in recorded if isinstance(m, str) and m))
     if isinstance(model_id, str) and model_id and model_id not in PSEUDO_RUN_MODEL_IDS:
         return [model_id]
     return []

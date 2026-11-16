@@ -31,10 +31,9 @@ class TestRunEvaluatedModelIds:
         assert run_evaluated_model_ids("gpt-5.4", {}) == ["gpt-5.4"]
         assert run_evaluated_model_ids("gpt-5.4", None) == ["gpt-5.4"]
 
-    def test_empty_list_falls_back_to_the_label(self):
-        assert run_evaluated_model_ids("gpt-5.4", {"evaluated_model_ids": []}) == [
-            "gpt-5.4"
-        ]
+    def test_empty_list_means_the_run_graded_no_model(self):
+        # A finished run that graded no generation keeps its dispatch label.
+        assert run_evaluated_model_ids("gpt-5.4", {"evaluated_model_ids": []}) == []
 
     def test_pseudo_labels_name_no_model(self):
         for label in ("unknown", "human", "immediate", None, ""):

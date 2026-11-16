@@ -276,6 +276,9 @@ async def get_project_evaluation_results(
                 {
                     "evaluation_id": evaluation.id,
                     "model_id": evaluation.model_id,
+                    "evaluated_model_ids": run_evaluated_model_ids(
+                        evaluation.model_id, evaluation.eval_metadata
+                    ),
                     "status": evaluation.status,
                     "is_human_ongoing": is_human_ongoing,
                     "created_at": evaluation.created_at.isoformat()

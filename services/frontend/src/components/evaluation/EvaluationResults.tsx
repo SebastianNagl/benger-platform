@@ -62,6 +62,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // the shape moved to `results/types`.
 export type { ChartData } from '@/components/evaluation/results/types'
 
+/** The models a run graded, else its label unless that is the neutral
+ * 'unknown' of a run over several models or submitted answers. */
+function runModelBadge(evaluation: {
+  model_id: string
+  evaluated_model_ids?: string[]
+}): string | null {
+  if (evaluation.evaluated_model_ids?.length) {
+    return evaluation.evaluated_model_ids.join(', ')
+  }
+  return evaluation.model_id && evaluation.model_id !== 'unknown'
+    ? evaluation.model_id
+    : null
+}
+
 interface EvaluationResultsProps {
   projectId: string | number
   selectedModels?: string[]
@@ -394,7 +408,10 @@ export function EvaluationResults({
     results?.evaluations?.filter((evaluation) => {
       // Filter by selected models
       if (selectedModels && selectedModels.length > 0) {
-        if (!selectedModels.includes(evaluation.model_id)) {
+        const runModels = evaluation.evaluated_model_ids ?? [
+          evaluation.model_id,
+        ]
+        if (!runModels.some((m) => selectedModels.includes(m))) {
           return false
         }
       }
@@ -1575,12 +1592,15 @@ export function EvaluationResults({
                     >
                       {evaluation.status}
                     </Badge>
-                    {evaluation.model_id &&
-                      evaluation.model_id !== 'unknown' && (
-                        <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
-                          {evaluation.model_id}
-                        </span>
-                      )}
+                    {runModelBadge(evaluation) && (
+                      <span
+                        className="max-w-xs truncate rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
+                        data-testid="evaluation-run-models"
+                        title={runModelBadge(evaluation) ?? undefined}
+                      >
+                        {runModelBadge(evaluation)}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {evaluation.completed_at

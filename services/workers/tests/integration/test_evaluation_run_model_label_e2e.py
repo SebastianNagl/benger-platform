@@ -123,3 +123,71 @@ def test_run_over_one_model_keeps_that_model(
     assert finished.status == "completed"
     assert finished.model_id == model_b.id
     assert finished.eval_metadata["evaluated_model_ids"] == [model_b.id]
+
+
+def _planned_metadata(user, *model_ids):
+    """``eval_metadata`` as dispatch writes it without a model filter: every
+    model with generations on the project is in scope."""
+    return {
+        "triggered_by": user.id,
+        "evaluated_model_ids": list(model_ids),
+        "evaluated_model_id": "unknown",
+    }
+
+
+def test_missing_only_run_with_nothing_left_lists_no_model(
+    db_conn, make_evaluation_run, exact_match_config, two_model_project
+):
+    """Every generation is already graded, so the missing-only pass grades
+    nothing and must not claim the models it had in scope."""
+    user, project, model_a, model_b, *_ = two_model_project
+    first = make_evaluation_run(project.id, user.id, model_id="unknown")
+    assert _run_to_completion(db_conn, first, project, exact_match_config()).status == (
+        "completed"
+    )
+    run = make_evaluation_run(
+        project.id, user.id, model_id="unknown",
+        eval_metadata=_planned_metadata(user, model_a.id, model_b.id),
+    )
+
+    finished = _run_to_completion(
+        db_conn, run, project, exact_match_config(), evaluate_missing_only=True
+    )
+
+    assert finished.status == "completed"
+    assert finished.samples_evaluated == 0
+    assert _row_models(db_conn, run.id) == []
+    assert finished.eval_metadata["evaluated_model_ids"] == []
+    assert finished.model_id == "unknown"
+
+
+def test_answer_only_run_lists_no_model(
+    db_conn, make_evaluation_run, make_annotation, two_model_project
+):
+    """A run over submitted answers grades no generation, even on a project
+    whose models were all in scope at dispatch."""
+    user, project, model_a, model_b, task_1, _task_2 = two_model_project
+    make_annotation(
+        project.id, task_1.id, completed_by=user.id,
+        result=[{"from_name": "answer", "type": "textarea", "value": {"text": "ja"}}],
+    )
+    run = make_evaluation_run(
+        project.id, user.id, model_id="unknown",
+        eval_metadata=_planned_metadata(user, model_a.id, model_b.id),
+    )
+    config = {
+        "id": "cfg1", "metric": "exact_match",
+        "prediction_fields": ["__all_human__"],
+        "reference_fields": ["task.expected"],
+        "metric_parameters": {}, "enabled": True,
+    }
+
+    finished = _run_to_completion(db_conn, run, project, config)
+
+    assert finished.status == "completed"
+    assert db_conn.query(TaskEvaluation).filter(
+        TaskEvaluation.evaluation_id == run.id
+    ).count() == 1
+    assert _row_models(db_conn, run.id) == []
+    assert finished.eval_metadata["evaluated_model_ids"] == []
+    assert finished.model_id == "unknown"

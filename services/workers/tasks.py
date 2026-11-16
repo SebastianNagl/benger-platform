@@ -2464,6 +2464,8 @@ def run_evaluation(
                 evaluation.completed_at = datetime.now()
                 evaluation.samples_evaluated = 0
                 evaluation.metrics = {}
+                from evaluation_run_models import label_run_from_rows
+                label_run_from_rows(db, evaluation)
                 eval_meta_after = evaluation.eval_metadata or {}
                 eval_meta_after.update({
                     "samples_passed": 0,
