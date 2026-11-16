@@ -363,7 +363,9 @@ checked a sheet or wrote a log entry is kept when the import resolves them
 (the same account, the same person by email, or their placeholder) and left
 empty otherwise; it is never replaced by the person running the import. The
 per-task data export carries the same log under `rubric_review_events` next to
-each task's `rubrics`. A merge import leaves the log out.
+each task's `rubrics`. A merge import leaves the log out. An import into an
+existing project that requires the check (nested or merge) brings an exported
+active sheet that is not confirmed in as a candidate.
 
 ## Security Considerations
 
