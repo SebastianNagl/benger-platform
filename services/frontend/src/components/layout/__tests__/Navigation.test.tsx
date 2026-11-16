@@ -154,6 +154,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'navigation.howTo': 'How-To',
         'navigation.leaderboards': 'Leaderboards',
         'navigation.architecture': 'Architecture',
+        'navigation.publications': 'Publications & network',
         'navigation.about': 'About',
         'navigation.quickStart': 'Quick Start',
         'navigation.projectsAndData': 'Projects & Data',
@@ -637,6 +638,7 @@ describe('Navigation', () => {
         '/how-to',
         '/models',
         '/architecture',
+        '/publications',
       ]) {
         expect(container.querySelector(`a[href="${href}"]`)).not.toBeNull()
       }
@@ -761,6 +763,7 @@ describe('Navigation', () => {
         '/how-to',
         '/models',
         '/architecture',
+        '/publications',
       ]) {
         expect(linkFor(container, href)).not.toBeNull()
       }

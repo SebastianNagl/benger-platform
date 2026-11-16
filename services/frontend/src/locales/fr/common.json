@@ -14,6 +14,7 @@
     "howTo": "Guides",
     "models": "Modèles",
     "architecture": "Architecture",
+    "publications": "Publications et réseau",
     "about": "À propos",
     "quickStart": "Démarrage rapide",
     "projectsAndData": "Projets et données",
@@ -6423,6 +6424,10 @@
         "title": "Architecture",
         "description": "Architecture technique et conception du projet BenGER"
       },
+      "publications": {
+        "title": "Publications et réseau",
+        "description": "Nos publications, des benchmarks juridiques apparentés, des projets similaires et des groupes de recherche"
+      },
       "projects": {
         "title": "Projets",
         "description": "Parcourir et gérer les projets d'annotation pour l'analyse de textes juridiques",
@@ -11669,6 +11674,65 @@
       "invalidXml": "XML non valide",
       "noRoot": "Aucun élément racine trouvé",
       "unknownError": "Erreur d'analyse inconnue"
+    }
+  },
+  "publicationsNetwork": {
+    "intro": "Nos propres publications, ainsi que les travaux, projets et groupes de recherche auxquels BenGER se compare et avec lesquels nous sommes en lien. Chaque entrée renvoie à sa page de référence.",
+    "paperLink": "Lire l'article",
+    "languages": "Langues",
+    "sections": {
+      "ours": {
+        "title": "Nos publications",
+        "intro": "Les publications de la rubrique Actualités et publications de la page d'accueil, chacune avec son billet et son article."
+      },
+      "related": {
+        "title": "Publications apparentées",
+        "intro": "Des benchmarks de raisonnement juridique et de TAL juridique pour d'autres ordres juridiques et d'autres langues."
+      },
+      "projects": {
+        "title": "Projets similaires",
+        "intro": "Des benchmarks, des classements et des infrastructures ouvertes proches de BenGER."
+      },
+      "groups": {
+        "title": "Groupes de recherche",
+        "intro": "Notre groupe à la TUM et des groupes apparentés dont les travaux figurent ici.",
+        "ourGroup": "Notre groupe",
+        "relatedGroups": "Groupes apparentés"
+      }
+    },
+    "jurisdictions": {
+      "ch": "Suisse",
+      "cn": "Chine",
+      "de": "Allemagne",
+      "eu": "Union européenne",
+      "in": "Inde",
+      "intl": "Plusieurs ordres juridiques",
+      "kr": "Corée du Sud",
+      "us": "États-Unis"
+    },
+    "entries": {
+      "lexam": "7 537 questions tirées de 340 examens de droit suisse, européen et international, ouvertes et à choix multiple, en allemand et en anglais.",
+      "lawbench": "Un benchmark des connaissances juridiques des LLM en droit chinois, de la mémorisation à la compréhension et à l'application.",
+      "iltur": "Des tâches de compréhension et de raisonnement sur des textes juridiques indiens, en anglais, en hindi et dans neuf langues indiennes.",
+      "legalbench": "Un benchmark de 162 tâches construit avec des juristes, couvrant six types de raisonnement juridique en droit américain.",
+      "lextreme": "Onze jeux de données en 24 langues, issus pour l'essentiel du droit de l'UE et de ses États membres.",
+      "lboxopen": "LBOX OPEN : des décisions de justice coréennes avec des tâches de compréhension juridique et de prédiction des décisions.",
+      "lexglue": "Un ensemble de tâches de compréhension de textes juridiques en anglais, évaluées de manière uniforme.",
+      "fairlex": "Un benchmark d'équité couvrant quatre ordres juridiques (Conseil de l'Europe, États-Unis, Suisse, Chine) et cinq langues.",
+      "swissjudgment": "La prédiction des décisions sur environ 85 000 arrêts du Tribunal fédéral suisse, en allemand, en français et en italien.",
+      "gerdalir": "123 000 requêtes sur 131 000 décisions de justice allemandes issues d'Open Legal Data, comme benchmark de recherche d'information juridique.",
+      "casehold": "Plus de 53 000 questions à choix multiple sur l'identification de la règle retenue (holding) dans des décisions américaines citées.",
+      "legalbenchProject": "Le site du projet LegalBench, avec toutes les tâches, les données et la manière d'en proposer de nouvelles.",
+      "lexamProject": "Le site du projet LEXam, avec le jeu de données, le code et le classement.",
+      "lawbenchProject": "Le code, les données et le classement de LawBench.",
+      "helm": "L'évaluation holistique des modèles de langue sur de nombreux scénarios, dont LegalBench.",
+      "dynabench": "Une plateforme ouverte de création dynamique de jeux de données, où des personnes cherchent les exemples qui font échouer les modèles.",
+      "openlegaldata": "Un accès libre et lisible par machine aux lois et décisions de justice allemandes, par un site web et une API.",
+      "nllp": "Une série d'ateliers et une communauté consacrées au traitement automatique du langage juridique, avec des exposés et des ressources.",
+      "tumLegalTech": "Le Legal Tech Group de la TUM dirigé par le Prof. Matthias Grabmair, où BenGER est développé : TAL juridique, raisonnement juridique et benchmarks juridiques.",
+      "reglab": "Le Regulation, Evaluation, and Governance Lab de Stanford dirigé par le Prof. Daniel E. Ho, coauteur de CaseHOLD et de LegalBench.",
+      "hazyresearch": "Le groupe du Prof. Christopher Ré à l'université Stanford, d'où est issu LegalBench.",
+      "ethLawEcon": "Le Center for Law & Economics de l'ETH Zurich, avec notamment le Prof. Elliott Ash, coauteur de LEXam."
     }
   }
 }
