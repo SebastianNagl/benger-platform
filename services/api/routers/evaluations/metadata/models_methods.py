@@ -396,15 +396,23 @@ async def get_configured_methods(
         from sqlalchemy import cast
         from sqlalchemy.dialects.postgresql import JSONB
 
+        # A row saved with metrics=None holds JSON null, and
+        # jsonb_object_keys raises on a non-object, so filter those rows out
+        # first; one such row otherwise turned this endpoint into a 500 and
+        # left the evaluations page without any results.
+        metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
         raw_counts = (
             await db.execute(
                 select(
-                    func.jsonb_object_keys(cast(TaskEvaluation.metrics, JSONB)).label("metric"),
+                    func.jsonb_object_keys(metrics_jsonb).label("metric"),
                     func.count().label("cnt"),
                     func.max(TaskEvaluation.created_at).label("last_run"),
                 )
                 .join(DBEvaluationRun, DBEvaluationRun.id == TaskEvaluation.evaluation_id)
-                .where(DBEvaluationRun.project_id == project_id)
+                .where(
+                    DBEvaluationRun.project_id == project_id,
+                    func.jsonb_typeof(metrics_jsonb) == "object",
+                )
                 .group_by("metric")
             )
         ).all()
