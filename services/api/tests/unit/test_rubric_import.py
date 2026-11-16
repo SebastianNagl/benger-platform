@@ -675,6 +675,32 @@ class TestMarkdownSectionSubtotal:
         )
 
 
+class TestMarkdownTableTitle:
+    """Rubric e2e D11: a .md whose sheet is a pipe table took its file name as
+    title although a heading above the table names the sheet."""
+
+    TABLE = (
+        "| Gliederungspunkt | max. BE |\n"
+        "|---|---|\n"
+        "| I. Kaufvertrag | 1 |\n"
+        "| II. Sachmangel | 2,5 |\n"
+    )
+
+    def test_the_heading_above_the_table_is_the_title(self):
+        md = "# Bewertungsbogen E-Bike-Fall\n\n" + self.TABLE
+        result = parse_rubric_file("upload-123.md", md.encode("utf-8"))
+        assert result["title"] == "Bewertungsbogen E-Bike-Fall"
+        assert "title_from_filename" not in _codes(result)
+        assert [n["title"] for n in _steps(result)] == ["Kaufvertrag", "Sachmangel"]
+        assert result["total_points"] == 3.5
+
+    def test_a_table_without_anything_above_still_takes_the_file_name(self):
+        result = parse_rubric_file("bogen.md", self.TABLE.encode("utf-8"))
+        assert result["title"] == "bogen"
+        assert "title_from_filename" in _codes(result)
+        assert result["total_points"] == 3.5
+
+
 class TestColumnHeaderRow:
     """A "Gliederungspunkt | max. BE" header row is not the sheet's title."""
 
