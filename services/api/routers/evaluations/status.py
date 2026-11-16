@@ -171,47 +171,62 @@ async def stream_evaluation_status(
     return EventSourceResponse(event_generator())
 
 
+def _metrics_as_dict(metrics) -> dict:
+    """``EvaluationRun.metrics`` as the dict ``EvaluationResult`` declares.
+
+    Runs from before the per-metric result rows (dev rows of 2026-08-25) store
+    the list of metric names they were asked for, ``["bertscore",
+    "moverscore"]``, with no scores: one such row made the whole list answer
+    500. A list becomes those names without values, anything else not a dict
+    an empty dict.
+    """
+    if isinstance(metrics, dict):
+        return metrics
+    if isinstance(metrics, list):
+        return {str(name): None for name in metrics if isinstance(name, str)}
+    return {}
+
+
 @router.get("/", response_model=List[EvaluationResult])
 def get_evaluations(
     request: Request,
+    project_id: Optional[str] = None,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     """
-    Get all evaluation results of the projects the user may reach through
-    any of their organizations (superadmin: everything).
+    Get the evaluation runs of the projects the user may reach through any of
+    their organizations (superadmin: everything), newest first. ``project_id``
+    narrows the list to that one project (403 when the user cannot reach it).
     """
-    accessible_ids = get_accessible_project_ids(
-        db, current_user, include_all_private=True
-    )
-
-    # Query evaluations from database, ordered by creation date (newest first)
     query = db.query(DBEvaluationRun).order_by(DBEvaluationRun.created_at.desc())
 
-    if accessible_ids is not None:
-        if not accessible_ids:
-            return []
-        query = query.filter(DBEvaluationRun.project_id.in_(accessible_ids))
-
-    db_evaluations = query.all()
-
-    # Convert to response model
-    results = []
-    for eval in db_evaluations:
-        results.append(
-            EvaluationResult(
-                id=eval.id,
-                project_id=eval.project_id,
-                model_id=eval.model_id,
-                metrics=eval.metrics,
-                created_at=eval.created_at,
-                status=eval.status,
-                metadata=eval.eval_metadata,
-                samples_evaluated=eval.samples_evaluated,
-            )
+    if project_id is not None:
+        if not check_project_accessible(db, current_user, project_id):
+            raise HTTPException(status_code=403, detail="Access denied")
+        query = query.filter(DBEvaluationRun.project_id == project_id)
+    else:
+        accessible_ids = get_accessible_project_ids(
+            db, current_user, include_all_private=True
         )
+        if accessible_ids is not None:
+            if not accessible_ids:
+                return []
+            query = query.filter(DBEvaluationRun.project_id.in_(accessible_ids))
 
-    return results
+    return [
+        EvaluationResult(
+            id=run.id,
+            project_id=run.project_id,
+            model_id=run.model_id,
+            metrics=_metrics_as_dict(run.metrics),
+            created_at=run.created_at,
+            status=run.status,
+            metadata=run.eval_metadata,
+            samples_evaluated=run.samples_evaluated,
+        )
+        for run in query.all()
+    ]
 
 
 @router.get("/evaluation-types", response_model=List[EvaluationTypeResponse])
