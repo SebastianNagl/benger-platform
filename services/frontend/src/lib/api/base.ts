@@ -64,11 +64,12 @@ const SLOT_WAIT_TIMEOUT = 2 * REQUEST_TIMEOUT
 // share one slot id in `activeRequests`.
 let requestSequence = 0
 
-/** What one fetch attempt asks `request` to do next. */
+/** `fetch` options plus the client's own per-request switches. */
 export type ApiRequestOptions = RequestInit & {
   retryUnavailable?: boolean
 }
 
+/** What one fetch attempt asks `request` to do next. */
 type AttemptOutcome =
   | { kind: 'done'; value: any }
   | { kind: 'retry'; delay: number }
