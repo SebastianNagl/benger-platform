@@ -334,6 +334,7 @@ class TestFinalizeWiresTheBatchTrigger:
         evaluation = types.SimpleNamespace(
             id="run1",
             project_id="p1",
+            model_id="m1",
             status="running",
             samples_evaluated=0,
             eval_metadata={},
