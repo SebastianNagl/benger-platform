@@ -31,12 +31,7 @@
     "mobile": {
       "toggleNavigation": "Afficher/masquer la navigation"
     },
-    "billing": "Abonnement et facturation",
-    "visitor": {
-      "explore": "Découvrir",
-      "home": "Accueil",
-      "account": "Compte"
-    }
+    "billing": "Abonnement et facturation"
   },
   "header": {
     "expandSidebar": "Développer la barre latérale",

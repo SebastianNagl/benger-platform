@@ -31,12 +31,7 @@
     "mobile": {
       "toggleNavigation": "Navigation umschalten"
     },
-    "billing": "Abo & Abrechnung",
-    "visitor": {
-      "explore": "Entdecken",
-      "home": "Startseite",
-      "account": "Konto"
-    }
+    "billing": "Abo & Abrechnung"
   },
   "header": {
     "expandSidebar": "Seitenleiste erweitern",

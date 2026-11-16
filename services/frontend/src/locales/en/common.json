@@ -31,12 +31,7 @@
     "mobile": {
       "toggleNavigation": "Toggle navigation"
     },
-    "billing": "Plan & billing",
-    "visitor": {
-      "explore": "Explore",
-      "home": "Home",
-      "account": "Account"
-    }
+    "billing": "Plan & billing"
   },
   "header": {
     "expandSidebar": "Expand sidebar",
