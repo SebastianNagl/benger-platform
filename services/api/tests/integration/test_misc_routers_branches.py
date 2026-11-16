@@ -242,6 +242,36 @@ class TestDashboardStats:
         assert stats["projects_with_generations"] >= 1
 
     @pytest.mark.asyncio
+    async def test_superadmin_project_count_excludes_soft_deleted(
+        self, async_test_client, async_test_db
+    ):
+        """The superadmin project tile must not count soft-deleted projects.
+
+        On the dev stack the tile showed 57 projects while the projects list
+        and project_summaries held 48: the backstop count ran over every row
+        of `projects`, including the 9 soft-deleted ones.
+        """
+        from sqlalchemy import func, select
+
+        owner = await _make_owner(async_test_db, is_superadmin=True)
+        await _make_project_async(async_test_db, owner)
+        deleted = await _make_project_async(async_test_db, owner)
+        deleted.deleted_at = datetime.now(timezone.utc)
+        await async_test_db.commit()
+
+        live_projects = (
+            await async_test_db.execute(
+                select(func.count(Project.id)).where(Project.deleted_at.is_(None))
+            )
+        ).scalar()
+
+        with _as_user(owner), patch("routers.dashboard.cache") as mock_cache:
+            mock_cache.get.return_value = None
+            resp = await async_test_client.get("/api/dashboard/stats")
+        assert resp.status_code == 200
+        assert resp.json()["project_count"] == live_projects
+
+    @pytest.mark.asyncio
     async def test_no_accessible_projects_all_zero(
         self, async_test_client, async_test_db
     ):

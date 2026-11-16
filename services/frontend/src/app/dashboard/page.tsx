@@ -11,7 +11,7 @@ import { intlTag } from '@/lib/i18n/locales'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 // Compact a stat-tile count into a fixed-width form so 6+ digit values don't
 // overflow the card. 100000 -> "100k", 1234567 -> "1234k".
@@ -21,12 +21,49 @@ const formatStatCount = (n: number): string =>
 // "Aktuelle Projekte" shows the newest projects by creation date.
 const RECENT_PROJECTS_COUNT = 5
 
+type DashboardStats = {
+  project_count: number
+  task_count: number
+  annotation_count: number
+  projects_with_generations: number
+  projects_with_evaluations: number
+}
+
+// The five stat tiles, in display order. `icon` is the tile's SVG path.
+const STAT_TILES: { key: keyof DashboardStats; label: string; icon: string }[] =
+  [
+    {
+      key: 'project_count',
+      label: 'dashboard.stats.projects',
+      icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
+    },
+    {
+      key: 'task_count',
+      label: 'dashboard.stats.issues',
+      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+    },
+    {
+      key: 'annotation_count',
+      label: 'dashboard.stats.annotations',
+      icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+    },
+    {
+      key: 'projects_with_generations',
+      label: 'dashboard.stats.generations',
+      icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
+    },
+    {
+      key: 'projects_with_evaluations',
+      label: 'dashboard.stats.evaluations',
+      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+    },
+  ]
+
 export default function DashboardPage() {
   const { t, locale } = useI18n()
   const { user, organizations } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
   const errorParam = searchParams?.get('error') ?? null
 
   // All authenticated users can access projects (including private projects)
@@ -62,30 +99,13 @@ export default function DashboardPage() {
     queryKey: ['dashboard', 'stats'],
     queryFn: async () => {
       const { default: api } = await import('@/lib/api')
-      return api.getDashboardStats() as Promise<{
-        project_count: number
-        task_count: number
-        annotation_count: number
-        projects_with_generations: number
-        projects_with_evaluations: number
-      }>
+      return api.getDashboardStats() as Promise<DashboardStats>
     },
   })
 
-  const dashboardStats = statsQuery.data ?? {
-    project_count: 0,
-    task_count: 0,
-    annotation_count: 0,
-    projects_with_generations: 0,
-    projects_with_evaluations: 0,
-  }
-
-  useEffect(() => {
-    if (projectsQuery.error || statsQuery.error) {
-      const err = projectsQuery.error || statsQuery.error
-      setError(err instanceof Error ? err.message : t('dashboard.loadFailed'))
-    }
-  }, [projectsQuery.error, statsQuery.error, t])
+  // No zero fallback: when the stats request fails the tiles say the
+  // numbers are unavailable instead of showing 0 as if it were a real count.
+  const dashboardStats: DashboardStats | undefined = statsQuery.data
 
   const loading = projectsQuery.isLoading
   const statsLoading = statsQuery.isLoading
@@ -144,197 +164,81 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {error && (
-        <div className="mb-8 rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-                {t('common.error')}
-              </h3>
-              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                {error}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Stats Cards */}
+      {statsQuery.isError && (
+        <Alert variant="error" className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-zinc-900 dark:text-zinc-100">
+              {t('dashboard.statsUnavailable')}
+            </p>
+            <Button
+              variant="outline"
+              className="text-sm"
+              onClick={() => statsQuery.refetch()}
+              disabled={statsQuery.isFetching}
+            >
+              {t('dashboard.retry')}
+            </Button>
+          </div>
+        </Alert>
+      )}
       <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-        {/* 1. Projects */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                    />
-                  </svg>
+        {STAT_TILES.map((tile) => (
+          <div
+            key={tile.key}
+            className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div className="p-4">
+              <div className="flex items-center">
+                <div className="shrink-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
+                    <svg
+                      className="h-5 w-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={tile.icon}
+                      />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {t('dashboard.stats.projects')}
-                  </dt>
-                  <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {formatStatCount(dashboardStats.project_count)}
-                  </dd>
-                </dl>
+                <div className="ml-3 w-0 flex-1">
+                  <dl>
+                    <dt
+                      className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400"
+                      title={t(tile.label)}
+                    >
+                      {t(tile.label)}
+                    </dt>
+                    {dashboardStats ? (
+                      <dd className="text-lg font-medium text-zinc-900 dark:text-white">
+                        {formatStatCount(dashboardStats[tile.key])}
+                      </dd>
+                    ) : (
+                      <dd
+                        className="text-lg font-medium text-red-700 dark:text-red-300"
+                        data-testid={`stat-unavailable-${tile.key}`}
+                        title={t('dashboard.stats.unavailable')}
+                      >
+                        <span aria-hidden="true">
+                          {t('dashboard.stats.unavailableShort')}
+                        </span>
+                        <span className="sr-only">
+                          {t('dashboard.stats.unavailable')}
+                        </span>
+                      </dd>
+                    )}
+                  </dl>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* 2. Issues (Tasks) */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {t('dashboard.stats.issues')}
-                  </dt>
-                  <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {formatStatCount(dashboardStats.task_count)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Annotations */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {t('dashboard.stats.annotations')}
-                  </dt>
-                  <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {formatStatCount(dashboardStats.annotation_count)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Generations */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {t('dashboard.stats.generations')}
-                  </dt>
-                  <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {formatStatCount(dashboardStats.projects_with_generations)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Evaluations */}
-        <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-6">
-            <div className="flex items-center">
-              <div className="shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {t('dashboard.stats.evaluations')}
-                  </dt>
-                  <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {formatStatCount(dashboardStats.projects_with_evaluations)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Only show project sections if user has organization or is superadmin */}
@@ -352,7 +256,21 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              {recentProjects.length === 0 ? (
+              {projectsQuery.isError ? (
+                <div className="py-8 text-center" role="alert">
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    {t('dashboard.recentProjects.loadFailed')}
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4 text-sm"
+                    onClick={() => projectsQuery.refetch()}
+                    disabled={projectsQuery.isFetching}
+                  >
+                    {t('dashboard.retry')}
+                  </Button>
+                </div>
+              ) : recentProjects.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="text-zinc-500 dark:text-zinc-400">
                     {t('dashboard.recentProjects.noProjects')}

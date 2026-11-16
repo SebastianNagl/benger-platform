@@ -416,7 +416,6 @@ services:
         reservations:
           memory: 256M
 
-  # Frontend Application (Production Build)
   # Handwritten-solution OCR pool (mirrors workerPools.ocr in the Helm values).
   worker-ocr:
     build:
@@ -468,6 +467,55 @@ services:
           memory: 1G
         reservations:
           memory: 256M
+
+  # Celery beat: fires the periodic schedule in services/workers/worker_celery.py
+  # (`app.conf.beat_schedule`), the same one the Helm beat deployment
+  # (infra/helm/benger/templates/deployment-beat.yaml) runs in production.
+  # Its main job is the hourly `recompute-aggregates`, which fills
+  # project_summaries. Without it that table stays empty and the projects list
+  # and /api/dashboard/stats fall back to live scans over task_evaluations,
+  # which on a large dev database run past the statement timeout.
+  #
+  # Before beat starts, the command sends one `tasks.recompute_aggregates` so
+  # a fresh stack fills the table within minutes instead of at the next full
+  # hour. The task is routed to the `maintenance` queue (worker-fast) and
+  # coalesced by a Redis lock, so a restart never runs it twice at once. If
+  # no worker is up yet, the message waits in Redis until one is.
+  #
+  # Exactly one instance: a second beat would double-dispatch every periodic
+  # task. Schedule state lives in /tmp because /app is mounted read-only.
+  scheduler:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: scheduler
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - >-
+        celery -A tasks call tasks.recompute_aggregates &&
+        exec celery -A tasks beat --loglevel=info
+        --schedule=/tmp/celerybeat-schedule --pidfile=
+    env_file:
+      - ../services/workers/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment: *worker-environment
+    volumes:
+      - ../services/workers:/app:ro
+      - ../services/shared:/shared:ro
+    networks:
+      - benger-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
 
   # Frontend Application (Production Build)
   frontend:

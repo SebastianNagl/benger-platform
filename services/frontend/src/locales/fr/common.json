@@ -94,7 +94,6 @@
     "signupFailed": "Échec de l'inscription"
   },
   "dashboard": {
-    "loadFailed": "Les données du tableau de bord n'ont pas pu être chargées",
     "title": "Tableau de bord",
     "subtitle": "Gérez vos projets d'annotation et suivez leur progression",
     "totalQuestions": "Total des questions",
@@ -106,7 +105,9 @@
       "issues": "Tâches",
       "annotations": "Annotations",
       "generations": "Générations",
-      "evaluations": "Évaluations"
+      "evaluations": "Évaluations",
+      "unavailable": "Indisponible",
+      "unavailableShort": "n.d."
     },
     "organizationWarning": {
       "title": "Aucune organisation attribuée",
@@ -119,7 +120,8 @@
       "createFirst": "Créez votre premier projet",
       "noDescription": "Aucune description",
       "tasks": "tâches",
-      "openProject": "Ouvrir le projet"
+      "openProject": "Ouvrir le projet",
+      "loadFailed": "Les projets récents n'ont pas pu être chargés."
     },
     "createNewProject": {
       "title": "Créer un nouveau projet",
@@ -165,7 +167,9 @@
       "show": "Afficher",
       "hide": "Masquer",
       "unavailable": "Les statistiques d'apprentissage ne sont pas disponibles dans cette édition."
-    }
+    },
+    "statsUnavailable": "Les statistiques n'ont pas pu être calculées pour le moment. Les valeurs ci-dessous sont donc indisponibles, pas nulles.",
+    "retry": "Réessayer"
   },
   "projects": {
     "title": "Projets",

@@ -178,7 +178,7 @@ class TestGetDashboardStats:
             app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
-    async def test_exception_returns_defaults(self):
+    async def test_exception_returns_503(self):
         user = _make_user()
         mock_db = _mock_async_db()
 
@@ -190,9 +190,7 @@ class TestGetDashboardStats:
                 mock_cache.get.return_value = None
                 async with await _client() as client:
                     resp = await client.get("/api/dashboard/stats")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data["project_count"] == 0
-                assert data["task_count"] == 0
+                assert resp.status_code == 503
+                assert "project_count" not in resp.json()
         finally:
             app.dependency_overrides.clear()
