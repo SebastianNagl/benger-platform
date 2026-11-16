@@ -18,6 +18,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/admin/access-keys` | `keys:manage`, `admin:platform` | any |
 | GET | `/api/admin/access-keys/usage/export.csv` | `keys:manage`, `admin:platform` | any |
 | POST | `/api/admin/access-keys/{key_id}/revoke` | `keys:manage`, `admin:platform` | any |
+| POST | `/api/admin/evaluation-runs/relabel` | `admin:platform` | any |
 | GET | `/api/admin/grading-feedback/export` | `admin:platform` | any |
 | GET | `/api/admin/llm-models/catalog-version` | `admin:platform` | any |
 | POST | `/api/admin/llm-models/reseed` | `admin:platform` | any |

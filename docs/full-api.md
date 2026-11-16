@@ -291,6 +291,53 @@ re-parsed answers again with `POST /api/evaluations/run`, narrowed with
 the new scores are stored under the new evaluation run, next to the old
 rows of the earlier run.
 
+### Relabelling stored evaluation runs
+
+A finished evaluation run is labelled from its rows: `model_id` names the
+one model whose generations the rows graded, else `"unknown"`, and
+`eval_metadata.evaluated_model_ids` lists the graded models, most rows
+first. Runs that finished before that rule keep older labels (`"unknown"` on
+a run that graded one model, or the project's most common model on a run
+that graded several models or another one).
+`POST /api/admin/evaluation-runs/relabel` applies the rule to stored runs.
+It is for superadmins only; an access key needs `admin:platform`.
+
+The body is `{"project_id": "...", "run_ids": [...], "dry_run": true,
+"revert": false}`: the runs of `project_id`, the runs in `run_ids` (up to
+5,000, of any project), or with both only those runs of the project.
+`dry_run` defaults to `true`. The answer has `{dry_run, revert, changed,
+unchanged, no_graded_generations, skipped, not_found, results}`; each result
+names the `run_id`, `project_id`, run `status`, its `outcome`, the rows per
+graded model (`graded_rows`), and `before` and `after` with `model_id`,
+`evaluated_model_ids` and `evaluated_model_id`.
+
+* `dry_run: true` reports the outcome and writes nothing.
+* A `changed` run gets the label and `evaluated_model_ids` a run finishing
+  now would get. Its previous `model_id` and `eval_metadata` are appended to
+  `eval_metadata.relabel_history` with `relabeled_at`, `relabeled_by` and
+  what was `applied`, so the earlier label stays recoverable. A run whose
+  label already follows its rows is `unchanged` and not written, so a second
+  call changes nothing.
+* A run that graded no generation (a run over submitted answers) is
+  `no_graded_generations` and keeps its label and metadata. A run that has
+  not finished, and the human-graded (`human`) and immediate-grading
+  (`immediate`) runs, are `skipped`.
+* `revert: true` restores the `model_id` and `eval_metadata` from before
+  the last relabel of each run. A run never relabelled, or changed after its
+  relabel, is `skipped`.
+
+A merge import matches a relabelled run by its label and by every label in
+its `relabel_history`, so merging an export made before the relabel (on
+either instance) does not add the run a second time. Scores are not
+touched and the leaderboards, statistics and report sections read the
+model per row, so they do not change (statistics and reports fall back to
+the run label only when no row of the project names a model, and a
+relabel changes only runs with such rows). Two views count a run under its
+label and change with it: the evaluated-models list (its run count,
+samples, last evaluation and average over each run's aggregated `metrics`)
+and the significance tests called without `evaluation_config_ids` (which
+add a run's aggregated `metrics` to the scores of the model it names).
+
 ### Round trip
 
 New tasks come in through the nested import: write them as

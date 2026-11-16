@@ -88,6 +88,7 @@ def test_task_content_needs_read_reference(method, path):
         ("POST", "/api/admin/llm-models/reseed"),
         ("GET", "/api/organizations/manage/users"),
         ("POST", "/api/projects/p1/generations/reparse"),
+        ("POST", "/api/admin/evaluation-runs/relabel"),
     ],
 )
 def test_superadmin_routes_need_admin_platform(method, path):

@@ -100,7 +100,12 @@ from project_models import (
     TaskRubric,
 )
 import seb
-from evaluation_run_models import MULTI_MODEL_RUN_LABEL, PSEUDO_RUN_MODEL_IDS
+from evaluation_run_models import (
+    MULTI_MODEL_RUN_LABEL,
+    PSEUDO_RUN_MODEL_IDS,
+    RELABEL_HISTORY_KEY,
+    run_label_aliases,
+)
 from exam_tools import portable_exam_tools
 from serializers import CALL_TELEMETRY_FIELDS, _parse_iso
 
@@ -1792,6 +1797,39 @@ def _map_eval_metadata_models(ctx: _FullImportContext, eval_metadata):
             mapped[key] = [_map_model(ctx, m) for m in mapped[key]]
     if "evaluated_model_id" in mapped:
         mapped["evaluated_model_id"] = _map_model(ctx, mapped["evaluated_model_id"])
+    if isinstance(mapped.get(RELABEL_HISTORY_KEY), list):
+        mapped[RELABEL_HISTORY_KEY] = [
+            _map_relabel_entry(ctx, entry) for entry in mapped[RELABEL_HISTORY_KEY]
+        ]
+    return mapped
+
+
+def _map_relabel_entry(ctx: _FullImportContext, entry):
+    """A ``relabel_history`` entry with its labels translated, so a revert
+    on this instance restores this instance's model ids."""
+    if not isinstance(entry, dict):
+        return entry
+    mapped = dict(entry)
+    superseded = mapped.get("superseded")
+    if isinstance(superseded, dict):
+        mapped["superseded"] = {
+            **superseded,
+            "model_id": _map_model(ctx, superseded.get("model_id")),
+            "eval_metadata": _map_eval_metadata_models(
+                ctx, superseded.get("eval_metadata")
+            ),
+        }
+    applied = mapped.get("applied")
+    if isinstance(applied, dict):
+        applied = dict(applied)
+        for key in ("model_id", "evaluated_model_id"):
+            if key in applied:
+                applied[key] = _map_model(ctx, applied[key])
+        if isinstance(applied.get("evaluated_model_ids"), list):
+            applied["evaluated_model_ids"] = [
+                _map_model(ctx, m) for m in applied["evaluated_model_ids"]
+            ]
+        mapped["applied"] = applied
     return mapped
 
 
@@ -3765,6 +3803,9 @@ class _MergeState:
         # created_at -> [(model_id, run_id)], for _present_run's relabel match.
         self.runs_by_created: Dict[Any, List[tuple]] = {}
         self.human_korrektur_run: Optional[str] = None
+        # (label a relabel superseded, created_at) -> run, so a run exported
+        # before a relabel of stored runs still finds its relabelled copy.
+        superseded_labels: Dict[tuple, str] = {}
         for run_id, model_id, created_at, meta in db.query(
             EvaluationRun.id,
             EvaluationRun.model_id,
@@ -3775,8 +3816,13 @@ class _MergeState:
             self.runs_by_created.setdefault(_utc_key(created_at), []).append(
                 (model_id, run_id)
             )
+            for label in run_label_aliases(model_id, meta)[1:]:
+                superseded_labels.setdefault((label, _utc_key(created_at)), run_id)
             if _is_human_korrektur_run(model_id, meta):
                 self.human_korrektur_run = run_id
+        # A run's own label wins over a label another run once had.
+        for key, run_id in superseded_labels.items():
+            self.runs.setdefault(key, run_id)
 
         # Generation jobs whose rows are held back until a generation needs
         # them, so a job whose every generation is present adds nothing.
@@ -4010,7 +4056,9 @@ def _present_run(state: _MergeState, model_id, created) -> Optional[str]:
     finalization labelled runs from their rows) says "unknown" on one side
     and names its model on the other. So a run labelled "unknown" on either
     side also matches the one run created at the same instant, as long as
-    that instant names exactly one candidate.
+    that instant names exactly one candidate. A run relabelled through
+    ``/api/admin/evaluation-runs/relabel`` is also indexed under the labels
+    it carried before (``eval_metadata["relabel_history"]``).
     """
     if not created:
         return None
@@ -4034,7 +4082,17 @@ def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
         return
     model_id = _map_model(ctx, rec.get("model_id"))
     created = _utc_key(rec.get("created_at"))
-    present = _present_run(state, model_id, created) or (
+    # The file's run may itself have been relabelled after the copy here
+    # was made: its superseded labels name the copy too.
+    labels = [model_id] + [
+        _map_model(ctx, label)
+        for label in run_label_aliases(
+            rec.get("model_id"), rec.get("eval_metadata")
+        )[1:]
+    ]
+    present = next(
+        (run for label in labels if (run := _present_run(state, label, created))), None
+    ) or (
         state.human_korrektur_run
         if _is_human_korrektur_run(model_id, rec.get("eval_metadata"))
         else None
@@ -4047,6 +4105,8 @@ def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
     _insert_evaluation(ctx, rec)
     new_id = ctx.id_mappings["evaluations"][old_id]
     state.runs[(model_id, created)] = new_id
+    for label in labels[1:]:
+        state.runs.setdefault((label, created), new_id)
     if created:
         state.runs_by_created.setdefault(created, []).append((model_id, new_id))
     if _is_human_korrektur_run(model_id, rec.get("eval_metadata")):

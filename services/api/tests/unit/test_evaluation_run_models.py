@@ -3,6 +3,7 @@
 from evaluation_run_models import (
     MULTI_MODEL_RUN_LABEL,
     run_evaluated_model_ids,
+    run_label_aliases,
     run_model_label,
 )
 
@@ -42,3 +43,25 @@ class TestRunEvaluatedModelIds:
     def test_malformed_list_entries_are_dropped(self):
         meta = {"evaluated_model_ids": ["a", None, 3, ""]}
         assert run_evaluated_model_ids("unknown", meta) == ["a"]
+
+
+class TestRunLabelAliases:
+    def test_a_run_never_relabelled_is_known_by_its_label(self):
+        meta = {"evaluated_model_ids": ["gpt-5.4"]}
+        assert run_label_aliases("gpt-5.4", meta) == ["gpt-5.4"]
+        assert run_label_aliases("unknown", None) == ["unknown"]
+
+    def test_superseded_labels_follow_newest_first(self):
+        meta = {
+            "relabel_history": [
+                {"superseded": {"model_id": "model-a"}},
+                {"superseded": {"model_id": "unknown"}},
+            ]
+        }
+        assert run_label_aliases("model-b", meta) == ["model-b", "unknown", "model-a"]
+
+    def test_repeats_and_malformed_entries_are_dropped(self):
+        history = [{"superseded": {"model_id": "model-b"}}, "x", {}, None]
+        meta = {"relabel_history": history}
+        assert run_label_aliases("model-b", meta) == ["model-b"]
+        assert run_label_aliases("model-b", {"relabel_history": "x"}) == ["model-b"]

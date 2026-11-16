@@ -2955,6 +2955,50 @@ class TestMergedMetricRunModels:
         assert again["statistics"]["added_counts"]["evaluations"] == 0
         assert _result_counts(db_session, prod.id) == after
 
+    def test_a_run_relabelled_to_another_model_is_not_merged_a_second_time(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A stored run relabelled through the admin relabel route (here from
+        the project's common model to the model its rows graded) keeps the
+        label it replaced, so a file that still carries the old label, or a
+        relabelled file meeting the old copy, finds the same run."""
+        from routers.evaluation_run_relabel import _relabel
+
+        RELABELED_AT = "2026-11-17T00:00:00+00:00"
+        _register_prod_model(db_session)
+        prod = benchmark_project["project"]
+        local_id = self._local_copy_with_new_model(db_session, user, prod, fmt)
+        # Labelled with another model than the one its rows graded, as the
+        # runs before #535 carried the project's most common model.
+        source = _metric_run_over_models(
+            db_session, local_id, user.id, [LOCAL_MODEL], PROD_MODEL, _later()
+        )
+        old_export = _export_text(db_session, local_id, fmt)
+        _merge_text(db_session, prod.id, old_export, user.id)
+        merged = _merged_run(db_session, prod.id, source)
+        after = _result_counts(db_session, prod.id)
+
+        # The production copy is relabelled: the old file is still present.
+        _relabel(db_session, merged, [LOCAL_MODEL], False, user.id, RELABELED_AT)
+        db_session.commit()
+        assert merged.model_id == LOCAL_MODEL
+        again = _merge_text(db_session, prod.id, old_export, user.id)
+        assert again["statistics"]["added_counts"]["evaluations"] == 0
+        assert _result_counts(db_session, prod.id) == after
+
+        # The source is relabelled instead and the copy still has the old
+        # label: the new file is present too.
+        previous = merged.eval_metadata["relabel_history"][-1]["superseded"]
+        merged.model_id = previous["model_id"]
+        merged.eval_metadata = previous["eval_metadata"]
+        _relabel(db_session, source, [LOCAL_MODEL], False, user.id, RELABELED_AT)
+        db_session.commit()
+        again = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert again["statistics"]["added_counts"]["evaluations"] == 0
+        assert _result_counts(db_session, prod.id) == after
+
     def test_runs_that_only_share_a_creation_time_stay_apart(
         self, db_session, user, benchmark_project, fmt
     ):
