@@ -67,7 +67,7 @@ from ijson.common import ObjectBuilder
 from sqlalchemy import exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 
 # models must be imported before project_models so the User mapper is registered
@@ -1700,13 +1700,24 @@ def _get_or_create_stub_user(ctx: _FullImportContext, user_data: dict) -> str:
             take_over = update(users).where(users.c.id == stub.id)
             try:
                 with conn.begin_nested():
+                    if alias_is_free:
+                        conn.execute(
+                            select(users.c.id)
+                            .where(users.c.id == stub.id)
+                            .with_for_update(nowait=True)
+                        )
                     conn.execute(
                         take_over.values(
                             name=alias, pseudonym=alias if alias_is_free else None
                         )
                     )
-            except IntegrityError:
-                # Taken by another account meanwhile; keep the label only.
+            except (IntegrityError, OperationalError) as exc:
+                if isinstance(exc, OperationalError) and (
+                    getattr(exc.orig, "pgcode", None) != "55P03"
+                ):
+                    raise
+                # Taken by another account meanwhile, or the placeholder is in
+                # use by an open import; keep the label only (a no-key update).
                 conn.execute(take_over.values(name=alias))
         return stub.id
 

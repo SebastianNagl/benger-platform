@@ -575,7 +575,7 @@
         "Les modèles des séries GPT-5 et o imposent une température de 1.0 ; le curseur est ignoré pour eux. Anthropic et Google ne prennent pas en charge le seed. Pour ces modèles, l’exécution enregistre et affiche que le seed n’a pas été envoyé.",
         "*Générer uniquement les manquantes* ignore les tâches dont la réponse existe déjà avec un prompt inchangé. Après une modification du prompt, elles sont régénérées.",
         "Pour les études comportant plusieurs passages, réglez *Exécutions par tâche* sur une valeur supérieure à 1. Chaque exécution est enregistrée et évaluée séparément.",
-        "BenGER lit une réponse JSON d’après les noms de champs du modèle d’annotation. Une réponse qui écrit un nom de champ allemand avec un umlaut (`Begründung` pour `begruendung`) ou avec d’autres majuscules, ou qui utilise `answer`/`reasoning` pour `kurzantwort`/`begruendung`, est lue comme ces champs ; les métadonnées d’analyse de la génération indiquent les clés renommées."
+        "BenGER lit une réponse JSON d’après les noms de champs du modèle d’annotation. Une réponse qui utilise `answer`/`reasoning` (en majuscules ou minuscules) pour `kurzantwort`/`begruendung` est lue comme ces champs ; les métadonnées d’analyse de la génération indiquent les clés renommées."
       ],
       "keywords": [
         "génération",

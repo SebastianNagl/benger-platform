@@ -23,15 +23,6 @@ from jsonschema import validate
 # it, so a schema with its own ``answer`` field is unaffected.
 ENGLISH_KEY_ALIASES = {"answer": "kurzantwort", "reasoning": "begruendung"}
 
-# German spellings that a key may use for a field written in ASCII
-# ("begründung" for ``begruendung``).
-_GERMAN_TRANSLITERATION = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
-
-
-def _key_spelling(key: str) -> str:
-    """A key in the form two spellings of the same field name share."""
-    return key.strip().casefold().translate(_GERMAN_TRANSLITERATION)
-
 
 @dataclass
 class ParseResult:
@@ -164,21 +155,17 @@ class ResponseParser:
             return ParseResult(status="failed", error=f"Unexpected error in JSON parsing: {str(e)}")
 
     def _map_answer_keys(self, parsed_data: Any):
-        """Read keys that name a schema field in another spelling as that field.
+        """Read the English name of a German schema field as that field.
 
         Returns ``(data, mapped)``: the answer with such keys renamed, and
-        ``{original key: field}`` for every rename. A key matches a field when
-        it differs only in case or in German spelling ("Begründung" for
-        ``begruendung``), or when it is the English name of a German field
-        (:data:`ENGLISH_KEY_ALIASES`). A field the answer already names
+        ``{original key: field}`` for every rename. A key is renamed when it
+        is, ignoring case, an English name in :data:`ENGLISH_KEY_ALIASES`
+        whose German field the schema has. A field the answer already names
         exactly keeps its value; an alias of it is left as it is.
         """
         if not isinstance(parsed_data, dict) or not self._answer_fields:
             return parsed_data, {}
         fields = set(self._answer_fields)
-        by_spelling: Dict[str, str] = {}
-        for name in self._answer_fields:
-            by_spelling.setdefault(_key_spelling(name), name)
 
         taken = {key for key in parsed_data if key in fields}
         result: Dict[str, Any] = {}
@@ -186,11 +173,9 @@ class ResponseParser:
         for key, value in parsed_data.items():
             target = None
             if key not in fields and isinstance(key, str):
-                target = by_spelling.get(_key_spelling(key))
-                if target is None:
-                    alias = ENGLISH_KEY_ALIASES.get(key.strip().casefold())
-                    if alias in fields:
-                        target = alias
+                alias = ENGLISH_KEY_ALIASES.get(key.strip().casefold())
+                if alias in fields:
+                    target = alias
             if target is not None and target not in taken:
                 taken.add(target)
                 result[target] = value

@@ -512,7 +512,7 @@
         "GPT-5 and o-series models enforce temperature 1.0, the slider is ignored for them. Anthropic and Google do not support a seed. For such models the run records and shows that the seed was not sent.",
         "*Generate missing only* skips tasks whose answer already exists with an unchanged prompt. After a prompt change they are regenerated.",
         "For studies with several passes set *Runs per task* above 1. Every run is stored and evaluated separately.",
-        "BenGER reads a JSON answer by the field names of the labeling template. An answer that writes a German field name with an umlaut (`Begründung` for `begruendung`) or in other capitals, or uses `answer`/`reasoning` for `kurzantwort`/`begruendung`, is read as those fields; the generation's parse metadata lists the keys it mapped."
+        "BenGER reads a JSON answer by the field names of the labeling template. An answer that uses `answer`/`reasoning` (in any capitals) for `kurzantwort`/`begruendung` is read as those fields; the generation's parse metadata lists the keys it mapped."
       ],
       "keywords": [
         "generation",

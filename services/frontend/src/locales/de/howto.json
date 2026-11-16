@@ -583,7 +583,7 @@
         "Modelle der GPT-5- und o-Reihe erzwingen Temperatur 1.0, der Regler wird für sie ignoriert. Anthropic und Google unterstützen keinen Seed. Bei solchen Modellen vermerkt und zeigt der Lauf, dass der Seed nicht gesendet wurde.",
         "*Nur fehlende generieren* überspringt Aufgaben, deren Antwort mit unverändertem Prompt schon existiert. Nach einer Prompt-Änderung werden sie neu erzeugt.",
         "Für Studien mit mehreren Durchläufen setzt du *Läufe pro Aufgabe* größer als 1. Jeder Lauf wird einzeln gespeichert und ausgewertet.",
-        "BenGER liest eine JSON-Antwort anhand der Feldnamen der Annotationsvorlage. Schreibt eine Antwort einen deutschen Feldnamen mit Umlaut (`Begründung` für `begruendung`) oder in anderer Groß- und Kleinschreibung, oder nutzt sie `answer`/`reasoning` für `kurzantwort`/`begruendung`, wird sie als diese Felder gelesen; die Parse-Metadaten der Generierung führen die umbenannten Schlüssel auf."
+        "BenGER liest eine JSON-Antwort anhand der Feldnamen der Annotationsvorlage. Nutzt eine Antwort `answer`/`reasoning` (in beliebiger Groß- und Kleinschreibung) für `kurzantwort`/`begruendung`, wird sie als diese Felder gelesen; die Parse-Metadaten der Generierung führen die umbenannten Schlüssel auf."
       ],
       "keywords": [
         "Generierung",

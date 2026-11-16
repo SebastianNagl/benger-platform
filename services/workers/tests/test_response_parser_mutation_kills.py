@@ -773,8 +773,8 @@ def _fields(result):
 
 
 class TestAnswerKeyMapping:
-    """Kolibri-1 benchmark K9: answers following the prompt's English keys or
-    the umlaut spelling are read as the German schema fields."""
+    """Kolibri-1 benchmark K9: answers following the prompt's English keys
+    are read as the German schema fields."""
 
     def test_english_keys_map_to_the_german_fields(self):
         p = _parser(GERMAN_QA_CONFIG)
@@ -787,11 +787,18 @@ class TestAnswerKeyMapping:
             "begruendung": "§ 242 BGB, Verwirkung.",
         }
 
-    def test_umlaut_and_case_spelling_maps_to_the_ascii_field(self):
+    def test_other_spellings_of_the_german_fields_are_not_mapped(self):
         p = _parser(GERMAN_QA_CONFIG)
         r = p.parse('{"Kurzantwort": "Nein", "begründung": "§ 311b BGB."}')
-        assert _fields(r) == {"kurzantwort": "Nein", "begruendung": "§ 311b BGB."}
-        assert r.mapped_keys == {"Kurzantwort": "kurzantwort", "begründung": "begruendung"}
+        assert r.mapped_keys == {}
+        assert "kurzantwort" not in r.field_values
+        assert "begruendung" not in r.field_values
+
+    def test_english_keys_match_ignoring_case(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse('{"Answer": "Ja", "REASONING": "Weil."}')
+        assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "Weil."}
+        assert r.mapped_keys == {"Answer": "kurzantwort", "REASONING": "begruendung"}
 
     def test_exact_keys_are_not_reported_as_mapped(self):
         p = _parser(GERMAN_QA_CONFIG)
@@ -810,11 +817,11 @@ class TestAnswerKeyMapping:
         assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "deutsch"}
         assert r.mapped_keys == {}
 
-    def test_first_of_two_spellings_wins(self):
+    def test_first_of_two_alias_spellings_wins(self):
         p = _parser(GERMAN_QA_CONFIG)
-        r = p.parse('{"answer": "Ja", "Begründung": "erste", "reasoning": "zweite"}')
+        r = p.parse('{"answer": "Ja", "Reasoning": "erste", "reasoning": "zweite"}')
         assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "erste"}
-        assert r.mapped_keys == {"answer": "kurzantwort", "Begründung": "begruendung"}
+        assert r.mapped_keys == {"answer": "kurzantwort", "Reasoning": "begruendung"}
 
     def test_aliases_need_the_german_field_in_the_schema(self):
         # A schema with its own English fields reads them exactly.

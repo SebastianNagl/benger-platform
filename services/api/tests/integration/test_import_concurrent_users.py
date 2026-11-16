@@ -100,7 +100,7 @@ def _importer(factory, created) -> str:
     return user_id
 
 
-def _export(title: str, shared_users: list) -> bytes:
+def _export(title: str, shared_users: list, pseudonym=None) -> bytes:
     """A comprehensive export whose single task carries one answer by each of
     ``shared_users`` (``(id, email)`` pairs unknown on this deployment)."""
     return json.dumps(
@@ -111,7 +111,7 @@ def _export(title: str, shared_users: list) -> bytes:
                 "label_config": '<View><Text name="text" value="$text"/></View>',
             },
             "users": [
-                {"id": uid, "email": email, "name": "Source author", "pseudonym": None}
+                {"id": uid, "email": email, "name": "Source author", "pseudonym": pseudonym}
                 for uid, email in shared_users
             ],
             "tasks": [{"id": "task-1", "data": {"text": "one"}}],
@@ -128,9 +128,9 @@ def _export(title: str, shared_users: list) -> bytes:
     ).encode("utf-8")
 
 
-def _run_overlapping_imports(factory, created, shared_users):
+def _run_overlapping_imports(factory, created, shared_users, pseudonyms=(None, None)):
     """Import two exports sharing ``shared_users``; the first stays open right
-    before its commit until the second has finished. Returns both outcomes
+    before its commit, with its rows written, until the second has finished. Returns both outcomes
     (a result dict or the exception) and the two project titles."""
     importer = _importer(factory, created)
     titles = [f"Concurrent import {n} {uuid.uuid4()}" for n in (1, 2)]
@@ -147,14 +147,14 @@ def _run_overlapping_imports(factory, created, shared_users):
         first_ready.set()
         second_done.wait(_OVERLAP_WAIT_S)
 
-    def run(name, title, before_commit):
+    def run(name, title, pseudonym, before_commit):
         db = factory()
         try:
             outcomes[name] = run_full_project_import(
                 db,
-                io.BytesIO(_export(title, shared_users)),
+                io.BytesIO(_export(title, shared_users, pseudonym)),
                 importer,
-                before_commit=before_commit,
+                before_commit=before_commit and (lambda r: (db.flush(), before_commit(r))),
             )
         except Exception as exc:  # noqa: BLE001 - the outcome is the assertion
             db.rollback()
@@ -162,11 +162,13 @@ def _run_overlapping_imports(factory, created, shared_users):
         finally:
             db.close()
 
-    first = threading.Thread(target=run, args=("first", titles[0], hold_open))
+    first = threading.Thread(
+        target=run, args=("first", titles[0], pseudonyms[0], hold_open)
+    )
     first.start()
     try:
         assert first_ready.wait(_OVERLAP_WAIT_S), outcomes.get("first")
-        run("second", titles[1], None)
+        run("second", titles[1], pseudonyms[1], None)
     finally:
         second_done.set()
         first.join(_OVERLAP_WAIT_S)
@@ -204,6 +206,36 @@ def test_two_concurrent_imports_sharing_an_unknown_user_both_succeed(
     assert sorted(
         o["statistics"]["placeholder_users_created"] for o in outcomes.values()
     ) == [0, 1]
+
+
+@pytest.mark.integration
+def test_pseudonym_take_over_does_not_wait_for_an_open_import_using_the_placeholder(
+    worker_like_sessions,
+):
+    """The first export carries no pseudonym, so its placeholder gets a neutral
+    label, and the open first import references it from its answer. The second
+    export of the same author offers a pseudonym: taking it over into the
+    unique `pseudonym` column needs a row lock the open import blocks, so the
+    second import keeps the label in `name` only instead of waiting until the
+    lock_timeout fails it."""
+    factory, created = worker_like_sessions
+    source_id = f"source-{uuid.uuid4()}"
+    alias = f"Alias {uuid.uuid4().hex[:12]}"
+    shared = [(source_id, f"{source_id}@source.example")]
+
+    outcomes, titles = _run_overlapping_imports(
+        factory, created, shared, pseudonyms=(None, alias)
+    )
+
+    for name in ("first", "second"):
+        assert isinstance(outcomes.get(name), dict), f"{name} import: {outcomes.get(name)!r}"
+    with factory() as db:
+        placeholder = (
+            db.query(User).filter(User.email == f"{source_id}@imported.invalid").one()
+        )
+        created["users"].add(placeholder.id)
+        assert placeholder.name == alias
+        assert placeholder.pseudonym is None
 
 
 @pytest.mark.integration
