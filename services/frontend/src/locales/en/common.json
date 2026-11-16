@@ -94,7 +94,6 @@
     "signupFailed": "Signup failed"
   },
   "dashboard": {
-    "loadFailed": "Failed to load dashboard data",
     "title": "Dashboard",
     "subtitle": "Manage your annotation projects and track progress",
     "totalQuestions": "Total Questions",
@@ -106,7 +105,9 @@
       "issues": "Tasks",
       "annotations": "Annotations",
       "generations": "Generations",
-      "evaluations": "Evaluations"
+      "evaluations": "Evaluations",
+      "unavailable": "Unavailable",
+      "unavailableShort": "n/a"
     },
     "organizationWarning": {
       "title": "No Organization Assignment",
@@ -119,7 +120,8 @@
       "createFirst": "Create Your First Project",
       "noDescription": "No description",
       "tasks": "tasks",
-      "openProject": "Open Project"
+      "openProject": "Open Project",
+      "loadFailed": "The recent projects could not be loaded."
     },
     "createNewProject": {
       "title": "Create New Project",
@@ -165,7 +167,9 @@
       "show": "Show",
       "hide": "Hide",
       "unavailable": "Learning statistics are not available in this edition."
-    }
+    },
+    "statsUnavailable": "The statistics could not be computed right now, so the values below are unavailable, not zero.",
+    "retry": "Try again"
   },
   "projects": {
     "title": "Projects",

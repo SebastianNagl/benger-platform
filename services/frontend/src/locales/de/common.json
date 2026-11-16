@@ -94,7 +94,6 @@
     "signupFailed": "Registrierung fehlgeschlagen"
   },
   "dashboard": {
-    "loadFailed": "Dashboard-Daten konnten nicht geladen werden",
     "title": "Dashboard",
     "subtitle": "Verwalte deine Annotationsprojekte und verfolge den Fortschritt",
     "totalQuestions": "Gesamte Fragen",
@@ -106,7 +105,9 @@
       "issues": "Aufgaben",
       "annotations": "Annotationen",
       "generations": "Generierungen",
-      "evaluations": "Evaluierungen"
+      "evaluations": "Evaluierungen",
+      "unavailable": "Nicht verfügbar",
+      "unavailableShort": "k. A."
     },
     "organizationWarning": {
       "title": "Keine Organisationszuweisung",
@@ -119,7 +120,8 @@
       "createFirst": "Erstelle dein erstes Projekt",
       "noDescription": "Keine Beschreibung",
       "tasks": "Aufgaben",
-      "openProject": "Projekt öffnen"
+      "openProject": "Projekt öffnen",
+      "loadFailed": "Die aktuellen Projekte konnten nicht geladen werden."
     },
     "createNewProject": {
       "title": "Neues Projekt erstellen",
@@ -165,7 +167,9 @@
       "show": "Anzeigen",
       "hide": "Ausblenden",
       "unavailable": "Die Lernstatistik ist in dieser Edition nicht verfügbar."
-    }
+    },
+    "statsUnavailable": "Die Statistiken konnten gerade nicht berechnet werden. Die Werte unten sind deshalb nicht verfügbar, nicht null.",
+    "retry": "Erneut versuchen"
   },
   "projects": {
     "title": "Projekte",

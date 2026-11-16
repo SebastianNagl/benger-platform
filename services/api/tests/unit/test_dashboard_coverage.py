@@ -190,7 +190,7 @@ class TestDashboardStats:
             app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
-    async def test_db_error_returns_defaults(self):
+    async def test_db_error_returns_503(self):
         user = _make_user()
         mock_db = _mock_async_db()
         app.dependency_overrides[require_user] = lambda: user
@@ -205,7 +205,59 @@ class TestDashboardStats:
                 mock_cache.get.return_value = None
                 async with await _client() as client:
                     resp = await client.get("/api/dashboard/stats")
-                assert resp.status_code == 200
-                assert resp.json()["project_count"] == 0
+                assert resp.status_code == 503
+                assert "project_count" not in resp.json()
+                mock_cache.set.assert_not_called()
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_statement_timeout_on_empty_summaries_is_not_zeros(self):
+        """Regression: empty project_summaries + live fallback past the timeout.
+
+        On the dev stack project_summaries was empty (no beat), so the
+        handler fell back to the live scored-pairs count over all of
+        task_evaluations, which ran into Postgres' statement_timeout. The
+        handler then answered 200 with every counter at 0 while 48 projects
+        existed. It must answer an error and cache nothing instead.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        user = _make_user(is_superadmin=True)
+        mock_db = _mock_async_db(scalar_value=48)
+        app.dependency_overrides[require_user] = lambda: user
+
+        async def _override():
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = _override
+        empty_summaries = {
+            "project_count": 0,
+            "total_tasks": 0,
+            "annotations_count": 0,
+            "generations_count": 0,
+            "evaluation_pairs_count": 0,
+        }
+
+        async def _timed_out(*_args, **_kwargs):
+            raise OperationalError(
+                "SELECT DISTINCT ...",
+                {},
+                Exception("canceling statement due to statement timeout"),
+            )
+
+        try:
+            with patch("routers.dashboard.cache") as mock_cache, \
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=None), \
+                 patch("routers.dashboard.read_dashboard_sum_async", return_value=empty_summaries), \
+                 patch("routers.dashboard._live_evaluations_count_async", side_effect=_timed_out):
+                mock_cache.get.return_value = None
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
+                assert resp.status_code == 503
+                body = resp.json()
+                assert "project_count" not in body
+                assert body["detail"] == "Dashboard statistics are temporarily unavailable."
+                mock_cache.set.assert_not_called()
         finally:
             app.dependency_overrides.clear()

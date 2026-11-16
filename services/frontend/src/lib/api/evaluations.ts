@@ -63,7 +63,7 @@ export class EvaluationsClient extends BaseApiClient {
     projects_with_generations: number
     projects_with_evaluations: number
   }> {
-    return this.request('/dashboard/stats')
+    return this.request('/dashboard/stats', { retryUnavailable: false })
   }
 
   async getEvaluations(): Promise<EvaluationResultSummary[]> {

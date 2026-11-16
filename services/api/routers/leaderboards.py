@@ -479,9 +479,9 @@ async def get_leaderboard_statistics(
 
 # ============================================================================
 # LLM MODEL LEADERBOARD ENDPOINTS — read from precomputed `llm_leaderboard_scores`
-# table (refreshed every 12h by the Celery task `recompute_aggregates`).
+# table (refreshed every hour by the Celery task `recompute_aggregates`).
 # Live SQL fallback handles non-precomputed filter combinations. See
-# services/api/services/aggregate_summaries.py for the aggregation logic.
+# services/shared/aggregate_summaries.py for the aggregation logic.
 # ============================================================================
 
 

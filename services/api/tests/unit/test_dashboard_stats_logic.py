@@ -26,16 +26,6 @@ class TestDashboardStatsLogic:
         cache_key = f"dashboard_stats:{user_id}:{org_id or 'private'}"
         assert cache_key == "dashboard_stats:user-2:private"
 
-    def test_stats_default_on_error(self):
-        default_stats = {
-            "project_count": 0,
-            "task_count": 0,
-            "annotation_count": 0,
-            "projects_with_generations": 0,
-            "projects_with_evaluations": 0,
-        }
-        assert all(v == 0 for v in default_stats.values())
-
     def test_stats_result_mapping(self):
         result = Mock(
             project_count=5,
