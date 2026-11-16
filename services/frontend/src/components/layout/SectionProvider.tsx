@@ -16,7 +16,7 @@ export interface Section {
   title: string
   offsetRem?: number
   tag?: string
-  headingRef?: React.RefObject<HTMLHeadingElement | null>
+  headingRef?: React.RefObject<HTMLElement | null>
 }
 
 interface SectionState {
@@ -29,7 +29,7 @@ interface SectionState {
     offsetRem,
   }: {
     id: string
-    ref: React.RefObject<HTMLHeadingElement | null>
+    ref: React.RefObject<HTMLElement | null>
     offsetRem: number
   }) => void
 }

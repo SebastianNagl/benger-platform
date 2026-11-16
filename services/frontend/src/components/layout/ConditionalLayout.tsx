@@ -2,7 +2,6 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Layout } from '@/components/layout/Layout'
-import { MinimalLayout } from '@/components/layout/MinimalLayout'
 import { type Section } from '@/components/layout/SectionProvider'
 import { StudentModeRedirect } from '@/components/student/StudentModeRedirect'
 import { useAuth } from '@/contexts/AuthContext'
@@ -56,12 +55,7 @@ export function ConditionalLayout({
     '/lti/error',
   ]
 
-  // Pages that need minimal layout (with SectionProvider but no sidebar)
-  const minimalLayoutPages: string[] = [
-    // Removed /about/imprint and /about/data-protection to use full layout
-  ]
-
-  // Legal pages that should use minimal layout for unauthenticated users
+  // Legal pages that use the visitor shell for unauthenticated users
   const legalPages = ['/about/imprint', '/about/data-protection', '/changelog']
 
   // Public content that is readable without a session and gets the same
@@ -79,8 +73,6 @@ export function ConditionalLayout({
     return pathname?.startsWith(page) || false
   })
 
-  const isMinimalLayoutPage = minimalLayoutPages.includes(pathname || '/')
-
   // Check if current page is a legal page
   const isLegalPage = legalPages.some((page) => pathname === page)
 
@@ -89,9 +81,8 @@ export function ConditionalLayout({
     (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`),
   )
 
-  // Legal + public content pages use the minimal layout for unauthenticated users
-  const shouldUseMinimalLayoutForLegal =
-    (isLegalPage || isPublicContentPage) && !user
+  // Legal + public content pages use the visitor shell for unauthenticated users
+  const isVisitorPublicPage = (isLegalPage || isPublicContentPage) && !user
 
   // If auth is loading and we're not on a standalone page, show the auth loading state
   // without any layout constraints to ensure proper centering
@@ -117,14 +108,25 @@ export function ConditionalLayout({
       {/* For basic standalone pages, render children directly without any layout */}
       {isStandalonePage ? (
         <div className="w-full">{children}</div>
-      ) : isMinimalLayoutPage || shouldUseMinimalLayoutForLegal ? (
-        /* For MDX standalone pages and unauthenticated legal pages, use minimal layout with SectionProvider */
-        <MinimalLayout
-          sections={allSections[pathname || '/'] ?? []}
-          prose={!isPublicContentPage}
-        >
-          {children}
-        </MinimalLayout>
+      ) : isVisitorPublicPage ? (
+        /* Unauthenticated legal and public content pages get the visitor
+           shell of the landing page; the MDX legal pages keep their prose
+           column, the public reports the wider app column. */
+        <div className="w-full">
+          <Layout variant="public" allSections={allSections}>
+            {isPublicContentPage ? (
+              <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                {children}
+              </div>
+            ) : (
+              <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+                <div className="prose max-w-none prose-zinc dark:prose-invert">
+                  {children}
+                </div>
+              </div>
+            )}
+          </Layout>
+        </div>
       ) : (
         /* For all other pages and authenticated legal pages, use the full app layout with sidebar/navbar */
         <div className="w-full">

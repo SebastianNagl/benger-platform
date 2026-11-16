@@ -21,7 +21,7 @@ export function NewsSection() {
   return (
     <section
       id="news"
-      className="flex min-h-screen items-center bg-zinc-50 py-16 sm:py-24 dark:bg-zinc-800/50"
+      className="flex min-h-screen scroll-mt-14 items-center bg-zinc-50 py-16 sm:py-24 dark:bg-zinc-800/50"
     >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">

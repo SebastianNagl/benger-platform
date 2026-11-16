@@ -13,7 +13,10 @@ export function InformationSection() {
   const { t } = useI18n()
 
   return (
-    <section id="information" className="min-h-screen py-16 sm:py-24">
+    <section
+      id="information"
+      className="min-h-screen scroll-mt-14 py-16 sm:py-24"
+    >
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white">
           {t('landing.information.title')}

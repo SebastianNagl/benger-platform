@@ -21,17 +21,20 @@ export function HeroSection() {
     <div className="relative isolate px-4 pt-8 sm:px-6 sm:pt-14 lg:px-8">
       <HeroPattern />
 
-      <div className="mx-auto max-w-5xl py-12 sm:py-16 md:py-24 lg:py-32">
+      <div className="@container mx-auto max-w-5xl py-12 sm:py-16 md:py-24 lg:py-32">
         <div className="text-center">
           {/* German Rotating Headline */}
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl md:text-6xl lg:text-7xl dark:text-white">
             <span className="block">{t('landing.heroTitle.prefix')}</span>
-            <span className="mt-6 block whitespace-nowrap sm:mt-10">
+            {/* Sized to the text column (cqw), not the viewport, so the
+                longest word ("Zusammenfassungen") stays inside it on phones
+                and when the sidebar is open; multi-word phrases may wrap. */}
+            <span className="mt-6 block sm:mt-10">
               <RotatingText
                 words={t('landing.heroTitle.rotatingWords')}
-                className="text-[clamp(3.75rem,8vw,8rem)] text-emerald-600 dark:text-emerald-400"
+                className="text-[clamp(1.75rem,10cqw,8rem)] text-emerald-600 dark:text-emerald-400"
               />
-              <span className="text-[clamp(3.75rem,8vw,8rem)]">
+              <span className="text-[clamp(1.75rem,10cqw,8rem)]">
                 {t('landing.heroTitle.suffix')}
               </span>
             </span>
@@ -46,6 +49,7 @@ export function HeroSection() {
           <div className="mt-12 flex items-center justify-center sm:mt-16">
             <Button
               href="/login"
+              variant="filled"
               className="rounded-full bg-zinc-900 px-12 py-4 text-xl font-semibold text-white shadow-lg transition-all duration-200 hover:bg-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:px-16 sm:py-5 sm:text-2xl dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus-visible:ring-offset-zinc-900"
             >
               {t('landing.cta.primary')}

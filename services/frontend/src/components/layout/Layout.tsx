@@ -7,7 +7,6 @@ import { useSlot } from '@/lib/extensions/slots'
 import { useActiveExtensionsReady } from '@/lib/featureFlags'
 import { sebNavigationTarget } from '@/lib/seb'
 import { isExpertOnlyRoute } from '@/lib/utils/routeSurface'
-import { useUIStore } from '@/stores'
 import { motion } from 'framer-motion'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -19,16 +18,45 @@ import {
   SectionProvider,
   type Section,
 } from '@/components/layout/SectionProvider'
+import {
+  ShellVariantProvider,
+  useShellSidebar,
+  type ShellVariant,
+} from '@/components/layout/ShellVariant'
 
 export function Layout({
   children,
   allSections,
+  variant = 'app',
 }: {
   children: React.ReactNode
   allSections: Record<string, Array<Section>>
+  /**
+   * `public` renders the same shell for visitors (the landing page): the
+   * sidebar starts collapsed and lists only what a visitor may open. See
+   * ShellVariant.tsx.
+   */
+  variant?: ShellVariant
+}) {
+  return (
+    <ShellVariantProvider value={variant}>
+      <ShellLayout allSections={allSections} variant={variant}>
+        {children}
+      </ShellLayout>
+    </ShellVariantProvider>
+  )
+}
+
+function ShellLayout({
+  children,
+  allSections,
+  variant,
+}: {
+  children: React.ReactNode
+  allSections: Record<string, Array<Section>>
+  variant: ShellVariant
 }) {
   let pathname = usePathname()
-  const { isSidebarHidden } = useUIStore()
   const isHydrated = useHydration()
   const [isInitialRender, setIsInitialRender] = useState(true)
   const { isLoading } = useAuth()
@@ -48,9 +76,8 @@ export function Layout({
     if (target && target !== pathname) router.replace(target)
   }, [pathname, router])
 
-  // During SSR or before hydration, show the sidebar to prevent layout shift
-  // After hydration, use the actual state
-  const showSidebar = isHydrated ? !isSidebarHidden : true
+  const { showSidebar } = useShellSidebar()
+  const isPublic = variant === 'public'
 
   // Track when initial render is complete
   useEffect(() => {
@@ -65,8 +92,9 @@ export function Layout({
 
   // Student/expert shell branch (Issue #35). Only the extended edition can ever
   // render the student shell — short-circuit entirely in community so the
-  // expert layout never pays for the resolution dance.
-  if (isExtendedEdition()) {
+  // expert layout never pays for the resolution dance. The visitor shell has
+  // no session and therefore no mode to resolve.
+  if (!isPublic && isExtendedEdition()) {
     // Until hydration completes or auth resolves, the resolved mode is not yet
     // trustworthy. Render a neutral skeleton rather than flashing the expert
     // layout to a student on first paint. The same holds until this viewer's
@@ -148,7 +176,7 @@ export function Layout({
         </div>
       </div>
       {/* eslint-disable-next-line react-hooks/static-components */}
-      {GlobalOnboarding && <GlobalOnboarding shell="expert" />}
+      {GlobalOnboarding && !isPublic && <GlobalOnboarding shell="expert" />}
     </SectionProvider>
   )
 }

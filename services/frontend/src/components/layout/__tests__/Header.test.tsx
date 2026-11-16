@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { ShellVariantProvider } from '@/components/layout/ShellVariant'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Header } from '../Header'
 
@@ -325,7 +326,7 @@ describe('Header', () => {
     it('mobile elements have correct visibility classes', () => {
       const { container } = render(<Header />)
       const mobileContainer = container.querySelector(
-        '.flex.items-center.gap-5.lg\\:hidden',
+        '.flex.items-center.sm\\:gap-5.lg\\:hidden',
       )
       expect(mobileContainer).toBeInTheDocument()
     })
@@ -348,12 +349,27 @@ describe('Header', () => {
       expect(header).toHaveClass('justify-start', 'lg:justify-between')
     })
 
-    it('auth button hidden on small screens', () => {
-      const { container } = render(<Header />)
-      const authContainer = container.querySelector(
-        '.hidden.min-\\[416px\\]\\:contents',
+    it('keeps the account menu on small screens when signed in', () => {
+      render(<Header />)
+      // The account menu is the only way to profile and sign-out on phones.
+      expect(screen.getByTestId('auth-button').parentElement).toHaveClass(
+        'contents',
       )
-      expect(authContainer).toBeInTheDocument()
+      expect(screen.getByTestId('auth-button').parentElement).not.toHaveClass(
+        'hidden',
+      )
+    })
+
+    it('hides the visitor sign-in buttons on small screens', () => {
+      render(
+        <ShellVariantProvider value="public">
+          <Header />
+        </ShellVariantProvider>,
+      )
+      expect(screen.getByTestId('auth-button').parentElement).toHaveClass(
+        'hidden',
+        'min-[416px]:contents',
+      )
     })
   })
 
@@ -579,14 +595,14 @@ describe('Header', () => {
 
     it('utilities section has proper gap', () => {
       const { container } = render(<Header />)
-      const utilitiesSection = container.querySelector('.flex.gap-4')
+      const utilitiesSection = container.querySelector('.flex.sm\\:gap-4')
       expect(utilitiesSection).toBeInTheDocument()
     })
 
     it('right section has proper margin and gap classes', () => {
       const { container } = render(<Header />)
       const rightSection = container.querySelector(
-        '.ml-auto.flex.items-center.gap-5',
+        '.ml-auto.flex.items-center.sm\\:gap-5',
       )
       expect(rightSection).toHaveClass('lg:ml-0')
     })
@@ -683,6 +699,42 @@ describe('Header', () => {
       rerender(<Header />)
       const hydratedHeight = container.firstChild as HTMLElement
       expect(hydratedHeight).toHaveClass('h-14')
+    })
+  })
+
+  describe('Visitor shell (landing page)', () => {
+    const renderVisitor = () =>
+      render(
+        <ShellVariantProvider value="public">
+          <Header />
+        </ShellVariantProvider>,
+      )
+
+    it('drops search and notifications, which need a session', () => {
+      renderVisitor()
+      expect(screen.queryByTestId('search')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mobile-search')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('notification-bell')).not.toBeInTheDocument()
+      expect(screen.getByTestId('language-switcher')).toBeInTheDocument()
+      expect(screen.getByTestId('theme-toggle')).toBeInTheDocument()
+      expect(screen.getByTestId('auth-button')).toBeInTheDocument()
+    })
+
+    it('links the logo home instead of to the dashboard', () => {
+      const { container } = renderVisitor()
+      const hrefs = Array.from(container.querySelectorAll('a')).map((a) =>
+        a.getAttribute('href'),
+      )
+      expect(hrefs).toContain('/')
+      expect(hrefs).not.toContain('/dashboard')
+    })
+
+    it('toggles the visitor sidebar, collapsed at first', () => {
+      renderVisitor()
+      const toggle = screen.getByRole('button', { expanded: false })
+      fireEvent.click(toggle)
+      expect(screen.getByRole('button', { expanded: true })).toBe(toggle)
+      fireEvent.click(toggle)
     })
   })
 })

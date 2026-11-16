@@ -12,13 +12,10 @@ jest.mock('next/navigation', () => ({
   })),
 }))
 jest.mock('../Layout', () => ({
-  Layout: ({ children }: any) => (
-    <div data-testid="full-layout">{children}</div>
-  ),
-}))
-jest.mock('../MinimalLayout', () => ({
-  MinimalLayout: ({ children }: any) => (
-    <div data-testid="minimal-layout">{children}</div>
+  Layout: ({ children, variant }: any) => (
+    <div data-testid={variant === 'public' ? 'public-shell' : 'full-layout'}>
+      {children}
+    </div>
   ),
 }))
 jest.mock('@/components/auth/ProtectedRoute', () => ({
@@ -52,7 +49,7 @@ describe('ConditionalLayout', () => {
         } as any)
       })
 
-      it.each(legalPages)('should render %s with minimal layout', (path) => {
+      it.each(legalPages)('should render %s in the visitor shell', (path) => {
         mockUsePathname.mockReturnValue(path)
 
         render(
@@ -61,9 +58,23 @@ describe('ConditionalLayout', () => {
           </ConditionalLayout>,
         )
 
-        expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
+        expect(screen.getByTestId('public-shell')).toBeInTheDocument()
         expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
         expect(screen.getByText('Legal content')).toBeInTheDocument()
+      })
+
+      it.each(legalPages)('keeps the prose typography on %s', (path) => {
+        mockUsePathname.mockReturnValue(path)
+
+        render(
+          <ConditionalLayout allSections={{}}>
+            <div>Legal content</div>
+          </ConditionalLayout>,
+        )
+
+        expect(
+          screen.getByText('Legal content').closest('.prose'),
+        ).not.toBeNull()
       })
     })
 
@@ -88,7 +99,7 @@ describe('ConditionalLayout', () => {
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
-        expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
         expect(screen.getByText('Legal content')).toBeInTheDocument()
       })
     })
@@ -105,7 +116,7 @@ describe('ConditionalLayout', () => {
       })
 
       it.each(legalPages)(
-        'should show minimal layout for %s while loading (no user)',
+        'should show the visitor shell for %s while loading (no user)',
         (path) => {
           mockUsePathname.mockReturnValue(path)
 
@@ -115,9 +126,9 @@ describe('ConditionalLayout', () => {
             </ConditionalLayout>,
           )
 
-          // Legal pages show minimal layout when user is null (even during loading)
+          // Legal pages show the visitor shell when user is null (even during loading)
           expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
-          expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
+          expect(screen.getByTestId('public-shell')).toBeInTheDocument()
           expect(screen.getByText('Legal content')).toBeInTheDocument()
         },
       )
@@ -128,7 +139,7 @@ describe('ConditionalLayout', () => {
     const reportPaths = ['/reports', '/reports/report-123']
 
     it.each(reportPaths)(
-      'renders %s with the minimal (logged-out) layout when unauthenticated',
+      'renders %s in the visitor shell when unauthenticated',
       (path) => {
         mockUseAuth.mockReturnValue({
           user: null,
@@ -145,9 +156,10 @@ describe('ConditionalLayout', () => {
           </ConditionalLayout>,
         )
 
-        expect(screen.getByTestId('minimal-layout')).toBeInTheDocument()
+        expect(screen.getByTestId('public-shell')).toBeInTheDocument()
         expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
         expect(screen.getByText('Report content')).toBeInTheDocument()
+        expect(screen.getByText('Report content').closest('.prose')).toBeNull()
       },
     )
 
@@ -170,7 +182,7 @@ describe('ConditionalLayout', () => {
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
-        expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
       },
     )
 
@@ -191,7 +203,7 @@ describe('ConditionalLayout', () => {
       )
 
       expect(screen.getByTestId('full-layout')).toBeInTheDocument()
-      expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
     })
   })
 
@@ -217,7 +229,7 @@ describe('ConditionalLayout', () => {
         )
 
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
-        expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
       })
     })
 
@@ -262,7 +274,7 @@ describe('ConditionalLayout', () => {
 
           expect(screen.getByText('LTI step')).toBeInTheDocument()
           expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
-          expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+          expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
           expect(
             screen.queryByText('common.checkingAuth'),
           ).not.toBeInTheDocument()
@@ -354,7 +366,7 @@ describe('ConditionalLayout', () => {
           )
 
           expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
-          expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+          expect(screen.queryByTestId('public-shell')).not.toBeInTheDocument()
           expect(screen.getByText('Standalone content')).toBeInTheDocument()
 
           // Should be wrapped in a simple div with w-full class

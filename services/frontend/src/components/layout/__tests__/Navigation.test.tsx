@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 
+import { ShellVariantProvider } from '@/components/layout/ShellVariant'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Navigation } from '../Navigation'
@@ -905,6 +906,126 @@ describe('Navigation', () => {
       expect(linkFor(container, '/data')).not.toBeNull()
       expect(linkFor(container, '/generations')).not.toBeNull()
       expect(linkFor(container, '/evaluations')).not.toBeNull()
+    })
+  })
+
+  describe('Visitor shell (landing page)', () => {
+    const mockUseSectionStore =
+      require('@/components/layout/SectionProvider').useSectionStore
+
+    const renderVisitor = () =>
+      render(
+        <ShellVariantProvider value="public">
+          <Navigation />
+        </ShellVariantProvider>,
+      )
+
+    beforeEach(() => {
+      mockUsePathname.mockReturnValue('/')
+      mockUseAuth.mockReturnValue({ user: null, organizations: [] })
+    })
+
+    afterEach(() => {
+      mockUseSectionStore.mockImplementation((selector: any) => {
+        const store = { sections: [], visibleSections: [] }
+        return selector ? selector(store) : store
+      })
+    })
+
+    it('lists only what a visitor may open', () => {
+      renderVisitor()
+
+      const hrefs = screen
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href'))
+      expect(hrefs).toEqual([
+        '/',
+        '/reports',
+        '/changelog',
+        '/login',
+        '/register',
+      ])
+      expect(screen.getByText('navigation.visitor.explore')).toBeInTheDocument()
+      expect(screen.getByText('navigation.visitor.account')).toBeInTheDocument()
+      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument()
+      expect(screen.queryByText('Projects')).not.toBeInTheDocument()
+    })
+
+    it.each(['/reports', '/changelog'])(
+      'marks %s as the current page in the visitor sidebar',
+      (path) => {
+        mockUsePathname.mockReturnValue(path)
+
+        renderVisitor()
+
+        const current = screen
+          .getAllByRole('link')
+          .filter((link) => link.getAttribute('aria-current') === 'page')
+          .map((link) => link.getAttribute('href'))
+        expect(current).toEqual([path])
+      },
+    )
+
+    it('shows the landing sections as anchors below Home', () => {
+      mockUseSectionStore.mockImplementation((selector: any) => {
+        const store = {
+          sections: [
+            { id: 'information', title: 'Information' },
+            { id: 'news', title: 'News' },
+          ],
+          visibleSections: ['information'],
+        }
+        return selector ? selector(store) : store
+      })
+
+      renderVisitor()
+
+      // `/#id`, never the protocol-relative `//#id`
+      expect(screen.getByText('Information').closest('a')).toHaveAttribute(
+        'href',
+        '/#information',
+      )
+      expect(screen.getByText('News').closest('a')).toHaveAttribute(
+        'href',
+        '/#news',
+      )
+    })
+
+    it('moves the visible-section highlight as the page scrolls', () => {
+      let visibleSections = ['_top']
+      mockUseSectionStore.mockImplementation((selector: any) => {
+        const store = {
+          sections: [
+            { id: 'information', title: 'Information' },
+            { id: 'news', title: 'News' },
+          ],
+          visibleSections,
+        }
+        return selector ? selector(store) : store
+      })
+
+      const { container, rerender } = renderVisitor()
+      const highlight = () =>
+        container.querySelector<HTMLElement>('.absolute.inset-x-0.top-0')
+      expect(highlight()?.style.top).toBe('0px')
+
+      // Scrolled to "news": the desktop sidebar follows (2 rows down).
+      visibleSections = ['news']
+      rerender(
+        <ShellVariantProvider value="public">
+          <Navigation />
+        </ShellVariantProvider>,
+      )
+      expect(highlight()?.style.top).toBe('64px')
+    })
+
+    it('keeps the workspace entries in the default (app) shell', () => {
+      render(<Navigation />)
+      const hrefs = screen
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href'))
+      expect(hrefs).toContain('/dashboard')
+      expect(hrefs).not.toContain('/login')
     })
   })
 })
