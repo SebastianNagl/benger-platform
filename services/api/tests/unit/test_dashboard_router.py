@@ -189,7 +189,7 @@ class TestDashboardRouter:
 
     @pytest.mark.asyncio
     async def test_get_dashboard_stats_database_error(self, mock_regular_user):
-        """Test dashboard stats with database error returns default values for new metrics"""
+        """A database error answers 503 instead of zero counters."""
         from routers.dashboard import require_user
 
         app.dependency_overrides[require_user] = lambda: mock_regular_user
@@ -205,14 +205,17 @@ class TestDashboardRouter:
                 async with await _async_client() as client:
                     response = await client.get("/api/dashboard/stats")
 
-                assert response.status_code == status.HTTP_200_OK
+                assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
                 data = response.json()
-                # Should return default values on error for all new metrics
-                assert data["project_count"] == 0
-                assert data["task_count"] == 0
-                assert data["annotation_count"] == 0
-                assert data["projects_with_generations"] == 0
-                assert data["projects_with_evaluations"] == 0
+                for key in (
+                    "project_count",
+                    "task_count",
+                    "annotation_count",
+                    "projects_with_generations",
+                    "projects_with_evaluations",
+                ):
+                    assert key not in data
+                mock_cache.set.assert_not_called()
         finally:
             app.dependency_overrides.clear()
 

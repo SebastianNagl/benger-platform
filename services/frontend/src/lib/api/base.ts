@@ -64,6 +64,11 @@ const SLOT_WAIT_TIMEOUT = 2 * REQUEST_TIMEOUT
 // share one slot id in `activeRequests`.
 let requestSequence = 0
 
+/** `fetch` options plus the client's own per-request switches. */
+export type ApiRequestOptions = RequestInit & {
+  retryUnavailable?: boolean
+}
+
 /** What one fetch attempt asks `request` to do next. */
 type AttemptOutcome =
   | { kind: 'done'; value: any }
@@ -512,13 +517,18 @@ export class BaseApiClient {
    * Pass `cache: 'no-store'` in `options` for live data (status, progress,
    * job polls): the response is then neither read from nor written to the
    * 30 s GET cache.
+   *
+   * Pass `retryUnavailable: false` for expensive requests whose 502/503
+   * means the work itself failed rather than a restart: the error then
+   * reaches the caller after one attempt instead of being repeated.
    */
   protected async request(
     endpoint: string,
-    options: RequestInit = {},
+    requestOptions: ApiRequestOptions = {},
     isRetry: boolean = false,
     retryCount: number = 0,
   ): Promise<any> {
+    const { retryUnavailable = true, ...options } = requestOptions
     const apiBaseUrl = getApiBaseUrl()
     const url = `${apiBaseUrl}${endpoint}`
     const method = options.method || 'GET'
@@ -574,6 +584,7 @@ export class BaseApiClient {
           bypassCache,
           attempt,
           refreshed,
+          retryUnavailable,
         )
       } finally {
         this.releaseRequestSlot(requestId)
@@ -619,6 +630,7 @@ export class BaseApiClient {
     bypassCache: boolean,
     retryCount: number,
     isRetry: boolean,
+    retryUnavailable: boolean,
   ): Promise<AttemptOutcome> {
     const isFormData = options.body instanceof FormData
     try {
@@ -690,7 +702,11 @@ export class BaseApiClient {
         reportFeatureDisabled(response.status, errorData)
 
         // 502/503 during service restarts: retry with 1 s, 2 s backoff
-        if ([502, 503].includes(response.status) && retryCount < 2) {
+        if (
+          retryUnavailable &&
+          [502, 503].includes(response.status) &&
+          retryCount < 2
+        ) {
           return { kind: 'retry', delay: (retryCount + 1) * 1000 }
         }
 

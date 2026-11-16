@@ -273,7 +273,7 @@ describe('Dashboard Organization Warning', () => {
   })
 
   describe('loading states', () => {
-    it('should not show warning during loading', async () => {
+    it('shows the warning while the recent projects are still loading', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         organizations: [],
       })
@@ -282,12 +282,11 @@ describe('Dashboard Organization Warning', () => {
 
       render(<DashboardPage />)
 
-      // Should show loading state
-      expect(screen.getByText('Loading...')).toBeInTheDocument()
+      // The project box shows its own loading state
+      expect(screen.getAllByText('Loading...').length).toBeGreaterThan(0)
 
-      // Warning should not be shown during loading
-      const warningTitle = screen.queryByText('No Organization Assignment')
-      expect(warningTitle).not.toBeInTheDocument()
+      // The warning comes from the auth context, not from the pending request
+      expect(screen.getByText('No Organization Assignment')).toBeInTheDocument()
     })
   })
 

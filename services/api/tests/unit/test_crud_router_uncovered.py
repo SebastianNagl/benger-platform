@@ -204,6 +204,39 @@ class TestListProjectsHappyPath:
         assert resp.status_code == 500
 
     @pytest.mark.asyncio
+    async def test_list_projects_stats_timeout_is_an_error(
+        self, async_test_client, async_test_db
+    ):
+        """A statement timeout in the per-project stats is an error, not a list.
+
+        With project_summaries empty the stats fall back to live counts over
+        task_evaluations, which can run past Postgres' statement_timeout. The
+        endpoint must then answer an error status rather than a page with
+        zeroed or missing counts, so the dashboard shows an error state.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id, title="Big project")
+        await async_test_db.commit()
+
+        timeout = OperationalError(
+            "SELECT DISTINCT ...",
+            {},
+            Exception("canceling statement due to statement timeout"),
+        )
+        with _as_user(admin), patch(
+            "routers.projects.crud._calculate_project_stats_batch_sync",
+            side_effect=timeout,
+        ):
+            resp = await async_test_client.get(
+                "/api/projects/", params={"page": 1, "page_size": 5}
+            )
+
+        assert resp.status_code == 500
+        assert "items" not in resp.json()
+
+    @pytest.mark.asyncio
     async def test_list_projects_with_search(self, async_test_client, async_test_db):
         admin = await _make_user(async_test_db, is_superadmin=True)
         await _make_project(async_test_db, created_by=admin.id, title="Searchable Topic")

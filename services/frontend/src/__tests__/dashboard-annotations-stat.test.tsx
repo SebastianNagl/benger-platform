@@ -189,8 +189,12 @@ describe('Dashboard Annotations Stat Box', () => {
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
     })
 
-    // The dashboard should still render, potentially with default values
+    // The dashboard still renders its tiles, marked unavailable, never as 0.
     expect(screen.getByText('Annotations')).toBeInTheDocument()
+    expect(
+      await screen.findByTestId('stat-unavailable-annotation_count'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
   })
 
   it('should display zero annotations when there are none', async () => {

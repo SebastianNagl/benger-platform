@@ -4,7 +4,7 @@ Dashboard and analytics endpoints.
 
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,10 +112,12 @@ async def get_dashboard_stats(
     - projects_with_evaluations: Projects that have completed evaluations
 
     Reads from the precomputed `project_summaries` table (refreshed by the
-    `recompute_aggregates` Celery beat task every 12h). Brand-new projects
+    `recompute_aggregates` Celery beat task every hour). Brand-new projects
     that haven't been picked up by a refresh yet fall back to a live count
     so the dashboard never shows stale-zero. The existing 5-min Redis TTL
-    smooths repeated requests in both cases.
+    smooths repeated requests in both cases. When the counts cannot be
+    computed (database error or statement timeout) the endpoint answers 503
+    rather than a set of zeros.
     """
     # The stats cover every project the user may reach through any of their
     # organizations; the selected organization of the client plays no part,
@@ -164,8 +166,13 @@ async def get_dashboard_stats(
         # the precomputed row count looks suspiciously low.
         project_count = sums["project_count"]
         if accessible_ids is None:
+            # Soft-deleted projects are excluded, as in project_summaries and
+            # in get_accessible_project_ids; counting them showed more
+            # projects on the tile than the projects list holds.
             true_total = (
-                await db.execute(text("SELECT COUNT(*) FROM projects"))
+                await db.execute(
+                    text("SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL")
+                )
             ).scalar() or 0
             if project_count < true_total:
                 project_count = int(true_total)
@@ -214,11 +221,14 @@ async def get_dashboard_stats(
         return stats
 
     except Exception as e:
-        logger.error(f"Error getting dashboard stats: {str(e)}")
-        return {
-            "project_count": 0,
-            "task_count": 0,
-            "annotation_count": 0,
-            "projects_with_generations": 0,
-            "projects_with_evaluations": 0,
-        }
+        # Never answer zeros as if they were real counts: when the live
+        # fallback above runs into the statement timeout (project_summaries
+        # empty, large task_evaluations table) the dashboard used to show
+        # "0 projects" while dozens existed. A 503 lets the client show the
+        # tiles as unavailable and retry; nothing is cached, so the next
+        # request tries again.
+        logger.error(f"Error getting dashboard stats: {e!r}")
+        raise HTTPException(
+            status_code=503,
+            detail="Dashboard statistics are temporarily unavailable.",
+        )

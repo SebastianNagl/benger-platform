@@ -203,7 +203,7 @@ class TestDashboardStats:
 
     @pytest.mark.asyncio
     async def test_dashboard_stats_exception(self, mock_user):
-        """Test dashboard stats handles exceptions gracefully."""
+        """A failed computation answers 503, never zeros presented as real."""
         from auth_module.dependencies import require_user
 
         with patch("routers.dashboard.cache") as mock_cache, \
@@ -216,8 +216,8 @@ class TestDashboardStats:
             try:
                 async with await _async_client() as client:
                     response = await client.get("/api/dashboard/stats")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["project_count"] == 0  # Default on error
+                assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+                assert "project_count" not in response.json()
+                mock_cache.set.assert_not_called()
             finally:
                 app.dependency_overrides.clear()
