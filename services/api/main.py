@@ -556,6 +556,8 @@ app.include_router(access_keys_availability_router)  # Is the access-key feature
 app.include_router(access_keys_router)  # Access keys (bgr_) for the public /api/v1 (gated)
 from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
+from routers.evaluation_run_relabel import router as evaluation_run_relabel_router  # noqa: E402
+app.include_router(evaluation_run_relabel_router)  # Superadmin: relabel stored evaluation runs from their rows
 from routers.custom_models import router as custom_models_router  # noqa: E402
 app.include_router(custom_models_router)  # BYOM: user-registered OpenAI-compatible models
 from routers.lti_admin import router as lti_admin_router  # noqa: E402
