@@ -14,6 +14,7 @@
     "howTo": "How-to guides",
     "models": "Models",
     "architecture": "Architecture",
+    "publications": "Publications & network",
     "about": "About",
     "quickStart": "Quick Start",
     "projectsAndData": "Projects & Data",
@@ -45,7 +46,7 @@
     "modelSettings": "My Models",
     "userManagement": "User Management",
     "signOut": "Sign Out",
-    "signIn": "Sign In",
+    "signIn": "Sign in",
     "signUp": "Sign up",
     "loggedIn": "Welcome back!",
     "guard": {
@@ -6422,6 +6423,10 @@
         "title": "Architecture",
         "description": "Technical architecture and design of the BenGER project"
       },
+      "publications": {
+        "title": "Publications & network",
+        "description": "Our publications, related legal benchmarks, similar projects and research groups"
+      },
       "projects": {
         "title": "Projects",
         "description": "Browse and manage annotation projects for legal text analysis",
@@ -8885,6 +8890,7 @@
     "detail": {
       "back": "Back",
       "model": "Model",
+      "models": "Models",
       "project": "Project",
       "confusionMatrix": "Confusion Matrix",
       "totalSamples": "Total Samples",
@@ -11669,6 +11675,65 @@
       "invalidXml": "Invalid XML",
       "noRoot": "No root element found",
       "unknownError": "Unknown parsing error"
+    }
+  },
+  "publicationsNetwork": {
+    "intro": "Our own publications, and the work, projects and research groups that BenGER is measured against and connected with. Every entry links to its canonical page.",
+    "paperLink": "Read the paper",
+    "languages": "Languages",
+    "sections": {
+      "ours": {
+        "title": "Our publications",
+        "intro": "The publications from News & Publications on the landing page, each with its article and, where available, the paper."
+      },
+      "related": {
+        "title": "Related publications",
+        "intro": "Benchmarks for legal reasoning and legal NLP in other jurisdictions and languages."
+      },
+      "projects": {
+        "title": "Similar projects",
+        "intro": "Benchmarks, leaderboards and open infrastructure close to BenGER."
+      },
+      "groups": {
+        "title": "Research groups",
+        "intro": "Our group at TUM and related groups whose work is listed here.",
+        "ourGroup": "Our group",
+        "relatedGroups": "Related groups"
+      }
+    },
+    "jurisdictions": {
+      "ch": "Switzerland",
+      "cn": "China",
+      "de": "Germany",
+      "eu": "European Union",
+      "in": "India",
+      "intl": "Several jurisdictions",
+      "kr": "South Korea",
+      "us": "United States"
+    },
+    "entries": {
+      "lexam": "7,537 questions from 340 law exams on Swiss, EU and international law, open-ended and multiple choice, in German and English.",
+      "lawbench": "A benchmark of the legal knowledge of LLMs in Chinese law, from memorisation through understanding to application.",
+      "iltur": "Tasks for understanding and reasoning over Indian legal texts, in English, Hindi and nine Indian languages.",
+      "legalbench": "A benchmark of 162 tasks built together with legal professionals, covering six types of legal reasoning in US law.",
+      "lextreme": "Eleven datasets in 24 languages, mostly from the law of the EU and its member states.",
+      "lboxopen": "LBOX OPEN: Korean court decisions with tasks for legal language understanding and judgement prediction.",
+      "lexglue": "A collection of English legal language understanding tasks, evaluated in a standardised way.",
+      "fairlex": "A fairness benchmark across four jurisdictions (Council of Europe, US, Switzerland, China) and five languages.",
+      "swissjudgment": "Judgment prediction on about 85,000 decisions of the Swiss Federal Supreme Court, in German, French and Italian.",
+      "gerdalir": "123,000 queries over 131,000 German court decisions from Open Legal Data, as a benchmark for legal information retrieval.",
+      "casehold": "More than 53,000 multiple-choice questions on identifying the holding of cited US decisions.",
+      "legalbenchProject": "The LegalBench project site with every task, the data and how to contribute new tasks.",
+      "lexamProject": "The LEXam project site with dataset, code and leaderboard.",
+      "lawbenchProject": "Code, data and leaderboard of LawBench.",
+      "helm": "Holistic evaluation of language models across many scenarios, LegalBench among them.",
+      "dynabench": "An open platform for dynamic dataset creation, where people look for examples that make models fail.",
+      "openlegaldata": "Free, machine-readable access to German statutes and court decisions through a website and an API.",
+      "nllp": "Workshop series and community for natural legal language processing, with talks and resources.",
+      "tumLegalTech": "The TUM Legal Tech Group led by Prof. Matthias Grabmair, where BenGER is built: legal NLP, legal reasoning and legal benchmarking.",
+      "reglab": "Stanford's Regulation, Evaluation, and Governance Lab led by Prof. Daniel E. Ho, a co-author of CaseHOLD and LegalBench.",
+      "hazyresearch": "Prof. Christopher Ré's group at Stanford University, where LegalBench originated.",
+      "ethLawEcon": "The Center for Law & Economics at ETH Zurich, with Prof. Elliott Ash among others, a co-author of LEXam."
     }
   }
 }

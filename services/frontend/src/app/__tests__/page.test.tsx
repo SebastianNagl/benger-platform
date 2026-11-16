@@ -30,10 +30,24 @@ jest.mock('@/components/landing/HeroSection', () => ({
   HeroSection: () => <div data-testid="hero-section">Hero Section</div>,
 }))
 
-jest.mock('@/components/landing/LandingLayout', () => ({
-  LandingLayout: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="landing-layout">{children}</div>
+jest.mock('@/components/layout/Layout', () => ({
+  Layout: ({
+    children,
+    variant,
+  }: {
+    children: React.ReactNode
+    variant?: string
+  }) => (
+    <div data-testid="landing-layout" data-variant={variant}>
+      {children}
+    </div>
   ),
+}))
+
+jest.mock('@/components/layout/SectionProvider', () => ({
+  useSectionStore: (
+    selector: (s: { registerHeading: () => void }) => unknown,
+  ) => selector({ registerHeading: () => {} }),
 }))
 
 // Mock i18n context

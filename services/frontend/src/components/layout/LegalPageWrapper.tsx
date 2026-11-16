@@ -40,6 +40,6 @@ export function LegalPageWrapper({
     )
   }
 
-  // For unauthenticated users, render content directly (MinimalLayout handles wrapper)
+  // For unauthenticated users, render content directly (ConditionalLayout's visitor shell handles the wrapper)
   return <>{children}</>
 }

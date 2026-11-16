@@ -154,6 +154,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'navigation.howTo': 'How-To',
         'navigation.leaderboards': 'Leaderboards',
         'navigation.architecture': 'Architecture',
+        'navigation.publications': 'Publications & network',
         'navigation.about': 'About',
         'navigation.quickStart': 'Quick Start',
         'navigation.projectsAndData': 'Projects & Data',
@@ -637,6 +638,7 @@ describe('Navigation', () => {
         '/how-to',
         '/models',
         '/architecture',
+        '/publications',
       ]) {
         expect(container.querySelector(`a[href="${href}"]`)).not.toBeNull()
       }
@@ -761,6 +763,7 @@ describe('Navigation', () => {
         '/how-to',
         '/models',
         '/architecture',
+        '/publications',
       ]) {
         expect(linkFor(container, href)).not.toBeNull()
       }
@@ -905,6 +908,43 @@ describe('Navigation', () => {
       expect(linkFor(container, '/data')).not.toBeNull()
       expect(linkFor(container, '/generations')).not.toBeNull()
       expect(linkFor(container, '/evaluations')).not.toBeNull()
+    })
+  })
+
+  describe('Visible-section highlight', () => {
+    const mockUseSectionStore =
+      require('@/components/layout/SectionProvider').useSectionStore
+
+    afterEach(() => {
+      mockUseSectionStore.mockImplementation((selector: any) => {
+        const store = { sections: [], visibleSections: [] }
+        return selector ? selector(store) : store
+      })
+    })
+
+    it('moves as the page scrolls in the desktop sidebar', () => {
+      mockUsePathname.mockReturnValue('/dashboard')
+      let visibleSections = ['_top']
+      mockUseSectionStore.mockImplementation((selector: any) => {
+        const store = {
+          sections: [
+            { id: 'overview', title: 'Overview' },
+            { id: 'activity', title: 'Activity' },
+          ],
+          visibleSections,
+        }
+        return selector ? selector(store) : store
+      })
+
+      const { container, rerender } = render(<Navigation />)
+      const highlight = () =>
+        container.querySelector<HTMLElement>('.absolute.inset-x-0.top-0')
+      expect(highlight()?.style.top).toBe('0px')
+
+      // Scrolled to "activity": the highlight follows (2 rows down).
+      visibleSections = ['activity']
+      rerender(<Navigation />)
+      expect(highlight()?.style.top).toBe('64px')
     })
   })
 })

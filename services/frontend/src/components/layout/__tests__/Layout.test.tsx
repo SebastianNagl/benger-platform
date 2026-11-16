@@ -1,9 +1,13 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { useSidebarPeekStore } from '@/components/layout/ShellVariant'
+import { installPointerEventPolyfill } from '@/test-utils/pointerEvent'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Layout } from '../Layout'
 import type { Section } from '../SectionProvider'
+
+installPointerEventPolyfill()
 
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
@@ -876,6 +880,90 @@ describe('Layout', () => {
       await waitFor(() => {
         expect(screen.getByTestId('navigation')).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('Visitor shell', () => {
+    it('renders no sidebar and keeps the content full width', () => {
+      const { container } = render(
+        <Layout {...defaultProps} variant="public" />,
+      )
+      expect(container.querySelector('aside')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('navigation')).not.toBeInTheDocument()
+      const content = container.querySelector('.relative.flex.h-full.flex-col')
+      expect(content).not.toHaveClass('lg:ml-64')
+      expect(screen.getByRole('main')).toHaveTextContent('Test Content')
+    })
+  })
+
+  describe('Sidebar peek (collapsed sidebar as an overlay)', () => {
+    beforeEach(() => {
+      act(() => useSidebarPeekStore.getState().hide())
+      mockUseUIStore.mockReturnValue({ isSidebarHidden: true })
+    })
+
+    afterEach(() => {
+      act(() => useSidebarPeekStore.getState().hide())
+    })
+
+    const sidebar = () => screen.getByTestId('app-sidebar')
+    const content = (container: HTMLElement) =>
+      container.querySelector('.relative.flex.h-full.flex-col')
+
+    it('floats above the page without moving the content', () => {
+      const { container } = render(<Layout {...defaultProps} />)
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'collapsed')
+
+      act(() => useSidebarPeekStore.getState().show())
+
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'peeked')
+      expect(sidebar()).toHaveClass('lg:shadow-2xl')
+      expect(content(container)).not.toHaveClass('lg:ml-64')
+    })
+
+    it('stays while the pointer is over it and hides shortly after it leaves', () => {
+      render(<Layout {...defaultProps} />)
+      act(() => useSidebarPeekStore.getState().show())
+      // The hamburger's leave schedules a hide; entering the sidebar keeps it.
+      act(() => useSidebarPeekStore.getState().hideSoon())
+      fireEvent.pointerEnter(sidebar(), { pointerType: 'mouse' })
+      act(() => jest.advanceTimersByTime(1000))
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'peeked')
+
+      fireEvent.pointerLeave(sidebar(), { pointerType: 'mouse' })
+      act(() => jest.advanceTimersByTime(100))
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'peeked')
+      act(() => jest.advanceTimersByTime(300))
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'collapsed')
+    })
+
+    it('opens for keyboard focus and closes on Escape', () => {
+      render(<Layout {...defaultProps} />)
+      fireEvent.focus(screen.getByTestId('navigation'))
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'peeked')
+
+      fireEvent.keyDown(screen.getByTestId('navigation'), { key: 'Escape' })
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'collapsed')
+    })
+
+    it('hides once focus leaves the sidebar', () => {
+      render(<Layout {...defaultProps} />)
+      fireEvent.focus(screen.getByTestId('navigation'))
+      fireEvent.blur(screen.getByTestId('navigation'), {
+        relatedTarget: document.body,
+      })
+      act(() => jest.advanceTimersByTime(400))
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'collapsed')
+    })
+
+    it('pinned open, the sidebar pushes the content and never peeks', () => {
+      mockUseUIStore.mockReturnValue({ isSidebarHidden: false })
+      const { container } = render(<Layout {...defaultProps} />)
+      fireEvent.pointerEnter(sidebar(), { pointerType: 'mouse' })
+      expect(sidebar()).toHaveAttribute('data-sidebar-state', 'pinned')
+      expect(sidebar()).not.toHaveClass('lg:shadow-2xl')
+      expect(content(container)).toHaveClass('lg:ml-64')
+      expect(useSidebarPeekStore.getState().isPeeking).toBe(false)
     })
   })
 })

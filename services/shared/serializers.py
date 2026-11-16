@@ -14,6 +14,8 @@ The `mode` parameter controls which fields are included:
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from evaluation_run_models import MULTI_MODEL_RUN_LABEL
+
 
 def _isoformat(dt) -> Optional[str]:
     return dt.isoformat() if dt else None
@@ -191,6 +193,7 @@ def serialize_task_evaluation(
     mode: str = "data",
     eval_run=None,
     judge_model_lookup: Optional[dict] = None,
+    generation=None,
 ) -> dict:
     d = {
         "id": te.id,
@@ -225,7 +228,15 @@ def serialize_task_evaluation(
     if mode == "data":
         d.update({
             "evaluation_run_id": te.evaluation_id,
-            "evaluated_model": eval_run.model_id if eval_run else None,
+            # The model of the graded generation; a row over an answer
+            # carries the run's label unless that names no model.
+            "evaluated_model": (
+                generation.model_id
+                if generation is not None
+                else eval_run.model_id
+                if eval_run and eval_run.model_id != MULTI_MODEL_RUN_LABEL
+                else None
+            ),
             # Look up per-row by judge_run_id. The lookup dict is now
             # {judge_run_id: judge_model_id}, sourced from evaluation_judge_runs
             # directly (see build_judge_model_lookup below). Previous impl keyed

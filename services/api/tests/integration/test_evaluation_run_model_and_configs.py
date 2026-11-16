@@ -107,7 +107,8 @@ class TestRunRecordsItsModel:
         assert resp.status_code == 200, resp.text
         run = test_db.get(EvaluationRun, resp.json()["evaluation_id"])
         assert run.model_id == "model-other"
-        assert run.eval_metadata["evaluated_model_ids"] == ["model-other"]
+        assert run.eval_metadata["planned_model_ids"] == ["model-other"]
+        assert "evaluated_model_ids" not in run.eval_metadata
 
     def test_a_run_over_several_models_names_none(self, client, test_db, seeded):
         user, project = seeded
@@ -115,7 +116,8 @@ class TestRunRecordsItsModel:
         assert resp.status_code == 200, resp.text
         run = test_db.get(EvaluationRun, resp.json()["evaluation_id"])
         assert run.model_id == "unknown"
-        assert run.eval_metadata["evaluated_model_ids"] == ["model-common", "model-other"]
+        assert run.eval_metadata["planned_model_ids"] == ["model-common", "model-other"]
+        assert "evaluated_model_ids" not in run.eval_metadata
 
 
 @pytest.mark.integration

@@ -5,6 +5,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Notification, NotificationDropdown } from '../NotificationDropdown'
 
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 // Mock date-fns
 jest.mock('date-fns', () => ({
   formatDistanceToNow: jest.fn(() => '5 minutes ago'),
@@ -559,7 +564,7 @@ describe('NotificationDropdown', () => {
       expect(mockOnMarkAsRead).toHaveBeenCalledWith('1')
     })
 
-    it('closes dropdown when clicking view all', async () => {
+    it('closes dropdown and opens the notifications page on view all', async () => {
       const user = userEvent.setup()
       const notification = createNotification()
 
@@ -574,6 +579,8 @@ describe('NotificationDropdown', () => {
       await user.click(viewAllButton)
 
       expect(mockOnClose).toHaveBeenCalled()
+      // Client-side navigation, no full page reload.
+      expect(mockPush).toHaveBeenCalledWith('/notifications')
     })
 
     it('notification items have cursor pointer', () => {

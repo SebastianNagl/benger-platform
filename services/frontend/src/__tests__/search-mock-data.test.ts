@@ -36,6 +36,7 @@ const REQUIRED_URLS = [
   '/evaluations',
   '/how-to',
   '/models',
+  '/publications',
   '/profile',
   '/settings/notifications',
   '/settings/models',

@@ -168,6 +168,31 @@ test.describe('Info Pages', () => {
     }).toPass({ timeout: 15000 })
   })
 
+  test('publications page lists our papers, related work and groups', async () => {
+    test.setTimeout(60000)
+
+    await page.goto(`${BASE_URL}/publications`, { timeout: 30000 })
+
+    const heading = page.locator('h1').first()
+    await expect(heading).toBeVisible({ timeout: 30000 })
+    await expect(async () => {
+      const text = await heading.textContent()
+      const hasTitle =
+        text?.includes('Publications') || text?.includes('Publikationen')
+      expect(hasTitle).toBe(true)
+    }).toPass({ timeout: 15000 })
+
+    for (const id of ['ours', 'related', 'projects', 'groups']) {
+      await expect(page.locator(`section#${id}`)).toBeVisible()
+    }
+    await expect(
+      page.locator('a[href="https://arxiv.org/abs/2604.13583"]'),
+    ).toBeVisible()
+    await expect(
+      page.locator('a[href="https://tumlegaltech.de/"]'),
+    ).toBeVisible()
+  })
+
   test('about page redirects to home', async () => {
     test.setTimeout(60000)
 

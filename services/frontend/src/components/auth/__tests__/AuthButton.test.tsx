@@ -1004,7 +1004,9 @@ describe('AuthButton', () => {
         'justify-center',
         'gap-2',
         'rounded-full',
-        'px-4',
+        // compact on phones (icon only), roomier once the name shows
+        'px-2',
+        'sm:px-4',
         'h-8',
       )
     })

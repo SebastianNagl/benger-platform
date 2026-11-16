@@ -7,10 +7,9 @@ import { useSlot } from '@/lib/extensions/slots'
 import { useActiveExtensionsReady } from '@/lib/featureFlags'
 import { sebNavigationTarget } from '@/lib/seb'
 import { isExpertOnlyRoute } from '@/lib/utils/routeSurface'
-import { useUIStore } from '@/stores'
 import { motion } from 'framer-motion'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FocusEvent } from 'react'
 
 import { Footer } from '@/components/layout/Footer'
 import { Header } from '@/components/layout/Header'
@@ -19,16 +18,50 @@ import {
   SectionProvider,
   type Section,
 } from '@/components/layout/SectionProvider'
+import {
+  isHoverPointer,
+  ShellVariantProvider,
+  SIDEBAR_ID,
+  SIDEBAR_TOGGLE_ID,
+  useShellSidebar,
+  useSidebarPeekStore,
+  type ShellVariant,
+} from '@/components/layout/ShellVariant'
+import clsx from 'clsx'
 
 export function Layout({
   children,
   allSections,
+  variant = 'app',
 }: {
   children: React.ReactNode
   allSections: Record<string, Array<Section>>
+  /**
+   * `public` renders the same shell for visitors (the landing page and the
+   * public pages): no sidebar, the visitor navigation sits in the top bar.
+   * See ShellVariant.tsx.
+   */
+  variant?: ShellVariant
+}) {
+  return (
+    <ShellVariantProvider value={variant}>
+      <ShellLayout allSections={allSections} variant={variant}>
+        {children}
+      </ShellLayout>
+    </ShellVariantProvider>
+  )
+}
+
+function ShellLayout({
+  children,
+  allSections,
+  variant,
+}: {
+  children: React.ReactNode
+  allSections: Record<string, Array<Section>>
+  variant: ShellVariant
 }) {
   let pathname = usePathname()
-  const { isSidebarHidden } = useUIStore()
   const isHydrated = useHydration()
   const [isInitialRender, setIsInitialRender] = useState(true)
   const { isLoading } = useAuth()
@@ -48,9 +81,8 @@ export function Layout({
     if (target && target !== pathname) router.replace(target)
   }, [pathname, router])
 
-  // During SSR or before hydration, show the sidebar to prevent layout shift
-  // After hydration, use the actual state
-  const showSidebar = isHydrated ? !isSidebarHidden : true
+  const { showSidebar } = useShellSidebar()
+  const isPublic = variant === 'public'
 
   // Track when initial render is complete
   useEffect(() => {
@@ -65,8 +97,9 @@ export function Layout({
 
   // Student/expert shell branch (Issue #35). Only the extended edition can ever
   // render the student shell — short-circuit entirely in community so the
-  // expert layout never pays for the resolution dance.
-  if (isExtendedEdition()) {
+  // expert layout never pays for the resolution dance. The visitor shell has
+  // no session and therefore no mode to resolve.
+  if (!isPublic && isExtendedEdition()) {
     // Until hydration completes or auth resolves, the resolved mode is not yet
     // trustworthy. Render a neutral skeleton rather than flashing the expert
     // layout to a student on first paint. The same holds until this viewer's
@@ -111,31 +144,9 @@ export function Layout({
         {/* Header/Navbar - Always visible */}
         <Header />
 
-        {/* Sidebar - Can be hidden */}
-        <motion.aside
-          className="lg:pointer-events-none lg:fixed lg:inset-0 lg:z-30 lg:flex"
-          suppressHydrationWarning
-        >
-          <motion.div
-            className="lg:pointer-events-auto lg:w-64 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:bg-white lg:px-6 lg:pt-4 lg:pb-8 xl:w-72 2xl:w-80 lg:dark:border-white/10 lg:dark:bg-zinc-900"
-            initial={false}
-            animate={{
-              x: showSidebar ? 0 : -320,
-              opacity: showSidebar ? 1 : 0,
-            }}
-            transition={
-              isInitialRender
-                ? { duration: 0 } // No animation on initial render
-                : {
-                    type: 'spring',
-                    stiffness: 300,
-                    damping: 30,
-                  }
-            }
-          >
-            <Navigation className="hidden lg:mt-16 lg:block" />
-          </motion.div>
-        </motion.aside>
+        {/* Sidebar: the visitor shell has none, its navigation lives in
+            the top bar. */}
+        {!isPublic && <Sidebar isInitialRender={isInitialRender} />}
 
         {/* Main content area */}
         <div className="min-w-0 flex-1">
@@ -148,7 +159,87 @@ export function Layout({
         </div>
       </div>
       {/* eslint-disable-next-line react-hooks/static-components */}
-      {GlobalOnboarding && <GlobalOnboarding shell="expert" />}
+      {GlobalOnboarding && !isPublic && <GlobalOnboarding shell="expert" />}
     </SectionProvider>
+  )
+}
+
+/**
+ * The desktop sidebar of the signed-in shell. Pinned open it pushes the
+ * content aside; collapsed it can still be peeked (see useSidebarPeekStore):
+ * it then floats above the page with a shadow and the content stays put.
+ */
+function Sidebar({ isInitialRender }: { isInitialRender: boolean }) {
+  const { showSidebar } = useShellSidebar()
+  const { isPeeking, show, hideSoon, hide } = useSidebarPeekStore()
+  const isPeeked = isPeeking && !showSidebar
+  const isVisible = showSidebar || isPeeked
+
+  // Pinning the sidebar ends a peek, so unpinning it later does not leave
+  // it floating.
+  useEffect(() => {
+    if (showSidebar) hide()
+  }, [showSidebar, hide])
+
+  // Peeking only matters while collapsed; pinned, these handlers do nothing.
+  const peekHandlers = showSidebar
+    ? {}
+    : {
+        onPointerEnter: (event: React.PointerEvent) => {
+          if (isHoverPointer(event)) show()
+        },
+        onPointerLeave: (event: React.PointerEvent) => {
+          if (isHoverPointer(event)) hideSoon()
+        },
+        // Tabbing into the collapsed sidebar reveals it, so keyboard focus
+        // never lands on links nobody can see.
+        onFocus: show,
+        onBlur: (event: FocusEvent<HTMLElement>) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            hideSoon()
+        },
+        onKeyDown: (event: React.KeyboardEvent) => {
+          if (event.key !== 'Escape') return
+          hide()
+          document.getElementById(SIDEBAR_TOGGLE_ID)?.focus()
+        },
+      }
+
+  return (
+    <motion.aside
+      className="lg:pointer-events-none lg:fixed lg:inset-0 lg:z-30 lg:flex"
+      suppressHydrationWarning
+    >
+      <motion.div
+        id={SIDEBAR_ID}
+        data-testid="app-sidebar"
+        data-sidebar-state={
+          showSidebar ? 'pinned' : isPeeked ? 'peeked' : 'collapsed'
+        }
+        className={clsx(
+          'lg:pointer-events-auto lg:w-64 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:bg-white lg:px-6 lg:pt-4 lg:pb-8 xl:w-72 2xl:w-80 lg:dark:border-white/10 lg:dark:bg-zinc-900',
+          // Floating above the page while peeked.
+          isPeeked &&
+            'lg:shadow-2xl lg:shadow-zinc-900/20 lg:dark:shadow-black/60',
+        )}
+        initial={false}
+        animate={{
+          x: isVisible ? 0 : -320,
+          opacity: isVisible ? 1 : 0,
+        }}
+        transition={
+          isInitialRender
+            ? { duration: 0 } // No animation on initial render
+            : {
+                type: 'spring',
+                stiffness: 300,
+                damping: 30,
+              }
+        }
+        {...peekHandlers}
+      >
+        <Navigation className="hidden lg:mt-16 lg:block" />
+      </motion.div>
+    </motion.aside>
   )
 }

@@ -3,7 +3,7 @@
  *
  * Lists published project reports. There is no frontend gate: the API
  * filters per caller.
- * - Anonymous visitors see public reports (minimal logged-out layout)
+ * - Anonymous visitors see public reports (visitor shell)
  * - Signed-in users additionally see their organizations' published reports
  * - Superadmins see every published report
  *

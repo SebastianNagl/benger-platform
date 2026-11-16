@@ -21,11 +21,6 @@ jest.mock('@/components/layout/Layout', () => ({
     <div data-testid="layout">{children}</div>
   ),
 }))
-jest.mock('@/components/layout/MinimalLayout', () => ({
-  MinimalLayout: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="minimal">{children}</div>
-  ),
-}))
 
 describe('ConditionalLayout loading delay', () => {
   beforeEach(() => jest.useFakeTimers())

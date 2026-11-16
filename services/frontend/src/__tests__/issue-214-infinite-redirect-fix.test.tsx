@@ -75,11 +75,25 @@ jest.mock('@/components/auth/ProtectedRoute', () => ({
   },
 }))
 
-// Mock LandingLayout and HeroSection
-jest.mock('@/components/landing/LandingLayout', () => ({
-  LandingLayout: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="landing-layout">{children}</div>
+// Mock the app shell and HeroSection
+jest.mock('@/components/layout/Layout', () => ({
+  Layout: ({
+    children,
+    variant,
+  }: {
+    children: React.ReactNode
+    variant?: string
+  }) => (
+    <div data-testid="landing-layout" data-variant={variant}>
+      {children}
+    </div>
   ),
+}))
+
+jest.mock('@/components/layout/SectionProvider', () => ({
+  useSectionStore: (
+    selector: (s: { registerHeading: () => void }) => unknown,
+  ) => selector({ registerHeading: () => {} }),
 }))
 
 jest.mock('@/components/landing/HeroSection', () => ({

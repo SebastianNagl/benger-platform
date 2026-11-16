@@ -3,6 +3,7 @@
 import { FeatureFlagsMenuEntry } from '@/components/admin/featureFlags/FeatureFlagsMenuEntry'
 import { LoginModal } from '@/components/auth/LoginModal'
 import { SignupModal } from '@/components/auth/SignupModal'
+import { useIsPublicShell } from '@/components/layout/ShellVariant'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -35,6 +36,10 @@ export function AuthButton() {
   // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
   const AuthMenuExtended = useSlot('AuthMenuExtended')
   const viewMode = useViewModeSwitch()
+  // The visitor shell (landing page) is only ever shown without a session,
+  // so it offers sign-in and sign-up straight away instead of a loading
+  // placeholder while the session check runs.
+  const isPublicShell = useIsPublicShell()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -56,7 +61,7 @@ export function AuthButton() {
   }, [])
 
   // Show loading state during auth loading
-  if (isLoading) {
+  if (isLoading && !isPublicShell) {
     return (
       <Button variant="filled" disabled>
         {t('common.loading')}
@@ -70,7 +75,7 @@ export function AuthButton() {
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
           data-tour="account-menu"
-          className="inline-flex h-8 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm leading-tight font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
+          className="inline-flex h-8 items-center justify-center gap-2 overflow-hidden rounded-full px-2 text-sm leading-tight font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 hover:text-zinc-900 sm:px-4 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <span className="hidden sm:block">{getAccountMenuName(user)}</span>
           <ChevronDownIcon
@@ -225,11 +230,9 @@ export function AuthButton() {
   return (
     <>
       <div className="flex gap-2">
-        <Button
-          onClick={() => setShowLoginModal(true)}
-          variant="filled"
-          className="text-sm"
-        >
+        {/* Outline like the signed-in account pill; sign-up is the one
+            filled call to action. */}
+        <Button onClick={() => setShowLoginModal(true)} variant="outline">
           {t('auth.signIn')}
         </Button>
         <Button variant="filled" onClick={() => setShowSignupModal(true)}>

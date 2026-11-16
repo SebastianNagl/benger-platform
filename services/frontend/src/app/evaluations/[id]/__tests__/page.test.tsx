@@ -925,6 +925,24 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(passRate).not.toHaveClass('text-emerald-600')
     })
 
+    it('names every model of a run over several models', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        model_id: 'unknown',
+        evaluated_models: [
+          { id: 'gpt-5.4', name: 'GPT-5.4' },
+          { id: 'custom-elsewhere', name: null },
+        ],
+      })
+      renderPage()
+      const models = await screen.findByTestId('evaluation-detail-models')
+      expect(models).toHaveTextContent('evaluations.detail.models')
+      expect(models).toHaveTextContent('GPT-5.4, custom-elsewhere')
+      expect(
+        screen.queryByTestId('evaluation-detail-model'),
+      ).not.toBeInTheDocument()
+    })
+
     it('keeps the model and the green pass rate for a graded run', async () => {
       renderPage()
       expect(

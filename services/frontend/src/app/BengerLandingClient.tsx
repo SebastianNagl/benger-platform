@@ -3,17 +3,41 @@
 
 import { HeroSection } from '@/components/landing/HeroSection'
 import { InformationSection } from '@/components/landing/InformationSection'
-import { LandingLayout } from '@/components/landing/LandingLayout'
 import { LicenseCitationSection } from '@/components/landing/LicenseCitationSection'
 import { NewsSection } from '@/components/landing/NewsSection'
 import { PeopleSection } from '@/components/landing/PeopleSection'
+import { Layout } from '@/components/layout/Layout'
+import { LANDING_SECTIONS } from '@/components/layout/PublicNavigation'
+import {
+  useSectionStore,
+  type Section,
+} from '@/components/layout/SectionProvider'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+/**
+ * Hands the section elements to the shell's section store so the top bar
+ * highlights the section in view (pages built from MDX do this through
+ * their headings). Re-runs when the section list changes, e.g. on a language
+ * switch, because the store then replaces its entries.
+ */
+function LandingSectionTracker({ sections }: { sections: Section[] }) {
+  const registerHeading = useSectionStore((s) => s.registerHeading)
+  useEffect(() => {
+    for (const { id } of sections) {
+      const element = document.getElementById(id)
+      // The fixed header (3.5rem) covers the top of the viewport.
+      if (element)
+        registerHeading({ id, ref: { current: element }, offsetRem: 3.5 })
+    }
+  }, [sections, registerHeading])
+  return null
+}
 
 // The benger marketing landing. Rendered by app/page.tsx on non-student-locked
 // hosts (the host is decided server-side there). The client-side isStudentLockedHost
@@ -26,6 +50,10 @@ export default function BengerLandingClient() {
   const router = useRouter()
   const VertretbarLanding = useSlot('VertretbarLanding')
   const [isLocked, setIsLocked] = useState(false)
+  const landingSections = useMemo(
+    () => LANDING_SECTIONS.map(({ id, key }) => ({ id, title: t(key) })),
+    [t],
+  )
 
   // SSR has no auth context — always render the landing layout server-side and
   // wait for the client to mount before branching on isLoading / user. Without
@@ -83,13 +111,16 @@ export default function BengerLandingClient() {
     return <VertretbarLanding />
   }
 
+  // The visitor version of the app shell: the same top bar, holding the
+  // landing sections and the public pages instead of a sidebar.
   return (
-    <LandingLayout>
+    <Layout variant="public" allSections={{ '/': landingSections }}>
+      <LandingSectionTracker sections={landingSections} />
       <HeroSection />
       <InformationSection />
       <NewsSection />
       <PeopleSection />
       <LicenseCitationSection />
-    </LandingLayout>
+    </Layout>
   )
 }

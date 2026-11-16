@@ -119,3 +119,55 @@ class TestModelNamesInResultViews:
         body = resp.json()
         assert body["model_id"] == MODEL
         assert body["model_name"] == "View custom"
+        assert body["evaluated_models"] == [{"id": MODEL, "name": "View custom"}]
+
+    @pytest.mark.asyncio
+    async def test_run_detail_names_every_model_of_a_multi_model_run(
+        self, async_test_client, async_test_db
+    ):
+        """A run over several models is labelled "unknown"; the detail names
+        each model it graded (a model this instance does not list by id)."""
+        user, run = await _seed(async_test_db)
+        run.model_id = "unknown"
+        run.eval_metadata = {
+            "evaluation_type": "evaluation",
+            "evaluated_model_ids": [MODEL, "custom-elsewhere-0002"],
+        }
+        await async_test_db.commit()
+        _as(user)
+        try:
+            resp = await async_test_client.get(f"/api/evaluations/run/results/{run.id}")
+        finally:
+            app.dependency_overrides.pop(require_user, None)
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["model_id"] == "unknown"
+        assert body["evaluated_models"] == [
+            {"id": MODEL, "name": "View custom"},
+            {"id": "custom-elsewhere-0002", "name": None},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_project_run_list_names_every_model_of_a_multi_model_run(
+        self, async_test_client, async_test_db
+    ):
+        """The evaluations page lists a project's runs; a run over several
+        models carries the "unknown" label and names the models it graded."""
+        user, run = await _seed(async_test_db)
+        run.model_id = "unknown"
+        run.eval_metadata = {
+            "evaluation_type": "evaluation",
+            "evaluated_model_ids": [MODEL, "custom-elsewhere-0002"],
+        }
+        await async_test_db.commit()
+        _as(user)
+        try:
+            resp = await async_test_client.get(
+                f"/api/evaluations/run/results/project/{run.project_id}?latest_only=false"
+            )
+        finally:
+            app.dependency_overrides.pop(require_user, None)
+        assert resp.status_code == 200, resp.text
+        (item,) = [e for e in resp.json()["evaluations"] if e["evaluation_id"] == run.id]
+        assert item["model_id"] == "unknown"
+        assert item["evaluated_model_ids"] == [MODEL, "custom-elsewhere-0002"]
