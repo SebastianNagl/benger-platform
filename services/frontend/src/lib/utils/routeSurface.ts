@@ -34,6 +34,7 @@ export const EXPERT_ONLY_ROUTE_PREFIXES = [
   '/models',
   '/organizations',
   '/projects',
+  '/publications',
   '/runs',
   '/users-organizations',
 ] as const

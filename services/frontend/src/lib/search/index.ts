@@ -214,6 +214,15 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
   pages.push(
     page(
       t,
+      '/publications',
+      'publications',
+      cat.knowledge,
+      'publikationen paper veröffentlichungen netzwerk forschungsgruppen verwandte benchmarks projekte publications network',
+    ),
+  )
+  pages.push(
+    page(
+      t,
       '/models',
       'models',
       cat.knowledge,
