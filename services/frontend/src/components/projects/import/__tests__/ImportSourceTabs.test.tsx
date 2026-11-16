@@ -238,18 +238,18 @@ describe('ImportSourceTabs — paste tab', () => {
       'data-line-count',
       '3',
     )
-    expect(screen.getByTestId('test-import-paste-line-count')).toHaveTextContent(
-      '3 lines',
-    )
+    expect(
+      screen.getByTestId('test-import-paste-line-count'),
+    ).toHaveTextContent('3 lines')
   })
 
   it('uses the singular for a single pasted line', async () => {
     const user = userEvent.setup()
     setup({ pastedData: 'only one row' })
     await openPasteTab(user)
-    expect(screen.getByTestId('test-import-paste-line-count')).toHaveTextContent(
-      /^1 line$/,
-    )
+    expect(
+      screen.getByTestId('test-import-paste-line-count'),
+    ).toHaveTextContent(/^1 line$/)
   })
 
   it('toasts the detected format on validate', async () => {
