@@ -124,7 +124,7 @@ export function EvaluationResults({
   const { billingOrganizationId } = useBillingOrganization(String(projectId))
   const { user } = useAuth()
   const { t, locale } = useI18n()
-  const [showHistory, setShowHistory] = useState(false)
+  const [showHistory, setShowHistory] = useState(true)
 
   // Project evaluation results fetch unit (initial fetch + polling +
   // refetch) lives in useResultsData. `refetch` re-fetches without
