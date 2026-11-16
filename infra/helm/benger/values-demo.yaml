@@ -300,7 +300,9 @@ workers:
 # 512Mi/300m attempt OOMKilled both pools on the probe alone (2026-07-28) —
 # the worker booted to `ready.` and then died exit 137. Keep limits at
 # probe-import + worker parent, and CPU high enough that the import beats the
-# probe timeout.
+# probe timeout: 1000m for every pool, as on staging, where the aux and
+# maintenance pods at 500m were restarted by their liveness probe after most
+# deploys (2026-11-11). Requests stay small, so the node reserves nothing more.
 workerPools:
   fast:
     replicaCount: 1
@@ -315,7 +317,7 @@ workerPools:
     replicaCount: 1
     resources:
       limits:
-        cpu: 500m
+        cpu: 1000m
         memory: 768Mi
       requests:
         cpu: 50m
@@ -324,7 +326,7 @@ workerPools:
     replicaCount: 1
     resources:
       limits:
-        cpu: 500m
+        cpu: 1000m
         memory: 768Mi
       requests:
         cpu: 50m
