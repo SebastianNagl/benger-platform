@@ -251,6 +251,52 @@ class TestConfiguredMethodsComplement:
         assert resp.status_code == 404, resp.text
         assert "not found" in resp.json()["detail"]
 
+    @pytest.mark.asyncio
+    async def test_json_null_metrics_row_is_skipped(
+        self, async_test_client, async_test_db
+    ):
+        """A sample row whose metrics column holds JSON ``null`` must not
+        fail the per-metric count: ``jsonb_object_keys`` raises on a scalar,
+        which turned this endpoint into a 500 and left the evaluations page
+        showing no results at all. The null row counts for nothing; the
+        scored row still counts once."""
+        from sqlalchemy import text
+
+        admin = await _seed_user(async_test_db)
+        p = await _project(
+            async_test_db, admin,
+            evaluation_config={
+                "selected_methods": {"answer": {"automated": ["judge"]}}
+            },
+        )
+        p_id = p.id
+        er = await _eval_run(async_test_db, p, admin.id)
+        jr = await _judge_run(async_test_db, er)
+        t1 = await _task(async_test_db, p, admin.id, inner_id=1)
+        g1 = await _generation(async_test_db, p, t1, admin.id)
+        await _task_eval(async_test_db, er, jr, t1, generation=g1,
+                         metrics={"judge": 0.5}, cfg_id="cfg-N")
+        t2 = await _task(async_test_db, p, admin.id, inner_id=2)
+        g2 = await _generation(async_test_db, p, t2, admin.id)
+        bad = await _task_eval(async_test_db, er, jr, t2, generation=g2,
+                               cfg_id="cfg-N")
+        await async_test_db.execute(
+            text("UPDATE task_evaluations SET metrics = 'null' WHERE id = :id"),
+            {"id": bad.id},
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p_id}/configured-methods",
+            )
+        assert resp.status_code == 200, resp.text
+        (field,) = resp.json()["fields"]
+        (method,) = field["automated_methods"]
+        assert method["method_name"] == "judge"
+        assert method["has_results"] is True
+        assert method["result_count"] == 1
+
 
 # ===================================================================
 # GET /significance/{id} — evaluation_config_ids scope branch
@@ -407,6 +453,54 @@ class TestStatisticsComplement:
         # All three shapes counted: (0.2 + 0.4 + 0.6) / 3 = 0.4
         assert stats["n"] == 3
         assert stats["mean"] == pytest.approx(0.4, abs=1e-6)
+
+    @pytest.mark.asyncio
+    async def test_statistics_tolerate_json_null_metrics_row(
+        self, async_test_client, async_test_db
+    ):
+        """A sample row whose metrics column holds JSON ``null`` must not
+        fail the lite projection: ``jsonb_each`` raises on a non-object, so
+        one such row turned every read through metrics_lite (statistics,
+        by-task-model with include_history) into a 500."""
+        from sqlalchemy import text
+
+        admin = await _seed_user(async_test_db)
+        p = await _project(async_test_db, admin)
+        p_id = p.id
+        er = await _eval_run(async_test_db, p, admin.id)
+        jr = await _judge_run(async_test_db, er)
+        t1 = await _task(async_test_db, p, admin.id, inner_id=1)
+        g1 = await _generation(async_test_db, p, t1, admin.id)
+        await _task_eval(async_test_db, er, jr, t1, generation=g1,
+                         metrics={"judge": 0.5}, cfg_id="cfg-N")
+        t2 = await _task(async_test_db, p, admin.id, inner_id=2)
+        g2 = await _generation(async_test_db, p, t2, admin.id)
+        bad = await _task_eval(async_test_db, er, jr, t2, generation=g2,
+                               cfg_id="cfg-N")
+        await async_test_db.execute(
+            text("UPDATE task_evaluations SET metrics = 'null' WHERE id = :id"),
+            {"id": bad.id},
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"{BASE}/projects/{p_id}/statistics",
+                json={
+                    "metrics": ["judge"],
+                    "aggregation": "overall",
+                    "methods": ["ci"],
+                    "evaluation_config_ids": ["cfg-N"],
+                },
+            )
+            assert resp.status_code == 200, resp.text
+            assert resp.json()["metrics"]["judge"]["n"] == 1
+
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p_id}/results/by-task-model"
+                "?include_history=true"
+            )
+            assert resp.status_code == 200, resp.text
 
     @pytest.mark.asyncio
     async def test_cancelled_run_sample_rows_still_count(

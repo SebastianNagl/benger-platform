@@ -21,6 +21,11 @@ survive this projection untouched.
 ``jsonb_each`` requires an explicit cast — Postgres won't auto-promote
 ``json`` to ``jsonb``. Schemas where the column is already jsonb still
 work because the cast is a no-op there.
+
+Rows whose metrics hold a JSON non-object (``null`` is written when a row is
+saved with ``metrics=None``) project to ``{}``: ``jsonb_each`` raises on a
+non-object, which failed the whole query and returned a 500 for every
+history-including by-task-model read of such a project.
 """
 import re
 
@@ -32,7 +37,9 @@ _METRICS_LITE_SQL = """
              THEN v - 'details' - 'method' - 'raw' - 'justification'
              ELSE v END
       ), '{}'::jsonb)
-     FROM jsonb_each({table}.metrics::jsonb) AS j(k, v))
+     FROM jsonb_each(CASE WHEN jsonb_typeof({table}.metrics::jsonb) = 'object'
+                          THEN {table}.metrics::jsonb
+                          ELSE '{}'::jsonb END) AS j(k, v))
 """
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")

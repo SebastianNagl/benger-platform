@@ -253,6 +253,44 @@ only the keys you change); a run with inline `evaluation_configs` on a
 project that has none stores them there when the caller may edit the
 project.
 
+### Re-parsing stored answers
+
+An answer is parsed once, when generation stores it, and keeps that parse
+result when the parser later learns to read more answers (for example the
+`answer`/`reasoning` keys that are now read as `kurzantwort`/`begruendung`).
+`POST /api/projects/{id}/generations/reparse` re-reads given stored answers
+with the current parser, exactly as a new answer is parsed: the project's
+current label config, the prompt structure the answer was generated with,
+and the task's `text` for span positions. It is for superadmins only; an
+access key needs `admin:platform`.
+
+The body is `{"generation_ids": [...], "dry_run": false}` with 1-1,000 ids
+of stored answers (`id` of a generation result, not of the run). The
+answer has `{project_id, dry_run, changed, unchanged, not_found, skipped,
+results}`; each result names the `generation_id`, its `outcome` and, for
+answers of the project, `before` and `after` with `parse_status`,
+`parse_error`, the row `status`, the parsed `fields` and the `mapped_keys`.
+An id that is not an answer of this project is `not_found`; an answer whose
+prompt structure was deleted since is `skipped`.
+
+* `dry_run: true` reports the outcome and writes nothing.
+* The stored answer text (`response_content`) never changes, so an answer
+  the parser cannot read (invalid JSON, misspelled keys) stays as it is and
+  reports `unchanged`.
+* A `changed` answer gets the new `parsed_annotation`, `parse_status` and
+  `parse_error`, its row status follows the parse status as in generation,
+  and its label config version becomes the project's current one. The
+  previous values are appended to `parse_metadata.reparse_history` with
+  `reparsed_at` and `reparsed_by`, so the earlier parse stays recoverable.
+* An answer whose result does not change is not written, so a second call
+  with the same ids reports every answer `unchanged`.
+
+Scores computed from the old parse result stay as they are. Grade the
+re-parsed answers again with `POST /api/evaluations/run`, narrowed with
+`task_ids`, `model_ids` and `structure_keys` and with `force_rerun: true`;
+the new scores are stored under the new evaluation run, next to the old
+rows of the earlier run.
+
 ### Round trip
 
 New tasks come in through the nested import: write them as

@@ -11,6 +11,7 @@ This module aggregates all project-related endpoints into sub-routers:
 - organizations: Organization management
 - members: Member management
 - generation: LLM generation
+- generation_reparse: re-parse stored generations (superadmin)
 - label_config_versions: Label config version management
 """
 
@@ -24,6 +25,7 @@ from routers.projects import (
     crud,
     drafts,
     generation,
+    generation_reparse,
     import_export,
     label_config_versions,
     members,
@@ -50,6 +52,7 @@ router.include_router(annotations.router)
 router.include_router(assignments.router)
 router.include_router(members.router)
 router.include_router(generation.router)
+router.include_router(generation_reparse.router)
 router.include_router(drafts.router)
 router.include_router(questionnaire.router)
 router.include_router(label_config_versions.router)
