@@ -939,6 +939,7 @@
       "projectCreated": "Projekt erfolgreich erstellt!",
       "orgAssignFailed": "Das Projekt wurde erstellt, aber den ausgewählten Organisationen konnte es nicht zugewiesen werden. Bitte weise sie in den Projekteinstellungen zu.",
       "importDataFailed": "Datenimport fehlgeschlagen: {error}",
+      "importDataTimeout": "Der Datenimport ist nach {minutes} Minuten nicht fertig. Das Projekt wurde angelegt; schau später nach, ob seine Aufgaben angekommen sind, oder importiere sie auf der Projektseite erneut.",
       "unknownError": "Unbekannter Fehler",
       "createFailed": "Projekt konnte nicht erstellt werden",
       "customConfigName": "Benutzerdefinierte Konfiguration",

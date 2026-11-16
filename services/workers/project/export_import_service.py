@@ -575,6 +575,55 @@ def import_project_impl(
     finally:
         db.close()
 
+def _fail_escaped_job_impl(action: str, job_id: str, exc: BaseException) -> Dict[str, Any]:
+    """Mark an export or import job failed after its task body raised.
+
+    ``export_project_impl`` and ``import_project_impl`` mark their job failed
+    for anything raised inside their try, but not for what raises before it:
+    their lazy imports (a worker still running code older than the shared
+    models raised ``ImportError`` on ``import_stream`` in the rubric e2e, D01)
+    or opening the session. Such a job stayed ``pending`` for good, and every
+    client polling it waited forever. The Celery task wrappers call this for
+    any exception the body lets escape. ``action`` is ``"export"`` or
+    ``"import"``. A job already past ``running`` is left alone, so this can
+    never turn a committed import into a failed one.
+    """
+    tasks.logger.error(
+        "%s_project: job %s raised outside its handler: %s",
+        action, job_id, exc, exc_info=True,
+    )
+    try:
+        from models import ExportJob, ImportJob, JobStatus
+
+        job_model = ExportJob if action == "export" else ImportJob
+        db = tasks.SessionLocal()
+        try:
+            job = db.query(job_model).filter(job_model.id == job_id).first()
+            if job is not None and job.status in (
+                JobStatus.PENDING.value,
+                JobStatus.RUNNING.value,
+            ):
+                job.status = JobStatus.FAILED.value
+                job.error_message = public_job_error(exc, job_id, action)
+                db.commit()
+                channel_id = job.project_id or job_id
+                tasks._publish_progress(
+                    f"{action}:progress:{channel_id}",
+                    {
+                        "job_id": job_id,
+                        "status": "failed",
+                        "progress": job.progress or 0,
+                    },
+                )
+        finally:
+            db.close()
+    except Exception as inner:
+        tasks.logger.error(
+            "%s_project: failed to mark job %s failed: %s", action, job_id, inner
+        )
+    return {"status": "error", "job_id": job_id, "error": str(exc)}
+
+
 def _fail_import_job_impl(db, job_id: str, message: str) -> Optional[bool]:
     """Roll back and mark an ImportJob failed, publishing a final progress event.
 

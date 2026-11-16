@@ -939,6 +939,7 @@
       "projectCreated": "Projet créé avec succès !",
       "orgAssignFailed": "Le projet a été créé, mais n'a pas pu être attribué aux organisations sélectionnées. Veuillez les attribuer dans les paramètres du projet.",
       "importDataFailed": "Échec de l'import des données : {error}",
+      "importDataTimeout": "L'import des données n'est pas terminé après {minutes} minutes. Le projet a été créé ; vérifiez plus tard si ses tâches sont arrivées, ou importez-les à nouveau depuis la page du projet.",
       "unknownError": "Erreur inconnue",
       "createFailed": "Impossible de créer le projet",
       "customConfigName": "Configuration personnalisée",

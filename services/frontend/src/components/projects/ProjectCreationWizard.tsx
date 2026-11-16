@@ -59,6 +59,13 @@ import { WizardStepIndicator } from './wizard/WizardStepIndicator'
 
 const EMPTY_ORGANIZATIONS: never[] = []
 
+// How long "Projekt erstellen" waits for the import of the wizard's own rows
+// (a handful of tasks, done in seconds on the interactive queue) before it
+// stops the spinner, says the import has not finished, and opens the project.
+// A worker that crashed or never took the job would otherwise keep the wizard
+// spinning for good (rubric e2e D01).
+const WIZARD_IMPORT_TIMEOUT_MS = 3 * 60 * 1000
+
 export function ProjectCreationWizard() {
   const router = useRouter()
   const { t } = useI18n()
@@ -600,7 +607,9 @@ export function ProjectCreationWizard() {
             // the nested envelope to a JSON file, upload it via a presigned URL,
             // then let a worker stream-import it.
             const file = buildImportFile(rows, extras)
-            await projectsAPI.runNestedImportJob(project.id, file)
+            await projectsAPI.runNestedImportJob(project.id, file, undefined, {
+              timeoutMs: WIZARD_IMPORT_TIMEOUT_MS,
+            })
           }
 
           // Cloud-storage selection: the workers pull the selected objects
@@ -613,12 +622,18 @@ export function ProjectCreationWizard() {
           }
         } catch (importError) {
           addToast(
-            t('projects.wizard.importDataFailed', {
-              error:
-                importError instanceof Error
-                  ? importError.message
-                  : t('projects.wizard.unknownError'),
-            }),
+            // By name, not instanceof: an ImportJobTimeoutError (lib/api/projects).
+            importError instanceof Error &&
+            importError.name === 'ImportJobTimeoutError'
+              ? t('projects.wizard.importDataTimeout', {
+                  minutes: Math.round(WIZARD_IMPORT_TIMEOUT_MS / 60000),
+                })
+              : t('projects.wizard.importDataFailed', {
+                  error:
+                    importError instanceof Error
+                      ? importError.message
+                      : t('projects.wizard.unknownError'),
+                }),
             'error',
           )
         }

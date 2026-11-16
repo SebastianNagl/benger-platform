@@ -197,6 +197,40 @@ describe('ProjectCreationWizard — cloud import', () => {
     expect(mockRunNestedImportJob).not.toHaveBeenCalled()
   })
 
+  it('stops at the import deadline with its own toast and opens the project (rubric e2e D01)', async () => {
+    // The wizard's own rows import with a short deadline; a job no worker
+    // settles must not keep "Wird erstellt..." spinning for good.
+    const timeout = new Error('Import job job-1 has not finished after 3 min')
+    timeout.name = 'ImportJobTimeoutError'
+    mockRunNestedImportJob.mockRejectedValue(timeout)
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await walkToDataImportCloudTab(user)
+    await user.click(screen.getByTestId('project-create-paste-tab'))
+    await user.type(
+      screen.getByTestId('project-create-paste-data-textarea'),
+      'text{enter}Sachverhalt',
+    )
+
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+    await user.click(screen.getByTestId('project-create-submit-button'))
+
+    await waitFor(() => expect(mockRunNestedImportJob).toHaveBeenCalled())
+    expect(mockRunNestedImportJob.mock.calls[0][3]).toEqual({
+      timeoutMs: 3 * 60 * 1000,
+    })
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'projects.wizard.importDataTimeout',
+        'error',
+      ),
+    )
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/proj-1'),
+    )
+  })
+
   it('toasts (but still finishes) when the cloud import fails', async () => {
     mockRunCloudImportJobs.mockRejectedValue(
       new Error('imports/a.json: bad payload'),

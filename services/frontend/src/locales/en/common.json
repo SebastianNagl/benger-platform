@@ -939,6 +939,7 @@
       "projectCreated": "Project created successfully!",
       "orgAssignFailed": "Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.",
       "importDataFailed": "Failed to import data: {error}",
+      "importDataTimeout": "The data import has not finished after {minutes} minutes. The project was created; open it later to check whether its tasks arrived, or import them again from the project page.",
       "unknownError": "Unknown error",
       "createFailed": "Failed to create project",
       "customConfigName": "Custom Configuration",
