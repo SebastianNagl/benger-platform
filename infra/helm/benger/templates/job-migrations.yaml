@@ -54,6 +54,8 @@ spec:
               echo "Migrations finished successfully!"
           workingDir: /app
           env:
+            - name: BENGER_APP_VERSION
+              value: {{ .Values.api.image.tag | default .Chart.AppVersion | quote }}
             - name: DATABASE_URI
               valueFrom:
                 secretKeyRef:

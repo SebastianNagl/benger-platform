@@ -202,6 +202,14 @@
       ]
     },
     {
+      "module": "app_version",
+      "name": "app_version",
+      "importers": [
+        "benger_extended/rubric_jobs.py",
+        "benger_extended/rubric_review.py"
+      ]
+    },
+    {
       "module": "auth_module",
       "name": "require_user",
       "importers": [
@@ -223,6 +231,7 @@
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/marketplace.py",
         "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/rubric_readiness.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
@@ -352,7 +361,8 @@
         "benger_extended/exam_tools/sync.py",
         "benger_extended/lti/billing.py",
         "benger_extended/lti/grade_enqueue.py",
-        "benger_extended/lti/grade_sync.py"
+        "benger_extended/lti/grade_sync.py",
+        "benger_extended/rubric_key_check.py"
       ]
     },
     {
@@ -374,6 +384,7 @@
         "benger_extended/api/routers/flashcards.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/live_activity.py",
+        "benger_extended/api/routers/rubric_readiness.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
@@ -1677,6 +1688,28 @@
     },
     {
       "module": "project_models",
+      "name": "RUBRIC_GENERATION_JOB_ENTRY_POINTS",
+      "importers": [
+        "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "RUBRIC_GENERATION_JOB_STATUSES",
+      "importers": [
+        "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "RubricGenerationJob",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
+      "module": "project_models",
       "name": "SkippedTask",
       "importers": [
         "benger_extended/api/routers/seb.py"
@@ -1770,7 +1803,15 @@
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/lti/exam_gate.py",
+        "benger_extended/workers/__init__.py",
         "benger_extended/workers/bewertungsbogen_tasks.py"
+      ]
+    },
+    {
+      "module": "project_models",
+      "name": "TaskRubricReviewEvent",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
       ]
     },
     {
@@ -1966,9 +2007,11 @@
       "importers": [
         "benger_extended/billing/personal_key.py",
         "benger_extended/exam_tools/links.py",
+        "benger_extended/lti/framed_launch.py",
         "benger_extended/lti/identity.py",
         "benger_extended/lti/oidc.py",
-        "benger_extended/lti/pending.py"
+        "benger_extended/lti/pending.py",
+        "benger_extended/rubric_key_check.py"
       ]
     },
     {
@@ -2285,6 +2328,13 @@
       "name": "select_due_counts_by_project",
       "importers": [
         "benger_extended/api/routers/student_decks.py"
+      ]
+    },
+    {
+      "module": "rubric_generation_jobs",
+      "name": "serialize_rubric_generation_job",
+      "importers": [
+        "benger_extended/api/routers/bewertungsbogen.py"
       ]
     },
     {
@@ -2632,6 +2682,13 @@
     },
     {
       "module": "task_rubric_service",
+      "name": "RubricReviewRequired",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
       "name": "RubricValidationError",
       "importers": [
         "benger_extended/api/routers/_rubric_errors.py"
@@ -2703,6 +2760,13 @@
       "name": "validate_custom_model_url",
       "importers": [
         "benger_extended/api/routers/exam_tool_providers.py"
+      ]
+    },
+    {
+      "module": "user_api_key_service",
+      "name": "user_api_key_service",
+      "importers": [
+        "benger_extended/rubric_key_check.py"
       ]
     },
     {

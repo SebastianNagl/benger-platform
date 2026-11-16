@@ -1639,6 +1639,9 @@
     "configCard": {
       "saving": "Speichert…",
       "unsavedChanges": "Ungespeicherte Änderungen"
+    },
+    "rubricReview": {
+      "extendedRequired": "Die Prüfung der Bewertungsbögen erfordert die Extended Edition."
     }
   },
   "tasks": {
@@ -4767,6 +4770,10 @@
     "lti": {
       "extendedRequired": "Die LTI-Verwaltung erfordert die Extended Edition."
     },
+    "rubricGenerationJobs": {
+      "title": "Erzeugungsaufträge für Bewertungsbögen",
+      "extendedRequired": "Die Erzeugungsaufträge für Bewertungsbögen erfordern die Extended Edition."
+    },
     "featureFlagsConsole": {
       "menu": "Feature Flags",
       "intro": "Jede Änderung gilt sofort. „Freigabeliste“ schaltet etwas nur für die eingetragenen Personen und für Mitglieder der eingetragenen Organisationen ein; Superadmins sind nicht automatisch dabei. Ein Paketschalter (extension.…) schaltet ein ganzes Erweiterungspaket ein oder aus, ohne neues Deployment.",
@@ -6540,6 +6547,10 @@
       "lti": {
         "title": "LTI-Integrationen",
         "description": "Anbindungen an Moodle, ILIAS und OpenOlat registrieren und prüfen"
+      },
+      "rubricGenerationJobs": {
+        "title": "Erzeugungsaufträge für Bewertungsbögen",
+        "description": "Erzeugungsaufträge für Bewertungsbögen und warum sie fehlschlugen"
       },
       "emailVerification": {
         "title": "E-Mail-Verifizierung",

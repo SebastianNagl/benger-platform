@@ -14,6 +14,11 @@ Bewertungsbogen PATCH endpoint, the Vertretbar exam create/content PUT):
 - ``activate_task_rubric`` / ``archive_task_rubric``: the one-active-per-task
   invariant (``ux_task_rubrics_one_active`` is non-deferred, so demotion is
   flushed before promotion) plus the ``task.data["bewertungsbogen"]`` mirror.
+  On a project with ``rubric_review_required`` a sheet is activated only
+  when a person confirmed it (``review_state == "confirmed"``), else
+  ``RubricReviewRequired`` is raised before any write. Every activation path
+  (create with ``status="active"``, the clone of an edited active sheet, the
+  platform routes and the overlay's own writes) goes through this rule.
 - ``remirror_project_rubrics`` (async) / ``remirror_project_rubrics_sync``:
   the mirror shows the exam's Notenschlüssel, so every writer of
   ``evaluation_config.grade_scale`` re-renders the mirrors of the project
@@ -27,6 +32,7 @@ so ids and the unique index are settled when it returns.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from types import SimpleNamespace
@@ -71,6 +77,24 @@ class _Unset:
 UNSET: Any = _Unset()
 
 
+#: ``review_state`` of a sheet a person checked and confirmed (the value the
+#: activation rule reads; every other value, NULL included, is "not confirmed").
+REVIEW_STATE_CONFIRMED = "confirmed"
+
+#: Largest ``origin`` (JSON) ``create_task_rubric`` stores.
+MAX_ORIGIN_BYTES = 4096
+
+
+class RubricReviewRequired(Exception):
+    """Activation refused: the project requires a confirmed check first."""
+
+    code = "rubric_review_required"
+
+    def __init__(self, rubric_id: str):
+        super().__init__(rubric_id)
+        self.rubric_id = rubric_id
+
+
 class RubricValidationError(ValueError):
     """Contract violations of the submitted structure / grade scale.
 
@@ -111,6 +135,42 @@ async def _project_evaluation_config(db: AsyncSession, project_id: Optional[str]
         return None
     result = await db.execute(select(Project.evaluation_config).where(Project.id == project_id))
     return result.scalar_one_or_none()
+
+
+async def _review_required(db: AsyncSession, project_id: Optional[str]) -> bool:
+    """``projects.rubric_review_required`` of ``project_id`` (False when unknown)."""
+    if not project_id:
+        return False
+    result = await db.execute(
+        select(Project.rubric_review_required).where(Project.id == project_id)
+    )
+    return bool(result.scalar_one_or_none())
+
+
+async def ensure_activation_allowed(
+    db: AsyncSession, *, rubric_id: str, project_id: Optional[str], review_state: Optional[str]
+) -> None:
+    """Raise ``RubricReviewRequired`` when the project requires a confirmed
+    check and the sheet has none. Writes nothing, so callers run it before
+    their first write."""
+    if review_state == REVIEW_STATE_CONFIRMED:
+        return
+    if await _review_required(db, project_id):
+        raise RubricReviewRequired(rubric_id)
+
+
+def _validated_origin(origin: Any) -> Dict[str, Any]:
+    if not isinstance(origin, dict):
+        raise RubricValidationError(["origin must be an object"])
+    try:
+        size = len(json.dumps(origin, ensure_ascii=False).encode("utf-8"))
+    except (TypeError, ValueError):
+        raise RubricValidationError(["origin must be JSON"]) from None
+    if size > MAX_ORIGIN_BYTES:
+        raise RubricValidationError(
+            [f"origin is {size} bytes, at most {MAX_ORIGIN_BYTES} are stored"]
+        )
+    return origin
 
 
 async def rubric_referenced_by_gradings(db: AsyncSession, rubric_id: str, task_id: str) -> bool:
@@ -193,14 +253,30 @@ async def create_task_rubric(
     source: str = "human",
     status: str = "candidate",
     generation_metadata: Optional[Dict[str, Any]] = None,
+    origin: Optional[Dict[str, Any]] = None,
 ) -> TaskRubric:
-    """Persist a new rubric row from a structure (raises RubricValidationError)."""
+    """Persist a new rubric row from a structure (raises RubricValidationError).
+
+    ``origin`` (where the sheet came from, e.g. ``{"kind": "upload",
+    "file_name": ..., "file_sha256": ..., "parser": "table"}`` or
+    ``{"kind": "manual"}``; a JSON object of at most 4 KB) is stored as
+    ``generation_metadata["origin"]``. A new row has no check recorded, so
+    ``status="active"`` on a project that requires the check raises
+    ``RubricReviewRequired`` before the row is added.
+    """
     normalized, scale, errors = _validated(structure, grade_scale)
     if errors:
         raise RubricValidationError(errors)
     assert normalized is not None
+    if origin is not None:
+        generation_metadata = {**(generation_metadata or {}), "origin": _validated_origin(origin)}
+    rubric_id = str(uuid.uuid4())
+    if status == "active":
+        await ensure_activation_allowed(
+            db, rubric_id=rubric_id, project_id=project_id, review_state=None
+        )
     rubric = TaskRubric(
-        id=str(uuid.uuid4()),
+        id=rubric_id,
         task_id=task.id,
         project_id=project_id,
         title=_clean_title(title),
@@ -330,8 +406,17 @@ async def _clone_for_edit(
         clone_criteria = old.criteria
         clone_total = float(old.total_points or 100.0)
 
+    clone_id = str(uuid.uuid4())
+    was_active = old.status == "active"
+    if was_active:
+        # The clone takes over the check of the old row (copied below), so
+        # it passes exactly when the old row would; refuse before writing,
+        # naming the sheet the caller edited (the clone never exists).
+        await ensure_activation_allowed(
+            db, rubric_id=old.id, project_id=old.project_id, review_state=old.review_state
+        )
     clone = TaskRubric(
-        id=str(uuid.uuid4()),
+        id=clone_id,
         task_id=old.task_id,
         project_id=old.project_id,
         title=old.title if title is UNSET else _clean_title(title),
@@ -345,9 +430,14 @@ async def _clone_for_edit(
         prompt_version=old.prompt_version,
         generation_metadata=clone_meta,
         status="candidate",
+        # An edit of a checked sheet keeps it checked, as the edit in place
+        # does; the overlay's review workflow decides whether an edit
+        # reopens the check.
+        review_state=old.review_state,
+        reviewed_at=old.reviewed_at,
+        reviewed_by=old.reviewed_by,
         created_by=actor_id,
     )
-    was_active = old.status == "active"
     old.status = "archived"
     old.generation_metadata = {**old_meta, "superseded_by": clone.id}
     db.add(clone)
@@ -362,7 +452,14 @@ async def _clone_for_edit(
 async def activate_task_rubric(
     db: AsyncSession, rubric: TaskRubric, task, *, demote_to: str = "candidate"
 ) -> None:
-    """Make ``rubric`` the task's active rubric (others → ``demote_to``) and mirror it."""
+    """Make ``rubric`` the task's active rubric (others → ``demote_to``) and mirror it.
+
+    Raises ``RubricReviewRequired`` before any write when the rubric's
+    project requires a confirmed check and the rubric has none.
+    """
+    await ensure_activation_allowed(
+        db, rubric_id=rubric.id, project_id=rubric.project_id, review_state=rubric.review_state
+    )
     others = await db.execute(
         select(TaskRubric).where(
             TaskRubric.task_id == rubric.task_id,

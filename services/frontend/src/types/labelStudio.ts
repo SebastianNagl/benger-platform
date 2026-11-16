@@ -97,6 +97,10 @@ export interface Project {
   // Safe Exam Browser gate (extended feature; read-only on the project)
   seb_required?: boolean
 
+  // Check step for grading sheets (read-only; set by the extended edition):
+  // a task rubric becomes active only after a person confirmed it
+  rubric_review_required?: boolean
+
   // Restorable draft checkpoints (opt-in)
   restorable_checkpoints_enabled?: boolean
   checkpoint_interval_seconds?: number

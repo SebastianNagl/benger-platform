@@ -838,11 +838,46 @@ whenever one is added, renamed or removed):
   let an LMS frame ``/api/lti/launch`` and ``/api/lti/deep-link`` (besides
   ``/api/lti/register/init``); the API limits framing with CSP
   ``frame-ancestors``. How-to guide ``lti-setup-openolat``.
+
+2.53 (2026-11-16): production-ready rubric grading: generation job records,
+  the check step and the edit log of grading sheets, the app version.
+  - Generation jobs: table ``rubric_generation_jobs`` (migration 136;
+    ``project_models.RubricGenerationJob``,
+    ``RUBRIC_GENERATION_JOB_STATUSES``, ``RUBRIC_GENERATION_JOB_ENTRY_POINTS``;
+    every FK ``SET NULL``, ``celery_task_id`` unique), the serializer
+    ``rubric_generation_jobs.serialize_rubric_generation_job(job, *,
+    project_title, task_inner_id, user_label, organization_name)``, the
+    superadmin read ``GET /api/admin/rubric-generation-jobs`` (filters,
+    ``total``, ``items``, ``facets``) and the slot
+    ``RubricGenerationJobsAdmin`` on ``/admin/rubric-generation-jobs``.
+  - Check step (migration 137): ``projects.rubric_review_required``
+    (``ProjectResponse.rubric_review_required``, read-only),
+    ``task_rubrics.review_state`` / ``reviewed_at`` / ``reviewed_by`` (in
+    ``TaskRubricResponse``), the append-only table
+    ``task_rubric_review_events`` (``project_models.TaskRubricReviewEvent``;
+    a ``BEFORE UPDATE`` trigger allows only the two SET NULL actions).
+    ``task_rubric_service``: ``RubricReviewRequired`` (code
+    ``rubric_review_required``), raised by ``activate_task_rubric`` before
+    any write when the project requires the check and the sheet is not
+    ``"confirmed"`` (so also by ``create_task_rubric(status="active")`` and
+    the clone of an edited active sheet; ``ensure_activation_allowed`` is
+    the rule itself); the clone keeps the review fields;
+    ``create_task_rubric(..., origin=)`` stores ``generation_metadata
+    ["origin"]`` (an object of at most 4 KB). The platform routes answer a
+    refusal with 422 ``{"code": "rubric_review_required", "rubric_id",
+    "message"}``; ``TaskRubricCreate.origin``. Project export and import
+    carry the new columns and the events (``rubrics`` /
+    ``rubric_review_events`` per task, flat ``task_rubric_review_events`` /
+    NDJSON ``task_rubric_review_event``). Slot ``ProjectRubricReviewPage``
+    on ``/projects/[id]/rubric-review``.
+  - ``app_version.app_version()``: the image tag from ``BENGER_APP_VERSION``
+    (set by the Helm chart on the api, every worker, the beat and the
+    migration job), ``None`` when unset.
 """
 
 import os
 
-CORE_API_VERSION = "2.52"
+CORE_API_VERSION = "2.53"
 
 
 def extended_required() -> bool:

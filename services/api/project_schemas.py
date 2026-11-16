@@ -511,6 +511,9 @@ class ProjectResponse(ProjectBase):
     # Safe Exam Browser gate (read-only here; the extended edition owns the
     # settings endpoint that also computes the accepted Config Key).
     seb_required: bool = False
+    # Check step for grading sheets (read-only here; the extended edition
+    # sets it server-side): a task rubric becomes active only once confirmed.
+    rubric_review_required: bool = False
     # Exam tools (read-only here; the extended edition owns the endpoint
     # that validates and writes them). Shape in /shared/exam_tools.py.
     exam_tools: Optional[Dict[str, Any]] = None

@@ -85,9 +85,43 @@ def serialize_task_rubric(rubric) -> dict:
         "prompt_version": rubric.prompt_version,
         "generation_metadata": rubric.generation_metadata,
         "status": rubric.status,
+        "review_state": rubric.review_state,
+        "reviewed_at": _isoformat(rubric.reviewed_at),
+        "reviewed_by": rubric.reviewed_by,
         "created_by": rubric.created_by,
         "created_at": _isoformat(rubric.created_at),
         "updated_at": _isoformat(rubric.updated_at),
+    }
+
+
+#: Columns of a ``task_rubric_review_events`` row that an export carries as
+#: stored (the ids and the timestamp are handled by the caller and importer).
+TASK_RUBRIC_REVIEW_EVENT_FIELDS = (
+    "event",
+    "provenance",
+    "diff",
+    "checklist",
+    "verdict",
+    "notes",
+    "structure_before",
+    "structure_after",
+    "duration_seconds",
+    "app_version",
+    "context",
+)
+
+
+def serialize_task_rubric_review_event(event) -> dict:
+    """Export shape for a ``task_rubric_review_events`` row (the edit and
+    check log of a task's grading sheets). ``task_id``, ``rubric_id`` and
+    ``actor_id`` are the source ids; the importer remaps them."""
+    return {
+        "id": event.id,
+        "task_id": event.task_id,
+        "rubric_id": event.rubric_id,
+        "actor_id": event.actor_id,
+        "created_at": _isoformat(event.created_at),
+        **{field: getattr(event, field) for field in TASK_RUBRIC_REVIEW_EVENT_FIELDS},
     }
 
 

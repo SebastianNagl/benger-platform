@@ -1511,6 +1511,78 @@ class TestTaskRubricRoundtrip:
         assert {r.task_id for r in imported.values()} <= target_task_ids
 
 
+class TestRubricReviewNestedRoundtrip:
+    """The per-task (data) export nests each task's check log under
+    ``rubric_review_events`` next to its ``rubrics``; the nested import
+    remaps task and sheet ids and keeps the person who checked."""
+
+    def test_review_fields_and_log_survive(self, db_session, user, project_with_full_data):
+        from datetime import datetime, timedelta, timezone
+
+        from project_models import TaskRubric, TaskRubricReviewEvent
+
+        data = project_with_full_data
+        project = data["project"]
+        task = data["tasks"][0]
+        reviewed_at = datetime(2026, 11, 16, 9, 30, tzinfo=timezone.utc)
+        sheet = TaskRubric(
+            id=str(uuid.uuid4()), task_id=task.id, project_id=project.id, title="Geprüft",
+            criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 10}}, total_points=10,
+            source="human", status="active", created_by=user.id,
+            review_state="confirmed", reviewed_at=reviewed_at, reviewed_by=user.id,
+        )
+        db_session.add(sheet)
+        db_session.flush()
+        db_session.add_all([
+            TaskRubricReviewEvent(
+                id=str(uuid.uuid4()), project_id=project.id, task_id=task.id, rubric_id=sheet.id,
+                actor_id=user.id, event="recorded", provenance={"kind": "manual"},
+                created_at=reviewed_at,
+            ),
+            TaskRubricReviewEvent(
+                id=str(uuid.uuid4()), project_id=project.id, task_id=task.id, rubric_id=None,
+                actor_id=None, event="reopened", notes="Bogen gelöscht",
+                created_at=reviewed_at + timedelta(minutes=5),
+            ),
+        ])
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        exported = {item["id"]: item for item in export["tasks"]}
+        assert [e["event"] for e in exported[task.id]["rubric_review_events"]] == [
+            "recorded", "reopened",
+        ]
+        assert all("rubric_review_events" not in exported[t.id] for t in data["tasks"][1:])
+        assert exported[task.id]["rubrics"][0]["review_state"] == "confirmed"
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Review target", label_config="<View></View>",
+            created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        result = rt._import(db_session, target.id, export, user.id)
+        assert result["created_rubric_review_events"] == 2
+
+        imported_sheet = db_session.query(TaskRubric).filter(TaskRubric.project_id == target.id).one()
+        assert imported_sheet.review_state == "confirmed"
+        assert imported_sheet.reviewed_at == reviewed_at
+        assert imported_sheet.reviewed_by == user.id
+        events = {
+            e.event: e
+            for e in db_session.query(TaskRubricReviewEvent)
+            .filter(TaskRubricReviewEvent.project_id == target.id)
+            .all()
+        }
+        assert set(events) == {"recorded", "reopened"}
+        assert events["recorded"].rubric_id == imported_sheet.id
+        assert events["recorded"].task_id == imported_sheet.task_id
+        assert events["recorded"].actor_id == user.id
+        assert events["recorded"].provenance == {"kind": "manual"}
+        assert events["reopened"].rubric_id is None and events["reopened"].actor_id is None
+
+
 class TestRubricGradingReferencesSurviveImport:
     """A rubric grading records the sheet it was scored against at
     ``metrics[<key>]["details"]["rubric_id"]``, and import mints fresh rubric
@@ -1799,33 +1871,33 @@ def benchmark_project(db_session, user):
         rgs.append(rg)
         db_session.flush()
 
-        for run in range(2):
+        for run_number in range(2):
             g = Generation(
                 id=str(uuid.uuid4()),
                 generation_id=rg.id,
                 task_id=t.id,
                 model_id=DEV_MODEL,
-                run_index=run,
+                run_index=run_number,
                 case_data=json.dumps(t.data),
-                response_content=f"Answer case {i} run {run}",
+                response_content=f"Answer case {i} run {run_number}",
                 # Reasoning on one run only, so NULL round-trips too.
-                reasoning=None if run else f"Reasoning case {i}",
-                usage_stats={"input_tokens": 100 + run, "output_tokens": 40 + run},
+                reasoning=None if run_number else f"Reasoning case {i}",
+                usage_stats={"input_tokens": 100 + run_number, "output_tokens": 40 + run_number},
                 response_metadata={"finish_reason": "stop"},
                 status="completed",
-                seed=1000 + run,
-                finish_reason="length" if run else "stop",
-                truncated=bool(run),
+                seed=1000 + run_number,
+                finish_reason="length" if run_number else "stop",
+                truncated=bool(run_number),
                 refusal=False,
                 error_type=None,
-                latency_ms=900 + run,
-                input_tokens=100 + run,
-                output_tokens=40 + run,
+                latency_ms=900 + run_number,
+                input_tokens=100 + run_number,
+                output_tokens=40 + run_number,
                 parse_status="success",
                 parsed_annotation=[{"from_name": "answer", "value": {"text": ["x"]}}],
                 parse_metadata={"retry_count": 0},
                 label_config_version="v1",
-                created_at=_T0 + timedelta(minutes=i, seconds=10 + run),
+                created_at=_T0 + timedelta(minutes=i, seconds=10 + run_number),
             )
             db_session.add(g)
             gens.append(g)
