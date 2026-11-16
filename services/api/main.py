@@ -558,6 +558,8 @@ from routers.llm_models_admin import router as llm_models_admin_router  # noqa: 
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
 from routers.evaluation_run_relabel import router as evaluation_run_relabel_router  # noqa: E402
 app.include_router(evaluation_run_relabel_router)  # Superadmin: relabel stored evaluation runs from their rows
+from routers.rubric_generation_jobs_admin import router as rubric_generation_jobs_admin_router  # noqa: E402
+app.include_router(rubric_generation_jobs_admin_router)  # Superadmin: Bewertungsbogen generation jobs and their failure reasons
 from routers.custom_models import router as custom_models_router  # noqa: E402
 app.include_router(custom_models_router)  # BYOM: user-registered OpenAI-compatible models
 from routers.lti_admin import router as lti_admin_router  # noqa: E402

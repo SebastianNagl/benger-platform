@@ -1639,6 +1639,9 @@
     "configCard": {
       "saving": "Enregistrement…",
       "unsavedChanges": "Modifications non enregistrées"
+    },
+    "rubricReview": {
+      "extendedRequired": "La vérification des grilles d'évaluation nécessite l'édition Extended."
     }
   },
   "tasks": {
@@ -4767,6 +4770,10 @@
     "lti": {
       "extendedRequired": "L'administration LTI nécessite l'édition Extended."
     },
+    "rubricGenerationJobs": {
+      "title": "Tâches de génération des grilles d'évaluation",
+      "extendedRequired": "Les tâches de génération des grilles d'évaluation nécessitent l'édition Extended."
+    },
     "featureFlagsConsole": {
       "menu": "Feature flags",
       "intro": "Chaque modification s'applique immédiatement. « Liste d'autorisation » n'active une fonction que pour les personnes inscrites et pour les membres des organisations inscrites ; les superadministrateurs ne sont pas inclus automatiquement. Un interrupteur de paquet (extension.…) active ou désactive tout un paquet d'extension, sans nouveau déploiement.",
@@ -6540,6 +6547,10 @@
       "lti": {
         "title": "Intégrations LTI",
         "description": "Enregistrer et vérifier les connexions Moodle, ILIAS et OpenOlat"
+      },
+      "rubricGenerationJobs": {
+        "title": "Tâches de génération des grilles d'évaluation",
+        "description": "Tâches de génération des grilles d'évaluation et motifs de leurs échecs"
       },
       "emailVerification": {
         "title": "Vérification des e-mails",

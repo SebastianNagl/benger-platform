@@ -1639,6 +1639,9 @@
     "configCard": {
       "saving": "Saving…",
       "unsavedChanges": "Unsaved changes"
+    },
+    "rubricReview": {
+      "extendedRequired": "The check of grading sheets requires the extended edition."
     }
   },
   "tasks": {
@@ -4767,6 +4770,10 @@
     "lti": {
       "extendedRequired": "LTI administration requires the extended edition."
     },
+    "rubricGenerationJobs": {
+      "title": "Grading sheet generation jobs",
+      "extendedRequired": "Grading sheet generation jobs require the extended edition."
+    },
     "featureFlagsConsole": {
       "menu": "Feature Flags",
       "intro": "Every change applies at once. \"Allowlist\" turns something on only for the listed users and for members of the listed organizations; superadmins are not included automatically. A package switch (extension.…) turns a whole extension package on or off, without a redeploy.",
@@ -6539,6 +6546,10 @@
       "lti": {
         "title": "LTI integrations",
         "description": "Register and check Moodle, ILIAS and OpenOlat connections"
+      },
+      "rubricGenerationJobs": {
+        "title": "Grading sheet generation jobs",
+        "description": "Generation jobs of grading sheets and why they failed"
       },
       "emailVerification": {
         "title": "Email verification",

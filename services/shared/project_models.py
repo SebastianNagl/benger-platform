@@ -228,6 +228,16 @@ class Project(Base):
     # built-in defaults. Written only by the extended edition's endpoint.
     exam_tools = Column(JSONB, nullable=True)
 
+    # Check step for grading sheets (migration 137). When true, a task rubric
+    # becomes active only after a person confirmed it
+    # (``task_rubrics.review_state = 'confirmed'``); every activation goes
+    # through ``task_rubric_service.activate_task_rubric``, which enforces it.
+    # Set server-side by the extended edition (new exams), read-only to
+    # ordinary clients. False keeps the behaviour of every existing project.
+    rubric_review_required = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1571,6 +1581,15 @@ class TaskRubric(Base):
     # 'candidate' | 'active' | 'archived'
     status = Column(String(16), nullable=False, server_default="candidate", index=True)
 
+    # Check step (migration 137). ``review_state`` is NULL while no check is
+    # recorded, else a short string the overlay's review workflow owns
+    # (``'confirmed'``, ``'unusable'``). The platform reads it only for one
+    # rule: on a project with ``rubric_review_required`` a sheet is activated
+    # only when it is ``'confirmed'`` (``task_rubric_service``).
+    review_state = Column(String(16), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    reviewed_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
@@ -1587,6 +1606,7 @@ class TaskRubric(Base):
         ),
         sa.Index("ix_task_rubrics_task_status", "task_id", "status"),
         sa.Index("ix_task_rubrics_generator", "project_id", "generator_model_id"),
+        sa.Index("ix_task_rubrics_project_review_state", "project_id", "review_state"),
     )
 
     def __repr__(self):
@@ -1594,6 +1614,193 @@ class TaskRubric(Base):
             f"<TaskRubric(id={self.id}, task_id={self.task_id}, "
             f"status={self.status}, generator={self.generator_model_id})>"
         )
+
+
+RUBRIC_GENERATION_JOB_ENTRY_POINTS = ("wizard", "bulk", "task", "proposal")
+RUBRIC_GENERATION_JOB_STATUSES = ("queued", "running", "completed", "failed", "lost")
+
+
+class RubricGenerationJob(Base):
+    """One Bewertungsbogen generation job (tasks.generate_bewertungsbogen).
+
+    Written by the extended API at dispatch, updated by its status poll and
+    by the Celery task wrapper when the job ends; a job no worker finished in
+    time is marked ``lost`` by an extended beat sweep. Rows outlive the
+    project, task and user (SET NULL) because they are the record of how
+    often generation succeeds. Platform owns the table (migration 136) and
+    the superadmin read (``GET /api/admin/rubric-generation-jobs``,
+    serializer in ``rubric_generation_jobs``); the flow lives in
+    ``benger_extended.api.routers.bewertungsbogen`` and
+    ``benger_extended.rubric_jobs``.
+    """
+
+    __tablename__ = "rubric_generation_jobs"
+
+    id = Column(String, primary_key=True)  # uuid4 str, set by the writer
+    # NULL when the dispatch itself failed; the writer upserts on it.
+    celery_task_id = Column(String(255), nullable=True, unique=True)
+    entry_point = Column(String(16), nullable=False)  # RUBRIC_GENERATION_JOB_ENTRY_POINTS
+    status = Column(String(16), nullable=False, default="queued", server_default="queued")
+
+    project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    # Who started it, and the key/billing organization of the dispatch.
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    organization_id = Column(
+        String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    # The sheet it produced.
+    rubric_id = Column(String, ForeignKey("task_rubrics.id", ondelete="SET NULL"), nullable=True)
+    retry_of = Column(
+        String, ForeignKey("rubric_generation_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+
+    generator_model_id = Column(String(255), nullable=True)
+    prompt_key = Column(String(255), nullable=True)
+    contract = Column(String(64), nullable=True)  # requested contract name, e.g. "checklist"
+    contract_version = Column(String(64), nullable=True)  # e.g. "checklist-8"
+    prompt_sha256 = Column(String(64), nullable=True)
+    validator_sha256 = Column(String(64), nullable=True)
+    app_version = Column(String(128), nullable=True)  # image tag of the dispatching API
+
+    error_code = Column(String(64), nullable=True)
+    error_message = Column(Text, nullable=True)
+    error_stage = Column(String(32), nullable=True)
+    attempts = Column(Integer, nullable=True)
+    attempt_errors = Column(JSONB, nullable=True)  # the worker's list, as returned
+    fallback = Column(String(64), nullable=True)  # e.g. "weichenstellungen_removed"
+
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    # Request parameters that are not columns (exam fact keys given,
+    # allocation mode, metered flag, ...). Small; never prompt text or task
+    # content.
+    details = Column(JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb"))
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Many-to-one only, for the insert order within one flush (a writer may
+    # add the sheet and its job record together); deletes stay with the
+    # database's SET NULL.
+    project = relationship("Project")
+    task = relationship("Task")
+    rubric = relationship("TaskRubric")
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "entry_point IN ('wizard', 'bulk', 'task', 'proposal')",
+            name="ck_rubric_generation_jobs_entry_point",
+        ),
+        sa.CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed', 'lost')",
+            name="ck_rubric_generation_jobs_status",
+        ),
+        sa.Index("ix_rubric_generation_jobs_created", "created_at"),
+        sa.Index("ix_rubric_generation_jobs_status_created", "status", "created_at"),
+        sa.Index("ix_rubric_generation_jobs_project_created", "project_id", "created_at"),
+        sa.Index("ix_rubric_generation_jobs_task_created", "task_id", "created_at"),
+        sa.Index("ix_rubric_generation_jobs_user_created", "user_id", "created_at"),
+        sa.Index("ix_rubric_generation_jobs_org_created", "organization_id", "created_at"),
+    )
+
+
+class TaskRubricReviewEvent(Base):
+    """One entry of the edit and check log of a task's grading sheets.
+
+    Append-only: written only by the overlay's review workflow
+    (``recorded``, ``edited``, ``confirmed``, ``rejected``, ``reopened``;
+    the vocabulary and the JSON shapes of ``provenance``, ``diff``,
+    ``checklist``, ``structure_before``/``structure_after`` and ``context``
+    are the overlay's), never updated. A ``BEFORE UPDATE`` trigger
+    (migration 137, and :data:`TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_DDL`
+    on a schema built from the models) refuses every UPDATE except setting
+    ``rubric_id`` and/or ``actor_id`` to NULL, which the two ``ON DELETE SET
+    NULL`` actions need. DELETE stays allowed (project and task cascades,
+    account erasure).
+    """
+
+    __tablename__ = "task_rubric_review_events"
+
+    id = Column(String, primary_key=True)  # uuid4 str, set by the writer
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # The row the event is about, at the time of the event.
+    rubric_id = Column(
+        String, ForeignKey("task_rubrics.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    actor_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    event = Column(String(24), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    provenance = Column(JSONB, nullable=True)
+    diff = Column(JSONB, nullable=True)
+    checklist = Column(JSONB, nullable=True)
+    # 'unchanged' | 'minor_edits' | 'major_edits' | 'unusable'
+    verdict = Column(String(16), nullable=True)
+    notes = Column(Text, nullable=True)
+    structure_before = Column(JSONB, nullable=True)
+    structure_after = Column(JSONB, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+    app_version = Column(String(128), nullable=True)  # app_version.app_version()
+    context = Column(JSONB, nullable=True)
+
+    # Many-to-one only, so the unit of work inserts the project, task and
+    # sheet before an event that names them in the same flush (an import
+    # adds all of them at once). No collections on the other side: deleting
+    # a sheet or a person leaves the event to the database's SET NULL.
+    project = relationship("Project")
+    task = relationship("Task")
+    rubric = relationship("TaskRubric")
+
+    __table_args__ = (
+        sa.Index("ix_task_rubric_review_events_project_created", "project_id", "created_at"),
+    )
+
+
+# The append-only rule of ``task_rubric_review_events``. Migration 137 runs
+# the same statements (kept verbatim there; a migration never imports the
+# models); a schema built with ``Base.metadata.create_all`` (the test
+# databases) gets them through the ``after_create`` listener below.
+TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_FUNCTION = """
+CREATE OR REPLACE FUNCTION task_rubric_review_events_append_only() RETURNS trigger AS $fn$
+BEGIN
+    IF (to_jsonb(NEW) - 'rubric_id' - 'actor_id') IS DISTINCT FROM (to_jsonb(OLD) - 'rubric_id' - 'actor_id')
+       OR (NEW.rubric_id IS DISTINCT FROM OLD.rubric_id AND NEW.rubric_id IS NOT NULL)
+       OR (NEW.actor_id IS DISTINCT FROM OLD.actor_id AND NEW.actor_id IS NOT NULL) THEN
+        RAISE EXCEPTION 'task_rubric_review_events is append-only'
+            USING ERRCODE = 'restrict_violation';
+    END IF;
+    RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql
+"""
+TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_TRIGGER = """
+CREATE TRIGGER trg_task_rubric_review_events_append_only
+BEFORE UPDATE ON task_rubric_review_events
+FOR EACH ROW EXECUTE FUNCTION task_rubric_review_events_append_only()
+"""
+TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_DDL = (
+    TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_FUNCTION,
+    TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_TRIGGER,
+)
+for _statement in TASK_RUBRIC_REVIEW_EVENTS_APPEND_ONLY_DDL:
+    sa.event.listen(
+        TaskRubricReviewEvent.__table__,
+        "after_create",
+        sa.DDL(_statement).execute_if(dialect="postgresql"),
+    )
+del _statement
 
 
 class GradingFeedback(Base):

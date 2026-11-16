@@ -61,6 +61,7 @@ from project_models import (
     Task,
     TaskAssignment,
     TaskRubric,
+    TaskRubricReviewEvent,
 )
 # serializers relocated to /shared alongside this module (issue #158) so the
 # worker can import it; /shared is first on sys.path in both containers.
@@ -76,6 +77,7 @@ from serializers import (
     serialize_task,
     serialize_task_evaluation,
     serialize_task_rubric,
+    serialize_task_rubric_review_event,
 )
 from sqlalchemy import func as sa_func
 
@@ -129,6 +131,15 @@ def _tasks_in_order(db: Session, project_id: str):
         db.query(Task)
         .filter(Task.project_id == project_id)
         .order_by(Task.inner_id.asc(), Task.created_at.asc(), Task.id.asc())
+    )
+
+
+def _review_events_query(db: Session, project_id: str):
+    """The project's ``task_rubric_review_events`` in log order."""
+    return (
+        db.query(TaskRubricReviewEvent)
+        .filter(TaskRubricReviewEvent.project_id == project_id)
+        .order_by(TaskRubricReviewEvent.created_at, TaskRubricReviewEvent.id)
     )
 
 
@@ -208,6 +219,16 @@ def build_batch_objs(
     rubrics_by_task: dict = {}
     for rubric in rubrics_all:
         rubrics_by_task.setdefault(rubric.task_id, []).append(rubric)
+    # The edit and check log of those sheets (one more batched IN-query).
+    review_events_all = (
+        db.query(TaskRubricReviewEvent)
+        .filter(TaskRubricReviewEvent.task_id.in_(batch_ids))
+        .order_by(TaskRubricReviewEvent.created_at, TaskRubricReviewEvent.id)
+        .all()
+    )
+    review_events_by_task: dict = {}
+    for review_event in review_events_all:
+        review_events_by_task.setdefault(review_event.task_id, []).append(review_event)
 
     out = []
     for task in batch:
@@ -251,6 +272,12 @@ def build_batch_objs(
         rubric_rows = rubrics_by_task.get(task.id, [])
         if rubric_rows:
             task_data["rubrics"] = [serialize_task_rubric(r) for r in rubric_rows]
+        # Same rule for the log: the key only appears when rows exist.
+        review_rows = review_events_by_task.get(task.id, [])
+        if review_rows:
+            task_data["rubric_review_events"] = [
+                serialize_task_rubric_review_event(e) for e in review_rows
+            ]
         out.append(task_data)
 
     # Detach every ORM row this batch pulled in so the Session identity map
@@ -260,7 +287,9 @@ def build_batch_objs(
     # rather than BATCH_SIZE, which OOMKilled the API pod on large exports.
     # The caller's eval_run / judge_model_lookup objects are intentionally
     # left attached — they're reused on every batch.
-    for obj in chain(batch, anns_all, qrs_all, gens_all, te_all, rubrics_all):
+    for obj in chain(
+        batch, anns_all, qrs_all, gens_all, te_all, rubrics_all, review_events_all
+    ):
         db.expunge(obj)
     return out
 
@@ -783,6 +812,8 @@ def stream_comprehensive_project_data_json(
     for rubric in _drain(rubric_q):
         if rubric.created_by:
             user_ids.add(rubric.created_by)
+        if rubric.reviewed_by:
+            user_ids.add(rubric.reviewed_by)
         yield ("" if first else ",") + json.dumps(
             {**serialize_task_rubric(rubric), "task_id": rubric.task_id},
             ensure_ascii=False,
@@ -790,6 +821,26 @@ def stream_comprehensive_project_data_json(
         first = False
         stats["total_task_rubrics"] = stats.get("total_task_rubrics", 0) + 1
     yield "],"
+
+    # --- task_rubric_review_events (light) ---
+    # The edit and check log of the sheets above, after them (the importer
+    # remaps rubric_id through their mapping). The key only appears when the
+    # project has rows, so exports of every other project stay byte-stable.
+    review_q = _review_events_query(db, project_id)
+    if review_q.first() is not None:
+        yield '"task_rubric_review_events": ['
+        first = True
+        for review_event in _drain(review_q):
+            if review_event.actor_id:
+                user_ids.add(review_event.actor_id)
+            yield ("" if first else ",") + json.dumps(
+                serialize_task_rubric_review_event(review_event), ensure_ascii=False
+            )
+            first = False
+            stats["total_task_rubric_review_events"] = (
+                stats.get("total_task_rubric_review_events", 0) + 1
+            )
+        yield "],"
 
     # --- annotations (heavy) ---
     yield '"annotations": ['
@@ -1165,9 +1216,16 @@ def stream_export_ndjson(
             user_ids.add(uid)
     # Bewertungsbogen authors, so the importer resolves them instead of
     # attributing every sheet to whoever runs the import.
-    for (uid,) in (
-        db.query(TaskRubric.created_by)
+    for created_by, reviewed_by in (
+        db.query(TaskRubric.created_by, TaskRubric.reviewed_by)
         .filter(TaskRubric.project_id == project_id)
+    ):
+        user_ids.update(uid for uid in (created_by, reviewed_by) if uid)
+    # Who edited and checked the sheets: the log keeps that person only
+    # when the importer resolves them through these records.
+    for (uid,) in (
+        db.query(TaskRubricReviewEvent.actor_id)
+        .filter(TaskRubricReviewEvent.project_id == project_id)
     ):
         if uid:
             user_ids.add(uid)
@@ -1198,6 +1256,15 @@ def stream_export_ndjson(
             "task_rubric", {**serialize_task_rubric(rubric), "task_id": rubric.task_id}
         )
         stats["total_task_rubrics"] = stats.get("total_task_rubrics", 0) + 1
+
+    # --- task_rubric_review_events (light; after their sheets) ---
+    for review_event in _drain(_review_events_query(db, project_id)):
+        yield _emit(
+            "task_rubric_review_event", serialize_task_rubric_review_event(review_event)
+        )
+        stats["total_task_rubric_review_events"] = (
+            stats.get("total_task_rubric_review_events", 0) + 1
+        )
 
     # --- annotations (heavy) ---
     for ann in _drain(db.query(Annotation).filter(Annotation.project_id == project_id)):
