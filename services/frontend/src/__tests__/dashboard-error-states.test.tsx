@@ -193,6 +193,50 @@ describe('Dashboard error states', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('asks for the stats once after a 503 and shows the failure without retrying', async () => {
+    ;(api.getDashboardStats as jest.Mock).mockRejectedValue(unavailableError())
+
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })}
+      >
+        <DashboardPage />
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('dashboard.statsUnavailable'),
+    ).toBeInTheDocument()
+    expect(api.getDashboardStats).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the recent projects while the stats request is still pending', async () => {
+    ;(api.getDashboardStats as jest.Mock).mockReturnValue(new Promise(() => {}))
+
+    renderDashboard()
+
+    expect(await screen.findByText('Big project')).toBeInTheDocument()
+    for (const key of STAT_KEYS) {
+      expect(screen.getByTestId(`stat-loading-${key}`)).toBeInTheDocument()
+      expect(
+        screen.queryByTestId(`stat-unavailable-${key}`),
+      ).not.toBeInTheDocument()
+    }
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('renders the stats while the recent projects are still pending', async () => {
+    ;(projectsAPI.list as jest.Mock).mockReturnValue(new Promise(() => {}))
+
+    renderDashboard()
+
+    expect(await screen.findByText('48')).toBeInTheDocument()
+    expect(screen.getByText('common.loading')).toBeInTheDocument()
+    expect(
+      screen.queryByText('dashboard.recentProjects.noProjects'),
+    ).not.toBeInTheDocument()
+  })
+
   it('still shows real zero counts as 0', async () => {
     ;(api.getDashboardStats as jest.Mock).mockResolvedValue({
       ...stats,

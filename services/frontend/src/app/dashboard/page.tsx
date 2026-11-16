@@ -101,14 +101,12 @@ export default function DashboardPage() {
       const { default: api } = await import('@/lib/api')
       return api.getDashboardStats() as Promise<DashboardStats>
     },
+    retry: false,
   })
 
   // No zero fallback: when the stats request fails the tiles say the
   // numbers are unavailable instead of showing 0 as if it were a real count.
   const dashboardStats: DashboardStats | undefined = statsQuery.data
-
-  const loading = projectsQuery.isLoading
-  const statsLoading = statsQuery.isLoading
 
   // Sort a copy: the order must not depend on the response order, and the
   // query data must not be mutated in place.
@@ -118,19 +116,6 @@ export default function DashboardPage() {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     )
     .slice(0, RECENT_PROJECTS_COUNT)
-
-  if (loading || statsLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
-          <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-            {t('common.loading')}
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <ResponsiveContainer size="xl" className="pt-8 pb-10">
@@ -182,7 +167,15 @@ export default function DashboardPage() {
           </div>
         </Alert>
       )}
-      <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div
+        className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+        aria-busy={statsQuery.isLoading}
+      >
+        {statsQuery.isLoading && (
+          <p className="sr-only" role="status">
+            {t('common.loading')}
+          </p>
+        )}
         {STAT_TILES.map((tile) => (
           <div
             key={tile.key}
@@ -215,7 +208,13 @@ export default function DashboardPage() {
                     >
                       {t(tile.label)}
                     </dt>
-                    {dashboardStats ? (
+                    {statsQuery.isLoading ? (
+                      <dd
+                        className="mt-1 h-7 w-12 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700"
+                        data-testid={`stat-loading-${tile.key}`}
+                        aria-hidden="true"
+                      />
+                    ) : dashboardStats ? (
                       <dd className="text-lg font-medium text-zinc-900 dark:text-white">
                         {formatStatCount(dashboardStats[tile.key])}
                       </dd>
@@ -256,7 +255,14 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              {projectsQuery.isError ? (
+              {projectsQuery.isLoading ? (
+                <div className="flex flex-col items-center py-8" role="status">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
+                  <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                    {t('common.loading')}
+                  </p>
+                </div>
+              ) : projectsQuery.isError ? (
                 <div className="py-8 text-center" role="alert">
                   <p className="text-sm text-red-700 dark:text-red-300">
                     {t('dashboard.recentProjects.loadFailed')}
