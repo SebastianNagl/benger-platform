@@ -282,6 +282,43 @@ describe('GenerationRunDetailPage', () => {
     expect(screen.getByText(/"temperature": 0.7/)).toBeInTheDocument()
   })
 
+  it('says when the requested seed was not sent (Kolibri-1 K3)', async () => {
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      ...baseDetail,
+      parameters: {
+        temperature: 0.7,
+        seed: null,
+        seed_not_sent: { requested: 42, reason: 'declared_unsupported' },
+      },
+    })
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    const notice = await screen.findByTestId('seed-not-sent-notice')
+    expect(notice).toHaveTextContent(
+      'Seed 42 wurde nicht gesendet: Dieses eigene Modell ist als Modell ohne Seed registriert',
+    )
+    expect(screen.getByText(/"seed": null/)).toBeInTheDocument()
+  })
+
+  it('shows no seed notice when the seed was sent', async () => {
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      ...baseDetail,
+      parameters: { temperature: 0.7, seed: 42 },
+    })
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByText('Parameter')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('seed-not-sent-notice')).not.toBeInTheDocument()
+  })
+
   it('renders the per-trial breakdown table for multi-run with error and preview rows', async () => {
     ;(apiClient.get as jest.Mock).mockResolvedValue({
       ...baseDetail,

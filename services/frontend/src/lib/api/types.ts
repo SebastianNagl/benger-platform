@@ -540,6 +540,8 @@ export interface CustomModel {
   requires_api_key: boolean
   /** Requests generation runs keep in flight at once; null = default (2). */
   max_concurrent_requests?: number | null
+  /** Seconds one request to the endpoint may take; null = default (300). */
+  request_timeout_seconds?: number | null
   input_cost_per_million: number | null
   output_cost_per_million: number | null
   parameter_constraints?: ParameterConstraints | null
@@ -564,6 +566,7 @@ export interface CustomModelCreate {
   endpoint_model_name: string
   requires_api_key: boolean
   max_concurrent_requests?: number
+  request_timeout_seconds?: number
   input_cost_per_million?: number
   output_cost_per_million?: number
   api_key?: string
@@ -578,6 +581,8 @@ export interface CustomModelUpdate {
   requires_api_key?: boolean
   /** null resets to the default. */
   max_concurrent_requests?: number | null
+  /** null resets to the default. */
+  request_timeout_seconds?: number | null
   input_cost_per_million?: number | null
   output_cost_per_million?: number | null
   default_config?: Record<string, unknown>

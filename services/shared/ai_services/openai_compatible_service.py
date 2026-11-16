@@ -16,8 +16,12 @@ Differences from the fixed-provider services:
   ``calculate_cost``/``get_model_cost`` never see custom rows, so using them
   here would silently price everything at 0 while the pre-run estimate
   (cost_estimate.py, DB-based) showed real numbers.
-- Seed is gated on the row's ``parameter_constraints.seed.supported``
-  (constructor arg), not the YAML-backed ``model_supports_seed``.
+- Seed is sent unless the row declares ``parameter_constraints.seed.supported:
+  false`` (constructor arg), not the YAML-backed ``model_supports_seed``.
+  When it is left out, ``metadata["seed"]`` is None and the worker records
+  the requested seed as not sent.
+- The HTTP timeout of one attempt is the row's ``request_timeout_seconds``
+  (``custom_model_request_timeout``); retries keep their count.
 - Reasoning knobs are opt-in per row: ``default_config.reasoning_config``
   (the same declaration the frontend reads to render the effort/budget
   controls) names the parameter forwarded verbatim when a run supplies a
@@ -76,6 +80,31 @@ _REASONING_PARAMS = frozenset(
 )
 
 
+#: Seconds one HTTP attempt against a custom endpoint may take when the model
+#: row sets no ``request_timeout_seconds``. The whole completion has to arrive
+#: within it (the request is not streamed), so a reasoning model's output is
+#: capped at about this many seconds times its decoding speed.
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 300
+#: Bounds of ``llm_models.request_timeout_seconds``. The upper bound stays
+#: below the generation job's 1,800 s Celery soft limit, which has to cover
+#: the request plus the job's own work around it.
+MIN_REQUEST_TIMEOUT_SECONDS = 30
+MAX_REQUEST_TIMEOUT_SECONDS = 1500
+
+
+def custom_model_request_timeout(model: Any) -> int:
+    """The per-attempt HTTP timeout for a custom model row, in seconds.
+
+    The row's ``request_timeout_seconds`` when it is an integer in range
+    (the API validates it on write; a value out of range is clamped here
+    rather than trusted), else the default.
+    """
+    value = getattr(model, "request_timeout_seconds", None)
+    if not isinstance(value, int) or isinstance(value, bool):
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    return max(MIN_REQUEST_TIMEOUT_SECONDS, min(MAX_REQUEST_TIMEOUT_SECONDS, value))
+
+
 class OpenAICompatibleService(BaseAIService):
     """Client for a user-registered OpenAI-compatible endpoint."""
 
@@ -87,9 +116,9 @@ class OpenAICompatibleService(BaseAIService):
         *,
         input_cost_per_million: Optional[float] = None,
         output_cost_per_million: Optional[float] = None,
-        supports_seed: bool = False,
+        supports_seed: bool = True,
         reasoning_param: Optional[str] = None,
-        timeout_s: int = 300,
+        timeout_s: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     ):
         self.base_url = (base_url or "").rstrip("/")
         self.endpoint_model_name = endpoint_model_name
@@ -200,7 +229,9 @@ class OpenAICompatibleService(BaseAIService):
                     "truncated": False,
                     "refusal": False,
                     "error_type": None,
-                    "seed": None,
+                    # Mirrors the real request: the seed goes out unless the
+                    # row declares it unsupported.
+                    "seed": kwargs.get("seed", 42) if self.supports_seed else None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -436,7 +467,7 @@ class OpenAICompatibleService(BaseAIService):
                     "truncated": False,
                     "refusal": False,
                     "error_type": None,
-                    "seed": None,
+                    "seed": kwargs.get("seed", 42) if self.supports_seed else None,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),

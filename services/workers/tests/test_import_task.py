@@ -344,7 +344,77 @@ def test_import_generic_error_marks_failed(_patched):
     assert result["status"] == "error"
     assert "driver exploded" in result["error"]
     assert job.status == "failed"
-    assert "driver exploded" in (job.error_message or "")
+    # The exception text stays in the log; the job gets a generic reason.
+    assert "driver exploded" not in job.error_message
+    assert job.error_message.startswith("The import failed because of an internal error.")
+
+
+class _PgError(Exception):
+    """Stands in for a psycopg2 error: SQLAlchemy keeps it as ``exc.orig``."""
+
+    def __init__(self, message, pgcode):
+        super().__init__(message)
+        self.pgcode = pgcode
+
+
+def _db_error(pgcode):
+    from sqlalchemy.exc import OperationalError
+
+    statement = (
+        "INSERT INTO users (id, username, email, email_verified, "
+        "encrypted_openai_api_key) VALUES (%(id)s, %(username)s, %(email)s, "
+        "%(email_verified)s, %(encrypted_openai_api_key)s)"
+    )
+    return OperationalError(
+        statement,
+        {"id": "u-1", "encrypted_openai_api_key": "gAAAA-secret"},
+        _PgError('canceling statement due to lock timeout in "ix_users_email"', pgcode),
+    )
+
+
+def test_import_database_error_never_reaches_the_job(_patched):
+    """Kolibri-1 K5: a database error's text carries the whole SQL statement
+    with its column list and parameters. The job only says what happened."""
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1")
+    _stage_object(storage, job.object_key, b'{"data": []}')
+
+    def _boom(db, project_id, fileobj, user_id, **_):
+        raise _db_error("XX000")
+
+    with patch("import_stream.run_nested_import", _boom):
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "error"
+    assert job.status == "failed"
+    for leaked in ("INSERT", "encrypted_openai_api_key", "users", "gAAAA"):
+        assert leaked not in job.error_message
+    assert job.error_message == (
+        "The import failed because of an internal error. The server log has "
+        "the details under job ijob-1."
+    )
+
+
+@pytest.mark.parametrize("pgcode", ["55P03", "40P01", "40001"])
+def test_import_concurrent_write_conflict_says_to_retry(_patched, pgcode):
+    """A lock timeout, deadlock or serialization failure is a collision with a
+    concurrent job: reported as 409 import_conflict so a client can retry."""
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1")
+    _stage_object(storage, job.object_key, b'{"data": []}')
+
+    def _boom(db, project_id, fileobj, user_id, **_):
+        raise _db_error(pgcode)
+
+    with patch("import_stream.run_nested_import", _boom):
+        _run_with_job(workers_tasks, ImportJob, job)
+
+    assert job.status == "failed"
+    assert job.error_message == (
+        "409: import_conflict: Another job was writing the same data at the "
+        "same time. Start the import again."
+    )
+    assert "ix_users_email" not in job.error_message
 
 
 def test_import_missing_object_marks_failed(_patched):
@@ -546,7 +616,7 @@ def test_driver_returning_without_the_hook_fails_the_job(_patched):
 
     assert result["status"] == "error"
     assert job.status == "failed"
-    assert "without marking the job completed" in (job.error_message or "")
+    assert job.error_message.startswith("The import failed because of an internal error.")
 
 
 def test_error_after_the_commit_leaves_the_job_completed(_patched):

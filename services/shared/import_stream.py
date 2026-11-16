@@ -40,7 +40,10 @@ once and accepts ``before_commit(result)``: called with the driver's final
 result after the last row is written and just before that commit, it lets the
 caller record its own bookkeeping (the worker marks its ``ImportJob``
 completed there) in the same transaction as the imported rows, so the two can
-never disagree.
+never disagree. The one exception are placeholder accounts for exported
+users this deployment does not know: they are committed on their own, right
+when they are created, so concurrent imports sharing an author do not block
+each other (``_placeholder_users_connection``).
 """
 
 import copy
@@ -55,12 +58,16 @@ import re
 import tempfile
 import uuid
 import zipfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 import ijson
 from ijson.common import ObjectBuilder
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 # models must be imported before project_models so the User mapper is registered
@@ -710,22 +717,9 @@ def run_nested_import(
         if isinstance(he_result, dict) and he_result.get("evaluator_id"):
             import_user_ids.add(he_result["evaluator_id"])
     if import_user_ids:
-        existing_ids = {
-            u.id for u in db.query(User.id).filter(User.id.in_(import_user_ids)).all()
-        }
-        missing_ids = import_user_ids - existing_ids
-        for uid in missing_ids:
-            stub = User(
-                id=uid,
-                username=f"imported-{uid[:8]}",
-                email=f"imported-{uid[:8]}@import.local",
-                name=f"Imported User {uid[:8]}",
-                email_verified=True,
-            )
-            db.add(stub)
-        if missing_ids:
-            db.flush()
-            logger.info(f"Created {len(missing_ids)} stub users for imported annotations")
+        created = _create_nested_stub_users(db, import_user_ids)
+        if created:
+            logger.info(f"Created {created} stub users for imported annotations")
 
     for item in iter_array(fileobj, "data.item"):
         # The old Pydantic List[Dict] rejected non-dict items with a 422;
@@ -1563,6 +1557,75 @@ def _exported_alias(user_data: dict) -> Optional[str]:
     return alias[:100] or None
 
 
+@contextmanager
+def _placeholder_users_connection(db):
+    """A connection that writes placeholder accounts in a short transaction
+    of their own, committed when the block ends.
+
+    An import runs in one long transaction and commits at its very end. A
+    placeholder inserted inside it would hold its unique index entries
+    (username, email, id) uncommitted for the whole import, and a second
+    import of an export sharing that author would wait on them until the
+    worker's ``lock_timeout`` cancels it with ``LockNotAvailable`` (Kolibri-1
+    benchmark, K4). Committed on its own, the placeholder is visible to every
+    import at once; a concurrent insert of the same one waits only for this
+    short transaction and then finds it (``ON CONFLICT DO NOTHING``).
+
+    So a placeholder outlives an import that fails afterwards. It is inert (no
+    password that verifies, no organization), and the next import of the same
+    export reuses it, because its identity is derived from the source user id.
+
+    A session bound to a Connection instead of an Engine (the API test
+    fixtures run each test in one outer transaction) cannot open a second
+    transaction; there the rows go into a savepoint of the caller's own.
+    """
+    bind = db.get_bind()
+    if isinstance(bind, Engine):
+        with bind.begin() as conn:
+            yield conn
+    else:
+        with db.begin_nested():
+            yield db.connection()
+
+
+def _create_nested_stub_users(db, user_ids: Set[str]) -> int:
+    """Create the stub accounts a nested (task) import references by id and
+    this deployment lacks; returns how many this call created.
+
+    Written through :func:`_placeholder_users_connection`, in id order so two
+    imports creating overlapping sets wait for each other in one direction
+    only and cannot deadlock.
+    """
+    users = User.__table__
+    created = 0
+    with _placeholder_users_connection(db) as conn:
+        existing = set(
+            conn.execute(select(users.c.id).where(users.c.id.in_(user_ids))).scalars()
+        )
+        for uid in sorted(user_ids - existing):
+            for label in (uid[:8], _STUB_ID_SAFE.sub("-", uid.lower())[:64]):
+                inserted = conn.execute(
+                    pg_insert(users)
+                    .values(
+                        id=uid,
+                        username=f"imported-{label}",
+                        email=f"imported-{label}@import.local",
+                        name=f"Imported User {uid[:8]}",
+                        email_verified=True,
+                    )
+                    .on_conflict_do_nothing()
+                    .returning(users.c.id)
+                ).first()
+                if inserted is not None:
+                    created += 1
+                    break
+                if conn.execute(select(users.c.id).where(users.c.id == uid)).first():
+                    break  # a concurrent import created it
+                # Another account holds the short label (ids sharing their
+                # first 8 characters); the full id is unique.
+    return created
+
+
 def _get_or_create_stub_user(ctx: _FullImportContext, user_data: dict) -> str:
     """Placeholder for an exported user that exists nowhere on this deployment.
 
@@ -1573,48 +1636,79 @@ def _get_or_create_stub_user(ctx: _FullImportContext, user_data: dict) -> str:
     when the export carries none. The account cannot log in, is in no
     organization, and stays active so the imported work still shows up
     wherever users are listed (leaderboards, Korrektur).
+
+    Written in its own short transaction (:func:`_placeholder_users_connection`)
+    so concurrent imports sharing the author do not block each other.
     """
     old_user_id = user_data.get("id")
     key = _STUB_ID_SAFE.sub("-", str(old_user_id).strip().lower())[:64]
     email = f"{key}@{STUB_EMAIL_DOMAIN}"
     alias = _exported_alias(user_data)
-    # `users.pseudonym` is unique: a local account may hold the same one.
-    # The label still shows through `name`; only the column stays empty.
-    alias_is_free = bool(alias) and (
-        ctx.db.query(User.id)
-        .filter(User.pseudonym == alias, func.lower(User.email) != email)
-        .first()
-        is None
+    users = User.__table__
+    by_email = select(users.c.id, users.c.pseudonym).where(
+        func.lower(users.c.email) == email
     )
 
-    stub = ctx.db.query(User).filter(func.lower(User.email) == email).first()
-    if stub is not None:
+    with _placeholder_users_connection(ctx.db) as conn:
+        # `users.pseudonym` is unique: a local account may hold the same one.
+        # The label still shows through `name`; only the column stays empty.
+        alias_is_free = bool(alias) and (
+            conn.execute(
+                select(users.c.id)
+                .where(users.c.pseudonym == alias, func.lower(users.c.email) != email)
+                .limit(1)
+            ).first()
+            is None
+        )
+
+        stub = conn.execute(by_email).first()
+        if stub is None:
+            # The second attempt drops the pseudonym, for the case that a
+            # concurrent import gave it to another placeholder meanwhile.
+            for pseudonym in dict.fromkeys([alias if alias_is_free else None, None]):
+                inserted = conn.execute(
+                    pg_insert(users)
+                    .values(
+                        id=str(uuid.uuid4()),
+                        username=f"imported_{key}",
+                        email=email,
+                        name=alias or masked_name(user_id=key),
+                        pseudonym=pseudonym,
+                        use_pseudonym=True,
+                        hashed_password=_STUB_PASSWORD_HASH,
+                        is_active=True,
+                        is_superadmin=False,
+                        email_verified=False,
+                    )
+                    .on_conflict_do_nothing()
+                    .returning(users.c.id)
+                ).first()
+                if inserted is not None:
+                    ctx.stub_users_created += 1
+                    return inserted.id
+                stub = conn.execute(by_email).first()
+                if stub is not None:
+                    break  # a concurrent import created it
+            if stub is None:
+                raise RuntimeError(
+                    f"placeholder account {email} conflicts with an existing account"
+                )
+
         # An earlier import (an export without pseudonyms) left a neutral
         # label; take the pseudonym over now that one is on offer.
         if alias and not stub.pseudonym:
-            stub.name = alias
-            if alias_is_free:
-                stub.pseudonym = alias
-            ctx.db.flush()
+            take_over = update(users).where(users.c.id == stub.id)
+            try:
+                with conn.begin_nested():
+                    conn.execute(
+                        take_over.values(
+                            name=alias, pseudonym=alias if alias_is_free else None
+                        )
+                    )
+            except IntegrityError:
+                # Taken by another account meanwhile; keep the label only.
+                conn.execute(take_over.values(name=alias))
         return stub.id
-
-    stub = User(
-        id=str(uuid.uuid4()),
-        username=f"imported_{key}",
-        email=email,
-        name=alias or masked_name(user_id=key),
-        pseudonym=alias if alias_is_free else None,
-        use_pseudonym=True,
-        hashed_password=_STUB_PASSWORD_HASH,
-        is_active=True,
-        is_superadmin=False,
-        email_verified=False,
-    )
-    ctx.db.add(stub)
-    # Annotations and grades reference the row by FK in the same transaction.
-    ctx.db.flush()
-    ctx.stub_users_created += 1
-    return stub.id
 
 
 def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:

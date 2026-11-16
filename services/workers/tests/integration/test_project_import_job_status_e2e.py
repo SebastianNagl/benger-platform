@@ -391,7 +391,10 @@ def test_create_new_import_failing_part_way_writes_nothing(
     assert seen["n"] == ROWS - 10
     assert outcome["status"] == "error"
     assert job.status == "failed"
-    assert job.error_message == "disk full"
+    assert job.error_message == (
+        "The import failed because of an internal error. The server log has "
+        f"the details under job {job.id}."
+    )
     assert job.project_id is None
     assert job.result is None
     assert [p.id for p in _projects_titled(db_conn, title)] == [source.id]
@@ -424,7 +427,8 @@ def test_merge_failing_part_way_writes_nothing(
 
     assert seen["n"] == ROWS - 10
     assert outcome["status"] == "error"
-    assert (job.status, job.error_message) == ("failed", "connection lost")
+    assert job.status == "failed"
+    assert "connection lost" not in job.error_message
     assert job.result is None
     assert _generation_count(db_conn, original.id) == 0
 

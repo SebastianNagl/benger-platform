@@ -44,6 +44,11 @@ from routers.model_access import (
 from services.rate_limiter import rate_limiter
 
 # /shared modules (mounted first on sys.path in the api container)
+from ai_services.openai_compatible_service import (  # noqa: E402
+    DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    MAX_REQUEST_TIMEOUT_SECONDS,
+    MIN_REQUEST_TIMEOUT_SECONDS,
+)
 from custom_model_credential_service import (  # noqa: E402
     delete_credential_async,
     set_credential_async,
@@ -154,6 +159,19 @@ class CustomModelCreate(BaseModel):
             "endpoint; further jobs wait in the queue. Null = the default (2)."
         ),
     )
+    request_timeout_seconds: Optional[int] = Field(
+        None,
+        ge=MIN_REQUEST_TIMEOUT_SECONDS,
+        le=MAX_REQUEST_TIMEOUT_SECONDS,
+        strict=True,
+        description=(
+            "Seconds one request to this endpoint may take before it is "
+            "cancelled and retried. The answer is not streamed, so a "
+            "reasoning model needs enough time for its whole output. "
+            f"{MIN_REQUEST_TIMEOUT_SECONDS}-{MAX_REQUEST_TIMEOUT_SECONDS}; "
+            f"null = the default ({DEFAULT_REQUEST_TIMEOUT_SECONDS})."
+        ),
+    )
     model_type: str = "chat"
     capabilities: List[str] = ["text_generation"]
     input_cost_per_million: Optional[float] = Field(None, ge=0)
@@ -184,6 +202,19 @@ class CustomModelUpdate(BaseModel):
         description=(
             "Requests generation runs keep in flight at once against this "
             "endpoint; further jobs wait in the queue. Null = the default (2)."
+        ),
+    )
+    request_timeout_seconds: Optional[int] = Field(
+        None,
+        ge=MIN_REQUEST_TIMEOUT_SECONDS,
+        le=MAX_REQUEST_TIMEOUT_SECONDS,
+        strict=True,
+        description=(
+            "Seconds one request to this endpoint may take before it is "
+            "cancelled and retried. The answer is not streamed, so a "
+            "reasoning model needs enough time for its whole output. "
+            f"{MIN_REQUEST_TIMEOUT_SECONDS}-{MAX_REQUEST_TIMEOUT_SECONDS}; "
+            f"null = the default ({DEFAULT_REQUEST_TIMEOUT_SECONDS})."
         ),
     )
     model_type: Optional[str] = None
@@ -266,6 +297,8 @@ class CustomModelResponse(BaseModel):
     requires_api_key: bool = True
     # Null = the worker default (generation/endpoint_slots.py).
     max_concurrent_requests: Optional[int] = None
+    # Null = the default (ai_services/openai_compatible_service.py).
+    request_timeout_seconds: Optional[int] = None
     # Caller-specific annotations
     organization_ids: List[str] = []
     has_credential: bool = False
@@ -305,6 +338,7 @@ def _to_response(
         endpoint_model_name=model.endpoint_model_name,
         requires_api_key=model.requires_api_key,
         max_concurrent_requests=model.max_concurrent_requests,
+        request_timeout_seconds=model.request_timeout_seconds,
         organization_ids=organization_ids,
         has_credential=has_credential,
         can_edit=can_edit,
@@ -400,6 +434,7 @@ async def create_custom_model(
         endpoint_model_name=body.endpoint_model_name,
         requires_api_key=body.requires_api_key,
         max_concurrent_requests=body.max_concurrent_requests,
+        request_timeout_seconds=body.request_timeout_seconds,
     )
     db.add(model)
     if share_org_id is not None:

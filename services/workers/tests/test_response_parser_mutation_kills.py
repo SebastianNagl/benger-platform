@@ -756,3 +756,108 @@ class TestNormalizeSpan:
         assert span["start"] == 3
         assert span["end"] == 8
         assert isinstance(span["start"], int)
+
+
+# The Grundprinzipien project's label config: two German answer fields beside
+# the display-only case text.
+GERMAN_QA_CONFIG = """<View>
+  <Text name="fall" value="$fall"/>
+  <Text name="task" value="$task"/>
+  <TextArea name="kurzantwort" toName="task" rows="1"/>
+  <TextArea name="begruendung" toName="task" rows="3"/>
+</View>"""
+
+
+def _fields(result):
+    return {a["from_name"]: a["value"]["text"][0] for a in result.parsed_annotation}
+
+
+class TestAnswerKeyMapping:
+    """Kolibri-1 benchmark K9: answers following the prompt's English keys or
+    the umlaut spelling are read as the German schema fields."""
+
+    def test_english_keys_map_to_the_german_fields(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse('{"answer": "Ja", "reasoning": "§ 242 BGB, Verwirkung."}')
+        assert r.status == "success"
+        assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "§ 242 BGB, Verwirkung."}
+        assert r.mapped_keys == {"answer": "kurzantwort", "reasoning": "begruendung"}
+        assert r.field_values == {
+            "kurzantwort": "Ja",
+            "begruendung": "§ 242 BGB, Verwirkung.",
+        }
+
+    def test_umlaut_and_case_spelling_maps_to_the_ascii_field(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse('{"Kurzantwort": "Nein", "begründung": "§ 311b BGB."}')
+        assert _fields(r) == {"kurzantwort": "Nein", "begruendung": "§ 311b BGB."}
+        assert r.mapped_keys == {"Kurzantwort": "kurzantwort", "begründung": "begruendung"}
+
+    def test_exact_keys_are_not_reported_as_mapped(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse('{"kurzantwort": "Ja", "begruendung": "Weil."}')
+        assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "Weil."}
+        assert r.mapped_keys == {}
+
+    def test_an_exact_field_wins_over_its_alias(self):
+        # `target not in taken`: the German key is pre-taken, so the alias is
+        # kept under its own name and dropped by the label-config filter.
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse(
+            '{"reasoning": "englisch", "begruendung": "deutsch", "answer": "Nein",'
+            ' "kurzantwort": "Ja"}'
+        )
+        assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "deutsch"}
+        assert r.mapped_keys == {}
+
+    def test_first_of_two_spellings_wins(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        r = p.parse('{"answer": "Ja", "Begründung": "erste", "reasoning": "zweite"}')
+        assert _fields(r) == {"kurzantwort": "Ja", "begruendung": "erste"}
+        assert r.mapped_keys == {"answer": "kurzantwort", "Begründung": "begruendung"}
+
+    def test_aliases_need_the_german_field_in_the_schema(self):
+        # A schema with its own English fields reads them exactly.
+        config = '<View><TextArea name="answer" toName="t"/><TextArea name="reasoning" toName="t"/></View>'
+        p = _parser(config)
+        r = p.parse('{"answer": "Ja", "reasoning": "Weil."}')
+        assert _fields(r) == {"answer": "Ja", "reasoning": "Weil."}
+        assert r.mapped_keys == {}
+
+    def test_alias_ignored_when_its_target_is_not_a_field(self):
+        # Only kurzantwort is a field: "reasoning" has no target and is dropped.
+        config = '<View><TextArea name="kurzantwort" toName="t"/></View>'
+        p = _parser(config)
+        r = p.parse('{"answer": "Ja", "reasoning": "Weil."}')
+        assert _fields(r) == {"kurzantwort": "Ja"}
+        assert r.mapped_keys == {"answer": "kurzantwort"}
+
+    def test_mapped_keys_are_validated_against_the_schema(self):
+        # Mapping happens BEFORE schema validation: a required field supplied
+        # under its alias passes.
+        config = (
+            '<View><TextArea name="kurzantwort" toName="t" required="true"/>'
+            '<TextArea name="begruendung" toName="t"/></View>'
+        )
+        p = _parser(config)
+        r = p.parse('{"answer": "Ja", "reasoning": "Weil."}')
+        assert r.status == "success"
+        assert _fields(r)["kurzantwort"] == "Ja"
+
+    def test_generation_structure_fields_are_targets_too(self):
+        p = ResponseParser(
+            generation_structure={"fields": {"begruendung": {"type": "text"}}},
+            label_config="",
+        )
+        mapped, keys = p._map_answer_keys({"reasoning": "Weil.", "other": 1})
+        assert mapped == {"begruendung": "Weil.", "other": 1}
+        assert keys == {"reasoning": "begruendung"}
+
+    def test_non_dict_and_fieldless_input_pass_through(self):
+        p = _parser(GERMAN_QA_CONFIG)
+        assert p._map_answer_keys(["a"]) == (["a"], {})
+        bare = ResponseParser(generation_structure={}, label_config="")
+        assert bare._map_answer_keys({"answer": "Ja"}) == ({"answer": "Ja"}, {})
+
+    def test_default_mapped_keys_is_an_empty_dict(self):
+        assert ParseResult(status="failed").mapped_keys == {}
