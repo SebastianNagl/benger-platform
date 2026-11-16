@@ -30,7 +30,12 @@
     "mobile": {
       "toggleNavigation": "Toggle navigation"
     },
-    "billing": "Plan & billing"
+    "billing": "Plan & billing",
+    "visitor": {
+      "explore": "Explore",
+      "home": "Home",
+      "account": "Account"
+    }
   },
   "header": {
     "expandSidebar": "Expand sidebar",
@@ -45,7 +50,7 @@
     "modelSettings": "My Models",
     "userManagement": "User Management",
     "signOut": "Sign Out",
-    "signIn": "Sign In",
+    "signIn": "Sign in",
     "signUp": "Sign up",
     "loggedIn": "Welcome back!",
     "guard": {

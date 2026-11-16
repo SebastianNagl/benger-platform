@@ -40,10 +40,24 @@ jest.mock('@/contexts/AuthContext', () => ({
 }))
 
 // Mock the landing components
-jest.mock('@/components/landing/LandingLayout', () => ({
-  LandingLayout: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="landing-layout">{children}</div>
+jest.mock('@/components/layout/Layout', () => ({
+  Layout: ({
+    children,
+    variant,
+  }: {
+    children: React.ReactNode
+    variant?: string
+  }) => (
+    <div data-testid="landing-layout" data-variant={variant}>
+      {children}
+    </div>
   ),
+}))
+
+jest.mock('@/components/layout/SectionProvider', () => ({
+  useSectionStore: (
+    selector: (s: { registerHeading: () => void }) => unknown,
+  ) => selector({ registerHeading: () => {} }),
 }))
 
 jest.mock('@/components/landing/HeroSection', () => ({
@@ -95,7 +109,7 @@ describe('Landing Page', () => {
     })
   })
 
-  it('renders landing layout for unauthenticated users', async () => {
+  it('renders the visitor app shell for unauthenticated users', async () => {
     ;(useAuth as jest.Mock).mockReturnValue({
       user: null,
     })
@@ -103,6 +117,11 @@ describe('Landing Page', () => {
     render(<LandingPage />)
 
     expect(screen.getByTestId('landing-layout')).toBeInTheDocument()
+    // The landing page sits in the signed-in app shell, visitor variant.
+    expect(screen.getByTestId('landing-layout')).toHaveAttribute(
+      'data-variant',
+      'public',
+    )
     expect(screen.getByTestId('hero-section')).toBeInTheDocument()
     expect(mockReplace).not.toHaveBeenCalled()
   })

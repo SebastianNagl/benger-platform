@@ -130,7 +130,7 @@ describe('AuthButton', () => {
     mockUseHydration.mockReturnValue(false)
 
     render(<AuthButton />)
-    expect(screen.getByText('Sign In')).toBeInTheDocument()
+    expect(screen.getByText('Sign in')).toBeInTheDocument()
     expect(screen.getByText('Sign up')).toBeInTheDocument()
   })
 
@@ -146,7 +146,7 @@ describe('AuthButton', () => {
     mockUseHydration.mockReturnValue(true)
 
     render(<AuthButton />)
-    expect(screen.getByText('Sign In')).toBeInTheDocument()
+    expect(screen.getByText('Sign in')).toBeInTheDocument()
     expect(screen.getByText('Sign up')).toBeInTheDocument()
   })
 
@@ -267,7 +267,7 @@ describe('AuthButton', () => {
     mockUseHydration.mockReturnValue(true)
 
     render(<AuthButton />)
-    fireEvent.click(screen.getByText('Sign In'))
+    fireEvent.click(screen.getByText('Sign in'))
     expect(screen.getByTestId('login-modal')).toBeInTheDocument()
   })
 

@@ -162,8 +162,8 @@ describe('Navigation br6 - SSR and edge case branches', () => {
       screen.getByText('i18n:navigation.projectsAndData'),
     ).toBeInTheDocument()
     expect(screen.getByText('i18n:navigation.knowledge')).toBeInTheDocument()
-    // Sign in button
-    expect(screen.getByText('i18n:navigation.signIn')).toBeInTheDocument()
+    // No sign-in entry in the workspace sidebar (that is the visitor shell's)
+    expect(screen.queryByText('i18n:navigation.signIn')).not.toBeInTheDocument()
   })
 
   it('renders with isClient=true (i18n translations)', () => {

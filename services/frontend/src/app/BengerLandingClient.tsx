@@ -3,17 +3,50 @@
 
 import { HeroSection } from '@/components/landing/HeroSection'
 import { InformationSection } from '@/components/landing/InformationSection'
-import { LandingLayout } from '@/components/landing/LandingLayout'
 import { LicenseCitationSection } from '@/components/landing/LicenseCitationSection'
 import { NewsSection } from '@/components/landing/NewsSection'
 import { PeopleSection } from '@/components/landing/PeopleSection'
+import { Layout } from '@/components/layout/Layout'
+import {
+  useSectionStore,
+  type Section,
+} from '@/components/layout/SectionProvider'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+// The landing sections, in page order. They appear in the visitor sidebar as
+// anchors below "Home", the same way a long page's sections appear in the
+// signed-in sidebar.
+const LANDING_SECTIONS = [
+  { id: 'information', key: 'landing.nav.information' },
+  { id: 'news', key: 'landing.nav.news' },
+  { id: 'people', key: 'landing.nav.people' },
+  { id: 'license', key: 'landing.nav.license' },
+] as const
+
+/**
+ * Hands the section elements to the shell's section store so the sidebar
+ * highlights the sections in view (pages built from MDX do this through
+ * their headings). Re-runs when the section list changes, e.g. on a language
+ * switch, because the store then replaces its entries.
+ */
+function LandingSectionTracker({ sections }: { sections: Section[] }) {
+  const registerHeading = useSectionStore((s) => s.registerHeading)
+  useEffect(() => {
+    for (const { id } of sections) {
+      const element = document.getElementById(id)
+      // The fixed header (3.5rem) covers the top of the viewport.
+      if (element)
+        registerHeading({ id, ref: { current: element }, offsetRem: 3.5 })
+    }
+  }, [sections, registerHeading])
+  return null
+}
 
 // The benger marketing landing. Rendered by app/page.tsx on non-student-locked
 // hosts (the host is decided server-side there). The client-side isStudentLockedHost
@@ -26,6 +59,10 @@ export default function BengerLandingClient() {
   const router = useRouter()
   const VertretbarLanding = useSlot('VertretbarLanding')
   const [isLocked, setIsLocked] = useState(false)
+  const landingSections = useMemo(
+    () => LANDING_SECTIONS.map(({ id, key }) => ({ id, title: t(key) })),
+    [t],
+  )
 
   // SSR has no auth context — always render the landing layout server-side and
   // wait for the client to mount before branching on isLoading / user. Without
@@ -83,13 +120,16 @@ export default function BengerLandingClient() {
     return <VertretbarLanding />
   }
 
+  // The visitor version of the signed-in app shell: same header and
+  // sidebar, the sidebar collapsed and holding only public entries.
   return (
-    <LandingLayout>
+    <Layout variant="public" allSections={{ '/': landingSections }}>
+      <LandingSectionTracker sections={landingSections} />
       <HeroSection />
       <InformationSection />
       <NewsSection />
       <PeopleSection />
       <LicenseCitationSection />
-    </LandingLayout>
+    </Layout>
   )
 }
