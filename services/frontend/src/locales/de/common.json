@@ -3048,7 +3048,7 @@
       "defaultMaxTokens": "Standard Max. Tokens",
       "defaultMaxTokensDesc": "Standard-Antwortlänge (100-16000)",
       "seed": "Seed",
-      "seedDesc": "Zufalls-Seed für Reproduzierbarkeit (Standard: 42). Anbieter ohne Seed-Unterstützung (Anthropic, Google, Kimi/MiniMax) ignorieren diesen Wert.",
+      "seedDesc": "Zufalls-Seed für Reproduzierbarkeit (Standard: 42). Modelle ohne Seed-Unterstützung (Anthropic, Google, Kimi/MiniMax) bekommen keinen, und der Lauf vermerkt, dass der Seed nicht gesendet wurde.",
       "perModelTokenLimits": "Token-Limits pro Modell",
       "perModelTokenLimitsDesc": "Leer lassen für Standardwert. Einen benutzerdefinierten Wert setzen, um für bestimmte Modelle zu überschreiben.",
       "totalGenerationsPerTask": "Generierungen pro Aufgabe insgesamt:",
@@ -3072,6 +3072,10 @@
       "fixedTemperatureOne": "{models} erfordert eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für dieses Modell.",
       "fixedTemperatureOther": "{models} erfordern eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für diese Modelle.",
       "noStructures": "Dieses Projekt hat keine Prompt-Struktur für die Generierung. Lege im Bereich „Prompts“ der Projektseite eine an, dann kannst du die Generierung starten."
+    },
+    "seedNotSent": {
+      "unsupportedByModel": "Seed {seed} wurde nicht gesendet: Dieses Modell nimmt keinen Seed an, die Antworten sind ohne Seed entstanden.",
+      "declaredUnsupported": "Seed {seed} wurde nicht gesendet: Dieses eigene Modell ist als Modell ohne Seed registriert (parameter_constraints.seed.supported ist false), die Antworten sind ohne Seed entstanden."
     }
   },
   "notifications": {
@@ -9138,6 +9142,7 @@
       "status": "Status",
       "model": "Modell",
       "runs": "Läufe",
+      "runsFailed": "({count} fehlgeschlagen)",
       "started": "Gestartet",
       "completed": "Abgeschlossen",
       "task": "Task",
@@ -9234,6 +9239,9 @@
       "maxConcurrentRequests": "Gleichzeitige Anfragen",
       "maxConcurrentRequestsHelp": "Wie viele Anfragen eine Generierung gleichzeitig an diesen Endpunkt schickt. Weitere Aufgaben warten in der Warteschlange, nicht beim Anbieter, wo die Wartezeit auf ihr Zeitlimit angerechnet würde. Leer lassen für den Standardwert 2.",
       "maxConcurrentRequestsInvalid": "Eine ganze Zahl von 1 bis {max} oder leer",
+      "requestTimeoutSeconds": "Zeitlimit pro Anfrage (Sekunden)",
+      "requestTimeoutSecondsHelp": "Wie lange eine Anfrage an diesen Endpunkt dauern darf, bevor sie abgebrochen und wiederholt wird. Die Antwort kommt in einem Stück, ein Reasoning-Modell braucht also genug Zeit für seine ganze Ausgabe. Leer lassen für den Standardwert von {default} s; erlaubt sind {min} bis {max} s.",
+      "requestTimeoutSecondsInvalid": "Eine ganze Zahl von {min} bis {max} oder leer",
       "requiresApiKey": "API-Schlüssel erforderlich",
       "requiresApiKeyHelp": "Deaktivieren, wenn der Endpunkt ohne Authentifizierung erreichbar ist (z. B. ein lokaler Ollama-Server). Andernfalls hinterlegt jeder Nutzer seinen eigenen Schlüssel.",
       "reasoningParam": "Reasoning-Parameter",

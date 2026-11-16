@@ -641,4 +641,96 @@ describe('CustomModelFormModal', () => {
       expect('max_concurrent_requests' in payload).toBe(false)
     })
   })
+
+  describe('Request timeout (request_timeout_seconds)', () => {
+    const timeoutInput = () =>
+      screen.getByTestId(
+        'custom-model-request-timeout-seconds-input',
+      ) as HTMLInputElement
+
+    it('create: an empty field sends no timeout (the default applies)', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      expect(timeoutInput().placeholder).toBe('300')
+      await fillRequired(user)
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect('request_timeout_seconds' in payload).toBe(false)
+    })
+
+    it('create: sends the typed timeout', async () => {
+      const user = userEvent.setup()
+      render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+      await fillRequired(user)
+      await user.type(timeoutInput(), '1200')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.create).toHaveBeenCalled())
+      const payload = (customModelsAPI.create as jest.Mock).mock.calls[0][0]
+      expect(payload.request_timeout_seconds).toBe(1200)
+    })
+
+    it.each(['29', '1501', '600.5'])(
+      'rejects %s before calling the API',
+      async (value) => {
+        const user = userEvent.setup()
+        render(<CustomModelFormModal isOpen onClose={mockOnClose} />)
+
+        await fillRequired(user)
+        await user.type(timeoutInput(), value)
+        await user.click(screen.getByTestId('custom-model-form-submit'))
+
+        expect(
+          await screen.findByText(
+            'customModels.form.requestTimeoutSecondsInvalid',
+          ),
+        ).toBeInTheDocument()
+        expect(customModelsAPI.create).not.toHaveBeenCalled()
+      },
+    )
+
+    it('edit: prefills the stored timeout and clearing it resets to the default', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          model={{ ...existingModel, request_timeout_seconds: 900 }}
+        />,
+      )
+
+      expect(timeoutInput().value).toBe('900')
+      await user.clear(timeoutInput())
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() =>
+        expect(customModelsAPI.update).toHaveBeenCalledWith('custom-42', {
+          request_timeout_seconds: null,
+        }),
+      )
+    })
+
+    it('edit: an unchanged timeout is not sent', async () => {
+      const user = userEvent.setup()
+      render(
+        <CustomModelFormModal
+          isOpen
+          onClose={mockOnClose}
+          model={{ ...existingModel, request_timeout_seconds: 900 }}
+        />,
+      )
+
+      await user.clear(screen.getByTestId('custom-model-name-input'))
+      await user.type(screen.getByTestId('custom-model-name-input'), 'Renamed')
+      await user.click(screen.getByTestId('custom-model-form-submit'))
+
+      await waitFor(() => expect(customModelsAPI.update).toHaveBeenCalled())
+      const payload = (customModelsAPI.update as jest.Mock).mock.calls[0][1]
+      expect('request_timeout_seconds' in payload).toBe(false)
+    })
+  })
 })

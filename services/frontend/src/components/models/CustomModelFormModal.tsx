@@ -74,6 +74,7 @@ interface FormState {
   endpoint_model_name: string
   requires_api_key: boolean
   max_concurrent_requests: string
+  request_timeout_seconds: string
   input_cost: string
   output_cost: string
   api_key: string
@@ -83,6 +84,12 @@ interface FormState {
 // Bounds of llm_models.max_concurrent_requests (CustomModelCreate); empty
 // means the worker default.
 export const MAX_CONCURRENT_REQUESTS_LIMIT = 256
+
+// Bounds and default of llm_models.request_timeout_seconds (CustomModelCreate,
+// openai_compatible_service.py); empty means the default.
+export const MIN_REQUEST_TIMEOUT_SECONDS = 30
+export const MAX_REQUEST_TIMEOUT_SECONDS = 1500
+export const DEFAULT_REQUEST_TIMEOUT_SECONDS = 300
 
 // The reasoning knobs the worker can forward — mirrors the backend
 // allowlist in OpenAICompatibleService (_REASONING_PARAMS). 'none' keeps
@@ -101,6 +108,7 @@ const emptyForm: FormState = {
   endpoint_model_name: '',
   requires_api_key: true,
   max_concurrent_requests: '',
+  request_timeout_seconds: '',
   input_cost: '',
   output_cost: '',
   api_key: '',
@@ -129,6 +137,10 @@ function formFromModel(model: CustomModel): FormState {
     max_concurrent_requests:
       model.max_concurrent_requests != null
         ? String(model.max_concurrent_requests)
+        : '',
+    request_timeout_seconds:
+      model.request_timeout_seconds != null
+        ? String(model.request_timeout_seconds)
         : '',
     input_cost:
       model.input_cost_per_million != null
@@ -328,6 +340,24 @@ export function CustomModelFormModal({
       }
     }
 
+    const timeout = form.request_timeout_seconds.trim()
+    if (timeout !== '') {
+      const value = Number(timeout)
+      if (
+        !Number.isInteger(value) ||
+        value < MIN_REQUEST_TIMEOUT_SECONDS ||
+        value > MAX_REQUEST_TIMEOUT_SECONDS
+      ) {
+        next.request_timeout_seconds = t(
+          'customModels.form.requestTimeoutSecondsInvalid',
+          {
+            min: MIN_REQUEST_TIMEOUT_SECONDS,
+            max: MAX_REQUEST_TIMEOUT_SECONDS,
+          },
+        )
+      }
+    }
+
     const inputCost = form.input_cost.trim()
     const outputCost = form.output_cost.trim()
     if ((inputCost === '') !== (outputCost === '')) {
@@ -360,6 +390,11 @@ export function CustomModelFormModal({
     if (form.max_concurrent_requests.trim() !== '') {
       payload.max_concurrent_requests = Number(
         form.max_concurrent_requests.trim(),
+      )
+    }
+    if (form.request_timeout_seconds.trim() !== '') {
+      payload.request_timeout_seconds = Number(
+        form.request_timeout_seconds.trim(),
       )
     }
     if (form.input_cost.trim() !== '') {
@@ -402,6 +437,14 @@ export function CustomModelFormModal({
         : Number(form.max_concurrent_requests.trim())
     if (concurrency !== (original.max_concurrent_requests ?? null)) {
       payload.max_concurrent_requests = concurrency
+    }
+
+    const timeout =
+      form.request_timeout_seconds.trim() === ''
+        ? null
+        : Number(form.request_timeout_seconds.trim())
+    if (timeout !== (original.request_timeout_seconds ?? null)) {
+      payload.request_timeout_seconds = timeout
     }
 
     const inputCost =
@@ -783,6 +826,37 @@ export function CustomModelFormModal({
                     {t('customModels.form.maxConcurrentRequestsHelp')}
                   </p>
                   {fieldError('max_concurrent_requests')}
+                </div>
+
+                {/* Request timeout (llm_models.request_timeout_seconds) */}
+                <div>
+                  <label
+                    htmlFor="custom-model-request-timeout-seconds"
+                    className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  >
+                    {t('customModels.form.requestTimeoutSeconds')}
+                  </label>
+                  <Input
+                    id="custom-model-request-timeout-seconds"
+                    type="number"
+                    min={MIN_REQUEST_TIMEOUT_SECONDS}
+                    max={MAX_REQUEST_TIMEOUT_SECONDS}
+                    step={1}
+                    value={form.request_timeout_seconds}
+                    onChange={(e) =>
+                      setField('request_timeout_seconds', e.target.value)
+                    }
+                    placeholder={String(DEFAULT_REQUEST_TIMEOUT_SECONDS)}
+                    data-testid="custom-model-request-timeout-seconds-input"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t('customModels.form.requestTimeoutSecondsHelp', {
+                      default: DEFAULT_REQUEST_TIMEOUT_SECONDS,
+                      min: MIN_REQUEST_TIMEOUT_SECONDS,
+                      max: MAX_REQUEST_TIMEOUT_SECONDS,
+                    })}
+                  </p>
+                  {fieldError('request_timeout_seconds')}
                 </div>
 
                 {/* Pricing */}

@@ -1,5 +1,6 @@
 'use client'
 
+import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
 import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
@@ -201,7 +202,9 @@ export default function GenerationRunDetailPage({
           </div>
           <div className="mt-1 font-mono text-sm">
             {data.runs_completed ?? 0}/{data.runs_requested ?? 1}
-            {data.runs_failed ? ` (${data.runs_failed} fehlgeschlagen)` : ''}
+            {data.runs_failed
+              ? ` ${t('generations.detail.runsFailed', { count: data.runs_failed })}`
+              : ''}
           </div>
         </div>
         <div>
@@ -265,6 +268,7 @@ export default function GenerationRunDetailPage({
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
             {t('generations.detail.parameters')}
           </h2>
+          <SeedNotSentNotice parameters={data.parameters} className="mb-2" />
           <pre className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
             {JSON.stringify(data.parameters, null, 2)}
           </pre>

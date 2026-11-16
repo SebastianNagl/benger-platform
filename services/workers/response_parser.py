@@ -13,6 +13,16 @@ from xml.etree import ElementTree as ET
 import jsonschema
 from jsonschema import validate
 
+# English keys an answer may use for a field of a German answer schema, by
+# that field's name. The Grundprinzipien ``default`` structure's instruction
+# prompt asked for {"answer": ..., "reasoning": ...} while its label config
+# (and the judge reading ``model:begruendung``) names the fields
+# ``kurzantwort``/``begruendung``. Answers that followed the prompt parsed as
+# "success" without either field and scored near zero (Kolibri-1 benchmark,
+# K9). Applied only when the schema has the German field and the answer lacks
+# it, so a schema with its own ``answer`` field is unaffected.
+ENGLISH_KEY_ALIASES = {"answer": "kurzantwort", "reasoning": "begruendung"}
+
 
 @dataclass
 class ParseResult:
@@ -22,10 +32,15 @@ class ParseResult:
     parsed_annotation: Optional[List[Dict]] = None  # Label Studio JSONB format
     error: Optional[str] = None
     field_values: Dict[str, Any] = None
+    # Answer keys read as a schema field of another name ({"answer":
+    # "kurzantwort"}); see ResponseParser._map_answer_keys.
+    mapped_keys: Dict[str, str] = None
 
     def __post_init__(self):
         if self.field_values == None:
             self.field_values = {}
+        if self.mapped_keys is None:
+            self.mapped_keys = {}
 
 
 class ResponseParser:
@@ -43,6 +58,12 @@ class ResponseParser:
         # Parse label_config FIRST since _build_json_schema may reference it
         self.label_config_map = self._parse_label_config(label_config)
         self.json_schema = self._build_json_schema(generation_structure)
+        # The answer fields a response key may name.
+        self._answer_fields = list(self.label_config_map) + [
+            name
+            for name in (generation_structure or {}).get("fields", {}) or {}
+            if name not in self.label_config_map
+        ]
 
     def parse(self, response_text: str, source_text: str = None) -> ParseResult:
         """Parse LLM response text.
@@ -106,6 +127,8 @@ class ResponseParser:
                 if labels_field:
                     parsed_data = {labels_field: parsed_data}
 
+            parsed_data, mapped_keys = self._map_answer_keys(parsed_data)
+
             # Validate against schema if available
             if self.json_schema:
                 try:
@@ -120,13 +143,46 @@ class ResponseParser:
             field_values = self._extract_field_values(ls_annotation)
 
             return ParseResult(
-                status="success", parsed_annotation=ls_annotation, field_values=field_values
+                status="success",
+                parsed_annotation=ls_annotation,
+                field_values=field_values,
+                mapped_keys=mapped_keys,
             )
 
         except json.JSONDecodeError as e:
             return ParseResult(status="failed", error=f"JSON parsing failed: {str(e)}")
         except Exception as e:
             return ParseResult(status="failed", error=f"Unexpected error in JSON parsing: {str(e)}")
+
+    def _map_answer_keys(self, parsed_data: Any):
+        """Read the English name of a German schema field as that field.
+
+        Returns ``(data, mapped)``: the answer with such keys renamed, and
+        ``{original key: field}`` for every rename. A key is renamed when it
+        is, ignoring case, an English name in :data:`ENGLISH_KEY_ALIASES`
+        whose German field the schema has. A field the answer already names
+        exactly keeps its value; an alias of it is left as it is.
+        """
+        if not isinstance(parsed_data, dict) or not self._answer_fields:
+            return parsed_data, {}
+        fields = set(self._answer_fields)
+
+        taken = {key for key in parsed_data if key in fields}
+        result: Dict[str, Any] = {}
+        mapped: Dict[str, str] = {}
+        for key, value in parsed_data.items():
+            target = None
+            if key not in fields and isinstance(key, str):
+                alias = ENGLISH_KEY_ALIASES.get(key.strip().casefold())
+                if alias in fields:
+                    target = alias
+            if target is not None and target not in taken:
+                taken.add(target)
+                result[target] = value
+                mapped[key] = target
+            else:
+                result[key] = value
+        return result, mapped
 
     def _try_pattern_match(self, response_text: str) -> ParseResult:
         """Attempt to parse response using regex pattern matching.

@@ -468,6 +468,114 @@ class TestConcurrencyLimit:
         assert reset_response.json()["max_concurrent_requests"] is None
 
 
+class TestRequestTimeout:
+    """``request_timeout_seconds``: how long one request to the endpoint may
+    take (Kolibri-1 benchmark, K2); null means the default of 300 s."""
+
+    @pytest.mark.asyncio
+    async def test_create_stores_the_timeout(self, async_test_client, async_test_db):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Reasoning model on the lab server",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "kolibri-1",
+                    "request_timeout_seconds": 1200,
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["request_timeout_seconds"] == 1200
+        row = await async_test_db.get(DBLLMModel, response.json()["id"])
+        assert row.request_timeout_seconds == 1200
+
+    @pytest.mark.asyncio
+    async def test_create_without_timeout_keeps_the_default(
+        self, async_test_client, async_test_db
+    ):
+        user = _make_user()
+        async_test_db.add(user)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/custom-models/",
+                json={
+                    "name": "Default timeout",
+                    "base_url": "http://10.10.3.7:8000/v1",
+                    "endpoint_model_name": "qwen3-4b",
+                },
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["request_timeout_seconds"] is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("bad", [0, 29, 1501, "600", 600.5, True])
+    async def test_out_of_range_is_refused(self, async_test_client, async_test_db, bad):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"request_timeout_seconds": bad},
+            )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("edge", [30, 1500])
+    async def test_bounds_are_accepted(self, async_test_client, async_test_db, edge):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"request_timeout_seconds": edge},
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["request_timeout_seconds"] == edge
+
+    @pytest.mark.asyncio
+    async def test_patch_sets_and_null_resets(self, async_test_client, async_test_db):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            set_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"request_timeout_seconds": 900},
+            )
+            other_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}", json={"description": "lab"}
+            )
+            reset_response = await async_test_client.patch(
+                f"/api/custom-models/{model.id}",
+                json={"request_timeout_seconds": None},
+            )
+        assert set_response.json()["request_timeout_seconds"] == 900
+        # A PATCH that does not name the timeout keeps it.
+        assert other_response.json()["request_timeout_seconds"] == 900
+        assert reset_response.status_code == status.HTTP_200_OK
+        assert reset_response.json()["request_timeout_seconds"] is None
+
+
 class TestOrgSharedAccess:
     @pytest.mark.asyncio
     async def test_org_member_can_read_but_not_modify(

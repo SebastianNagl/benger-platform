@@ -298,7 +298,12 @@ def test_export_failure_aborts_and_marks_failed(_patched):
     assert result["status"] == "error"
     assert "generator exploded" in result["error"]
     assert job.status == "failed"
-    assert job.error_message and "generator exploded" in job.error_message
+    # The exception text stays in the log; the job gets a generic reason.
+    assert "generator exploded" not in job.error_message
+    assert job.error_message == (
+        "The export failed because of an internal error. The server log "
+        "has the details under job job-1."
+    )
     # Aborted upload leaves no staging file and no final object.
     leftovers = []
     for root, _dirs, files in os.walk(storage.local_storage_path):

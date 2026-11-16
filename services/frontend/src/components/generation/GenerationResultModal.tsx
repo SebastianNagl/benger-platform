@@ -1,6 +1,7 @@
 'use client'
 
 import { GenerationReasoning } from '@/components/generation/GenerationReasoning'
+import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
@@ -544,6 +545,10 @@ export function GenerationResultModal({
                               {/* Prompt used */}
                               {renderPrompt(result.prompt_used)}
 
+                              <SeedNotSentNotice
+                                parameters={result.parameters}
+                              />
+
                               {/* Parameters (if available) */}
                               {result.parameters &&
                                 Object.keys(result.parameters).length > 0 && (
@@ -661,6 +666,10 @@ export function GenerationResultModal({
 
                                             {/* Prompt used */}
                                             {renderPrompt(entry.prompt_used)}
+
+                                            <SeedNotSentNotice
+                                              parameters={entry.parameters}
+                                            />
 
                                             {/* Parameters */}
                                             {entry.parameters &&

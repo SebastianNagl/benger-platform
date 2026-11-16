@@ -13,7 +13,10 @@ from .deepinfra_service import DeepInfraService
 from .google_service import GoogleService
 from .grok_service import GrokService
 from .mistral_service import MistralService
-from .openai_compatible_service import OpenAICompatibleService
+from .openai_compatible_service import (
+    OpenAICompatibleService,
+    custom_model_request_timeout,
+)
 from .openai_service import OpenAIService
 import sys
 import os
@@ -381,8 +384,15 @@ class UserAwareAIService:
             constraints = model.parameter_constraints
             if not isinstance(constraints, dict):
                 constraints = {}
+            # Seed is sent unless the row explicitly declares it unsupported:
+            # vLLM, SGLang, llama.cpp, Ollama and LM Studio all accept the
+            # OpenAI ``seed`` field, and a row that never mentioned seed used
+            # to go out unseeded while the run config showed one (Kolibri-1
+            # benchmark, K3).
             seed_cfg = constraints.get("seed")
-            supports_seed = bool(seed_cfg.get("supported", False)) if isinstance(seed_cfg, dict) else False
+            supports_seed = not (
+                isinstance(seed_cfg, dict) and seed_cfg.get("supported") is False
+            )
 
             # Reasoning knob: the row's default_config.reasoning_config is the
             # SAME declaration the frontend reads to render the effort/budget
@@ -408,6 +418,7 @@ class UserAwareAIService:
                 output_cost_per_million=model.output_cost_per_million,
                 supports_seed=supports_seed,
                 reasoning_param=reasoning_param,
+                timeout_s=custom_model_request_timeout(model),
             )
             service._key_resolution_route = key_route
             service._provider_name = "custom"
