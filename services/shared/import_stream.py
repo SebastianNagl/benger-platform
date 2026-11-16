@@ -117,6 +117,7 @@ from serializers import (
 # Shared batch helper extracted alongside the export side. See
 # stream_io/__init__.py for why the package is named stream_io and not io.
 from stream_io.batch_utils import flush_every, stream_array_rows
+from task_rubric_service import REVIEW_STATE_CONFIRMED
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -582,6 +583,11 @@ def run_nested_import(
     """
     fileobj = _maybe_decompress(fileobj)
     job_organization_id = _project_organization_id(db, project_id)
+    rubric_review_required = bool(
+        db.query(Project.rubric_review_required)
+        .filter(Project.id == project_id)
+        .scalar()
+    )
 
     created_tasks = 0
     created_annotations = 0
@@ -841,6 +847,14 @@ def run_nested_import(
             # ux_task_rubrics_one_active. A malformed one must not abort the
             # whole import on that index: keep the first, demote the rest.
             rubric_status = rub_data.get("status") or "candidate"
+            if rubric_status == "active" and _activation_needs_check(
+                rubric_review_required, rub_data
+            ):
+                logger.warning(
+                    f"[import {project_id}] task {task_id}: the project requires a "
+                    f"confirmed check; importing unchecked {old_rubric_id!r} as candidate"
+                )
+                rubric_status = "candidate"
             if rubric_status == "active":
                 if active_rubric_seen:
                     logger.warning(
@@ -1480,6 +1494,7 @@ class _FullImportContext:
         "matched_user_ids",
         "grading_feedback_seen",
         "active_rubric_tasks",
+        "rubric_review_required",
         "rubric_review_events",
         "active_annotation_keys",
         "skipped_annotations",
@@ -1530,6 +1545,9 @@ class _FullImportContext:
         }
         # New task ids that already received an active Bewertungsbogen.
         self.active_rubric_tasks: Set[str] = set()
+        # The target project requires a confirmed check before a sheet is
+        # active (set by the imports into an existing project).
+        self.rubric_review_required = False
         # Imported task_rubric_review_events rows.
         self.rubric_review_events = 0
         self.user_email_to_id: Dict[str, str] = {}
@@ -1962,6 +1980,14 @@ def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
     # ux_task_rubrics_one_active index. A malformed one must not abort the
     # whole import on that index: keep the first, demote the rest.
     status = rubric_data.get("status") or "candidate"
+    if status == "active" and _activation_needs_check(
+        ctx.rubric_review_required, rubric_data
+    ):
+        logger.warning(
+            f"[import {ctx.new_project_id}] task {task_id}: the project requires a "
+            f"confirmed check; importing unchecked {old_id!r} as candidate"
+        )
+        status = "candidate"
     if status == "active":
         if task_id in ctx.active_rubric_tasks:
             logger.warning(
@@ -2006,6 +2032,12 @@ def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
             **_timestamps(rubric_data, "created_at", "updated_at"),
         )
     )
+
+
+def _activation_needs_check(review_required: bool, rubric_data: dict) -> bool:
+    """True when an exported active sheet may not stay active in the target
+    project, which requires a confirmed check the sheet does not have."""
+    return review_required and rubric_data.get("review_state") != REVIEW_STATE_CONFIRMED
 
 
 def _review_fields(rubric_data: dict, reviewed_by: Optional[str]) -> dict:
@@ -4498,6 +4530,7 @@ def run_merge_import(
     ctx = _FullImportContext(db, user_id, model_id_map)
     ctx.new_project_id = project_id
     ctx.organization_id = _project_organization_id(db, project_id)
+    ctx.rubric_review_required = bool(project.rubric_review_required)
     state = _MergeState(db, project_id)
     # One active Bewertungsbogen per task: an added sheet becomes a candidate
     # where the task already has one (see _insert_task_rubric).

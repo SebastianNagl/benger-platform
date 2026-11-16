@@ -1582,6 +1582,45 @@ class TestRubricReviewNestedRoundtrip:
         assert events["recorded"].provenance == {"kind": "manual"}
         assert events["reopened"].rubric_id is None and events["reopened"].actor_id is None
 
+    def test_project_requiring_the_check_imports_unchecked_active_sheets_as_candidates(
+        self, db_session, user, project_with_full_data
+    ):
+        """Every activation in a project with ``rubric_review_required`` needs
+        a confirmed check; an import into such a project is one, so only a
+        confirmed sheet stays active."""
+        from project_models import TaskRubric
+
+        data = project_with_full_data
+        project = data["project"]
+        unchecked_task, checked_task = data["tasks"][0], data["tasks"][1]
+        for task, title, state in (
+            (unchecked_task, "Ungeprüft", None),
+            (checked_task, "Geprüft", "confirmed"),
+        ):
+            db_session.add(TaskRubric(
+                id=str(uuid.uuid4()), task_id=task.id, project_id=project.id, title=title,
+                criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 10}},
+                total_points=10, source="human", status="active", created_by=user.id,
+                review_state=state,
+            ))
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        target = Project(
+            id=str(uuid.uuid4()), title="Exam with check", label_config="<View></View>",
+            created_by=user.id, rubric_review_required=True,
+        )
+        db_session.add(target)
+        db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        statuses = {
+            r.title: r.status
+            for r in db_session.query(TaskRubric).filter(TaskRubric.project_id == target.id)
+        }
+        assert statuses == {"Ungeprüft": "candidate", "Geprüft": "active"}
+
 
 class TestRubricGradingReferencesSurviveImport:
     """A rubric grading records the sheet it was scored against at
@@ -2717,6 +2756,44 @@ class TestMergeImport:
             Generation.model_id == LOCAL_MODEL, TaskEvaluation.task_id == prod_task.id
         ).one()
         assert merged.metrics["llm_judge_rubric"]["details"]["rubric_id"] == sheet.id
+
+    def test_merge_into_a_project_requiring_the_check_keeps_unchecked_sheets_inactive(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A copy without the check step adds sheets to tasks that have none
+        yet. The target requires a confirmed check before any sheet is
+        active, so only the confirmed one arrives active."""
+        from project_models import TaskRubric
+
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        local_tasks = db_session.query(Task).filter(
+            Task.project_id == local_id
+        ).order_by(Task.inner_id).all()
+        assert len(local_tasks) >= 2, "fixture must provide two tasks"
+        for task, title, state in (
+            (local_tasks[0], "Ungeprüft", None),
+            (local_tasks[1], "Geprüft", "confirmed"),
+        ):
+            db_session.add(TaskRubric(
+                id=str(uuid.uuid4()), task_id=task.id, project_id=local_id, title=title,
+                criteria={"items": [{"id": "c1", "points": 10}]}, total_points=10.0,
+                source="llm", status="active", created_by=user.id, review_state=state,
+            ))
+        prod.rubric_review_required = True
+        db_session.commit()
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert result["statistics"]["added_counts"]["task_rubrics"] == 2
+        statuses = {
+            r.title: r.status
+            for r in db_session.query(TaskRubric).filter(TaskRubric.project_id == prod.id)
+        }
+        assert statuses == {"Ungeprüft": "candidate", "Geprüft": "active"}
 
 
 UNKNOWN_MODEL = "custom-unknown-3333"
