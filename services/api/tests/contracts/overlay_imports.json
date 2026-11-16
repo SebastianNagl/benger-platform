@@ -351,6 +351,13 @@
       ]
     },
     {
+      "module": "celery_queues",
+      "name": "time_limits_for",
+      "importers": [
+        "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
       "module": "database",
       "name": "SessionLocal",
       "importers": [
