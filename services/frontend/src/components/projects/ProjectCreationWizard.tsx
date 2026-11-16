@@ -624,7 +624,7 @@ export function ProjectCreationWizard() {
           addToast(
             // By name, not instanceof: an ImportJobTimeoutError (lib/api/projects).
             importError instanceof Error &&
-            importError.name === 'ImportJobTimeoutError'
+              importError.name === 'ImportJobTimeoutError'
               ? t('projects.wizard.importDataTimeout', {
                   minutes: Math.round(WIZARD_IMPORT_TIMEOUT_MS / 60000),
                 })

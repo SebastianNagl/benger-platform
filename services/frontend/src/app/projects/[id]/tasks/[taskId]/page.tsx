@@ -251,7 +251,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
         {/* Header */}
         <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="px-6 py-4">
+          <div className="px-4 py-4 sm:px-6">
             {/* Breadcrumb */}
             <Breadcrumb
               items={[
@@ -274,21 +274,23 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
         </div>
 
         {/* Task Content */}
-        <div className="p-6">
+        {/* At phone width every row below wraps and the task UUID breaks
+            anywhere, so nothing widens the page (rubric e2e D02). */}
+        <div className="p-4 sm:p-6">
           <div className="mx-auto max-w-4xl">
-            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-white">
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <h2 className="mb-4 text-xl font-semibold wrap-anywhere text-zinc-900 dark:text-white">
                 {t('tasks.detail.taskHeading', { id: task.id })}
               </h2>
 
               {/* Task Data Display */}
               <div className="mb-6">
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.detail.taskData')}
                   </h3>
                   {user?.is_superadmin && !isEditing && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {TaskStructuredEditor && task && (
                         <span data-testid="task-structured-editor">
                           <TaskStructuredEditor
@@ -312,7 +314,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                     </div>
                   )}
                   {isEditing && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         variant="primary"
                         onClick={handleSaveEdit}
@@ -351,7 +353,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   </div>
                 ) : (
                   <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                    <pre className="text-sm whitespace-pre-wrap text-zinc-900 dark:text-white">
+                    <pre className="text-sm wrap-anywhere whitespace-pre-wrap text-zinc-900 dark:text-white">
                       {JSON.stringify((task as any).data, null, 2)}
                     </pre>
                   </div>
@@ -359,7 +361,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
               </div>
 
               {/* Task Status */}
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <span className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('tasks.detail.status')}:{' '}
@@ -389,7 +391,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button
                   variant="primary"
                   onClick={() => router.push(`/projects/${projectId}/label`)}
@@ -397,7 +399,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                   {t('tasks.detail.startLabeling')}
                 </Button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     onClick={loadAnnotations}
@@ -422,7 +424,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
 
             {/* Annotations Section (if any) */}
             {task.total_annotations > 0 && (
-              <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
                 <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
                   {t('tasks.detail.existingAnnotations')}
                 </h3>

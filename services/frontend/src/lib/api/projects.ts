@@ -118,7 +118,11 @@ export class ImportJobError extends Error {
 export class ImportJobTimeoutError extends Error {
   jobId: string
   lastStatus: ImportJobState | null
-  constructor(jobId: string, timeoutMs: number, lastStatus: ImportJobState | null) {
+  constructor(
+    jobId: string,
+    timeoutMs: number,
+    lastStatus: ImportJobState | null,
+  ) {
     super(
       `Import job ${jobId} has not finished after ${Math.round(timeoutMs / 60000)} min ` +
         `(last status: ${lastStatus ?? 'unknown'})`,

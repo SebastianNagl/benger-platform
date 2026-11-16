@@ -1196,7 +1196,9 @@ describe('projectsAPI', () => {
           if (url.includes('upload-url')) return Promise.resolve(presigned)
           if (url.includes('cloud-imports')) {
             return Promise.resolve({
-              jobs: [{ job_id: 'job-9', object_key: 'a.json', status: 'pending' }],
+              jobs: [
+                { job_id: 'job-9', object_key: 'a.json', status: 'pending' },
+              ],
             })
           }
           return Promise.resolve({ job_id: 'job-9', status: 'pending' })
@@ -1214,10 +1216,15 @@ describe('projectsAPI', () => {
         new File(['{}'], 'data.json', { type: 'application/json' })
 
       it('runNestedImportJob gives up at its deadline with an ImportJobTimeoutError', async () => {
-        const rejection = projectsAPI.runNestedImportJob('proj-1', file(), undefined, {
-          pollIntervalMs: 1,
-          timeoutMs: 20,
-        })
+        const rejection = projectsAPI.runNestedImportJob(
+          'proj-1',
+          file(),
+          undefined,
+          {
+            pollIntervalMs: 1,
+            timeoutMs: 20,
+          },
+        )
         await expect(rejection).rejects.toBeInstanceOf(ImportJobTimeoutError)
         await expect(rejection).rejects.toMatchObject({
           jobId: 'job-9',
@@ -1250,11 +1257,20 @@ describe('projectsAPI', () => {
       it('a job that settles before the deadline still resolves', async () => {
         ;(apiClient.get as jest.Mock)
           .mockResolvedValueOnce({ job_id: 'job-9', status: 'running' })
-          .mockResolvedValue({ job_id: 'job-9', status: 'completed', result: null })
-        const final = await projectsAPI.runNestedImportJob('proj-1', file(), undefined, {
-          pollIntervalMs: 1,
-          timeoutMs: 1000,
-        })
+          .mockResolvedValue({
+            job_id: 'job-9',
+            status: 'completed',
+            result: null,
+          })
+        const final = await projectsAPI.runNestedImportJob(
+          'proj-1',
+          file(),
+          undefined,
+          {
+            pollIntervalMs: 1,
+            timeoutMs: 1000,
+          },
+        )
         expect(final.status).toBe('completed')
       })
     })
