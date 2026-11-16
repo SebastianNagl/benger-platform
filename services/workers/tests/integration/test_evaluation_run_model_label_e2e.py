@@ -70,7 +70,10 @@ def test_run_over_several_models_lists_them_and_keeps_the_neutral_label(
     run = make_evaluation_run(project.id, user.id, model_id="unknown")
 
     finished = _run_to_completion(
-        db_conn, run, project, exact_match_config(),
+        db_conn,
+        run,
+        project,
+        exact_match_config(),
         model_ids=[model_a.id, model_b.id],
     )
 
@@ -99,8 +102,12 @@ def test_run_that_graded_one_of_several_requested_models_is_labelled_with_it(
     )
 
     finished = _run_to_completion(
-        db_conn, run, project, exact_match_config(),
-        model_ids=[model_a.id, model_b.id], task_ids=[task_2.id],
+        db_conn,
+        run,
+        project,
+        exact_match_config(),
+        model_ids=[model_a.id, model_b.id],
+        task_ids=[task_2.id],
     )
 
     assert finished.status == "completed"
@@ -146,7 +153,9 @@ def test_missing_only_run_with_nothing_left_lists_no_model(
         "completed"
     )
     run = make_evaluation_run(
-        project.id, user.id, model_id="unknown",
+        project.id,
+        user.id,
+        model_id="unknown",
         eval_metadata=_planned_metadata(user, model_a.id, model_b.id),
     )
 
@@ -168,26 +177,35 @@ def test_answer_only_run_lists_no_model(
     whose models were all in scope at dispatch."""
     user, project, model_a, model_b, task_1, _task_2 = two_model_project
     make_annotation(
-        project.id, task_1.id, completed_by=user.id,
+        project.id,
+        task_1.id,
+        completed_by=user.id,
         result=[{"from_name": "answer", "type": "textarea", "value": {"text": "ja"}}],
     )
     run = make_evaluation_run(
-        project.id, user.id, model_id="unknown",
+        project.id,
+        user.id,
+        model_id="unknown",
         eval_metadata=_planned_metadata(user, model_a.id, model_b.id),
     )
     config = {
-        "id": "cfg1", "metric": "exact_match",
+        "id": "cfg1",
+        "metric": "exact_match",
         "prediction_fields": ["__all_human__"],
         "reference_fields": ["task.expected"],
-        "metric_parameters": {}, "enabled": True,
+        "metric_parameters": {},
+        "enabled": True,
     }
 
     finished = _run_to_completion(db_conn, run, project, config)
 
     assert finished.status == "completed"
-    assert db_conn.query(TaskEvaluation).filter(
-        TaskEvaluation.evaluation_id == run.id
-    ).count() == 1
+    assert (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == run.id)
+        .count()
+        == 1
+    )
     assert _row_models(db_conn, run.id) == []
     assert finished.eval_metadata["evaluated_model_ids"] == []
     assert finished.model_id == "unknown"

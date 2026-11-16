@@ -570,7 +570,9 @@ describe('EvaluationResults', () => {
       await waitFor(() => {
         expect(screen.getByText('completed')).toBeInTheDocument()
       })
-      expect(screen.queryByTestId('evaluation-run-models')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('evaluation-run-models'),
+      ).not.toBeInTheDocument()
       expect(screen.queryByText('gpt-5.4')).not.toBeInTheDocument()
     })
 
