@@ -93,7 +93,7 @@ def test_run_that_graded_one_of_several_requested_models_is_labelled_with_it(
         model_id="unknown",
         eval_metadata={
             "triggered_by": user.id,
-            "evaluated_model_ids": [model_a.id, model_b.id],
+            "planned_model_ids": [model_a.id, model_b.id],
             "evaluated_model_id": "unknown",
         },
     )
@@ -130,7 +130,7 @@ def _planned_metadata(user, *model_ids):
     model with generations on the project is in scope."""
     return {
         "triggered_by": user.id,
-        "evaluated_model_ids": list(model_ids),
+        "planned_model_ids": list(model_ids),
         "evaluated_model_id": "unknown",
     }
 

@@ -62,14 +62,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // the shape moved to `results/types`.
 export type { ChartData } from '@/components/evaluation/results/types'
 
-/** The models a run graded, else its label unless that is the neutral
- * 'unknown' of a run over several models or submitted answers. */
+/** The models a settled run graded (none for an empty list); a response
+ * without the list falls back to the label unless that is 'unknown'. */
 function runModelBadge(evaluation: {
   model_id: string
   evaluated_model_ids?: string[]
 }): string | null {
-  if (evaluation.evaluated_model_ids?.length) {
-    return evaluation.evaluated_model_ids.join(', ')
+  if (evaluation.evaluated_model_ids !== undefined) {
+    return evaluation.evaluated_model_ids.join(', ') || null
   }
   return evaluation.model_id && evaluation.model_id !== 'unknown'
     ? evaluation.model_id

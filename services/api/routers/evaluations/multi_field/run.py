@@ -500,8 +500,9 @@ def run_evaluation(
                 "batch_size": request.batch_size,
                 "label_config_version": request.label_config_version,
                 "evaluated_model_id": evaluated_model_id,  # Track model in metadata
-                # Every model whose generations the run grades.
-                "evaluated_model_ids": evaluated_model_ids,
+                # Every model whose generations the run plans to grade; the
+                # graded ones land in evaluated_model_ids once it is done.
+                "planned_model_ids": evaluated_model_ids,
                 "force_rerun": request.force_rerun,
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,

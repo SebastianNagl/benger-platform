@@ -12,10 +12,9 @@ judge model). The run's own label is:
   per-model view already skips that value and reads the model per row.
 
 ``eval_metadata["evaluated_model_ids"]`` lists the models a run graded, so
-list views can name them without reading the rows. Dispatch writes the
-models it plans to grade; once the run is terminal that is replaced with
-the models whose generations it actually graded (empty when it graded
-none).
+list views can name them without reading the rows. Only a run that has
+settled carries it (written from its rows, empty when it graded no
+generation); dispatch records the models in scope as ``planned_model_ids``.
 """
 
 from collections.abc import Iterable

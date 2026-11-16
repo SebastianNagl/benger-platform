@@ -875,6 +875,70 @@ class TestBulkExportTasks:
         assert task_level_eval["evaluated_model"] == "gpt-4"
         assert task_level_eval["judge_model"] is None  # judge_run points to non-judge EJR
 
+    def test_export_names_each_rows_model_for_a_run_over_several_models(
+        self, tasks_with_generations, test_db_session, test_user
+    ):
+        """A metric run over several models is labelled "unknown"; each row
+        it graded names its generation's model, and a row over an answer
+        names no model."""
+        from unittest.mock import Mock
+
+        from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+        from routers.projects.tasks import bulk_export_tasks
+
+        session = test_db_session
+        data = tasks_with_generations
+        target_task = data["tasks"][0]
+        gen_a, gen_b = [g for g in data["generations"] if g.task_id == target_task.id]
+        gen_b.model_id = "claude-3"
+        eval_run = EvaluationRun(
+            id=str(uuid.uuid4()),
+            project_id=target_task.project_id,
+            model_id="unknown",
+            evaluation_type_ids=["bleu"],
+            metrics={},
+            status="completed",
+            samples_evaluated=3,
+            created_by=test_user.id,
+            eval_metadata={"evaluated_model_ids": ["gpt-4", "claude-3"]},
+        )
+        session.add(eval_run)
+        session.flush()
+        judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()), evaluation_id=eval_run.id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        session.add(judge_run)
+        session.flush()
+        for gen_id, field in ((gen_a.id, "cfg|__all_model__|ref"),
+                              (gen_b.id, "cfg|__all_model__|ref"),
+                              (None, "cfg|human:answer|ref")):
+            session.add(TaskEvaluation(
+                id=str(uuid.uuid4()), evaluation_id=eval_run.id,
+                judge_run_id=judge_run.id, task_id=target_task.id,
+                generation_id=gen_id, field_name=field, answer_type="text",
+                ground_truth="g", prediction="p", metrics={"bleu": 0.4}, passed=False,
+            ))
+        session.commit()
+
+        mock_user = Mock()
+        mock_user.id = test_user.id
+        response = bulk_export_tasks(
+            target_task.project_id,
+            {"task_ids": [target_task.id], "format": "json"},
+            current_user=mock_user, db=session,
+        )
+        export_data = json.loads(_collect_stream(response))
+
+        task_data = next(t for t in export_data["tasks"] if t["id"] == target_task.id)
+        by_gen = {
+            g["id"]: [e["evaluated_model"] for e in g["evaluations"]]
+            for g in task_data["generations"]
+        }
+        assert by_gen[gen_a.id] == ["gpt-4"]
+        assert by_gen[gen_b.id] == ["claude-3"]
+        assert [e["evaluated_model"] for e in task_data["evaluations"]] == [None]
+
     def test_export_json_ends_with_completeness_sentinel(
         self, tasks_with_both, test_db_session, test_project
     ):

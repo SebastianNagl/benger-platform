@@ -562,6 +562,18 @@ describe('EvaluationResults', () => {
       expect(screen.queryByText('unknown')).not.toBeInTheDocument()
     })
 
+    it('shows no model for a finished run that graded none', async () => {
+      setupCompletedEvaluation({ model_id: 'gpt-5.4', evaluated_model_ids: [] })
+
+      render(<EvaluationResults projectId="project-123" />)
+
+      await waitFor(() => {
+        expect(screen.getByText('completed')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('evaluation-run-models')).not.toBeInTheDocument()
+      expect(screen.queryByText('gpt-5.4')).not.toBeInTheDocument()
+    })
+
     it('renders samples evaluated count', async () => {
       setupCompletedEvaluation({ samples_evaluated: 50 })
 

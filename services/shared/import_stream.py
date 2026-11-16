@@ -1787,7 +1787,7 @@ def _map_eval_metadata_models(ctx: _FullImportContext, eval_metadata):
     if not ctx.model_id_map or not isinstance(eval_metadata, dict):
         return eval_metadata
     mapped = dict(eval_metadata)
-    for key in ("model_ids", "evaluated_model_ids"):
+    for key in ("model_ids", "planned_model_ids", "evaluated_model_ids"):
         if isinstance(mapped.get(key), list):
             mapped[key] = [_map_model(ctx, m) for m in mapped[key]]
     if "evaluated_model_id" in mapped:

@@ -226,6 +226,7 @@ def build_batch_objs(
                     te, mode="data",
                     eval_run=eval_run_by_id.get(te.evaluation_id),
                     judge_model_lookup=judge_model_lookup,
+                    generation=gen,
                 )
                 for te in gen_evals
             ]
