@@ -1296,7 +1296,7 @@
     },
     "api-zugaenge": {
       "title": "Comment configurer un accès API pour des scripts ou un benchmark runner ?",
-      "summary": "Avec une **clé d'accès** (elle commence par `bgr_`). Elle fonctionne sur toute l'interface BenGER, avec les mêmes points d'accès que le navigateur, dans la limite de ses autorisations. En tant qu'administrateur de l'organisation ou d'un groupe, vous créez les clés de votre organisation sous **Accès API** ; les clés personnelles se créent dans votre [profil](/profile). La clé ne vous est affichée qu'une seule fois.",
+      "summary": "Avec une **clé d'accès** (elle commence par `bgr_`). Elle fonctionne sur toute l'interface BenGER, avec les mêmes points d'accès que le navigateur, dans la limite de ses autorisations. En tant qu'administrateur de l'organisation ou d'un groupe, vous créez les clés de votre organisation sous **Accès API** ; les clés personnelles se créent dans votre [profil](/profile). La clé ne vous est affichée qu'une seule fois. Si vous ne voyez pas d'entrée **Accès API**, l'interface n'est pas activée pour votre compte ; ce sont les administrateurs de la plateforme qui en décident.",
       "steps": [
         "**Créer une clé** : pour l'organisation, ouvrez [Utilisateurs et organisations](/users-organizations), choisissez l'organisation et cliquez sur **Plus** → **Accès API**. Pour vous-même, allez dans votre [profil](/profile), section **Accès API**. Cliquez ensuite sur **Nouvelle clé** et donnez-lui un nom qui vous permettra de la reconnaître plus tard.",
         "**Choisir la portée** : choisissez un préréglage : **Benchmark en lecture seule**, **Exécuter le benchmark et soumettre**, **Accès complet à votre organisation** ou **API complète pour pipelines de recherche** (compte, projets, tâches, annotations, modèles personnels, génération, évaluations, résultats, exportations et fichiers). Sous **Avancé**, vous voyez séparément chaque autorisation que vous pouvez accorder pour ce type de clé. Pour les clés d'organisation, vous choisissez en plus le rôle et, si nécessaire, un groupe et des projets précis. La **validité** est par défaut de 90 jours ; vous pouvez aussi choisir 30 jours, 1 an ou **Illimitée**.",
@@ -1310,10 +1310,15 @@
         "Une clé d'organisation agit comme un compte de service distinct. Une clé personnelle agit en votre nom et ne voit jamais plus que vous.",
         "Une clé d'organisation avec le rôle **Admin** peut aussi gérer l'organisation, c'est-à-dire les membres, les groupes et les invitations. Elle couvre toujours toute l'organisation, et seuls les administrateurs de toute l'organisation peuvent la créer.",
         "La référence sous `/api/v1/reference` indique pour chaque point d'accès l'autorisation dont une clé a besoin.",
+        "**Limites** : par défaut, une clé peut envoyer 120 requêtes par minute et 20 000 par jour. Chaque réponse contient `X-RateLimit-Limit`, `X-RateLimit-Remaining` et `X-RateLimit-Reset`.",
+        "**429 Too Many Requests** signifie qu'une limite est atteinte, pas que vos données sont erronées. L'en-tête `Retry-After` indique combien de secondes attendre ; un script bien conçu attend ce délai puis répète l'appel. Outre le budget de la clé, chaque utilisateur a des plafonds généreux : 200 liens d'envoi pour les imports en 24 heures (`upload_url_limit_exceeded`) et 50 exécutions de génération et d'évaluation en attente ou en cours à la fois (`too_many_active_runs`).",
+        "Les scripts qui se connectent par mot de passe via `POST /api/auth/token` reçoivent un jeton valable 60 minutes avec tous vos droits et sans scopes. Ces jetons peuvent envoyer jusqu'à 1 200 requêtes par minute et par utilisateur. Pour tout ce qui tourne sans surveillance, préférez une clé.",
+        "Les **exports** exigent les autorisations `exports:read` et `tasks:read_reference` (les exports contiennent les corrigés types). Les **imports**, y compris la fusion des résultats, exigent `projects:write` et `tasks:write`. **API complète pour pipelines de recherche** les contient toutes ; **Accès complet à votre organisation** peut exporter mais pas importer.",
         "Pour enregistrer votre propre modèle et lancer la génération et l'évaluation via l'API, consultez [Évaluer un modèle via l'API](/how-to#api-research-workflow)."
       ],
       "pitfalls": [
         "Vous ne voyez la clé complète qu'immédiatement après sa création. Si vous l'avez perdue, créez-en une nouvelle et révoquez l'ancienne.",
+        "Un utilisateur peut avoir au plus 25 clés personnelles actives. Les clés expirées comptent tant que vous ne les révoquez pas.",
         "Une clé d'organisation ne peut lire les corrigés types qu'avec le rôle **Contributeur** ou **Admin**.",
         "Une clé limitée à certains projets ou à un groupe n'atteint que ces projets. Elle ne crée ni nouveaux projets ni autres clés.",
         "La connexion, le mot de passe, l'inscription et la modification de l'adresse e-mail restent réservés au navigateur. Ces points d'accès refusent toute clé.",
@@ -1337,7 +1342,10 @@
         "OpenAPI",
         "Swagger",
         "accès complet",
-        "compte de service"
+        "compte de service",
+        "429",
+        "rate limit",
+        "retry-after"
       ],
       "links": [
         "Profil",
@@ -1367,12 +1375,14 @@
         "Avant une exécution payante, `POST /api/llm-models/cost-estimate` avec `project_id`, `mode` (`generation` ou `evaluation`), `model_ids` et `structure_keys` estime ce qu'elle coûtera.",
         "Si votre serveur ne traite que quelques requêtes à la fois, enregistrez le modèle avec `max_concurrent_requests` égal à ce nombre (2 sans indication). BenGER n’envoie alors pas plus de requêtes à la fois, et les tâches suivantes attendent dans sa file au lieu d’atteindre leur limite de temps sur votre serveur.",
         "Si votre modèle raisonne longtemps, définissez aussi `request_timeout_seconds` (de 30 à 1500, 300 sans indication) : c’est la durée maximale d’une requête, et BenGER ne diffuse pas la réponse en continu, toute la sortie doit donc arriver dans ce délai.",
+        "Chaque génération envoie la graine (seed) 42, sauf si vous en définissez une autre dans `parameters.seed`, afin que les exécutions répétées restent comparables. Si votre point d'accès refuse le champ `seed`, enregistrez le modèle avec `\"parameter_constraints\": {\"seed\": {\"supported\": false}}` ; l'exécution note alors qu'aucune graine n'a été envoyée.",
         "Pour faire tourner votre modèle sur une copie du projet et en rapatrier les résultats, consultez [Copier un projet via l'API et fusionner les résultats](/how-to#api-round-trip)."
       ],
       "pitfalls": [
         "Une clé limitée à certains projets n'atteint que ces projets et n'en crée pas de nouveaux. Un pipeline qui crée ses propres projets a besoin d'une clé sans limitation de projet.",
         "Votre modèle doit être joignable depuis le serveur BenGER. BenGER refuse en général les adresses d'un réseau local ou `localhost`.",
-        "Les métriques utilisant un LLM comme juge appellent un fournisseur et consomment du crédit via vos propres clés API ou celles de votre organisation."
+        "Les métriques utilisant un LLM comme juge appellent un fournisseur et consomment du crédit via vos propres clés API ou celles de votre organisation.",
+        "Au plus 50 de vos exécutions de génération et d'évaluation peuvent être en attente ou en cours à la fois. Un lancement de plus répond `429 too_many_active_runs` avec `Retry-After: 60` : attendez la fin d'exécutions, ou mettez-en en pause ou arrêtez-en. Une génération supplémentaire sur un projet qui génère déjà compte comme la même exécution et n'est jamais refusée."
       ],
       "keywords": [
         "API",
@@ -1389,7 +1399,8 @@
         "script",
         "automatisation",
         "structure de prompt",
-        "estimation des coûts"
+        "estimation des coûts",
+        "seed"
       ],
       "links": [
         "Profil",
@@ -1415,9 +1426,10 @@
       ],
       "pitfalls": [
         "Un fichier téléversé peut peser au plus 5 Gio.",
+        "Vous pouvez demander au plus 200 liens d'envoi pour les imports en 24 heures, les deux routes d'envoi confondues. Une demande de plus répond `429 upload_url_limit_exceeded` ; `Retry-After` indique quand le suivant est disponible.",
         "Une fusion ajoute seulement des résultats et ne crée aucune tâche : si les tâches du fichier ne sont pas celles du projet, la tâche d'import échoue avec `merge_task_mismatch` et n'importe rien.",
         "Un id de modèle du fichier qui n'existe pas ici et ne figure pas dans `model_id_map` arrête la fusion avec `merge_unknown_models`. Une cible de `model_id_map` qui n'existe pas est refusée immédiatement avec `unknown_model_id_map_target`.",
-        "L'export contient les corrigés types et exige donc le rôle **Contributeur** ou **Admin**. Une fusion exige des droits de modification sur le projet d'origine.",
+        "L'export contient les corrigés types et exige donc le rôle **Contributeur** ou **Admin** et une clé avec `exports:read` et `tasks:read_reference`. L'import et la fusion exigent des droits de modification sur le projet cible et une clé avec `projects:write` et `tasks:write`. Le modèle **API complète pour pipelines de recherche** contient les quatre.",
         "Un export terminé reste téléchargeable pendant sept jours, jusqu'au `expires_at` de sa tâche. Ensuite, le téléchargement répond 410 et vous exportez à nouveau."
       ],
       "keywords": [
