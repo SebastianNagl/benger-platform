@@ -435,6 +435,41 @@ class TestListRunsEvaluation:
         assert item["judge_models"] == ["legacy-judge"]
         assert item["metrics"] == ["exact_match"]
 
+    @pytest.mark.asyncio
+    async def test_evaluation_list_names_the_models_a_run_graded(
+        self, async_test_client, async_test_db
+    ):
+        """A run over several models is labelled "unknown"; the list names
+        every model it graded. A run over one model names it from its label
+        even without the recorded list, and an answer-only run names none."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        project = await _make_project(async_test_db, admin, org)
+        multi = await _make_eval_run(
+            async_test_db, project, admin, model_id="unknown",
+            eval_metadata={"evaluated_model_ids": ["model-a", "model-b"]},
+        )
+        single = await _make_eval_run(
+            async_test_db, project, admin, model_id="model-c",
+            eval_metadata={"type": "automated"},
+        )
+        answers_only = await _make_eval_run(
+            async_test_db, project, admin, model_id="unknown",
+            eval_metadata={"evaluated_model_ids": []},
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}?type=evaluation&project_id={project.id}",
+            )
+        assert resp.status_code == 200
+        by_id = {item["id"]: item for item in resp.json()["items"]}
+        assert by_id[multi.id]["model_id"] == "unknown"
+        assert by_id[multi.id]["evaluated_model_ids"] == ["model-a", "model-b"]
+        assert by_id[single.id]["evaluated_model_ids"] == ["model-c"]
+        assert by_id[answers_only.id]["evaluated_model_ids"] == []
+
 
 @pytest.mark.integration
 class TestListRunsAccessibilityFilter:

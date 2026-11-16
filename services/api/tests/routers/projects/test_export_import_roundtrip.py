@@ -2801,6 +2801,190 @@ def _make_org(db, name):
     return org
 
 
+def _later(hours=3):
+    """A creation time after the fixture's runs, so the run is new on merge."""
+    return datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=hours)
+
+
+def _metric_run_over_models(db, project_id, user_id, model_ids, label, when):
+    """A metric-only run (deterministic, no judge model) over every
+    generation of ``model_ids`` on the project, labelled ``label`` the way
+    the worker labels it, created at ``when``."""
+    task_ids = [t.id for t in db.query(Task).filter(Task.project_id == project_id)]
+    run = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        model_id=label,
+        evaluation_type_ids=["bleu"],
+        metrics={"cfg-bleu|__all_model__|reference|bleu": 0.4},
+        eval_metadata={
+            "evaluation_type": "evaluation",
+            "model_ids": list(model_ids),
+            "evaluated_model_ids": list(model_ids),
+            "evaluated_model_id": label,
+        },
+        status="completed",
+        has_sample_results=True,
+        created_by=user_id,
+        created_at=when,
+        completed_at=when + timedelta(minutes=5),
+    )
+    db.add(run)
+    db.flush()
+    jr = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=run.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    db.add(jr)
+    db.flush()
+    gens = (
+        db.query(Generation)
+        .filter(Generation.task_id.in_(task_ids), Generation.model_id.in_(model_ids))
+        .all()
+    )
+    for g in gens:
+        db.add(
+            TaskEvaluation(
+                id=str(uuid.uuid4()),
+                evaluation_id=run.id,
+                judge_run_id=jr.id,
+                task_id=g.task_id,
+                generation_id=g.id,
+                field_name="cfg-bleu|__all_model__|reference",
+                evaluation_config_id="cfg-bleu",
+                answer_type="text",
+                ground_truth="expected",
+                prediction=g.response_content,
+                metrics={"bleu": 0.4},
+                passed=False,
+            )
+        )
+    run.samples_evaluated = len(gens)
+    db.commit()
+    return run
+
+
+def _merged_run(db, project_id, source_run):
+    return (
+        db.query(EvaluationRun)
+        .filter(
+            EvaluationRun.project_id == project_id,
+            EvaluationRun.created_at == source_run.created_at,
+        )
+        .one()
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+class TestMergedMetricRunModels:
+    """A metric run computed on a local copy and merged back names the models
+    it graded: each row through its generation, the run through its label
+    (one model, else "unknown") and ``evaluated_model_ids``."""
+
+    def _local_copy_with_new_model(self, db, user, prod, fmt):
+        local_id = _import_text(db, _export_text(db, prod.id, fmt), user.id)["project_id"]
+        _benchmark_new_model(db, local_id, user.id, LOCAL_MODEL)
+        return local_id
+
+    def test_run_over_several_models_keeps_each_rows_model_and_maps_the_list(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        _register_prod_model(db_session)
+        prod = benchmark_project["project"]
+        local_id = self._local_copy_with_new_model(db_session, user, prod, fmt)
+        source = _metric_run_over_models(
+            db_session, local_id, user.id, [DEV_MODEL, LOCAL_MODEL], "unknown", _later()
+        )
+
+        _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id,
+            model_id_map={LOCAL_MODEL: PROD_MODEL},
+        )
+
+        merged = _merged_run(db_session, prod.id, source)
+        assert merged.model_id == "unknown"
+        assert merged.eval_metadata["evaluated_model_ids"] == [DEV_MODEL, PROD_MODEL]
+        assert merged.eval_metadata["model_ids"] == [DEV_MODEL, PROD_MODEL]
+        prod_task_ids = {
+            t.id for t in db_session.query(Task).filter(Task.project_id == prod.id)
+        }
+        row_models = sorted(
+            (g.model_id, g.task_id in prod_task_ids)
+            for g in db_session.query(Generation)
+            .join(TaskEvaluation, TaskEvaluation.generation_id == Generation.id)
+            .filter(TaskEvaluation.evaluation_id == merged.id)
+        )
+        # Every DEV_MODEL generation of the fixture plus the merged ones.
+        assert row_models == sorted(
+            [(DEV_MODEL, True)] * 4 + [(PROD_MODEL, True)] * 2
+        )
+
+    def test_a_relabelled_copy_is_not_merged_a_second_time(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """A run exported while it said "unknown" and later labelled with its
+        one model (on either side) is still the same run."""
+        prod = benchmark_project["project"]
+        local_id = self._local_copy_with_new_model(db_session, user, prod, fmt)
+        source = _metric_run_over_models(
+            db_session, local_id, user.id, [LOCAL_MODEL], "unknown", _later()
+        )
+        old_export = _export_text(db_session, local_id, fmt)
+        _merge_text(db_session, prod.id, old_export, user.id)
+        merged = _merged_run(db_session, prod.id, source)
+        after = _result_counts(db_session, prod.id)
+
+        # The production copy is relabelled: the old file is still present.
+        merged.model_id = LOCAL_MODEL
+        db_session.commit()
+        again = _merge_text(db_session, prod.id, old_export, user.id)
+        assert again["statistics"]["added_counts"]["evaluations"] == 0
+        assert _result_counts(db_session, prod.id) == after
+
+        # The source is relabelled instead: its new file is present too.
+        merged.model_id = "unknown"
+        source.model_id = LOCAL_MODEL
+        db_session.commit()
+        again = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+        assert again["statistics"]["added_counts"]["evaluations"] == 0
+        assert _result_counts(db_session, prod.id) == after
+
+    def test_runs_that_only_share_a_creation_time_stay_apart(
+        self, db_session, user, benchmark_project, fmt
+    ):
+        """The relabel match needs a run labelled "unknown" on one side; two
+        runs that name different models are two runs."""
+        prod = benchmark_project["project"]
+        local_id = self._local_copy_with_new_model(db_session, user, prod, fmt)
+        when = _later()
+        source = _metric_run_over_models(
+            db_session, local_id, user.id, [LOCAL_MODEL], LOCAL_MODEL, when
+        )
+        _metric_run_over_models(
+            db_session, prod.id, user.id, [DEV_MODEL], DEV_MODEL, when
+        )
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+
+        assert result["statistics"]["added_counts"]["evaluations"] == 2
+        labels = sorted(
+            r.model_id
+            for r in db_session.query(EvaluationRun).filter(
+                EvaluationRun.project_id == prod.id,
+                EvaluationRun.created_at == source.created_at,
+            )
+        )
+        assert labels == [DEV_MODEL, LOCAL_MODEL]
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
 class TestImportKeepsAttributionAndOrder:

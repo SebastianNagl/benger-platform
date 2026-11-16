@@ -4705,6 +4705,11 @@ def finalize_evaluation_run(
             "any_judge_failed": any_child_failed,
             **({"judges_by_config": judge_models_summary} if judge_models_summary else {}),
         }
+        # Label the run with the models its rows graded: dispatch only knows
+        # the models in scope, so a run over several requested models of
+        # which one had work left stayed "unknown".
+        from evaluation_run_models import label_run_from_rows
+        label_run_from_rows(db, evaluation)
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(evaluation, "eval_metadata")
         db.commit()

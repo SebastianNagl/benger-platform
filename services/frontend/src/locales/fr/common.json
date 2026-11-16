@@ -7546,6 +7546,7 @@
     "detail": {
       "back": "Retour",
       "model": "Modèle",
+      "models": "Modèles",
       "project": "Projet",
       "confusionMatrix": "Matrice de confusion",
       "totalSamples": "Nombre total d'échantillons",

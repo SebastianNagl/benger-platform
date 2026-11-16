@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
 from database import get_async_db
+from evaluation_run_models import run_evaluated_model_ids
 from models import EvaluationRun, ResponseGeneration
 from project_models import Project
 from routers.projects.helpers import (
@@ -57,7 +58,10 @@ class RunSummary(BaseModel):
     runs_failed: Optional[int] = None
     task_id: Optional[str] = None
 
-    # Evaluation-specific
+    # Evaluation-specific. ``model_id`` is the run's label: the one model it
+    # graded, or "unknown" for a run over several models (or over submitted
+    # answers only); ``evaluated_model_ids`` names every model it graded.
+    evaluated_model_ids: Optional[List[str]] = None
     judge_models: Optional[List[str]] = None
     samples_evaluated: Optional[int] = None
     metrics: Optional[List[str]] = None
@@ -150,6 +154,7 @@ def _evaluation_to_summary(row: EvaluationRun, project_titles: Dict[str, str]) -
         created_by=row.created_by,
         error_message=row.error_message,
         model_id=row.model_id,
+        evaluated_model_ids=run_evaluated_model_ids(row.model_id, row.eval_metadata),
         samples_evaluated=row.samples_evaluated,
         judge_models=_extract_judge_models(row.eval_metadata),
         metrics=_extract_metric_names(row.eval_metadata),

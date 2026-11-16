@@ -11,6 +11,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # does NOT export the score-coercion helper. Import it explicitly from the
 # results package (same source `models_methods` uses) so the aggregate-score
 # calc below can coerce both bare-float and {value,…} metric shapes.
+from evaluation_run_models import run_evaluated_model_ids  # noqa: E402
 from routers.evaluations.helpers import run_cells_completed, run_cells_total  # noqa: E402
 from routers.evaluations.results._common import _coerce_metric_value  # noqa: E402,F401
 from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS  # noqa: E402
@@ -35,6 +36,23 @@ async def _model_name(db: AsyncSession, model_id) -> Optional[str]:
     return (
         await db.execute(select(LLMModel.name).where(LLMModel.id == model_id))
     ).scalar_one_or_none()
+
+
+async def _evaluated_models(db: AsyncSession, model_id, eval_metadata) -> List[Dict[str, Any]]:
+    """The models a run graded with their names here (``name`` None for a
+    model this instance does not list)."""
+    ids = run_evaluated_model_ids(
+        model_id if isinstance(model_id, str) else None,
+        eval_metadata if isinstance(eval_metadata, dict) else None,
+    )
+    if not ids:
+        return []
+    from models import LLMModel
+
+    names = dict(
+        (await db.execute(select(LLMModel.id, LLMModel.name).where(LLMModel.id.in_(ids)))).all()
+    )
+    return [{"id": m, "name": names.get(m)} for m in ids]
 
 
 async def _resolve_scope_block(
@@ -462,6 +480,9 @@ async def get_evaluation_run_results(
             # Name of that model here; a custom model's id is a random
             # custom-<uuid>.
             "model_name": await _model_name(db, _model_id),
+            # Every model the run graded (the label above is "unknown" for a
+            # run over several models); each row names its own model.
+            "evaluated_models": await _evaluated_models(db, _model_id, eval_metadata),
             "status": evaluation.status,
             # Why a run failed. A run that matched nothing now fails with a
             # diagnostic naming the config and the fix; without this key the

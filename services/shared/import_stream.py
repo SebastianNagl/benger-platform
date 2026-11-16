@@ -100,6 +100,7 @@ from project_models import (
     TaskRubric,
 )
 import seb
+from evaluation_run_models import MULTI_MODEL_RUN_LABEL, PSEUDO_RUN_MODEL_IDS
 from exam_tools import portable_exam_tools
 from serializers import CALL_TELEMETRY_FIELDS, _parse_iso
 
@@ -1779,6 +1780,21 @@ def _map_model(ctx: _FullImportContext, model_id):
     return model_id
 
 
+def _map_eval_metadata_models(ctx: _FullImportContext, eval_metadata):
+    """A run's ``eval_metadata`` with the model ids it records (the models
+    in scope and graded) translated through ``model_id_map``, so a merged
+    run names this instance's models like its rows do."""
+    if not ctx.model_id_map or not isinstance(eval_metadata, dict):
+        return eval_metadata
+    mapped = dict(eval_metadata)
+    for key in ("model_ids", "evaluated_model_ids"):
+        if isinstance(mapped.get(key), list):
+            mapped[key] = [_map_model(ctx, m) for m in mapped[key]]
+    if "evaluated_model_id" in mapped:
+        mapped["evaluated_model_id"] = _map_model(ctx, mapped["evaluated_model_id"])
+    return mapped
+
+
 def _timestamps(data: dict, *names: str) -> dict:
     """The exported timestamps ``names`` that parse, as constructor kwargs.
 
@@ -2089,7 +2105,7 @@ def _insert_evaluation(ctx: _FullImportContext, evaluation_data: dict) -> None:
         model_id=_map_model(ctx, evaluation_data.get("model_id")),
         evaluation_type_ids=evaluation_data.get("evaluation_type_ids", []),
         metrics=evaluation_data.get("metrics", {}),
-        eval_metadata=evaluation_data.get("eval_metadata"),
+        eval_metadata=_map_eval_metadata_models(ctx, evaluation_data.get("eval_metadata")),
         status=evaluation_data.get("status", "completed"),
         error_message=evaluation_data.get("error_message"),
         samples_evaluated=evaluation_data.get("samples_evaluated"),
@@ -3627,7 +3643,9 @@ MERGE_UNKNOWN_MODELS = "merge_unknown_models"
 
 # Model ids of evaluation runs that name no model: legacy or multi-model runs
 # ("unknown"), the human grading singletons and the immediate-eval runs.
-_PSEUDO_MODEL_IDS = frozenset({"unknown", "human", "immediate"})
+_PSEUDO_MODEL_IDS = PSEUDO_RUN_MODEL_IDS
+# Labels of runs that never grade model generations, so never a relabel.
+_NON_MODEL_RUN_LABELS = _PSEUDO_MODEL_IDS - {MULTI_MODEL_RUN_LABEL}
 
 
 def _is_pseudo_model(model_id) -> bool:
@@ -3744,6 +3762,8 @@ class _MergeState:
                     (task_id, model_id, run_index or 0, _digest(content or ""))
                 ] = gen_id
         self.runs: Dict[tuple, str] = {}
+        # created_at -> [(model_id, run_id)], for _present_run's relabel match.
+        self.runs_by_created: Dict[Any, List[tuple]] = {}
         self.human_korrektur_run: Optional[str] = None
         for run_id, model_id, created_at, meta in db.query(
             EvaluationRun.id,
@@ -3752,6 +3772,9 @@ class _MergeState:
             EvaluationRun.eval_metadata,
         ).filter(EvaluationRun.project_id == project_id):
             self.runs[(model_id, _utc_key(created_at))] = run_id
+            self.runs_by_created.setdefault(_utc_key(created_at), []).append(
+                (model_id, run_id)
+            )
             if _is_human_korrektur_run(model_id, meta):
                 self.human_korrektur_run = run_id
 
@@ -3979,13 +4002,39 @@ def _merge_generation(ctx, state: _MergeState, rec: dict) -> None:
     _note_model(state, model_id)
 
 
+def _present_run(state: _MergeState, model_id, created) -> Optional[str]:
+    """The run here that a file's run (``model_id``, ``created``) is a copy of.
+
+    Matched by label and creation time. A run's label can change after it
+    was copied: a run over several models (or one exported before the
+    finalization labelled runs from their rows) says "unknown" on one side
+    and names its model on the other. So a run labelled "unknown" on either
+    side also matches the one run created at the same instant, as long as
+    that instant names exactly one candidate.
+    """
+    if not created:
+        return None
+    exact = state.runs.get((model_id, created))
+    if exact:
+        return exact
+    if model_id in _NON_MODEL_RUN_LABELS:
+        return None
+    candidates = [
+        run_id
+        for existing_model, run_id in state.runs_by_created.get(created, ())
+        if MULTI_MODEL_RUN_LABEL in (model_id, existing_model)
+        and existing_model not in _NON_MODEL_RUN_LABELS
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
     old_id = rec.get("id")
     if not old_id:
         return
     model_id = _map_model(ctx, rec.get("model_id"))
     created = _utc_key(rec.get("created_at"))
-    present = (created and state.runs.get((model_id, created))) or (
+    present = _present_run(state, model_id, created) or (
         state.human_korrektur_run
         if _is_human_korrektur_run(model_id, rec.get("eval_metadata"))
         else None
@@ -3998,6 +4047,8 @@ def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
     _insert_evaluation(ctx, rec)
     new_id = ctx.id_mappings["evaluations"][old_id]
     state.runs[(model_id, created)] = new_id
+    if created:
+        state.runs_by_created.setdefault(created, []).append((model_id, new_id))
     if _is_human_korrektur_run(model_id, rec.get("eval_metadata")):
         state.human_korrektur_run = new_id
     state.added["evaluations"] += 1

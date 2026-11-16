@@ -3,6 +3,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # ``_stdjson`` is underscore-prefixed so the ``import *`` above skips it;
 # the idempotency dispatch_hash in run_evaluation needs it explicitly.
 from ._common import _stdjson  # noqa: F401
+from evaluation_run_models import run_model_label
 from models import User as DBUser
 from services.usage_limits import check_active_runs_sync
 
@@ -89,11 +90,13 @@ def _evaluated_model_ids(db, project_id: str, model_ids) -> List[str]:
 
 
 def _run_model_label(evaluated_model_ids: List[str]) -> str:
-    """``EvaluationRun.model_id``: the one model a run grades, else
-    ``"unknown"``, the neutral value every per-model view already skips. A
-    run used to carry the project's most common generation model, so a run
-    restricted to another model was labelled (and merged) as that one."""
-    return evaluated_model_ids[0] if len(evaluated_model_ids) == 1 else "unknown"
+    """``EvaluationRun.model_id`` at dispatch: the one model a run grades,
+    else ``"unknown"``, the neutral value every per-model view already
+    skips (see ``evaluation_run_models``). The run's finalization relabels it
+    from the generations its rows graded. A run used to carry the project's
+    most common generation model, so a run restricted to another model was
+    labelled (and merged) as that one."""
+    return run_model_label(evaluated_model_ids)
 
 
 def _store_configs_if_unconfigured(db, user, project_id: str, evaluation_configs) -> None:

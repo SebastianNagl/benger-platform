@@ -110,6 +110,27 @@ describe('RunsPage', () => {
     expect(screen.getAllByText('Benchaton 2').length).toBeGreaterThan(0)
   })
 
+  it('names every model of an evaluation run over several models', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [
+        {
+          ...evalRun,
+          model_id: 'unknown',
+          evaluated_model_ids: ['gpt-5.4', 'gemini-2.5-pro'],
+        },
+        { ...evalRun, id: 'eval-2', model_id: 'unknown', judge_models: [] },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 25,
+    })
+    render(<RunsPage />)
+    const models = await screen.findByText('gpt-5.4, gemini-2.5-pro')
+    expect(models).toHaveAttribute('title', 'gpt-5.4, gemini-2.5-pro')
+    // A run that graded no model shows a dash, never the 'unknown' label.
+    expect(screen.queryByText('unknown')).not.toBeInTheDocument()
+  })
+
   it('switches to generation tab and updates URL', async () => {
     mockGet
       .mockResolvedValueOnce({

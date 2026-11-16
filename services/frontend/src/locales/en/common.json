@@ -8895,6 +8895,7 @@
     "detail": {
       "back": "Back",
       "model": "Model",
+      "models": "Models",
       "project": "Project",
       "confusionMatrix": "Confusion Matrix",
       "totalSamples": "Total Samples",
