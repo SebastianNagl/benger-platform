@@ -306,7 +306,7 @@ The body is `{"project_id": "...", "run_ids": [...], "dry_run": true,
 "revert": false}`: the runs of `project_id`, the runs in `run_ids` (up to
 5,000, of any project), or with both only those runs of the project.
 `dry_run` defaults to `true`. The answer has `{dry_run, revert, changed,
-unchanged, no_graded_generations, skipped, not_found, results}`; each result
+unchanged, skipped, not_found, results}`; each result
 names the `run_id`, `project_id`, run `status`, its `outcome`, the rows per
 graded model (`graded_rows`), and `before` and `after` with `model_id`,
 `evaluated_model_ids` and `evaluated_model_id`.
@@ -318,10 +318,13 @@ graded model (`graded_rows`), and `before` and `after` with `model_id`,
   what was `applied`, so the earlier label stays recoverable. A run whose
   label already follows its rows is `unchanged` and not written, so a second
   call changes nothing.
-* A run that graded no generation (a run over submitted answers) is
-  `no_graded_generations` and keeps its label and metadata. A run that has
-  not finished, and the human-graded (`human`) and immediate-grading
-  (`immediate`) runs, are `skipped`.
+* A run that graded no generation (a run over submitted answers) keeps its
+  `model_id`, as at finalization, and gets an empty `evaluated_model_ids`,
+  so no view lists it as having graded the model its label names. Its
+  result has empty `graded_rows` and a `reason` saying so, and it is
+  `changed` or `unchanged` and kept in `relabel_history` like any other
+  run. A run that has not finished, and the human-graded (`human`) and
+  immediate-grading (`immediate`) runs, are `skipped`.
 * `revert: true` restores the `model_id` and `eval_metadata` from before
   the last relabel of each run. A run never relabelled, or changed after its
   relabel, is `skipped`.

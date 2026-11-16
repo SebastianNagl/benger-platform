@@ -254,19 +254,16 @@ class TestRelabelEvaluationRuns:
         assert payload["skipped"] == 1
         assert _reload(test_db, run).model_id == "model-x"
 
-    def test_runs_without_graded_generations_are_left_alone(
+    def test_unfinished_human_and_immediate_runs_are_left_alone(
         self, client, test_db, auth_headers, world
     ):
         make = world["make_run"]
-        answers_only = make(
-            "unknown", {}, eval_metadata={"evaluation_type": "evaluation"}
-        )
         running = make("unknown", {"model-a": 1}, status="running", minutes=1)
         human = make("human", {"model-a": 1}, minutes=2)
         immediate = make("immediate", {}, minutes=3)
         snapshot = {
             r.id: (r.model_id, dict(r.eval_metadata))
-            for r in (answers_only, running, human, immediate)
+            for r in (running, human, immediate)
         }
 
         payload = _post(
@@ -274,7 +271,6 @@ class TestRelabelEvaluationRuns:
         )
 
         results = _by_run(payload)
-        assert results[answers_only.id]["outcome"] == "no_graded_generations"
         assert results[running.id]["outcome"] == "skipped"
         assert results[human.id]["outcome"] == "skipped"
         assert results[immediate.id]["outcome"] == "skipped"
@@ -282,6 +278,60 @@ class TestRelabelEvaluationRuns:
         for run_id, (label, meta) in snapshot.items():
             stored = _reload(test_db, test_db.get(EvaluationRun, run_id))
             assert (stored.model_id, stored.eval_metadata) == (label, meta)
+
+    def test_answer_only_run_keeps_its_label_and_records_no_graded_model(
+        self, client, test_db, auth_headers, world
+    ):
+        """A run over submitted answers named "model-a" at dispatch but graded
+        no generation: it must not be listed as having graded model-a."""
+        answers_only = world["make_run"](
+            "model-a", {}, eval_metadata={"evaluation_type": "evaluation"}
+        )
+        original = (answers_only.model_id, dict(answers_only.eval_metadata))
+
+        preview = _post(client, auth_headers, run_ids=[answers_only.id])
+        item = _by_run(preview)[answers_only.id]
+        assert preview["changed"] == 1
+        assert item["outcome"] == "changed"
+        assert item["graded_rows"] == {}
+        assert item["reason"]
+        assert item["before"] == {
+            "model_id": "model-a",
+            "evaluated_model_ids": None,
+            "evaluated_model_id": None,
+        }
+        assert item["after"] == {
+            "model_id": "model-a",
+            "evaluated_model_ids": [],
+            "evaluated_model_id": "model-a",
+        }
+        stored = _reload(test_db, answers_only)
+        assert (stored.model_id, stored.eval_metadata) == original
+
+        applied = _post(client, auth_headers, run_ids=[answers_only.id], dry_run=False)
+        assert applied["changed"] == 1
+        stored = _reload(test_db, answers_only)
+        assert stored.model_id == "model-a"
+        assert stored.eval_metadata["evaluated_model_ids"] == []
+        assert stored.eval_metadata["evaluated_model_id"] == "model-a"
+        assert stored.eval_metadata["evaluation_type"] == "evaluation"
+        (entry,) = stored.eval_metadata["relabel_history"]
+        assert entry["relabeled_by"] == world["admin"].id
+        assert entry["superseded"] == {
+            "model_id": "model-a",
+            "eval_metadata": original[1],
+        }
+
+        again = _post(client, auth_headers, run_ids=[answers_only.id], dry_run=False)
+        assert again["changed"] == 0 and again["unchanged"] == 1
+        assert len(_reload(test_db, answers_only).eval_metadata["relabel_history"]) == 1
+
+        reverted = _post(
+            client, auth_headers, run_ids=[answers_only.id], revert=True, dry_run=False
+        )
+        assert reverted["changed"] == 1
+        restored = _reload(test_db, answers_only)
+        assert (restored.model_id, restored.eval_metadata) == original
 
     def test_run_ids_outside_the_project_are_not_found(
         self, client, test_db, auth_headers, world

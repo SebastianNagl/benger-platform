@@ -12,8 +12,9 @@ runs.
 The previous ``model_id`` and ``eval_metadata`` of a changed run are kept in
 ``eval_metadata["relabel_history"]`` with who relabelled it and when, and the
 revert mode restores them. A run that graded no generation (a run over
-submitted answers), a run that has not finished, and the human-graded and
-immediate runs are left alone.
+submitted answers) keeps its label and records an empty
+``evaluated_model_ids``, as at finalization. A run that has not finished, and
+the human-graded and immediate runs, are left alone.
 """
 
 import copy
@@ -98,9 +99,7 @@ class RelabelItem(BaseModel):
     run_id: str
     project_id: str | None = None
     status: str | None = None
-    outcome: Literal[
-        "changed", "unchanged", "no_graded_generations", "skipped", "not_found"
-    ]
+    outcome: Literal["changed", "unchanged", "skipped", "not_found"]
     reason: str | None = None
     #: Rows per graded model, most rows first.
     graded_rows: dict[str, int] = Field(default_factory=dict)
@@ -113,7 +112,6 @@ class RelabelResponse(BaseModel):
     revert: bool
     changed: int
     unchanged: int
-    no_graded_generations: int
     skipped: int
     not_found: int
     results: list[RelabelItem]
@@ -138,17 +136,26 @@ def _relabel(
     now: str,
 ) -> RelabelItem:
     before = _label(run.model_id, run.eval_metadata)
-    new_label = run_model_label(graded)
+    new_label = run_model_label(graded) if graded else run.model_id
     after = RunLabel(
         model_id=new_label,
         evaluated_model_ids=list(graded),
         evaluated_model_id=new_label,
     )
+    reason = (
+        None if graded else "The run graded no generation; it keeps its label."
+    )
     if after == before:
         return RelabelItem(
-            run_id=run.id, outcome="unchanged", before=before, after=after
+            run_id=run.id,
+            outcome="unchanged",
+            reason=reason,
+            before=before,
+            after=after,
         )
-    item = RelabelItem(run_id=run.id, outcome="changed", before=before, after=after)
+    item = RelabelItem(
+        run_id=run.id, outcome="changed", reason=reason, before=before, after=after
+    )
     if dry_run:
         return item
 
@@ -253,12 +260,6 @@ def relabel_evaluation_runs(
                 reason="Human-graded and immediate runs keep their label.",
                 before=_label(run.model_id, run.eval_metadata),
             )
-        elif not graded_rows:
-            item = RelabelItem(
-                run_id=run.id,
-                outcome="no_graded_generations",
-                before=_label(run.model_id, run.eval_metadata),
-            )
         else:
             item = _relabel(
                 db, run, list(graded_rows), body.dry_run, current_user.id, now
@@ -284,13 +285,7 @@ def relabel_evaluation_runs(
 
     tally = {
         k: sum(1 for r in results if r.outcome == k)
-        for k in (
-            "changed",
-            "unchanged",
-            "no_graded_generations",
-            "skipped",
-            "not_found",
-        )
+        for k in ("changed", "unchanged", "skipped", "not_found")
     }
     return RelabelResponse(
         dry_run=body.dry_run, revert=body.revert, results=results, **tally
