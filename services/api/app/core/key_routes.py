@@ -345,6 +345,9 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/projects/{project_id}/cloud-imports", ["projects:read"], ["projects:write", "tasks:write"]),
         area("/api/projects/{project_id}/generation-config*", ["runs:read"], ["runs:write"]),
         allow("/api/projects/{project_id}/generation-status", "runs:read", methods="read"),
+        # Re-parse of stored answers rewrites their parse result: superadmin
+        # only (the handler requires it too), before the read rule below.
+        allow("/api/projects/{project_id}/generations/reparse", "admin:platform", methods="POST"),
         allow("/api/projects/{project_id}/generations/*", "runs:read", methods="read"),
         allow("/api/projects/{project_id}/cohort-leaderboard", "results:read", methods="read"),
         allow("/api/projects/{project_id}/completion-stats", "results:read", methods="read"),

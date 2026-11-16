@@ -304,6 +304,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/projects/{project_id}/generation-config/structures/{key}` | `runs:read` | bound |
 | PUT | `/api/projects/{project_id}/generation-config/structures/{key}` | `runs:write` | bound |
 | GET | `/api/projects/{project_id}/generation-status` | `runs:read` | bound |
+| POST | `/api/projects/{project_id}/generations/reparse` | `admin:platform` | bound |
 | GET | `/api/projects/{project_id}/generations/version-distribution` | `runs:read` | bound |
 | GET | `/api/projects/{project_id}/grading-feedback/mine` | `results:read` | bound |
 | GET | `/api/projects/{project_id}/grading-feedback/summary` | `results:read` | bound |

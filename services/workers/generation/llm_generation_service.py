@@ -22,6 +22,7 @@ import re
 
 import tasks
 from typing import Any, Dict, Optional
+from response_parser import find_prompt_structure, prompt_structure_keys
 
 
 def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
@@ -446,53 +447,23 @@ def generate_llm_responses_impl(
                 # must not spend LLM budget.
                 raise Exception(f"Project {project_id} not found")
 
-            # Issue #762: Fetch prompt structure from generation_config if structure_key provided
+            # Issue #762: Fetch prompt structure from generation_config if
+            # structure_key provided. find_prompt_structure is shared with the
+            # re-parse route (POST /api/projects/{id}/generations/reparse), so
+            # a stored answer is re-read against the same structure.
             generation_structure = None
             if structure_key and project.generation_config:
-                prompt_structures = project.generation_config.get("prompt_structures", [])
-                # Handle both list format (new) and dict format (legacy)
-                if isinstance(prompt_structures, list):
-                    # List format: find structure by key or numeric index
-                    # First try to find by key
-                    for ps in prompt_structures:
-                        if ps.get("key") == structure_key:
-                            generation_structure = ps.get("structure", ps)
-                            tasks.logger.info(
-                                f"✅ Loaded prompt structure '{structure_key}' from generation_config (list format)"
-                            )
-                            break
-                    # If not found by key, try numeric index
-                    if not generation_structure:
-                        try:
-                            idx = int(structure_key)
-                            if 0 <= idx < len(prompt_structures):
-                                ps = prompt_structures[idx]
-                                generation_structure = ps.get("structure", ps)
-                                tasks.logger.info(
-                                    f"✅ Loaded prompt structure at index {idx} from generation_config (list format)"
-                                )
-                        except (ValueError, TypeError):
-                            pass
-                    if not generation_structure:
-                        available_keys = [
-                            ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)
-                        ]
-                        raise Exception(
-                            f"Prompt structure '{structure_key}' not found in project generation_config. "
-                            f"Available structures: {available_keys}"
-                        )
-                elif isinstance(prompt_structures, dict):
-                    # Legacy dict format
-                    if structure_key in prompt_structures:
-                        generation_structure = prompt_structures[structure_key]
-                        tasks.logger.info(
-                            f"✅ Loaded prompt structure '{structure_key}' from generation_config (dict format)"
-                        )
-                    else:
-                        raise Exception(
-                            f"Prompt structure '{structure_key}' not found in project generation_config. "
-                            f"Available structures: {list(prompt_structures.keys())}"
-                        )
+                generation_structure = find_prompt_structure(
+                    project.generation_config, structure_key
+                )
+                if generation_structure is None:
+                    raise Exception(
+                        f"Prompt structure '{structure_key}' not found in project generation_config. "
+                        f"Available structures: {prompt_structure_keys(project.generation_config)}"
+                    )
+                tasks.logger.info(
+                    f"✅ Loaded prompt structure '{structure_key}' from generation_config"
+                )
 
             # Every generation runs on a prompt structure: there is no built-in
             # default prompt any more. The hardcoded German legal prompt that
