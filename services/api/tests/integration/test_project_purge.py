@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm.attributes import set_committed_value
 
 import project_purge
 from models import (
@@ -25,6 +26,7 @@ from models import (
 )
 from project_models import Annotation, Project, Task
 from project_purge import PurgeAborted, purge_project_data, run_project_purge_job
+from routers.projects.crud import _supersede_if_stale
 from tests.integration.test_participant_tier import _as_user, _project, _user
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -406,6 +408,38 @@ async def test_a_stale_job_is_reported_failed_to_its_poll(async_test_client, asy
     await db.refresh(stored)
     assert stored.status == "failed"
     assert (await run_purge(db, job_id))["status"] == "skipped"
+
+
+async def test_a_supersede_racing_a_fresh_reclaim_leaves_the_job_running(
+    async_test_client, async_test_db
+):
+    """The API read the job as stale, then a redelivered message reclaimed it
+    before the API wrote its verdict: the job stays with that worker, and a
+    new request starts no second purge of the project."""
+    db = async_test_db
+    owner = await _user(db)
+    admin = await _user(db, superadmin=True)
+    p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
+    with _as_user(admin), queue_stub():
+        job_id = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()["job_id"]
+    # The worker's reclaim: running, with fresh progress.
+    await db.execute(
+        update(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id).values(status="running")
+    )
+    await db.commit()
+    job = (await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id))).scalar_one()
+    # What the API had read just before the reclaim.
+    set_committed_value(job, "updated_at", datetime.now(timezone.utc) - timedelta(minutes=31))
+
+    assert await _supersede_if_stale(db, job) is False
+    assert job.status == "running" and job.error_message is None
+
+    with _as_user(admin), queue_stub() as sent:
+        r = await async_test_client.delete(f"/api/projects/{p.id}/purge")
+        assert r.status_code == 202 and r.json()["job_id"] == job_id and sent == []
+        polled = (await async_test_client.get(f"/api/projects/{p.id}/purge-jobs/{job_id}")).json()
+        assert polled["status"] == "running"
+    assert await _count(db, ProjectPurgeJob, ProjectPurgeJob.project_id == p.id) == 1
 
 
 async def test_purge_job_status_access(async_test_client, async_test_db):

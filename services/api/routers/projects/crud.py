@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
@@ -52,7 +52,7 @@ from org_groups import (
     role_at_least,
 )
 from project_models import Project, ProjectOrganization, Task
-from project_purge import ACTIVE_STATUSES, is_stale
+from project_purge import ACTIVE_STATUSES, stale_running_job
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
@@ -1198,9 +1198,23 @@ def serialize_purge_job(job: ProjectPurgeJob) -> dict:
     }
 
 
-def _mark_superseded(job: ProjectPurgeJob) -> None:
-    job.status = JobStatus.FAILED.value
-    job.error_message = _SUPERSEDED
+async def _supersede_if_stale(db: AsyncSession, job: ProjectPurgeJob) -> bool:
+    """Mark ``job`` failed if it is a running job without progress for
+    ``PURGE_JOB_STALE_AFTER``, judged in the database so a worker that just
+    reclaimed it keeps it; reloads ``job`` either way."""
+    if job.status != JobStatus.RUNNING.value:
+        return False
+    superseded = (
+        await db.execute(
+            update(ProjectPurgeJob)
+            .where(ProjectPurgeJob.id == job.id, stale_running_job())
+            .values(status=JobStatus.FAILED.value, error_message=_SUPERSEDED)
+            .execution_options(synchronize_session=False)
+        )
+    ).rowcount == 1
+    await db.commit()
+    await db.refresh(job)
+    return superseded
 
 
 async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[ProjectPurgeJob]:
@@ -1220,12 +1234,10 @@ async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[Projec
     ).scalars().all()
     live = None
     for job in jobs:
-        if live is None and not is_stale(job):
-            live = job
+        if await _supersede_if_stale(db, job):
             continue
-        _mark_superseded(job)
-    if len(jobs) > (1 if live is not None else 0):
-        await db.commit()
+        if live is None and job.status in ACTIVE_STATUSES:
+            live = job
     return live
 
 
@@ -1330,10 +1342,7 @@ async def get_purge_job(
     ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Purge job not found")
-    if is_stale(job):
-        _mark_superseded(job)
-        await db.commit()
-        await db.refresh(job)
+    await _supersede_if_stale(db, job)
     return serialize_purge_job(job)
 
 

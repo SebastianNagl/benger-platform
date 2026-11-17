@@ -21,7 +21,7 @@ task and project keys also cascade since migration 140.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Callable, Dict, Optional
 
 from sqlalchemy import and_, delete, func, or_, select, update
@@ -61,12 +61,12 @@ class PurgeAborted(Exception):
     """The project stopped being purgeable while the purge ran."""
 
 
-def is_stale(job: ProjectPurgeJob, now: Optional[datetime] = None) -> bool:
-    now = now or datetime.now(timezone.utc)
-    return (
-        job.status == JobStatus.RUNNING.value
-        and job.updated_at is not None
-        and job.updated_at < now - PURGE_JOB_STALE_AFTER
+def stale_running_job():
+    """SQL condition of a running job without progress for
+    ``PURGE_JOB_STALE_AFTER``, on the database clock."""
+    return and_(
+        ProjectPurgeJob.status == JobStatus.RUNNING.value,
+        ProjectPurgeJob.updated_at < func.clock_timestamp() - PURGE_JOB_STALE_AFTER,
     )
 
 
@@ -201,14 +201,7 @@ def run_project_purge_job(
         update(ProjectPurgeJob)
         .where(
             ProjectPurgeJob.id == job_id,
-            or_(
-                ProjectPurgeJob.status == JobStatus.PENDING.value,
-                and_(
-                    ProjectPurgeJob.status == JobStatus.RUNNING.value,
-                    ProjectPurgeJob.updated_at
-                    < func.clock_timestamp() - PURGE_JOB_STALE_AFTER,
-                ),
-            ),
+            or_(ProjectPurgeJob.status == JobStatus.PENDING.value, stale_running_job()),
         )
         .values(status=JobStatus.RUNNING.value, updated_at=func.clock_timestamp())
         .returning(ProjectPurgeJob.project_id)
