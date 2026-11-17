@@ -514,6 +514,9 @@ class ProjectResponse(ProjectBase):
     # Check step for grading sheets (read-only here; the extended edition
     # sets it server-side): a task rubric becomes active only once confirmed.
     rubric_review_required: bool = False
+    # Creation-wizard draft (read-only): set by POST /projects/wizard-drafts,
+    # cleared by its finish route. Drafts are left out of every list.
+    is_wizard_draft: bool = False
     # Exam tools (read-only here; the extended edition owns the endpoint
     # that validates and writes them). Shape in /shared/exam_tools.py.
     exam_tools: Optional[Dict[str, Any]] = None

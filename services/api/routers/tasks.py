@@ -55,7 +55,9 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     """
     # Superadmins can access everything
     if user.is_superadmin:
-        result = await db.execute(select(Project.id).where(Project.deleted_at.is_(None)))
+        from project_models import project_listable
+
+        result = await db.execute(select(Project.id).where(project_listable()))
         return [row[0] for row in result.all()]
 
     # Get projects linked to user's organizations (active memberships only —

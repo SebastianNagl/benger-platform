@@ -764,12 +764,89 @@ def lti_sync_changed(plan) -> list:
     )
 
 
+def _build_select_wizard_draft_target(project_id):
+    """Shared SQL builder: ``(created_by, target_organization_id,
+    target_group_id)`` of the creation-wizard draft ``project_id``, only while
+    the project is a draft without organization rows (the shape the draft
+    route creates; a project with attachments always follows them)."""
+    from sqlalchemy import exists, select
+
+    from project_models import Project, ProjectOrganization, ProjectWizardDraft
+
+    return (
+        select(
+            ProjectWizardDraft.created_by,
+            ProjectWizardDraft.target_organization_id,
+            ProjectWizardDraft.target_group_id,
+        )
+        .join(Project, Project.id == ProjectWizardDraft.project_id)
+        .where(
+            ProjectWizardDraft.project_id == str(project_id),
+            Project.is_wizard_draft.is_(True),
+            ~exists().where(ProjectOrganization.project_id == Project.id),
+        )
+    )
+
+
+def _draft_target_tuple(row):
+    if row is None:
+        return None
+    creator, org_id, group_id = row
+    return (
+        str(creator),
+        str(org_id) if org_id else None,
+        str(group_id) if group_id else None,
+    )
+
+
+def wizard_draft_target(db, project_id):
+    """Sync: ``(creator_id, target_org_id, target_group_id)`` of a wizard
+    draft without organization rows, else None (also for any other project).
+
+    The key-scope rule of drafts (CORE 2.55): while the wizard runs, the
+    draft has no organization rows, so its target organization counts as the
+    project's organization for its creator (:mod:`org_resolution`) and its
+    target group as the scope group (:func:`resolve_project_group_for_org`),
+    so the AI work in the wizard spends the keys the finished project will
+    spend.
+    """
+    if not project_id:
+        return None
+    return _draft_target_tuple(
+        db.execute(_build_select_wizard_draft_target(project_id)).first()
+    )
+
+
+async def wizard_draft_target_async(db, project_id):
+    """Async twin of :func:`wizard_draft_target`."""
+    if not project_id:
+        return None
+    return _draft_target_tuple(
+        (await db.execute(_build_select_wizard_draft_target(project_id))).first()
+    )
+
+
+def _draft_group_candidate(target, org_id) -> Optional[str]:
+    """The draft's target group when the draft targets ``org_id`` with one."""
+    if target is None:
+        return None
+    _creator, target_org, target_group = target
+    if target_group and target_org == str(org_id):
+        return target_group
+    return None
+
+
 def resolve_project_group_for_org(db, project_id, org_id) -> Optional[str]:
     """Sync: the group scoping the project's attachment to ``org_id``.
 
     None when the attachment is org-wide, missing, or the ids are falsy —
     key resolution then uses the org-wide key pool. The key follows the
     PROJECT's attachment, never the dispatching user's groups.
+
+    A creation-wizard draft has no attachment yet: its target group counts
+    for its target organization, as long as the draft's creator may still
+    create a project in that group (:func:`user_may_scope_to_group`, checked
+    on every call because memberships change while a draft waits).
     """
     if not project_id or not org_id:
         return None
@@ -783,7 +860,13 @@ def resolve_project_group_for_org(db, project_id, org_id) -> Optional[str]:
         )
         .first()
     )
-    return str(row[0]) if row and row[0] else None
+    if row is not None:
+        return str(row[0]) if row[0] else None
+    target = wizard_draft_target(db, project_id)
+    group_id = _draft_group_candidate(target, org_id)
+    if group_id and user_may_scope_to_group(db, target[0], org_id, group_id):
+        return group_id
+    return None
 
 
 def user_may_scope_to_group(db, user_id, org_id, group_id) -> bool:
@@ -842,8 +925,57 @@ def user_may_scope_to_group(db, user_id, org_id, group_id) -> bool:
         return False
 
 
+async def user_may_scope_to_group_async(db, user_id, org_id, group_id) -> bool:
+    """Async twin of :func:`user_may_scope_to_group`."""
+    if not user_id or not org_id or not group_id:
+        return False
+    try:
+        from sqlalchemy import select
+
+        from models import OrganizationGroup, OrganizationMembership, User
+
+        group = (
+            await db.execute(
+                select(OrganizationGroup.organization_id, OrganizationGroup.is_active).where(
+                    OrganizationGroup.id == str(group_id)
+                )
+            )
+        ).first()
+        if group is None or str(group[0]) != str(org_id) or not group[1]:
+            return False
+        superadmin = (
+            await db.execute(select(User.is_superadmin).where(User.id == str(user_id)))
+        ).scalar_one_or_none()
+        if superadmin:
+            return True
+        org_role = (
+            await db.execute(
+                select(OrganizationMembership.role).where(
+                    OrganizationMembership.user_id == str(user_id),
+                    OrganizationMembership.organization_id == str(org_id),
+                    OrganizationMembership.is_active.is_(True),
+                )
+            )
+        ).scalars().first()
+        if org_role is None:
+            return False
+        role = attachment_role(
+            str(group_id), org_role, await get_user_group_context_async(db, str(user_id))
+        )
+        return role is not None and role_at_least(role, "CONTRIBUTOR")
+    except Exception:
+        logger.warning(
+            "group scope check failed for user %s / group %s; refusing",
+            user_id,
+            group_id,
+            exc_info=True,
+        )
+        return False
+
+
 async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optional[str]:
-    """Async twin of :func:`resolve_project_group_for_org`."""
+    """Async twin of :func:`resolve_project_group_for_org` (draft rule
+    included)."""
     if not project_id or not org_id:
         return None
     from sqlalchemy import select
@@ -857,8 +989,14 @@ async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optiona
                 ProjectOrganization.organization_id == str(org_id),
             )
         )
-    ).scalar_one_or_none()
-    return str(row) if row else None
+    ).first()
+    if row is not None:
+        return str(row[0]) if row[0] else None
+    target = await wizard_draft_target_async(db, project_id)
+    group_id = _draft_group_candidate(target, org_id)
+    if group_id and await user_may_scope_to_group_async(db, target[0], org_id, group_id):
+        return group_id
+    return None
 
 
 # ---------------------------------------------------------------------------

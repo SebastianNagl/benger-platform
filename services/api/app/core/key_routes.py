@@ -321,6 +321,9 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- projects: collection-level ------------------------------------- #
         allow("/api/projects/", "projects:read", methods="read"),
         allow("/api/projects/", "projects:write", methods="POST"),
+        # Creation-wizard drafts (CORE 2.55) are the browser wizard's working
+        # copy of a project that is not finished yet; keys create projects.
+        never("/api/projects/wizard-drafts", note="creation-wizard drafts"),
         allow(
             "/api/projects/bulk-export*",
             "exports:read",
@@ -336,6 +339,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         allow("/api/projects/tasks/{task_id}/metadata", "tasks:write", methods="PATCH"),
         allow("/api/projects/annotations/{annotation_id}", "annotations:write", methods="PATCH"),
         # -- projects: one project ------------------------------------------ #
+        never("/api/projects/{project_id}/wizard-draft*", note="creation-wizard drafts"),
         area(
             "/api/projects/{project_id}/exports*",
             ["exports:read", REF],

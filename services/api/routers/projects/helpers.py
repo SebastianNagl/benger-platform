@@ -787,7 +787,7 @@ def get_accessible_project_ids(
                     Project.is_private == False,  # noqa: E712
                     Project.created_by == str(user.id),
                 ),
-                not_deleted(),
+                listable(),
             )
             .all()
         )
@@ -802,7 +802,7 @@ def get_accessible_project_ids(
     public_ids = [
         r.id
         for r in db.query(Project.id)
-        .filter(Project.is_public == True, not_deleted())  # noqa: E712
+        .filter(Project.is_public == True, listable())  # noqa: E712
         .all()
     ]
 
@@ -815,7 +815,7 @@ def get_accessible_project_ids(
         .filter(
             Project.is_private == True,  # noqa: E712
             Project.created_by == str(user.id),
-            not_deleted(),
+            listable(),
         )
         .all()
     ]
@@ -1110,7 +1110,7 @@ async def get_accessible_project_ids_async(
                         Project.is_private == False,  # noqa: E712
                         Project.created_by == str(user.id),
                     ),
-                    not_deleted(),
+                    listable(),
                 )
             )
         ).all()
@@ -1118,7 +1118,7 @@ async def get_accessible_project_ids_async(
 
     public_rows = (
         await db.execute(
-            select(Project.id).where(Project.is_public == True, not_deleted())  # noqa: E712
+            select(Project.id).where(Project.is_public == True, listable())  # noqa: E712
         )
     ).all()
     public_ids = [r.id for r in public_rows]
@@ -1129,7 +1129,7 @@ async def get_accessible_project_ids_async(
             select(Project.id).where(
                 Project.is_private == True,  # noqa: E712
                 Project.created_by == str(user.id),
-                not_deleted(),
+                listable(),
             )
         )
     ).all()
@@ -1892,6 +1892,9 @@ async def check_task_assigned_to_user_async(
 # module.
 from project_models import project_is_deleted as _is_deleted  # noqa: E402
 from project_models import project_not_deleted as not_deleted  # noqa: E402
+# Lists and counts also leave out creation-wizard drafts (migration 141); the
+# per-project deciders keep ``not_deleted``, so the creator opens the draft.
+from project_models import project_listable as listable  # noqa: E402
 
 
 def _build_select_project_org_ids(project_id: str):
@@ -2204,7 +2207,7 @@ def _build_select_attempted_project_ids(user_id):
         .where(
             Annotation.completed_by == str(user_id),
             Annotation.was_cancelled == False,  # noqa: E712
-            not_deleted(),
+            listable(),
         )
         .distinct()
     )
@@ -2401,7 +2404,7 @@ async def get_participant_project_ids_async(
     """
     uid = str(user_id)
     not_archived = or_(Project.is_archived.is_(None), Project.is_archived == False)  # noqa: E712
-    alive = not_deleted()
+    alive = listable()
     result: Dict[str, str] = {}
 
     share_rows = await db.execute(

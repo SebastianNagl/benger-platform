@@ -137,12 +137,16 @@ async def get_dashboard_stats(
         # the precomputed row count looks suspiciously low.
         project_count = sums["project_count"]
         if accessible_ids is None:
-            # Soft-deleted projects are excluded, as in project_summaries and
-            # in get_accessible_project_ids; counting them showed more
-            # projects on the tile than the projects list holds.
+            # Soft-deleted projects and creation-wizard drafts are excluded,
+            # as in project_summaries and in get_accessible_project_ids;
+            # counting them showed more projects on the tile than the
+            # projects list holds.
             true_total = (
                 await db.execute(
-                    text("SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL")
+                    text(
+                        "SELECT COUNT(*) FROM projects "
+                        "WHERE deleted_at IS NULL AND NOT is_wizard_draft"
+                    )
                 )
             ).scalar() or 0
             if project_count < true_total:
