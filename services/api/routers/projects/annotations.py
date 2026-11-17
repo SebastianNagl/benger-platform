@@ -258,7 +258,9 @@ async def list_task_annotations(
     # Timed access window: hide data from the access group before the window
     # opens (editors exempt, attempted exempt). No-op without a window.
     if project is not None:
-        tier = await enforce_project_read_window_async(db, current_user, project, tier=tier)
+        tier = await enforce_project_read_window_async(
+            db, current_user, project, tier=tier, allow_attempted=True
+        )
     # Attempted tier: only the tasks the caller submitted exist for them, and
     # they only ever see their own rows.
     if tier == TIER_ATTEMPTED:

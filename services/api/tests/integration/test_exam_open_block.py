@@ -7,8 +7,9 @@ task has a checked grading sheet). The platform asks it in
 ``/api/data`` scope:
 
 - a participant read answers 403 ``{code: "exam_not_ready", reason}``;
-- editors, superadmins and the attempted tier pass; any other caller with an
-  own submission is demoted to the attempted tier (own submissions only);
+- editors, superadmins and the attempted tier pass; a caller that opts in
+  (``allow_attempted``) demotes any other caller with an own submission to
+  the attempted tier (own submissions only), every other caller refuses;
 - the window rule keeps its own answer before the hook;
 - a failing hook counts as open; without a package nothing changes;
 - writes never ask the hook.
@@ -239,7 +240,6 @@ async def test_editors_superadmins_and_the_attempted_tier_pass(async_test_db):
             )
             is None
         )
-        # Without a tier the guard looks the attempt up itself.
         db.add(
             Annotation(
                 id=_uid(),
@@ -250,7 +250,47 @@ async def test_editors_superadmins_and_the_attempted_tier_pass(async_test_db):
             )
         )
         await db.flush()
-        assert await _refusal(enforce_project_read_window_async(db, w["student"], p)) is None
+        # Without a tier the guard looks the attempt up itself, but only a
+        # caller that scopes to own submissions gets the demotion.
+        assert (
+            await enforce_project_read_window_async(db, w["student"], p, allow_attempted=True)
+            == TIER_ATTEMPTED
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_whole_project_read_refuses_a_blocked_submitter(async_test_db):
+    # The exports and the fields sample serve the whole exam and call the
+    # guard without opting in: a submission must not open the closed exam.
+    db = async_test_db
+    w = await _world(db)
+    p, student = w["project"], w["student"]
+    db.add(
+        Annotation(
+            id=_uid(),
+            task_id=w["task"].id,
+            project_id=p.id,
+            completed_by=student.id,
+            result=[{"from_name": "x", "to_name": "text", "type": "textarea", "value": {}}],
+        )
+    )
+    await db.flush()
+
+    with _extended(_Hook(block=RUBRIC_BLOCK)):
+        for tier in (None, TIER_PARTICIPANT):
+            detail = await _refusal(enforce_project_read_window_async(db, student, p, tier=tier))
+            assert detail["code"] == EXAM_NOT_READY_CODE
+        with pytest.raises(HTTPException) as exc:
+            await db.run_sync(lambda s: enforce_project_read_window(s, student, p))
+        assert exc.value.detail["code"] == EXAM_NOT_READY_CODE
+        assert (
+            await db.run_sync(
+                lambda s: enforce_project_read_window(s, student, p, allow_attempted=True)
+            )
+            == TIER_ATTEMPTED
+        )
+    # Once the exam is open the same callers pass again.
+    assert await enforce_project_read_window_async(db, student, p) is None
 
 
 @pytest.mark.asyncio
@@ -425,9 +465,15 @@ async def test_a_blocked_submitter_keeps_only_their_own_submission(
 
     with _extended(_Hook(block=RUBRIC_BLOCK)):
         assert (
-            await enforce_project_read_window_async(db, submitter, p, tier=TIER_PARTICIPANT)
+            await enforce_project_read_window_async(
+                db, submitter, p, tier=TIER_PARTICIPANT, allow_attempted=True
+            )
             == TIER_ATTEMPTED
         )
+        detail = await _refusal(
+            enforce_project_read_window_async(db, submitter, p, tier=TIER_PARTICIPANT)
+        )
+        assert detail["code"] == EXAM_NOT_READY_CODE
         detail = await _refusal(
             enforce_project_read_window_async(db, newcomer, p, tier=TIER_PARTICIPANT)
         )

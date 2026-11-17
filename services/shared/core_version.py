@@ -880,7 +880,13 @@ whenever one is added, renamed or removed):
     returning ``fn(db, *, project, user_id) -> None | dict | str``. The
     platform asks it in ``enforce_project_read_window(_async)`` after the
     window rule and in the ``/api/data`` scope, never on writes; editors,
-    superadmins and the attempted tier pass. A block answers 403
+    superadmins and the attempted tier pass. The guards now return the tier
+    the caller must apply from then on; with the keyword
+    ``allow_attempted=True`` a blocked non-editor with an own submission is
+    demoted to ``TIER_ATTEMPTED`` (own submissions only) instead of refused.
+    Opt in only where the attempted tier's scoping is applied to the
+    returned tier; without it every blocked non-editor is refused, an own
+    submission included. A block answers 403
     ``{"code": "exam_not_ready", "reason", "message", "project_id"}``
     (``helpers.EXAM_NOT_READY_CODE``; ``exam_open_block(_async)`` is the
     rule itself). A failing hook counts as open. Without a package nothing

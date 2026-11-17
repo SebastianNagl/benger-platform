@@ -98,7 +98,7 @@ async def list_project_tasks(
     # window opens (editors exempt, attempted tier exempt). No-op when the
     # project has no window.
     tier = await enforce_project_read_window_async(
-        db, current_user, project, tier=access.tier
+        db, current_user, project, tier=access.tier, allow_attempted=True
     )
     # Safe Exam Browser: outside SEB a non-editor lists only the tasks they
     # already submitted (the exam itself is handed out inside SEB).
@@ -557,7 +557,9 @@ async def get_next_task(
 
     # Timed access window: no next task to hand out before the window opens
     # (editors exempt).
-    tier = await enforce_project_read_window_async(db, current_user, project, tier=tier)
+    tier = await enforce_project_read_window_async(
+        db, current_user, project, tier=tier, allow_attempted=True
+    )
     if tier == TIER_ATTEMPTED:
         return {"detail": "No tasks available", "task": None}
     # Safe Exam Browser: the next task is by definition unsubmitted content.
@@ -956,7 +958,7 @@ async def get_task(
     # window opens (editors exempt, attempted exempt). Serves task.data below.
     if project is not None:
         tier = await enforce_project_read_window_async(
-            db, current_user, project, tier=tier
+            db, current_user, project, tier=tier, allow_attempted=True
         )
     # Attempted tier: only the tasks the caller submitted exist for them.
     if tier == TIER_ATTEMPTED and not await user_attempted_task_async(
