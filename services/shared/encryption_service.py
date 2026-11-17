@@ -161,10 +161,9 @@ class EncryptionService:
     def is_valid_api_key_format(self, api_key: Optional[str], provider: Optional[str]) -> bool:
         """Best-effort shape check per provider. Not a verification call.
 
-        The key forms in services/frontend/src/lib/apiKeyFormats.ts run a
-        pre-save check that may be stricter for some providers but must never
-        reject a key these rules accept; Google mirrors these rules exactly.
-        Loosening a rule here means checking that file too.
+        The frontend key forms run their own pre-save check in
+        services/frontend/src/lib/apiKeyFormats.ts, which documents how its
+        rules relate to these. Changing a rule here means checking that file.
         """
         if not api_key or not api_key.strip():
             return False
