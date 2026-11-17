@@ -5,6 +5,14 @@ name: benger
 version: '3.8'
 
 services:
+  # Postgres: parallel maintenance workers (VACUUM, CREATE INDEX) and parallel
+  # query share memory through /dev/shm, which Docker sizes at 64 MB by
+  # default. On a full dev database copy a parallel VACUUM ANALYZE failed
+  # there ("could not resize shared memory segment ... No space left on
+  # device"). The segment counts toward the service's 1G memory limit.
+  db:
+    shm_size: 256m
+
   # API Development Configuration - Hot Reload with Optimizations
   api:
     command: [

@@ -961,6 +961,7 @@
       "restored": "Projekt wiederhergestellt.",
       "purge": "Endgültig löschen",
       "purged": "Projekt endgültig gelöscht.",
+      "purging": "Wird gelöscht … {progress} %",
       "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden.",
       "bannerTitle": "Dieses Projekt wurde am {date} gelöscht.",
       "bannerBody": "Nur Superadmins können es öffnen, für alle anderen ist es ausgeblendet. Stelle es wieder her, um wieder darin zu arbeiten.",

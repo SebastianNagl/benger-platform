@@ -961,6 +961,7 @@
       "restored": "Project restored.",
       "purge": "Delete permanently",
       "purged": "Project permanently deleted.",
+      "purging": "Deleting … {progress}%",
       "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone.",
       "bannerTitle": "This project was deleted on {date}.",
       "bannerBody": "Only superadmins can open it; it is hidden from everyone else. Restore it to work in it again.",

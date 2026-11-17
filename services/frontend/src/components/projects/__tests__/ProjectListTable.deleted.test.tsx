@@ -153,6 +153,25 @@ describe('ProjectListTable in deleted mode', () => {
     )
   })
 
+  it('a restore refused because the purge was started shows the server message', async () => {
+    // The API client throws the `message` of a {code, message} detail.
+    const message =
+      'The permanent deletion of this project was started and cannot be undone. Use "Delete permanently" again to finish it.'
+    mockRestore.mockRejectedValue(
+      Object.assign(new Error(message), { response: { status: 409 } }),
+    )
+    render(<ProjectListTable showDeletedOnly />)
+    mockFetchProjects.mockClear()
+    fireEvent.click(screen.getByTestId('deleted-restore-p1'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(message, 'error'),
+    )
+    expect(mockFetchProjects).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.getByTestId('deleted-restore-p1')).not.toBeDisabled(),
+    )
+  })
+
   it('purge asks a danger confirm and only proceeds on yes', async () => {
     mockConfirm.mockResolvedValueOnce(false)
     render(<ProjectListTable showDeletedOnly />)
@@ -164,8 +183,40 @@ describe('ProjectListTable in deleted mode', () => {
     mockConfirm.mockResolvedValueOnce(true)
     mockPurge.mockResolvedValue(undefined)
     fireEvent.click(screen.getByTestId('deleted-purge-p1'))
-    await waitFor(() => expect(mockPurge).toHaveBeenCalledWith('p1'))
+    await waitFor(() =>
+      expect(mockPurge).toHaveBeenCalledWith('p1', expect.any(Object)),
+    )
     expect(push).not.toHaveBeenCalled()
+  })
+
+  it('shows the progress of a running purge on its button', async () => {
+    mockConfirm.mockResolvedValueOnce(true)
+    let finish: () => void = () => {}
+    mockPurge.mockImplementation(
+      (_id: string, options: { onStatus: (s: { progress: number }) => void }) =>
+        new Promise<void>((resolve) => {
+          options.onStatus({ progress: 40 })
+          finish = resolve
+        }),
+    )
+    render(<ProjectListTable showDeletedOnly />)
+    fireEvent.click(screen.getByTestId('deleted-purge-p1'))
+    await waitFor(() =>
+      expect(screen.getByTestId('deleted-purge-p1')).toHaveTextContent(
+        'Wird gelöscht … 40 %',
+      ),
+    )
+    expect(screen.getByTestId('deleted-purge-p1')).toBeDisabled()
+    finish()
+    await waitFor(() =>
+      expect(screen.getByTestId('deleted-purge-p1')).toHaveTextContent(
+        'Endgültig löschen',
+      ),
+    )
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'Projekt endgültig gelöscht.',
+      'success',
+    )
   })
 
   it('lists a deleted project whatever its archive state, marked archived', () => {

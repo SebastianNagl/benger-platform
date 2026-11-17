@@ -322,6 +322,7 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/projects/{project_id}/participation` | `account:write` | bound |
 | GET | `/api/projects/{project_id}/participation` | `account:read` | bound |
 | DELETE | `/api/projects/{project_id}/purge` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/purge-jobs/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/questionnaire-responses` | `annotations:read` | bound |
 | POST | `/api/projects/{project_id}/recalculate-stats` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}/report` | `results:read` | bound |

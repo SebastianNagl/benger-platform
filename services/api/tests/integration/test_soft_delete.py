@@ -18,6 +18,8 @@ from project_models import (
     Task,
 )
 
+from tests.integration.test_project_purge import queue_stub, run_purge
+
 # Reuse the participant-tier fixtures' shapes.
 from tests.integration.test_participant_tier import (  # noqa: F401
     EXAM_CONFIG,
@@ -124,7 +126,10 @@ async def test_superadmin_deleted_view_restore_and_purge(async_test_client, asyn
         r = await async_test_client.delete(f"/api/projects/{p.id}/purge")
         assert r.status_code == 409, r.text
         assert (await async_test_client.delete(f"/api/projects/{p.id}")).status_code == 200
-        assert (await async_test_client.delete(f"/api/projects/{p.id}/purge")).status_code == 200
+        with queue_stub() as sent:
+            r = await async_test_client.delete(f"/api/projects/{p.id}/purge")
+        assert r.status_code == 202, r.text
+        assert (await run_purge(db, sent[0]))["status"] == "completed"
     assert (await db.execute(select(Project).where(Project.id == p.id))).scalar_one_or_none() is None
     assert not (await db.execute(select(Task).where(Task.project_id == p.id))).scalars().all()
 
@@ -192,9 +197,11 @@ async def test_bulk_soft_delete_restore_purge(async_test_client, async_test_db):
     with _as_user(admin):
         assert (await async_test_client.post("/api/projects/bulk-restore", json={"project_ids": [p1.id]})).json()["restored"] == 1
         # Bulk-purge only touches soft-deleted rows: the restored p1 is skipped.
-        r = (await async_test_client.post("/api/projects/bulk-purge", json={"project_ids": [p1.id, p2.id]})).json()
-        assert r["purged"] == 1
+        with queue_stub() as sent:
+            r = (await async_test_client.post("/api/projects/bulk-purge", json={"project_ids": [p1.id, p2.id]})).json()
+        assert r["queued"] == 1
         assert [f["reason"] for f in r["failed_projects"]] == ["Not soft-deleted"]
+        assert (await run_purge(db, sent[0]))["status"] == "completed"
     assert (await db.execute(select(Project.deleted_at).where(Project.id == p1.id))).scalar_one() is None
     assert (await db.execute(select(Project).where(Project.id == p2.id))).scalar_one_or_none() is None
 

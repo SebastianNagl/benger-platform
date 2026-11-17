@@ -180,6 +180,13 @@ async def _seed_parse_data(db, project: Project) -> str:
       3 success (retry_count 1, 2, 1), 2 failed (same error), 1 validation_error.
     Returns the parent response_generation id.
     """
+    # Generations reference real tasks (FK since migration 140).
+    task_ids = {}
+    for n in range(1, 7):
+        task_ids[n] = _uid()
+        db.add(Task(id=task_ids[n], project_id=project.id, data={"text": f"t{n}"},
+                    created_by=project.created_by, inner_id=100 + n))
+    await db.flush()
     parent_id = _uid()
     db.add(
         DBResponseGeneration(
@@ -198,7 +205,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-1",
+            task_id=task_ids[1],
             model_id="gpt-4o",
             run_index=0,
             case_data="test data",
@@ -209,7 +216,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-2",
+            task_id=task_ids[2],
             model_id="gpt-4o",
             run_index=1,
             case_data="test data",
@@ -220,7 +227,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-3",
+            task_id=task_ids[3],
             model_id="gpt-4o",
             run_index=2,
             case_data="test data",
@@ -231,7 +238,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-4",
+            task_id=task_ids[4],
             model_id="gpt-4o",
             run_index=3,
             case_data="test data",
@@ -242,7 +249,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-5",
+            task_id=task_ids[5],
             model_id="gpt-4o",
             run_index=4,
             case_data="test data",
@@ -253,7 +260,7 @@ async def _seed_parse_data(db, project: Project) -> str:
         DBGeneration(
             id=_uid(),
             generation_id=parent_id,
-            task_id="task-6",
+            task_id=task_ids[6],
             model_id="gpt-4o",
             run_index=5,
             case_data="test data",
@@ -460,11 +467,12 @@ class TestGenerationExecution:
     async def test_stop_generation(self, async_test_client, async_test_db):
         """Test stopping a running generation (routers/generation.py)"""
         admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
         gen_id = _uid()
         async_test_db.add(
             DBResponseGeneration(
                 id=gen_id,
-                project_id="test-project",
+                project_id=project.id,
                 model_id="gpt-4o",
                 status="running",
                 created_by=admin.id,
@@ -494,11 +502,15 @@ class TestGenerationExecution:
     async def test_delete_generation(self, async_test_client, async_test_db):
         """Test deleting generation and its responses (routers/generation.py)"""
         admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin, num_tasks=1)
+        task_id = (
+            await async_test_db.execute(select(Task.id).where(Task.project_id == project.id))
+        ).scalar_one()
         gen_id = _uid()
         async_test_db.add(
             DBResponseGeneration(
                 id=gen_id,
-                project_id="test-project",
+                project_id=project.id,
                 model_id="gpt-4o",
                 status="completed",
                 created_by=admin.id,
@@ -506,11 +518,12 @@ class TestGenerationExecution:
                 completed_at=datetime.now(),
             )
         )
+        await async_test_db.flush()
         async_test_db.add(
             DBGeneration(
                 id=_uid(),
                 generation_id=gen_id,
-                task_id="task-1",
+                task_id=task_id,
                 model_id="gpt-4o",
                 run_index=0,
                 case_data="test data",
