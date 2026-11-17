@@ -3833,7 +3833,8 @@ class ExportJob(Base):
     # synchronous /tasks/bulk-export endpoint did.
     task_ids = Column(JSONB, nullable=True)
     status = Column(String, nullable=False, server_default="pending")
-    # Storage key of the finished artifact; NULL until the upload starts.
+    # Storage key of the finished artifact; NULL until the upload starts and
+    # again once the expired artifact was deleted (job_file_cleanup.py).
     object_key = Column(String, nullable=True)
     byte_size = Column(BigInteger, nullable=True)
     progress = Column(Integer, nullable=False, server_default=text("0"))
@@ -3898,9 +3899,11 @@ class ImportJob(Base):
     # Detected during parsing (nested label-studio vs. flat comprehensive).
     format = Column(String, nullable=True)
     status = Column(String, nullable=False, server_default="pending")
-    # Client uploads the file before the job row is created, so this is required.
-    # For cloud imports this holds the key in the CUSTOMER bucket instead.
-    object_key = Column(String, nullable=False)
+    # Client uploads the file before the job row is created, so it is set at
+    # creation. For cloud imports this holds the key in the CUSTOMER bucket
+    # instead. NULL once the expired upload was deleted (migration 141,
+    # job_file_cleanup.py).
+    object_key = Column(String, nullable=True)
     # Set for cloud imports (file pulled from an org storage connection instead
     # of our own object storage). SET NULL on connection delete keeps the job
     # history row alive while marking the source as removed.

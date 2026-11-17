@@ -1300,8 +1300,10 @@ async def purge_project(
     request while the job runs returns the same job; once a purge was requested
     the project can no longer be restored, and a failed purge is finished by
     requesting it again. The project's export and import files expire through
-    the MinIO lifecycle rule of their prefix; other stored files of the project
-    are not cleaned up by the purge."""
+    the MinIO lifecycle rule of their prefix where one is set; the purge deletes
+    their job rows, so the daily ``tasks.cleanup_expired_job_files`` sweep does
+    not see them. Other stored files of the project are not cleaned up by the
+    purge."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
 

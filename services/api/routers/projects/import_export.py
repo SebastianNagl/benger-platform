@@ -390,10 +390,14 @@ async def export_download_url(db: AsyncSession, job: ExportJob) -> str:
     """Short-lived presigned URL of a finished export (404 until the job is
     completed, 410 once its artifact expired). The object key comes from the
     DB row, never from the client. Shared with ``/api/v1/exports``."""
-    if job.status != JobStatus.COMPLETED.value or not job.object_key:
+    if job.status != JobStatus.COMPLETED.value:
         raise HTTPException(status_code=404, detail="Export not ready")
+    # Checked before the key: the daily cleanup deletes an expired artifact
+    # and clears its key, and that export is still expired, not "not ready".
     if job.expires_at is not None and job.expires_at <= datetime.now(timezone.utc):
         raise HTTPException(status_code=410, detail="Export has expired; re-export")
+    if not job.object_key:
+        raise HTTPException(status_code=404, detail="Export not ready")
 
     _media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
         job.format or "json", ("application/octet-stream", "dat")
