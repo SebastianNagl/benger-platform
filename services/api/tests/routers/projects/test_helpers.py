@@ -15,10 +15,6 @@ def test_calculate_project_stats_batch_with_projects():
     """Test batch stats calculation returns correct structure."""
     # Mock database session
     db = Mock()
-    # The batch path first reads precomputed `project_summaries` rows via
-    # db.execute(...).all(). Returning [] forces the live-Python fallback
-    # that this test was designed to exercise.
-    db.execute.return_value.all.return_value = []
 
     # Mock query results
     task_stats = [
@@ -31,17 +27,22 @@ def test_calculate_project_stats_batch_with_projects():
         Mock(project_id='p2', annotation_count=18),
     ]
 
-    # Scored (subject, config, metric) cells. p1 has 3 distinct evaluations;
-    # the `_raw` noise key and the judge's registered Notenpunkte twin (a
-    # second view of the same judge call) must both be filtered out. p2 has
-    # none.
-    evaluation_pairs = [
-        ('p1', 'ann-1', 'cfg-bleu', 'bleu'),
-        ('p1', 'ann-1', 'cfg-judge', 'llm_judge_rubric'),
-        ('p1', 'ann-1', 'cfg-judge', 'llm_judge_rubric_grade_points'),  # twin, dropped
-        ('p1', 'ann-2', 'cfg-bleu', 'bleu'),
-        ('p1', 'ann-2', 'cfg-bleu', 'bleu_raw'),  # noise suffix, dropped
+    # Scored cells per (project, metric key), as count_eval_pairs_by_project
+    # reads them. p1 has 3 distinct evaluations; the `_raw` noise key and the
+    # judge's registered Notenpunkte twin (a second view of the same judge
+    # call) must both be filtered out. p2 has none.
+    evaluation_cells = [
+        ('p1', 'bleu', 2),
+        ('p1', 'llm_judge_rubric', 1),
+        ('p1', 'llm_judge_rubric_grade_points', 1),  # twin, dropped
+        ('p1', 'bleu_raw', 1),  # noise suffix, dropped
     ]
+    # db.execute(...).all(): first the precomputed `project_summaries` rows
+    # ([] forces the live fallback this test exercises), then the cells.
+    summary_result, cells_result = Mock(), Mock()
+    summary_result.all.return_value = []
+    cells_result.all.return_value = evaluation_cells
+    db.execute.side_effect = [summary_result, cells_result]
 
     # Setup mock query chain for task stats
     task_query_mock = Mock()
@@ -53,16 +54,8 @@ def test_calculate_project_stats_batch_with_projects():
         annotation_stats
     )
 
-    # Setup mock query chain for scored-pairs query. Chain shape:
-    # db.query(...).select_from(...).join(...).filter(...)  ← from _scored_pairs_query
-    #   .filter(...).distinct().all()                       ← appended in batch path
-    evaluation_query_mock = Mock()
-    (
-        evaluation_query_mock.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value
-    ) = evaluation_pairs
-
     # Setup db.query to return different mocks on consecutive calls
-    db.query.side_effect = [task_query_mock, annotation_query_mock, evaluation_query_mock]
+    db.query.side_effect = [task_query_mock, annotation_query_mock]
 
     # Call function
     result = calculate_project_stats_batch(db, ['p1', 'p2'])
@@ -110,13 +103,8 @@ def test_calculate_project_stats_batch_missing_annotations():
         annotation_stats
     )
 
-    # No evaluation rows for either project
-    evaluation_query_mock = Mock()
-    (
-        evaluation_query_mock.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value
-    ) = []
-
-    db.query.side_effect = [task_query_mock, annotation_query_mock, evaluation_query_mock]
+    # No evaluation cells for either project (same db.execute(...).all()).
+    db.query.side_effect = [task_query_mock, annotation_query_mock]
 
     result = calculate_project_stats_batch(db, ['p1', 'p2'])
 
@@ -137,7 +125,8 @@ def _annotation_only_project_mock():
     """Project mock with only the annotation stage enabled.
 
     Generation/evaluation are disabled so calculate_project_stats only fires
-    the task / annotation / completed-task / scored-pairs queries (4 total).
+    the task / annotation / completed-task queries plus the live evaluation
+    count.
     Configs are None so the gen_models_count branch is also skipped.
     """
     project = Mock()
@@ -149,22 +138,14 @@ def _annotation_only_project_mock():
     return project
 
 
-def _empty_scored_pairs_query_mock():
-    """Mock chain matching _scored_pairs_query(...).filter(...).distinct().all() == []."""
-    q = Mock()
-    (
-        q.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value
-    ) = []
-    return q
-
-
 def test_calculate_project_stats():
     """Test single project stats calculation."""
     db = Mock()
     # `read_project_summary` does db.execute(...).scalar_one_or_none() —
-    # None means "no precomputed row" → falls through to the live
-    # _scored_pairs_query path this test sets up.
+    # None means "no precomputed row" → falls through to the live count
+    # (count_eval_pairs_by_project), whose db.execute(...).all() has no cells.
     db.execute.return_value.scalar_one_or_none.return_value = None
+    db.execute.return_value.all.return_value = []
     response = Mock()
 
     # Setup task count query
@@ -179,15 +160,10 @@ def test_calculate_project_stats():
     completed_tasks_query = Mock()
     completed_tasks_query.filter.return_value.count.return_value = 5
 
-    # Scored (subject, metric) pairs query — always fires, used for the
-    # Statistiken tile even when enable_evaluation is False.
-    scored_pairs_query = _empty_scored_pairs_query_mock()
-
     db.query.side_effect = [
         task_count_query,
         annotation_count_query,
         completed_tasks_query,
-        scored_pairs_query,
     ]
 
     calculate_project_stats(
@@ -208,7 +184,8 @@ def test_calculate_project_stats_zero_tasks():
     db.execute.return_value.scalar_one_or_none.return_value = None
     response = Mock()
 
-    # task / annotation / completed_tasks all return 0; scored-pairs returns []
+    # task / annotation / completed_tasks all return 0 (no tasks: the live
+    # evaluation count is skipped)
     count_query = Mock()
     count_query.filter.return_value.count.return_value = 0
 
@@ -216,7 +193,6 @@ def test_calculate_project_stats_zero_tasks():
         count_query,  # task_count
         count_query,  # annotation_count
         count_query,  # completed_tasks_count
-        _empty_scored_pairs_query_mock(),
     ]
 
     calculate_project_stats(

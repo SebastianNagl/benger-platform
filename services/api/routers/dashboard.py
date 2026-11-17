@@ -10,15 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
 from database import get_async_db
-from models import EvaluationRun, Generation
+from models import Generation
 from project_models import Annotation, Task
 from redis_cache import RedisCache
-from routers.projects.helpers import (
-    _async_scored_pairs_select,
-    get_accessible_project_ids,
-    metric_key_counts_as_evaluation,
+from routers.projects.helpers import get_accessible_project_ids
+from aggregate_summaries import (
+    count_eval_pairs_by_project_async,
+    read_dashboard_sum_async,
+    unsummarized_project_ids_async,
 )
-from aggregate_summaries import read_dashboard_sum_async
 
 logger = logging.getLogger(__name__)
 
@@ -28,69 +28,40 @@ cache = RedisCache()
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-def _build_scored_pairs_select(accessible_ids):
-    """DISTINCT scored cells across the accessible projects.
-
-    Thin wrapper over routers.projects.helpers._async_scored_pairs_select so
-    the dashboard and the project tiles count the same thing. The
-    `metric_key_counts_as_evaluation` filter is applied in Python by the
-    caller, identical to the project path.
+async def _live_evaluations_count_async(db: AsyncSession, project_ids):
+    """Live evaluation count of `project_ids` - the projects without a
+    project_summaries row yet. Same statement the refresh writes the
+    summaries with (`count_eval_pairs_by_project`), so a project shows the
+    same number before and after its first refresh.
     """
-    stmt = _async_scored_pairs_select().distinct()
-    if accessible_ids is not None:
-        stmt = stmt.where(EvaluationRun.project_id.in_(accessible_ids))
-    return stmt
+    counts = await count_eval_pairs_by_project_async(db, list(project_ids))
+    return sum(counts.values())
 
 
-async def _live_evaluations_count_async(db: AsyncSession, accessible_ids):
-    """Async twin of the original `_live_evaluations_count` fallback.
+async def _live_dashboard_counts_async(db: AsyncSession, project_ids):
+    """Live tasks / annotations / generations of `project_ids` - the
+    projects without a project_summaries row yet.
 
-    Fallback path when project_summaries hasn't been populated yet — pulls
-    (subject, config, metric) cells and applies the noise filter in Python. Kept for
-    new-project safety so brand-new projects show accurate stats before the
-    next `recompute_aggregates` cycle.
+    Mirrors the per-project predicates in
+    aggregate_summaries._compute_project_summary so the values match what
+    the refresh will write - critically, generations counts only Generation
+    rows with parse_status="success", not raw ResponseGeneration rows.
     """
-    rows = (await db.execute(_build_scored_pairs_select(accessible_ids))).all()
-    return sum(
-        1 for _pid, _sub, _cfg, mk in rows if metric_key_counts_as_evaluation(mk)
-    )
-
-
-async def _live_dashboard_counts_async(db: AsyncSession, accessible_ids):
-    """Async twin of the original `_live_dashboard_counts` fallback.
-
-    Belt-and-braces live counts for tasks / annotations / generations when
-    project_summaries hasn't been populated yet. Mirrors the per-project
-    predicates in aggregate_summaries._compute_project_summary so the fallback
-    values match what the beat task would write — critically, generations
-    counts only Generation rows with parse_status="success", not raw
-    ResponseGeneration rows.
-
-    Brand-new projects (created since the last recompute_aggregates cycle)
-    have no project_summaries rows, so reads through read_dashboard_sum return
-    0 across the board. Without this fallback the dashboard would show
-    flat-zero stats for hours until the cron — confusing to users and a
-    regression vs. the original live-counting implementation.
-    """
-    task_q = select(func.count(Task.id))
+    project_ids = list(project_ids)
+    task_q = select(func.count(Task.id)).where(Task.project_id.in_(project_ids))
     ann_q = select(func.count(Annotation.id)).where(
+        Annotation.project_id.in_(project_ids),
         Annotation.was_cancelled == False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
-    # Generation count predicate must match aggregate_summaries:
-    # `select count(Generation.id) join Task where parse_status = 'success'`.
-    # An earlier version of this fallback used a plain ResponseGeneration
-    # count, which over-reported by including pending/failed parses.
     gen_q = (
         select(func.count(Generation.id))
         .join(Task, Generation.task_id == Task.id)
-        .where(Generation.parse_status == "success")
+        .where(
+            Task.project_id.in_(project_ids),
+            Generation.parse_status == "success",
+        )
     )
-    if accessible_ids is not None:
-        task_q = task_q.where(Task.project_id.in_(accessible_ids))
-        ann_q = ann_q.where(Annotation.project_id.in_(accessible_ids))
-        gen_q = gen_q.where(Task.project_id.in_(accessible_ids))
-
     return {
         "total_tasks": int((await db.execute(task_q)).scalar() or 0),
         "annotations_count": int((await db.execute(ann_q)).scalar() or 0),
@@ -181,31 +152,27 @@ async def get_dashboard_stats(
             if project_count < true_total:
                 project_count = int(true_total)
 
-        evaluations_count = sums["evaluation_pairs_count"]
-        if evaluations_count == 0 and (
-            accessible_ids is None or len(accessible_ids) > 0
-        ):
-            # Belt-and-braces: brand-new projects with no project_summaries
-            # rows yet shouldn't render a flat zero if there ARE evaluations.
-            evaluations_count = await _live_evaluations_count_async(db, accessible_ids)
-
+        # Every counter is the sum of the precomputed project rows. Projects
+        # without a row yet (created since the last refresh, or a fresh
+        # database before its first refresh) are counted live and added, so
+        # they neither show as zero nor make the endpoint recount projects
+        # that already have their numbers. Before, a zero sum sent the
+        # evaluation count into a live scan over every accessible project,
+        # past the statement timeout on a large database.
         task_count = int(sums["total_tasks"])
         annotation_count = int(sums["annotations_count"])
         generations_count = int(sums["generations_count"])
+        evaluations_count = int(sums["evaluation_pairs_count"])
 
-        # Same belt-and-braces for the other three counters: if any one of
-        # them is 0 against a non-empty accessible_ids set, the corresponding
-        # project_summaries rows haven't been populated yet for that scope.
-        # Fall back to a live count to match what recompute_aggregates would
-        # eventually write.
-        if (
-            (accessible_ids is None or len(accessible_ids) > 0)
-            and (task_count == 0 or annotation_count == 0 or generations_count == 0)
-        ):
-            live = await _live_dashboard_counts_async(db, accessible_ids)
-            task_count = max(task_count, live["total_tasks"])
-            annotation_count = max(annotation_count, live["annotations_count"])
-            generations_count = max(generations_count, live["generations_count"])
+        unsummarized = await unsummarized_project_ids_async(
+            db, accessible_ids, period="overall"
+        )
+        if unsummarized:
+            live = await _live_dashboard_counts_async(db, unsummarized)
+            task_count += live["total_tasks"]
+            annotation_count += live["annotations_count"]
+            generations_count += live["generations_count"]
+            evaluations_count += await _live_evaluations_count_async(db, unsummarized)
 
         stats = {
             "project_count": project_count,

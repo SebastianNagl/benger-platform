@@ -2593,7 +2593,6 @@ class TaskEvaluation(Base):
     # every row — as text JSON each of those paid a full reparse per row
     # (issue #280).
     metrics = Column(JSONB, nullable=False)
-
     # Pass/fail status
     passed = Column(Boolean, nullable=False, index=True)
     confidence_score = Column(Float, nullable=True)
@@ -2638,6 +2637,122 @@ class TaskEvaluation(Base):
 
     def __repr__(self):
         return f"<TaskEvaluation(id={self.id}, evaluation_id={self.evaluation_id}, task_id={self.task_id}, passed={self.passed})>"
+
+
+class TaskEvaluationMetricKeys(Base):
+    """The cell columns and metric keys of every ``task_evaluations`` row.
+
+    A narrow mirror kept by triggers on ``task_evaluations`` (migration 138):
+    one row per task evaluation with its run, subject (annotation or
+    generation), evaluation config and the top-level keys of its metrics as a
+    sorted JSONB array (``[]`` when metrics is not an object). The
+    evaluation counters of the project tiles, the project list, the
+    dashboard and the hourly ``project_summaries`` refresh read this table
+    instead of the metrics blob: ``jsonb_object_keys(metrics)`` had to
+    de-TOAST every row, which ran past the API's 15 s statement timeout on a
+    1.36M-row / 12 GB table. No application code writes it.
+    """
+
+    __tablename__ = "task_evaluation_metric_keys"
+
+    task_evaluation_id = Column(String, primary_key=True)
+    evaluation_id = Column(String, nullable=False, index=True)
+    annotation_id = Column(String, nullable=True)
+    generation_id = Column(String, nullable=True)
+    evaluation_config_id = Column(String, nullable=True)
+    metric_keys = Column(JSONB, nullable=False)
+
+
+# The function that derives the keys and the triggers that keep
+# ``task_evaluation_metric_keys`` in step with ``task_evaluations`` for every
+# writer (ORM, raw-SQL migrations and scripts, the overlay): insert and the
+# cell columns' updates (including the ON DELETE SET NULL of annotation and
+# generation) upsert the row, delete and truncate remove it. Migration 138
+# runs the same statements (kept verbatim there; a migration never imports
+# the models); a schema built with ``Base.metadata.create_all`` (the test
+# databases) gets them through the ``after_create`` listener below. Every
+# statement is idempotent, as that listener fires on each create_all.
+TASK_EVALUATION_METRIC_KEYS_FUNCTION = """
+CREATE OR REPLACE FUNCTION task_evaluation_metric_keys(m jsonb) RETURNS jsonb AS $fn$
+    SELECT CASE WHEN jsonb_typeof(m) = 'object'
+        THEN COALESCE((SELECT jsonb_agg(k ORDER BY k) FROM jsonb_object_keys(m) AS k), '[]'::jsonb)
+        ELSE '[]'::jsonb
+    END
+$fn$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+"""
+TASK_EVALUATION_METRIC_KEYS_SYNC_FUNCTION = """
+CREATE OR REPLACE FUNCTION task_evaluation_metric_keys_sync() RETURNS trigger AS $fn$
+BEGIN
+    IF TG_OP = 'TRUNCATE' THEN
+        TRUNCATE task_evaluation_metric_keys;
+        RETURN NULL;
+    END IF;
+    IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND NEW.id IS DISTINCT FROM OLD.id) THEN
+        DELETE FROM task_evaluation_metric_keys WHERE task_evaluation_id = OLD.id;
+    END IF;
+    IF TG_OP IN ('INSERT', 'UPDATE') THEN
+        INSERT INTO task_evaluation_metric_keys (
+            task_evaluation_id, evaluation_id, annotation_id, generation_id,
+            evaluation_config_id, metric_keys
+        ) VALUES (
+            NEW.id, NEW.evaluation_id, NEW.annotation_id, NEW.generation_id,
+            NEW.evaluation_config_id, task_evaluation_metric_keys(NEW.metrics)
+        )
+        ON CONFLICT (task_evaluation_id) DO UPDATE SET
+            evaluation_id = EXCLUDED.evaluation_id,
+            annotation_id = EXCLUDED.annotation_id,
+            generation_id = EXCLUDED.generation_id,
+            evaluation_config_id = EXCLUDED.evaluation_config_id,
+            metric_keys = EXCLUDED.metric_keys;
+    END IF;
+    RETURN NULL;
+END;
+$fn$ LANGUAGE plpgsql
+"""
+TASK_EVALUATION_METRIC_KEYS_ROW_TRIGGER = """
+CREATE OR REPLACE TRIGGER trg_task_evaluation_metric_keys
+AFTER INSERT OR DELETE OR UPDATE OF
+    id, evaluation_id, annotation_id, generation_id, evaluation_config_id, metrics
+ON task_evaluations
+FOR EACH ROW EXECUTE FUNCTION task_evaluation_metric_keys_sync()
+"""
+TASK_EVALUATION_METRIC_KEYS_TRUNCATE_TRIGGER = """
+CREATE OR REPLACE TRIGGER trg_task_evaluation_metric_keys_truncate
+AFTER TRUNCATE ON task_evaluations
+FOR EACH STATEMENT EXECUTE FUNCTION task_evaluation_metric_keys_sync()
+"""
+TASK_EVALUATION_METRIC_KEYS_DDL = (
+    TASK_EVALUATION_METRIC_KEYS_FUNCTION,
+    TASK_EVALUATION_METRIC_KEYS_SYNC_FUNCTION,
+    TASK_EVALUATION_METRIC_KEYS_ROW_TRIGGER,
+    TASK_EVALUATION_METRIC_KEYS_TRUNCATE_TRIGGER,
+)
+# On the metadata, not a table: both tables must exist first, and the
+# listener also brings a long-lived test database (whose tables create_all
+# skipped) to the current trigger definitions.
+for _statement in TASK_EVALUATION_METRIC_KEYS_DDL:
+    sa_event.listen(
+        Base.metadata,
+        "after_create",
+        sa.DDL(_statement).execute_if(dialect="postgresql"),
+    )
+del _statement
+
+
+def backfill_task_evaluation_metric_keys(connection) -> None:
+    """Add the mirror rows a database is missing, e.g. a long-lived test
+    database whose task evaluations predate the triggers. Deployed
+    databases are filled by migration 138."""
+    connection.execute(
+        text(
+            "INSERT INTO task_evaluation_metric_keys (task_evaluation_id, evaluation_id, "
+            "annotation_id, generation_id, evaluation_config_id, metric_keys) "
+            "SELECT te.id, te.evaluation_id, te.annotation_id, te.generation_id, "
+            "te.evaluation_config_id, task_evaluation_metric_keys(te.metrics) "
+            "FROM task_evaluations te WHERE NOT EXISTS (SELECT 1 FROM "
+            "task_evaluation_metric_keys k WHERE k.task_evaluation_id = te.id)"
+        )
+    )
 
 
 # Backward-compatibility aliases (old names -> new names)
@@ -3538,9 +3653,10 @@ class ProjectSummary(Base):
     """Precomputed per-(project, period) counters that feed the dashboard
     and per-project tiles. Populated by `recompute_aggregates`.
 
-    `evaluation_pairs_count` is the de-noised count of (subject, real-metric)
-    pairs scored in completed evaluation runs — the same definition as
-    routers.projects.helpers._scored_pairs_query but computed once.
+    `evaluation_pairs_count` is the de-noised count of (subject, evaluation
+    config, metric) cells scored in completed evaluation runs, as defined by
+    aggregate_summaries.count_eval_pairs_by_project (which the live fallback
+    for projects without a row uses too).
 
     `available_models` is the JSONB list of distinct generation model_ids
     for this project, so the model picker doesn't have to DISTINCT-scan
