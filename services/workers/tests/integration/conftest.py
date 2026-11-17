@@ -296,6 +296,12 @@ def _schema(_eager_celery):
             "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_task_id VARCHAR",
         ):
             conn.execute(text(_ddl))
+        # Migration 138: the task_evaluation_metric_keys mirror. create_all
+        # builds the table and (metadata listener) its triggers; rows of a
+        # long-lived database that predate the triggers are filled here.
+        from models import backfill_task_evaluation_metric_keys
+
+        backfill_task_evaluation_metric_keys(conn)
     yield
 
 

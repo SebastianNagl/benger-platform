@@ -48,7 +48,6 @@ from models import (
     LLMModel,
     ProjectSummary,
     ResponseGeneration,
-    TaskEvaluation,
 )
 from project_models import Annotation, Project, ProjectOrganization, Task
 
@@ -258,11 +257,37 @@ _LEADERBOARD_VALUE_SQL = _sql_coerce_metric_value("src.metric_val")
 # Project summaries                                                           #
 # --------------------------------------------------------------------------- #
 
+def _metric_keys_filled(db: Session) -> bool:
+    """Whether migration 138 finished filling `task_evaluation_metric_keys`:
+    it builds the table's evaluation_id index only after the last row."""
+    return bool(
+        db.execute(
+            text(
+                "SELECT i.indisvalid FROM pg_index i "
+                "JOIN pg_class c ON c.oid = i.indexrelid "
+                "WHERE c.relname = 'ix_task_evaluation_metric_keys_evaluation_id'"
+            )
+        ).scalar()
+    )
+
+
 def recompute_project_summaries(db: Session) -> int:
     """Refresh every (project, period) row in `project_summaries`.
 
-    Returns the number of rows UPSERTed.
+    Returns the number of rows UPSERTed. Commits after each project, so a run
+    cut short (soft time limit, worker restart) keeps what it finished and
+    readers never wait on one long transaction.
+
+    Skipped (0, the previous rows stay) while migration 138 is still filling
+    `task_evaluation_metric_keys`: rows not mirrored yet would count as
+    having no metrics and the refresh would write too low evaluation counts.
     """
+    if not _metric_keys_filled(db):
+        logger.warning(
+            "recompute_project_summaries: task_evaluation_metric_keys is "
+            "still being filled (migration 138); keeping the previous rows"
+        )
+        return 0
     project_ids = [row[0] for row in db.execute(select(Project.id).where(Project.deleted_at.is_(None))).all()]
     now = datetime.now(timezone.utc)
     upserts = 0
@@ -271,7 +296,7 @@ def recompute_project_summaries(db: Session) -> int:
             row = _compute_project_summary(db, pid, period, _period_cutoff(period), now)
             _upsert_project_summary(db, row)
             upserts += 1
-    db.commit()
+        db.commit()
     return upserts
 
 
@@ -385,52 +410,90 @@ def _compute_project_summary(
     }
 
 
-def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) -> int:
-    """Count DISTINCT (subject, evaluation config, metric) cells scored in
-    completed runs.
+# The scored cells of completed runs: DISTINCT (project, subject, evaluation
+# config, metric key), grouped to one count per (project, metric key) so only
+# a handful of rows leave Postgres. The subject is the graded annotation or
+# generation; the config id keeps two judges of the same metric on one answer
+# apart (they are two evaluations), while re-runs of one config collapse.
+# Grades of a soft-cancelled annotation (e.g. deduped strict-timer copies) do
+# not count, so the number reflects real, active submissions.
+#
+# The cells come from `task_evaluation_metric_keys`, the narrow mirror of
+# task_evaluations that triggers keep (migration 138), never from the
+# metrics blob: reading `jsonb_object_keys(metrics)` de-TOASTs every row,
+# which took 49 s for five dev projects (1.36M rows, 12 GB) and made the
+# hourly refresh miss its 600 s limit; the same five projects now take
+# about 3 s from a cold cache.
+_EVAL_CELL_COUNTS_SQL = """
+SELECT cells.project_id, cells.metric_key, count(*) AS cells
+FROM (
+    SELECT DISTINCT
+        er.project_id,
+        COALESCE(mk.annotation_id, mk.generation_id) AS subject_id,
+        COALESCE(mk.evaluation_config_id, '') AS config_id,
+        k.metric_key
+    FROM evaluation_runs er
+    JOIN task_evaluation_metric_keys mk ON mk.evaluation_id = er.id
+    LEFT JOIN annotations a ON a.id = mk.annotation_id
+    CROSS JOIN LATERAL jsonb_array_elements_text(mk.metric_keys) AS k(metric_key)
+    WHERE er.status = 'completed'
+      AND er.project_id = ANY(:project_ids)
+      AND COALESCE(mk.annotation_id, mk.generation_id) IS NOT NULL
+      AND (mk.annotation_id IS NULL OR a.was_cancelled = false)
+      {cutoff_clause}
+) AS cells
+GROUP BY cells.project_id, cells.metric_key
+"""
 
-    Mirrors routers.projects.helpers._scored_pairs_query semantics but
-    project-scoped and time-filtered. The Python loop applies the
-    `metric_key_counts_as_evaluation` filter - same source of truth as the
-    live path. The config id is part of the key so two judges of the same
-    metric on one answer count as the two evaluations they are; re-runs of
-    one config still collapse.
-    """
-    subject_expr = func.coalesce(
-        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
+
+def _eval_cell_counts_stmt(project_ids: List[str], cutoff: Optional[datetime]):
+    sql = _EVAL_CELL_COUNTS_SQL.format(
+        cutoff_clause="AND er.created_at >= :cutoff" if cutoff is not None else ""
     )
-    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
-    stmt = (
-        select(
-            subject_expr.label("subject_id"),
-            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
-            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
-        )
-        .select_from(TaskEvaluation)
-        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
-        # Exclude grades whose annotation was soft-cancelled (e.g. deduped
-        # strict-timer copies), so the count reflects real, active submissions.
-        .outerjoin(Annotation, Annotation.id == TaskEvaluation.annotation_id)
-        .where(
-            EvaluationRun.project_id == project_id,
-            EvaluationRun.status == "completed",
-            subject_expr.isnot(None),
-            TaskEvaluation.metrics.isnot(None),
-            func.jsonb_typeof(metrics_jsonb) == "object",
-            or_(
-                TaskEvaluation.annotation_id.is_(None),
-                Annotation.was_cancelled == False,  # noqa: E712
-            ),
-        )
-        .distinct()
-    )
+    params: Dict[str, Any] = {"project_ids": list(project_ids)}
     if cutoff is not None:
-        stmt = stmt.where(EvaluationRun.created_at >= cutoff)
-    return sum(
-        1
-        for _sub, _cfg, mk in db.execute(stmt).all()
-        if metric_key_counts_as_evaluation(mk)
-    )
+        params["cutoff"] = cutoff
+    return text(sql), params
+
+
+def _sum_eval_cells(project_ids: List[str], rows) -> Dict[str, int]:
+    """Per-project evaluation count from (project, metric key, cells) rows.
+
+    The `metric_key_counts_as_evaluation` noise filter stays in Python - the
+    one source of truth every counter shares.
+    """
+    counts = {pid: 0 for pid in project_ids}
+    for pid, metric_key, cells in rows:
+        if metric_key_counts_as_evaluation(metric_key):
+            counts[pid] = counts.get(pid, 0) + int(cells)
+    return counts
+
+
+def count_eval_pairs_by_project(
+    db: Session, project_ids: List[str], cutoff: Optional[datetime] = None
+) -> Dict[str, int]:
+    """Evaluation count (scored distinct cells, see `_EVAL_CELL_COUNTS_SQL`)
+    for each of `project_ids`; projects without any are 0."""
+    if not project_ids:
+        return {}
+    stmt, params = _eval_cell_counts_stmt(project_ids, cutoff)
+    return _sum_eval_cells(project_ids, db.execute(stmt, params).all())
+
+
+async def count_eval_pairs_by_project_async(
+    db: AsyncSession, project_ids: List[str], cutoff: Optional[datetime] = None
+) -> Dict[str, int]:
+    """Async twin of `count_eval_pairs_by_project` (same statement)."""
+    if not project_ids:
+        return {}
+    stmt, params = _eval_cell_counts_stmt(project_ids, cutoff)
+    return _sum_eval_cells(project_ids, (await db.execute(stmt, params)).all())
+
+
+def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) -> int:
+    """Evaluation count of one project for one period (see
+    `count_eval_pairs_by_project`)."""
+    return count_eval_pairs_by_project(db, [project_id], cutoff)[project_id]
 
 
 def _upsert_project_summary(db: Session, row: Dict[str, Any]) -> None:
@@ -835,7 +898,44 @@ def _build_dashboard_sum_stmt(
     ).where(ProjectSummary.period == period)
     if accessible_project_ids is not None:
         stmt = stmt.where(ProjectSummary.project_id.in_(accessible_project_ids))
+    else:
+        # Rows of soft-deleted projects stay behind (the refresh skips those
+        # projects but never removes their rows); the unscoped sum must not
+        # count them, like the project count and the projects list.
+        stmt = stmt.join(Project, Project.id == ProjectSummary.project_id).where(
+            Project.deleted_at.is_(None)
+        )
     return stmt
+
+
+def _build_unsummarized_project_ids_stmt(
+    accessible_project_ids: Optional[List[str]], period: str
+):
+    """Live projects in scope that have no `project_summaries` row for
+    `period` yet (created since the last refresh, or a fresh database)."""
+    has_summary = (
+        select(ProjectSummary.id)
+        .where(ProjectSummary.project_id == Project.id, ProjectSummary.period == period)
+        .exists()
+    )
+    stmt = select(Project.id).where(Project.deleted_at.is_(None), ~has_summary)
+    if accessible_project_ids is not None:
+        stmt = stmt.where(Project.id.in_(accessible_project_ids))
+    return stmt
+
+
+async def unsummarized_project_ids_async(
+    db: AsyncSession,
+    accessible_project_ids: Optional[List[str]],
+    period: str = "overall",
+) -> List[str]:
+    """See `_build_unsummarized_project_ids_stmt`. `[]` scope -> `[]`."""
+    if accessible_project_ids == []:
+        return []
+    rows = await db.execute(
+        _build_unsummarized_project_ids_stmt(accessible_project_ids, period)
+    )
+    return [row[0] for row in rows.all()]
 
 
 def _dashboard_sum_from_row(row) -> Dict[str, int]:

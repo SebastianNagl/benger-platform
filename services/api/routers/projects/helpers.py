@@ -13,14 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from models import (
-    EvaluationRun,
     Generation,
     LtiPlatformRegistration,
     LtiResourceLink,
     OrganizationMembership,
     OrganizationRole,
     ResponseGeneration,
-    TaskEvaluation,
     User,
 )
 from org_groups import (
@@ -126,64 +124,6 @@ def attempt_grade_points_from_metrics(metrics: Any) -> Optional[float]:
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 return float(value)
     return None
-
-
-def _scored_pairs_query(db: Session):
-    """Base query that yields (project_id, subject_id, config_id, metric_key)
-    for every (annotation|generation, evaluation config, metric) cell that has
-    at least one scored row in a completed evaluation run. Caller adds project
-    filters + DISTINCT. The config id keeps two judges of the same metric on
-    one answer apart; re-runs of one config still collapse."""
-    subject_expr = func.coalesce(
-        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
-    )
-    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
-    return (
-        db.query(
-            EvaluationRun.project_id,
-            subject_expr.label("subject_id"),
-            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
-            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
-        )
-        .select_from(TaskEvaluation)
-        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
-        .filter(
-            EvaluationRun.status == "completed",
-            subject_expr.isnot(None),
-            TaskEvaluation.metrics.isnot(None),
-            func.jsonb_typeof(metrics_jsonb) == "object",
-        )
-    )
-
-
-def _async_scored_pairs_select():
-    """select()-based twin of :func:`_scored_pairs_query` for the async lane.
-
-    Yields (project_id, subject_id, config_id, metric_key) for every
-    (subject, evaluation config, metric) cell with a scored row in a
-    completed run. Caller adds project filters +
-    ``.distinct()`` exactly like the sync builder.
-    """
-    subject_expr = func.coalesce(
-        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
-    )
-    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
-    return (
-        select(
-            EvaluationRun.project_id,
-            subject_expr.label("subject_id"),
-            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
-            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
-        )
-        .select_from(TaskEvaluation)
-        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
-        .where(
-            EvaluationRun.status == "completed",
-            subject_expr.isnot(None),
-            TaskEvaluation.metrics.isnot(None),
-            func.jsonb_typeof(metrics_jsonb) == "object",
-        )
-    )
 
 
 def _generation_models_count(project: Project) -> int:
@@ -321,16 +261,17 @@ def calculate_project_stats(
             .count()
         )
 
-    # Evaluation tallies — count distinct (subject, metric) pairs that have at
-    # least one scored row in a completed run. Matches the user's intuition of
-    # "how many of my answers have been evaluated on how many metrics"; the old
-    # job-count masked partial coverage (a 1-job run scoring 314 of 500
-    # subjects looked identical to a fully-scored run).
+    # Evaluation tallies — count distinct (subject, evaluation config, metric)
+    # cells that have at least one scored row in a completed run. Matches the
+    # user's intuition of "how many of my answers have been evaluated on how
+    # many metrics"; the old job-count masked partial coverage (a 1-job run
+    # scoring 314 of 500 subjects looked identical to a fully-scored run).
     #
     # Reads from the precomputed `project_summaries.evaluation_pairs_count`
     # (refreshed by the `recompute_aggregates` Celery task hourly). Falls
-    # back to the original live computation when no precomputed row exists —
-    # brand-new projects shouldn't render zero before the next refresh.
+    # back to the same statement the refresh uses when no precomputed row
+    # exists — brand-new projects shouldn't render zero before the next
+    # refresh.
     from aggregate_summaries import read_project_summary
 
     summary = read_project_summary(db, project_id, period="overall")
@@ -342,17 +283,11 @@ def calculate_project_stats(
     elif summary is not None:
         response.evaluation_count = int(summary.evaluation_pairs_count or 0)
     else:
-        pairs = (
-            _scored_pairs_query(db)
-            .filter(EvaluationRun.project_id == project_id)
-            .distinct()
-            .all()
-        )
-        response.evaluation_count = sum(
-            1
-            for _pid, _sub_id, _cfg, mk in pairs
-            if metric_key_counts_as_evaluation(mk)
-        )
+        from aggregate_summaries import count_eval_pairs_by_project
+
+        response.evaluation_count = count_eval_pairs_by_project(db, [project_id])[
+            project_id
+        ]
     response.evaluations_completed_count = response.evaluation_count
 
     # Mirror to the legacy aliases so frontends reading either name see the
@@ -452,16 +387,11 @@ async def calculate_project_stats_async(
     elif summary is not None:
         response.evaluation_count = int(summary.evaluation_pairs_count or 0)
     else:
-        pairs_result = await db.execute(
-            _async_scored_pairs_select()
-            .where(EvaluationRun.project_id == project_id)
-            .distinct()
-        )
-        response.evaluation_count = sum(
-            1
-            for _pid, _sub_id, _cfg, mk in pairs_result.all()
-            if metric_key_counts_as_evaluation(mk)
-        )
+        from aggregate_summaries import count_eval_pairs_by_project_async
+
+        response.evaluation_count = (
+            await count_eval_pairs_by_project_async(db, [project_id])
+        )[project_id]
     response.evaluations_completed_count = response.evaluation_count
 
     response.num_tasks = response.task_count
@@ -562,17 +492,11 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         for stat in annotation_stats:
             stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
 
-        live_pairs = (
-            _scored_pairs_query(db)
-            .filter(EvaluationRun.project_id.in_(missing_summary_ids))
-            .distinct()
-            .all()
-        )
-        for pid, _sub_id, _cfg, metric_key in live_pairs:
-            if not metric_key_counts_as_evaluation(metric_key):
-                continue
-            stats_map[pid]['evaluation_count'] += 1
-            stats_map[pid]['evaluations_completed_count'] += 1
+        from aggregate_summaries import count_eval_pairs_by_project
+
+        for pid, count in count_eval_pairs_by_project(db, missing_summary_ids).items():
+            stats_map[pid]['evaluation_count'] = count
+            stats_map[pid]['evaluations_completed_count'] = count
 
     return stats_map
 

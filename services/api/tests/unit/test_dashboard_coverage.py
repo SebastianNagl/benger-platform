@@ -219,7 +219,8 @@ class TestDashboardStats:
         handler fell back to the live scored-pairs count over all of
         task_evaluations, which ran into Postgres' statement_timeout. The
         handler then answered 200 with every counter at 0 while 48 projects
-        existed. It must answer an error and cache nothing instead.
+        existed. A live count that still fails (for the projects without a
+        summary row) must answer an error and cache nothing instead.
         """
         from sqlalchemy.exc import OperationalError
 
@@ -250,6 +251,7 @@ class TestDashboardStats:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.get_accessible_project_ids", return_value=None), \
                  patch("routers.dashboard.read_dashboard_sum_async", return_value=empty_summaries), \
+                 patch("routers.dashboard.unsummarized_project_ids_async", return_value=["p-1"]), \
                  patch("routers.dashboard._live_evaluations_count_async", side_effect=_timed_out):
                 mock_cache.get.return_value = None
                 async with await _client() as client:
@@ -259,5 +261,82 @@ class TestDashboardStats:
                 assert "project_count" not in body
                 assert body["detail"] == "Dashboard statistics are temporarily unavailable."
                 mock_cache.set.assert_not_called()
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_summarized_projects_are_never_recounted_live(self):
+        """Projects with a summary row are read from it, even when a counter
+        sums to 0; only the live count of an empty set would run."""
+        user = _make_user(is_superadmin=True)
+        mock_db = _mock_async_db(scalar_value=2)
+        app.dependency_overrides[require_user] = lambda: user
+
+        async def _override():
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = _override
+        sums = {
+            "project_count": 2, "total_tasks": 10, "annotations_count": 0,
+            "generations_count": 0, "evaluation_pairs_count": 0,
+        }
+        try:
+            with patch("routers.dashboard.cache") as mock_cache, \
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=None), \
+                 patch("routers.dashboard.read_dashboard_sum_async", return_value=sums), \
+                 patch("routers.dashboard.unsummarized_project_ids_async", return_value=[]), \
+                 patch("routers.dashboard._live_dashboard_counts_async") as live_counts, \
+                 patch("routers.dashboard._live_evaluations_count_async") as live_evals:
+                mock_cache.get.return_value = None
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
+                assert resp.status_code == 200
+                assert resp.json() == {
+                    "project_count": 2, "task_count": 10, "annotation_count": 0,
+                    "projects_with_generations": 0, "projects_with_evaluations": 0,
+                }
+                live_counts.assert_not_called()
+                live_evals.assert_not_called()
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_projects_without_summary_are_counted_live_and_added(self):
+        user = _make_user(is_superadmin=False)
+        mock_db = _mock_async_db()
+        app.dependency_overrides[require_user] = lambda: user
+
+        async def _override():
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = _override
+        sums = {
+            "project_count": 1, "total_tasks": 10, "annotations_count": 4,
+            "generations_count": 3, "evaluation_pairs_count": 7,
+        }
+
+        async def _live_counts(_db, ids):
+            assert ids == ["p-new"]
+            return {"total_tasks": 2, "annotations_count": 1, "generations_count": 1}
+
+        async def _live_evals(_db, ids):
+            assert ids == ["p-new"]
+            return 5
+
+        try:
+            with patch("routers.dashboard.cache") as mock_cache, \
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=["p-old", "p-new"]), \
+                 patch("routers.dashboard.read_dashboard_sum_async", return_value=sums), \
+                 patch("routers.dashboard.unsummarized_project_ids_async", return_value=["p-new"]), \
+                 patch("routers.dashboard._live_dashboard_counts_async", side_effect=_live_counts), \
+                 patch("routers.dashboard._live_evaluations_count_async", side_effect=_live_evals):
+                mock_cache.get.return_value = None
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
+                assert resp.status_code == 200
+                assert resp.json() == {
+                    "project_count": 2, "task_count": 12, "annotation_count": 5,
+                    "projects_with_generations": 4, "projects_with_evaluations": 12,
+                }
         finally:
             app.dependency_overrides.clear()

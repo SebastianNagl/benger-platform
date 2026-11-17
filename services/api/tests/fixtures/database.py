@@ -449,6 +449,12 @@ def _create_tables():
                     "ON refresh_tokens (family_id)"
                 )
             )
+            # Migration 138: the task_evaluation_metric_keys mirror. create_all
+            # builds the table and (metadata listener) its triggers; rows of a
+            # long-lived database that predate the triggers are filled here.
+            from models import backfill_task_evaluation_metric_keys
+
+            backfill_task_evaluation_metric_keys(conn)
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "
