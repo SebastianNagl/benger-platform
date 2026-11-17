@@ -1,5 +1,5 @@
 {
-  "generated_from": "5c8c5a5335984def768dd1d44f4d289fcab63d4a",
+  "generated_from": "0082bfd8f54052238123209b14bb0abc11a34805",
   "api_shared": [
     {
       "module": "account_activation",
@@ -232,6 +232,7 @@
         "benger_extended/api/routers/marketplace.py",
         "benger_extended/api/routers/reviews.py",
         "benger_extended/api/routers/rubric_readiness.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
@@ -369,6 +370,7 @@
         "benger_extended/lti/billing.py",
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
+        "benger_extended/rubric_jobs.py",
         "benger_extended/rubric_key_check.py"
       ]
     },
@@ -392,6 +394,7 @@
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/rubric_readiness.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
@@ -737,6 +740,13 @@
     },
     {
       "module": "immediate_eval_dispatch",
+      "name": "HELD_CONFIGS_KEY",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
       "name": "_existing_immediate_run",
       "importers": [
         "benger_extended/api/routers/immediate_evaluation.py"
@@ -774,9 +784,44 @@
     },
     {
       "module": "immediate_eval_dispatch",
+      "name": "gradable_configs",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "grading_retry_state",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "held_configs_metadata",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
       "name": "latest_blocked_run",
       "importers": [
         "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "parse_annotation_results",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "queue_waiting_gradings",
+      "importers": [
+        "benger_extended/exam_readiness.py"
       ]
     },
     {
@@ -791,6 +836,20 @@
       "name": "resolve_org",
       "importers": [
         "benger_extended/billing/policy.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "rubric_missing_block",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
+      ]
+    },
+    {
+      "module": "immediate_eval_dispatch",
+      "name": "split_held_configs",
+      "importers": [
+        "benger_extended/api/routers/immediate_evaluation.py"
       ]
     },
     {
@@ -836,7 +895,6 @@
       "module": "model_defaults",
       "name": "DEFAULT_JUDGE_MODEL_ID",
       "importers": [
-        "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/lti/billing.py",
         "benger_extended/maintenance/rubric_judge_backfill.py",
         "benger_extended/workers/falloesung_tasks.py",
@@ -920,6 +978,7 @@
       "name": "LLMModel",
       "importers": [
         "benger_extended/api/routers/synthetic.py",
+        "benger_extended/rubric_jobs.py",
         "benger_extended/workers/bewertungsbogen_tasks.py",
         "benger_extended/workers/judge_resolution.py",
         "benger_extended/workers/ocr_tasks.py",
@@ -1635,6 +1694,7 @@
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
@@ -1695,20 +1755,6 @@
     },
     {
       "module": "project_models",
-      "name": "RUBRIC_GENERATION_JOB_ENTRY_POINTS",
-      "importers": [
-        "benger_extended/rubric_jobs.py"
-      ]
-    },
-    {
-      "module": "project_models",
-      "name": "RUBRIC_GENERATION_JOB_STATUSES",
-      "importers": [
-        "benger_extended/rubric_jobs.py"
-      ]
-    },
-    {
-      "module": "project_models",
       "name": "RubricGenerationJob",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
@@ -1758,12 +1804,14 @@
         "benger_extended/api/routers/live_activity.py",
         "benger_extended/api/routers/lti.py",
         "benger_extended/api/routers/reviews.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_decks.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/student_sharing.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py",
+        "benger_extended/exam_readiness.py",
         "benger_extended/exam_tools/access.py",
         "benger_extended/lti/exam_gate.py",
         "benger_extended/lti/grade_sync.py",
@@ -1808,8 +1856,11 @@
         "benger_extended/api/routers/bewertungsbogen.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py",
+        "benger_extended/exam_readiness.py",
         "benger_extended/lti/exam_gate.py",
+        "benger_extended/rubric_jobs.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/bewertungsbogen_tasks.py"
       ]
@@ -2090,6 +2141,13 @@
     },
     {
       "module": "routers.projects.helpers",
+      "name": "EXAM_NOT_READY_CODE",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
       "name": "TIER_ATTEMPTED",
       "importers": [
         "benger_extended/api/routers/seb.py"
@@ -2341,7 +2399,7 @@
       "module": "rubric_generation_jobs",
       "name": "serialize_rubric_generation_job",
       "importers": [
-        "benger_extended/api/routers/bewertungsbogen.py"
+        "benger_extended/rubric_jobs.py"
       ]
     },
     {
@@ -2706,6 +2764,7 @@
       "name": "UNSET",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py"
       ]
     },
@@ -2714,6 +2773,7 @@
       "name": "activate_task_rubric",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py"
       ]
     },
@@ -2722,6 +2782,7 @@
       "name": "archive_task_rubric",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py"
       ]
     },
@@ -2737,6 +2798,7 @@
       "name": "edit_task_rubric",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py"
       ]
     },
@@ -2752,6 +2814,7 @@
       "name": "structure_equal",
       "importers": [
         "benger_extended/api/routers/bewertungsbogen.py",
+        "benger_extended/api/routers/rubric_review.py",
         "benger_extended/api/routers/student_exams.py"
       ]
     },
