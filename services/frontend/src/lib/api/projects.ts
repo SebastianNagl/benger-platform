@@ -381,8 +381,7 @@ export const projectsAPI = {
     restored: number
     failed: number
     failed_projects: { id: string; reason: string }[]
-  }> =>
-    apiClient.post('/projects/bulk-restore', { project_ids: projectIds }),
+  }> => apiClient.post('/projects/bulk-restore', { project_ids: projectIds }),
 
   /** Queue the purge of several soft-deleted projects (one job each). */
   bulkPurgeProjects: async (
