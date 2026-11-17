@@ -661,8 +661,7 @@ export function ProjectCreationWizard() {
     projectId: string | null
     committed: boolean
   }> => {
-    const synced =
-      (await draftCtl.syncTasks()) && (await draftCtl.syncConfig())
+    const synced = (await draftCtl.syncTasks()) && (await draftCtl.syncConfig())
     if (synced) return { projectId: draftProjectId, committed: false }
     if (draftCtl.finishCommitted()) {
       return { projectId: draftProjectId, committed: true }
