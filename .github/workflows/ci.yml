@@ -194,12 +194,21 @@ jobs:
         uses: actions/checkout@v7
 
       # The workers runner image builds FROM the multi-GB workers-base image
-      # (torch + ML models), so both workers jobs (smoke and full) need the
-      # room; the API jobs skip the minute or two the rm -rf costs.
+      # (torch + ML models, 5.7 GB unpacked, ~10 GB at the peak of the pull),
+      # so both workers jobs (smoke and full) need the room. The rm -rf takes
+      # about 2.5 minutes, longer than the whole rest of the smoke job, so it
+      # only runs when / has less than twice that peak free; df shows which.
       - name: Free disk space
         if: env.SUITE == 'workers'
         run: |
+          df -h /
+          FREE_GB=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          if [ "$FREE_GB" -ge 20 ]; then
+            echo "$FREE_GB GB free on /, enough for the workers-base image; nothing removed."
+            exit 0
+          fi
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+          df -h /
 
       # Not waited for here: `compose run` below waits until both are
       # healthy, so they come up while the runner image builds.
