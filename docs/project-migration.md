@@ -325,6 +325,7 @@ keys; the NDJSON export carries the same data as one record per line.
     }
   ],
   "task_rubrics": [...],
+  "task_rubric_review_events": [...],
   "annotations": [...],
   "predictions": [],
   "generations": [...],
@@ -352,6 +353,19 @@ keys; the NDJSON export carries the same data as one record per line.
 
 `evaluations` holds the project's evaluation runs, `task_assignments` the task
 assignments (see above), and `users` the pseudonymous user placeholders.
+
+`task_rubrics` holds the grading sheets (Bewertungsbogen) with their check
+(`review_state`, `reviewed_at`, `reviewed_by`), and `task_rubric_review_events`
+their edit and check log; that key only appears when the project has a log,
+and the project's `rubric_review_required` switch travels in `project`. The
+import points every log entry at the imported task and sheet. The person who
+checked a sheet or wrote a log entry is kept when the import resolves them
+(the same account, the same person by email, or their placeholder) and left
+empty otherwise; it is never replaced by the person running the import. The
+per-task data export carries the same log under `rubric_review_events` next to
+each task's `rubrics`. A merge import leaves the log out. An import into an
+existing project that requires the check (nested or merge) brings an exported
+active sheet that is not confirmed in as a candidate.
 
 ## Security Considerations
 

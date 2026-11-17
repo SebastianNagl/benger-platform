@@ -1627,3 +1627,130 @@ class TestTaskAssignmentRoundtrip:
         rows = self._imported(test_db, result["project_id"])
         assert sorted(r.target_type for r in rows) == ["generation", "task"]
         assert result["statistics"]["imported_counts"]["task_assignments"] == 2
+
+
+class TestRubricReviewRoundtrip:
+    """The check step travels with a full project export: the project flag,
+    the review fields of each sheet and the edit and check log
+    (``task_rubric_review_events``), in the comprehensive JSON and the NDJSON
+    format. Ids are remapped; who checked follows the person, unknown people
+    become NULL, never the importer."""
+
+    REVIEWED_AT = "2026-11-16T09:30:00+00:00"
+
+    def _seed(self, db, project, admin, reviewer):
+        from datetime import datetime
+
+        from project_models import TaskRubric, TaskRubricReviewEvent
+
+        task = db.query(Task).filter(Task.project_id == project.id).order_by(Task.inner_id).first()
+        project.rubric_review_required = True
+        rubric = TaskRubric(
+            id=_uid(), task_id=task.id, project_id=project.id, title="Geprüfter Bogen",
+            criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 10}}, total_points=10,
+            source="llm_edited", status="active", created_by=admin.id,
+            review_state="confirmed", reviewed_at=datetime.fromisoformat(self.REVIEWED_AT),
+            reviewed_by=reviewer.id,
+        )
+        db.add(rubric)
+        db.flush()
+        events = [
+            TaskRubricReviewEvent(
+                id=_uid(), project_id=project.id, task_id=task.id, rubric_id=rubric.id,
+                actor_id=reviewer.id, event="edited", diff={"changed": ["s01_a"]},
+                structure_before={"version": 1, "nodes": []}, app_version="v2026.11.16-a-b",
+                created_at=datetime.fromisoformat("2026-11-16T09:00:00+00:00"),
+            ),
+            TaskRubricReviewEvent(
+                id=_uid(), project_id=project.id, task_id=task.id, rubric_id=rubric.id,
+                actor_id=reviewer.id, event="confirmed", verdict="minor_edits",
+                checklist={"steps_complete": True}, duration_seconds=240, notes="passt",
+                created_at=datetime.fromisoformat(self.REVIEWED_AT),
+            ),
+        ]
+        db.add_all(events)
+        db.commit()
+        return task, rubric, events
+
+    def _assert_imported(self, db, new_id, reviewer_id, *, actor_ids=None):
+        from project_models import TaskRubric, TaskRubricReviewEvent
+
+        project = db.query(Project).filter(Project.id == new_id).one()
+        assert project.rubric_review_required is True
+        sheet = db.query(TaskRubric).filter(TaskRubric.project_id == new_id).one()
+        assert sheet.review_state == "confirmed"
+        assert sheet.reviewed_at.isoformat() == self.REVIEWED_AT
+        assert sheet.reviewed_by == reviewer_id
+        events = (
+            db.query(TaskRubricReviewEvent)
+            .filter(TaskRubricReviewEvent.project_id == new_id)
+            .order_by(TaskRubricReviewEvent.created_at)
+            .all()
+        )
+        assert [e.event for e in events] == ["edited", "confirmed"]
+        assert {e.rubric_id for e in events} == {sheet.id}
+        assert {e.task_id for e in events} == {sheet.task_id}
+        assert [e.actor_id for e in events] == (actor_ids or [reviewer_id, reviewer_id])
+        edited, confirmed = events
+        assert edited.diff == {"changed": ["s01_a"]}
+        assert edited.app_version == "v2026.11.16-a-b"
+        assert confirmed.checklist == {"steps_complete": True}
+        assert confirmed.duration_seconds == 240 and confirmed.notes == "passt"
+        assert confirmed.created_at.isoformat() == self.REVIEWED_AT
+        return events
+
+    def test_ndjson_roundtrip(self, test_db, full_project, test_users):
+        project, admin = full_project
+        reviewer = test_users[1]
+        _, rubric, events = self._seed(test_db, project, admin, reviewer)
+        lines = [json.loads(ln) for ln in _export_ndjson(test_db, project).splitlines()]
+        types = [r["_type"] for r in lines]
+        assert types.count("task_rubric_review_event") == 2
+        assert types.index("task_rubric") < types.index("task_rubric_review_event")
+        assert lines[-1]["statistics"]["total_task_rubric_review_events"] == 2
+        sheet = next(r for r in lines if r["_type"] == "task_rubric")
+        assert sheet["review_state"] == "confirmed" and sheet["reviewed_by"] == reviewer.id
+
+        ndjson = "\n".join(json.dumps(r) for r in lines) + "\n"
+        result = run_ndjson_import(test_db, io.BytesIO(ndjson.encode()), admin.id)
+        assert result["statistics"]["imported_counts"]["task_rubric_review_events"] == 2
+        imported = self._assert_imported(test_db, result["project_id"], reviewer.id)
+        assert {e.id for e in imported}.isdisjoint({e.id for e in events})
+
+    def test_comprehensive_roundtrip_and_unknown_people(self, test_db, full_project, test_users):
+        project, admin = full_project
+        reviewer = test_users[1]
+        _, rubric, events = self._seed(test_db, project, admin, reviewer)
+        payload = json.loads("".join(stream_comprehensive_project_data_json(test_db, project.id)))
+        assert payload["project"]["rubric_review_required"] is True
+        records = payload["task_rubric_review_events"]
+        assert [r["id"] for r in records] == [e.id for e in events]
+        assert records[0]["rubric_id"] == rubric.id
+        assert reviewer.id in {u["id"] for u in payload["users"]}
+
+        result = run_full_project_import(test_db, io.BytesIO(json.dumps(payload).encode()), admin.id)
+        stats = result.get("statistics") or result
+        assert stats["imported_counts"]["task_rubric_review_events"] == 2
+        self._assert_imported(test_db, result["project_id"], reviewer.id)
+
+        # Someone this deployment cannot resolve is not replaced by the
+        # importing user: the check and the log entry keep no person.
+        stranger = _uid()
+        payload["task_rubrics"][0]["reviewed_by"] = stranger
+        payload["task_rubric_review_events"][0]["actor_id"] = stranger
+        result = run_full_project_import(test_db, io.BytesIO(json.dumps(payload).encode()), admin.id)
+        from project_models import TaskRubric
+
+        sheet = test_db.query(TaskRubric).filter(TaskRubric.project_id == result["project_id"]).one()
+        assert sheet.reviewed_by is None
+        self._assert_imported(
+            test_db, result["project_id"], None, actor_ids=[None, reviewer.id]
+        )
+
+    def test_projects_without_a_log_export_no_key(self, test_db, full_project):
+        project, _ = full_project
+        payload = json.loads("".join(stream_comprehensive_project_data_json(test_db, project.id)))
+        assert "task_rubric_review_events" not in payload
+        assert payload["project"]["rubric_review_required"] is False
+        types = [json.loads(ln)["_type"] for ln in _export_ndjson(test_db, project).splitlines()]
+        assert "task_rubric_review_event" not in types

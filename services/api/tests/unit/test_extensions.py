@@ -159,7 +159,9 @@ class TestExtensionLoader:
         # hook and the reusable invitation helpers.
         # 2.50 adds exam tools (projects.exam_tools, tool providers, the
         # ExamToolDock / project-exam-tools / OrgToolProvidersPanel slots).
-        assert CORE_API_VERSION == "2.52"
+        # 2.53 adds rubric_generation_jobs, the rubric check step
+        # (rubric_review_required, task_rubric_review_events) and app_version.
+        assert CORE_API_VERSION == "2.53"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

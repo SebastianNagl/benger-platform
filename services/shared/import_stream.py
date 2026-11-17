@@ -98,6 +98,7 @@ from project_models import (
     Task,
     TaskAssignment,
     TaskRubric,
+    TaskRubricReviewEvent,
 )
 import seb
 from evaluation_run_models import (
@@ -107,11 +108,16 @@ from evaluation_run_models import (
     run_label_aliases,
 )
 from exam_tools import portable_exam_tools
-from serializers import CALL_TELEMETRY_FIELDS, _parse_iso
+from serializers import (
+    CALL_TELEMETRY_FIELDS,
+    TASK_RUBRIC_REVIEW_EVENT_FIELDS,
+    _parse_iso,
+)
 
 # Shared batch helper extracted alongside the export side. See
 # stream_io/__init__.py for why the package is named stream_io and not io.
 from stream_io.batch_utils import flush_every, stream_array_rows
+from task_rubric_service import REVIEW_STATE_CONFIRMED
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -577,12 +583,18 @@ def run_nested_import(
     """
     fileobj = _maybe_decompress(fileobj)
     job_organization_id = _project_organization_id(db, project_id)
+    rubric_review_required = bool(
+        db.query(Project.rubric_review_required)
+        .filter(Project.id == project_id)
+        .scalar()
+    )
 
     created_tasks = 0
     created_annotations = 0
     created_generations = 0
     created_questionnaire_responses = 0
     created_rubrics = 0
+    created_rubric_review_events = 0
     created_evaluation_runs = 0
     created_task_evaluations = 0
     total_items = 0
@@ -700,6 +712,14 @@ def run_nested_import(
             for ev in item.get("evaluations", []) or []:
                 if isinstance(ev, dict) and ev.get("created_by"):
                     import_user_ids.add(ev["created_by"])
+            # Who checked a sheet and who edited or checked it in its log:
+            # kept as the person they were, like grading feedback authors.
+            for rub in item.get("rubrics", []) or []:
+                if isinstance(rub, dict) and rub.get("reviewed_by"):
+                    import_user_ids.add(rub["reviewed_by"])
+            for rev in item.get("rubric_review_events", []) or []:
+                if isinstance(rev, dict) and rev.get("actor_id"):
+                    import_user_ids.add(rev["actor_id"])
             for gen in item.get("generations", []) or []:
                 if not isinstance(gen, dict):
                     continue
@@ -742,6 +762,7 @@ def run_nested_import(
         generations_to_import = []
         task_level_evaluations = []
         rubrics_to_import = []
+        review_events_to_import = []
         original_task_id = None
 
         # If item has 'data' field, it's Label Studio format
@@ -768,6 +789,10 @@ def run_nested_import(
             # Extract per-task rubrics (Bewertungsbogen) if present
             if "rubrics" in item and isinstance(item["rubrics"], list):
                 rubrics_to_import = item["rubrics"]
+
+            # And their edit and check log
+            if isinstance(item.get("rubric_review_events"), list):
+                review_events_to_import = item["rubric_review_events"]
 
         # No longer add generation prompts - using generation structure instead (Issue #519)
         # The prompts are now configured at project level via generation_config.prompt_structures
@@ -822,6 +847,14 @@ def run_nested_import(
             # ux_task_rubrics_one_active. A malformed one must not abort the
             # whole import on that index: keep the first, demote the rest.
             rubric_status = rub_data.get("status") or "candidate"
+            if rubric_status == "active" and _activation_needs_check(
+                rubric_review_required, rub_data
+            ):
+                logger.warning(
+                    f"[import {project_id}] task {task_id}: the project requires a "
+                    f"confirmed check; importing unchecked {old_rubric_id!r} as candidate"
+                )
+                rubric_status = "candidate"
             if rubric_status == "active":
                 if active_rubric_seen:
                     logger.warning(
@@ -862,10 +895,25 @@ def run_nested_import(
                     prompt_version=rub_data.get("prompt_version"),
                     generation_metadata=rub_data.get("generation_metadata"),
                     status=rubric_status,
+                    **_review_fields(rub_data, rub_data.get("reviewed_by")),
                     created_by=user_id,
                 )
             )
             created_rubrics += 1
+
+        # The sheets' edit and check log. The person keeps their id (the
+        # stub-user pass above created the ones this deployment lacks).
+        for rev_data in review_events_to_import:
+            review_event = _task_rubric_review_event(
+                rev_data,
+                project_id=project_id,
+                task_id=task_id,
+                rubric_id_mapping=rubric_id_mapping,
+                actor_id=rev_data.get("actor_id") if isinstance(rev_data, dict) else None,
+            )
+            if review_event is not None:
+                db.add(review_event)
+                created_rubric_review_events += 1
 
         # Import annotations for this task
         for ann_data in annotations_to_import:
@@ -1272,6 +1320,7 @@ def run_nested_import(
         "created_generations": created_generations,
         "created_questionnaire_responses": created_questionnaire_responses,
         "created_rubrics": created_rubrics,
+        "created_rubric_review_events": created_rubric_review_events,
         "created_evaluation_runs": created_evaluation_runs,
         "created_task_evaluations": created_task_evaluations,
         "created_grading_feedback": created_grading_feedback,
@@ -1445,6 +1494,8 @@ class _FullImportContext:
         "matched_user_ids",
         "grading_feedback_seen",
         "active_rubric_tasks",
+        "rubric_review_required",
+        "rubric_review_events",
         "active_annotation_keys",
         "skipped_annotations",
         "stub_users_created",
@@ -1494,6 +1545,11 @@ class _FullImportContext:
         }
         # New task ids that already received an active Bewertungsbogen.
         self.active_rubric_tasks: Set[str] = set()
+        # The target project requires a confirmed check before a sheet is
+        # active (set by the imports into an existing project).
+        self.rubric_review_required = False
+        # Imported task_rubric_review_events rows.
+        self.rubric_review_events = 0
         self.user_email_to_id: Dict[str, str] = {}
         # Old->new user ids that matched a REAL user of this deployment by
         # email. `id_mappings["users"]` cannot answer that question: its
@@ -1924,6 +1980,14 @@ def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
     # ux_task_rubrics_one_active index. A malformed one must not abort the
     # whole import on that index: keep the first, demote the rest.
     status = rubric_data.get("status") or "candidate"
+    if status == "active" and _activation_needs_check(
+        ctx.rubric_review_required, rubric_data
+    ):
+        logger.warning(
+            f"[import {ctx.new_project_id}] task {task_id}: the project requires a "
+            f"confirmed check; importing unchecked {old_id!r} as candidate"
+        )
+        status = "candidate"
     if status == "active":
         if task_id in ctx.active_rubric_tasks:
             logger.warning(
@@ -1958,12 +2022,88 @@ def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
             prompt_version=rubric_data.get("prompt_version"),
             generation_metadata=rubric_data.get("generation_metadata"),
             status=status,
+            # Who checked it follows the person (or NULL), never the importer.
+            **_review_fields(
+                rubric_data, ctx.matched_user_ids.get(rubric_data.get("reviewed_by"))
+            ),
             created_by=ctx.id_mappings["users"].get(
                 rubric_data.get("created_by"), ctx.user_id
             ),
             **_timestamps(rubric_data, "created_at", "updated_at"),
         )
     )
+
+
+def _activation_needs_check(review_required: bool, rubric_data: dict) -> bool:
+    """True when an exported active sheet may not stay active in the target
+    project, which requires a confirmed check the sheet does not have."""
+    return review_required and rubric_data.get("review_state") != REVIEW_STATE_CONFIRMED
+
+
+def _review_fields(rubric_data: dict, reviewed_by: Optional[str]) -> dict:
+    """The check-step columns of an imported sheet (absent in older exports)."""
+    review_state = rubric_data.get("review_state")
+    return {
+        "review_state": review_state if isinstance(review_state, str) else None,
+        "reviewed_at": _parse_iso(rubric_data.get("reviewed_at")),
+        "reviewed_by": reviewed_by,
+    }
+
+
+def _task_rubric_review_event(
+    data: Any,
+    *,
+    project_id: str,
+    task_id: Optional[str],
+    rubric_id_mapping: Dict[str, str],
+    actor_id: Optional[str],
+) -> Optional[TaskRubricReviewEvent]:
+    """One imported ``task_rubric_review_events`` row, or None to skip it.
+
+    Fresh id; ``rubric_id`` is pointed at the imported sheet (NULL when that
+    sheet did not come along, as after its deletion). A row without its task
+    or without an event name is dropped. The JSON columns round-trip as
+    exported.
+    """
+    if not isinstance(data, dict) or not task_id:
+        return None
+    event = data.get("event")
+    if not isinstance(event, str) or not event:
+        return None
+    values = {field: data.get(field) for field in TASK_RUBRIC_REVIEW_EVENT_FIELDS}
+    if not isinstance(values["duration_seconds"], int) or isinstance(
+        values["duration_seconds"], bool
+    ):
+        values["duration_seconds"] = None
+    return TaskRubricReviewEvent(
+        **values,
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        task_id=task_id,
+        rubric_id=rubric_id_mapping.get(data.get("rubric_id")),
+        actor_id=actor_id,
+        **_timestamps(data, "created_at"),
+    )
+
+
+def _insert_task_rubric_review_event(ctx: _FullImportContext, data: dict) -> None:
+    """Import one entry of the sheets' edit and check log (comprehensive or
+    NDJSON format; after the sheets, whose id mapping it reads). The person
+    follows ``matched_user_ids`` (the same account, the same person by email,
+    or their own placeholder), else NULL: a check is never attributed to
+    whoever runs the import."""
+    if not isinstance(data, dict):
+        return
+    review_event = _task_rubric_review_event(
+        data,
+        project_id=ctx.new_project_id,
+        task_id=ctx.id_mappings["tasks"].get(data.get("task_id")),
+        rubric_id_mapping=ctx.id_mappings["task_rubrics"],
+        actor_id=ctx.matched_user_ids.get(data.get("actor_id")),
+    )
+    if review_event is not None:
+        ctx.db.add(review_event)
+        ctx.rubric_review_events += 1
 
 
 def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
@@ -2997,6 +3137,7 @@ def _create_imported_project(
         allow_solution_upload=_setting(project_data, "allow_solution_upload", True),
         handwriting_ocr_enabled=_setting(project_data, "handwriting_ocr_enabled", False),
         handwriting_ocr_model=project_data.get("handwriting_ocr_model"),
+        rubric_review_required=_setting(project_data, "rubric_review_required", False),
         restorable_checkpoints_enabled=_setting(
             project_data, "restorable_checkpoints_enabled", True
         ),
@@ -3107,6 +3248,7 @@ def _build_full_import_stats(
             "post_annotation_responses": len(ctx.id_mappings["post_annotation_responses"]),
             "grading_feedback": len(ctx.grading_feedback_seen),
             "task_rubrics": len(ctx.id_mappings["task_rubrics"]),
+            "task_rubric_review_events": ctx.rubric_review_events,
         },
         # Rows the payload carried that could NOT be stored. The job still
         # completes, so the client has to say so: a project imported on a
@@ -3145,6 +3287,7 @@ _NDJSON_INSERT_DISPATCH = {
     "user": _insert_user,
     "task": _insert_task,
     "task_rubric": _insert_task_rubric,
+    "task_rubric_review_event": _insert_task_rubric_review_event,
     "annotation": _insert_annotation,
     "response_generation": _insert_response_generation,
     "generation": _insert_generation,
@@ -3562,6 +3705,9 @@ def run_full_project_import(
     # Absent from exports that predate them; `_stream_rows` then yields nothing.
     for rubric_data in _stream_rows(db, fileobj, "task_rubrics.item"):
         _insert_task_rubric(ctx, rubric_data)
+    # Their edit and check log, after them (rubric_id goes through the map).
+    for review_data in _stream_rows(db, fileobj, "task_rubric_review_events.item"):
+        _insert_task_rubric_review_event(ctx, review_data)
 
     for annotation_data in _stream_rows(db, fileobj, "annotations.item"):
         _insert_annotation(ctx, annotation_data)
@@ -4384,6 +4530,7 @@ def run_merge_import(
     ctx = _FullImportContext(db, user_id, model_id_map)
     ctx.new_project_id = project_id
     ctx.organization_id = _project_organization_id(db, project_id)
+    ctx.rubric_review_required = bool(project.rubric_review_required)
     state = _MergeState(db, project_id)
     # One active Bewertungsbogen per task: an added sheet becomes a candidate
     # where the task already has one (see _insert_task_rubric).

@@ -5157,7 +5157,13 @@ def update_report_annotations_async(self, project_id: str):
     max_retries=0,
 )
 def export_project(self, job_id: str) -> Dict[str, Any]:
-    return export_project_impl(self, job_id)
+    try:
+        return export_project_impl(self, job_id)
+    except Exception as exc:
+        # The body handles its own failures; this catches what raises before
+        # its try (a lazy import, the session), which would leave the job
+        # pending for good and its poller spinning (rubric e2e D01).
+        return _fail_escaped_job_impl("export", job_id, exc)
 
 
 @app.task(
@@ -5173,9 +5179,14 @@ def import_project(
     mode: Optional[str] = None,
     dry_run: bool = False,
 ) -> Dict[str, Any]:
-    return import_project_impl(
-        self, job_id, model_id_map=model_id_map, mode=mode, dry_run=dry_run
-    )
+    try:
+        return import_project_impl(
+            self, job_id, model_id_map=model_id_map, mode=mode, dry_run=dry_run
+        )
+    except Exception as exc:
+        # See export_project: a failure before the body's own try (such as an
+        # ImportError of a stale worker) still marks the job failed.
+        return _fail_escaped_job_impl("import", job_id, exc)
 
 
 def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
@@ -5203,5 +5214,6 @@ from evaluation.judge_evaluator import _evaluate_llm_judge_single_impl  # noqa: 
 from project.export_import_service import (  # noqa: E402
     export_project_impl,
     import_project_impl,
+    _fail_escaped_job_impl,
     _fail_import_job_impl,
 )

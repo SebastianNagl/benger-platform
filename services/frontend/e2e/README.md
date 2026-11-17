@@ -18,7 +18,8 @@ e2e/
 ├── integrity/                        # Data consistency and validation tests (Issue #471)
 │   └── data-consistency.spec.ts     # Concurrent operations, data integrity
 ├── mobile/                           # Mobile device and responsive tests (Issue #471)
-│   └── mobile-workflows.spec.ts     # Touch gestures, mobile navigation
+│   ├── mobile-workflows.spec.ts     # Touch gestures, mobile navigation
+│   └── phone-width-layout.spec.ts   # No sideways scroll at 390 px (wizard, task page)
 ├── cross-browser/                    # Browser compatibility tests (Issue #471)
 │   └── compatibility.spec.ts        # Chrome, Firefox, Safari compatibility
 ├── helpers/

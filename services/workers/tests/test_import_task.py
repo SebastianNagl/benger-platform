@@ -642,3 +642,76 @@ def test_error_after_the_commit_leaves_the_job_completed(_patched):
     assert result["project_id"] == "proj-1"
     assert job.status == "completed"
     assert job.error_message is None
+
+
+# ---------------------------------------------------------------------------
+# A failure before the task body's own try (rubric e2e D01): a worker running
+# code older than the shared models raised ImportError on the lazy
+# ``from import_stream import ...`` and left the job pending for good, so the
+# project wizard polled it forever.
+# ---------------------------------------------------------------------------
+
+
+def _stale_module(name):
+    """A module of that name missing every attribute, so ``from name import x``
+    raises ImportError like a worker whose shared models predate the code."""
+    import sys
+
+    return patch.dict(sys.modules, {name: types.ModuleType(name)})
+
+
+def test_import_failing_before_its_handler_marks_the_job_failed(_patched):
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1")
+    published = []
+
+    with _stale_module("import_stream"), patch.object(
+        workers_tasks, "_publish_progress",
+        side_effect=lambda channel, payload: published.append((channel, payload)),
+    ):
+        result, session = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "error"
+    assert "cannot import name" in result["error"]
+    assert job.status == "failed"
+    assert job.error_message.startswith("The import failed because of an internal error.")
+    assert "import_stream" not in job.error_message
+    assert session.commits >= 1
+    assert published[-1] == (
+        "import:progress:proj-1",
+        {"job_id": "ijob-1", "status": "failed", "progress": 0},
+    )
+
+
+def test_escaped_failure_never_relabels_a_finished_job(_patched):
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1", status="completed")
+
+    from project.export_import_service import _fail_escaped_job_impl
+
+    session = _FakeSession({ImportJob: job})
+    with patch.object(workers_tasks, "SessionLocal", return_value=session):
+        result = _fail_escaped_job_impl("import", "ijob-1", RuntimeError("late"))
+
+    assert result["status"] == "error"
+    assert job.status == "completed"
+    assert session.commits == 0
+
+
+def test_export_failing_before_its_handler_marks_the_job_failed(_patched):
+    workers_tasks, storage, _ = _patched
+    from models import ExportJob
+
+    job = types.SimpleNamespace(
+        id="ejob-1", project_id="proj-1", status="pending", progress=0,
+        error_message=None,
+    )
+    session = _FakeSession({ExportJob: job})
+    with _stale_module("export_stream"), patch.object(
+        workers_tasks, "SessionLocal", return_value=session
+    ):
+        result = workers_tasks.export_project("ejob-1")
+
+    assert result["status"] == "error"
+    assert job.status == "failed"
+    assert job.error_message.startswith("The export failed because of an internal error.")

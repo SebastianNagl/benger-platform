@@ -301,6 +301,13 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
         cat.admin,
         'lti moodle ilias integration registrierung',
       ),
+      page(
+        t,
+        '/admin/rubric-generation-jobs',
+        'rubricGenerationJobs',
+        cat.admin,
+        'bewertungsbogen erzeugung aufträge fehler grading sheet generation jobs failures',
+      ),
       ...(publicApi
         ? [
             page(

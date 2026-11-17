@@ -14,6 +14,13 @@ Platform owns the ``task_rubrics`` persistence, the structure contract
   cloned (response carries ``replaced_rubric_id``).
 - ``POST …/{rubric_id}/activate`` / ``…/archive``.
 
+On a project with ``rubric_review_required`` a sheet is activated only after
+a person confirmed it (``review_state = "confirmed"``, written by the
+overlay's review workflow). Every activation (create with ``activate``, an
+edit that clones the active sheet, ``/activate``) is refused with
+``422 {"code": "rubric_review_required", "rubric_id", "message"}`` otherwise,
+and a refused create leaves no row.
+
 Reads need the project-view gate, and a rubric is solution content: it is
 served to those who may see every task's content (editors and contributors,
 on a Safe Exam Browser exam editors only) and, on projects that reveal the
@@ -55,6 +62,7 @@ from rubric_structure import (
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES, RubricImportError, parse_rubric_file
 from task_rubric_service import (
     UNSET,
+    RubricReviewRequired,
     RubricValidationError,
     activate_task_rubric,
     archive_task_rubric,
@@ -86,6 +94,10 @@ class TaskRubricResponse(BaseModel):
     prompt_version: Optional[str] = None
     generation_metadata: Optional[Dict[str, Any]] = None
     status: str
+    # Check step: NULL = no check recorded, else "confirmed" / "unusable".
+    review_state: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    reviewed_by: Optional[str] = None
     created_by: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -121,6 +133,10 @@ class TaskRubricCreate(BaseModel):
     structure: Dict[str, Any]
     grade_scale: Optional[Dict[str, Any]] = None
     activate: bool = False
+    # Where the sheet came from, stored as generation_metadata["origin"]
+    # (a JSON object of at most 4 KB), e.g. {"kind": "upload", "file_name",
+    # "file_sha256", "parser": "table" | "ai_structuring"} or {"kind": "manual"}.
+    origin: Optional[Dict[str, Any]] = None
 
 
 class TaskRubricUpdate(BaseModel):
@@ -246,11 +262,26 @@ def _revealed_view(
         "prompt_version": None,
         "generation_metadata": None,
         "created_by": None,
+        "reviewed_by": None,
     }
     if not with_guidance:
         update["structure"] = structure_without_guidance(rubric.structure)
         update["criteria"] = criteria_without_guidance(rubric.criteria)
     return TaskRubricResponse.model_validate(rubric).model_copy(update=update)
+
+
+def _review_required_error(exc: RubricReviewRequired) -> HTTPException:
+    return HTTPException(
+        status_code=422,
+        detail={
+            "code": exc.code,
+            "rubric_id": exc.rubric_id,
+            "message": (
+                "This project requires a confirmed check of the grading sheet "
+                "before it becomes active."
+            ),
+        },
+    )
 
 
 def _status_response(rubric: TaskRubric) -> RubricStatusResponse:
@@ -409,9 +440,12 @@ async def create_task_rubric_endpoint(
             title=body.title,
             source="human",
             status="active" if body.activate else "candidate",
+            origin=body.origin,
         )
     except RubricValidationError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid Bewertungsbogen: {exc}")
+    except RubricReviewRequired as exc:
+        raise _review_required_error(exc)
     await db.commit()
     # Server-generated columns (updated_at on UPDATE) are expired after the
     # flush; refresh explicitly so response serialization does no lazy IO.
@@ -453,6 +487,8 @@ async def update_task_rubric_endpoint(
         )
     except RubricValidationError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid Bewertungsbogen: {exc}")
+    except RubricReviewRequired as exc:
+        raise _review_required_error(exc)
     await db.commit()
     await db.refresh(result)
     payload = TaskRubricResponse.model_validate(result).model_dump()
@@ -472,7 +508,10 @@ async def activate_task_rubric_endpoint(
     await _get_editable_project(project_id, current_user, db)
     rubric = await _get_project_rubric(db, project_id, rubric_id)
     task = await _get_project_task(db, project_id, rubric.task_id)
-    await activate_task_rubric(db, rubric, task)
+    try:
+        await activate_task_rubric(db, rubric, task)
+    except RubricReviewRequired as exc:
+        raise _review_required_error(exc)
     await db.commit()
     await db.refresh(rubric)
     return _status_response(rubric)

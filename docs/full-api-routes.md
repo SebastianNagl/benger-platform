@@ -46,6 +46,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/admin/lti/registrations/{registration_id}/user-links/{link_id}/anonymization` | `org:read` | any |
 | POST | `/api/admin/lti/registrations/{registration_id}/user-links/{link_id}/anonymize` | `org:manage` | any |
 | GET | `/api/admin/lti/tool-hosts` | `org:read` | any |
+| GET | `/api/admin/rubric-generation-jobs` | `admin:platform` | any |
 | GET | `/api/admin/vendors` | `admin:platform` | any |
 | POST | `/api/admin/vendors` | `admin:platform` | any |
 | DELETE | `/api/admin/vendors/{organization_id}` | `admin:platform` | any |

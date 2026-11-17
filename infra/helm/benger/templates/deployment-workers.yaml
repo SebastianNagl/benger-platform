@@ -85,6 +85,10 @@ spec:
             timeoutSeconds: 120
             failureThreshold: 30
           env:
+            # Image tag of this deployment, stored as provenance by the rows
+            # that record how something was made (shared/app_version.py).
+            - name: BENGER_APP_VERSION
+              value: {{ .Values.workers.image.tag | default .Chart.AppVersion | quote }}
             {{- range .Values.workers.env }}
             - name: {{ .name }}
               {{- if .value }}
