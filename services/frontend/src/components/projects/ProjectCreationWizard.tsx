@@ -392,7 +392,6 @@ export function ProjectCreationWizard() {
 
   // Derive fields from earlier wizard steps for cross-step data flow
   const labelConfigFields = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () =>
       wizardData.labelingConfig?.config
         ? extractFieldsFromLabelConfig(wizardData.labelingConfig.config)
