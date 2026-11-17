@@ -1180,6 +1180,40 @@ export function matchFieldOption(
   return onSide.length === 1 ? onSide[0] : undefined
 }
 
+/** A stored field selection as picker option values (see matchFieldOption);
+ * a value that stands for no option is kept as it is. */
+export function shownFieldSelection(
+  stored: string[],
+  options: FieldOption[],
+  role: 'prediction' | 'reference',
+  declaredPrediction?: string[],
+): string[] {
+  return stored.map(
+    (v) => matchFieldOption(v, options, role, declaredPrediction)?.value ?? v,
+  )
+}
+
+/**
+ * Toggle the picker option `value` in a stored selection. Unticking removes
+ * every stored value that stands for it, so a stored `loesung` shown as
+ * `human:loesung` can be unticked; ticking adds `value` only when nothing
+ * stored stands for it yet, so the same answer is never selected twice under
+ * two spellings (it would be graded twice). Other stored values stay as
+ * they are.
+ */
+export function toggleFieldSelection(
+  stored: string[],
+  value: string,
+  options: FieldOption[],
+  role: 'prediction' | 'reference',
+  declaredPrediction?: string[],
+): string[] {
+  const shown = shownFieldSelection(stored, options, role, declaredPrediction)
+  return shown.includes(value)
+    ? stored.filter((_, i) => shown[i] !== value)
+    : [...stored, value]
+}
+
 /**
  * Helper to generate a unique evaluation ID
  */

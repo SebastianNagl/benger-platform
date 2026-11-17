@@ -18,6 +18,8 @@ import {
   groupPredictionFieldOptions,
   matchFieldOption,
   resolveDefaultFieldSelection,
+  shownFieldSelection,
+  toggleFieldSelection,
 } from '../evaluation-types'
 
 const FIELDS = {
@@ -246,5 +248,79 @@ describe('matchFieldOption', () => {
     expect(value('', 'prediction')).toBeUndefined()
     // A task-data prefix is a reference spelling only.
     expect(value('task.musterloesung', 'prediction')).toBeUndefined()
+  })
+})
+
+describe('shownFieldSelection / toggleFieldSelection', () => {
+  const prediction = buildPredictionFieldOptions(FIELDS)
+  const reference = buildReferenceFieldOptions(FIELDS)
+  const HUMAN_JUDGE = ['human:loesung', '__all_human__']
+
+  it('shows each stored value as its option and keeps the others', () => {
+    expect(
+      shownFieldSelection(
+        ['loesung', 'notes'],
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual(['human:loesung', 'notes'])
+    expect(
+      shownFieldSelection(['task.musterloesung'], reference, 'reference'),
+    ).toEqual(['musterloesung'])
+  })
+
+  it('unticks a stored bare value through the option it is shown as', () => {
+    expect(
+      toggleFieldSelection(
+        ['loesung'],
+        'human:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual([])
+    expect(
+      toggleFieldSelection(
+        ['task.musterloesung'],
+        'musterloesung',
+        reference,
+        'reference',
+      ),
+    ).toEqual([])
+  })
+
+  it('never adds a second spelling of a field that is already stored', () => {
+    // `human:loesung` is already selected as the bare `loesung`; ticking it
+    // again unticks it instead of grading the answer twice.
+    expect(
+      toggleFieldSelection(
+        ['loesung', 'human:loesung'],
+        'human:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual([])
+  })
+
+  it('adds an option nothing stored stands for and keeps the rest as stored', () => {
+    expect(
+      toggleFieldSelection(
+        ['loesung'],
+        'model:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual(['loesung', 'model:loesung'])
+    expect(
+      toggleFieldSelection(
+        ['task.musterloesung'],
+        'human:loesung',
+        reference,
+        'reference',
+      ),
+    ).toEqual(['task.musterloesung', 'human:loesung'])
   })
 })

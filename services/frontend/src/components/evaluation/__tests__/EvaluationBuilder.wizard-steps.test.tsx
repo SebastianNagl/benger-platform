@@ -1349,4 +1349,78 @@ describe('EvaluationBuilder wizard step rendering', () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  describe('stored fields spelled unlike the options', () => {
+    // A preset stores the bare `loesung` and `task.musterloesung`. Editing
+    // must tick the options they stand for, and ticking another option must
+    // not add a second spelling of the same field (graded twice).
+    const props = {
+      ...defaultProps,
+      availableFields: {
+        model_response_fields: ['loesung'],
+        human_annotation_fields: ['loesung'],
+        all_fields: ['loesung', 'musterloesung'],
+        reference_fields: ['musterloesung'],
+      },
+      evaluations: [
+        {
+          id: 'preset',
+          metric: 'bleu',
+          display_name: 'BLEU',
+          prediction_fields: ['loesung'],
+          reference_fields: ['task.musterloesung'],
+          enabled: true,
+        },
+      ],
+    }
+
+    async function editToPredictionStep(
+      user: ReturnType<typeof userEvent.setup>,
+    ) {
+      render(<EvaluationBuilder {...props} />)
+      const editBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="pencil-icon"]'))
+      await user.click(editBtn!)
+      await user.click(screen.getByTestId('wizard-next-button'))
+    }
+
+    it('ticks the options the stored values stand for', async () => {
+      const user = userEvent.setup()
+      await editToPredictionStep(user)
+      // bleu declares no side, so a bare field is the model one, as the
+      // server classifies it.
+      expect(
+        screen.getByRole('checkbox', { name: /model:loesung/ }),
+      ).toBeChecked()
+      expect(
+        screen.getByRole('checkbox', { name: /human:loesung/ }),
+      ).not.toBeChecked()
+      await user.click(screen.getByTestId('wizard-next-button'))
+      expect(
+        screen.getByRole('checkbox', { name: /musterloesung/ }),
+      ).toBeChecked()
+    })
+
+    it('unticks a stored bare field through its option', async () => {
+      const user = userEvent.setup()
+      await editToPredictionStep(user)
+      await user.click(screen.getByRole('checkbox', { name: /model:loesung/ }))
+      await user.click(screen.getByRole('checkbox', { name: /human:loesung/ }))
+      expect(
+        screen.getByRole('checkbox', { name: /model:loesung/ }),
+      ).not.toBeChecked()
+      expect(
+        screen.getByRole('checkbox', { name: /human:loesung/ }),
+      ).toBeChecked()
+      // The reference stays as stored: still ticked, no second spelling.
+      await user.click(screen.getByTestId('wizard-next-button'))
+      expect(
+        screen.getByRole('checkbox', { name: /musterloesung/ }),
+      ).toBeChecked()
+      expect(
+        screen.queryByText('evaluationBuilder.fields.multipleReferencesTitle'),
+      ).not.toBeInTheDocument()
+    })
+  })
 })

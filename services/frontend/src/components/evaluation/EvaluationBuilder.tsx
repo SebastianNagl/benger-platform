@@ -37,6 +37,7 @@ import {
   buildPredictionFieldOptions,
   CustomCriteriaDefinition,
   type EvaluationConfig,
+  type FieldOption,
   type FieldTypeInfo,
   generateEvaluationId,
   getFieldLabel,
@@ -44,6 +45,8 @@ import {
   HUMAN_FIELD_PREFIX,
   LLM_JUDGE_TEMPLATES,
   MODEL_FIELD_PREFIX,
+  shownFieldSelection,
+  toggleFieldSelection,
 } from '@/lib/api/evaluation-types'
 import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
@@ -274,14 +277,18 @@ export function EvaluationBuilder({
   // Prediction options come from the shared builder, in the order every
   // picker uses. Its bulk selectors carry an i18n key that this list used to
   // skip, so German pages showed "All model responses".
+  const predictionFieldOptions = useMemo(
+    () => buildPredictionFieldOptions(availableFields),
+    [availableFields],
+  )
   const allPredictionOptions = useMemo(
     () =>
-      buildPredictionFieldOptions(availableFields).map((opt) => ({
+      predictionFieldOptions.map((opt) => ({
         value: opt.value,
         label: opt.labelKey ? t(opt.labelKey) : opt.label,
         type: opt.kind as 'special' | 'model' | 'human',
       })),
-    [availableFields, t],
+    [predictionFieldOptions, t],
   )
 
   // Reference field options
@@ -291,6 +298,37 @@ export function EvaluationBuilder({
       label: field,
     }))
   }, [availableFields])
+  const referenceFieldOptions = useMemo<FieldOption[]>(
+    () =>
+      availableFields.reference_fields.map((field) => ({
+        value: field,
+        label: field,
+        kind: 'data',
+      })),
+    [availableFields],
+  )
+
+  // A stored config may spell a field unlike the options (a preset's bare
+  // `loesung` or `task.musterloesung`). The steps tick the option it stands
+  // for, and toggling goes through the same mapping, so ticking that option
+  // again cannot add a second spelling of the same field.
+  const fieldOptionsFor = (
+    fieldType: 'prediction_fields' | 'reference_fields',
+  ) =>
+    fieldType === 'prediction_fields'
+      ? { options: predictionFieldOptions, role: 'prediction' as const }
+      : { options: referenceFieldOptions, role: 'reference' as const }
+  const shownFields = (
+    fieldType: 'prediction_fields' | 'reference_fields',
+  ): string[] => {
+    const { options, role } = fieldOptionsFor(fieldType)
+    return shownFieldSelection(
+      newEvaluation[fieldType],
+      options,
+      role,
+      getMetricDefinitions()[newEvaluation.metric]?.default_prediction_fields,
+    )
+  }
 
   const resetWizard = useCallback(() => {
     setNewEvaluation(INITIAL_EVALUATION_STATE)
@@ -441,12 +479,19 @@ export function EvaluationBuilder({
     fieldType: 'prediction_fields' | 'reference_fields',
     value: string,
   ) => {
+    const { options, role } = fieldOptionsFor(fieldType)
     setNewEvaluation((prev) => {
       const currentFields = prev[fieldType]
-      const isSelected = currentFields.includes(value)
-      const newFields = isSelected
-        ? currentFields.filter((f) => f !== value)
-        : [...currentFields, value]
+      const declared =
+        getMetricDefinitions()[prev.metric]?.default_prediction_fields
+      const newFields = toggleFieldSelection(
+        currentFields,
+        value,
+        options,
+        role,
+        declared,
+      )
+      const isSelected = newFields.length < currentFields.length
 
       // For LLM Judge: auto-detect answer type on prediction field selection
       if (
@@ -680,7 +725,7 @@ export function EvaluationBuilder({
           <PredictionFieldsStep
             availableFields={availableFields}
             allPredictionOptions={allPredictionOptions}
-            selectedFields={newEvaluation.prediction_fields}
+            selectedFields={shownFields('prediction_fields')}
             onFieldToggle={handleFieldToggle}
           />
         )
@@ -689,7 +734,7 @@ export function EvaluationBuilder({
         return (
           <ReferenceFieldsStep
             referenceOptions={referenceOptions}
-            selectedFields={newEvaluation.reference_fields}
+            selectedFields={shownFields('reference_fields')}
             onFieldToggle={handleFieldToggle}
           />
         )
