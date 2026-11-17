@@ -75,7 +75,7 @@ def seeded(test_db):
     return user, project
 
 
-def _run(client, user, body):
+def _run(client, user, body, send_task=None):
     auth_user = AuthUser(
         id=user.id, username=user.username, email=user.email, name=user.name,
         is_superadmin=user.is_superadmin, is_active=True, email_verified=True,
@@ -85,7 +85,7 @@ def _run(client, user, body):
     try:
         with patch(
             "routers.evaluations.multi_field.run.celery_app.send_task",
-            return_value=MagicMock(id="celery-run"),
+            send_task or MagicMock(return_value=MagicMock(id="celery-run")),
         ), patch(
             "routers.evaluations.multi_field.run.resolve_user_org_for_project",
             return_value=None,
@@ -97,14 +97,21 @@ def _run(client, user, body):
 
 @pytest.mark.integration
 class TestRunRecordsItsModel:
+    @pytest.mark.smoke
     def test_a_run_restricted_to_one_model_carries_that_model(self, client, test_db, seeded):
         user, project = seeded
+        send_task = MagicMock(return_value=MagicMock(id="celery-run"))
         resp = _run(client, user, {
             "project_id": project.id,
             "evaluation_configs": [CONFIG],
             "model_ids": ["model-other"],
-        })
+        }, send_task=send_task)
         assert resp.status_code == 200, resp.text
+        send_task.assert_called_once()
+        assert send_task.call_args.args[0] == "tasks.run_evaluation"
+        dispatched = send_task.call_args.kwargs["kwargs"]
+        assert dispatched["evaluation_id"] == resp.json()["evaluation_id"]
+        assert dispatched["model_ids"] == ["model-other"]
         run = test_db.get(EvaluationRun, resp.json()["evaluation_id"])
         assert run.model_id == "model-other"
         assert run.eval_metadata["planned_model_ids"] == ["model-other"]

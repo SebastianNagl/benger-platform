@@ -277,6 +277,7 @@ class TestCreateImportUploadUrl:
 
 @pytest.mark.integration
 class TestCreateImportJob:
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_post_creates_pending_job_and_enqueues(
         self, async_test_client, async_test_db
@@ -458,6 +459,7 @@ class TestImportQueueBySize:
 
 @pytest.mark.integration
 class TestGetImportJobStatus:
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_status_returns_job_fields(
         self, async_test_client, async_test_db

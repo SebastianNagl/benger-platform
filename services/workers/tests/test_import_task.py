@@ -127,6 +127,7 @@ def _run_with_job(workers_tasks, ImportJob, job):
     return result, session
 
 
+@pytest.mark.smoke
 def test_import_nested_runs_nested_driver(_patched):
     workers_tasks, storage, ImportJob = _patched
     content = b'{"data": [{"id": 1}], "meta": {}}'

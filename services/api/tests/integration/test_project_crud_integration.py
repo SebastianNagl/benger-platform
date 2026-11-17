@@ -134,6 +134,7 @@ class TestProjectCrudIntegration:
         await db.flush()
         return project
 
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_list_projects(self, async_test_client, async_test_db):
         """Test listing projects."""
@@ -169,6 +170,7 @@ class TestProjectCrudIntegration:
         data = response.json()
         assert "items" in data
 
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_create_project(self, async_test_client, async_test_db):
         """Test creating a project."""
@@ -351,6 +353,7 @@ class TestProjectCrudIntegration:
 
         assert seen == [ids_by_day[d] for d in (5, 4, 3, 2, 1)]
 
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_annotator_cannot_create_project(
         self, async_test_client, async_test_db

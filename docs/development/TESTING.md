@@ -14,6 +14,9 @@ make test-api          # API tests only
 make test-workers      # Worker tests only
 make test-frontend     # Frontend Jest only
 make test-e2e          # Playwright E2E tests
+
+# The smoke suites CI runs on every PR (needs `make test-start-lite`)
+make test-smoke        # API + Workers + Frontend Jest smoke suites
 ```
 
 ### Targeted Test Runs
@@ -188,6 +191,7 @@ services/workers/tests/
 @pytest.mark.integration    # Service integration tests
 @pytest.mark.security       # Security/OWASP tests
 @pytest.mark.slow           # Long-running tests (>5s)
+@pytest.mark.smoke          # In the CI smoke suite (also needs a smoke_manifest.txt line)
 ```
 
 ---
@@ -255,18 +259,22 @@ make test-e2e GREP="annotation"
 
 **File:** `.github/workflows/ci.yml`
 
-Runs on every PR into `dev` (day-to-day work) or `main` (releases) and on pushes to `main`, with the same jobs everywhere and a budget of 5 minutes per job. A job above budget prints a warning. The gate measures no coverage, so a merge never waits on instrumentation.
+CI follows benger-extended issue #193: the full suites run locally before a PR is opened, a smoke suite runs on the PR, and the nightly runs everything. `ci.yml` runs the same jobs on every PR into `dev` (day-to-day work) or `main` (releases) and on every push to `main`, where a green run dispatches the extended build and the production deploy.
 
-- **Frontend:** Jest in three shards, plus Prettier, ESLint and the e2e type check
-- **API:** the full suite in five shards
-- **Workers:** the full suite
-- **Lint:** ruff, lockfiles, the Celery queue and workers-base contracts
+- Lint: Prettier, ESLint and the e2e type check for the frontend; ruff, the uv lockfiles, the Celery queue and workers-base contracts, and the Python client and repo script tests for Python
+- API smoke: the tests in `services/api/tests/smoke_manifest.txt`, covering app boot, every migration applied to an empty Postgres up to the one head, login and `/me`, org contexts and org admin scope, project create and list, import job creation, generation and evaluation dispatch, dashboard stats, the extension version handshake and the overlay import surface
+- Workers smoke: the tests in `services/workers/tests/smoke_manifest.txt`, covering the generation loop, the evaluation chord and its resume, project import and export jobs, the Celery queue routing, the overlay import surface and a light `import tasks`
+- Frontend smoke: the Jest files in `services/frontend/smoke_manifest.txt`, covering the API proxy, the auth routes, login, the auth and API client contexts, project creation, data import, the generation and evaluation dialogs and the dashboard
+
+Each smoke suite runs in well under a minute of test time, so a job takes about as long as its setup (installing the runner image and dependencies). A smoke test is marked twice: `@pytest.mark.smoke` in the code (Jest has no marker) and a line in its manifest. `scripts/check_smoke.py` runs after each suite and fails the job when a listed test did not run (marker removed, renamed or deleted), was skipped or failed, and when a file uses the marker without a manifest entry. To change a suite, edit both and keep the manifest sorted (`LC_ALL=C sort`). Pick tests by critical flow, not by coverage, and keep the suite small: anything else belongs in the nightly.
+
+For a risky change, such as a migration, a dependency upgrade or an edit to grading, auth or billing, run the full suites in CI as well: `gh workflow run ci.yml --ref <branch> -f full=true` runs the API suite in five shards, the workers suite and Jest in three shards, without coverage and without a deploy. The weekly uv lock refresh (`build-workers-base.yml`) dispatches this full run on its PR branch.
 
 ### Nightly
 
-`nightly-tests.yml` and `nightly-coverage.yml` run the same suites on `main` with coverage and enforce the floors (Jest: `coverageThreshold` in `jest.config.js`; workers: `--cov-fail-under` in `services/workers/pytest.ini`; API: `API_COVERAGE_FLOOR` in the `Makefile`), and add the Playwright E2E run. A change on `dev` is first measured against the floors the night after its release. `nightly-mutation.yml` runs mutation testing. A red night sends a mail through Alertmanager and shows in Grafana; it does not block deploys.
+`nightly-tests.yml` runs the full workers and Jest suites with their coverage floors (workers: `--cov-fail-under` in `services/workers/pytest.ini`; Jest: `coverageThreshold` in `jest.config.js`) and the Playwright E2E run; `nightly-coverage.yml` runs the full API suite in five shards with coverage and enforces `API_COVERAGE_FLOOR` from the `Makefile`. Both run on `main`, so a change on `dev` is first measured the night after its release. `nightly-mutation.yml` runs mutation testing. A red night sends a mail through Alertmanager and shows in Grafana (benger-extended `nightly-status.yml`), and a red `nightly-tests.yml` also opens or updates a `nightly-failure` issue; neither blocks deploys.
 
-Before merging, run the suites you touched locally. The coverage floors are only checked at night, or locally with `make test-frontend` and the `COVERAGE=1` API run.
+Before opening a PR, run the full suites you touched locally (`make test-api`, `make test-workers`, `make test-frontend`, with `FILE=` for a quick first pass), since CI only runs the smoke suites. The coverage floors are only checked at night, or locally with `make test-frontend`, `make test-workers` and the `COVERAGE=1` API run.
 
 ---
 

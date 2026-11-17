@@ -1,20 +1,21 @@
 name: Nightly Tests
 
 # Comprehensive test suite — runs ALL tests (API, Workers, Frontend, E2E).
-# The merge gate (ci.yml) runs the API, workers and Jest suites without
-# coverage. This suite adds the coverage thresholds and the Playwright E2E run,
-# and catches what only those see within 24 hours. A red night alerts by mail
-# (extended repo, nightly-status.yml) and does not block deploys.
+# The PR and release gate (ci.yml) runs only the smoke suites (benger-extended
+# issue #193), so this is where the full workers and Jest suites, their
+# coverage thresholds and the Playwright E2E run every day; a regression the
+# smoke suites miss surfaces here within 24 hours. A red night alerts by mail
+# (extended repo, nightly-status.yml) and opens a nightly-failure issue (the
+# report job below); it does not block deploys.
 #
 # Each slice runs in its own matrix shard so a single slow suite doesn't
 # starve the others or trip the per-step timeout. Frontend Jest skips Docker
 # entirely.
 #
-# The API suite is NOT a shard here: nightly-coverage.yml runs the same API
-# tests every night (sharded, with COVERAGE=1), and a failing test fails its
+# The API suite is NOT a shard here: nightly-coverage.yml runs the whole API
+# suite every night (sharded, with COVERAGE=1), and a failing test fails its
 # coverage shard just as it would fail a plain run, so a second unsharded API
-# run an hour earlier only repeated the work. The merge gate (ci.yml) runs
-# it without coverage on every PR into dev or main and every push to main.
+# run an hour earlier only repeated the work.
 
 on:
   schedule:
@@ -87,7 +88,7 @@ jobs:
       # The complete stack (API, Celery worker, MinIO, traefik, the frontend
       # production build) plus the seed is only needed by Playwright. The
       # workers shard needs just Postgres + Redis and its runner image (see
-      # the integration-tests comment in ci.yml).
+      # the python-tests comment in ci.yml).
       - name: Build test infrastructure
         if: matrix.shard == 'e2e'
         # `make test-build` swallows docker-build failures (it pipes the

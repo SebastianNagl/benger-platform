@@ -23,6 +23,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.smoke
+
 CONTRACT = Path(__file__).resolve().parent / "contracts" / "overlay_imports.json"
 REGENERATE = "make update-overlay-surface PLATFORM_DIR=<path to benger-platform> (run in benger-extended)"
 WORKER_IMPORTER_PREFIX = "benger_extended/workers/"

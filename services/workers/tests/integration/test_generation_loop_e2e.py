@@ -76,6 +76,7 @@ def _make_child(db_conn, parent, run_index, task_id, model_id,
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.smoke
 def test_generation_loop_happy_path_and_unique_run_index(
     db_conn, make_user, make_llm_model, make_project, make_task,
     patch_ai_service,
@@ -578,6 +579,7 @@ def test_generation_loop_failed_trial_sends_a_failure_not_a_completion_notificat
     assert notes == []
 
 
+@pytest.mark.smoke
 def test_generation_loop_structured_output_parses_via_response_parser(
     db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
 ):

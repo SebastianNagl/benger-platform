@@ -122,6 +122,7 @@ async def _aseed_user(
 class TestAuthMeIntegration:
     """Integration tests for /api/auth/me endpoint"""
 
+    @pytest.mark.smoke
     def test_login_returns_user_data_not_jwt_claims(self, client, test_user):
         """POST /login stays sync — test unchanged."""
         response = client.post(
@@ -175,6 +176,7 @@ class TestAuthMeIntegration:
         assert "exp" not in data
         assert "user_id" not in data  # User model uses 'id'
 
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_me_endpoint_with_cookie_auth(self, async_test_client, async_test_db):
         """/me reads the authenticated user from the (async) database.
@@ -198,6 +200,7 @@ class TestAuthMeIntegration:
         assert data["username"] == user.username
         assert data["email"] == user.email
 
+    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_me_endpoint_fails_without_auth(self, async_test_client):
         """Test that /me endpoint returns 401 without authentication.

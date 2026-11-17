@@ -62,6 +62,7 @@ def _install(monkeypatch, **worker_attrs):
     return pkg, workers
 
 
+@pytest.mark.smoke
 def test_master_flags_register_in_the_worker(monkeypatch):
     _install(monkeypatch)
     assert flag_registry.master_for_owner(PKG) == MASTER
