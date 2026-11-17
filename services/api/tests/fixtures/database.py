@@ -474,9 +474,6 @@ def _create_tables():
             # (create_all never adds a key to an existing table). Its upgrade
             # is idempotent and removes orphans first, so run it as is.
             _run_migration(conn, "140_generation_cascades_and_purge_jobs")
-            # Migration 141: import_jobs.object_key nullable (create_all
-            # never relaxes a column of an existing table). Idempotent.
-            _run_migration(conn, "141_import_job_object_key_nullable")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

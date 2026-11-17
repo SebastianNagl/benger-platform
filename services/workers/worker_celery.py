@@ -71,15 +71,6 @@ app.conf.beat_schedule = {
         "args": (),
         "kwargs": {},
     },
-    # Deletes the stored files of export and import jobs past expires_at
-    # (and of failed imports a week after they failed); see
-    # services/shared/job_file_cleanup.py.
-    "cleanup-expired-job-files": {
-        "task": "tasks.cleanup_expired_job_files",
-        "schedule": crontab(minute=45, hour=3),
-        "args": (),
-        "kwargs": {},
-    },
 }
 # Beat entries deliberately carry no ``options: {"queue": ...}``. Beat options go
 # through the same router as any other send and would override task_routes, so

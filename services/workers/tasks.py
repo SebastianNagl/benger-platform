@@ -4959,20 +4959,6 @@ def cleanup_api_key_usage_events(self, retention_days: Optional[int] = None):
         db.close()
 
 
-@app.task(name="tasks.cleanup_expired_job_files", bind=True)
-def cleanup_expired_job_files(self):
-    """Daily removal of the object-storage files of expired export and import
-    jobs (see ``services/shared/job_file_cleanup.py``)."""
-    from job_file_cleanup import cleanup_expired_job_files as _cleanup
-    from storage.object_storage import object_storage
-
-    db = SessionLocal()
-    try:
-        return _cleanup(db, object_storage)
-    finally:
-        db.close()
-
-
 @app.task(name="tasks.sweep_missing_immediate_evals", bind=True)
 def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     """Hourly server-side backstop for the client-fired KI-Votum.

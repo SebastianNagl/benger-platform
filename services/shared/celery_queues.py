@@ -116,7 +116,6 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.exam_tools_gc_bundles": MAINTENANCE,  # extended (core 2.50)
     "tasks.cleanup_project_data": MAINTENANCE,
     "tasks.cleanup_api_key_usage_events": MAINTENANCE,
-    "tasks.cleanup_expired_job_files": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
     # --- generation: one LLM call per task, minutes each ---
     "tasks.generate_response": GENERATION,

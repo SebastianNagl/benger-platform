@@ -186,7 +186,6 @@ fix_*.py
 # Don't ignore migration cleanup files!
 *_cleanup.py
 !services/api/alembic/versions/*_cleanup.py
-!services/shared/*_cleanup.py
 targeted_fix.py
 
 # Test data and JSON files in root
