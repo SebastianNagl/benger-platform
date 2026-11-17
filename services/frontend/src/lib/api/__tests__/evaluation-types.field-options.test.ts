@@ -16,7 +16,10 @@ import {
   buildPredictionFieldOptions,
   buildReferenceFieldOptions,
   groupPredictionFieldOptions,
+  matchFieldOption,
   resolveDefaultFieldSelection,
+  shownFieldSelection,
+  toggleFieldSelection,
 } from '../evaluation-types'
 
 const FIELDS = {
@@ -168,5 +171,156 @@ describe('groupPredictionFieldOptions', () => {
       }),
     )
     expect(groups.map((g) => g.kind)).toEqual(['special', 'human'])
+  })
+})
+
+describe('matchFieldOption', () => {
+  const prediction = buildPredictionFieldOptions(FIELDS)
+  const reference = buildReferenceFieldOptions(FIELDS)
+  const HUMAN_JUDGE = ['human:loesung', '__all_human__']
+  const value = (
+    stored: string,
+    role: 'prediction' | 'reference',
+    declared?: string[],
+  ) =>
+    matchFieldOption(
+      stored,
+      role === 'prediction' ? prediction : reference,
+      role,
+      declared,
+    )?.value
+
+  it('returns an option the stored value names exactly', () => {
+    expect(value('human:loesung', 'prediction', HUMAN_JUDGE)).toBe(
+      'human:loesung',
+    )
+    expect(value('model:loesung', 'prediction', HUMAN_JUDGE)).toBe(
+      'model:loesung',
+    )
+    expect(value('__all_human__', 'prediction')).toBe('__all_human__')
+    expect(value('musterloesung', 'reference')).toBe('musterloesung')
+  })
+
+  it('reads a bare prediction field on the side the metric declares', () => {
+    expect(value('loesung', 'prediction', HUMAN_JUDGE)).toBe('human:loesung')
+    expect(value('loesung', 'prediction', ['model:loesung'])).toBe(
+      'model:loesung',
+    )
+    expect(value('loesung', 'prediction', ['__all_model__'])).toBe(
+      'model:loesung',
+    )
+  })
+
+  it('reads a bare prediction field as the model side when nothing is declared, as the server does', () => {
+    expect(value('loesung', 'prediction')).toBe('model:loesung')
+    expect(value('loesung', 'prediction', [])).toBe('model:loesung')
+  })
+
+  it('takes the only side offered, whatever the metric declares', () => {
+    const humanOnly = buildPredictionFieldOptions({
+      model_response_fields: [],
+      human_annotation_fields: ['loesung'],
+    })
+    expect(matchFieldOption('loesung', humanOnly, 'prediction')?.value).toBe(
+      'human:loesung',
+    )
+    const modelOnly = buildPredictionFieldOptions({
+      model_response_fields: ['loesung'],
+      human_annotation_fields: [],
+    })
+    expect(
+      matchFieldOption('loesung', modelOnly, 'prediction', HUMAN_JUDGE)?.value,
+    ).toBe('model:loesung')
+  })
+
+  it('maps a task-data reference onto its data column', () => {
+    expect(value('task.musterloesung', 'reference')).toBe('musterloesung')
+  })
+
+  it('leaves a bare reference alone: it names an annotation field or a task column', () => {
+    expect(value('loesung', 'reference')).toBeUndefined()
+  })
+
+  it('matches nothing for a field no option carries', () => {
+    expect(value('notes', 'prediction', HUMAN_JUDGE)).toBeUndefined()
+    expect(value('human:notes', 'prediction')).toBeUndefined()
+    expect(value('task.sachverhalt', 'reference')).toBeUndefined()
+    expect(value('', 'prediction')).toBeUndefined()
+    // A task-data prefix is a reference spelling only.
+    expect(value('task.musterloesung', 'prediction')).toBeUndefined()
+  })
+})
+
+describe('shownFieldSelection / toggleFieldSelection', () => {
+  const prediction = buildPredictionFieldOptions(FIELDS)
+  const reference = buildReferenceFieldOptions(FIELDS)
+  const HUMAN_JUDGE = ['human:loesung', '__all_human__']
+
+  it('shows each stored value as its option and keeps the others', () => {
+    expect(
+      shownFieldSelection(
+        ['loesung', 'notes'],
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual(['human:loesung', 'notes'])
+    expect(
+      shownFieldSelection(['task.musterloesung'], reference, 'reference'),
+    ).toEqual(['musterloesung'])
+  })
+
+  it('unticks a stored bare value through the option it is shown as', () => {
+    expect(
+      toggleFieldSelection(
+        ['loesung'],
+        'human:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual([])
+    expect(
+      toggleFieldSelection(
+        ['task.musterloesung'],
+        'musterloesung',
+        reference,
+        'reference',
+      ),
+    ).toEqual([])
+  })
+
+  it('never adds a second spelling of a field that is already stored', () => {
+    // `human:loesung` is already selected as the bare `loesung`; ticking it
+    // again unticks it instead of grading the answer twice.
+    expect(
+      toggleFieldSelection(
+        ['loesung', 'human:loesung'],
+        'human:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual([])
+  })
+
+  it('adds an option nothing stored stands for and keeps the rest as stored', () => {
+    expect(
+      toggleFieldSelection(
+        ['loesung'],
+        'model:loesung',
+        prediction,
+        'prediction',
+        HUMAN_JUDGE,
+      ),
+    ).toEqual(['loesung', 'model:loesung'])
+    expect(
+      toggleFieldSelection(
+        ['task.musterloesung'],
+        'human:loesung',
+        reference,
+        'reference',
+      ),
+    ).toEqual(['task.musterloesung', 'human:loesung'])
   })
 })

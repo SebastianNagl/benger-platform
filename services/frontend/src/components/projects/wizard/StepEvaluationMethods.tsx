@@ -25,6 +25,7 @@ import {
   getMetricDefinitions,
   groupPredictionFieldOptions,
   isMetricImmediateEligible,
+  matchFieldOption,
   metricDescription,
   metricDisplayName,
   metricGroupDescription,
@@ -116,6 +117,20 @@ export function StepEvaluationMethods({
     }
     return opt.label
   }
+
+  // A stored value the pickers spell differently (a preset's bare `loesung`
+  // or `task.musterloesung`) is shown as the option it stands for, so the
+  // trigger names that option instead of a raw value matching none. The
+  // stored config stays as it is until the user picks another option.
+  const shownFieldValue = (
+    stored: string | undefined,
+    options: FieldOption[],
+    role: 'prediction' | 'reference',
+    declared?: string[],
+  ): string =>
+    stored
+      ? (matchFieldOption(stored, options, role, declared)?.value ?? stored)
+      : ''
 
   const defaultPrediction =
     predictionOptions.length > 0 ? predictionOptions[0].value : ''
@@ -411,7 +426,12 @@ export function StepEvaluationMethods({
                               </Label>
                               <Select
                                 searchable
-                                value={config.prediction_fields[0] || ''}
+                                value={shownFieldValue(
+                                  config.prediction_fields[0],
+                                  predictionOptions,
+                                  'prediction',
+                                  def.default_prediction_fields,
+                                )}
                                 onValueChange={(val) =>
                                   updateConfig(config.id, 'prediction_fields', [
                                     val,
@@ -454,7 +474,11 @@ export function StepEvaluationMethods({
                               </Label>
                               <Select
                                 searchable
-                                value={config.reference_fields[0] || ''}
+                                value={shownFieldValue(
+                                  config.reference_fields[0],
+                                  referenceOptions,
+                                  'reference',
+                                )}
                                 onValueChange={(val) =>
                                   updateConfig(config.id, 'reference_fields', [
                                     val,

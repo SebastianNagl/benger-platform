@@ -1105,6 +1105,115 @@ export function resolveDefaultFieldSelection(
   return positionalFallback ? [positionalFallback] : []
 }
 
+/** Prefix of a reference field read from the task's data, not an annotation. */
+export const TASK_DATA_FIELD_PREFIX = 'task.'
+
+/** The side (`human` or `model`) a metric's declared prediction defaults
+ * grade, from the first declared entry that names one. */
+function declaredPredictionSide(
+  declared: string[] | undefined,
+): 'human' | 'model' | undefined {
+  for (const field of declared ?? []) {
+    if (
+      field === FIELD_SPECIFIERS.ALL_HUMAN ||
+      field.startsWith(HUMAN_FIELD_PREFIX)
+    )
+      return 'human'
+    if (
+      field === FIELD_SPECIFIERS.ALL_MODEL ||
+      field.startsWith(MODEL_FIELD_PREFIX)
+    )
+      return 'model'
+  }
+  return undefined
+}
+
+/**
+ * The picker option a stored field value stands for, or `undefined` when it
+ * stands for none of them. Display only: the stored value is never changed.
+ *
+ * Stored configs do not always use the pickers' spelling. A preset may store
+ * a bare prediction field (`loesung`) or a task-data reference
+ * (`task.musterloesung`), while the pickers offer `human:loesung`,
+ * `model:loesung` and the data column `musterloesung`. Without this the
+ * picker showed the raw value, matching none of its options.
+ *
+ * - An exact option match wins.
+ * - A reference `task.<column>` is the data option `<column>`. A bare
+ *   reference is left alone: the worker reads it from the ground-truth
+ *   annotation first and the task data second, so it names no single option.
+ * - A bare prediction field is the `human:` or `model:` option of that name
+ *   when only one of them is offered. When both are, it is the one on the
+ *   side the metric declares in `default_prediction_fields`, else the model
+ *   side, which is how the server classifies an unprefixed field unless the
+ *   metric registers a rule (a metric that grades a submitted answer declares
+ *   the human side and registers the matching rule).
+ */
+export function matchFieldOption(
+  stored: string,
+  options: FieldOption[],
+  role: 'prediction' | 'reference',
+  declaredPrediction?: string[],
+): FieldOption | undefined {
+  const exact = options.find((o) => o.value === stored)
+  if (exact) return exact
+  if (role === 'reference') {
+    if (!stored.startsWith(TASK_DATA_FIELD_PREFIX)) return undefined
+    const column = stored.slice(TASK_DATA_FIELD_PREFIX.length)
+    return options.find((o) => o.kind === 'data' && o.value === column)
+  }
+  if (
+    !stored ||
+    isSpecialFieldValue(stored) ||
+    stored.startsWith(HUMAN_FIELD_PREFIX) ||
+    stored.startsWith(MODEL_FIELD_PREFIX)
+  )
+    return undefined
+  const candidates = options.filter(
+    (o) =>
+      (o.kind === 'human' || o.kind === 'model') &&
+      getBaseFieldName(o.value) === stored,
+  )
+  if (candidates.length <= 1) return candidates[0]
+  const side = declaredPredictionSide(declaredPrediction) ?? 'model'
+  const onSide = candidates.filter((o) => o.kind === side)
+  return onSide.length === 1 ? onSide[0] : undefined
+}
+
+/** A stored field selection as picker option values (see matchFieldOption);
+ * a value that stands for no option is kept as it is. */
+export function shownFieldSelection(
+  stored: string[],
+  options: FieldOption[],
+  role: 'prediction' | 'reference',
+  declaredPrediction?: string[],
+): string[] {
+  return stored.map(
+    (v) => matchFieldOption(v, options, role, declaredPrediction)?.value ?? v,
+  )
+}
+
+/**
+ * Toggle the picker option `value` in a stored selection. Unticking removes
+ * every stored value that stands for it, so a stored `loesung` shown as
+ * `human:loesung` can be unticked; ticking adds `value` only when nothing
+ * stored stands for it yet, so the same answer is never selected twice under
+ * two spellings (it would be graded twice). Other stored values stay as
+ * they are.
+ */
+export function toggleFieldSelection(
+  stored: string[],
+  value: string,
+  options: FieldOption[],
+  role: 'prediction' | 'reference',
+  declaredPrediction?: string[],
+): string[] {
+  const shown = shownFieldSelection(stored, options, role, declaredPrediction)
+  return shown.includes(value)
+    ? stored.filter((_, i) => shown[i] !== value)
+    : [...stored, value]
+}
+
 /**
  * Helper to generate a unique evaluation ID
  */
