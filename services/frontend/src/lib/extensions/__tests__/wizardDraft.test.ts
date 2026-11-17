@@ -1,12 +1,14 @@
 /**
- * Draft-mode registry of the creation wizard (CORE 2.55): policies and the
- * created / tasksSynced / configSynced hooks, filtered by active owner.
+ * Draft-mode registry of the creation wizard (CORE 2.55): policies (with
+ * their leave guards) and the created / tasksSynced / configSynced hooks,
+ * filtered by active owner.
  */
 
 import { setActiveExtensions } from '../active'
 import { setRegistrationOwner } from '../owner'
 import {
   _resetWizardDraftRegistry,
+  getApplyingWizardDraftPolicies,
   getWizardDraftHooks,
   getWizardDraftPolicies,
   registerWizardDraftHook,
@@ -36,6 +38,30 @@ describe('wizard draft policies', () => {
     expect(getWizardDraftPolicies()).toEqual([throwing, rubric])
     expect(wizardDraftApplies({ features: { rubric: true } })).toBe(true)
     expect(wizardDraftApplies({ features: { rubric: false } })).toBe(false)
+  })
+
+  it('lists the applying policies in registration order, without throwing ones', () => {
+    const guard = jest.fn().mockResolvedValue(true)
+    const exam = {
+      applies: (d: any) => d.projectKind === 'exam',
+      beforeLeaveStep: guard,
+    }
+    const throwing = {
+      applies: () => {
+        throw new Error('broken')
+      },
+    }
+    const always = { applies: () => true }
+    registerWizardDraftPolicy(exam)
+    registerWizardDraftPolicy(throwing)
+    registerWizardDraftPolicy(always)
+    expect(getApplyingWizardDraftPolicies({ projectKind: 'exam' })).toEqual([
+      exam,
+      always,
+    ])
+    expect(getApplyingWizardDraftPolicies({ projectKind: 'generic' })).toEqual([
+      always,
+    ])
   })
 
   it('counts only registrations of active owners', () => {

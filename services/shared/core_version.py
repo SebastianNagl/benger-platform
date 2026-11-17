@@ -981,6 +981,18 @@ whenever one is added, renamed or removed):
     The rubric step slot
     ``ProjectWizardRubricStep`` gets ``draftProjectId``; post-create hooks
     get ``draft: true`` in draft mode.
+  - Frontend: the policy's awaited guard ``beforeLeaveStep?({ projectId,
+    fromStepId, toStepId, skippedStepIds, wizardData, confirm })``, the only
+    member that can hold the wizard. In draft mode it is asked for each
+    applying policy on every forward move (Next and step-dot jumps forward,
+    which pass ``skippedStepIds`` without opening them; after the draft
+    exists, before the move's syncs) and on "Create" (``toStepId`` null,
+    before the final syncs). Resolving false keeps the user on the current
+    step; a guard that throws shows its message and keeps the user there.
+    ``confirm(WizardConfirmRequest)`` opens the wizard's own confirmation
+    dialog. Backward moves and the wizard outside draft mode are never
+    guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
+    applying policies.
 """
 
 import os

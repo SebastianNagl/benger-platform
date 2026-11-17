@@ -37,9 +37,11 @@ import {
   type WizardDraftTask,
 } from '@/lib/api/wizardDrafts'
 import {
+  getApplyingWizardDraftPolicies,
   getWizardDraftHooks,
   getWizardDraftPolicies,
   wizardDraftApplies,
+  type WizardConfirmRequest,
   type WizardDraftHookContexts,
   type WizardDraftHookName,
   type WizardDraftSyncedTask,
@@ -66,12 +68,7 @@ import { DEFAULT_LABEL_CONFIG, type WizardData } from './types'
 /** Debounce of the state save after an edit. */
 export const DRAFT_SAVE_DEBOUNCE_MS = 3000
 
-export interface DraftConfirmRequest {
-  title: string
-  message: string
-  confirmText: string
-  variant?: 'warning' | 'danger'
-}
+export type DraftConfirmRequest = WizardConfirmRequest
 
 export interface ActiveDraft {
   projectId: string
@@ -781,6 +778,59 @@ export function useWizardDraft(options: {
   ])
 
   /**
+   * Ask the `beforeLeaveStep` guards of the applying policies, in
+   * registration order, before a forward move (`toStepId`) or "Create"
+   * (`toStepId` null). False when one declines or throws (its message is
+   * shown); true without a draft or without guards.
+   */
+  const askLeaveGuards = useCallback(
+    async (
+      fromStepId: string,
+      toStepId: string | null,
+      skippedStepIds: string[],
+    ): Promise<boolean> => {
+      const current = draftRef.current
+      if (!current) return true
+      const data = dataRef.current
+      for (const policy of getApplyingWizardDraftPolicies(data)) {
+        if (!policy.beforeLeaveStep) continue
+        try {
+          const ok = await policy.beforeLeaveStep({
+            projectId: current.projectId,
+            fromStepId,
+            toStepId,
+            skippedStepIds,
+            wizardData: data,
+            confirm,
+          })
+          if (!ok) return false
+        } catch (error) {
+          addToast(
+            t('projects.creation.wizard.draft.leaveCheckFailed', {
+              error: errorText(error, t('projects.wizard.unknownError')),
+            }),
+            'error',
+          )
+          return false
+        }
+      }
+      return true
+    },
+    [addToast, confirm, t],
+  )
+
+  /** Before "Create": the leave guards of the step the user is on. */
+  const beforeFinish = useCallback(async (): Promise<boolean> => {
+    if (!currentStepId) return true
+    const at = stepIds.indexOf(currentStepId)
+    return askLeaveGuards(
+      currentStepId,
+      null,
+      at >= 0 ? stepIds.slice(at + 1) : [],
+    )
+  }, [askLeaveGuards, currentStepId, stepIds])
+
+  /**
    * Run before the wizard moves from `fromIndex` to `toIndex` (forward or
    * back). Resolves false to keep the user where they are.
    */
@@ -812,6 +862,16 @@ export function useWizardDraft(options: {
       }
       if (!current) return true
       if (problemRef.current) return false
+      if (
+        forward &&
+        !(await askLeaveGuards(
+          fromId,
+          toId,
+          stepIds.slice(fromIndex + 1, toIndex),
+        ))
+      ) {
+        return false
+      }
       if (forward) {
         const dataIdx = stepIds.indexOf(
           stepIds.includes('dataImport') ? 'dataImport' : 'synthetic',
@@ -838,6 +898,7 @@ export function useWizardDraft(options: {
       return true
     },
     [
+      askLeaveGuards,
       confirm,
       createDraft,
       discardNow,
@@ -905,6 +966,7 @@ export function useWizardDraft(options: {
     resuming,
     draftImport,
     beforeNavigate,
+    beforeFinish,
     syncTasks,
     syncConfig,
     basicFields,

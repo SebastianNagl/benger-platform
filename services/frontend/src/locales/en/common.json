@@ -639,6 +639,7 @@
           "createFailed": "The draft could not be created: {error}",
           "syncFailed": "The tasks could not be saved in the draft: {error}",
           "configSyncFailed": "The settings could not be saved in the draft: {error}",
+          "leaveCheckFailed": "The step could not be checked before moving on: {error}",
           "conflict": "This draft was changed in another tab or on another device. Load the latest version to continue.",
           "reload": "Load latest version",
           "expired": "This draft no longer exists. It was discarded, or deleted after 30 days without changes.",

@@ -639,6 +639,7 @@
           "createFailed": "Der Entwurf konnte nicht angelegt werden: {error}",
           "syncFailed": "Die Aufgaben konnten nicht im Entwurf gespeichert werden: {error}",
           "configSyncFailed": "Die Einstellungen konnten nicht im Entwurf gespeichert werden: {error}",
+          "leaveCheckFailed": "Der Schritt konnte vor dem Weitergehen nicht geprüft werden: {error}",
           "conflict": "Dieser Entwurf wurde in einem anderen Tab oder auf einem anderen Gerät geändert. Lade die neueste Fassung, um weiterzumachen.",
           "reload": "Neueste Fassung laden",
           "expired": "Diesen Entwurf gibt es nicht mehr. Er wurde verworfen oder nach 30 Tagen ohne Änderung gelöscht.",
