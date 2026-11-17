@@ -116,14 +116,42 @@ class TestMigration138Shape:
         assert _has_trigger(conn)
         assert mig._index_state(conn) is True
 
-    def test_statements_match_the_model(self):
-        from models import TASK_EVALUATION_METRIC_KEYS_DDL
-
+    def test_rebuilt_triggers_keep_the_mirror(self, test_db: Session):
+        conn = test_db.get_bind()
         mig = _load()
-        assert [x.strip() for x in TASK_EVALUATION_METRIC_KEYS_DDL] == [
-            x.strip()
-            for x in (mig._KEYS_FUNCTION, mig._SYNC_FUNCTION, mig._ROW_TRIGGER, mig._TRUNCATE_TRIGGER)
-        ]
+        with _op_context(conn):
+            mig.downgrade()
+            mig.add_schema()
+
+        def mirror(row_id):
+            return conn.execute(
+                text(
+                    "SELECT evaluation_id, evaluation_config_id, metric_keys "
+                    "FROM task_evaluation_metric_keys WHERE task_evaluation_id = :id"
+                ),
+                {"id": row_id},
+            ).first()
+
+        first, second = _seed_rows(test_db, [{"rouge": 1, "bleu": 2}, {"chrf": 1}])
+        evaluation_id = mirror(first).evaluation_id
+        assert tuple(mirror(first)) == (evaluation_id, None, ["bleu", "rouge"])
+        assert tuple(mirror(second)) == (evaluation_id, None, ["chrf"])
+
+        conn.execute(
+            text(
+                "UPDATE task_evaluations SET metrics = CAST(:m AS jsonb), "
+                "evaluation_config_id = 'cfg-x' WHERE id = :id"
+            ),
+            {"m": json.dumps({"exact_match": 1}), "id": first},
+        )
+        assert tuple(mirror(first)) == (evaluation_id, "cfg-x", ["exact_match"])
+
+        conn.execute(text("DELETE FROM task_evaluations WHERE id = :id"), {"id": first})
+        assert mirror(first) is None
+        assert mirror(second) is not None
+
+        conn.execute(text("TRUNCATE task_evaluations CASCADE"))
+        assert conn.execute(text("SELECT count(*) FROM task_evaluation_metric_keys")).scalar() == 0
 
     def test_table_matches_the_model(self, test_db: Session):
         from models import TaskEvaluationMetricKeys

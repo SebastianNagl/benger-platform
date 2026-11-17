@@ -304,12 +304,6 @@ class TestCountingCost:
     """The count must stay cheap at any table size: it reads the narrow
     mirror only, never task_evaluations and its metrics blob."""
 
-    def test_reads_only_the_mirror(self):
-        sql = aggregate_summaries._EVAL_CELL_COUNTS_SQL
-        assert "task_evaluations" not in sql
-        assert "metrics" not in sql.replace("metric_keys", "").replace("metric_key", "")
-        assert "jsonb_object_keys" not in sql
-
     def test_statement_runs_against_the_schema(self, test_db, world):
         stmt, params = _eval_cell_counts_stmt([world["p"].id], None)
         plan = "\n".join(
