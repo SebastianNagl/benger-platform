@@ -989,6 +989,66 @@ class TestProjectByTaskModelBranches:
         assert cell2["scores"] == {}
 
     @pytest.mark.asyncio
+    async def test_metric_filter_reads_key_mirror_before_latest_wins(
+        self, async_test_client, async_test_db
+    ):
+        """The metric filter reads the trigger-kept task_evaluation_metric_keys
+        mirror instead of the metrics blob, with the same meaning: it applies
+        BEFORE the (generation_id, field_name) latest-wins window, so a newer
+        row without the key never hides an older row that has it; it scopes
+        the annotation branch too; and a metrics rewrite moves a row in or
+        out of the filter at once (the trigger updates the mirror)."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-mirror", "GPT Mirror")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        task = tasks[0]
+        er = await _make_eval_run(async_test_db, p, model_id="gpt-mirror")
+        jr2 = await _add_judge_run(async_test_db, er)
+        gen, _ = await _make_generation(async_test_db, task, model_id="gpt-mirror")
+        now = datetime.now(timezone.utc)
+        older = await _make_task_evaluation(
+            async_test_db, er, task, generation=gen, field_name="answer",
+            metrics={"bleu": {"value": 0.3, "details": {"n": 4}}},
+            created_at=now - timedelta(hours=1),
+        )
+        await _make_task_evaluation(
+            async_test_db, er, task, generation=gen, field_name="answer",
+            metrics={"rouge": 0.8}, judge_run=jr2, created_at=now,
+        )
+        ann = await _make_annotation(async_test_db, task, p, owner.id)
+        await _make_task_evaluation(
+            async_test_db, er, task, annotation=ann, metrics={"bleu": 0.6},
+        )
+        await async_test_db.commit()
+
+        async def scores(metric):
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"{BASE}/projects/{p.id}/results/by-task-model"
+                    f"?metric={metric}"
+                )
+            assert resp.status_code == 200, resp.text
+            body = resp.json()
+            cell = next(t for t in body["tasks"] if t["task_id"] == task.id)
+            return cell["scores"], body["deduplication_summary"]["suppressed_run_count"]
+
+        bleu, suppressed = await scores("bleu")
+        assert bleu == {
+            "gpt-mirror": pytest.approx(0.3),
+            "annotator:Test Admin": pytest.approx(0.6),
+        }
+        assert suppressed == 0
+        rouge, _ = await scores("rouge")
+        assert rouge == {"gpt-mirror": pytest.approx(0.8)}
+
+        # Rewriting the older row's metrics drops it from the bleu filter.
+        older.metrics = {"chrf": 0.5}
+        await async_test_db.commit()
+        bleu_after, _ = await scores("bleu")
+        assert bleu_after == {"annotator:Test Admin": pytest.approx(0.6)}
+
+    @pytest.mark.asyncio
     async def test_evaluation_config_id_unions_gen_and_annotation(
         self, async_test_client, async_test_db
     ):
