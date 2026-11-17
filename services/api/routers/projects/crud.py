@@ -1204,9 +1204,10 @@ def _mark_superseded(job: ProjectPurgeJob) -> None:
 
 
 async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[ProjectPurgeJob]:
-    """The live purge job of the project, or None. A pending or running job
-    that has not moved for ``PURGE_JOB_STALE_AFTER`` is dead and is marked
-    failed here (its worker would skip it, should its message still arrive)."""
+    """The live purge job of the project, or None. A running job that has not
+    moved for ``PURGE_JOB_STALE_AFTER`` is dead and is marked failed here (its
+    worker would skip it, should its message still arrive); a pending job is
+    only waiting in the queue and stays live."""
     jobs = (
         await db.execute(
             select(ProjectPurgeJob)
@@ -1232,9 +1233,21 @@ async def enqueue_purge_job(
     db: AsyncSession, current_user: AuthUser, project: Project
 ) -> ProjectPurgeJob:
     """Queue the purge of the soft-deleted ``project``, or return the purge
-    already running for it. Raises 503 when the queue is unavailable."""
+    already live for it; a pending one has its message sent again, in case it
+    was lost (the worker runs a job once, whatever the number of messages).
+    Raises 503 when the queue is unavailable."""
     existing = await active_purge_job(db, project.id)
     if existing is not None:
+        if existing.status == JobStatus.RUNNING.value:
+            return existing
+        try:
+            result = send_task_safe("tasks.purge_project", args=[existing.id])
+        except Exception as exc:
+            logger.error("Failed to re-enqueue purge job %s: %s", existing.id, exc)
+            raise HTTPException(status_code=503, detail=_PURGE_QUEUE_UNAVAILABLE)
+        existing.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+        await db.refresh(existing)
         return existing
     job = ProjectPurgeJob(
         id=str(uuid.uuid4()),
@@ -1307,8 +1320,9 @@ async def get_purge_job(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Status of a purge job (superadmin only; poll target of the client).
-    Readable after the project is gone. A stale pending or running job is
-    reported failed (its worker is dead), so the poll ends."""
+    Readable after the project is gone. A stale running job is reported
+    failed (its worker is dead), so the poll ends; a pending job stays
+    pending while it waits in the queue."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
     job = (
@@ -1316,7 +1330,7 @@ async def get_purge_job(
     ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Purge job not found")
-    if job.status in ACTIVE_STATUSES and is_stale(job):
+    if is_stale(job):
         _mark_superseded(job)
         await db.commit()
         await db.refresh(job)

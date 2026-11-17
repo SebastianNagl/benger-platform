@@ -214,7 +214,7 @@ async def test_purge_job_fails_when_the_project_was_restored(async_test_client, 
     assert (await run_purge(db, job_id))["status"] == "skipped"
 
 
-async def test_purge_request_while_running_returns_the_same_job_and_blocks_restore(
+async def test_purge_request_while_live_returns_the_same_job_and_blocks_restore(
     async_test_client, async_test_db
 ):
     db = async_test_db
@@ -223,9 +223,12 @@ async def test_purge_request_while_running_returns_the_same_job_and_blocks_resto
     p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
     with _as_user(admin), queue_stub() as sent:
         first = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()
+        # A pending job keeps its id; its message is sent again in case the
+        # first one was lost.
         again = await async_test_client.delete(f"/api/projects/{p.id}/purge")
         assert again.status_code == 202 and again.json()["job_id"] == first["job_id"]
-        assert sent == [first["job_id"]]
+        assert again.json()["status"] == "pending"
+        assert sent == [first["job_id"], first["job_id"]]
 
         r = await async_test_client.post(f"/api/projects/{p.id}/restore")
         assert r.status_code == 409 and r.json()["detail"]["code"] == "purge_started"
@@ -233,8 +236,18 @@ async def test_purge_request_while_running_returns_the_same_job_and_blocks_resto
         assert r.json()["restored"] == 0 and r.json()["failed"] == 1
         assert (await db.execute(select(Project.deleted_at).where(Project.id == p.id))).scalar_one() is not None
 
-        # A job without progress for 30 minutes is dead: a new request
-        # replaces it, and the old one is marked failed.
+        # A running job is returned as is, without another message.
+        await db.execute(
+            update(ProjectPurgeJob)
+            .where(ProjectPurgeJob.id == first["job_id"])
+            .values(status="running")
+        )
+        await db.commit()
+        running = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()
+        assert running["job_id"] == first["job_id"] and len(sent) == 2
+
+        # A running job without progress for 30 minutes is dead: a new
+        # request replaces it, and the old one is marked failed.
         await db.execute(
             update(ProjectPurgeJob)
             .where(ProjectPurgeJob.id == first["job_id"])
@@ -242,10 +255,51 @@ async def test_purge_request_while_running_returns_the_same_job_and_blocks_resto
         )
         await db.commit()
         replaced = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()
-        assert replaced["job_id"] != first["job_id"]
+        assert replaced["job_id"] != first["job_id"] and sent[-1] == replaced["job_id"]
         old = (await async_test_client.get(f"/api/projects/{p.id}/purge-jobs/{first['job_id']}")).json()
         assert old["status"] == "failed" and "Superseded" in old["error_message"]
         assert (await run_purge(db, first["job_id"]))["status"] == "skipped"
+
+
+async def test_a_purge_job_runs_once_whatever_the_number_of_messages(
+    async_test_client, async_test_db
+):
+    """A re-enqueued pending job and an acks_late redelivery both hand the
+    worker a second message for the same job."""
+    db = async_test_db
+    owner = await _user(db)
+    admin = await _user(db, superadmin=True)
+    p, task_ids = await _seed_generated_project(db, owner, tasks=2, deleted=True)
+    pid = p.id
+    with _as_user(admin), queue_stub():
+        job_id = (await async_test_client.delete(f"/api/projects/{pid}/purge")).json()["job_id"]
+
+    # Another copy has claimed the job and is still making progress.
+    await db.execute(
+        update(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id).values(status="running")
+    )
+    await db.commit()
+    outcome = await run_purge(db, job_id)
+    assert outcome == {"status": "skipped", "job_id": job_id, "job_status": "running"}
+    assert await _count(db, Task, Task.project_id == pid) == 2
+
+    # That copy died: a redelivered message takes the job over and finishes it.
+    await db.execute(
+        update(ProjectPurgeJob)
+        .where(ProjectPurgeJob.id == job_id)
+        .values(updated_at=datetime.now(timezone.utc) - timedelta(minutes=31))
+    )
+    await db.commit()
+    outcome = await run_purge(db, job_id)
+    assert outcome["status"] == "completed", outcome
+    assert outcome["result"]["tasks"] == 2 and outcome["result"]["projects"] == 1
+    await _assert_gone(db, pid, task_ids)
+
+    # A message arriving after the end changes nothing.
+    assert (await run_purge(db, job_id))["status"] == "skipped"
+    job = (await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id))).scalar_one()
+    await db.refresh(job)
+    assert job.status == "completed" and job.result["tasks"] == 2
 
 
 async def test_purge_queue_unavailable_marks_the_job_failed(async_test_client, async_test_db):
@@ -321,8 +375,9 @@ async def test_a_purge_that_failed_half_way_blocks_restore_and_a_new_purge_finis
 
 
 async def test_a_stale_job_is_reported_failed_to_its_poll(async_test_client, async_test_db):
-    """A job whose worker died never finishes by itself; the client polls it
-    until it is completed or failed."""
+    """A running job whose worker died never finishes by itself; the client
+    polls it until it is completed or failed. A pending job only waits for a
+    free worker of the shared bulk queue, which can take long."""
     db = async_test_db
     owner = await _user(db)
     admin = await _user(db, superadmin=True)
@@ -330,6 +385,13 @@ async def test_a_stale_job_is_reported_failed_to_its_poll(async_test_client, asy
     with _as_user(admin), queue_stub():
         job_id = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()["job_id"]
         url = f"/api/projects/{p.id}/purge-jobs/{job_id}"
+        await db.execute(
+            update(ProjectPurgeJob)
+            .where(ProjectPurgeJob.id == job_id)
+            .values(updated_at=datetime.now(timezone.utc) - timedelta(hours=3))
+        )
+        await db.commit()
+        assert (await async_test_client.get(url)).json()["status"] == "pending"
         assert (await async_test_client.get(url)).json()["status"] == "pending"
 
         await db.execute(

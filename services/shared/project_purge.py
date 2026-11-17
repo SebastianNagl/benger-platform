@@ -24,7 +24,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, Optional
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from models import (
@@ -45,9 +45,10 @@ logger = logging.getLogger(__name__)
 #: 5-7 minutes in 59 batches.
 PURGE_TASK_BATCH = 10
 
-#: A pending or running job whose row has not changed for this long is dead
-#: (its worker was killed, or its message was lost): a new purge request
-#: replaces it, and a status poll reports it failed.
+#: A running job bumps its row every batch, so one whose row has not changed
+#: for this long is dead (its worker was killed): a new purge request replaces
+#: it, a status poll reports it failed, and a redelivered message may claim it
+#: again. A pending job is only waiting in the queue and is never stale.
 PURGE_JOB_STALE_AFTER = timedelta(minutes=30)
 
 ACTIVE_STATUSES = (JobStatus.PENDING.value, JobStatus.RUNNING.value)
@@ -62,7 +63,11 @@ class PurgeAborted(Exception):
 
 def is_stale(job: ProjectPurgeJob, now: Optional[datetime] = None) -> bool:
     now = now or datetime.now(timezone.utc)
-    return job.updated_at is not None and job.updated_at < now - PURGE_JOB_STALE_AFTER
+    return (
+        job.status == JobStatus.RUNNING.value
+        and job.updated_at is not None
+        and job.updated_at < now - PURGE_JOB_STALE_AFTER
+    )
 
 
 def _locked_deleted_at(db: Session, project_id: str):
@@ -187,19 +192,35 @@ def run_project_purge_job(
 ) -> Dict[str, object]:
     """Run the purge job ``job_id`` to its end and record the outcome on it.
 
-    A job that is no longer pending or running (already finished, or marked
-    failed because a newer request replaced it) is skipped.
+    The job is claimed with one conditional update (pending, or running but
+    stale), so only one message runs it; any other message for the job (a
+    re-enqueued duplicate, a redelivery while the first copy still runs, a
+    finished job) is skipped.
     """
-    job = db.get(ProjectPurgeJob, job_id)
-    if job is None:
-        logger.warning("purge job %s not found", job_id)
-        return {"status": "missing", "job_id": job_id}
-    if job.status not in ACTIVE_STATUSES:
-        db.rollback()
-        return {"status": "skipped", "job_id": job_id, "job_status": job.status}
-    project_id = job.project_id
-    job.status = JobStatus.RUNNING.value
+    claimed = db.execute(
+        update(ProjectPurgeJob)
+        .where(
+            ProjectPurgeJob.id == job_id,
+            or_(
+                ProjectPurgeJob.status == JobStatus.PENDING.value,
+                and_(
+                    ProjectPurgeJob.status == JobStatus.RUNNING.value,
+                    ProjectPurgeJob.updated_at
+                    < func.clock_timestamp() - PURGE_JOB_STALE_AFTER,
+                ),
+            ),
+        )
+        .values(status=JobStatus.RUNNING.value, updated_at=func.clock_timestamp())
+        .returning(ProjectPurgeJob.project_id)
+    ).first()
     db.commit()
+    if claimed is None:
+        job = db.get(ProjectPurgeJob, job_id)
+        if job is None:
+            logger.warning("purge job %s not found", job_id)
+            return {"status": "missing", "job_id": job_id}
+        return {"status": "skipped", "job_id": job_id, "job_status": job.status}
+    project_id = claimed[0]
 
     def _progress(done: int, total: int) -> None:
         db.execute(
