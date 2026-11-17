@@ -1153,19 +1153,35 @@ async def restore_project(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if await active_purge_job(db, project_id) is not None:
-        raise HTTPException(status_code=409, detail=_PURGE_IN_PROGRESS)
+    if await purge_started(db, project_id):
+        raise HTTPException(status_code=409, detail=PURGE_STARTED)
     project.deleted_at = None
     project.deleted_by = None
     await db.commit()
     return {"message": "Project restored", "id": project_id}
 
 
-_PURGE_IN_PROGRESS = {
-    "code": "purge_in_progress",
-    "message": "The project is being deleted permanently",
+PURGE_STARTED = {
+    "code": "purge_started",
+    "message": (
+        "The permanent deletion of this project was started and cannot be undone. "
+        'Use "Delete permanently" again to finish it.'
+    ),
 }
 _PURGE_QUEUE_UNAVAILABLE = "Purge queue unavailable, please retry"
+_SUPERSEDED = "Superseded: the job made no progress for 30 minutes"
+
+
+async def purge_started(db: AsyncSession, project_id: str) -> bool:
+    """Whether a purge was ever requested for the project. The batched purge
+    commits batch by batch, so any such job (failed ones included) may have
+    removed part of the project already, and a restore would bring back a
+    partial project."""
+    return (
+        await db.execute(
+            select(ProjectPurgeJob.id).where(ProjectPurgeJob.project_id == project_id).limit(1)
+        )
+    ).first() is not None
 
 
 def serialize_purge_job(job: ProjectPurgeJob) -> dict:
@@ -1180,6 +1196,11 @@ def serialize_purge_job(job: ProjectPurgeJob) -> dict:
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
     }
+
+
+def _mark_superseded(job: ProjectPurgeJob) -> None:
+    job.status = JobStatus.FAILED.value
+    job.error_message = _SUPERSEDED
 
 
 async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[ProjectPurgeJob]:
@@ -1201,8 +1222,7 @@ async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[Projec
         if live is None and not is_stale(job):
             live = job
             continue
-        job.status = JobStatus.FAILED.value
-        job.error_message = "Superseded: the job made no progress for 30 minutes"
+        _mark_superseded(job)
     if len(jobs) > (1 if live is not None else 0):
         await db.commit()
     return live
@@ -1252,8 +1272,11 @@ async def purge_project(
     soft-deletes. The destruction runs as a worker job in short batches
     (``project_purge``), because a large project needs minutes: 202 with the
     job, which the client polls at ``GET .../purge-jobs/{job_id}``. A second
-    request while the job runs returns the same job. Object-storage files are
-    not cleaned up (pre-existing behavior)."""
+    request while the job runs returns the same job; once a purge was requested
+    the project can no longer be restored, and a failed purge is finished by
+    requesting it again. The project's export and import files expire through
+    the MinIO lifecycle rule of their prefix; other stored files of the project
+    are not cleaned up by the purge."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
 
@@ -1284,7 +1307,8 @@ async def get_purge_job(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Status of a purge job (superadmin only; poll target of the client).
-    Readable after the project is gone."""
+    Readable after the project is gone. A stale pending or running job is
+    reported failed (its worker is dead), so the poll ends."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
     job = (
@@ -1292,6 +1316,10 @@ async def get_purge_job(
     ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Purge job not found")
+    if job.status in ACTIVE_STATUSES and is_stale(job):
+        _mark_superseded(job)
+        await db.commit()
+        await db.refresh(job)
     return serialize_purge_job(job)
 
 

@@ -44,8 +44,15 @@ def test_closes_the_session_when_the_runner_raises(monkeypatch):
     assert session.closed
 
 
-def test_purge_runs_on_the_bulk_queue_with_its_time_limits():
+def test_purge_runs_on_the_bulk_queue_and_ends_before_its_redelivery():
+    """acks_late redelivers a message once the broker's visibility timeout
+    (7200 s) has passed, so a purge still running by then would get a second
+    copy started beside it."""
+    from worker_celery import app
+
     assert celery_queues.queue_for("tasks.purge_project") == celery_queues.BULK
-    assert celery_queues.time_limits_for("tasks.purge_project") == celery_queues.QUEUE_TIME_LIMITS[
-        celery_queues.BULK
-    ]
+    visibility_timeout = app.conf.broker_transport_options["visibility_timeout"]
+    assert visibility_timeout == 7200
+    task = app.tasks["tasks.purge_project"]
+    assert task.soft_time_limit is not None and task.time_limit is not None
+    assert task.soft_time_limit < task.time_limit < visibility_timeout

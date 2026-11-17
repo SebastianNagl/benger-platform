@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import delete, func, select, update
 
+import project_purge
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
@@ -198,8 +199,8 @@ async def test_purge_job_fails_when_the_project_was_restored(async_test_client, 
     pid = p.id  # the rollback inside the purge expires the ORM rows
     with _as_user(admin), queue_stub():
         job_id = (await async_test_client.delete(f"/api/projects/{pid}/purge")).json()["job_id"]
-    # A restore that slipped in before the worker started (the API refuses
-    # one while the job is live, so set it directly).
+    # A restore that slipped in before the job row existed (the API refuses
+    # one once a purge was requested, so set it directly).
     await db.execute(update(Project).where(Project.id == pid).values(deleted_at=None))
     await db.commit()
 
@@ -227,9 +228,9 @@ async def test_purge_request_while_running_returns_the_same_job_and_blocks_resto
         assert sent == [first["job_id"]]
 
         r = await async_test_client.post(f"/api/projects/{p.id}/restore")
-        assert r.status_code == 409 and r.json()["detail"]["code"] == "purge_in_progress"
+        assert r.status_code == 409 and r.json()["detail"]["code"] == "purge_started"
         r = await async_test_client.post("/api/projects/bulk-restore", json={"project_ids": [p.id]})
-        assert r.json()["restored"] == 0
+        assert r.json()["restored"] == 0 and r.json()["failed"] == 1
         assert (await db.execute(select(Project.deleted_at).where(Project.id == p.id))).scalar_one() is not None
 
         # A job without progress for 30 minutes is dead: a new request
@@ -258,10 +259,91 @@ async def test_purge_queue_unavailable_marks_the_job_failed(async_test_client, a
     job = (await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.project_id == p.id))).scalar_one()
     await db.refresh(job)
     assert job.status == "failed"
-    # The failed job does not block a retry or a restore.
+    # The failed job does not block a retry.
     with _as_user(admin), queue_stub() as sent:
         r = await async_test_client.delete(f"/api/projects/{p.id}/purge")
         assert r.status_code == 202 and r.json()["job_id"] != job.id and len(sent) == 1
+
+
+async def test_a_purge_that_failed_half_way_blocks_restore_and_a_new_purge_finishes_it(
+    async_test_client, async_test_db
+):
+    """The purge commits batch by batch, so a job that dies half way leaves
+    a partial project: restoring it must be refused, and purging again must
+    remove the rest."""
+    db = async_test_db
+    owner = await _user(db)
+    admin = await _user(db, superadmin=True)
+    p, task_ids = await _seed_generated_project(db, owner, tasks=5, deleted=True)
+    pid = p.id  # the rollback inside the purge expires the ORM rows
+    with _as_user(admin), queue_stub():
+        first = (await async_test_client.delete(f"/api/projects/{pid}/purge")).json()["job_id"]
+
+    real_check = project_purge._locked_deleted_at
+    calls = []
+
+    def _dies_after_the_first_batch(s, project_id):
+        calls.append(project_id)
+        # Call 1 counts the tasks, call 2 opens batch 1, call 3 batch 2.
+        if len(calls) == 3:
+            raise ConnectionError("server closed the connection")
+        return real_check(s, project_id)
+
+    with patch("project_purge._locked_deleted_at", side_effect=_dies_after_the_first_batch):
+        outcome = await run_purge(db, first, task_batch=2)
+    assert outcome["status"] == "failed", outcome
+    assert await _count(db, Task, Task.project_id == pid) == 3
+
+    with _as_user(admin):
+        r = await async_test_client.post(f"/api/projects/{pid}/restore")
+        assert r.status_code == 409, r.text
+        detail = r.json()["detail"]
+        assert detail["code"] == "purge_started"
+        assert "cannot be undone" in detail["message"] and "Delete permanently" in detail["message"]
+        r = await async_test_client.post("/api/projects/bulk-restore", json={"project_ids": [pid]})
+        assert r.status_code == 200
+        assert r.json() == {
+            "restored": 0,
+            "failed": 1,
+            "failed_projects": [{"id": pid, "reason": detail["message"]}],
+        }
+    assert (await db.execute(select(Project.deleted_at).where(Project.id == pid))).scalar_one() is not None
+
+    with _as_user(admin), queue_stub() as sent:
+        r = await async_test_client.delete(f"/api/projects/{pid}/purge")
+        assert r.status_code == 202, r.text
+        retry = r.json()["job_id"]
+        assert retry != first and sent == [retry]
+        outcome = await run_purge(db, retry, task_batch=2)
+        assert outcome["status"] == "completed", outcome
+        assert outcome["result"]["tasks"] == 3 and outcome["result"]["projects"] == 1
+    await _assert_gone(db, pid, task_ids)
+
+
+async def test_a_stale_job_is_reported_failed_to_its_poll(async_test_client, async_test_db):
+    """A job whose worker died never finishes by itself; the client polls it
+    until it is completed or failed."""
+    db = async_test_db
+    owner = await _user(db)
+    admin = await _user(db, superadmin=True)
+    p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
+    with _as_user(admin), queue_stub():
+        job_id = (await async_test_client.delete(f"/api/projects/{p.id}/purge")).json()["job_id"]
+        url = f"/api/projects/{p.id}/purge-jobs/{job_id}"
+        assert (await async_test_client.get(url)).json()["status"] == "pending"
+
+        await db.execute(
+            update(ProjectPurgeJob)
+            .where(ProjectPurgeJob.id == job_id)
+            .values(status="running", updated_at=datetime.now(timezone.utc) - timedelta(minutes=31))
+        )
+        await db.commit()
+        polled = (await async_test_client.get(url)).json()
+        assert polled["status"] == "failed" and "Superseded" in polled["error_message"]
+    stored = (await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id))).scalar_one()
+    await db.refresh(stored)
+    assert stored.status == "failed"
+    assert (await run_purge(db, job_id))["status"] == "skipped"
 
 
 async def test_purge_job_status_access(async_test_client, async_test_db):

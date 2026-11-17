@@ -47,7 +47,7 @@ PURGE_TASK_BATCH = 10
 
 #: A pending or running job whose row has not changed for this long is dead
 #: (its worker was killed, or its message was lost): a new purge request
-#: replaces it, and it no longer blocks a restore.
+#: replaces it, and a status poll reports it failed.
 PURGE_JOB_STALE_AFTER = timedelta(minutes=30)
 
 ACTIVE_STATUSES = (JobStatus.PENDING.value, JobStatus.RUNNING.value)

@@ -14,9 +14,10 @@ from database import SessionLocal, get_async_db
 from notification_service import notify_project_archived, notify_project_deleted
 from project_models import Project, ProjectOrganization
 from routers.projects.crud import (
+    PURGE_STARTED,
     _can_soft_delete,
-    active_purge_job,
     enqueue_purge_job,
+    purge_started,
     serialize_purge_job,
 )
 from routers.projects.helpers import check_user_can_edit_project_async
@@ -155,25 +156,28 @@ async def bulk_restore_projects(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Restore soft-deleted projects (superadmin only)."""
+    """Restore soft-deleted projects (superadmin only). A project whose purge
+    was started is not restored and is listed in ``failed_projects`` (see the
+    single restore)."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can restore projects")
     project_ids = data.get("project_ids", [])
     restored = 0
+    failed = []
     for project_id in project_ids:
         project = (
             await db.execute(select(Project).where(Project.id == project_id))
         ).scalar_one_or_none()
         if project is None:
             continue
-        if await active_purge_job(db, project_id) is not None:
-            # Half destroyed already; the purge finishes it (see single restore).
+        if await purge_started(db, project_id):
+            failed.append({"id": project_id, "reason": PURGE_STARTED["message"]})
             continue
         project.deleted_at = None
         project.deleted_by = None
         restored += 1
     await db.commit()
-    return {"restored": restored}
+    return {"restored": restored, "failed": len(failed), "failed_projects": failed}
 
 
 @router.post("/bulk-purge", status_code=202)

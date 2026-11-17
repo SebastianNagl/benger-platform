@@ -153,6 +153,25 @@ describe('ProjectListTable in deleted mode', () => {
     )
   })
 
+  it('a restore refused because the purge was started shows the server message', async () => {
+    // The API client throws the `message` of a {code, message} detail.
+    const message =
+      'The permanent deletion of this project was started and cannot be undone. Use "Delete permanently" again to finish it.'
+    mockRestore.mockRejectedValue(
+      Object.assign(new Error(message), { response: { status: 409 } }),
+    )
+    render(<ProjectListTable showDeletedOnly />)
+    mockFetchProjects.mockClear()
+    fireEvent.click(screen.getByTestId('deleted-restore-p1'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(message, 'error'),
+    )
+    expect(mockFetchProjects).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.getByTestId('deleted-restore-p1')).not.toBeDisabled(),
+    )
+  })
+
   it('purge asks a danger confirm and only proceeds on yes', async () => {
     mockConfirm.mockResolvedValueOnce(false)
     render(<ProjectListTable showDeletedOnly />)
