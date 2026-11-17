@@ -292,7 +292,7 @@ class TestUpdateReportGenerationSection(TestReportService):
     ):
         """Test that generation section only includes models from the correct project"""
         from models import Generation, ResponseGeneration
-        from project_models import Project
+        from project_models import Project, Task
         from report_service import create_initial_report_draft, update_report_generation_section
 
         # Create another project with different generations
@@ -303,6 +303,13 @@ class TestUpdateReportGenerationSection(TestReportService):
             created_by=test_user.id,
         )
         test_db.add(other_project)
+        other_task = Task(
+            id=str(uuid.uuid4()), project_id=other_project.id, data={"text": "x"}, inner_id=1
+        )
+        test_db.add(other_task)
+        # Flush the parents first: the flush orders tables only along
+        # relationship()s, and the generation rows reference them (migration 140).
+        test_db.flush()
 
         other_response_gen = ResponseGeneration(
             id=str(uuid.uuid4()),
@@ -317,7 +324,7 @@ class TestUpdateReportGenerationSection(TestReportService):
         other_gen = Generation(
             id=str(uuid.uuid4()),
             generation_id=other_response_gen.id,
-            task_id=str(uuid.uuid4()),
+            task_id=other_task.id,
             model_id="other-model",
             case_data="Other input",
             response_content="Other model output",

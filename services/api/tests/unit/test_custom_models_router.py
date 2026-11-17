@@ -947,18 +947,27 @@ class TestDelete:
         a, b, org, model = await _seed_shared_setup(async_test_db)
         model_id = model.id
 
-        # A child Generation row references the custom model id.
+        # A child Generation row references the custom model id. Its job and
+        # task are real rows (FKs since migration 140).
+        from project_models import Project, Task
+
+        project = Project(id=_uid(), title="p-x", created_by=a.id)
+        async_test_db.add(project)
+        await async_test_db.flush()
+        task = Task(id=_uid(), project_id=project.id, data={"text": "x"}, inner_id=1)
+        async_test_db.add(task)
+        await async_test_db.flush()
         parent_id = _uid()
         async_test_db.add(
             DBResponseGeneration(
-                id=parent_id, project_id="p-x", model_id="gpt-4o",
+                id=parent_id, project_id=project.id, model_id="gpt-4o",
                 status="completed", created_by=a.id,
             )
         )
         await async_test_db.flush()
         async_test_db.add(
             DBGeneration(
-                id=_uid(), generation_id=parent_id, task_id="t-x",
+                id=_uid(), generation_id=parent_id, task_id=task.id,
                 model_id=model_id, run_index=0,
                 case_data="case", response_content="resp",
             )

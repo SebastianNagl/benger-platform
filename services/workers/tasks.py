@@ -5193,6 +5193,26 @@ def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
     return _fail_import_job_impl(db, job_id, message)
 
 
+# Irreversible purge of a soft-deleted project (superadmin action). A large
+# project needs minutes (the task_evaluations TOAST dominates), which the API's
+# 15 s statement timeout never allowed, so the API queues this job and the
+# shared runner deletes in short batches, recording progress on the job row.
+@app.task(
+    name="tasks.purge_project",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def purge_project(self, job_id: str) -> Dict[str, Any]:
+    from project_purge import run_project_purge_job
+
+    db = SessionLocal()
+    try:
+        return run_project_purge_job(db, job_id)
+    finally:
+        db.close()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Extracted implementations (structural decomposition of this module).
 #

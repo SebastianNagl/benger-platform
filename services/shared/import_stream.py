@@ -974,6 +974,10 @@ def run_nested_import(
 
         # Import generations for this task (BenGER extension)
         if generations_to_import:
+            # The task row must exist before its generation jobs reference it
+            # (migration 140); without a relationship() the flush does not
+            # order the two tables by their foreign key.
+            db.flush()
             # Create ResponseGeneration records first, grouped by model
             # This maintains the job-tracking workflow structure
             model_response_generations = {}
@@ -3560,6 +3564,7 @@ def run_ndjson_import(
 
     saw_end = False
     inserted = 0
+    previous_type = None
     try:
         for record in records:
             if not isinstance(record, dict):
@@ -3580,6 +3585,12 @@ def run_ndjson_import(
                 # the way an unrecognized top-level array key simply isn't
                 # streamed by the multi-pass importer.
                 continue
+            if rtype != previous_type:
+                # Records come grouped by type in FK order; flushing at each
+                # boundary puts the parents in the DB before their children
+                # (the unit of work orders tables only along relationship()s).
+                db.flush()
+                previous_type = rtype
             handler(ctx, record)
             inserted += 1
             # Bound heap O(batch): flush rows to the DB then detach them from the
@@ -3696,9 +3707,12 @@ def run_full_project_import(
         ctx, project_data, new_title, organization_id, organization_group_id
     )
 
-    # FK-dependency-ordered passes.
+    # FK-dependency-ordered passes. Each pass flushes its tail before the
+    # next one starts, so the children always find their parents in the DB
+    # (the unit of work orders tables only along relationship()s).
     for task_data in _stream_rows(db, fileobj, "tasks.item"):
         _insert_task(ctx, task_data)
+    db.flush()
 
     # Bewertungsbogen rows: after their tasks (FK) and before task_evaluations,
     # whose `details.rubric_id` is repointed through the mapping these fill.
@@ -3711,15 +3725,18 @@ def run_full_project_import(
 
     for annotation_data in _stream_rows(db, fileobj, "annotations.item"):
         _insert_annotation(ctx, annotation_data)
+    db.flush()
 
     # Note: Predictions import removed - predictions table dropped in migration 411540fa6c40
     # Prompts import removed - prompts table dropped in issue #759
 
     for resp_gen_data in _stream_rows(db, fileobj, "response_generations.item"):
         _insert_response_generation(ctx, resp_gen_data)
+    db.flush()
 
     for generation_data in _stream_rows(db, fileobj, "generations.item"):
         _insert_generation(ctx, generation_data)
+    db.flush()
 
     for evaluation_data in _stream_rows(db, fileobj, "evaluations.item"):
         _insert_evaluation(ctx, evaluation_data)

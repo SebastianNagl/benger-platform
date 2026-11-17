@@ -34,6 +34,22 @@ export interface ExportJobStatus {
   expires_at: string | null
 }
 
+export type PurgeJobState = 'pending' | 'running' | 'completed' | 'failed'
+
+/** A background purge of a soft-deleted project (superadmin only). */
+export interface PurgeJobStatus {
+  job_id: string
+  project_id: string
+  project_title: string | null
+  status: PurgeJobState
+  progress: number
+  error_message: string | null
+  /** Deleted row counts once completed. */
+  result: Record<string, number> | null
+  created_at: string | null
+  updated_at: string | null
+}
+
 export type ImportJobState = 'pending' | 'running' | 'completed' | 'failed'
 
 /** Result payload an import worker writes back on completion. */
@@ -325,9 +341,38 @@ export const projectsAPI = {
     await apiClient.post(`/projects/${projectId}/restore`, {})
   },
 
-  /** Irreversibly destroy a project + data (superadmin only). */
-  purgeProject: async (projectId: string): Promise<void> => {
-    await apiClient.delete(`/projects/${projectId}/purge`)
+  /**
+   * Irreversibly destroy a project + data (superadmin only). The server runs
+   * the purge as a background job (a large project takes minutes); this
+   * resolves once the job completed and throws with the job's error when it
+   * failed, or an AbortError when the signal is aborted while polling.
+   */
+  purgeProject: async (
+    projectId: string,
+    options?: {
+      pollIntervalMs?: number
+      signal?: AbortSignal
+      onStatus?: (status: PurgeJobStatus) => void
+    },
+  ): Promise<PurgeJobStatus> => {
+    let status: PurgeJobStatus = await apiClient.delete(
+      `/projects/${projectId}/purge`,
+    )
+    let attempt = 0
+    for (;;) {
+      options?.onStatus?.(status)
+      if (status.status === 'completed') return status
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'Purge failed')
+      }
+      if (options?.signal?.aborted) {
+        throw new DOMException('Purge polling aborted', 'AbortError')
+      }
+      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
+      status = await getJobStatus(
+        `/projects/${projectId}/purge-jobs/${status.job_id}`,
+      )
+    }
   },
 
   bulkRestoreProjects: async (
@@ -335,10 +380,15 @@ export const projectsAPI = {
   ): Promise<{ restored: number }> =>
     apiClient.post('/projects/bulk-restore', { project_ids: projectIds }),
 
+  /** Queue the purge of several soft-deleted projects (one job each). */
   bulkPurgeProjects: async (
     projectIds: string[],
-  ): Promise<{ purged: number; failed: number }> =>
-    apiClient.post('/projects/bulk-purge', { project_ids: projectIds }),
+  ): Promise<{
+    queued: number
+    jobs: PurgeJobStatus[]
+    failed: number
+    failed_projects: { id: string; reason: string }[]
+  }> => apiClient.post('/projects/bulk-purge', { project_ids: projectIds }),
 
   delete: async (projectId: string): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}`)

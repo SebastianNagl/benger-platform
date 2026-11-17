@@ -12,8 +12,13 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from notification_service import notify_project_archived, notify_project_deleted
-from project_models import Project, ProjectOrganization, Task
-from routers.projects.crud import _can_soft_delete
+from project_models import Project, ProjectOrganization
+from routers.projects.crud import (
+    _can_soft_delete,
+    active_purge_job,
+    enqueue_purge_job,
+    serialize_purge_job,
+)
 from routers.projects.helpers import check_user_can_edit_project_async
 
 router = APIRouter()
@@ -161,6 +166,9 @@ async def bulk_restore_projects(
         ).scalar_one_or_none()
         if project is None:
             continue
+        if await active_purge_job(db, project_id) is not None:
+            # Half destroyed already; the purge finishes it (see single restore).
+            continue
         project.deleted_at = None
         project.deleted_by = None
         restored += 1
@@ -168,44 +176,43 @@ async def bulk_restore_projects(
     return {"restored": restored}
 
 
-@router.post("/bulk-purge")
+@router.post("/bulk-purge", status_code=202)
 async def bulk_purge_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Irreversibly destroy projects + cascades (superadmin only) — the bulk
-    twin of DELETE /projects/{id}/purge."""
+    """Queue the irreversible purge of soft-deleted projects (superadmin
+    only), the bulk twin of DELETE /projects/{id}/purge: one purge job per
+    project, polled at GET /projects/{id}/purge-jobs/{job_id}."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
     project_ids = data.get("project_ids", [])
-    purged = 0
+    jobs = []
     failed = []
     for project_id in project_ids:
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        if project is None:
+            failed.append({"id": project_id, "reason": "Project not found"})
+            continue
+        if project.deleted_at is None:
+            # Two-step destruction: soft-delete first (see single purge).
+            failed.append({"id": project_id, "reason": "Not soft-deleted"})
+            continue
         try:
-            project = (
-                await db.execute(select(Project).where(Project.id == project_id))
-            ).scalar_one_or_none()
-            if project is None:
-                failed.append({"id": project_id, "reason": "Project not found"})
-                continue
-            if project.deleted_at is None:
-                # Two-step destruction: soft-delete first (see single purge).
-                failed.append({"id": project_id, "reason": "Not soft-deleted"})
-                continue
-            await db.execute(
-                ProjectOrganization.__table__.delete().where(
-                    ProjectOrganization.project_id == project_id
-                )
-            )
-            await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
-            await db.delete(project)
-            await db.commit()
-            purged += 1
-        except Exception as exc:  # pragma: no cover - defensive parity with bulk-delete
-            failed.append({"id": project_id, "reason": str(exc)})
-            await db.rollback()
-    return {"purged": purged, "failed": len(failed), "failed_projects": failed}
+            job = await enqueue_purge_job(db, current_user, project)
+        except HTTPException as exc:
+            failed.append({"id": project_id, "reason": str(exc.detail)})
+            continue
+        jobs.append(serialize_purge_job(job))
+    return {
+        "queued": len(jobs),
+        "jobs": jobs,
+        "failed": len(failed),
+        "failed_projects": failed,
+    }
 
 
 @router.post("/bulk-archive")
