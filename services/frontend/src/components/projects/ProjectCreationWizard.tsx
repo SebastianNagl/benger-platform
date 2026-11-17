@@ -605,8 +605,9 @@ export function ProjectCreationWizard() {
         : { projectId: await createProjectNow(), committed: false }
       const projectId = ready.projectId
       if (projectId === null) {
-        // The final task or configuration sync of the draft did not go
-        // through (declined, or failed with its own message).
+        // A leave guard held the finish, or the final task or configuration
+        // sync of the draft did not go through (declined, or failed with
+        // its own message).
         isFinishingRef.current = false
         setIsFinishing(false)
         return
@@ -651,9 +652,10 @@ export function ProjectCreationWizard() {
   }
 
   /**
-   * Draft mode: the final task sync and the final configuration sync (so
-   * the configSynced hooks run whether or not the rubric step was visited);
-   * a null project when either did not go through. `committed`: an earlier
+   * Draft mode: the policies' leave guards, then the final task sync and the
+   * final configuration sync (so the configSynced hooks run whether or not
+   * the rubric step was visited); a null project when a guard held the
+   * finish or a sync did not go through. `committed`: an earlier
    * finish went through although its answer was lost; only the finish
    * (idempotent per client key) is left.
    */
@@ -661,6 +663,9 @@ export function ProjectCreationWizard() {
     projectId: string | null
     committed: boolean
   }> => {
+    if (!(await draftCtl.beforeFinish())) {
+      return { projectId: null, committed: false }
+    }
     const synced = (await draftCtl.syncTasks()) && (await draftCtl.syncConfig())
     if (synced) return { projectId: draftProjectId, committed: false }
     if (draftCtl.finishCommitted()) {

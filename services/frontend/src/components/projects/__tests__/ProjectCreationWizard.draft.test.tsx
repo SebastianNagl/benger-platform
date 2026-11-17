@@ -794,6 +794,254 @@ describe('ProjectCreationWizard — draft mode', () => {
   })
 })
 
+describe('ProjectCreationWizard — leave guards', () => {
+  // A guard that lets every move through until a test says otherwise.
+  function guardedPolicy() {
+    const beforeLeaveStep = jest.fn().mockResolvedValue(true)
+    registerWizardDraftPolicy({ ...policy, beforeLeaveStep })
+    return beforeLeaveStep
+  }
+
+  it('asks the guard when step 1 is left, once the draft exists', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    expect(guard).toHaveBeenCalledTimes(1)
+    expect(guard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'p1',
+        fromStepId: 'projectInfo',
+        toStepId: 'dataImport',
+        skippedStepIds: [],
+        wizardData: expect.objectContaining({ title: 'Klausur' }),
+        confirm: expect.any(Function),
+      }),
+    )
+    expect(guard.mock.invocationCallOrder[0]).toBeGreaterThan(
+      draftsAPI().create.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('keeps the user on the step when the guard declines Next, and moves on when it agrees', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    const tasksCalls = draftsAPI().tasks.mock.calls.length
+    const saves = draftsAPI().save.mock.calls.length
+
+    guard.mockResolvedValueOnce(false)
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(guard).toHaveBeenCalledTimes(2))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-next-button'),
+      ).not.toBeDisabled(),
+    )
+    expect(currentStepId()).toBe('dataImport')
+    expect(guard).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fromStepId: 'dataImport',
+        toStepId: 'rubric',
+        skippedStepIds: [],
+      }),
+    )
+    // Held before the move's syncs and save.
+    expect(draftsAPI().tasks.mock.calls.length).toBe(tasksCalls)
+    expect(draftsAPI().save.mock.calls.length).toBe(saves)
+
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('rubric'))
+    expect(guard).toHaveBeenCalledTimes(3)
+  })
+
+  it('shows the error of a failing guard and keeps the user on the step', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+
+    guard.mockRejectedValueOnce(new Error('sheet check unavailable'))
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'projects.creation.wizard.draft.leaveCheckFailed',
+        ),
+        'error',
+      ),
+    )
+    expect(
+      mockAddToast.mock.calls.some((c: any[]) =>
+        String(c[0]).includes('sheet check unavailable'),
+      ),
+    ).toBe(true)
+    expect(currentStepId()).toBe('dataImport')
+  })
+
+  it('guards a step-dot jump with the steps it passes', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+
+    guard.mockResolvedValueOnce(false)
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(guard).toHaveBeenCalledTimes(2))
+    expect(guard).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fromStepId: 'dataImport',
+        toStepId: 'settings',
+        skippedStepIds: ['rubric'],
+      }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-next-button'),
+      ).not.toBeDisabled(),
+    )
+    expect(currentStepId()).toBe('dataImport')
+
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+  })
+
+  it('never guards a move back', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('rubric'))
+    guard.mockClear()
+    guard.mockResolvedValue(false)
+
+    await user.click(screen.getByTestId('project-create-back-button'))
+    await waitFor(() => expect(currentStepId()).toBe('dataImport'))
+    await user.click(screen.getByTestId('wizard-step-dot-1'))
+    await waitFor(() => expect(currentStepId()).toBe('projectInfo'))
+    expect(guard).not.toHaveBeenCalled()
+  })
+
+  it('holds Create before the final syncs when the guard declines', async () => {
+    const guard = guardedPolicy()
+    const configSynced = jest.fn()
+    registerWizardDraftHook('configSynced', configSynced)
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+    const tasksCalls = draftsAPI().tasks.mock.calls.length
+
+    guard.mockResolvedValueOnce(false)
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() =>
+      expect(guard).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          projectId: 'p1',
+          fromStepId: 'settings',
+          toStepId: null,
+          skippedStepIds: [],
+        }),
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-submit-button'),
+      ).not.toBeDisabled(),
+    )
+    expect(draftsAPI().tasks.mock.calls.length).toBe(tasksCalls)
+    expect(configSynced).not.toHaveBeenCalled()
+    expect(draftsAPI().finish).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(currentStepId()).toBe('settings')
+
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/p1'))
+    expect(draftsAPI().finish).toHaveBeenCalledTimes(1)
+    expect(guard.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      configSynced.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('holds Create when the guard fails, with its message', async () => {
+    const guard = guardedPolicy()
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+
+    guard.mockRejectedValueOnce(new Error('boom'))
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.stringContaining('leaveCheckFailed'),
+        'error',
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-submit-button'),
+      ).not.toBeDisabled(),
+    )
+    expect(draftsAPI().finish).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('asks through the wizard confirmation dialog the guard is given', async () => {
+    registerWizardDraftPolicy({
+      ...policy,
+      beforeLeaveStep: async ({ fromStepId, confirm }) =>
+        fromStepId !== 'dataImport' ||
+        confirm({
+          title: 'Unchecked sheets',
+          message: '2 tasks have no checked sheet',
+          confirmText: 'Continue anyway',
+        }),
+    })
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+
+    await user.click(screen.getByTestId('project-create-next-button'))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('2 tasks have no checked sheet')
+    await user.click(
+      within(dialog).getByRole('button', { name: 'common.cancel' }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(currentStepId()).toBe('dataImport')
+
+    await user.click(screen.getByTestId('project-create-next-button'))
+    const again = await screen.findByRole('dialog')
+    await user.click(
+      within(again).getByRole('button', { name: 'Continue anyway' }),
+    )
+    await waitFor(() => expect(currentStepId()).toBe('rubric'))
+  })
+
+  it('does not ask the guard of a policy that does not apply', async () => {
+    const guard = jest.fn().mockResolvedValue(false)
+    registerWizardDraftPolicy({ ...policy, beforeLeaveStep: guard })
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'Plain')
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+    mockCreateProject.mockResolvedValue({ id: 'generic-1' })
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/projects/generic-1'),
+    )
+    expect(guard).not.toHaveBeenCalled()
+  })
+})
+
 describe('ProjectCreationWizard — unfinished drafts', () => {
   it('lists the drafts and continues or discards one', async () => {
     registerWizardDraftPolicy(policy)

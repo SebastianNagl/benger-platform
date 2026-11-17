@@ -22,6 +22,19 @@
  *   a draft is discarded (from the wizard footer or the unfinished-drafts
  *   list), e.g. how many generated or checked grading sheets will be lost;
  *   a failing `describeDiscard` is ignored.
+ * - The awaited guard `beforeLeaveStep?({ projectId, fromStepId, toStepId,
+ *   skippedStepIds, wizardData, confirm })` of a policy that applies to the
+ *   current state, the only member that can hold the wizard: asked in draft
+ *   mode on every forward move (Next, and a step-dot jump forward, which
+ *   passes the steps in `skippedStepIds` without opening them), after the
+ *   draft exists and before the move's syncs and save, and on "Create"
+ *   (`toStepId` null) before the final syncs. Resolving false keeps the
+ *   user on the current step; a guard that throws shows its message and
+ *   also keeps the user there. `confirm` opens the wizard's own
+ *   confirmation dialog and resolves whether the user confirmed. Backward
+ *   moves are never guarded, and nothing is asked outside draft mode.
+ *   Example: ask before the user leaves (or skips) the rubric step or
+ *   creates the project while tasks have no checked sheet.
  * - `created` `{ projectId, wizardData }`: once, right after the draft was
  *   created (not on resume). Example: switch on the check requirement of
  *   grading sheets before the first import.
@@ -47,6 +60,26 @@
 import { isOwnerActive } from './active'
 import { currentOwnerLabel } from './owner'
 
+/** A request for the wizard's confirmation dialog. */
+export interface WizardConfirmRequest {
+  title: string
+  message: string
+  confirmText: string
+  variant?: 'warning' | 'danger'
+}
+
+export interface WizardLeaveStepContext {
+  projectId: string
+  fromStepId: string
+  /** The step the user moves to; null on "Create". */
+  toStepId: string | null
+  /** Steps between the two that a step-dot jump passes without opening. */
+  skippedStepIds: string[]
+  wizardData: Record<string, any>
+  /** The wizard's confirmation dialog; resolves whether the user confirmed. */
+  confirm: (request: WizardConfirmRequest) => Promise<boolean>
+}
+
 export interface WizardDraftPolicy {
   /** Draft mode for this wizard state (asked when leaving the first step). */
   applies: (wizardData: Record<string, any>) => boolean
@@ -55,6 +88,11 @@ export interface WizardDraftPolicy {
    * grading sheets that were already checked in it.
    */
   describeDiscard?: (ctx: { projectId: string }) => Promise<string[]> | string[]
+  /**
+   * Asked before a forward move and before "Create" in draft mode; false
+   * keeps the user on the current step.
+   */
+  beforeLeaveStep?: (ctx: WizardLeaveStepContext) => Promise<boolean>
 }
 
 export type WizardDraftTaskStatus = 'kept' | 'updated' | 'created'
@@ -101,7 +139,14 @@ export function getWizardDraftPolicies(): WizardDraftPolicy[] {
 
 /** Whether the wizard should run on a draft for `wizardData`. */
 export function wizardDraftApplies(wizardData: Record<string, any>): boolean {
-  return getWizardDraftPolicies().some((p) => {
+  return getApplyingWizardDraftPolicies(wizardData).length > 0
+}
+
+/** The policies of active owners that apply to `wizardData`. */
+export function getApplyingWizardDraftPolicies(
+  wizardData: Record<string, any>,
+): WizardDraftPolicy[] {
+  return getWizardDraftPolicies().filter((p) => {
     try {
       return p.applies(wizardData)
     } catch {

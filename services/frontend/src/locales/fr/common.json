@@ -639,6 +639,7 @@
           "createFailed": "Le brouillon n'a pas pu être créé : {error}",
           "syncFailed": "Les tâches n'ont pas pu être enregistrées dans le brouillon : {error}",
           "configSyncFailed": "Les paramètres n'ont pas pu être enregistrés dans le brouillon : {error}",
+          "leaveCheckFailed": "L'étape n'a pas pu être vérifiée avant de continuer : {error}",
           "conflict": "Ce brouillon a été modifié dans un autre onglet ou sur un autre appareil. Chargez la dernière version pour continuer.",
           "reload": "Charger la dernière version",
           "expired": "Ce brouillon n'existe plus. Il a été supprimé, ou effacé après 30 jours sans modification.",
