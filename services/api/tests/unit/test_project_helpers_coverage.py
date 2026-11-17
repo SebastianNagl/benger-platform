@@ -58,10 +58,11 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 7
 
-        scored_pairs_query = MagicMock()
-        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+        # The live evaluation count (count_eval_pairs_by_project) reads
+        # db.execute(...).all(): no scored cells.
+        db.execute.return_value.all.return_value = []
 
-        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+        db.query.side_effect = [task_query, ann_query, completed_query]
 
         calculate_project_stats(
             db, "proj-1", response, project=_annotation_only_project_mock()
@@ -89,10 +90,11 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 0
 
-        scored_pairs_query = MagicMock()
-        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+        # The live evaluation count (count_eval_pairs_by_project) reads
+        # db.execute(...).all(): no scored cells.
+        db.execute.return_value.all.return_value = []
 
-        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+        db.query.side_effect = [task_query, ann_query, completed_query]
 
         calculate_project_stats(
             db, "proj-1", response, project=_annotation_only_project_mock()
@@ -118,10 +120,11 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 6  # More than total tasks
 
-        scored_pairs_query = MagicMock()
-        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+        # The live evaluation count (count_eval_pairs_by_project) reads
+        # db.execute(...).all(): no scored cells.
+        db.execute.return_value.all.return_value = []
 
-        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+        db.query.side_effect = [task_query, ann_query, completed_query]
 
         calculate_project_stats(
             db, "proj-1", response, project=_annotation_only_project_mock()

@@ -1,36 +1,45 @@
 name: CI
 
-# PRs: fast feedback only (Jest + lint). Push to main additionally runs the
-# full API + workers suites and, when everything is green, dispatches the
-# core-updated event that triggers the extended repo's build + prod deploy.
-# Nothing reaches production without passing the heavy suites, except via
-# the two explicit hotfix bypasses (see the notify-extended job comment).
+# The PR and release gate (benger-extended issue #193): lint plus the smoke
+# suites, a critical-flow subset of the API, workers and Jest suites (each
+# listed in its smoke manifest, see `make test-smoke`). It runs on every PR
+# into dev (day-to-day work) and main (releases), and on pushes to main, where
+# a green gate dispatches the core-updated event that triggers the extended
+# repo's build + prod deploy. The one bypass is the manual notify-extended.yml,
+# for emergencies.
+#
+# The full suites, the coverage floors and the Playwright E2E run every night
+# (nightly-tests.yml, nightly-coverage.yml), and run locally before a PR. A
+# risky change can run the full suites here on demand, with no deploy:
+#   gh workflow run ci.yml --ref <branch> -f full=true
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
+    inputs:
+      full:
+        description: Run the full API, workers and Jest suites instead of the smoke suites
+        type: boolean
+        default: false
 
+# A PR's newer push cancels its older run. Everything else is grouped by ref,
+# so a manual dispatch on another branch never replaces a pending main run
+# (which would drop that commit's downstream dispatch).
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.head_ref) || 'ci-main' }}
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.head_ref) || format('ci-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  frontend-tests:
-    # 777 suites / ~17k tests take ~12 min on one runner; three shards bring
-    # the job to ~5 min. Jest's --shard splits by suite, deterministically.
-    name: Frontend Tests (${{ matrix.shard }}/3)
+  frontend-lint:
+    name: Frontend Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -47,42 +56,28 @@ jobs:
       # The tree was reformatted in one commit (see .git-blame-ignore-revs);
       # this keeps it that way. `npx prettier --write .` fixes a red run.
       - name: Prettier format check
-        if: matrix.shard == 1
         run: cd services/frontend && npx prettier --check .
 
-      # Errors fail the job and warnings stay advisory. No workflow ran ESLint
-      # before, so a lint error could land unnoticed.
+      # Errors fail the job and warnings stay advisory.
       - name: ESLint
-        if: matrix.shard == 1
         run: cd services/frontend && npx eslint src e2e --quiet
 
       # The app tsconfig excludes e2e, so the specs were never type-checked.
       - name: Type-check e2e specs
-        if: matrix.shard == 1
         run: cd services/frontend && npx tsc -p e2e/tsconfig.json
 
-      # Thresholds are evaluated per shard by Jest, which cannot work for a
-      # global floor; disable them here and enforce them once on the merged
-      # map in frontend-coverage-gate (scripts/coverage-gate.mjs).
-      - name: Run Jest tests
-        run: |
-          cd services/frontend && npm test -- --ci --passWithNoTests \
-            --shard=${{ matrix.shard }}/3 \
-            --coverageReporters=json --coverageThreshold='{}'
-
-      - name: Upload shard coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: jest-coverage-${{ matrix.shard }}
-          path: services/frontend/coverage/coverage-final.json
-          if-no-files-found: error
-          retention-days: 3
-
-  frontend-coverage-gate:
-    name: Frontend coverage gate
-    needs: frontend-tests
+  frontend-tests:
+    # Smoke: the suites in services/frontend/smoke_manifest.txt. Full (a
+    # dispatch with full=true): all 777 suites in three shards, ~5 min each;
+    # Jest's --shard splits by suite, deterministically. Coverage and its
+    # thresholds run at night (make test-frontend in nightly-tests.yml).
+    name: Frontend Tests (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: ${{ inputs.full && 15 || 10 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.full && '["1/3", "2/3", "3/3"]' || '["smoke"]') }}
     steps:
       - uses: actions/checkout@v7
 
@@ -96,15 +91,15 @@ jobs:
       - name: Install dependencies
         run: cd services/frontend && npm ci --no-audit
 
-      - name: Download shard coverage
-        uses: actions/download-artifact@v8
-        with:
-          pattern: jest-coverage-*
-          path: services/frontend/coverage-shards
+      - name: Run Jest smoke suite
+        if: matrix.shard == 'smoke'
+        run: make test-smoke-frontend
 
-      - name: Enforce jest.config.js coverageThreshold on the merged map
+      - name: Run Jest tests (shard ${{ matrix.shard }})
+        if: matrix.shard != 'smoke'
         run: |
-          cd services/frontend && node scripts/coverage-gate.mjs coverage-shards/*/coverage-final.json
+          cd services/frontend && npm test -- --ci --passWithNoTests \
+            --shard=${{ matrix.shard }} --coverage=false
 
   python-checks:
     name: Python Lint
@@ -146,11 +141,13 @@ jobs:
 
       # Python API client (clients/python): mock-transport tests, no network.
       # Same pinned ruff as publications (clients/python/pyproject.toml).
-      - name: Lint + test Python client
+      # scripts/tests covers the repo scripts the gate itself relies on
+      # (check_smoke.py); stdlib only, so it runs here.
+      - name: Lint + test Python client and repo scripts
         run: |
-          pipx run ruff==0.16.9 check clients/python/
+          pipx run ruff==0.16.9 check clients/python/ scripts/check_smoke.py scripts/tests/
           pip install httpx pytest
-          python -m pytest -q clients/python/tests
+          python -m pytest -q clients/python/tests scripts/tests
 
       # Every Celery queue must be consumed by exactly one worker pool. A
       # stranded queue fails silently in production -- tasks just never run --
@@ -168,90 +165,74 @@ jobs:
       - name: Check workers-base tag lockstep
         run: python services/api/scripts/check_workers_base_tag.py
 
-  # Full Dockerized suites — the prod gate. Run on push to main (and manual
-  # dispatch), NOT on PRs, so PR iteration stays fast. A commit message
-  # containing [hotfix] skips them; the notify-extended job below treats
-  # skipped gates as passing, so a hotfix dispatches after the fast checks.
+  # Dockerized pytest suites. Smoke: the tests in each service's
+  # tests/smoke_manifest.txt (make test-smoke-api / test-smoke-workers), which
+  # cover app boot, migrations to head on real Postgres, login and org scope,
+  # project create/list, import, generation and evaluation dispatch, dashboard
+  # stats and the extension handshake. Full (a dispatch with full=true): the
+  # whole API suite in five alphabetical shards and the workers suite; globs
+  # expand inside the test container, so new test files land in a shard
+  # automatically.
   #
-  # Each shard starts only Postgres + Redis (`make test-start-lite`). The
-  # pytest suites never talk to the API container, the Celery worker, MinIO
-  # or the frontend: every xdist worker builds its own empty database from
-  # the models (test_benger_gwN, see the api and workers tests/conftest.py)
-  # and the runners use STORAGE_TYPE=local. Shards used to run `npm ci`,
-  # `make test-build` (incl. the frontend `next build`) and `make test-seed`
-  # first; none of that reached the tests. The complete stack is still built
-  # for the Playwright E2E run in nightly-tests.yml.
-  integration-tests:
-    name: ${{ matrix.shard }} tests (prod gate)
+  # Each job starts only Postgres + Redis. The pytest suites never talk to the
+  # API container, the Celery worker, MinIO or the frontend: the runners build
+  # their schema from the models and use STORAGE_TYPE=local. The complete
+  # stack is built for the Playwright E2E run in nightly-tests.yml.
+  python-tests:
+    name: ${{ matrix.shard }} tests
     runs-on: ubuntu-latest
-    timeout-minutes: 100
-    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[hotfix]')
+    # The limit only catches a hung run.
+    timeout-minutes: ${{ inputs.full && 15 || 10 }}
     strategy:
       fail-fast: false
-      # The full api suite alone takes well over an hour on GitHub-hosted
-      # runners (the "~36 min" folklore is stale — an unsharded gate run
-      # timed out at 60 min having reached 37%). Shard it so gate
-      # wall-clock stays ~35 min. Measured 2026-06-10: unit-mz 9m,
-      # unit-al 23m, workers 16m, unsplit "everything else" ~65m — the
-      # integration dir is the slow tail, so it gets its own [a-l]/[m-z]
-      # halves (791/662 tests). Globs expand inside the test container;
-      # new test files land in a shard automatically.
       matrix:
-        include:
-          - shard: api-unit-al
-            suite: api
-            cmd: make test-api FILE="tests/unit/test_[a-l]*.py"
-          - shard: api-unit-mz
-            suite: api
-            cmd: make test-api FILE="tests/unit/test_[m-z]*.py"
-          - shard: api-integration-al
-            suite: api
-            cmd: make test-api FILE="tests/integration/test_[a-l]*.py"
-          - shard: api-integration-mz
-            suite: api
-            cmd: make test-api FILE="tests/integration/test_[m-z]*.py"
-          - shard: api-rest
-            suite: api
-            cmd: make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"
-          - shard: workers
-            suite: workers
-            cmd: make test-workers
+        shard: ${{ fromJSON(inputs.full && '["api-unit-al", "api-unit-mz", "api-integration-al", "api-integration-mz", "api-rest", "workers"]' || '["api-smoke", "workers-smoke"]') }}
+    env:
+      SUITE: ${{ startsWith(matrix.shard, 'workers') && 'workers' || 'api' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # Only the workers runner needs the room: it builds FROM the multi-GB
-      # workers-base image (torch + ML models). The api shards pull
-      # postgres, redis and a slim Python image, which fit comfortably, and
-      # the rm -rf itself costs a minute or two.
+      # The workers runner image builds FROM the multi-GB workers-base image
+      # (torch + ML models, 5.7 GB unpacked, ~10 GB at the peak of the pull),
+      # so both workers jobs (smoke and full) need the room. The rm -rf takes
+      # about 2.5 minutes, longer than the whole rest of the smoke job, so it
+      # only runs when / has less than twice that peak free; df shows which.
       - name: Free disk space
-        if: matrix.suite == 'workers'
+        if: env.SUITE == 'workers'
         run: |
+          df -h /
+          FREE_GB=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
+          if [ "$FREE_GB" -ge 20 ]; then
+            echo "$FREE_GB GB free on /, enough for the workers-base image; nothing removed."
+            exit 0
+          fi
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+          df -h /
+
+      # Not waited for here: `compose run` below waits until both are
+      # healthy, so they come up while the runner image builds.
+      - name: Start Postgres + Redis
+        run: docker compose -f infra/docker-compose.test.yml up -d test-db test-redis
 
       # API runner image: built with buildx and the GitHub Actions cache, so
       # the apt + uv dependency layers come from the cache and only the
-      # `COPY . .` layer is rebuilt per run. All five api shards share one
-      # cache scope; the first shard to finish writes it (ignore-error keeps
-      # the concurrent writers from failing a shard). The image is loaded
-      # into the local daemon under the name compose gives the service by
-      # default (<project>-<service>, project `benger-test` from the compose
-      # file), so `make test-api` finds it and does not build again. If that
-      # name ever drifts, compose simply builds the image itself (slower,
-      # still correct).
-      # Why not one build job that pushes to GHCR: it adds a serial job in
-      # front of every shard, needs packages: write on a public repo's
-      # workflow and a registry pull per shard; with a warm cache the
-      # per-shard build is about as fast and has fewer moving parts.
+      # `COPY . .` layer is rebuilt per run. All api jobs share one cache
+      # scope (nightly-coverage.yml too); the first to finish writes it
+      # (ignore-error keeps concurrent writers from failing a job). The image
+      # is loaded into the local daemon under the name compose gives the
+      # service by default (<project>-<service>, project `benger-test` from
+      # the compose file), so `make test-api` finds it and does not build
+      # again. If that name ever drifts, compose simply builds the image
+      # itself (slower, still correct).
       - name: Set up Docker Buildx
-        if: matrix.suite == 'api'
+        if: env.SUITE == 'api'
         uses: docker/setup-buildx-action@v4
 
       - name: Build API test runner image (GHA layer cache)
         id: api-image
-        if: matrix.suite == 'api'
-        # One retry below absorbs a transient PyPI/apt/registry error, as the
-        # retry wrapper around `make test-build` used to.
+        if: env.SUITE == 'api'
+        # One retry below absorbs a transient PyPI/apt/registry error.
         continue-on-error: true
         uses: docker/build-push-action@v7
         with:
@@ -269,15 +250,11 @@ jobs:
           cache-to: type=gha,mode=max,scope=api-test-runner,ignore-error=true
 
       - name: Build API test runner image (retry)
-        if: matrix.suite == 'api' && steps.api-image.outcome == 'failure'
+        if: env.SUITE == 'api' && steps.api-image.outcome == 'failure'
         uses: docker/build-push-action@v7
         with:
           context: services/api
           file: services/api/Dockerfile
-          # The runner stage: production image + the `test` extra, as root
-          # (the compose file's test-api-runner uses the same target). The
-          # Dockerfile's last stage is the non-root production image, which
-          # has no pytest.
           target: test
           load: true
           push: false
@@ -290,7 +267,7 @@ jobs:
       # multi-GB image out of a buildx builder with load: true would cost
       # more than the cache saves. Retried once for transient pull errors.
       - name: Build workers test runner image
-        if: matrix.suite == 'workers'
+        if: env.SUITE == 'workers'
         uses: nick-fields/retry@v4
         with:
           timeout_minutes: 30
@@ -298,12 +275,26 @@ jobs:
           retry_wait_seconds: 30
           command: make test-build-runners RUNNERS=workers
 
-      - name: Start Postgres + Redis
-        run: make test-start-lite
-
       - name: Run ${{ matrix.shard }} tests
-        run: ${{ matrix.cmd }}
-        timeout-minutes: 80
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          START=$SECONDS
+          case "$SHARD" in
+            api-smoke)          make test-smoke-api; BUDGET=1 ;;
+            workers-smoke)      make test-smoke-workers; BUDGET=1 ;;
+            api-unit-al)        make test-api FILE="tests/unit/test_[a-l]*.py"; BUDGET=5 ;;
+            api-unit-mz)        make test-api FILE="tests/unit/test_[m-z]*.py"; BUDGET=5 ;;
+            api-integration-al) make test-api FILE="tests/integration/test_[a-l]*.py"; BUDGET=5 ;;
+            api-integration-mz) make test-api FILE="tests/integration/test_[m-z]*.py"; BUDGET=5 ;;
+            api-rest)           make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"; BUDGET=5 ;;
+            workers)            make test-workers-gate; BUDGET=5 ;;
+            *) echo "::error::unknown shard $SHARD"; exit 1 ;;
+          esac
+          MINUTES=$(( (SECONDS - START) / 60 ))
+          if [ "$MINUTES" -ge "$BUDGET" ]; then
+            echo "::warning::$SHARD took $MINUTES min of tests alone, above its $BUDGET min budget"
+          fi
 
       - name: Cleanup
         if: always()
@@ -312,20 +303,16 @@ jobs:
           docker image prune -f || true
 
   # NOTE: the API coverage ratchet (issue #33) is NOT a per-merge gate.
-  # Thread-accurate coverage (.coveragerc concurrency=thread) is ~3x slower
-  # and would blow the shard timeouts, so coverage runs in the nightly
-  # workflow (.github/workflows/nightly-coverage.yml), which shards the suite
-  # with COVERAGE=1 and enforces API_COVERAGE_FLOOR. Per-merge stays fast.
+  # Thread-accurate coverage (.coveragerc concurrency=thread) is ~3x slower,
+  # so it runs in the nightly workflow (.github/workflows/nightly-coverage.yml),
+  # which shards the suite with COVERAGE=1 and enforces API_COVERAGE_FLOOR.
 
   # Cross-repo dispatch: tells the private extended repo to rebuild against
   # this commit and deploy to production. Fires only on push to main, and
-  # only when no gate job FAILED — skipped gates (a [hotfix] commit) pass.
+  # only when every gate job passed.
   #
-  # Hotfix bypasses:
-  #   1. "[hotfix]" in the commit message — integration-tests skip
-  #      themselves, dispatch fires after Jest + lint (~10 min).
-  #   2. Manual: `gh workflow run notify-extended.yml` — dispatches
-  #      immediately with no CI at all (emergencies / re-deploys).
+  # The one bypass: `gh workflow run notify-extended.yml` dispatches immediately
+  # with no CI at all (emergencies / re-deploys).
   #
   # The downstream repo is named via the EXTENDED_REPO secret (owner/repo)
   # and EXTENDED_REPO_NAME secret (repo name, used as the App token scope)
@@ -339,11 +326,8 @@ jobs:
   # passes CI.
   notify-extended:
     name: Trigger downstream rebuild
-    needs: [frontend-tests, frontend-coverage-gate, python-checks, integration-tests]
-    if: >-
-      always() && github.event_name == 'push' &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+    needs: [frontend-lint, frontend-tests, python-checks, python-tests]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

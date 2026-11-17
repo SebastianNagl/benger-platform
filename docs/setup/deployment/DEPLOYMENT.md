@@ -277,8 +277,9 @@ The repository includes two main workflows:
 
 **`.github/workflows/ci.yml`** (Testing):
 - Runs on GitHub-hosted runners
-- Executes tests, linting, build validation
-- Triggers on all pushes and PRs
+- Executes lint and the API, workers and Jest smoke suites (the full suites run nightly, or with `gh workflow run ci.yml -f full=true`)
+- Triggers on PRs into `dev` or `main` and on pushes to `main`
+- A green push to `main` dispatches the downstream build; the manual `notify-extended.yml` is the only bypass
 
 **`.github/workflows/deploy-self-hosted.yml`** (Deployment):
 - Runs on self-hosted runner

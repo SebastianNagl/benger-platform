@@ -37,6 +37,12 @@ from models import LLMModel, User as DBUser
 #   deepinfra: >=8, grok: "xai-" + >=10, mistral/cohere: >=20.
 VALID_OPENAI_KEY = "sk-test-openai-key-1234567890"
 VALID_ANTHROPIC_KEY = "sk-ant-test-anthropic-key-1234567890"
+# Google AI Studio now issues "AQ." keys (with dots); legacy "AIza" keys still
+# work. Fake shapes, not real keys.
+GOOGLE_KEY_SHAPES = [
+    "AQ.Ab8RN6Lfake-key_not.real0123456789abcdefXYZ",
+    "AIzaSyFakeKeyNotReal0123456789abcdefgh",
+]
 
 
 def _patch_validate(success=True):
@@ -150,6 +156,28 @@ class TestSetUserApiKeyBehavioral:
         stored = (await _reload_user(async_test_db, admin.id)).encrypted_openai_api_key
         assert stored is not None and stored != ""
         assert VALID_OPENAI_KEY not in stored  # encrypted at rest
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("google_key", GOOGLE_KEY_SHAPES)
+    async def test_set_google_key_in_current_and_legacy_format(
+        self, async_test_client, async_test_db, google_key
+    ):
+        """Both Google key formats pass the shape check and round-trip intact."""
+        from encryption_service import encryption_service
+
+        admin = _seed_user(async_test_db)
+        await async_test_db.flush()
+
+        with _as_user(admin), _patch_validate(success=True):
+            resp = await async_test_client.post(
+                "/api/users/api-keys/google",
+                json={"api_key": google_key},
+            )
+
+        assert resp.status_code == status.HTTP_200_OK
+        stored = (await _reload_user(async_test_db, admin.id)).encrypted_google_api_key
+        assert stored and google_key not in stored
+        assert encryption_service.decrypt_api_key(stored) == google_key
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("error_type", ["auth", "invalid_key", "invalid_format"])

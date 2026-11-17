@@ -6,12 +6,16 @@
  * that matched no answer at all used to report `completed` as well.
  *
  * LLM lane:
- *   1. The Klausur is created through the creation WIZARD inside the TUM
- *      organization. The wizard must preselect the organization, and for the
- *      Bewertungsbogen judge it must preselect the submitted answer
- *      (`human:loesung`) graded against the `musterloesung` column.
- *   2. A Korrekturbogen written as Markdown goes through the platform importer
- *      and is activated as the task's Bewertungsbogen. The exam's
+ *   1. The Klausur is created through the creation WIZARD inside TUM. The
+ *      wizard must preselect the organization, and an exam starts graded by
+ *      its Bewertungsbogen: a prefilled rubric judge plus the Korrektur by
+ *      sheet, both on the submitted answer (`loesung`, shown as the
+ *      `human:loesung` option) against the `musterloesung` column (stored as
+ *      `task.musterloesung`).
+ *   2. A Korrekturbogen written as Markdown goes through the platform importer.
+ *      Such an exam requires the Bewertungsbogen check step, so activating
+ *      the sheet on create is refused; the sheet is created as a candidate,
+ *      checked and confirmed, which makes it active. The exam's
  *      Notenschluessel was set in the wizard.
  *   3. A participant submits an answer.
  *   4. A batch evaluation runs through the Celery worker. In E2E_TEST_MODE the
@@ -223,18 +227,18 @@ async function advanceWizardUntil(page: Page, target: Locator): Promise<void> {
 }
 
 /**
- * Switch a metric on in the wizard's evaluation step and check the fields it
- * starts with: the submitted answer, graded against the model solution.
+ * Check that the wizard's evaluation step starts with `metric` switched on
+ * and grading the submitted answer against the model solution.
  */
-async function chooseMetricExpectingAnswerFields(
+async function expectPrefilledMetricOnAnswerFields(
   page: Page,
   metric: string,
 ): Promise<void> {
   const row = page.locator(`[data-testid="wizard-metric-${metric}"]`)
   await row.scrollIntoViewIfNeeded()
-  await row.locator('input[type="checkbox"]').check()
-  // The expand chevron is the row's only button; it appears once the metric
-  // is on.
+  await expect(row.locator('input[type="checkbox"]')).toBeChecked()
+  // The expand chevron is the row's only button; it is there while the
+  // metric is on.
   await row.locator('button').click()
   const config = page.locator(
     `[data-testid="wizard-metric-config-${metric}-0"]`,
@@ -242,6 +246,9 @@ async function chooseMetricExpectingAnswerFields(
   await expect(config).toBeVisible()
   // Assert on the selected values (data-value on the trigger); the "(data)"
   // suffix of a data column is localized ("Daten" in de, "données" in fr).
+  // The prefill stores the bare `loesung` and `task.musterloesung`; the
+  // pickers must show them as the options they stand for, not as raw values
+  // that match no option.
   const fieldSelects = config.getByRole('button')
   await expect(fieldSelects.nth(0)).toHaveAttribute(
     'data-value',
@@ -454,8 +461,8 @@ test.describe('Bewertungsbogen grading @extended', () => {
         page,
         page.locator('[data-testid="wizard-metric-llm_judge_rubric"]'),
       )
-      await chooseMetricExpectingAnswerFields(page, 'llm_judge_rubric')
-      await chooseMetricExpectingAnswerFields(page, 'korrektur_custom')
+      await expectPrefilledMetricOnAnswerFields(page, 'llm_judge_rubric')
+      await expectPrefilledMetricOnAnswerFields(page, 'korrektur_custom')
       await page.locator('[data-testid="wizard-grade-scale-enable"]').click()
       await expect(
         page.locator('[data-testid="wizard-grade-scale-clear"]'),
@@ -474,20 +481,30 @@ test.describe('Bewertungsbogen grading @extended', () => {
       expect((project.organizations ?? []).map((o) => o.id)).toContain(tumOrgId)
       expect(project.korrektur_enabled).toBe(true)
 
+      // Graded by the Bewertungsbogen: the rubric judge and the Korrektur by
+      // sheet, nothing else.
+      expect(
+        (project.evaluation_config?.evaluation_configs ?? [])
+          .map((c) => c.metric)
+          .sort(),
+      ).toEqual(['korrektur_custom', 'llm_judge_rubric'])
       for (const metric of ['llm_judge_rubric', 'korrektur_custom']) {
         const config = configFor(project, metric)
         // The answer and nothing else. A bulk selector next to it would also
-        // grade the outline and the notes as if each were the answer.
-        expect(config.prediction_fields, metric).toEqual(['human:loesung'])
-        expect(config.reference_fields, metric).toEqual(['musterloesung'])
+        // grade the outline and the notes as if each were the answer. The
+        // bare `loesung` reads the submitted answer: both metrics grade the
+        // human side.
+        expect(config.prediction_fields, metric).toEqual(['loesung'])
+        expect(config.reference_fields, metric).toEqual(['task.musterloesung'])
       }
       rubricConfig = configFor(project, 'llm_judge_rubric')
+      expect(rubricConfig.id).toBe('structured-rubric-judge')
 
       gradeScale = project.evaluation_config?.grade_scale ?? null
       expect(gradeScale?.thresholds).toHaveLength(18)
     })
 
-    await test.step('import the Korrekturbogen and activate it as the Bewertungsbogen', async () => {
+    await test.step('import the Korrekturbogen, check it and confirm it as the Bewertungsbogen', async () => {
       const tasks = await api<{
         items?: Array<{ id: string; data: Record<string, unknown> }>
       }>(page, 'GET', `/api/projects/${projectId}/tasks`)
@@ -521,22 +538,80 @@ test.describe('Bewertungsbogen grading @extended', () => {
       expect(parsedSteps.map((n) => n.max_score)).toEqual(SHEET_STEP_MAXIMA)
       expect(parsed.body.total_points).toBe(SHEET_TOTAL)
 
-      const created = await api<StoredRubric>(
+      const sheet = {
+        task_id: taskId,
+        title: parsed.body.title,
+        structure: parsed.body.structure,
+        grade_scale: parsed.body.grade_scale,
+      }
+      const rubricsUrl = `/api/projects/${projectId}/task-rubrics`
+
+      // The exam requires the check step, so a sheet cannot go active
+      // unchecked, and the refused create leaves no row behind.
+      const unchecked = await api<{ detail?: { code?: string } }>(
         page,
         'POST',
-        `/api/projects/${projectId}/task-rubrics`,
-        {
-          task_id: taskId,
-          title: parsed.body.title,
-          structure: parsed.body.structure,
-          grade_scale: parsed.body.grade_scale,
-          activate: true,
-        },
+        rubricsUrl,
+        { ...sheet, activate: true },
       )
+      expect(unchecked.status, JSON.stringify(unchecked.body)).toBe(422)
+      expect(unchecked.body.detail?.code).toBe('rubric_review_required')
+      const none = await api<StoredRubric[]>(
+        page,
+        'GET',
+        `${rubricsUrl}?task_id=${taskId}`,
+      )
+      expect(none.status).toBe(200)
+      expect(none.body).toEqual([])
+
+      const created = await api<StoredRubric>(page, 'POST', rubricsUrl, {
+        ...sheet,
+        activate: false,
+      })
       expect(created.status, JSON.stringify(created.body)).toBe(201)
-      expect(created.body.status).toBe('active')
+      expect(created.body.status).toBe('candidate')
       expect(created.body.total_points).toBe(SHEET_TOTAL)
-      rubric = created.body
+      const reviewUrl = `/api/projects/${projectId}/rubric-review/rubrics/${created.body.id}`
+
+      // The check: every checklist area answered, then the verdict.
+      const check = await api<{
+        review_required: boolean
+        checklist_areas: Array<{ id: string }>
+        verdicts: string[]
+      }>(page, 'GET', reviewUrl)
+      expect(check.status, JSON.stringify(check.body)).toBe(200)
+      expect(check.body.review_required).toBe(true)
+      expect(check.body.checklist_areas.length).toBeGreaterThan(0)
+      expect(check.body.verdicts).toContain('unchanged')
+      const confirmed = await api<{
+        id: string
+        status: string
+        review_state: string
+      }>(page, 'POST', `${reviewUrl}/confirm`, {
+        checklist: Object.fromEntries(
+          check.body.checklist_areas.map((area) => [
+            area.id,
+            { result: 'ok', codes: [] },
+          ]),
+        ),
+        verdict: 'unchanged',
+      })
+      expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200)
+      expect(confirmed.body).toMatchObject({
+        id: created.body.id,
+        status: 'active',
+        review_state: 'confirmed',
+      })
+
+      const active = await api<StoredRubric>(
+        page,
+        'GET',
+        `${rubricsUrl}/${created.body.id}`,
+      )
+      expect(active.status, JSON.stringify(active.body)).toBe(200)
+      expect(active.body.status).toBe('active')
+      expect(active.body.total_points).toBe(SHEET_TOTAL)
+      rubric = active.body
     })
 
     await test.step('a participant submits an answer', async () => {
@@ -593,8 +668,9 @@ test.describe('Bewertungsbogen grading @extended', () => {
       )
       // One grading of the one answer. Any other row would be a different
       // field of the same submission graded against the Bewertungsbogen.
+      // The bare `loesung` is recorded as what it read, the human answer.
       expect(rows.map((row) => row.field_name)).toEqual([
-        `${config.id}|human:loesung|musterloesung`,
+        `${config.id}|human:loesung|task.musterloesung`,
       ])
       const row = rows[0]
       expect(row.task_id).toBe(taskId)

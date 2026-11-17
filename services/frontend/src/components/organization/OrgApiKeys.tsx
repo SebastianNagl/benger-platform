@@ -15,6 +15,7 @@ import {
   type OrganizationGroup,
   type OrgSharedCustomModel,
 } from '@/lib/api/organizations'
+import { API_KEY_PROVIDERS, isValidApiKeyFormat } from '@/lib/apiKeyFormats'
 import { Dialog } from '@headlessui/react'
 import { EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState } from 'react'
@@ -37,58 +38,7 @@ interface TestResult {
   message: string
 }
 
-interface Provider {
-  id: string
-  name: string
-  /** Key-format hint; empty means the generic "your <provider> key" text. */
-  placeholder: string
-  validation: RegExp
-}
-
-const providers: Provider[] = [
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    placeholder: 'sk-...',
-    validation: /^sk-[a-zA-Z0-9_-]{20,}$/,
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic',
-    placeholder: 'sk-ant-...',
-    validation: /^sk-ant-[a-zA-Z0-9-_]{30,}$/,
-  },
-  {
-    id: 'google',
-    name: 'Google',
-    placeholder: 'AI...',
-    validation: /^[a-zA-Z0-9_-]{20,}$/,
-  },
-  {
-    id: 'deepinfra',
-    name: 'DeepInfra',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-  {
-    id: 'grok',
-    name: 'Grok (xAI)',
-    placeholder: 'xai-...',
-    validation: /^xai-[a-zA-Z0-9_-]{10,}$/,
-  },
-  {
-    id: 'mistral',
-    name: 'Mistral AI',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-  {
-    id: 'cohere',
-    name: 'Cohere',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-]
+const providers = API_KEY_PROVIDERS
 
 // The Select treats an empty value as unset, so org-wide gets a sentinel.
 const ORG_WIDE_SCOPE = '__org_wide__'
@@ -325,7 +275,7 @@ export function OrgApiKeys({
     if (!apiKey) return
 
     const providerConfig = providers.find((p) => p.id === provider)
-    if (providerConfig && !providerConfig.validation.test(apiKey.trim())) {
+    if (providerConfig && !isValidApiKeyFormat(provider, apiKey)) {
       setMessage({
         type: 'error',
         text: t('organization.apiKeys.invalidKeyFormat', {
@@ -343,11 +293,15 @@ export function OrgApiKeys({
         await organizationsAPI.setOrgApiKey(
           organizationId,
           provider,
-          apiKey,
+          apiKey.trim(),
           scopeGroupId,
         )
       } else {
-        await organizationsAPI.setOrgApiKey(organizationId, provider, apiKey)
+        await organizationsAPI.setOrgApiKey(
+          organizationId,
+          provider,
+          apiKey.trim(),
+        )
       }
       setMessage({
         type: 'success',
@@ -416,10 +370,14 @@ export function OrgApiKeys({
         ? await organizationsAPI.testOrgApiKey(
             organizationId,
             provider,
-            apiKey,
+            apiKey.trim(),
             scopeGroupId,
           )
-        : await organizationsAPI.testOrgApiKey(organizationId, provider, apiKey)
+        : await organizationsAPI.testOrgApiKey(
+            organizationId,
+            provider,
+            apiKey.trim(),
+          )
       setTestResults((prev) => ({
         ...prev,
         [provider]: {

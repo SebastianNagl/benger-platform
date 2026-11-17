@@ -46,3 +46,6 @@ frontend.log
 # Debug screenshots (exclude test snapshots)
 services/frontend/*.png
 !services/frontend/public/**/*.png
+
+# Smoke run results (make test-smoke-frontend)
+.smoke-results.json

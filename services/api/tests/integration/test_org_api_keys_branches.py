@@ -57,6 +57,12 @@ from main import app  # noqa: E402
 
 VALID_OPENAI_KEY = "sk-org-openai-key-1234567890"
 VALID_ANTHROPIC_KEY = "sk-ant-org-anthropic-key-1234567890"
+# Google AI Studio now issues "AQ." keys (with dots); legacy "AIza" keys still
+# work. Fake shapes, not real keys.
+GOOGLE_KEY_SHAPES = [
+    "AQ.Ab8RN6Lfake-key_not.real0123456789abcdefXYZ",
+    "AIzaSyFakeKeyNotReal0123456789abcdefgh",
+]
 
 
 def _uid() -> str:
@@ -241,6 +247,27 @@ class TestSetOrgApiKeyBehavioral:
         assert row.organization_id == org.id
         assert row.created_by == users["org_admin"].id
         assert row.encrypted_key and VALID_OPENAI_KEY not in row.encrypted_key
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("google_key", GOOGLE_KEY_SHAPES)
+    async def test_set_org_google_key_in_current_and_legacy_format(
+        self, async_test_client, async_test_db, google_key
+    ):
+        """Both Google key formats pass the shape check and round-trip intact."""
+        from encryption_service import encryption_service
+
+        org, users = await _seed_org_and_users(async_test_db)
+
+        with _as_user(users["org_admin"]):
+            resp = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/google",
+                json={"api_key": google_key},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+
+        row = await _get_org_key(async_test_db, org.id, "google")
+        assert row is not None and google_key not in row.encrypted_key
+        assert encryption_service.decrypt_api_key(row.encrypted_key) == google_key
 
     @pytest.mark.asyncio
     async def test_set_org_key_as_superadmin(self, async_test_client, async_test_db):

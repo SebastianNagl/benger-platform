@@ -45,6 +45,9 @@ coverage.xml
 htmlcov/
 test-reports/
 .pytest_cache/
+# Smoke run results, read by scripts/check_smoke.py (make test-smoke-*)
+.smoke-results.xml
+.smoke-results.json
 # Mutation testing artifacts (mutmut cache + junit reports, Stryker reports)
 .mutmut-cache
 mutmut*.xml
@@ -249,6 +252,7 @@ test_*.py
 !services/**/tests/**/test_*.py
 !services/api/routers/test_seeding.py
 !clients/*/tests/test_*.py
+!scripts/tests/test_*.py
 
 # Virtual environments
 test_env/
