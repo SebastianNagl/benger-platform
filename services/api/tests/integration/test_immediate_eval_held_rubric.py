@@ -467,3 +467,26 @@ class TestGradingRetryState:
         test_db.commit()
         assert ied.grading_retry_state(test_db, project, annotation)["state"] == ied.RETRY_NONE
         assert ied.grading_retry_state(test_db, None, annotation)["state"] == ied.RETRY_NONE
+
+    def test_nothing_retries_an_answer_the_sweep_skips(self, test_db, people):
+        # An empty answer has nothing any grader can grade: the hourly sweep
+        # never picks it up, so no retry may be promised for it.
+        owner, student = people
+        project = _project(test_db, owner, [JUDGE])
+        task = _task(test_db, project)
+        annotation = _answer(test_db, project, task, student)
+        annotation.result = [
+            {"from_name": "answer", "to_name": "text", "type": "textarea", "value": {"text": [""]}}
+        ]
+        test_db.commit()
+
+        candidates, _ = ied.scan_ungraded(test_db, project)
+        assert annotation.id not in {a.id for a, _ in candidates}
+        assert ied.grading_retry_state(test_db, project, annotation)["state"] == ied.RETRY_NONE
+
+    def test_nothing_retries_without_an_immediate_grader(self, test_db, people):
+        owner, student = people
+        project = _project(test_db, owner, [])
+        task = _task(test_db, project)
+        annotation = _answer(test_db, project, task, student)
+        assert ied.grading_retry_state(test_db, project, annotation)["state"] == ied.RETRY_NONE

@@ -2840,7 +2840,8 @@ def _window_403(project, state: str) -> HTTPException:
 # least ``reason`` (``"rubric_missing"``). Only data reads ask it (via the
 # read guards below and the ``/api/data`` scope); writes are never refused for
 # it, so an answer already being written is not lost. Editors, superadmins and
-# the attempted tier pass, like for the window. Community edition: no package
+# the attempted tier pass, like for the window; any other caller with an own
+# submission is demoted to the attempted tier. Community edition: no package
 # has the attribute, nothing is ever blocked.
 
 EXAM_NOT_READY_CODE = "exam_not_ready"
@@ -2905,7 +2906,7 @@ def _exam_not_ready_403(project, block: dict) -> HTTPException:
 
 def enforce_project_read_window(
     db: Session, user, project, tier: Optional[str] = None
-) -> None:
+) -> Optional[str]:
     """Sync: raise 403 if the pre-open window hides task data from a non-editor.
 
     No-op when there's no window, when the window is open/closed (reads stay
@@ -2921,46 +2922,57 @@ def enforce_project_read_window(
     attempted tier is never window-gated (its whole point is reading an own
     submission after the fact). When no tier is passed the predicate is
     re-checked here, so older call sites stay correct without threading it.
+
+    Returns the tier the caller must apply from here on: ``tier`` itself,
+    except that a non-editor with an own submission on an exam the readiness
+    hook keeps closed is demoted to the attempted tier (own submissions only),
+    whatever tier was passed.
     """
     if tier == TIER_ATTEMPTED:
-        return
+        return tier
     if project_reads_allowed(project):
         # The readiness hook decides first: it is cheap for projects it does
         # not gate, while the exemptions below cost queries.
         block = exam_open_block(db, user, project)
         if block is None:
-            return
+            return tier
         refusal = _exam_not_ready_403(project, block)
     else:
+        block = None
         refusal = _window_403(project, "upcoming")
     if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
         db, user, project.id
     ):
-        return
-    if tier is None and user_attempted_project(db, user.id, project.id):
-        return
+        return tier
+    if (block is not None or tier is None) and user_attempted_project(
+        db, user.id, project.id
+    ):
+        return TIER_ATTEMPTED if block is not None else tier
     raise refusal
 
 
 async def enforce_project_read_window_async(
     db: AsyncSession, user, project, tier: Optional[str] = None
-) -> None:
+) -> Optional[str]:
     """Async twin of :func:`enforce_project_read_window`."""
     if tier == TIER_ATTEMPTED:
-        return
+        return tier
     if project_reads_allowed(project):
         block = await exam_open_block_async(db, user, project)
         if block is None:
-            return
+            return tier
         refusal = _exam_not_ready_403(project, block)
     else:
+        block = None
         refusal = _window_403(project, "upcoming")
     if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
         db, user, project.id
     ):
-        return
-    if tier is None and await user_attempted_project_async(db, user.id, project.id):
-        return
+        return tier
+    if (block is not None or tier is None) and await user_attempted_project_async(
+        db, user.id, project.id
+    ):
+        return TIER_ATTEMPTED if block is not None else tier
     raise refusal
 
 

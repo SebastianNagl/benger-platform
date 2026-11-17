@@ -180,7 +180,8 @@ async def _resolve_data_scope(
       (``get_attempted_project_ids_async``); no tier = not listed;
     - read window: pre-open projects, and exams an overlay keeps closed
       (``exam_open_block``), are hidden unless the caller can edit them or
-      holds the attempted tier (``enforce_project_read_window``);
+      holds the attempted tier (``enforce_project_read_window``); a caller
+      with an own submission on such a closed exam is demoted to attempted;
     - task scoping: attempted tier, and non-editors on a Safe Exam Browser
       exam → own submissions; org ANNOTATOR on a manual / auto assignment
       project → own open assignments;
@@ -259,7 +260,9 @@ async def _resolve_data_scope(
             if not project_reads_allowed(project):
                 continue
             if await exam_open_block_async(db, user, project) is not None:
-                continue
+                if pid not in attempted_ids:
+                    continue
+                tier = TIER_ATTEMPTED
         scope.project_ids.append(pid)
         scope.bound[pid] = bound_fields_for_role(role, project)
         # Safe Exam Browser exams hand out their tasks inside SEB only (the

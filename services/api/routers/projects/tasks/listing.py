@@ -97,11 +97,13 @@ async def list_project_tasks(
     # Timed access window: hide the task list from the access group before the
     # window opens (editors exempt, attempted tier exempt). No-op when the
     # project has no window.
-    await enforce_project_read_window_async(db, current_user, project, tier=access.tier)
+    tier = await enforce_project_read_window_async(
+        db, current_user, project, tier=access.tier
+    )
     # Safe Exam Browser: outside SEB a non-editor lists only the tasks they
     # already submitted (the exam itself is handed out inside SEB).
     seb_ok = await seb_request_allowed_async(
-        db, current_user, project, request, tier=access.tier
+        db, current_user, project, request, tier=tier
     )
 
     # Check user's role and apply visibility rules
@@ -126,7 +128,7 @@ async def list_project_tasks(
     query = select(Task).where(Task.project_id == project_id)
 
     # Apply role-based filtering
-    if access.tier == TIER_ATTEMPTED or not seb_ok:
+    if tier == TIER_ATTEMPTED or not seb_ok:
         # Attempted tier (and SEB exams outside SEB): only the caller's own
         # submissions, whatever the assignment mode — no new work handed out.
         query = query.where(own_active_annotation_exists(current_user.id))
@@ -555,7 +557,9 @@ async def get_next_task(
 
     # Timed access window: no next task to hand out before the window opens
     # (editors exempt).
-    await enforce_project_read_window_async(db, current_user, project, tier=tier)
+    tier = await enforce_project_read_window_async(db, current_user, project, tier=tier)
+    if tier == TIER_ATTEMPTED:
+        return {"detail": "No tasks available", "task": None}
     # Safe Exam Browser: the next task is by definition unsubmitted content.
     # Outside SEB, a user with nothing left to do gets the normal "done"
     # answer instead of a 403.
@@ -947,16 +951,19 @@ async def get_task(
         db, current_user, task_id, project
     ):
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Timed access window: hide task data from the access group before the
+    # window opens (editors exempt, attempted exempt). Serves task.data below.
+    if project is not None:
+        tier = await enforce_project_read_window_async(
+            db, current_user, project, tier=tier
+        )
     # Attempted tier: only the tasks the caller submitted exist for them.
     if tier == TIER_ATTEMPTED and not await user_attempted_task_async(
         db, current_user.id, task_id
     ):
         raise HTTPException(status_code=404, detail="Task not found")
-
-    # Timed access window: hide task data from the access group before the
-    # window opens (editors exempt, attempted exempt). Serves task.data below.
     if project is not None:
-        await enforce_project_read_window_async(db, current_user, project, tier=tier)
         await enforce_seb_async(
             db, current_user, project, request, tier=tier, read_task_id=task_id
         )

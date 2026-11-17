@@ -7,7 +7,8 @@ task has a checked grading sheet). The platform asks it in
 ``/api/data`` scope:
 
 - a participant read answers 403 ``{code: "exam_not_ready", reason}``;
-- editors, superadmins and the attempted tier pass;
+- editors, superadmins and the attempted tier pass; any other caller with an
+  own submission is demoted to the attempted tier (own submissions only);
 - the window rule keeps its own answer before the hook;
 - a failing hook counts as open; without a package nothing changes;
 - writes never ask the hook.
@@ -29,10 +30,19 @@ from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, OrganizationMembership, User
-from project_models import Annotation, Project, ProjectOrganization, Task
+from project_models import (
+    Annotation,
+    Project,
+    ProjectOrganization,
+    ProjectShareLink,
+    ProjectShareMember,
+    Task,
+)
 from routers.projects.helpers import (
     EXAM_NOT_READY_CODE,
     TIER_ATTEMPTED,
+    TIER_PARTICIPANT,
+    get_project_access_tier_async,
     enforce_project_read_window,
     enforce_project_read_window_async,
     enforce_project_write_window_async,
@@ -356,3 +366,118 @@ async def test_data_explorer_hides_the_exam_from_participants(async_test_db, asy
         with _extended(_Hook(block=RUBRIC_BLOCK)):
             r = await client.get("/api/data/", params={"project_ids": [p.id]})
             assert r.json()["total"] == 1
+
+
+async def _share_members(db, w, n):
+    """``n`` consented share members of the exam (participant tier) and a
+    second task, so an own submission and an unsubmitted task both exist."""
+    p, owner = w["project"], w["owner"]
+    members = [
+        User(id=_uid(), username=f"m-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com", name="M")
+        for _ in range(n)
+    ]
+    link = ProjectShareLink(
+        id=_uid(), token=uuid.uuid4().hex, project_id=p.id, created_by=owner.id,
+        password_hash="x", is_listed=False,
+    )
+    db.add_all(members)
+    db.add(link)
+    await db.flush()
+    db.add_all(
+        ProjectShareMember(
+            id=_uid(), share_link_id=link.id, project_id=p.id, user_id=m.id, attempts=0,
+            gdpr_consent_at=datetime.now(timezone.utc), consent_version="1",
+        )
+        for m in members
+    )
+    other = Task(id=_uid(), project_id=p.id, data={"text": "Zweiter Sachverhalt"}, inner_id=2)
+    db.add(other)
+    await db.flush()
+    return members, other
+
+
+@pytest.mark.asyncio
+async def test_a_blocked_submitter_keeps_only_their_own_submission(
+    async_test_db, async_test_client
+):
+    from tests.fixtures.v1 import v1_auth
+
+    db = async_test_db
+    w = await _world(db)
+    p, task = w["project"], w["task"]
+    (submitter, newcomer), unsubmitted = await _share_members(db, w, 2)
+    # The org ANNOTATOR student (full tier, not an editor) submitted as well.
+    db.add_all(
+        Annotation(
+            id=_uid(),
+            task_id=task.id,
+            project_id=p.id,
+            completed_by=u.id,
+            result=[{"from_name": "x", "to_name": "text", "type": "textarea", "value": {}}],
+            was_cancelled=False,
+        )
+        for u in (submitter, w["student"])
+    )
+    await db.flush()
+    client = async_test_client
+    # A share member with a submission still resolves to the participant tier.
+    assert await get_project_access_tier_async(db, submitter, p.id) == TIER_PARTICIPANT
+
+    with _extended(_Hook(block=RUBRIC_BLOCK)):
+        assert (
+            await enforce_project_read_window_async(db, submitter, p, tier=TIER_PARTICIPANT)
+            == TIER_ATTEMPTED
+        )
+        detail = await _refusal(
+            enforce_project_read_window_async(db, newcomer, p, tier=TIER_PARTICIPANT)
+        )
+        assert detail["code"] == EXAM_NOT_READY_CODE
+
+        with _as_user(submitter):
+            r = await client.get(f"/api/projects/tasks/{task.id}")
+            assert r.status_code == 200, r.text
+            assert r.json()["data"]["text"] == "Sachverhalt"
+            r = await client.get(f"/api/projects/tasks/{unsubmitted.id}")
+            assert r.status_code == 404
+            r = await client.get(f"/api/projects/{p.id}/tasks")
+            assert r.status_code == 200, r.text
+            assert [t["id"] for t in r.json()["items"]] == [task.id]
+            r = await client.get(f"/api/projects/{p.id}/next")
+            assert r.status_code == 200
+            assert r.json()["task"] is None
+            r = await client.get(f"/api/projects/tasks/{task.id}/annotations")
+            assert r.status_code == 200, r.text
+            assert {a["completed_by"] for a in r.json()} == {submitter.id}
+        with _as_user(w["student"]):
+            r = await client.get("/api/data/", params={"project_ids": [p.id]})
+            assert [t["id"] for t in r.json()["items"]] == [task.id]
+            r = await client.get(f"/api/projects/{p.id}/tasks")
+            assert [t["id"] for t in r.json()["items"]] == [task.id]
+
+        with v1_auth(db, session_user=submitter):
+            r = await client.get(f"/api/v1/projects/{p.id}/tasks")
+            assert r.status_code == 200, r.text
+            assert [t["id"] for t in r.json()["items"]] == [task.id]
+            r = await client.get(f"/api/v1/projects/{p.id}/tasks/{task.id}")
+            assert r.status_code == 200, r.text
+            r = await client.get(f"/api/v1/projects/{p.id}/tasks/{unsubmitted.id}")
+            assert r.status_code == 404
+
+        with _as_user(newcomer):
+            for path in (
+                f"/api/projects/tasks/{task.id}",
+                f"/api/projects/{p.id}/tasks",
+                f"/api/projects/{p.id}/next",
+                f"/api/projects/tasks/{task.id}/annotations",
+            ):
+                r = await client.get(path)
+                assert r.status_code == 403, path
+                assert r.json()["detail"]["code"] == EXAM_NOT_READY_CODE, path
+
+    # Once the exam is open, the submitters get the whole exam back.
+    with _as_user(submitter):
+        r = await client.get(f"/api/projects/{p.id}/tasks")
+        assert sorted(t["id"] for t in r.json()["items"]) == sorted([task.id, unsubmitted.id])
+    with _as_user(w["student"]):
+        r = await client.get("/api/data/", params={"project_ids": [p.id]})
+        assert sorted(t["id"] for t in r.json()["items"]) == sorted([task.id, unsubmitted.id])

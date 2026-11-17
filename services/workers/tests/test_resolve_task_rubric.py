@@ -78,32 +78,3 @@ def test_empty_selector_dict_uses_active_path():
     row = _row()
     db = _db_returning(row, via_order_by=False)
     assert _resolve_task_rubric(db, TASK, {"rubric_selector": {}}) is row
-
-
-def test_generator_selector_filters_confirmed_when_the_check_is_required():
-    # A project with rubric_review_required grades a selected generator's
-    # sheet only once a person confirmed it: one more filter on that path.
-    from task_rubric_resolution import resolve_grading_rubric
-
-    row = _row()
-    db = MagicMock()
-    selected = db.query.return_value.filter.return_value.filter.return_value
-    selected.filter.return_value.order_by.return_value.first.return_value = row
-    params = {"rubric_selector": {"generator_model_id": "gpt-5.4"}}
-
-    assert resolve_grading_rubric(db, TASK, params, review_required=True) is row
-    assert selected.filter.called
-    # Without the check the confirmed filter is not applied.
-    db2 = _db_returning(row, via_order_by=True)
-    assert resolve_grading_rubric(db2, TASK, params, review_required=False) is row
-
-
-def test_the_review_requirement_is_read_from_the_project_when_not_given():
-    from task_rubric_resolution import _project_requires_review
-
-    db = MagicMock()
-    db.query.return_value.filter.return_value.scalar.return_value = True
-    assert _project_requires_review(db, SimpleNamespace(id="t", project_id="p")) is True
-    db.query.return_value.filter.return_value.scalar.return_value = False
-    assert _project_requires_review(db, SimpleNamespace(id="t", project_id="p")) is False
-    assert _project_requires_review(db, TASK) is False

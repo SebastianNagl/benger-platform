@@ -777,7 +777,8 @@ def grading_retry_state(db, project, annotation) -> dict:
     - ``exhausted``: the sweep stopped after ``max_attempts``; only a manual
       retrigger grades it now;
     - ``none``: nothing grades it automatically (no immediate grading on the
-      project, or the project is deleted).
+      project, the project is deleted, or the sweep skips the answer because
+      no configured grader has anything in it to grade).
 
     Says nothing about an answer that already has a grade; callers ask only
     for ungraded ones.
@@ -793,6 +794,9 @@ def grading_retry_state(db, project, annotation) -> dict:
         or getattr(project, "deleted_at", None) is not None
         or not getattr(project, "immediate_evaluation_enabled", False)
     ):
+        return state
+    cfgs = eligible_configs(project)
+    if not cfgs or not gradable_configs(cfgs, parse_annotation_results(annotation)):
         return state
     blocked = latest_blocked_run(db, project.id, annotation)
     if blocked is not None:
