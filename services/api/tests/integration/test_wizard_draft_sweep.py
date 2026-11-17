@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from models import ProjectPurgeJob
 from project_models import Project, ProjectWizardDraft
@@ -122,6 +122,28 @@ async def test_a_save_that_wins_the_race_keeps_the_draft(async_test_db):
     assert await db.run_sync(lambda s: stamp_stale_draft(s, pid, cutoff)) is None
     await db.rollback()
     assert await _deleted_at(db, pid) is None
+
+
+async def test_a_draft_that_lost_its_wizard_row_is_discarded(async_test_db):
+    """Hard-deleting the creator cascades the ``project_wizard_drafts`` row
+    away while the project stays a draft; such a draft can never be resumed
+    or finished, so the next sweep stamps it and queues its purge, however
+    recently it was touched."""
+    db = async_test_db
+    teacher = await _user(db)
+    orphan = SimpleNamespace(id=(await _draft(db, teacher, touched_days_ago=1)).id)
+    await db.execute(delete(ProjectWizardDraft).where(ProjectWizardDraft.project_id == orphan.id))
+    await db.commit()
+
+    sent, send = _sender()
+    result = await _sweep(db, send)
+    assert orphan.id in result["stamped"]
+    assert orphan.id in result["purge_queued"]
+    assert await _deleted_at(db, orphan.id) is not None
+    job = (
+        await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.project_id == orphan.id))
+    ).scalar_one()
+    assert job.status == "pending" and job.id in sent
 
 
 async def test_a_discarded_draft_without_purge_is_queued_again(async_test_db):

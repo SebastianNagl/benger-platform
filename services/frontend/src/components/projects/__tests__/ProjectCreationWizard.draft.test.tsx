@@ -292,6 +292,38 @@ describe('ProjectCreationWizard — draft mode', () => {
     expect(syncOrder).toBeLessThan(finishOrder)
   })
 
+  it('reaches the project on a second Create after the first finish committed but its answer was lost', async () => {
+    registerWizardDraftPolicy(policy)
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+
+    draftsAPI().finish.mockRejectedValueOnce(new Error('Network Error'))
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('Network Error', 'error'),
+    )
+    expect(mockPush).not.toHaveBeenCalled()
+    const settingsWrites = projectsAPI().update.mock.calls.length
+
+    // The server committed that finish: the draft routes now answer 409.
+    draftsAPI().tasks.mockRejectedValue(conflictError('not_wizard_draft'))
+    mockAddToast.mockClear()
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/p1'))
+    expect(draftsAPI().finish).toHaveBeenCalledTimes(2)
+    const [first, second] = draftsAPI().finish.mock.calls
+    expect(second[1].client_key).toBe(first[1].client_key)
+    expect(mockAddToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('syncFailed'),
+      'error',
+    )
+    // The project was configured before the first finish; not again.
+    expect(projectsAPI().update.mock.calls.length).toBe(settingsWrites)
+  })
+
   it('calls no draft route without a registered policy', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)

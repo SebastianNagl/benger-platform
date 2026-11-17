@@ -248,6 +248,68 @@ describe('useWizardDraft', () => {
     await expect(result.current.finish()).rejects.toThrow('No draft')
   })
 
+  it('sends no state save while the finish is on its way, and saves again after it failed', async () => {
+    const { result } = setup()
+    await create(result)
+    let reject: (error: unknown) => void = () => {}
+    draftsAPI().finish.mockImplementationOnce(
+      () => new Promise((_resolve, fail) => (reject = fail)),
+    )
+    const before = draftsAPI().save.mock.calls.length
+    let finishing: Promise<string> = Promise.resolve('')
+    await act(async () => {
+      finishing = result.current.finish()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await result.current.save('settings')
+    })
+    expect(draftsAPI().save.mock.calls.length).toBe(before)
+
+    await act(async () => {
+      reject(new Error('Network Error'))
+      await expect(finishing).rejects.toThrow('Network Error')
+    })
+    await act(async () => {
+      await result.current.save('settings')
+    })
+    expect(draftsAPI().save.mock.calls.length).toBe(before + 1)
+  })
+
+  it('takes a finished draft after a lost finish answer as committed, without a sync error', async () => {
+    const { result, addToast } = setup()
+    await create(result)
+    draftsAPI().finish.mockRejectedValueOnce(new Error('Network Error'))
+    await act(async () => {
+      await expect(result.current.finish()).rejects.toThrow('Network Error')
+    })
+    draftsAPI().tasks.mockRejectedValueOnce(coded('not_wizard_draft'))
+    let synced = true
+    await act(async () => {
+      synced = await result.current.syncTasks()
+    })
+    expect(synced).toBe(false)
+    expect(result.current.finishCommitted()).toBe(true)
+    expect(addToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('syncFailed'),
+      'error',
+    )
+  })
+
+  it('reports a finished draft as a sync failure when no finish was sent', async () => {
+    const { result, addToast } = setup()
+    await create(result)
+    draftsAPI().tasks.mockRejectedValueOnce(coded('not_wizard_draft'))
+    await act(async () => {
+      await result.current.syncTasks()
+    })
+    expect(result.current.finishCommitted()).toBe(false)
+    expect(addToast).toHaveBeenCalledWith(
+      expect.stringContaining('projects.creation.wizard.draft.syncFailed'),
+      'error',
+    )
+  })
+
   it('generates a client key without crypto.randomUUID', async () => {
     const original = globalThis.crypto
     Object.defineProperty(globalThis, 'crypto', {

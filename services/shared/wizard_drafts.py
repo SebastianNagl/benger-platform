@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from project_models import Project, ProjectWizardDraft
@@ -56,15 +56,23 @@ def draft_expires_at(touched_at: Optional[datetime]) -> Optional[datetime]:
 
 def _build_select_stale_draft_ids(cutoff: datetime):
     """Candidates of the sweep: live, unfinished drafts last changed before
-    ``cutoff``. Re-checked under the project row lock before the stamp."""
+    ``cutoff``, and live drafts that lost their ``project_wizard_drafts`` row
+    (it cascades away when the creator is hard-deleted), which can never be
+    resumed or finished. Re-checked under the project row lock before the
+    stamp."""
     return (
         select(Project.id)
-        .join(ProjectWizardDraft, ProjectWizardDraft.project_id == Project.id)
+        .outerjoin(ProjectWizardDraft, ProjectWizardDraft.project_id == Project.id)
         .where(
             Project.is_wizard_draft.is_(True),
             Project.deleted_at.is_(None),
-            ProjectWizardDraft.finished_at.is_(None),
-            ProjectWizardDraft.touched_at < cutoff,
+            or_(
+                ProjectWizardDraft.project_id.is_(None),
+                and_(
+                    ProjectWizardDraft.finished_at.is_(None),
+                    ProjectWizardDraft.touched_at < cutoff,
+                ),
+            ),
         )
         .order_by(Project.id)
     )
@@ -83,7 +91,8 @@ def _build_select_discarded_draft_ids():
 
 def stamp_stale_draft(db: Session, project_id: str, cutoff: datetime) -> Optional[Project]:
     """Stamp ``deleted_at`` on the draft ``project_id`` if it is still a live,
-    stale draft, judged under the project row lock. The state save and the
+    stale draft or a live draft without its ``project_wizard_drafts`` row,
+    judged under the project row lock. The state save and the
     finish route lock the same row first, so whichever commits first wins: a
     save or a finish that got there before keeps the draft. Does not commit."""
     project = db.execute(
@@ -94,7 +103,7 @@ def stamp_stale_draft(db: Session, project_id: str, cutoff: datetime) -> Optiona
     draft = db.execute(
         select(ProjectWizardDraft).where(ProjectWizardDraft.project_id == project_id)
     ).scalar_one_or_none()
-    if draft is None or draft.finished_at is not None or draft.touched_at >= cutoff:
+    if draft is not None and (draft.finished_at is not None or draft.touched_at >= cutoff):
         return None
     project.deleted_at = datetime.now(timezone.utc)
     project.deleted_by = None

@@ -600,9 +600,10 @@ export function ProjectCreationWizard() {
     try {
       // 1. The project: the draft (draft mode, its tasks synced once more),
       // else created now with its visibility and data import.
-      const projectId = draftProjectId
+      const ready = draftProjectId
         ? await ensureDraftReady()
-        : await createProjectNow()
+        : { projectId: await createProjectNow(), committed: false }
+      const projectId = ready.projectId
       if (projectId === null) {
         // The final task or configuration sync of the draft did not go
         // through (declined, or failed with its own message).
@@ -613,10 +614,13 @@ export function ProjectCreationWizard() {
 
       // In draft mode the state as the final sync left it (it reads the
       // evaluation configs back, a write the closure has not seen yet).
-      await configureProject(
-        projectId,
-        draftProjectId ? draftCtl.currentData() : wizardData,
-      )
+      // A finish that already committed configured the project before.
+      if (!ready.committed) {
+        await configureProject(
+          projectId,
+          draftProjectId ? draftCtl.currentData() : wizardData,
+        )
+      }
 
       if (draftProjectId) {
         // The last write: visibility and organizations, so the project
@@ -649,12 +653,21 @@ export function ProjectCreationWizard() {
   /**
    * Draft mode: the final task sync and the final configuration sync (so
    * the configSynced hooks run whether or not the rubric step was visited);
-   * null when either did not go through.
+   * a null project when either did not go through. `committed`: an earlier
+   * finish went through although its answer was lost; only the finish
+   * (idempotent per client key) is left.
    */
-  const ensureDraftReady = async (): Promise<string | null> => {
-    if (!(await draftCtl.syncTasks())) return null
-    if (!(await draftCtl.syncConfig())) return null
-    return draftProjectId
+  const ensureDraftReady = async (): Promise<{
+    projectId: string | null
+    committed: boolean
+  }> => {
+    const synced =
+      (await draftCtl.syncTasks()) && (await draftCtl.syncConfig())
+    if (synced) return { projectId: draftProjectId, committed: false }
+    if (draftCtl.finishCommitted()) {
+      return { projectId: draftProjectId, committed: true }
+    }
+    return { projectId: null, committed: false }
   }
 
   /** Create the project with its visibility and import the wizard's data. */

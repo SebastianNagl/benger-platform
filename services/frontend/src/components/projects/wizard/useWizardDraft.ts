@@ -224,6 +224,12 @@ export function useWizardDraft(options: {
     groupId: string | null
   } | null>(null)
   const saveChainRef = useRef<Promise<void>>(Promise.resolve())
+  // The finish request is on its way: no state save may follow it.
+  const finishingRef = useRef(false)
+  // A finish request was sent but failed: it may have committed.
+  const finishSentRef = useRef(false)
+  // A sync after such a finish found the draft finished.
+  const finishCommittedRef = useRef(false)
   const stepIdRef = useRef(currentStepId)
   stepIdRef.current = currentStepId
 
@@ -259,6 +265,10 @@ export function useWizardDraft(options: {
   const handleDraftError = useCallback(
     (error: unknown, fallbackKey: string): void => {
       const code = wizardDraftErrorCode(error)
+      if (code === 'not_wizard_draft' && finishSentRef.current) {
+        finishCommittedRef.current = true
+        return
+      }
       if (code === 'draft_version_conflict') {
         setProblem('conflict')
         return
@@ -282,7 +292,7 @@ export function useWizardDraft(options: {
     (stepId?: string): Promise<void> => {
       const run = async () => {
         const current = draftRef.current
-        if (!current || problemRef.current) return
+        if (!current || problemRef.current || finishingRef.current) return
         const data = dataRef.current
         const target = draftTarget(data)
         const last = savedTargetRef.current
@@ -483,6 +493,8 @@ export function useWizardDraft(options: {
     savedTargetRef.current = null
     evalSnapshotRef.current = null
     cloudImportedRef.current = new Set()
+    finishSentRef.current = false
+    finishCommittedRef.current = false
     clientKeyRef.current = newClientKey()
     setUrlDraft(null)
   }, [setUrlDraft])
@@ -844,21 +856,30 @@ export function useWizardDraft(options: {
   const finish = useCallback(async (): Promise<string> => {
     const current = draftRef.current
     if (!current) throw new Error('No draft')
-    // Let a pending save settle first; it must not race the finish.
+    // No save may run once the finish is on its way; a pending one settles.
+    finishingRef.current = true
     await saveChainRef.current
     const data = dataRef.current
-    const project = await wizardDraftsAPI.finish(current.projectId, {
-      client_key: current.clientKey,
-      visibility: data.visibility,
-      public_role: data.visibility === 'public' ? data.publicRole : null,
-      organization_attachments:
-        data.visibility === 'organization'
-          ? data.organizationIds.map((orgId) => ({
-              organization_id: orgId,
-              group_id: data.organizationGroupIds[orgId] ?? null,
-            }))
-          : [],
-    })
+    let project: { id: string }
+    try {
+      project = await wizardDraftsAPI.finish(current.projectId, {
+        client_key: current.clientKey,
+        visibility: data.visibility,
+        public_role: data.visibility === 'public' ? data.publicRole : null,
+        organization_attachments:
+          data.visibility === 'organization'
+            ? data.organizationIds.map((orgId) => ({
+                organization_id: orgId,
+                group_id: data.organizationGroupIds[orgId] ?? null,
+              }))
+            : [],
+      })
+    } catch (error) {
+      finishingRef.current = false
+      finishSentRef.current = true
+      throw error
+    }
+    finishingRef.current = false
     // Finished: no more saves for this draft.
     draftRef.current = null
     setDraft(null)
@@ -889,6 +910,12 @@ export function useWizardDraft(options: {
     basicFields,
     evalConfigsChanged,
     finish,
+    /**
+     * A sync after a failed finish found the draft already finished (the
+     * finish committed but its answer was lost): finish again with the
+     * same client key to get the project.
+     */
+    finishCommitted: () => finishCommittedRef.current,
     discard,
     discardNow,
     discardMessage,

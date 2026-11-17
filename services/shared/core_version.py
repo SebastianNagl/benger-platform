@@ -971,7 +971,14 @@ whenever one is added, renamed or removed):
     user moves to the rubric step and once more on "Create" (before the
     post-create hooks and the finish route). Draft mode applies only while a
     registered policy applies or a draft is open; otherwise the wizard
-    navigates and creates as before. The rubric step slot
+    navigates and creates as before. The policy's ``applies(wizardData)``
+    is asked when the user leaves step 1; ``describeDiscard({ projectId })``
+    returns extra lines for the confirmation before a draft is discarded
+    (wizard footer or unfinished-drafts list), e.g. how many generated or
+    checked grading sheets will be lost, and is ignored when it fails. The
+    stale-draft sweep also discards a draft whose ``project_wizard_drafts``
+    row is gone (it cascades away when the creator is hard-deleted).
+    The rubric step slot
     ``ProjectWizardRubricStep`` gets ``draftProjectId``; post-create hooks
     get ``draft: true`` in draft mode.
 """

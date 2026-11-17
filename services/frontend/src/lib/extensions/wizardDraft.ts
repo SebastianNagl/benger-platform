@@ -15,6 +15,13 @@
  * Hook contract (all hooks are awaited in registration order; a hook that
  * throws only shows a toast, the wizard goes on):
  *
+ * - The policy itself, `registerWizardDraftPolicy({ applies(wizardData),
+ *   describeDiscard?({ projectId }) })`: `applies` is asked when the user
+ *   leaves step 1 (draft mode only while it applies or a draft is open);
+ *   `describeDiscard` returns extra lines shown in the confirmation before
+ *   a draft is discarded (from the wizard footer or the unfinished-drafts
+ *   list), e.g. how many generated or checked grading sheets will be lost;
+ *   a failing `describeDiscard` is ignored.
  * - `created` `{ projectId, wizardData }`: once, right after the draft was
  *   created (not on resume). Example: switch on the check requirement of
  *   grading sheets before the first import.
