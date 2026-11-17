@@ -451,7 +451,23 @@ class TestRunSingleSampleEvaluationCreatePath:
         def fake_job(**kwargs):
             return {"status": "completed", "metric": kwargs["job"]["metric_type"], "score": 1.0}
 
-        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+        # The task has a usable Bewertungsbogen; without one the worker skips
+        # the sheet judge before any judge run (core 2.54).
+        plain_query = db.query
+
+        def query(model):
+            if getattr(model, "__name__", "") == "Task":
+                q = MagicMock()
+                q.filter.return_value.first.return_value = types.SimpleNamespace(
+                    id="t1", project_id="p1"
+                )
+                return q
+            return plain_query(model)
+
+        db.query = query
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), patch(
+            "task_rubric_resolution.resolve_grading_rubric", return_value=object()
+        ):
             with patch.object(tasks_module, "_run_immediate_config_job", side_effect=fake_job):
                 run_single_sample_evaluation.run(
                     evaluation_record_id="eval-new-2",

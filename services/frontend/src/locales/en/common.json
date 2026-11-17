@@ -8929,7 +8929,8 @@
         "connectionRemoved": "The learning platform connection of this exam no longer exists, so the AI grading was not started.",
         "orgKeyMissing": "The organization whose learning platform runs this exam holds no API key for the chosen grading models, so the AI grading was not started.",
         "orgNotPaying": "The organization whose learning platform runs this exam does not provide API keys, so the AI grading was not started.",
-        "other": "Billing refused the AI grading."
+        "other": "Billing refused the AI grading.",
+        "rubricMissing": "No grading sheet is active for this task yet. The AI grading starts as soon as one is ready."
       },
       "unmatchedConfigsTitle": "Evaluations that matched no data",
       "openProject": "Open project",

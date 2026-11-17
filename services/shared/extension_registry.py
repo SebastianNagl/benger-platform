@@ -390,6 +390,9 @@ WORKER_ATTR_GATING: Dict[str, str] = {
     "get_batch_evaluation_policy_fn": "always",
     "get_grading_finalize_fn": "always",
     "get_grading_block_fn": "always",
+    # Keeps an exam closed for participants until it is ready to be taken
+    # (core 2.54). A product rule, not billing or privacy: off with the package.
+    "get_exam_open_block_fn": "gated",
     "get_name_visibility_fns": "always",
     "get_notification_brand_host_fn": "gated",
     "get_falloesung_compute_fn": "gated",

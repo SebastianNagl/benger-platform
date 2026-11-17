@@ -7580,7 +7580,8 @@
         "connectionRemoved": "La connexion de cet examen à la plateforme d'apprentissage n'existe plus. L'évaluation par IA n'a donc pas été lancée.",
         "orgKeyMissing": "L'organisation via la plateforme d'apprentissage de laquelle cet examen est proposé n'a enregistré aucune clé API pour les modèles d'évaluation choisis. L'évaluation par IA n'a donc pas été lancée.",
         "orgNotPaying": "L'organisation via la plateforme d'apprentissage de laquelle cet examen est proposé ne fournit pas de clés API. L'évaluation par IA n'a donc pas été lancée.",
-        "other": "La facturation a refusé l'évaluation par IA."
+        "other": "La facturation a refusé l'évaluation par IA.",
+        "rubricMissing": "Aucune grille d'évaluation n'est encore active pour cette tâche. L'évaluation par IA démarrera dès qu'une grille sera prête."
       },
       "unmatchedConfigsTitle": "Évaluations sans données correspondantes",
       "openProject": "Ouvrir le projet",
