@@ -100,6 +100,9 @@ export interface Project {
   // Check step for grading sheets (read-only; set by the extended edition):
   // a task rubric becomes active only after a person confirmed it
   rubric_review_required?: boolean
+  // Creation-wizard draft (CORE 2.55, read-only): never listed; a discarded
+  // draft whose purge has not finished shows in the superadmin deleted view.
+  is_wizard_draft?: boolean
 
   // Restorable draft checkpoints (opt-in)
   restorable_checkpoints_enabled?: boolean
