@@ -18,7 +18,11 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import type { ComponentProps } from 'react'
 
-import type { EvaluationConfig } from '@/lib/api/evaluation-types'
+import {
+  registerMetric,
+  registerMetricGroup,
+  type EvaluationConfig,
+} from '@/lib/api/evaluation-types'
 import { StepEvaluationMethods } from '../StepEvaluationMethods'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -83,6 +87,24 @@ jest.mock('@/hooks/useModels', () => ({
     ],
   }),
 }))
+
+// A judge of a submitted answer, as an overlay declares one: its prediction
+// defaults name the human side.
+registerMetricGroup({
+  name: 'Answer Judges',
+  description: 'Registered by an overlay',
+  metrics: ['answer_judge'],
+})
+registerMetric('answer_judge', {
+  name: 'answer_judge',
+  display_name: 'Answer Judge',
+  description: 'Grades the submitted answer',
+  category: 'Answer Judges',
+  status: 'stable',
+  supports_parameters: false,
+  default_prediction_fields: ['human:loesung', '__all_human__'],
+  default_reference_fields: ['musterloesung'],
+})
 
 const JUDGE_PAIR: EvaluationConfig[] = [
   {
@@ -321,5 +343,50 @@ describe('evaluation settings slot (ProjectWizardEvaluationSettings)', () => {
     mockSettingsSlotRegistered = true
     setup([])
     expect(screen.queryByTestId('evaluation-settings')).not.toBeInTheDocument()
+  })
+})
+
+describe('StepEvaluationMethods — stored fields spelled unlike the options', () => {
+  // A preset stores the bare `loesung` and `task.musterloesung`; the pickers
+  // offer `human:loesung`, `model:loesung` and the data column. The trigger
+  // must name the option the stored value stands for, not a raw value that
+  // matches none, and showing it must not rewrite the config.
+  const bare = (metric: string): EvaluationConfig => ({
+    id: `bare-${metric}`,
+    metric,
+    prediction_fields: ['loesung'],
+    reference_fields: ['task.musterloesung'],
+    enabled: true,
+  })
+
+  function pickers(metric: string) {
+    expandMetric(metric)
+    const panel = screen.getByTestId(`wizard-metric-config-${metric}-0`)
+    const [prediction, reference] = within(panel).getAllByRole('combobox')
+    return { prediction, reference }
+  }
+
+  it('shows a bare answer field as the human option for a judge that declares the human side', () => {
+    const { onEvaluationConfigsChange } = setup([bare('answer_judge')])
+    const { prediction, reference } = pickers('answer_judge')
+    expect(prediction).toHaveValue('human:loesung')
+    expect(reference).toHaveValue('musterloesung')
+    expect(onEvaluationConfigsChange).not.toHaveBeenCalled()
+  })
+
+  it('shows a bare field as the model option for a metric that declares nothing', () => {
+    setup([bare('rouge')])
+    const { prediction, reference } = pickers('rouge')
+    expect(prediction).toHaveValue('model:loesung')
+    expect(reference).toHaveValue('musterloesung')
+  })
+
+  it('stores the picked option once the user picks one', () => {
+    const { onEvaluationConfigsChange } = setup([bare('answer_judge')])
+    const { prediction } = pickers('answer_judge')
+    fireEvent.change(prediction, { target: { value: 'model:loesung' } })
+    const configs = onEvaluationConfigsChange.mock.calls.at(-1)![0]
+    expect(configs[0].prediction_fields).toEqual(['model:loesung'])
+    expect(configs[0].reference_fields).toEqual(['task.musterloesung'])
   })
 })
