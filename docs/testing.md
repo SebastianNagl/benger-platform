@@ -244,17 +244,7 @@ make test-api-comprehensive # All API test categories
 
 ## CI/CD Pipeline
 
-The GitHub Actions CI/CD pipeline runs the same tests as `make test`:
-
-1. **API Unit Tests** - In Docker container
-2. **Worker Unit Tests** - In Docker container
-3. **Frontend Jest Tests** - npm test
-4. **E2E Playwright Tests** - Against full ephemeral stack
-
-Triggered on:
-- Pull requests to master
-- Direct pushes to master
-- Manual workflow dispatch
+What runs on each PR and what runs nightly is described in [development/TESTING.md](development/TESTING.md#github-actions).
 
 ---
 
