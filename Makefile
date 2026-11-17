@@ -481,12 +481,17 @@ else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner
 endif
 
+.PHONY: test-workers-gate
+test-workers-gate: ## The workers suite as the merge gate runs it: no coverage (the ratchet runs at night via test-workers)
+	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner \
+		"pip install -q -r requirements-test.txt && pytest tests/ --no-cov --maxfail=10"
+
 # Real-source coverage floor for the platform API (benger-extended issue
 # #33 ratchet). Measured 2026-06-14 on the dockerized suite: ~66.5%
 # combined line+branch of REAL source — test files and CLI scripts are
 # excluded via services/api/.coveragerc `omit` (counting tests had
 # inflated the headline to ~89%). The API suite is sharded in CI
-# (ci.yml `integration-tests`), so the floor is NOT enforced per-shard
+# (nightly-coverage.yml), so the floor is NOT enforced per-shard
 # (each shard sees only ~1/5 of the tests); instead each shard uploads its
 # coverage data and the `api-coverage-gate` job combines them and runs the
 # target below. Bump to floor(measured) with every test-adding PR; never
