@@ -488,9 +488,11 @@ async def test_a_blocked_submitter_keeps_only_their_own_submission(
             r = await client.get(f"/api/projects/{p.id}/tasks")
             assert r.status_code == 200, r.text
             assert [t["id"] for t in r.json()["items"]] == [task.id]
+            # Task 1 of 2 submitted: /next must not look finished, the exam
+            # is closed for the unsubmitted rest.
             r = await client.get(f"/api/projects/{p.id}/next")
-            assert r.status_code == 200
-            assert r.json()["task"] is None
+            assert r.status_code == 403
+            assert r.json()["detail"]["code"] == EXAM_NOT_READY_CODE
             r = await client.get(f"/api/projects/tasks/{task.id}/annotations")
             assert r.status_code == 200, r.text
             assert {a["completed_by"] for a in r.json()} == {submitter.id}
@@ -527,3 +529,64 @@ async def test_a_blocked_submitter_keeps_only_their_own_submission(
     with _as_user(w["student"]):
         r = await client.get("/api/data/", params={"project_ids": [p.id]})
         assert sorted(t["id"] for t in r.json()["items"]) == sorted([task.id, unsubmitted.id])
+
+
+def test_the_task_export_refuses_a_blocked_submitter(client, test_db):
+    # A public CONTRIBUTOR visitor may export the whole project (the full-data
+    # role) but is no editor; an own submission must not open the closed exam
+    # through the export.
+    now = datetime.now(timezone.utc)
+
+    def user():
+        u = User(
+            id=_uid(),
+            username=f"u-{_uid()[:8]}",
+            email=f"{_uid()[:8]}@example.com",
+            name="Person",
+            is_active=True,
+            email_verified=True,
+            created_at=now,
+        )
+        test_db.add(u)
+        test_db.flush()
+        return u
+
+    owner, visitor = user(), user()
+    p = Project(
+        id=_uid(),
+        title="Public exam",
+        created_by=owner.id,
+        kind="exam",
+        is_private=False,
+        is_public=True,
+        public_role="CONTRIBUTOR",
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    test_db.add(p)
+    test_db.flush()
+    task = Task(id=_uid(), project_id=p.id, data={"text": "Sachverhalt"}, inner_id=1)
+    test_db.add(task)
+    test_db.flush()
+    test_db.add(
+        Annotation(
+            id=_uid(),
+            task_id=task.id,
+            project_id=p.id,
+            completed_by=visitor.id,
+            result=[{"from_name": "x", "to_name": "text", "type": "textarea", "value": {}}],
+            was_cancelled=False,
+        )
+    )
+    test_db.commit()
+    path = f"/api/projects/{p.id}/tasks/bulk-export"
+
+    with _as_user(visitor):
+        assert client.post(path, json={"format": "json"}).status_code == 200
+        with _extended(_Hook(block=RUBRIC_BLOCK)):
+            r = client.post(path, json={"format": "json"})
+            assert r.status_code == 403, r.text
+            assert r.json()["detail"]["code"] == EXAM_NOT_READY_CODE
+            assert "Sachverhalt" not in r.text
+    with _as_user(owner):
+        with _extended(_Hook(block=RUBRIC_BLOCK)):
+            assert client.post(path, json={"format": "json"}).status_code == 200

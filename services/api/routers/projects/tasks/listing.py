@@ -557,11 +557,7 @@ async def get_next_task(
 
     # Timed access window: no next task to hand out before the window opens
     # (editors exempt).
-    tier = await enforce_project_read_window_async(
-        db, current_user, project, tier=tier, allow_attempted=True
-    )
-    if tier == TIER_ATTEMPTED:
-        return {"detail": "No tasks available", "task": None}
+    await enforce_project_read_window_async(db, current_user, project, tier=tier)
     # Safe Exam Browser: the next task is by definition unsubmitted content.
     # Outside SEB, a user with nothing left to do gets the normal "done"
     # answer instead of a 403.
