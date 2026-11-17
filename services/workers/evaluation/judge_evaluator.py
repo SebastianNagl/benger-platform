@@ -117,11 +117,15 @@ def _evaluate_llm_judge_single_impl(
     # (task_rubrics row), not from the config. Injecting them here flips
     # is_multidim_mode() below, so the rubric metric always takes the
     # multi-dim path. Missing rubric raises — same failure convention as the
-    # other terminal errors in this impl (caller persists the error row).
+    # other terminal errors in this impl (caller persists the error row, with
+    # the exception's ``code`` as the row's ``error_code``). The immediate
+    # dispatch holds a sheet judge without a sheet, so this only fires when
+    # the sheet went away between dispatch and grading.
     task_rubric = None
     if metric_type == "llm_judge_rubric":
-        from evaluation.cell_evaluator import _NO_RUBRIC_ERROR, _resolve_task_rubric
+        from evaluation.cell_evaluator import _resolve_task_rubric
         from project_models import Task as ProjectTask
+        from task_rubric_resolution import NoUsableRubricError
 
         rubric_task_row = (
             db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
@@ -132,7 +136,7 @@ def _evaluate_llm_judge_single_impl(
             else None
         )
         if task_rubric is None:
-            raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
+            raise NoUsableRubricError(task_id)
         # Criteria + rubric mode (fixed roles, tagged inputs, verified
         # evidence), exactly as the bulk cell paths bind them.
         from evaluation.cell_evaluator import _rubric_score_unit_kwargs

@@ -288,6 +288,9 @@ const BILLING_BLOCK_KEYS: Record<string, string> = {
   org_key_missing: 'orgKeyMissing',
   connection_removed: 'connectionRemoved',
   billing_check_failed: 'checkFailed',
+  // Not billing: a grading held until the task has a usable Bewertungsbogen
+  // (same block mechanism, core 2.54).
+  rubric_missing: 'rubricMissing',
 }
 
 /**

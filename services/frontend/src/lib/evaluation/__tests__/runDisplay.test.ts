@@ -366,6 +366,10 @@ describe('describeBillingBlock', () => {
     expect(
       describeBillingBlock('billing_blocked:billing_check_failed', t),
     ).toContain('später erneut')
+    // Not a billing refusal: the grading waits for the task's sheet.
+    expect(describeBillingBlock('billing_blocked:rubric_missing', t)).toBe(
+      'Für diese Aufgabe ist noch kein Bewertungsbogen aktiv. Die KI-Bewertung startet, sobald einer bereitsteht.',
+    )
     expect(describeBillingBlock('billing_blocked:toString', t)).toBe(
       'Die Abrechnung hat die KI-Bewertung abgelehnt.',
     )

@@ -7580,7 +7580,8 @@
         "connectionRemoved": "Die Lernplattform-Anbindung dieser Klausur besteht nicht mehr. Die KI-Bewertung wurde deshalb nicht gestartet.",
         "orgKeyMissing": "Die Organisation, über deren Lernplattform diese Klausur läuft, hat keinen API-Schlüssel für die gewählten Bewertungsmodelle hinterlegt. Die KI-Bewertung wurde deshalb nicht gestartet.",
         "orgNotPaying": "Die Organisation, über deren Lernplattform diese Klausur läuft, stellt keine API-Schlüssel bereit. Die KI-Bewertung wurde deshalb nicht gestartet.",
-        "other": "Die Abrechnung hat die KI-Bewertung abgelehnt."
+        "other": "Die Abrechnung hat die KI-Bewertung abgelehnt.",
+        "rubricMissing": "Für diese Aufgabe ist noch kein Bewertungsbogen aktiv. Die KI-Bewertung startet, sobald einer bereitsteht."
       },
       "unmatchedConfigsTitle": "Evaluierungen ohne passende Daten",
       "openProject": "Projekt öffnen",

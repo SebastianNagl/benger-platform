@@ -873,11 +873,59 @@ whenever one is added, renamed or removed):
   - ``app_version.app_version()``: the image tag from ``BENGER_APP_VERSION``
     (set by the Helm chart on the api, every worker, the beat and the
     migration job), ``None`` when unset.
+
+2.54 (2026-11-17): exam readiness seams (no grading without a usable sheet).
+  - Exam not open yet: optional worker attribute
+    ``<package>.workers.get_exam_open_block_fn`` (gating class ``gated``)
+    returning ``fn(db, *, project, user_id) -> None | dict | str``. The
+    platform asks it in ``enforce_project_read_window(_async)`` after the
+    window rule and in the ``/api/data`` scope, never on writes; editors,
+    superadmins and the attempted tier pass. The guards now return the tier
+    the caller must apply from then on; with the keyword
+    ``allow_attempted=True`` a blocked non-editor with an own submission is
+    demoted to ``TIER_ATTEMPTED`` (own submissions only) instead of refused.
+    Opt in only where the attempted tier's scoping is applied to the
+    returned tier; without it every blocked non-editor is refused, an own
+    submission included. A block answers 403
+    ``{"code": "exam_not_ready", "reason", "message", "project_id"}``
+    (``helpers.EXAM_NOT_READY_CODE``; ``exam_open_block(_async)`` is the
+    rule itself). A failing hook counts as open. Without a package nothing
+    changes.
+  - ``task_rubric_resolution`` (sync): ``resolve_grading_rubric(db, task,
+    metric_parameters, *, review_required=None)`` is the one sheet lookup of
+    the judge cells, the immediate grading and the dispatch
+    (``evaluation.cell_evaluator._resolve_task_rubric`` delegates to it);
+    ``split_held_rubric_judges``, ``RUBRIC_JUDGE_METRIC``,
+    ``RUBRIC_MISSING`` (``"rubric_missing"``), ``NoUsableRubricError``.
+    ``metric_parameters.rubric_selector`` picks only a sheet with
+    ``review_state == "confirmed"`` when the project has
+    ``rubric_review_required``.
+  - Immediate dispatch: a sheet judge on a task without a usable sheet is
+    not dispatched; the other configs run and the run lists the held ones in
+    ``eval_metadata.held_configs``. With nothing else to grade the grading
+    is blocked (``billing_block`` with ``code``/``reason``
+    ``rubric_missing``, ``task_id``, ``held_configs``; error
+    ``billing_blocked:rubric_missing``), which the hourly sweep retries
+    without the attempt cap. ``immediate_eval_dispatch``:
+    ``split_held_configs(db, project, task, configs)`` for dispatchers that
+    build their own run, ``dispatch_waiting_gradings(db, task_id)`` grades
+    the held answers of a task (trigger ``rubric_ready``),
+    ``queue_waiting_gradings(task_id)`` queues it as the worker task
+    ``tasks.dispatch_waiting_gradings`` (``interactive``), and
+    ``grading_retry_state(db, project, annotation)`` says whether an
+    ungraded answer is ``held``, ``retrying``, ``exhausted`` or
+    ``none``.
+  - Worker: the immediate grading skips a sheet judge without a usable sheet
+    (``skipped_configs[].reason == "rubric_missing"``, also
+    ``nothing_to_grade.reason`` when nothing else ran) instead of writing
+    an error row; an error row that still says the sheet is missing (bulk
+    cells, a sheet removed mid-grading) carries
+    ``metrics[<metric>].error_code == "rubric_missing"``.
 """
 
 import os
 
-CORE_API_VERSION = "2.53"
+CORE_API_VERSION = "2.54"
 
 
 def extended_required() -> bool:
