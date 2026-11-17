@@ -528,6 +528,10 @@ export function EvaluationResults({
     selectedConfigId,
     selectedMetricKey,
     hasInflightSelectedRun,
+    // Wait for the auto-select above instead of fetching the unscoped
+    // matrix once on mount; only a project without any method fetches
+    // unscoped.
+    enabled: availableMetricRuns.length === 0 || !!selectedEntry,
   })
 
   // Extract chart data when taskModelData is available (has correct model names)

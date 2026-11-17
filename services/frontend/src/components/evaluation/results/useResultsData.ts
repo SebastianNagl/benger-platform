@@ -134,6 +134,15 @@ interface UseTaskModelDataParams {
   selectedMetricKey: string
   /** Whether the selected run is still pending/running (drives WS+poll). */
   hasInflightSelectedRun: boolean
+  /**
+   * False while the component has methods to choose from but has not
+   * selected one yet (the auto-select runs one render after mount). An
+   * unscoped fetch in that render was aborted client-side a moment later,
+   * yet the server still ran it to the end: on a large project that is the
+   * most expensive variant of the query, competing with the real one.
+   * Defaults to true.
+   */
+  enabled?: boolean
 }
 
 export interface UseTaskModelDataResult {
@@ -157,6 +166,7 @@ export function useTaskModelData({
   selectedConfigId,
   selectedMetricKey,
   hasInflightSelectedRun,
+  enabled = true,
 }: UseTaskModelDataParams): UseTaskModelDataResult {
   const [taskModelData, setTaskModelData] = useState<TaskModelData | null>(null)
   const [taskModelLoading, setTaskModelLoading] = useState(false)
@@ -166,6 +176,7 @@ export function useTaskModelData({
   const lastFetchAtRef = useRef(0)
 
   useEffect(() => {
+    if (!enabled) return
     let cancelled = false
     const controller = new AbortController()
     const cacheKey = `${projectId}|${selectedConfigId}|${selectedMetricKey}|${showHistory}`
@@ -235,7 +246,7 @@ export function useTaskModelData({
 
     // intentionally excluded; otherwise the effect re-fires on every
     // setTaskModelData call and creates a fetch-loop.
-  }, [projectId, selectedConfigId, selectedMetricKey, showHistory]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, selectedConfigId, selectedMetricKey, showHistory, enabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // WebSocket primary + 5 s polling fallback for live cell-by-cell updates.
   // Only opens while a selected run is in-flight; closes immediately when

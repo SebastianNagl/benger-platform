@@ -178,6 +178,10 @@ class TestMigration138Shape:
 
     def test_fill_mirrors_missing_rows_and_drops_orphans(self, test_db: Session):
         conn = test_db.get_bind()
+        # 138's fill writes the columns of 138 only: run it on 138's schema
+        # (migration 139 adds NOT NULL columns; rolled back with the test).
+        with _op_context(conn):
+            _load("139_task_evaluation_metric_keys_scores").downgrade()
         ids = _seed_rows(
             test_db,
             [{"bleu": 1, "rouge": 2}, {"exact_match": 1}, [1], {"chrf": 1}, {"z": 1, "a": 2}],

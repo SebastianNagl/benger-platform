@@ -2640,38 +2640,81 @@ class TaskEvaluation(Base):
 
 
 class TaskEvaluationMetricKeys(Base):
-    """The cell columns and metric keys of every ``task_evaluations`` row.
+    """The cell columns, metric keys and lite metrics of every
+    ``task_evaluations`` row.
 
-    A narrow mirror kept by triggers on ``task_evaluations`` (migration 138):
-    one row per task evaluation with its run, subject (annotation or
-    generation), evaluation config and the top-level keys of its metrics as a
-    sorted JSONB array (``[]`` when metrics is not an object). The
-    evaluation counters of the project tiles, the project list, the
-    dashboard and the hourly ``project_summaries`` refresh read this table
-    instead of the metrics blob: ``jsonb_object_keys(metrics)`` had to
-    de-TOAST every row, which ran past the API's 15 s statement timeout on a
-    1.36M-row / 12 GB table. No application code writes it.
+    A narrow mirror kept by triggers on ``task_evaluations`` (migrations 138
+    and 139): one row per task evaluation with its run, task, subject
+    (annotation or generation), evaluation config, field name and creation
+    time, the top-level keys of its metrics as a sorted JSONB array (``[]``
+    when metrics is not an object), and ``metrics_lite``: the metrics without
+    the heavy nested fields score extraction never reads
+    (``task_evaluation_metrics_lite``, the same function the read-time
+    projection in ``routers/evaluations/metrics_lite.py`` calls).
+
+    Readers that need only cells, keys or scores read this table instead of
+    the metrics blob, whose de-TOAST ran past the API's 15 s statement
+    timeout: the evaluation counters of the project tiles, the project list,
+    the dashboard and the hourly ``project_summaries`` refresh (1.36M rows /
+    12 GB on dev), and the project-level by-task-model grid of the
+    evaluations page (ZJS Fälle: 160k rows whose judge rubric text the old
+    query de-TOASTed for every request). No application code writes it.
     """
 
     __tablename__ = "task_evaluation_metric_keys"
 
     task_evaluation_id = Column(String, primary_key=True)
     evaluation_id = Column(String, nullable=False, index=True)
-    annotation_id = Column(String, nullable=True)
-    generation_id = Column(String, nullable=True)
+    # Indexed (migration 139) for the grid's joins to the latest generation
+    # and annotation of each cell: without them the planner could only
+    # filter one side against the materialized other, which on a
+    # misestimate ran a 307M-comparison nested loop (12.5 s on ZJS Fälle).
+    annotation_id = Column(String, nullable=True, index=True)
+    generation_id = Column(String, nullable=True, index=True)
     evaluation_config_id = Column(String, nullable=True)
     metric_keys = Column(JSONB, nullable=False)
+    # Migration 139.
+    task_id = Column(String, nullable=False)
+    field_name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    metrics_lite = Column(JSONB, nullable=False)
 
 
 # The function that derives the keys and the triggers that keep
 # ``task_evaluation_metric_keys`` in step with ``task_evaluations`` for every
 # writer (ORM, raw-SQL migrations and scripts, the overlay): insert and the
 # cell columns' updates (including the ON DELETE SET NULL of annotation and
-# generation) upsert the row, delete and truncate remove it. Migration 138
-# runs the same statements (kept verbatim there; a migration never imports
-# the models); a schema built with ``Base.metadata.create_all`` (the test
-# databases) gets them through the ``after_create`` listener below. Every
-# statement is idempotent, as that listener fires on each create_all.
+# generation) upsert the row, delete and truncate remove it. Migrations 138
+# and 139 run the same statements (kept verbatim there; a migration never
+# imports the models); a schema built with ``Base.metadata.create_all`` (the
+# test databases) gets them through the ``after_create`` listener below.
+# Every statement is idempotent, as that listener fires on each create_all.
+#
+# The columns migration 139 added, for a long-lived test database whose
+# mirror table create_all built before them (create_all skips an existing
+# table); ``backfill_task_evaluation_metric_keys`` fills them and sets them
+# NOT NULL.
+TASK_EVALUATION_METRIC_KEYS_COLUMNS = """
+ALTER TABLE task_evaluation_metric_keys
+    ADD COLUMN IF NOT EXISTS task_id VARCHAR,
+    ADD COLUMN IF NOT EXISTS field_name VARCHAR,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS metrics_lite JSONB
+"""
+# The metrics without the heavy nested fields (``details``, ``method``,
+# ``raw``, ``justification``) of each metric value; ``{}`` when metrics is
+# not an object. Score extraction (``_extract_primary_score`` /
+# ``coerce_metric_value``) reads only what survives.
+TASK_EVALUATION_METRICS_LITE_FUNCTION = """
+CREATE OR REPLACE FUNCTION task_evaluation_metrics_lite(m jsonb) RETURNS jsonb AS $fn$
+    SELECT COALESCE(jsonb_object_agg(k,
+        CASE WHEN jsonb_typeof(v) = 'object'
+             THEN v - 'details' - 'method' - 'raw' - 'justification'
+             ELSE v END
+      ), '{}'::jsonb)
+    FROM jsonb_each(CASE WHEN jsonb_typeof(m) = 'object' THEN m ELSE '{}'::jsonb END) AS j(k, v)
+$fn$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+"""
 TASK_EVALUATION_METRIC_KEYS_FUNCTION = """
 CREATE OR REPLACE FUNCTION task_evaluation_metric_keys(m jsonb) RETURNS jsonb AS $fn$
     SELECT CASE WHEN jsonb_typeof(m) = 'object'
@@ -2693,17 +2736,24 @@ BEGIN
     IF TG_OP IN ('INSERT', 'UPDATE') THEN
         INSERT INTO task_evaluation_metric_keys (
             task_evaluation_id, evaluation_id, annotation_id, generation_id,
-            evaluation_config_id, metric_keys
+            evaluation_config_id, metric_keys, task_id, field_name, created_at,
+            metrics_lite
         ) VALUES (
             NEW.id, NEW.evaluation_id, NEW.annotation_id, NEW.generation_id,
-            NEW.evaluation_config_id, task_evaluation_metric_keys(NEW.metrics)
+            NEW.evaluation_config_id, task_evaluation_metric_keys(NEW.metrics),
+            NEW.task_id, NEW.field_name, NEW.created_at,
+            task_evaluation_metrics_lite(NEW.metrics)
         )
         ON CONFLICT (task_evaluation_id) DO UPDATE SET
             evaluation_id = EXCLUDED.evaluation_id,
             annotation_id = EXCLUDED.annotation_id,
             generation_id = EXCLUDED.generation_id,
             evaluation_config_id = EXCLUDED.evaluation_config_id,
-            metric_keys = EXCLUDED.metric_keys;
+            metric_keys = EXCLUDED.metric_keys,
+            task_id = EXCLUDED.task_id,
+            field_name = EXCLUDED.field_name,
+            created_at = EXCLUDED.created_at,
+            metrics_lite = EXCLUDED.metrics_lite;
     END IF;
     RETURN NULL;
 END;
@@ -2712,7 +2762,8 @@ $fn$ LANGUAGE plpgsql
 TASK_EVALUATION_METRIC_KEYS_ROW_TRIGGER = """
 CREATE OR REPLACE TRIGGER trg_task_evaluation_metric_keys
 AFTER INSERT OR DELETE OR UPDATE OF
-    id, evaluation_id, annotation_id, generation_id, evaluation_config_id, metrics
+    id, evaluation_id, annotation_id, generation_id, evaluation_config_id, metrics,
+    task_id, field_name, created_at
 ON task_evaluations
 FOR EACH ROW EXECUTE FUNCTION task_evaluation_metric_keys_sync()
 """
@@ -2721,7 +2772,17 @@ CREATE OR REPLACE TRIGGER trg_task_evaluation_metric_keys_truncate
 AFTER TRUNCATE ON task_evaluations
 FOR EACH STATEMENT EXECUTE FUNCTION task_evaluation_metric_keys_sync()
 """
+# The indexes of migration 139, for the same long-lived test database.
+TASK_EVALUATION_METRIC_KEYS_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS ix_task_evaluation_metric_keys_generation_id "
+    "ON task_evaluation_metric_keys (generation_id)",
+    "CREATE INDEX IF NOT EXISTS ix_task_evaluation_metric_keys_annotation_id "
+    "ON task_evaluation_metric_keys (annotation_id)",
+)
 TASK_EVALUATION_METRIC_KEYS_DDL = (
+    TASK_EVALUATION_METRIC_KEYS_COLUMNS,
+    *TASK_EVALUATION_METRIC_KEYS_INDEXES,
+    TASK_EVALUATION_METRICS_LITE_FUNCTION,
     TASK_EVALUATION_METRIC_KEYS_FUNCTION,
     TASK_EVALUATION_METRIC_KEYS_SYNC_FUNCTION,
     TASK_EVALUATION_METRIC_KEYS_ROW_TRIGGER,
@@ -2740,17 +2801,31 @@ del _statement
 
 
 def backfill_task_evaluation_metric_keys(connection) -> None:
-    """Add the mirror rows a database is missing, e.g. a long-lived test
-    database whose task evaluations predate the triggers. Deployed
-    databases are filled by migration 138."""
+    """Add the mirror rows a database is missing and fill the columns of
+    migration 139 where they are empty, then make those NOT NULL, e.g. for a
+    long-lived test database whose task evaluations predate the triggers.
+    Deployed databases are filled by migrations 138 and 139."""
     connection.execute(
         text(
             "INSERT INTO task_evaluation_metric_keys (task_evaluation_id, evaluation_id, "
-            "annotation_id, generation_id, evaluation_config_id, metric_keys) "
+            "annotation_id, generation_id, evaluation_config_id, metric_keys, task_id, "
+            "field_name, created_at, metrics_lite) "
             "SELECT te.id, te.evaluation_id, te.annotation_id, te.generation_id, "
-            "te.evaluation_config_id, task_evaluation_metric_keys(te.metrics) "
-            "FROM task_evaluations te WHERE NOT EXISTS (SELECT 1 FROM "
-            "task_evaluation_metric_keys k WHERE k.task_evaluation_id = te.id)"
+            "te.evaluation_config_id, task_evaluation_metric_keys(te.metrics), te.task_id, "
+            "te.field_name, te.created_at, task_evaluation_metrics_lite(te.metrics) "
+            "FROM task_evaluations te LEFT JOIN task_evaluation_metric_keys k "
+            "ON k.task_evaluation_id = te.id "
+            "WHERE k.task_evaluation_id IS NULL OR k.created_at IS NULL "
+            "ON CONFLICT (task_evaluation_id) DO UPDATE SET task_id = EXCLUDED.task_id, "
+            "field_name = EXCLUDED.field_name, created_at = EXCLUDED.created_at, "
+            "metrics_lite = EXCLUDED.metrics_lite"
+        )
+    )
+    connection.execute(
+        text(
+            "ALTER TABLE task_evaluation_metric_keys "
+            "ALTER COLUMN task_id SET NOT NULL, ALTER COLUMN field_name SET NOT NULL, "
+            "ALTER COLUMN created_at SET NOT NULL, ALTER COLUMN metrics_lite SET NOT NULL"
         )
     )
 

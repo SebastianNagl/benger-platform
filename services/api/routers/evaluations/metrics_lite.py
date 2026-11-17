@@ -17,10 +17,11 @@ legacy shape, ``{"value": ...}`` (optionally with ``error``), and the
 pre-unified Korrektur blob's top-level ``score``/``total_score`` all
 survive this projection untouched.
 
-``task_evaluations.metrics`` is ``Column(JSON)`` (text JSON), so
-``jsonb_each`` requires an explicit cast — Postgres won't auto-promote
-``json`` to ``jsonb``. Schemas where the column is already jsonb still
-work because the cast is a no-op there.
+The projection is the SQL function ``task_evaluation_metrics_lite(jsonb)``
+(migration 139, ``models.TASK_EVALUATION_METRICS_LITE_FUNCTION``). The
+trigger that keeps ``task_evaluation_metric_keys`` stores the same function's
+result per row, so a reader of that mirror's ``metrics_lite`` column and a
+reader of this expression see identical dicts.
 
 Rows whose metrics hold a JSON non-object (``null`` is written when a row is
 saved with ``metrics=None``) project to ``{}``: ``jsonb_each`` raises on a
@@ -31,16 +32,7 @@ import re
 
 from sqlalchemy import literal_column
 
-_METRICS_LITE_SQL = """
-    (SELECT COALESCE(jsonb_object_agg(k,
-        CASE WHEN jsonb_typeof(v) = 'object'
-             THEN v - 'details' - 'method' - 'raw' - 'justification'
-             ELSE v END
-      ), '{}'::jsonb)
-     FROM jsonb_each(CASE WHEN jsonb_typeof({table}.metrics::jsonb) = 'object'
-                          THEN {table}.metrics::jsonb
-                          ELSE '{}'::jsonb END) AS j(k, v))
-"""
+_METRICS_LITE_SQL = "task_evaluation_metrics_lite({table}.metrics::jsonb)"
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -51,10 +43,9 @@ def metrics_lite_expr(label: str = "metrics", table: str = "task_evaluations"):
     Use in place of ``TaskEvaluation.metrics`` in any query that only
     extracts scores; the result keeps the ``metrics`` row-attribute name
     (or ``label``) so consumers are unchanged. ``table`` names the relation
-    (or alias) the correlated subquery reads from — the default matches the
+    (or alias) whose ``metrics`` column it reads — the default matches the
     bare table so existing callers are unchanged.
     """
     if not _IDENTIFIER.match(table):
         raise ValueError(f"invalid table identifier for metrics_lite_expr: {table!r}")
-    # str.replace, not .format(): the SQL contains a literal '{}'::jsonb
     return literal_column(_METRICS_LITE_SQL.replace("{table}", table)).label(label)
