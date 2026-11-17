@@ -219,7 +219,7 @@ jobs:
               echo
             done
             echo
-            echo "A GITHUB_TOKEN push starts no pull_request run, so this job dispatches ci.yml on \`$REFRESH_BRANCH\` (the full gate, no deploy: notify-extended runs on push only). Its checks appear on the head commit; re-run with \`gh workflow run ci.yml --ref $REFRESH_BRANCH\`."
+            echo "A GITHUB_TOKEN push starts no pull_request run, so this job dispatches ci.yml on \`$REFRESH_BRANCH\` with the full API, workers and Jest suites instead of the smoke suites, since a dependency upgrade can break anything (no deploy: notify-extended runs on push only). Its checks appear on the head commit; re-run with \`gh workflow run ci.yml --ref $REFRESH_BRANCH -f full=true\`."
           } > "$RUNNER_TEMP/pr-body.md"
 
           if gh pr view "$REFRESH_BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
@@ -230,4 +230,4 @@ jobs:
               --body-file "$RUNNER_TEMP/pr-body.md"
           fi
 
-          gh workflow run ci.yml --ref "$REFRESH_BRANCH"
+          gh workflow run ci.yml --ref "$REFRESH_BRANCH" -f full=true

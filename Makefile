@@ -482,9 +482,43 @@ else
 endif
 
 .PHONY: test-workers-gate
-test-workers-gate: ## The workers suite as the merge gate runs it: no coverage (the ratchet runs at night via test-workers)
+test-workers-gate: ## The workers suite as a full CI run (ci.yml with full=true) runs it: no coverage (the ratchet runs at night via test-workers)
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner \
 		"pip install -q -r requirements-test.txt && pytest tests/ --no-cov --maxfail=10"
+
+# Smoke suites (benger-extended issue #193): what ci.yml runs on every PR and
+# every push to main. Each target runs the tests its manifest lists (the
+# manifest is the only definition of the set), then scripts/check_smoke.py fails
+# the run when a listed test did not run, was skipped or failed. The full
+# suites run at night (nightly-tests.yml, nightly-coverage.yml) and on demand
+# (gh workflow run ci.yml --ref <branch> -f full=true). Serial on purpose: the
+# sets are small, and one process builds the test schema once.
+SMOKE_PYTEST := pytest -q -p no:cacheprovider -o junit_family=xunit1 --junitxml=.smoke-results.xml @tests/smoke_manifest.txt
+
+.PHONY: test-smoke
+test-smoke: test-smoke-api test-smoke-workers test-smoke-frontend ## Run the three smoke suites as CI does (needs make test-start-lite)
+
+.PHONY: test-smoke-api
+test-smoke-api: ## Run the API smoke suite (services/api/tests/smoke_manifest.txt) and its check
+	@rm -f $(API_DIR)/.smoke-results.xml
+	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
+		"pip install -q -r requirements-test.txt && $(SMOKE_PYTEST)"
+	@python3 scripts/check_smoke.py api
+
+.PHONY: test-smoke-workers
+test-smoke-workers: ## Run the workers smoke suite (services/workers/tests/smoke_manifest.txt) and its check
+	@rm -f services/workers/.smoke-results.xml
+	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner \
+		"pip install -q -r requirements-test.txt && $(SMOKE_PYTEST) -n 0 --no-cov"
+	@python3 scripts/check_smoke.py workers
+
+# set -f: the manifest's paths contain [...] and must reach Jest unglobbed.
+.PHONY: test-smoke-frontend
+test-smoke-frontend: ## Run the Jest smoke suite (services/frontend/smoke_manifest.txt) and its check
+	@rm -f $(FRONTEND_DIR)/.smoke-results.json
+	@cd $(FRONTEND_DIR) && set -f && npm test -- --ci --coverage=false \
+		--json --outputFile=.smoke-results.json --runTestsByPath $$(cat smoke_manifest.txt)
+	@python3 scripts/check_smoke.py frontend
 
 # Real-source coverage floor for the platform API (benger-extended issue
 # #33 ratchet). Measured 2026-06-14 on the dockerized suite: ~66.5%
