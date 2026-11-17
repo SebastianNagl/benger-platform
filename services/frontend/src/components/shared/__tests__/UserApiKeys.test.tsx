@@ -901,10 +901,12 @@ describe('UserApiKeys Component', () => {
       render(<UserApiKeys />)
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('AI...')).toBeInTheDocument()
+        expect(
+          screen.getByPlaceholderText('AQ.A... / AIza...'),
+        ).toBeInTheDocument()
       })
 
-      const input = screen.getByPlaceholderText('AI...')
+      const input = screen.getByPlaceholderText('AQ.A... / AIza...')
       await user.type(input, 'short')
 
       const card = getProviderCard('Google')
@@ -920,6 +922,45 @@ describe('UserApiKeys Component', () => {
       })
 
       expect(mockApiClient.setUserApiKey).not.toHaveBeenCalled()
+    })
+
+    // Google AI Studio now issues "AQ." keys with dots; the older "AIza" keys
+    // keep working. Both must reach the backend (fake key shapes, not real keys).
+    it.each([
+      ['new AQ. format', 'AQ.Ab8RN6Lfake-key_not.real0123456789abcdefXYZ'],
+      ['legacy AIza format', 'AIzaSyFakeKeyNotReal0123456789abcdefgh'],
+    ])('saves a Google key in the %s', async (_label, googleKey) => {
+      const user = userEvent.setup()
+      mockApiClient.getUserApiKeys.mockResolvedValue({
+        api_key_status: {
+          openai: false,
+          anthropic: false,
+          google: false,
+          deepinfra: false,
+        },
+        available_providers: ['google'],
+      })
+      mockApiClient.setUserApiKey.mockResolvedValue({})
+
+      render(<UserApiKeys />)
+
+      const card = await waitFor(() => {
+        const found = getProviderCard('Google')
+        expect(found).toBeTruthy()
+        return found as HTMLElement
+      })
+      await user.type(card.querySelector('input') as HTMLElement, googleKey)
+      await user.click(within(card).getByText('Save API Key'))
+
+      await waitFor(() => {
+        expect(mockApiClient.setUserApiKey).toHaveBeenCalledWith(
+          'google',
+          googleKey,
+        )
+      })
+      expect(
+        screen.queryByText('Invalid Google API key format'),
+      ).not.toBeInTheDocument()
     })
 
     it('validates DeepInfra API key format', async () => {
@@ -1570,10 +1611,11 @@ describe('UserApiKeys Component', () => {
         : screen.getAllByText('Save API Key')[0]
       await user.click(saveButton)
 
+      // Surrounding whitespace from a paste is stripped before the key is sent.
       await waitFor(() => {
         expect(mockApiClient.setUserApiKey).toHaveBeenCalledWith(
           'openai',
-          '  sk-test1234567890123456  ',
+          'sk-test1234567890123456',
         )
       })
     })

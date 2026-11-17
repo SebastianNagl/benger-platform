@@ -690,6 +690,43 @@ describe('OrgApiKeys', () => {
       })
     })
 
+    // Google AI Studio now issues "AQ." keys with dots; the older "AIza" keys
+    // keep working. Both must reach the backend (fake key shapes, not real keys).
+    it.each([
+      ['new AQ. format', 'AQ.Ab8RN6Lfake-key_not.real0123456789abcdefXYZ'],
+      ['legacy AIza format', 'AIzaSyFakeKeyNotReal0123456789abcdefgh'],
+    ])('saves a Google key in the %s', async (_label, googleKey) => {
+      mockSetOrgApiKey.mockResolvedValue({ message: 'Saved' })
+
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Google')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('AQ.A... / AIza...')
+      fireEvent.change(input, { target: { value: googleKey } })
+      fireEvent.click(screen.getAllByText('Save API Key')[2])
+
+      await waitFor(() => {
+        expect(mockSetOrgApiKey).toHaveBeenCalledWith(
+          'org-1',
+          'google',
+          googleKey,
+        )
+      })
+      expect(
+        screen.queryByText(/Invalid.*API key format/),
+      ).not.toBeInTheDocument()
+    })
+
     it('shows validation error for invalid key format', async () => {
       render(
         <OrgApiKeys
