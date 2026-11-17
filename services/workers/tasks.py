@@ -5259,6 +5259,33 @@ def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
     return _fail_import_job_impl(db, job_id, message)
 
 
+# Creation-wizard drafts nobody changed for 30 days (wizard_drafts.
+# WIZARD_DRAFT_RETENTION) are discarded like the wizard's "Discard draft":
+# deleted_at is stamped and the batched purge below is queued. Discarded
+# drafts whose purge never finished get it queued again. Daily, via beat.
+@app.task(name="tasks.purge_stale_wizard_drafts", bind=True)
+def purge_stale_wizard_drafts(self) -> Dict[str, Any]:
+    from wizard_drafts import purge_stale_wizard_drafts as sweep
+
+    db = SessionLocal()
+    try:
+        result = sweep(
+            db, lambda job_id: app.send_task("tasks.purge_project", args=[job_id])
+        )
+        logger.info(
+            "purge_stale_wizard_drafts: %d discarded, %d purge(s) queued",
+            len(result["stamped"]),
+            len(result["purge_queued"]),
+        )
+        return result
+    except Exception:
+        db.rollback()
+        logger.exception("purge_stale_wizard_drafts failed")
+        raise
+    finally:
+        db.close()
+
+
 # Irreversible purge of a soft-deleted project (superadmin action). A large
 # project needs minutes (the task_evaluations TOAST dominates), which the API's
 # 15 s statement timeout never allowed, so the API queues this job and the

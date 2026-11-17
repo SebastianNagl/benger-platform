@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
@@ -33,7 +33,6 @@ from services.member_privacy import (
 )
 from user_display import prefers_pseudonym
 from models import (
-    JobStatus,
     LtiPlatformRegistration,
     LtiResourceLink,
     Organization,
@@ -51,8 +50,15 @@ from org_groups import (
     non_lti_attachment,
     role_at_least,
 )
-from project_models import Project, ProjectOrganization, Task
-from project_purge import ACTIVE_STATUSES, stale_running_job
+from project_models import Project, ProjectOrganization, Task, project_listable
+from wizard_drafts import wizard_draft_refusal
+from project_purge import (
+    PURGE_QUEUE_UNAVAILABLE,
+    PurgeQueueUnavailable,
+    active_purge_job_async,
+    enqueue_purge_job_async,
+    supersede_if_stale_async,
+)
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
@@ -341,11 +347,14 @@ async def list_projects(
         accessible_set = set(accessible_ids) if accessible_ids is not None else None
         base_filters = []
         # Soft delete (093): hidden from every list by default; the
-        # superadmin deleted-projects view flips the filter.
+        # superadmin deleted-projects view flips the filter. Creation-wizard
+        # drafts (141) are never listed here (the wizard lists them itself);
+        # a discarded draft whose purge has not finished shows in the
+        # deleted view, flagged by ``is_wizard_draft``.
         if only_deleted and current_user.is_superadmin:
             base_filters.append(Project.deleted_at.isnot(None))
         else:
-            base_filters.append(Project.deleted_at.is_(None))
+            base_filters.append(project_listable())
         if accessible_ids is not None:
             id_filter = Project.id.in_(accessible_ids)
             if participant_map:
@@ -1129,6 +1138,13 @@ async def delete_project(
             detail="Only superadmins, creators of private projects or org admins can delete projects",
         )
 
+    if project.is_wizard_draft:
+        # A creation-wizard draft is discarded: soft delete plus its purge,
+        # and no deletion notification (nobody else ever saw it).
+        from routers.projects.wizard_drafts import discard_wizard_draft
+
+        return await discard_wizard_draft(db, current_user, project)
+
     project_title = project.title
     if project.deleted_at is None:
         project.deleted_at = datetime.now(timezone.utc)
@@ -1168,8 +1184,6 @@ PURGE_STARTED = {
         'Use "Delete permanently" again to finish it.'
     ),
 }
-_PURGE_QUEUE_UNAVAILABLE = "Purge queue unavailable, please retry"
-_SUPERSEDED = "Superseded: the job made no progress for 30 minutes"
 
 
 async def purge_started(db: AsyncSession, project_id: str) -> bool:
@@ -1198,92 +1212,37 @@ def serialize_purge_job(job: ProjectPurgeJob) -> dict:
     }
 
 
+def _send_purge(job_id: str):
+    """Publish ``tasks.purge_project`` for ``job_id`` (looked up at call time,
+    so tests can patch ``send_task_safe`` here)."""
+    return send_task_safe("tasks.purge_project", args=[job_id])
+
+
 async def _supersede_if_stale(db: AsyncSession, job: ProjectPurgeJob) -> bool:
-    """Mark ``job`` failed if it is a running job without progress for
-    ``PURGE_JOB_STALE_AFTER``, judged in the database so a worker that just
-    reclaimed it keeps it; reloads ``job`` either way."""
-    if job.status != JobStatus.RUNNING.value:
-        return False
-    superseded = (
-        await db.execute(
-            update(ProjectPurgeJob)
-            .where(ProjectPurgeJob.id == job.id, stale_running_job())
-            .values(status=JobStatus.FAILED.value, error_message=_SUPERSEDED)
-            .execution_options(synchronize_session=False)
-        )
-    ).rowcount == 1
-    await db.commit()
-    await db.refresh(job)
-    return superseded
+    """See ``project_purge.supersede_if_stale_async``."""
+    return await supersede_if_stale_async(db, job)
 
 
 async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[ProjectPurgeJob]:
-    """The live purge job of the project, or None. A running job that has not
-    moved for ``PURGE_JOB_STALE_AFTER`` is dead and is marked failed here (its
-    worker would skip it, should its message still arrive); a pending job is
-    only waiting in the queue and stays live."""
-    jobs = (
-        await db.execute(
-            select(ProjectPurgeJob)
-            .where(
-                ProjectPurgeJob.project_id == project_id,
-                ProjectPurgeJob.status.in_(ACTIVE_STATUSES),
-            )
-            .order_by(ProjectPurgeJob.created_at.desc())
-        )
-    ).scalars().all()
-    live = None
-    for job in jobs:
-        if await _supersede_if_stale(db, job):
-            continue
-        if live is None and job.status in ACTIVE_STATUSES:
-            live = job
-    return live
+    """See ``project_purge.active_purge_job_async``."""
+    return await active_purge_job_async(db, project_id)
 
 
 async def enqueue_purge_job(
-    db: AsyncSession, current_user: AuthUser, project: Project
+    db: AsyncSession, current_user: Optional[AuthUser], project: Project
 ) -> ProjectPurgeJob:
-    """Queue the purge of the soft-deleted ``project``, or return the purge
-    already live for it; a pending one has its message sent again, in case it
-    was lost (the worker runs a job once, whatever the number of messages).
-    Raises 503 when the queue is unavailable."""
-    existing = await active_purge_job(db, project.id)
-    if existing is not None:
-        if existing.status == JobStatus.RUNNING.value:
-            return existing
-        try:
-            result = send_task_safe("tasks.purge_project", args=[existing.id])
-        except Exception as exc:
-            logger.error("Failed to re-enqueue purge job %s: %s", existing.id, exc)
-            raise HTTPException(status_code=503, detail=_PURGE_QUEUE_UNAVAILABLE)
-        existing.celery_task_id = getattr(result, "id", None)
-        await db.commit()
-        await db.refresh(existing)
-        return existing
-    job = ProjectPurgeJob(
-        id=str(uuid.uuid4()),
-        project_id=project.id,
-        project_title=project.title,
-        requested_by=str(current_user.id),
-        status=JobStatus.PENDING.value,
-        progress=0,
-    )
-    db.add(job)
-    await db.commit()
+    """Queue the purge of the soft-deleted ``project`` (or return the live
+    one) through ``project_purge.enqueue_purge_job_async``; 503 when the queue
+    is unavailable."""
     try:
-        result = send_task_safe("tasks.purge_project", args=[job.id])
-        job.celery_task_id = getattr(result, "id", None)
-        await db.commit()
-    except Exception as exc:
-        logger.error("Failed to enqueue purge job %s: %s", job.id, exc)
-        job.status = JobStatus.FAILED.value
-        job.error_message = _PURGE_QUEUE_UNAVAILABLE
-        await db.commit()
-        raise HTTPException(status_code=503, detail=_PURGE_QUEUE_UNAVAILABLE)
-    # Loads the server-side timestamps for the response.
-    await db.refresh(job)
-    return job
+        return await enqueue_purge_job_async(
+            db,
+            project,
+            str(current_user.id) if current_user is not None else None,
+            _send_purge,
+        )
+    except PurgeQueueUnavailable:
+        raise HTTPException(status_code=503, detail=PURGE_QUEUE_UNAVAILABLE)
 
 
 @router.delete("/{project_id}/purge", status_code=202)
@@ -1430,6 +1389,10 @@ async def update_project_visibility(
         raise HTTPException(status_code=404, detail="Project not found")
     if project.deleted_at is not None and not current_user.is_superadmin:
         raise HTTPException(status_code=404, detail="Project not found")
+    if project.is_wizard_draft:
+        # The finish route of the wizard sets a draft's visibility, as its
+        # last write; an earlier change would show an unfinished project.
+        raise HTTPException(status_code=409, detail=wizard_draft_refusal("visibility"))
 
     # ORG_ADMIN here means superadmin, creator or an admin of an org the project
     # is attached to (group admin on a grouped attachment), per the access rules.

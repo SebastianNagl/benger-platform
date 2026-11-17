@@ -1226,6 +1226,14 @@ export function ProjectListTable({
                                 {t('projects.deleted.badge')}
                               </span>
                             )}
+                            {project.is_wizard_draft && (
+                              <span
+                                className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                                data-testid={`project-wizard-draft-badge-${project.id}`}
+                              >
+                                {t('projects.list.wizardDraftBadge')}
+                              </span>
+                            )}
                             {project.is_archived && !showArchivedOnly && (
                               <span
                                 className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"

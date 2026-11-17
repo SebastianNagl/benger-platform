@@ -294,6 +294,10 @@ def _schema(_eager_celery):
             # Migration 130: where an imported task came from; every Task
             # select names the column.
             "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS source_task_id VARCHAR",
+            # Migration 141: creation-wizard drafts; every Project select
+            # names the column.
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
+            "is_wizard_draft BOOLEAN NOT NULL DEFAULT false",
         ):
             conn.execute(text(_ddl))
         # Migration 138: the task_evaluation_metric_keys mirror. create_all

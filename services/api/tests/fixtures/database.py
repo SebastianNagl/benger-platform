@@ -474,6 +474,9 @@ def _create_tables():
             # (create_all never adds a key to an existing table). Its upgrade
             # is idempotent and removes orphans first, so run it as is.
             _run_migration(conn, "140_generation_cascades_and_purge_jobs")
+            # Migration 141: projects.is_wizard_draft (create_all never adds
+            # a column to an existing table); guarded, so a no-op otherwise.
+            _run_migration(conn, "141_project_wizard_drafts")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

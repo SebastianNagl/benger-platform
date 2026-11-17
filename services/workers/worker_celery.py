@@ -71,6 +71,13 @@ app.conf.beat_schedule = {
         "args": (),
         "kwargs": {},
     },
+    # Creation-wizard drafts untouched for 30 days are discarded and purged.
+    "purge-stale-wizard-drafts": {
+        "task": "tasks.purge_stale_wizard_drafts",
+        "schedule": crontab(minute=45, hour=3),
+        "args": (),
+        "kwargs": {},
+    },
 }
 # Beat entries deliberately carry no ``options: {"queue": ...}``. Beat options go
 # through the same router as any other send and would override task_routes, so

@@ -163,7 +163,9 @@ class TestExtensionLoader:
         # (rubric_review_required, task_rubric_review_events) and app_version.
         # 2.54 adds the exam readiness seams (get_exam_open_block_fn, held
         # sheet judges, dispatch_waiting_gradings).
-        assert CORE_API_VERSION == "2.54"
+        # 2.55 adds creation-wizard drafts (projects.is_wizard_draft,
+        # project_wizard_drafts, project_listable, the draft key scope).
+        assert CORE_API_VERSION == "2.55"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

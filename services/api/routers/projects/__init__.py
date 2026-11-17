@@ -13,6 +13,7 @@ This module aggregates all project-related endpoints into sub-routers:
 - generation: LLM generation
 - generation_reparse: re-parse stored generations (superadmin)
 - label_config_versions: Label config version management
+- wizard_drafts: creation-wizard draft projects (CORE 2.55)
 """
 
 from fastapi import APIRouter
@@ -33,6 +34,7 @@ from routers.projects import (
     shares,
     srs,
     tasks,
+    wizard_drafts,
 )
 
 # Create main router with prefix
@@ -40,6 +42,10 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 # Include all sub-routers
 # Order matters for route matching - more specific routes first
+
+# Creation-wizard drafts first: ``GET /wizard-drafts`` would otherwise match
+# crud's ``GET /{project_id}``.
+router.include_router(wizard_drafts.router)
 
 # Root-level operations (/, /bulk-*, /import-project, /tasks/*)
 router.include_router(crud.router)

@@ -201,3 +201,11 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     window_end_at: null,
   },
 }
+
+/** The label config of a project created without a labeling template. */
+export const DEFAULT_LABEL_CONFIG = `<View>
+  <Text name="text" value="$text"/>
+  <TextArea name="answer" toName="text"
+            placeholder="Enter your answer..."
+            rows="4" maxSubmissions="1"/>
+</View>`

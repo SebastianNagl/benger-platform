@@ -1,7 +1,10 @@
 """Irreversible purge of a soft-deleted project, in short batches.
 
 Shared by the worker task ``tasks.purge_project`` (the only caller in
-production) and the API tests, which drive it on the test DB.
+production) and the API tests, which drive it on the test DB. Queueing a
+purge (:func:`enqueue_purge_job_async` / :func:`enqueue_purge_job_sync`) lives
+here too, so the API's purge and discard routes and the worker's stale-draft
+sweep share one implementation.
 
 Why batches on a worker: one ``DELETE FROM tasks WHERE project_id = ...`` of a
 ZJS-sized project (581 tasks, 160k task_evaluations holding about 3.4 GB of
@@ -180,6 +183,179 @@ def purge_project_data(
     counts["projects"] = db.execute(delete(Project).where(Project.id == project_id)).rowcount
     db.commit()
     return counts
+
+
+# --- Queueing a purge (API routes and the stale-draft sweep) ----------------
+#
+# One implementation with an async (API) and a sync (worker) twin. The caller
+# passes ``send(job_id)``, which publishes ``tasks.purge_project`` for the job
+# and returns the Celery result (its ``id`` is stored on the job): the API
+# sends through ``celery_client.send_task_safe``, the worker through its own
+# app.
+
+#: Error of a job the queue did not accept (the job is marked failed).
+PURGE_QUEUE_UNAVAILABLE = "Purge queue unavailable, please retry"
+#: Error of a running job that made no progress for PURGE_JOB_STALE_AFTER.
+SUPERSEDED = "Superseded: the job made no progress for 30 minutes"
+
+
+class PurgeQueueUnavailable(Exception):
+    """The purge message could not be published; the job is marked failed."""
+
+
+def _build_supersede_stale(job_id: str):
+    return (
+        update(ProjectPurgeJob)
+        .where(ProjectPurgeJob.id == job_id, stale_running_job())
+        .values(status=JobStatus.FAILED.value, error_message=SUPERSEDED)
+        .execution_options(synchronize_session=False)
+    )
+
+
+def _build_select_active_jobs(project_id: str):
+    return (
+        select(ProjectPurgeJob)
+        .where(
+            ProjectPurgeJob.project_id == project_id,
+            ProjectPurgeJob.status.in_(ACTIVE_STATUSES),
+        )
+        .order_by(ProjectPurgeJob.created_at.desc())
+    )
+
+
+def _new_purge_job(project, requested_by: Optional[str]) -> ProjectPurgeJob:
+    import uuid
+
+    return ProjectPurgeJob(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        project_title=project.title,
+        requested_by=str(requested_by) if requested_by else None,
+        status=JobStatus.PENDING.value,
+        progress=0,
+    )
+
+
+async def supersede_if_stale_async(db, job: ProjectPurgeJob) -> bool:
+    """Mark ``job`` failed if it is a running job without progress for
+    ``PURGE_JOB_STALE_AFTER``, judged in the database so a worker that just
+    reclaimed it keeps it; reloads ``job`` either way. Commits."""
+    if job.status != JobStatus.RUNNING.value:
+        return False
+    superseded = (await db.execute(_build_supersede_stale(job.id))).rowcount == 1
+    await db.commit()
+    await db.refresh(job)
+    return superseded
+
+
+def supersede_if_stale_sync(db: Session, job: ProjectPurgeJob) -> bool:
+    """Sync twin of :func:`supersede_if_stale_async`."""
+    if job.status != JobStatus.RUNNING.value:
+        return False
+    superseded = db.execute(_build_supersede_stale(job.id)).rowcount == 1
+    db.commit()
+    db.refresh(job)
+    return superseded
+
+
+async def active_purge_job_async(db, project_id: str) -> Optional[ProjectPurgeJob]:
+    """The live purge job of the project, or None. A running job that has not
+    moved for ``PURGE_JOB_STALE_AFTER`` is dead and is marked failed here (its
+    worker would skip it, should its message still arrive); a pending job is
+    only waiting in the queue and stays live."""
+    jobs = (await db.execute(_build_select_active_jobs(project_id))).scalars().all()
+    live = None
+    for job in jobs:
+        if await supersede_if_stale_async(db, job):
+            continue
+        if live is None and job.status in ACTIVE_STATUSES:
+            live = job
+    return live
+
+
+def active_purge_job_sync(db: Session, project_id: str) -> Optional[ProjectPurgeJob]:
+    """Sync twin of :func:`active_purge_job_async`."""
+    jobs = db.execute(_build_select_active_jobs(project_id)).scalars().all()
+    live = None
+    for job in jobs:
+        if supersede_if_stale_sync(db, job):
+            continue
+        if live is None and job.status in ACTIVE_STATUSES:
+            live = job
+    return live
+
+
+async def enqueue_purge_job_async(
+    db, project, requested_by: Optional[str], send: Callable[[str], object]
+) -> ProjectPurgeJob:
+    """Queue the purge of the soft-deleted ``project``, or return the purge
+    already live for it; a pending one has its message sent again, in case it
+    was lost (the worker runs a job once, whatever the number of messages).
+    ``requested_by`` may be None (the stale-draft sweep). Commits. Raises
+    :class:`PurgeQueueUnavailable` when ``send`` fails."""
+    existing = await active_purge_job_async(db, project.id)
+    if existing is not None:
+        if existing.status == JobStatus.RUNNING.value:
+            return existing
+        try:
+            result = send(existing.id)
+        except Exception as exc:
+            logger.error("Failed to re-enqueue purge job %s: %s", existing.id, exc)
+            raise PurgeQueueUnavailable(PURGE_QUEUE_UNAVAILABLE) from exc
+        existing.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+    job = _new_purge_job(project, requested_by)
+    db.add(job)
+    await db.commit()
+    try:
+        result = send(job.id)
+        job.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+    except Exception as exc:
+        logger.error("Failed to enqueue purge job %s: %s", job.id, exc)
+        job.status = JobStatus.FAILED.value
+        job.error_message = PURGE_QUEUE_UNAVAILABLE
+        await db.commit()
+        raise PurgeQueueUnavailable(PURGE_QUEUE_UNAVAILABLE) from exc
+    # Loads the server-side timestamps for the response.
+    await db.refresh(job)
+    return job
+
+
+def enqueue_purge_job_sync(
+    db: Session, project, requested_by: Optional[str], send: Callable[[str], object]
+) -> ProjectPurgeJob:
+    """Sync twin of :func:`enqueue_purge_job_async`."""
+    existing = active_purge_job_sync(db, project.id)
+    if existing is not None:
+        if existing.status == JobStatus.RUNNING.value:
+            return existing
+        try:
+            result = send(existing.id)
+        except Exception as exc:
+            logger.error("Failed to re-enqueue purge job %s: %s", existing.id, exc)
+            raise PurgeQueueUnavailable(PURGE_QUEUE_UNAVAILABLE) from exc
+        existing.celery_task_id = getattr(result, "id", None)
+        db.commit()
+        db.refresh(existing)
+        return existing
+    job = _new_purge_job(project, requested_by)
+    db.add(job)
+    db.commit()
+    try:
+        result = send(job.id)
+        job.celery_task_id = getattr(result, "id", None)
+        db.commit()
+    except Exception as exc:
+        logger.error("Failed to enqueue purge job %s: %s", job.id, exc)
+        job.status = JobStatus.FAILED.value
+        job.error_message = PURGE_QUEUE_UNAVAILABLE
+        db.commit()
+        raise PurgeQueueUnavailable(PURGE_QUEUE_UNAVAILABLE) from exc
+    db.refresh(job)
+    return job
 
 
 def _public_error(exc: BaseException) -> str:

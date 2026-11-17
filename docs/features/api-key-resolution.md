@@ -73,7 +73,9 @@ Which org id reaches `resolve_api_key` is decided by
   org (admin backfills keep working); everyone else resolves to `None` →
   personal key. Runs a caller starts by hand (generation, batch evaluation)
   pass `min_role="CONTRIBUTOR"`, so an ANNOTATOR membership counts as no
-  membership there (see the module docstring).
+  membership there (see the module docstring). A creation-wizard draft has
+  no organization rows yet, so for its creator its target organization and
+  group stand in for the attachment (CORE 2.55, see the module docstring).
 - `validate_org_context_header(db, user, org_id)` (+ async twin): a
   client-supplied `X-Organization-Context` value is honored only for an
   active member or a superadmin. The middleware passes the header through

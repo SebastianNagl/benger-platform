@@ -221,6 +221,11 @@ async def create_share(
 ):
     """Mint a password-protected share link (personal: owner; org project: ORG_ADMIN)."""
     await _require_share_admin(db, current_user, access.project)
+    if access.project.is_wizard_draft:
+        # Nobody joins an unfinished wizard draft (409 ``wizard_draft``).
+        from wizard_drafts import wizard_draft_refusal
+
+        raise HTTPException(status_code=409, detail=wizard_draft_refusal("share"))
     link = ProjectShareLink(
         id=str(uuid.uuid4()),
         token=secrets.token_urlsafe(32),
@@ -721,13 +726,17 @@ async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
 
 async def _ensure_link_project_alive(db: AsyncSession, link: ProjectShareLink) -> None:
     """A soft-deleted project's links don't resolve (behaves like the project
-    is gone — preview, join and withdrawal all 404)."""
-    deleted = (
+    is gone — preview, join and withdrawal all 404), and neither do the links
+    of a creation-wizard draft (none can be minted; this covers any other
+    way one got there)."""
+    row = (
         await db.execute(
-            select(Project.deleted_at).where(Project.id == link.project_id)
+            select(Project.deleted_at, Project.is_wizard_draft).where(
+                Project.id == link.project_id
+            )
         )
-    ).scalar_one_or_none()
-    if deleted is not None:
+    ).first()
+    if row is not None and (row[0] is not None or row[1]):
         raise HTTPException(status_code=404, detail="Share link not found")
 
 
