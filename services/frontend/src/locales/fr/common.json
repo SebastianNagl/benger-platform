@@ -961,6 +961,7 @@
       "restored": "Projet restauré.",
       "purge": "Supprimer définitivement",
       "purged": "Projet supprimé définitivement.",
+      "purging": "Suppression … {progress} %",
       "purgeConfirm": "Supprimer définitivement « {title} » et TOUTES les données associées (tâches, remises, notations, historiques d'apprentissage) ? Cette action est irréversible.",
       "bannerTitle": "Ce projet a été supprimé le {date}.",
       "bannerBody": "Seuls les superadministrateurs peuvent l'ouvrir ; il est masqué pour tous les autres. Restaurez-le pour y travailler à nouveau.",

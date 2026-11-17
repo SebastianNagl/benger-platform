@@ -1448,6 +1448,87 @@ describe('projectsAPI', () => {
     })
   })
 
+  describe('project purge jobs', () => {
+    const job = (status: string, extra: Record<string, unknown> = {}) => ({
+      job_id: 'purge-1',
+      project_id: 'proj-1',
+      project_title: 'P',
+      status,
+      progress: 0,
+      error_message: null,
+      result: null,
+      created_at: null,
+      updated_at: null,
+      ...extra,
+    })
+
+    it('purgeProject queues the job and polls it until it completes', async () => {
+      ;(apiClient.delete as jest.Mock).mockResolvedValue(job('pending'))
+      ;(apiClient.get as jest.Mock)
+        .mockResolvedValueOnce(job('running', { progress: 40 }))
+        .mockResolvedValueOnce(
+          job('completed', { progress: 100, result: { tasks: 3 } }),
+        )
+
+      const seen: number[] = []
+      const done = await projectsAPI.purgeProject('proj-1', {
+        pollIntervalMs: 0,
+        onStatus: (status) => seen.push(status.progress),
+      })
+      expect(seen).toEqual([0, 40, 100])
+
+      expect(apiClient.delete).toHaveBeenCalledWith('/projects/proj-1/purge')
+      expect(apiClient.get).toHaveBeenCalledTimes(2)
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/proj-1/purge-jobs/purge-1',
+        { cache: 'no-store' },
+      )
+      expect(done.result).toEqual({ tasks: 3 })
+    })
+
+    it('purgeProject throws the job error when the purge fails', async () => {
+      ;(apiClient.delete as jest.Mock).mockResolvedValue(job('running'))
+      ;(apiClient.get as jest.Mock).mockResolvedValueOnce(
+        job('failed', { error_message: 'OperationalError: boom' }),
+      )
+
+      await expect(
+        projectsAPI.purgeProject('proj-1', { pollIntervalMs: 0 }),
+      ).rejects.toThrow('OperationalError: boom')
+    })
+
+    it('purgeProject stops polling when the signal is aborted', async () => {
+      ;(apiClient.delete as jest.Mock).mockResolvedValue(job('pending'))
+      const controller = new AbortController()
+      controller.abort()
+
+      await expect(
+        projectsAPI.purgeProject('proj-1', {
+          pollIntervalMs: 0,
+          signal: controller.signal,
+        }),
+      ).rejects.toThrow(/abort/i)
+      expect(apiClient.get).not.toHaveBeenCalled()
+    })
+
+    it('bulkPurgeProjects posts the ids and returns the queued jobs', async () => {
+      const response = {
+        queued: 1,
+        jobs: [job('pending')],
+        failed: 0,
+        failed_projects: [],
+      }
+      ;(apiClient.post as jest.Mock).mockResolvedValue(response)
+
+      await expect(projectsAPI.bulkPurgeProjects(['proj-1'])).resolves.toEqual(
+        response,
+      )
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/bulk-purge', {
+        project_ids: ['proj-1'],
+      })
+    })
+  })
+
   describe('async export jobs', () => {
     it('createExportJob posts to the exports endpoint with the format', async () => {
       ;(apiClient.post as jest.Mock).mockResolvedValue({

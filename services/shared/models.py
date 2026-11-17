@@ -2278,8 +2278,14 @@ class ResponseGeneration(Base):
     __tablename__ = "response_generations"
 
     id = Column(String, primary_key=True, index=True)
-    project_id = Column(String, nullable=True)  # Associated project ID
-    task_id = Column(String, nullable=True)  # Associated task ID
+    # Both cascade (migration 140): before that a project purge or a task
+    # delete left the jobs and their generations behind without an owner.
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )  # Associated project ID
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True
+    )  # Associated task ID; NULL for a project-level job
     model_id = Column(String, nullable=False)  # Model used for generation
     config_id = Column(
         String,
@@ -2362,9 +2368,12 @@ class Generation(Base):
 
     id = Column(String, primary_key=True, index=True)
     generation_id = Column(
-        String, ForeignKey("response_generations.id"), nullable=False
+        String, ForeignKey("response_generations.id", ondelete="CASCADE"), nullable=False
     )  # Parent generation job
-    task_id = Column(String, nullable=True)  # Associated task ID
+    # Cascades from the task (migration 140), like the parent job does.
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True
+    )  # Associated task ID
     model_id = Column(String, nullable=False)  # Model used for generation
     # prompt_id removed - prompts table dropped in issue #759
     # Prompt functionality now in generation_structure field
@@ -3949,5 +3958,58 @@ class ImportJob(Base):
     def __repr__(self):
         return (
             f"<ImportJob(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
+        )
+
+
+class ProjectPurgeJob(Base):
+    """Background purge of a soft-deleted project (migration 140).
+
+    A purge deletes the project's tasks and everything hanging off them in
+    short batches on a worker (``project_purge.run_project_purge_job``); a
+    large project needs minutes, far beyond the API's 15 s statement timeout.
+    ``project_id`` has no foreign key on purpose: the row outlives the project
+    and is the record of who destroyed it and what that removed.
+    """
+
+    __tablename__ = "project_purge_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, nullable=False, index=True)
+    project_title = Column(String, nullable=True)
+    requested_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    status = Column(String, nullable=False, server_default="pending")
+    progress = Column(Integer, nullable=False, server_default=text("0"))
+    error_message = Column(Text, nullable=True)
+    # Deleted row counts ({"tasks": n, "task_evaluations": n, ...}).
+    result = Column(JSONB, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    # Bumped by every batch, so a job without progress for a while is dead.
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.clock_timestamp(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_project_purge_jobs_status",
+        ),
+        CheckConstraint(
+            "progress >= 0 AND progress <= 100",
+            name="ck_project_purge_jobs_progress_range",
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<ProjectPurgeJob(id={self.id}, project={self.project_id}, "
             f"status={self.status})>"
         )

@@ -36,6 +36,21 @@ def _get_engine():
     return _engine, _SessionFactory
 
 
+def _run_migration(conn, name: str) -> None:
+    """Run the ``upgrade()`` of an idempotent alembic revision on ``conn``."""
+    import importlib.util
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "alembic", "versions", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"_fixture_mig_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(MigrationContext.configure(conn)):
+        module.upgrade()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _create_tables():
     """Create all tables once at session start."""
@@ -455,6 +470,10 @@ def _create_tables():
             from models import backfill_task_evaluation_metric_keys
 
             backfill_task_evaluation_metric_keys(conn)
+            # Migration 140: the generation tables' cascading foreign keys
+            # (create_all never adds a key to an existing table). Its upgrade
+            # is idempotent and removes orphans first, so run it as is.
+            _run_migration(conn, "140_generation_cascades_and_purge_jobs")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

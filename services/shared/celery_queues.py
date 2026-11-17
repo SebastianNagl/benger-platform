@@ -143,6 +143,8 @@ TASK_QUEUES: dict[str, str] = {
     # Default only: the import endpoints route small artifacts to
     # `interactive` per send (see import_queue_for_size below).
     "tasks.import_project": BULK,
+    # Project purge: minutes for a large project, nobody is blocked on it.
+    "tasks.purge_project": BULK,
 }
 
 # Imports up to this size go to `interactive` instead of `bulk`. That covers

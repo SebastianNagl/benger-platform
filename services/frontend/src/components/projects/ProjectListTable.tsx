@@ -226,6 +226,9 @@ export function ProjectListTable({
     )
 
   const [busyId, setBusyId] = useState<string | null>(null)
+  // Progress (0-100) of the running purge of row `busyId`; a large project
+  // takes minutes.
+  const [purgeProgress, setPurgeProgress] = useState<number | null>(null)
 
   const handleRestore = async (project: Project) => {
     setBusyId(project.id)
@@ -251,13 +254,16 @@ export function ProjectListTable({
     if (!ok) return
     setBusyId(project.id)
     try {
-      await projectsAPI.purgeProject(project.id)
+      await projectsAPI.purgeProject(project.id, {
+        onStatus: (status) => setPurgeProgress(status.progress),
+      })
       addToast(t('projects.deleted.purged'), 'success')
       await refetch()
     } catch (err: any) {
       addToast(err?.message || t('common.error'), 'error')
     } finally {
       setBusyId(null)
+      setPurgeProgress(null)
     }
   }
 
@@ -1406,7 +1412,11 @@ export function ProjectListTable({
                               data-testid={`deleted-purge-${project.id}`}
                             >
                               <TrashIcon className="h-4 w-4" />
-                              {t('projects.deleted.purge')}
+                              {busyId === project.id && purgeProgress !== null
+                                ? t('projects.deleted.purging', {
+                                    progress: purgeProgress,
+                                  })
+                                : t('projects.deleted.purge')}
                             </Button>
                           </div>
                         ) : project.kind === 'flashcard_collection' ? (

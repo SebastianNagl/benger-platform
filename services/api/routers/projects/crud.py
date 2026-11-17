@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
@@ -17,6 +17,7 @@ import extensions
 from auth_module import require_user
 from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
+from celery_client import send_task_safe
 from database import SessionLocal, get_async_db
 from grade_scale_history import (
     GRADE_SCALE_KEY,
@@ -32,11 +33,13 @@ from services.member_privacy import (
 )
 from user_display import prefers_pseudonym
 from models import (
+    JobStatus,
     LtiPlatformRegistration,
     LtiResourceLink,
     Organization,
     OrganizationGroup,
     OrganizationMembership,
+    ProjectPurgeJob,
     User,
 )
 from notification_service import notify_project_created, notify_project_deleted
@@ -49,6 +52,7 @@ from org_groups import (
     role_at_least,
 )
 from project_models import Project, ProjectOrganization, Task
+from project_purge import ACTIVE_STATUSES, stale_running_job
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
@@ -1149,22 +1153,155 @@ async def restore_project(
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    if await purge_started(db, project_id):
+        raise HTTPException(status_code=409, detail=PURGE_STARTED)
     project.deleted_at = None
     project.deleted_by = None
     await db.commit()
     return {"message": "Project restored", "id": project_id}
 
 
-@router.delete("/{project_id}/purge")
+PURGE_STARTED = {
+    "code": "purge_started",
+    "message": (
+        "The permanent deletion of this project was started and cannot be undone. "
+        'Use "Delete permanently" again to finish it.'
+    ),
+}
+_PURGE_QUEUE_UNAVAILABLE = "Purge queue unavailable, please retry"
+_SUPERSEDED = "Superseded: the job made no progress for 30 minutes"
+
+
+async def purge_started(db: AsyncSession, project_id: str) -> bool:
+    """Whether a purge was ever requested for the project. The batched purge
+    commits batch by batch, so any such job (failed ones included) may have
+    removed part of the project already, and a restore would bring back a
+    partial project."""
+    return (
+        await db.execute(
+            select(ProjectPurgeJob.id).where(ProjectPurgeJob.project_id == project_id).limit(1)
+        )
+    ).first() is not None
+
+
+def serialize_purge_job(job: ProjectPurgeJob) -> dict:
+    return {
+        "job_id": job.id,
+        "project_id": job.project_id,
+        "project_title": job.project_title,
+        "status": job.status,
+        "progress": job.progress,
+        "error_message": job.error_message,
+        "result": job.result,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+    }
+
+
+async def _supersede_if_stale(db: AsyncSession, job: ProjectPurgeJob) -> bool:
+    """Mark ``job`` failed if it is a running job without progress for
+    ``PURGE_JOB_STALE_AFTER``, judged in the database so a worker that just
+    reclaimed it keeps it; reloads ``job`` either way."""
+    if job.status != JobStatus.RUNNING.value:
+        return False
+    superseded = (
+        await db.execute(
+            update(ProjectPurgeJob)
+            .where(ProjectPurgeJob.id == job.id, stale_running_job())
+            .values(status=JobStatus.FAILED.value, error_message=_SUPERSEDED)
+            .execution_options(synchronize_session=False)
+        )
+    ).rowcount == 1
+    await db.commit()
+    await db.refresh(job)
+    return superseded
+
+
+async def active_purge_job(db: AsyncSession, project_id: str) -> Optional[ProjectPurgeJob]:
+    """The live purge job of the project, or None. A running job that has not
+    moved for ``PURGE_JOB_STALE_AFTER`` is dead and is marked failed here (its
+    worker would skip it, should its message still arrive); a pending job is
+    only waiting in the queue and stays live."""
+    jobs = (
+        await db.execute(
+            select(ProjectPurgeJob)
+            .where(
+                ProjectPurgeJob.project_id == project_id,
+                ProjectPurgeJob.status.in_(ACTIVE_STATUSES),
+            )
+            .order_by(ProjectPurgeJob.created_at.desc())
+        )
+    ).scalars().all()
+    live = None
+    for job in jobs:
+        if await _supersede_if_stale(db, job):
+            continue
+        if live is None and job.status in ACTIVE_STATUSES:
+            live = job
+    return live
+
+
+async def enqueue_purge_job(
+    db: AsyncSession, current_user: AuthUser, project: Project
+) -> ProjectPurgeJob:
+    """Queue the purge of the soft-deleted ``project``, or return the purge
+    already live for it; a pending one has its message sent again, in case it
+    was lost (the worker runs a job once, whatever the number of messages).
+    Raises 503 when the queue is unavailable."""
+    existing = await active_purge_job(db, project.id)
+    if existing is not None:
+        if existing.status == JobStatus.RUNNING.value:
+            return existing
+        try:
+            result = send_task_safe("tasks.purge_project", args=[existing.id])
+        except Exception as exc:
+            logger.error("Failed to re-enqueue purge job %s: %s", existing.id, exc)
+            raise HTTPException(status_code=503, detail=_PURGE_QUEUE_UNAVAILABLE)
+        existing.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+    job = ProjectPurgeJob(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        project_title=project.title,
+        requested_by=str(current_user.id),
+        status=JobStatus.PENDING.value,
+        progress=0,
+    )
+    db.add(job)
+    await db.commit()
+    try:
+        result = send_task_safe("tasks.purge_project", args=[job.id])
+        job.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+    except Exception as exc:
+        logger.error("Failed to enqueue purge job %s: %s", job.id, exc)
+        job.status = JobStatus.FAILED.value
+        job.error_message = _PURGE_QUEUE_UNAVAILABLE
+        await db.commit()
+        raise HTTPException(status_code=503, detail=_PURGE_QUEUE_UNAVAILABLE)
+    # Loads the server-side timestamps for the response.
+    await db.refresh(job)
+    return job
+
+
+@router.delete("/{project_id}/purge", status_code=202)
 async def purge_project(
     project_id: str,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Irreversibly destroy a project and its cascading data (superadmin
-    only). This is the ONLY real delete on the platform; the generic DELETE
-    soft-deletes. Object-storage files are not cleaned up (pre-existing
-    behavior — uploads were already orphaned by the old hard delete)."""
+    """Irreversibly destroy a project and all its data (superadmin only).
+    This is the ONLY real delete on the platform; the generic DELETE
+    soft-deletes. The destruction runs as a worker job in short batches
+    (``project_purge``), because a large project needs minutes: 202 with the
+    job, which the client polls at ``GET .../purge-jobs/{job_id}``. A second
+    request while the job runs returns the same job; once a purge was requested
+    the project can no longer be restored, and a failed purge is finished by
+    requesting it again. The project's export and import files expire through
+    the MinIO lifecycle rule of their prefix; other stored files of the project
+    are not cleaned up by the purge."""
     if not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
 
@@ -1181,19 +1318,32 @@ async def purge_project(
             detail={"code": "not_deleted", "message": "Purge requires a soft-deleted project"},
         )
 
-    # Delete all associated data to avoid foreign key constraint violations.
-    await db.execute(
-        ProjectOrganization.__table__.delete().where(
-            ProjectOrganization.project_id == project_id
-        )
-    )
-    # Annotations cascade from the task/project FKs (001_complete_baseline).
-    await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
-    await db.delete(project)
-    await db.commit()
+    job = await enqueue_purge_job(db, current_user, project)
     # No second PROJECT_DELETED notification: the soft delete already told
     # the org; the purge is superadmin housekeeping.
-    return {"message": "Project purged"}
+    return serialize_purge_job(job)
+
+
+@router.get("/{project_id}/purge-jobs/{job_id}")
+async def get_purge_job(
+    project_id: str,
+    job_id: str,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Status of a purge job (superadmin only; poll target of the client).
+    Readable after the project is gone. A stale running job is reported
+    failed (its worker is dead), so the poll ends; a pending job stays
+    pending while it waits in the queue."""
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Only superadmins can purge projects")
+    job = (
+        await db.execute(select(ProjectPurgeJob).where(ProjectPurgeJob.id == job_id))
+    ).scalar_one_or_none()
+    if job is None or job.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Purge job not found")
+    await _supersede_if_stale(db, job)
+    return serialize_purge_job(job)
 
 
 async def _lms_linked_org_groups(db: AsyncSession, project_id: str) -> dict:

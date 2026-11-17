@@ -116,6 +116,9 @@ def seeded(test_db: Session):
         )
         test_db.add(t)
         tasks.append(t)
+    # The generation jobs below reference the tasks (migration 140), and the
+    # flush orders tables only along relationship()s.
+    test_db.flush()
 
     # One annotation on the first task so annotations_count > 0.
     ann = Annotation(
