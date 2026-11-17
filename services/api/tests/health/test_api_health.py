@@ -104,7 +104,6 @@ class TestAPIHealth:
         finally:
             app.dependency_overrides.clear()
 
-    @pytest.mark.smoke
     def test_authentication_endpoints(self, client: TestClient, test_users):
         """Test authentication endpoints"""
         # Test login endpoint

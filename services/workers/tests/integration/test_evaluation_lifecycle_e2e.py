@@ -172,7 +172,6 @@ class TestFinalizerPausedNoop:
 
 
 class TestResumeMissingOnly:
-    @pytest.mark.smoke
     def test_resume_after_pause_reuses_completed_cells(
         self, db_conn, make_user, make_llm_model, make_project, make_task,
         make_generation, make_evaluation_run, exact_match_config,

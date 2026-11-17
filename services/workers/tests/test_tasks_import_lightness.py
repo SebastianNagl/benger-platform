@@ -25,10 +25,6 @@ import os
 import subprocess
 import sys
 
-import pytest
-
-pytestmark = pytest.mark.smoke
-
 HEAVY = ("torch", "spacy", "transformers", "sentence_transformers", "bert_score")
 
 

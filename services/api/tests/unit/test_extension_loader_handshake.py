@@ -91,7 +91,6 @@ def isolated_task_queues(monkeypatch):
     monkeypatch.setattr(celery_queues, "_TASK_OWNERS", dict(celery_queues._TASK_OWNERS))
 
 
-@pytest.mark.smoke
 class TestVersionHandshake:
     def test_compatible_version_loads(self, monkeypatch):
         monkeypatch.setitem(

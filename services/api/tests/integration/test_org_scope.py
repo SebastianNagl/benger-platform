@@ -205,7 +205,6 @@ class TestOrgAdminScopeValue:
         assert not scope.covers(None) and not scope.covers("g1")
 
 
-@pytest.mark.smoke
 class TestLoadAndRequire:
     async def test_superadmin_covers_everything(self, lane):
         ids, users = await lane.seed()

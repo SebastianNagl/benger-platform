@@ -22,8 +22,6 @@ from alembic.script import ScriptDirectory
 
 API_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-pytestmark = pytest.mark.smoke
-
 
 def _admin_connection(url: str):
     connection = psycopg2.connect(urlunsplit(urlsplit(url)._replace(path="/postgres")))

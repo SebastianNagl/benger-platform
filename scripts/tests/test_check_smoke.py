@@ -30,10 +30,10 @@ def _case(file: str, classname: str, name: str, body: str = "") -> str:
 
 @pytest.fixture
 def service(tmp_path):
-    """A service dir with one marked file and a manifest for it."""
+    """A service dir with two test files and a manifest naming one test."""
     tests = tmp_path / "tests"
     tests.mkdir()
-    (tests / "test_a.py").write_text("import pytest\n\n@pytest.mark.smoke\ndef test_x(): pass\n", encoding="utf-8")
+    (tests / "test_a.py").write_text("def test_x(): pass\n", encoding="utf-8")
     (tests / "test_plain.py").write_text("def test_y(): pass\n", encoding="utf-8")
     manifest = tests / "smoke_manifest.txt"
     manifest.write_text("tests/test_a.py::test_x\n", encoding="utf-8")
@@ -69,20 +69,6 @@ class TestManifest:
     def test_missing_file_is_named(self, service):
         with pytest.raises(CheckFailed, match="tests/test_gone.py"):
             check_smoke.check_entry_files(["tests/test_gone.py::test_x"], service)
-
-
-class TestMarkers:
-    def test_listed_file_without_marker_fails(self, service):
-        with pytest.raises(CheckFailed, match="no pytest.mark.smoke"):
-            check_smoke.check_markers(["tests/test_a.py::test_x", "tests/test_plain.py::test_y"], service)
-
-    def test_marked_file_missing_from_manifest_fails(self, service):
-        (service / "tests" / "test_b.py").write_text("pytestmark = pytest.mark.smoke\n", encoding="utf-8")
-        with pytest.raises(CheckFailed, match=r"\+ tests/test_b.py"):
-            check_smoke.check_markers(["tests/test_a.py::test_x"], service)
-
-    def test_consistent_marker_and_manifest_pass(self, service):
-        check_smoke.check_markers(["tests/test_a.py::test_x"], service)
 
 
 class TestJunit:
@@ -202,7 +188,7 @@ class TestEndToEnd:
         _junit(service / ".smoke-results.xml", [_case("tests/test_a.py", "tests.test_a", "test_x")])
         assert "1 tests ran, 0 skipped" in check_smoke.check("probe")
 
-    def test_pytest_suite_with_a_deselected_entry_fails(self, service, monkeypatch):
+    def test_pytest_suite_whose_entry_ran_nothing_fails(self, service, monkeypatch):
         _suite(service, monkeypatch)
         _junit(service / ".smoke-results.xml", [])
         with pytest.raises(CheckFailed, match="ran no test"):
@@ -231,8 +217,6 @@ class TestEndToEnd:
         for suite in check_smoke.SUITES.values():
             entries = check_smoke.read_manifest(suite.manifest)
             check_smoke.check_entry_files(entries, suite.root)
-            if suite.kind == "pytest":
-                check_smoke.check_markers(entries, suite.root)
 
     def test_main_exit_codes(self, service, monkeypatch, capsys):
         _suite(service, monkeypatch)

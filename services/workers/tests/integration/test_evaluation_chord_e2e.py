@@ -82,7 +82,6 @@ def _ensure_finalized(db_conn, run):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.smoke
 def test_happy_path_two_cells_one_match(
     db_conn, make_user, make_llm_model, make_project, make_task,
     make_generation, make_evaluation_run, exact_match_config,

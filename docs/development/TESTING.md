@@ -191,7 +191,6 @@ services/workers/tests/
 @pytest.mark.integration    # Service integration tests
 @pytest.mark.security       # Security/OWASP tests
 @pytest.mark.slow           # Long-running tests (>5s)
-@pytest.mark.smoke          # In the CI smoke suite (also needs a smoke_manifest.txt line)
 ```
 
 ---
@@ -266,7 +265,7 @@ CI follows benger-extended issue #193: the full suites run locally before a PR i
 - Workers smoke: the tests in `services/workers/tests/smoke_manifest.txt`, covering the generation loop, the evaluation chord and its resume, project import and export jobs, the Celery queue routing, the overlay import surface and a light `import tasks`
 - Frontend smoke: the Jest files in `services/frontend/smoke_manifest.txt`, covering the API proxy, the auth routes, login, the auth and API client contexts, project creation, data import, the generation and evaluation dialogs and the dashboard
 
-Each smoke suite runs in well under a minute of test time, so a job takes about as long as its setup (installing the runner image and dependencies). A smoke test is marked twice: `@pytest.mark.smoke` in the code (Jest has no marker) and a line in its manifest. `scripts/check_smoke.py` runs after each suite and fails the job when a listed test did not run (marker removed, renamed or deleted), was skipped or failed, and when a file uses the marker without a manifest entry. To change a suite, edit both and keep the manifest sorted (`LC_ALL=C sort`). Pick tests by critical flow, not by coverage, and keep the suite small: anything else belongs in the nightly.
+Each smoke suite runs in well under a minute of test time, so a job takes about as long as its setup (installing the runner image and dependencies). A test belongs to a smoke suite through its line in the manifest, which is the only definition of the set: the run takes its tests from the manifest, and there is no marker in the code. `scripts/check_smoke.py` runs after each suite and fails the job when a listed test did not run (renamed or deleted), was skipped or failed, and when a test ran that no manifest entry names. To change a suite, edit its manifest and keep it sorted (`LC_ALL=C sort`). Pick tests by critical flow, not by coverage, and keep the suite small: anything else belongs in the nightly.
 
 For a risky change, such as a migration, a dependency upgrade or an edit to grading, auth or billing, run the full suites in CI as well: `gh workflow run ci.yml --ref <branch> -f full=true` runs the API suite in five shards, the workers suite and Jest in three shards, without coverage and without a deploy. The weekly uv lock refresh (`build-workers-base.yml`) dispatches this full run on its PR branch.
 

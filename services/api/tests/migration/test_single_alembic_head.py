@@ -8,12 +8,10 @@ vs 076_add_timer_pause_fields, then 078_add_lti_tables vs
 PR-time failure with an actionable message instead of a red main gate.
 """
 
-import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-@pytest.mark.smoke
 def test_alembic_has_exactly_one_head():
     heads = ScriptDirectory.from_config(Config("alembic.ini")).get_heads()
     assert len(heads) == 1, (

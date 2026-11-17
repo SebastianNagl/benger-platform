@@ -20,8 +20,6 @@ import pytest
 import extensions
 from core_version import CORE_API_VERSION
 
-pytestmark = pytest.mark.smoke
-
 
 @pytest.fixture(autouse=True)
 def _reset_loader_state(monkeypatch):

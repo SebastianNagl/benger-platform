@@ -552,7 +552,6 @@ class TestStartGeneration:
     returns the expected response shape. Celery dispatch is patched out so no
     real broker call fires."""
 
-    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_start_generation_persists_rows(self, async_test_client, async_test_db):
         admin = await _make_user(async_test_db)

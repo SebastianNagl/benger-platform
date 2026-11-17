@@ -180,7 +180,6 @@ def _assert_completed(outcome, job):
     assert outcome["project_id"] == job.project_id
 
 
-@pytest.mark.smoke
 @pytest.mark.parametrize(
     "fmt", ["json", "csv", "label_studio", "comprehensive", "ndjson", "ndjson_gz"]
 )
@@ -201,7 +200,6 @@ def test_export_of_a_large_project_reports_completed(
     assert body.count(b"task ") >= ROWS
 
 
-@pytest.mark.smoke
 @pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
 def test_create_new_import_of_a_large_export_reports_completed(
     db_conn, cleanup, make_user, storage, jobs, fmt,
@@ -236,7 +234,6 @@ def _nested_body(rows=ROWS) -> bytes:
     ).encode("utf-8")
 
 
-@pytest.mark.smoke
 def test_nested_import_into_existing_project_reports_completed(
     db_conn, make_user, make_project, storage, jobs,
 ):

@@ -15,8 +15,6 @@ from here.
 import celery_queues
 import pytest
 
-pytestmark = pytest.mark.smoke
-
 # Every task WE own lives under one of these two namespaces. Other extension
 # packages own `<EXTENSION_ID>.*` (core 2.37); their namespaces are added
 # from the registry once the worker has loaded them (see _owned_namespaces).

@@ -97,7 +97,6 @@ def _run(client, user, body, send_task=None):
 
 @pytest.mark.integration
 class TestRunRecordsItsModel:
-    @pytest.mark.smoke
     def test_a_run_restricted_to_one_model_carries_that_model(self, client, test_db, seeded):
         user, project = seeded
         send_task = MagicMock(return_value=MagicMock(id="celery-run"))

@@ -357,7 +357,6 @@ class TestMeContextsDeep:
         assert "private_mode_available" in data
         assert data["user"]["id"] == "admin-test-id"
 
-    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_contexts_annotator_sees_own_orgs(self, async_test_client, async_test_db):
         """Annotator /me/contexts returns only their organizations."""

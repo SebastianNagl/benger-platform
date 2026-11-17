@@ -1504,7 +1504,6 @@ class TestDashboardEndpoints:
         body = resp.json()
         assert body["project_count"] >= 0
 
-    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_dashboard_stats_counts_match_data(
         self, async_test_client, async_test_db
@@ -1611,7 +1610,6 @@ class TestDashboardEndpoints:
         assert body["projects_with_generations"] >= 1
         assert body["projects_with_evaluations"] >= 1
 
-    @pytest.mark.smoke
     @pytest.mark.asyncio
     async def test_dashboard_stats_unauthenticated(
         self, async_test_client, async_test_db
@@ -1630,19 +1628,16 @@ class TestHealthEndpoints:
     with a seeded actor.
     """
 
-    @pytest.mark.smoke
     async def test_root_endpoint(self, async_test_client):
         resp = await async_test_client.get("/")
         assert resp.status_code == 200
         assert "message" in resp.json()
 
-    @pytest.mark.smoke
     async def test_healthz(self, async_test_client):
         resp = await async_test_client.get("/healthz")
         assert resp.status_code == 200
         assert resp.json()["status"] == "healthy"
 
-    @pytest.mark.smoke
     async def test_health_schema(self, async_test_client, async_test_db):
         resp = await async_test_client.get("/health/schema")
         assert resp.status_code == 200

@@ -11,25 +11,24 @@ named in the suite's manifest and then this check:
     python3 scripts/check_smoke.py frontend   # services/frontend/smoke_manifest.txt
 
 A manifest has one entry per line: a pytest node id (a test, a class or a
-whole file) or a Jest test file path, sorted, without duplicates. For the
-pytest suites every listed test must also carry ``@pytest.mark.smoke`` (the
-run uses ``-m smoke``), and every test file that uses the marker must be
-listed, so the marker in the code and the manifest cannot drift apart.
+whole file) or a Jest test file path, sorted, without duplicates. The
+manifest is the only definition of a smoke suite: the run takes its tests
+from it, and there is no marker in the code.
 
-The check fails when a manifest entry ran no test (its marker was removed, it
-was renamed or deleted), when a test was skipped (a skip could hide a switched
-off feature), or when a test failed.
+The check fails when a manifest entry ran no test (it was renamed or deleted,
+or its module skipped at import), when a test was skipped (a skip could hide
+a switched off feature), when a test failed, or when a test ran that no
+manifest entry names.
 
-To change a smoke suite: add or remove the marker (pytest) and the manifest
-line, then commit both so a reviewer sees the change. Needs only the Python
-standard library, so it runs on the host after the containerised test run.
+To change a smoke suite: add or remove the manifest line and commit it so a
+reviewer sees the change. Needs only the Python standard library, so it runs
+on the host after the containerised test run.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
@@ -37,7 +36,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SMOKE_MARK = re.compile(r"\bpytest\.mark\.smoke\b")
 #: pytest writes an xfail as <skipped type="pytest.xfail">; it ran.
 XFAIL_TYPE = "pytest.xfail"
 
@@ -98,31 +96,6 @@ def check_entry_files(entries: Sequence[str], root: Path) -> None:
         raise CheckFailed(
             "The manifest names files that do not exist:\n" + "\n".join(f"  - {name}" for name in missing)
         )
-
-
-def check_markers(entries: Sequence[str], root: Path) -> None:
-    """Every listed file uses the marker, and every file using it is listed."""
-    listed = {entry.split("::")[0] for entry in entries}
-    marked = {
-        path.relative_to(root).as_posix()
-        for path in (root / "tests").rglob("test_*.py")
-        if SMOKE_MARK.search(path.read_text(encoding="utf-8"))
-    }
-    problems = []
-    unmarked = sorted(listed - marked)
-    unlisted = sorted(marked - listed)
-    if unmarked:
-        problems.append(
-            "Listed in the manifest, but the file has no pytest.mark.smoke:\n"
-            + "\n".join(f"  - {name}" for name in unmarked)
-        )
-    if unlisted:
-        problems.append(
-            "Uses pytest.mark.smoke, but no manifest entry names the file:\n"
-            + "\n".join(f"  + {name}" for name in unlisted)
-        )
-    if problems:
-        raise CheckFailed("\n".join(problems))
 
 
 @dataclass
@@ -219,8 +192,8 @@ def compare(entries: Sequence[str], outcomes: Sequence[Outcome]) -> dict[str, in
     failed = [o for o in outcomes if o.status == "failed"]
     if empty:
         problems.append(
-            f"{len(empty)} manifest entr{'y' if len(empty) == 1 else 'ies'} ran no test (marker removed, "
-            "test renamed or deleted, or the module skipped at import):\n"
+            f"{len(empty)} manifest entr{'y' if len(empty) == 1 else 'ies'} ran no test (test "
+            "renamed or deleted, or the module skipped at import):\n"
             + "\n".join(f"  - {entry}" for entry in empty)
         )
     if skipped:
@@ -245,7 +218,6 @@ def check(name: str, results: Path | None = None) -> str:
     entries = read_manifest(suite.manifest)
     check_entry_files(entries, suite.root)
     if suite.kind == "pytest":
-        check_markers(entries, suite.root)
         outcomes = read_junit(results or suite.results)
     else:
         outcomes = read_jest(results or suite.results, suite.root)

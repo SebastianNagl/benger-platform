@@ -487,13 +487,13 @@ test-workers-gate: ## The workers suite as a full CI run (ci.yml with full=true)
 		"pip install -q -r requirements-test.txt && pytest tests/ --no-cov --maxfail=10"
 
 # Smoke suites (benger-extended issue #193): what ci.yml runs on every PR and
-# every push to main. Each target runs the tests its manifest lists (pytest
-# also needs @pytest.mark.smoke on them), then scripts/check_smoke.py fails
+# every push to main. Each target runs the tests its manifest lists (the
+# manifest is the only definition of the set), then scripts/check_smoke.py fails
 # the run when a listed test did not run, was skipped or failed. The full
 # suites run at night (nightly-tests.yml, nightly-coverage.yml) and on demand
 # (gh workflow run ci.yml --ref <branch> -f full=true). Serial on purpose: the
 # sets are small, and one process builds the test schema once.
-SMOKE_PYTEST := pytest -q -p no:cacheprovider -m smoke -o junit_family=xunit1 --junitxml=.smoke-results.xml @tests/smoke_manifest.txt
+SMOKE_PYTEST := pytest -q -p no:cacheprovider -o junit_family=xunit1 --junitxml=.smoke-results.xml @tests/smoke_manifest.txt
 
 .PHONY: test-smoke
 test-smoke: test-smoke-api test-smoke-workers test-smoke-frontend ## Run the three smoke suites as CI does (needs make test-start-lite)
