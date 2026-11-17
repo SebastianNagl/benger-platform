@@ -3,6 +3,11 @@
 import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import {
+  API_KEY_PROVIDERS,
+  isValidApiKeyFormat,
+  type ApiKeyProviderId,
+} from '@/lib/apiKeyFormats'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 import { Button } from './Button'
@@ -27,65 +32,20 @@ interface TestResult {
   message: string
 }
 
-interface Provider {
-  id: string
-  name: string
-  description: string
-  placeholder: string
-  validation: RegExp
+const PROVIDER_DESCRIPTIONS: Record<ApiKeyProviderId, string> = {
+  openai: 'shared.userApiKeys.descOpenai',
+  anthropic: 'shared.userApiKeys.descAnthropic',
+  google: 'shared.userApiKeys.descGoogle',
+  deepinfra: 'shared.userApiKeys.descDeepinfra',
+  grok: 'shared.userApiKeys.descGrok',
+  mistral: 'shared.userApiKeys.descMistral',
+  cohere: 'shared.userApiKeys.descCohere',
 }
 
-const providers: Provider[] = [
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    description: 'shared.userApiKeys.descOpenai',
-    placeholder: 'sk-...',
-    validation: /^sk-[a-zA-Z0-9_-]{20,}$/,
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic',
-    description: 'shared.userApiKeys.descAnthropic',
-    placeholder: 'sk-ant-...',
-    validation: /^sk-ant-[a-zA-Z0-9-_]{30,}$/,
-  },
-  {
-    id: 'google',
-    name: 'Google',
-    description: 'shared.userApiKeys.descGoogle',
-    placeholder: 'AI...',
-    validation: /^[a-zA-Z0-9_-]{20,}$/,
-  },
-  {
-    id: 'deepinfra',
-    name: 'DeepInfra',
-    description: 'shared.userApiKeys.descDeepinfra',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-  {
-    id: 'grok',
-    name: 'Grok (xAI)',
-    description: 'shared.userApiKeys.descGrok',
-    placeholder: 'xai-...',
-    validation: /^xai-[a-zA-Z0-9_-]{10,}$/,
-  },
-  {
-    id: 'mistral',
-    name: 'Mistral AI',
-    description: 'shared.userApiKeys.descMistral',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-  {
-    id: 'cohere',
-    name: 'Cohere',
-    description: 'shared.userApiKeys.descCohere',
-    placeholder: '',
-    validation: /^[a-zA-Z0-9]{20,}$/,
-  },
-]
+const providers = API_KEY_PROVIDERS.map((provider) => ({
+  ...provider,
+  description: PROVIDER_DESCRIPTIONS[provider.id],
+}))
 
 export default function UserApiKeys({
   disabled = false,
@@ -168,7 +128,7 @@ export default function UserApiKeys({
 
     if (!apiKey.trim()) return t('shared.userApiKeys.apiKeyRequired')
 
-    if (!providerConfig.validation.test(apiKey.trim())) {
+    if (!isValidApiKeyFormat(provider, apiKey)) {
       return t('shared.userApiKeys.invalidKeyFormat', {
         provider: providerConfig.name,
       })
@@ -193,7 +153,7 @@ export default function UserApiKeys({
     setMessage(null)
 
     try {
-      await apiClient.setUserApiKey(provider, apiKey)
+      await apiClient.setUserApiKey(provider, apiKey.trim())
       setMessage({
         type: 'success',
         text: t('shared.userApiKeys.keySaved', {
@@ -283,7 +243,7 @@ export default function UserApiKeys({
     setTestResults((prev) => ({ ...prev, [provider]: null }))
 
     try {
-      const result = await apiClient.testUserApiKey(provider, apiKey)
+      const result = await apiClient.testUserApiKey(provider, apiKey.trim())
       const displayMessage =
         result.status === 'success'
           ? result.message

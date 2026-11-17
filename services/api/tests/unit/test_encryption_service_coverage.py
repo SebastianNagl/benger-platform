@@ -186,6 +186,12 @@ class TestIsValidApiKeyFormat:
         svc = self._make_service()
         assert svc.is_valid_api_key_format("AIzaSyB1234567890", "google") == True  # noqa: E712
 
+    def test_google_valid_aq_format(self):
+        """Google AI Studio's current keys start with "AQ." and contain dots."""
+        svc = self._make_service()
+        key = "AQ.Ab8RN6Lfake-key_not.real0123456789abcdefXYZ"
+        assert svc.is_valid_api_key_format(key, "google") == True  # noqa: E712
+
     def test_google_too_short(self):
         svc = self._make_service()
         assert svc.is_valid_api_key_format("short", "google") == False  # noqa: E712
