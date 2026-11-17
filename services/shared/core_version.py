@@ -963,9 +963,17 @@ whenever one is added, renamed or removed):
     ``maintenance``).
   - Frontend: ``registerWizardDraftPolicy({ applies, describeDiscard? })``
     and the draft hooks ``registerWizardDraftHook('created' |
-    'tasksSynced' | 'configSynced', fn)`` (``@/lib/extensions/wizardDraft``);
-    the rubric step slot ``ProjectWizardRubricStep`` gets
-    ``draftProjectId``; post-create hooks get ``draft: true`` in draft mode.
+    'tasksSynced' | 'configSynced', fn)`` (``@/lib/extensions/wizardDraft``).
+    ``created`` runs once after the draft was created; ``tasksSynced`` after
+    every task sync (moving past the data step, and on "Create");
+    ``configSynced`` after title, label config and evaluation configs were
+    written into the draft and before they are read back, every time the
+    user moves to the rubric step and once more on "Create" (before the
+    post-create hooks and the finish route). Draft mode applies only while a
+    registered policy applies or a draft is open; otherwise the wizard
+    navigates and creates as before. The rubric step slot
+    ``ProjectWizardRubricStep`` gets ``draftProjectId``; post-create hooks
+    get ``draft: true`` in draft mode.
 """
 
 import os

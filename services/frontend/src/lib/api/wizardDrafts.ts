@@ -133,15 +133,20 @@ export const wizardDraftsAPI = {
     return (res?.items as WizardDraftTask[] | undefined) ?? []
   },
 
-  /** Replace a changed row's data in place; its sheets are archived. */
+  /**
+   * Replace a changed row's data and meta in place (the task keeps its
+   * position and the wizard's own meta keys); its sheets are archived.
+   */
   replaceTask: async (
     projectId: string,
     taskId: string,
     data: Record<string, unknown>,
     rowHash: string,
+    meta: Record<string, unknown> = {},
   ): Promise<{ id: string; archived_sheet_ids: string[] }> =>
     apiClient.put(`${draftUrl(projectId)}/tasks/${taskId}`, {
       data,
+      meta,
       row_hash: rowHash,
     }),
 }

@@ -604,13 +604,19 @@ export function ProjectCreationWizard() {
         ? await ensureDraftReady()
         : await createProjectNow()
       if (projectId === null) {
-        // The user declined replacing sheets in the final task sync.
+        // The final task or configuration sync of the draft did not go
+        // through (declined, or failed with its own message).
         isFinishingRef.current = false
         setIsFinishing(false)
         return
       }
 
-      await configureProject(projectId)
+      // In draft mode the state as the final sync left it (it reads the
+      // evaluation configs back, a write the closure has not seen yet).
+      await configureProject(
+        projectId,
+        draftProjectId ? draftCtl.currentData() : wizardData,
+      )
 
       if (draftProjectId) {
         // The last write: visibility and organizations, so the project
@@ -640,9 +646,14 @@ export function ProjectCreationWizard() {
     }
   }
 
-  /** Draft mode: the final task sync; null when the user declined it. */
+  /**
+   * Draft mode: the final task sync and the final configuration sync (so
+   * the configSynced hooks run whether or not the rubric step was visited);
+   * null when either did not go through.
+   */
   const ensureDraftReady = async (): Promise<string | null> => {
     if (!(await draftCtl.syncTasks())) return null
+    if (!(await draftCtl.syncConfig())) return null
     return draftProjectId
   }
 
@@ -783,7 +794,10 @@ export function ProjectCreationWizard() {
   }
 
   /** The settings, evaluation, prompt and extension writes of the finish. */
-  const configureProject = async (projectId: string): Promise<void> => {
+  const configureProject = async (
+    projectId: string,
+    wizardData: WizardData,
+  ): Promise<void> => {
     // 3. Update project with instructions + generation config (single PATCH)
     // (in draft mode with the basic fields too: they may have changed
     // since the draft was created)
@@ -1143,7 +1157,7 @@ export function ProjectCreationWizard() {
       data-total-steps={activeSteps.length}
       data-current-step-id={currentStep?.id ?? ''}
     >
-      {draftCtl.capable &&
+      {draftCtl.policyRegistered &&
         !draftProjectId &&
         !draftCtl.resuming &&
         currentStepIndex === 0 && (

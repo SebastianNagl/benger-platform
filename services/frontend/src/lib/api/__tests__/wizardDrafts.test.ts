@@ -83,10 +83,14 @@ describe('wizardDraftsAPI', () => {
     await wizardDraftsAPI.replaceTask('p1', 't1', { sv: 'neu' }, 'h')
     expect(client().put).toHaveBeenCalledWith(
       '/projects/p1/wizard-draft/tasks/t1',
-      {
-        data: { sv: 'neu' },
-        row_hash: 'h',
-      },
+      { data: { sv: 'neu' }, meta: {}, row_hash: 'h' },
+    )
+    await wizardDraftsAPI.replaceTask('p1', 't1', { sv: 'neu' }, 'h', {
+      points: 20,
+    })
+    expect(client().put).toHaveBeenLastCalledWith(
+      '/projects/p1/wizard-draft/tasks/t1',
+      { data: { sv: 'neu' }, meta: { points: 20 }, row_hash: 'h' },
     )
   })
 })

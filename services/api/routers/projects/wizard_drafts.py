@@ -135,6 +135,10 @@ class WizardDraftFinish(BaseModel):
 
 class WizardDraftTaskUpdate(BaseModel):
     data: Dict[str, Any]
+    # The row's own meta; replaces the task's meta except the wizard's keys
+    # (``wizard_row_index`` is kept, ``wizard_row_hash`` set). Omitted: the
+    # task keeps its meta.
+    meta: Optional[Dict[str, Any]] = None
     row_hash: str = Field(..., min_length=1, max_length=128)
 
 
@@ -733,10 +737,11 @@ async def replace_wizard_draft_task(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Replace the data of one draft task with the changed wizard row (the
-    task keeps its id and position) and store the row's hash. Its grading
-    sheets that are not archived are archived in the same transaction, since
-    they were made for the old content; their check log stays."""
+    """Replace the data (and, when sent, the meta) of one draft task with the
+    changed wizard row; the task keeps its id and position
+    (``meta.wizard_row_index``) and stores the row's hash. Its grading sheets
+    that are not archived are archived in the same transaction, since they
+    were made for the old content; their check log stays."""
     project, draft = await _load_draft(db, project_id, current_user, lock=True)
     if not body.data:
         raise HTTPException(status_code=400, detail="No data provided for update")
@@ -759,7 +764,11 @@ async def replace_wizard_draft_task(
         await archive_task_rubric(db, rubric, task)
         archived.append(rubric.id)
     task.data = dict(body.data)
-    meta = dict(task.meta) if isinstance(task.meta, dict) else {}
+    old_meta = task.meta if isinstance(task.meta, dict) else {}
+    meta = dict(body.meta) if body.meta is not None else dict(old_meta)
+    meta.pop("wizard_row_index", None)
+    if "wizard_row_index" in old_meta:
+        meta["wizard_row_index"] = old_meta["wizard_row_index"]
     meta["wizard_row_hash"] = body.row_hash
     task.meta = meta
     task.updated_by = str(current_user.id)

@@ -25,9 +25,12 @@
  *   `created` (imported now). Example: create the structured-entry sheet of
  *   a new task as a candidate.
  * - `configSynced` `{ projectId, wizardData }`: after the wizard wrote title,
- *   label config and evaluation configs into the draft (entering the rubric
- *   step, and before the finish) and before it reads the evaluation configs
- *   back. Example: apply the judge the check requirement needs.
+ *   label config and (when they changed) the evaluation configs into the
+ *   draft, and before it reads the evaluation configs back. Runs every time
+ *   the user moves to the rubric step, and once more on "Create", after the
+ *   final task sync and before the settings PATCH, the post-create hooks and
+ *   the finish route, so it also runs when the rubric step was never
+ *   visited. Example: apply the judge the check requirement needs.
  *
  * The rubric step slot (`ProjectWizardRubricStep`) receives
  * `draftProjectId` in draft mode; post-create hooks receive `draft: true`.

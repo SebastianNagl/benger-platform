@@ -301,6 +301,32 @@ describe('useWizardDraft', () => {
     expect(projectsAPI().runCloudImportJobs).toHaveBeenCalledTimes(1)
   })
 
+  it('replaces a row whose meta changed with the new meta', async () => {
+    const rows = [{ data: { sv: 'A' }, meta: { points: 20 } }]
+    const { result } = setup({ ...ORG_DATA, pastedData: JSON.stringify(rows) })
+    await create(result)
+    draftsAPI().tasks.mockResolvedValueOnce([
+      {
+        id: 't1',
+        inner_id: 1,
+        row_index: 0,
+        row_hash: 'old',
+        sheets: [],
+        generating: 0,
+      },
+    ])
+    await act(async () => {
+      expect(await result.current.syncTasks()).toBe(true)
+    })
+    expect(draftsAPI().replaceTask).toHaveBeenCalledWith(
+      'p1',
+      't1',
+      { sv: 'A' },
+      expect.stringMatching(/^[0-9a-f]{64}$/),
+      { points: 20 },
+    )
+  })
+
   it('reports a sync that timed out or failed and stays put', async () => {
     const { result, addToast } = setup({
       ...ORG_DATA,

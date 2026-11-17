@@ -241,6 +241,57 @@ describe('ProjectCreationWizard — draft mode', () => {
     expect(draftsAPI().finish).not.toHaveBeenCalled()
   })
 
+  it('navigates a generic project as before when a policy is registered', async () => {
+    registerWizardDraftPolicy(policy)
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    // Before draft mode, a step-indicator click moved on without checking
+    // step 1 (here: no title yet), and nothing waited on the server.
+    await user.click(screen.getByTestId('wizard-step-dot-2'))
+    expect(currentStepId()).toBe('settings')
+    expect(
+      screen.queryByText(
+        'projects.creation.wizard.step1.validation.nameRequired',
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('project-create-submit-button'),
+    ).not.toBeDisabled()
+    await user.click(screen.getByTestId('project-create-back-button'))
+    expect(currentStepId()).toBe('projectInfo')
+    expect(draftsAPI().create).not.toHaveBeenCalled()
+    expect(draftsAPI().save).not.toHaveBeenCalled()
+  })
+
+  it('runs the configuration sync on Create also when the rubric step was skipped', async () => {
+    registerWizardDraftPolicy(policy)
+    const configSynced = jest.fn()
+    registerWizardDraftHook('configSynced', configSynced)
+    const readBack = [
+      { id: 'cfg', metric: 'llm_judge_rubric', added_by: 'setup' },
+    ]
+    apiClient().get.mockResolvedValue({ evaluation_configs: readBack })
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await startDraft(user)
+    // Jump from the data step straight to the settings (step 4 of 4).
+    await user.click(screen.getByTestId('wizard-step-dot-4'))
+    await waitFor(() => expect(currentStepId()).toBe('settings'))
+    expect(configSynced).not.toHaveBeenCalled()
+
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/projects/p1'))
+    expect(configSynced).toHaveBeenCalledTimes(1)
+    expect(configSynced).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: 'p1' }),
+    )
+    // The finish's own writes come after the configuration sync and the
+    // finish route last.
+    const syncOrder = configSynced.mock.invocationCallOrder[0]
+    const finishOrder = draftsAPI().finish.mock.invocationCallOrder[0]
+    expect(syncOrder).toBeLessThan(finishOrder)
+  })
+
   it('calls no draft route without a registered policy', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -452,6 +503,7 @@ describe('ProjectCreationWizard — draft mode', () => {
       't1',
       { sachverhalt: 'Fall 1 (neu)' },
       expect.stringMatching(/^[0-9a-f]{64}$/),
+      {},
     )
     expect(projectsAPI().bulkDeleteTasks).toHaveBeenCalledWith('p1', ['t2'])
     expect(projectsAPI().runNestedImportJob).not.toHaveBeenCalled()

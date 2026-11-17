@@ -641,6 +641,22 @@ async def test_task_routes_report_hashes_and_replace_a_changed_row(
     await db.refresh(t2)
     assert t2.meta == {"wizard_row_hash": "h2", "wizard_row_index": 1}
 
+    # A row that changed only its meta: the row's meta replaces the task's,
+    # the wizard's own position stays (a row cannot move a task).
+    await db.refresh(teacher)
+    with _as_user(teacher):
+        r = await c.put(
+            f"/api/projects/{pid}/wizard-draft/tasks/{t2.id}",
+            json={
+                "data": {"sachverhalt": "Fall 2"},
+                "meta": {"points": 20, "wizard_row_index": 9},
+                "row_hash": "h2b",
+            },
+        )
+        assert r.status_code == 200, r.text
+    await db.refresh(t2)
+    assert t2.meta == {"points": 20, "wizard_row_index": 1, "wizard_row_hash": "h2b"}
+
 
 async def test_task_routes_are_for_drafts_only(async_test_client, async_test_db):
     db = async_test_db

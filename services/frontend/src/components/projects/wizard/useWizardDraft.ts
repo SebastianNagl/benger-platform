@@ -16,11 +16,12 @@
  *    past that step and before the finish (see ./draftSync.ts for the rule),
  *    asking first when grading sheets would be set aside or deleted, then
  *    runs the `tasksSynced` hooks;
- * 4. writes title, label config and evaluation configs before the rubric
- *    step, runs the `configSynced` hooks and reads the evaluation configs
- *    back (the eval-config PUT replaces lists wholesale, so a later PUT of
- *    an older copy would drop keys the rubric setup added); leaving the
- *    rubric step reads them back again;
+ * 4. writes title, label config and evaluation configs into the draft
+ *    when the user moves to the rubric step and once more on "Create", runs
+ *    the `configSynced` hooks and reads the evaluation configs back (the
+ *    eval-config PUT replaces lists wholesale, so a later PUT of an older
+ *    copy would drop keys the rubric setup added); leaving the rubric step
+ *    reads them back again;
  * 5. finishes through the finish route, which applies the visibility.
  */
 
@@ -621,6 +622,9 @@ export function useWizardDraft(options: {
               task.id,
               row.row.data,
               row.hash,
+              row.row.meta && typeof row.row.meta === 'object'
+                ? row.row.meta
+                : {},
             )
           }
           if (plan.remove.length > 0) {
@@ -862,8 +866,18 @@ export function useWizardDraft(options: {
   }, [])
 
   return {
-    /** A draft policy is registered: navigation runs through the hook. */
-    capable: policyRegistered || draft !== null,
+    /**
+     * Navigation runs through the hook: a draft is open, or a registered
+     * policy applies to the current state. Otherwise (generic projects,
+     * also in an edition with a policy) the wizard navigates as it always
+     * did.
+     */
+    capable:
+      draft !== null || (policyRegistered && wizardDraftApplies(wizardData)),
+    /** A draft policy is registered (the unfinished list is offered). */
+    policyRegistered,
+    /** The wizard state including read-backs not rendered yet. */
+    currentData: () => dataRef.current,
     draft,
     problem,
     saving,
@@ -871,6 +885,7 @@ export function useWizardDraft(options: {
     draftImport,
     beforeNavigate,
     syncTasks,
+    syncConfig,
     basicFields,
     evalConfigsChanged,
     finish,
