@@ -89,11 +89,7 @@ def test_build_record_describes_the_first_request():
     assert request_sha256(record) == sha256_of(reordered)
 
 
-def test_fallback_marks_a_worker_call():
-    record = build_request_record([], fallback={"provider": "X", "api": "worker_call", "body": BODY})
-    assert record["capture"] == "worker_call"
-    assert record["requests"][0]["sends"] == 0
-    assert record["messages"] == BODY["messages"]
+def test_no_request_gives_no_record():
     assert build_request_record([]) is None
     assert request_sha256(None) is None
 

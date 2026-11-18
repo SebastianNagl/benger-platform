@@ -136,7 +136,7 @@ def _worker_call_entry(
                 "thinking_budget", "prompt_mode", "thinking_token_budget"):
         if call_kwargs.get(key) is not None:
             body[key] = call_kwargs[key]
-    return {"provider": provider, "api": "worker_call", "body": body}
+    return {"provider": provider, "api": "worker_call", "capture": "worker_call", "sends": 0, "body": body}
 
 
 def _extract_response(

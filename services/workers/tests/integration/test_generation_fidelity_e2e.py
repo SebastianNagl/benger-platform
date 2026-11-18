@@ -335,3 +335,51 @@ def test_answer_keys_from_task_data_and_refusal_heuristic(
         )
     assert refused.refusal is True
     assert _metadata(refused)["refusal_sources"] == {"provider": False, "heuristic": True}
+
+
+class _SilentService:
+    """A provider service that answers without reporting a request (an
+    overlay service that does not call ``record_request``)."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls = []
+
+    def is_available(self):
+        return True
+
+    def generate(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "content": self.answers.pop(0),
+            "usage": {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10},
+            "metadata": {},
+        }
+
+
+@pytest.mark.parametrize("answers, retried", [
+    (['{"anteil_mieter": 30, "begruendung": "Verspätet."}'], False),
+    (["Ohne JSON.", '{"anteil_mieter": 30, "begruendung": "Verspätet."}'], True),
+], ids=["single_call", "format_retry"])
+def test_a_client_that_reports_no_request_is_recorded_as_a_worker_call(
+    db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch, answers, retried,
+):
+    service = _SilentService(answers)
+    monkeypatch.setattr(
+        tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: service
+    )
+    structure = _structure(**OFF, format_retry={"message": RETRY_MESSAGE})
+    _, [gen] = _generate(
+        db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+    )
+    assert gen.retried is retried
+    record = gen.request_record
+    assert record["capture"] == "worker_call"
+    assert len(record["requests"]) == len(answers)
+    assert all(r["capture"] == "worker_call" and r["sends"] == 0 for r in record["requests"])
+    assert record["messages"] == _expected_messages(TASKS[0])
+    if retried:
+        assert record["requests"][1]["body"]["messages"][-2:] == [
+            {"role": "assistant", "content": "Ohne JSON."},
+            {"role": "user", "content": RETRY_MESSAGE},
+        ]

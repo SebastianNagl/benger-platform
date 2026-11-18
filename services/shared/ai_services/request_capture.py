@@ -303,11 +303,7 @@ def normalized_view(entry: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_request_record(
-    captured: List[Dict[str, Any]],
-    *,
-    fallback: Optional[Dict[str, Any]] = None,
-) -> Optional[Dict[str, Any]]:
+def build_request_record(captured: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """The ``generations.request_record`` document for one generation.
 
     ``captured`` holds every request the provider clients sent for the
@@ -315,19 +311,12 @@ def build_request_record(
     The top-level ``model``, ``messages``, ``response_format`` and
     ``parameters`` describe the first request: that is the designed prompt a
     re-run must reproduce, and ``request_sha256`` hashes it. ``requests``
-    keeps every request verbatim.
-
-    ``fallback`` is used when the client reported nothing (an E2E mock or a
-    test double that does not send): it is the call the worker made, marked
-    ``capture: "worker_call"`` so a reader can tell it apart from a captured
-    request.
+    keeps every request verbatim; an entry the worker built for a client
+    that reported nothing carries ``capture: "worker_call"``.
     """
-    if captured:
-        requests = [dict(entry) for entry in captured]
-    elif fallback is not None:
-        requests = [dict(fallback, capture="worker_call", sends=0)]
-    else:
+    if not captured:
         return None
+    requests = [dict(entry) for entry in captured]
     first = normalized_view(requests[0])
     return {
         "version": REQUEST_RECORD_VERSION,
