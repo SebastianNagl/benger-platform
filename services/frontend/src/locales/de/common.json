@@ -120,6 +120,7 @@
       "createFirst": "Erstelle dein erstes Projekt",
       "noDescription": "Keine Beschreibung",
       "tasks": "Aufgaben",
+      "taskOne": "Aufgabe",
       "openProject": "Projekt öffnen",
       "loadFailed": "Die aktuellen Projekte konnten nicht geladen werden."
     },
@@ -1529,7 +1530,9 @@
       "title": "Letzte Aktivität",
       "noTasks": "Noch keine Aufgaben",
       "importData": "Daten importieren",
+      "tasksImportedOne": "{count} Aufgabe importiert",
       "tasksImported": "{count} Aufgaben importiert",
+      "annotationsCompletedOne": "{count} Annotation abgeschlossen",
       "annotationsCompleted": "{count} Annotationen abgeschlossen",
       "inProgress": "In Bearbeitung"
     },
@@ -1622,7 +1625,8 @@
       "cancel": "Abbrechen",
       "saving": "Wird gespeichert...",
       "titlePlaceholder": "Beschreibung hinzufügen...",
-      "titleCannotBeEmpty": "Titel kann nicht leer sein"
+      "titleCannotBeEmpty": "Titel kann nicht leer sein",
+      "addDescription": "Beschreibung hinzufügen"
     },
     "sharing": {
       "title": "Einzel-Freigabe",
@@ -7174,8 +7178,7 @@
       "attemptedReadOnly": "Frühere Abgabe. Nur Ansicht, keine weiteren Änderungen."
     },
     "examNotReady": {
-      "title": "Noch nicht freigegeben",
-      "description": "Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird. Schau später wieder vorbei."
+      "description": "Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird."
     },
     "textAreaPlaceholder": "Deine Antwort ..."
   },

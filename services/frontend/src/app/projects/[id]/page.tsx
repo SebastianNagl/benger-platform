@@ -51,6 +51,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
+import { isExamNotReadyError } from '@/lib/api/errors'
 import type {
   AvailableEvaluationFields,
   EvaluationConfig,
@@ -163,6 +164,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const [tasks, setTasks] = useState([])
   const [userCompletedAllTasks, setUserCompletedAllTasks] = useState(false)
+  // The caller's next-task read was refused with 403 `exam_not_ready`: the
+  // exam is held until its grading sheet is checked, so starting it would
+  // only lead to the "not released yet" card.
+  const [examNotReady, setExamNotReady] = useState(false)
   const labelConfigRef = useRef<LabelConfigEditorHandle>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -515,14 +520,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   useEffect(() => {
     if (!projectId || !currentProject?.task_count) {
       setUserCompletedAllTasks(false)
+      setExamNotReady(false)
       return
     }
     const checkUserCompletion = async () => {
       try {
         const result = await apiClient.get(`/projects/${projectId}/next`)
         setUserCompletedAllTasks(!result.task && result.remaining === 0)
-      } catch {
+        setExamNotReady(false)
+      } catch (error) {
         setUserCompletedAllTasks(false)
+        setExamNotReady(isExamNotReadyError(error))
       }
     }
     checkUserCompletion()
@@ -1685,7 +1693,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </div>
 
             {/* Title */}
-            <div className="mb-4">
+            <div>
               {editingTitle ? (
                 <div className="flex items-center space-x-3">
                   <Input
@@ -1771,65 +1779,77 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <PencilIcon className="h-4 w-4" />
                     </Button>
                   )}
+                  {canEditProject() &&
+                    !currentProject.description &&
+                    !editingDescription && (
+                      <Button
+                        onClick={handleStartEditDescription}
+                        variant="outline"
+                        className="text-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        data-testid="project-add-description"
+                      >
+                        {t('project.editing.addDescription')}
+                      </Button>
+                    )}
                 </div>
               )}
             </div>
 
-            {/* Description */}
-            <div className="mb-4">
-              {editingDescription ? (
-                <div className="space-y-3">
-                  <Textarea
-                    value={descriptionValue}
-                    onChange={(e) => setDescriptionValue(e.target.value)}
-                    placeholder={t('project.editing.titlePlaceholder')}
-                    rows={3}
-                    className="resize-none"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      onClick={handleSaveDescription}
-                      disabled={isUpdating}
-                      className="text-sm"
-                    >
-                      {isUpdating
-                        ? t('project.editing.saving')
-                        : t('project.editing.save')}
-                    </Button>
-                    <Button
-                      onClick={handleCancelEditDescription}
-                      variant="outline"
-                      disabled={isUpdating}
-                      className="text-sm"
-                    >
-                      {t('project.editing.cancel')}
-                    </Button>
+            {/* Description: no block at all without one, so an empty
+                subtitle row does not push the cards down. Editors add
+                one from the title row. */}
+            {(editingDescription || currentProject.description) && (
+              <div className="mt-4">
+                {editingDescription ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      value={descriptionValue}
+                      onChange={(e) => setDescriptionValue(e.target.value)}
+                      placeholder={t('project.editing.titlePlaceholder')}
+                      rows={3}
+                      className="resize-none"
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        onClick={handleSaveDescription}
+                        disabled={isUpdating}
+                        className="text-sm"
+                      >
+                        {isUpdating
+                          ? t('project.editing.saving')
+                          : t('project.editing.save')}
+                      </Button>
+                      <Button
+                        onClick={handleCancelEditDescription}
+                        variant="outline"
+                        disabled={isUpdating}
+                        className="text-sm"
+                      >
+                        {t('project.editing.cancel')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="group flex items-start space-x-3">
-                  {/* No description: no subtitle. The list page's
-                      onboarding text does not describe a project. */}
-                  {currentProject.description && (
+                ) : (
+                  <div className="group flex items-start space-x-3">
                     <p
                       className="text-zinc-600 dark:text-zinc-400"
                       data-testid="project-description"
                     >
                       {currentProject.description}
                     </p>
-                  )}
-                  {canEditProject() && (
-                    <Button
-                      onClick={handleStartEditDescription}
-                      variant="outline"
-                      className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+                    {canEditProject() && (
+                      <Button
+                        onClick={handleStartEditDescription}
+                        variant="outline"
+                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -3005,7 +3025,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       onClick={handleStartLabeling}
                       variant="primary"
                       className="w-full"
-                      disabled={currentProject.task_count === 0}
+                      disabled={currentProject.task_count === 0 || examNotReady}
+                      title={
+                        examNotReady
+                          ? t('annotation.examNotReady.description')
+                          : undefined
+                      }
+                      data-testid="project-start-labeling"
                     >
                       <PlayIcon className="mr-2 h-4 w-4" />
                       {t('project.quickActions.startLabeling')}
@@ -3228,9 +3254,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-zinc-900 dark:text-white">
-                      {t('project.recentActivity.tasksImported', {
-                        count: currentProject.task_count,
-                      })}
+                      {t(
+                        currentProject.task_count === 1
+                          ? 'project.recentActivity.tasksImportedOne'
+                          : 'project.recentActivity.tasksImported',
+                        { count: currentProject.task_count },
+                      )}
                     </p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {formatDistanceToNow(
@@ -3250,9 +3279,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-zinc-900 dark:text-white">
-                        {t('project.recentActivity.annotationsCompleted', {
-                          count: currentProject.annotation_count,
-                        })}
+                        {t(
+                          currentProject.annotation_count === 1
+                            ? 'project.recentActivity.annotationsCompletedOne'
+                            : 'project.recentActivity.annotationsCompleted',
+                          { count: currentProject.annotation_count },
+                        )}
                       </p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         {t('project.recentActivity.inProgress')}
