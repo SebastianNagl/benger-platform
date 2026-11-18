@@ -180,7 +180,7 @@ describe('BulkMetadataEditor', () => {
 
     await waitFor(() => {
       expect(mockApiClient.patch).toHaveBeenCalledWith(
-        '/api/projects/tasks/bulk-metadata',
+        '/projects/tasks/bulk-metadata',
         { task_ids: [1, 2, 3], metadata: { tags: ['tag1'] } },
       )
     })

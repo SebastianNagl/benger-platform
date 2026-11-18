@@ -91,3 +91,26 @@ export function rateLimitMessage(
     minutes: Math.max(1, Math.ceil(seconds / 60)),
   })
 }
+
+/** `detail.code` of the 403 a participant gets while an exam is held closed
+ * (e.g. until its grading sheets are checked). */
+export const EXAM_NOT_READY_CODE = 'exam_not_ready'
+
+/**
+ * Whether a thrown API error (BaseApiClient puts `{status, data}` on
+ * `error.response`) is the 403 `{code: "exam_not_ready"}` the server answers
+ * a participant's task read with while the exam is not released yet. Editors
+ * pass that gate, so for them this is never true.
+ */
+export function isExamNotReadyError(error: unknown): boolean {
+  const response = (
+    error as { response?: { status?: unknown; data?: unknown } } | null
+  )?.response
+  if (!response || response.status !== 403) return false
+  const detail = (response.data as { detail?: unknown } | null)?.detail
+  return (
+    !!detail &&
+    typeof detail === 'object' &&
+    (detail as { code?: unknown }).code === EXAM_NOT_READY_CODE
+  )
+}

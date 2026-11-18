@@ -484,7 +484,7 @@ describe('MetadataField', () => {
       await waitFor(
         () => {
           expect(mockApiClient.patch).toHaveBeenCalledWith(
-            '/api/projects/tasks/1/metadata',
+            '/projects/tasks/1/metadata',
             { status: ['tag1', 'tag2', 'tag3'] },
           )
         },
@@ -515,7 +515,7 @@ describe('MetadataField', () => {
       await waitFor(
         () => {
           expect(mockApiClient.patch).toHaveBeenCalledWith(
-            '/api/projects/tasks/1/metadata',
+            '/projects/tasks/1/metadata',
             { status: ['tag1', 'tag2'] },
           )
         },
@@ -616,7 +616,7 @@ describe('MetadataField', () => {
 
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
-          '/api/projects/tasks/1/metadata',
+          '/projects/tasks/1/metadata',
           { status: 'updated' },
         )
       })
@@ -729,7 +729,7 @@ describe('MetadataField', () => {
 
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
-          '/api/projects/tasks/1/metadata',
+          '/projects/tasks/1/metadata',
           { status: 'updated' },
         )
       })
@@ -809,7 +809,7 @@ describe('MetadataField', () => {
       // Wait for save to complete - API should be called and edit mode closed
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
-          '/api/projects/tasks/1/metadata',
+          '/projects/tasks/1/metadata',
           { status: 'updated' },
         )
       })
@@ -1000,7 +1000,7 @@ describe('MetadataField', () => {
 
       await waitFor(() => {
         expect(mockApiClient.patch).toHaveBeenCalledWith(
-          '/api/projects/tasks/null/metadata',
+          '/projects/tasks/null/metadata',
           { status: 'updated' },
         )
       })

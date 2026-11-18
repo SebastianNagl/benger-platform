@@ -7173,6 +7173,10 @@
       "closedReadOnly": "Ce projet est terminé : consultation uniquement, aucune modification possible.",
       "attemptedReadOnly": "Remise antérieure. Consultation uniquement, aucune modification possible."
     },
+    "examNotReady": {
+      "title": "Pas encore disponible",
+      "description": "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification. Revenez plus tard."
+    },
     "textAreaPlaceholder": "Saisissez votre réponse ..."
   },
   "annotationTab": {

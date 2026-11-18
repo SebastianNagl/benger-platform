@@ -7,12 +7,14 @@
 'use client'
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { isExamNotReadyError } from '@/lib/api/errors'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { logger } from '@/lib/utils/logger'
@@ -73,6 +75,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   const { currentProject, fetchProject } = useProjectStore()
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
+  // The read was refused with 403 exam_not_ready (a participant of an exam
+  // whose grading sheet is still being checked), not a missing task.
+  const [examNotReady, setExamNotReady] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(false)
   const [annotations, setAnnotations] = useState<any[]>([])
   const [loadingAnnotations, setLoadingAnnotations] = useState(false)
@@ -105,12 +110,17 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
         typeof taskId,
       )
       setLoading(true)
+      setExamNotReady(false)
       try {
         logger.debug('About to call projectsAPI.getTask with:', taskId)
         const taskData = await projectsAPI.getTask(taskId)
         logger.debug('Task data received:', taskData)
         setTask(taskData)
       } catch (error) {
+        if (isExamNotReadyError(error)) {
+          setExamNotReady(true)
+          return
+        }
         console.error('Failed to load task:', error)
         addToast(t('tasks.detail.loadFailed'), 'error')
       } finally {
@@ -225,6 +235,14 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
           </p>
         </div>
       </div>
+    )
+  }
+
+  if (examNotReady) {
+    return (
+      <ProtectedRoute>
+        <ExamNotReadyNotice projectId={projectId} />
+      </ProtectedRoute>
     )
   }
 

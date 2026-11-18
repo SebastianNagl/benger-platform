@@ -7173,6 +7173,10 @@
       "closedReadOnly": "Dieses Projekt ist beendet – nur Ansicht, keine weiteren Änderungen.",
       "attemptedReadOnly": "Frühere Abgabe. Nur Ansicht, keine weiteren Änderungen."
     },
+    "examNotReady": {
+      "title": "Noch nicht freigegeben",
+      "description": "Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird. Schau später wieder vorbei."
+    },
     "textAreaPlaceholder": "Deine Antwort ..."
   },
   "annotationTab": {
