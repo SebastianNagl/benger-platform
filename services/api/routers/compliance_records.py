@@ -62,6 +62,8 @@ MAX_FINDING_JSON = 64 * 1024
 MAX_ID_LIST = 1000
 MAX_FINDINGS_PER_REQUEST = 2000
 MAX_PAGE = 1000
+MAX_INT4 = 2**31 - 1
+MAX_INT8 = 2**63 - 1
 
 Verdict = Literal["pass", "fail", "inconclusive", "informative", "not_applicable"]
 SuiteRunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
@@ -174,8 +176,8 @@ class SuiteRunUpdate(_SuiteRunFields):
 class _FindingFields(_Strict):
     system_key: Optional[str] = Field(None, max_length=255)
     scope: Optional[Dict[str, Any]] = None
-    n_tasks: Optional[int] = Field(None, ge=0)
-    n_runs: Optional[int] = Field(None, ge=0)
+    n_tasks: Optional[int] = Field(None, ge=0, le=MAX_INT4)
+    n_runs: Optional[int] = Field(None, ge=0, le=MAX_INT4)
     value: FiniteFloat = Field(None, allow_inf_nan=False)
     ci_low: FiniteFloat = Field(None, allow_inf_nan=False)
     ci_high: FiniteFloat = Field(None, allow_inf_nan=False)
@@ -512,7 +514,7 @@ async def list_assessments(
     project_id: Optional[str] = None,
     system_model_id: Optional[str] = None,
     limit: int = Query(100, ge=1, le=MAX_PAGE),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_INT8),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -635,7 +637,7 @@ async def list_suite_runs(
     suite_id: Optional[str] = None,
     status: Optional[SuiteRunStatus] = None,
     limit: int = Query(100, ge=1, le=MAX_PAGE),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_INT8),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -802,7 +804,7 @@ async def list_suite_run_findings(
     requirement_ref: Optional[str] = None,
     metric: Optional[str] = None,
     limit: int = Query(MAX_PAGE, ge=1, le=MAX_PAGE),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_INT8),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -854,7 +856,7 @@ async def list_findings(
     requirement_ref: Optional[str] = None,
     metric: Optional[str] = None,
     limit: int = Query(MAX_PAGE, ge=1, le=MAX_PAGE),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_INT8),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):

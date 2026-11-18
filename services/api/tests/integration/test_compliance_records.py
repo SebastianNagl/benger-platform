@@ -439,6 +439,8 @@ async def test_findings_list_needs_a_reference(async_test_client, async_test_db)
         {"ci_low": 2.0, "ci_high": 1.0},
         {"ci_level": 1.0},
         {"n_tasks": -1},
+        {"n_tasks": 2**31},
+        {"n_runs": 2**31},
         {"value": math.inf},
         {"requirement_ref": ""},
         {"unknown_field": 1},
@@ -464,6 +466,25 @@ def _json_with_inf(body):
     import json
 
     return json.dumps(body, allow_nan=True)
+
+
+async def test_out_of_range_integers_are_refused(async_test_client, async_test_db):
+    w = await _world(async_test_db)
+    with _as_user(w["editor"]):
+        c = async_test_client
+        assessment = await _create_assessment(c, w["org"])
+        run = await _create_run(c, assessment["id"])
+        item = (
+            await c.post(f"{BASE}/suite-runs/{run['id']}/findings", json={"findings": [_finding()]})
+        ).json()["items"][0]
+        patched = await c.patch(f"{BASE}/findings/{item['id']}", json={"n_runs": 2**31})
+        paged = await c.get(
+            f"{BASE}/suite-runs/{run['id']}/findings", params={"offset": 2**63}
+        )
+        kept = (await c.get(f"{BASE}/findings/{item['id']}")).json()
+    assert patched.status_code == 422
+    assert paged.status_code == 422
+    assert kept["n_runs"] == 3
 
 
 async def test_finding_edits_and_deletes_while_the_run_is_open(async_test_client, async_test_db):
