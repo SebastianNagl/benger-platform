@@ -92,17 +92,29 @@ def frame_columns(frame) -> Dict[str, np.ndarray]:
     return out
 
 
-def truthy_mask(columns: Mapping[str, np.ndarray], n: int, text: Optional[str], where: str) -> np.ndarray:
+def truthy_mask(
+    columns: Mapping[str, np.ndarray],
+    n: int,
+    text: Optional[str],
+    where: str,
+    warnings: Optional[List[str]] = None,
+) -> np.ndarray:
+    """Rows where the condition ``text`` is true. Number texts that
+    ``number()`` set to missing for an ambiguous separator are reported in
+    ``warnings`` (when given)."""
     if not text:
         return np.ones(n, dtype=bool)
+    ambiguous: List[str] = []
     try:
         expr = parse_expression(text)
         missing = sorted(name for name in expr.names if name not in columns)
         if missing:
             raise EngineError(f"{where}: unknown column(s) {', '.join(missing)}")
-        kind, arr = expr.evaluate(columns, n)
+        kind, arr = expr.evaluate(columns, n, ambiguous)
     except ExpressionError as exc:
         raise EngineError(f"{where}: {exc}") from None
+    if ambiguous and warnings is not None:
+        warnings.append(f"{where}: {len(ambiguous)} number text(s) with an ambiguous separator set to missing")
     if kind != "num":
         raise EngineError(f"{where}: a filter must be a condition, not text")
     return (arr != 0) & ~np.isnan(arr)
@@ -410,8 +422,9 @@ def fit_paired(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
         key_miss |= _is_missing(_column(columns, c, where))
     ref_rows = mask & _match(factor, treat["reference"]) & ~np.isnan(y_all) & ~key_miss
     treated = mask & _match(factor, treat["level"]) & ~key_miss
+    subset_warnings: List[str] = []
     if treat.get("subset"):
-        treated &= truthy_mask(columns, n, treat["subset"], f"{where}/treatment/subset")
+        treated &= truthy_mask(columns, n, treat["subset"], f"{where}/treatment/subset", subset_warnings)
     pair_keys = [_column(columns, c, where) for c in pair_by]
     sums: Dict[Tuple, List[float]] = {}
     for i in np.flatnonzero(ref_rows):
@@ -443,6 +456,7 @@ def fit_paired(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
         clusters=clusters,
         ssc=est["conventions"]["ssc"],
     )
+    fit.warnings.extend(subset_warnings)
     return fit, set(), len(idx), int((treated & mask).sum()) - len(idx), 0
 
 
@@ -455,9 +469,11 @@ def fit_estimand(
     est: Mapping[str, Any],
     base_mask: np.ndarray,
     where: str,
+    warnings: Optional[List[str]] = None,
 ) -> List[ScopedFit]:
-    """Fit ``est`` (normalized) once per scope."""
-    mask = base_mask & truthy_mask(columns, n, est.get("subset"), f"{where}/subset")
+    """Fit ``est`` (normalized) once per scope; warnings of its subset go to
+    ``warnings`` (when given)."""
+    mask = base_mask & truthy_mask(columns, n, est.get("subset"), f"{where}/subset", warnings)
     out: List[ScopedFit] = []
     for scope in est["scopes"]:
         for label, values, smask in _scope_slices(columns, n, scope, mask, where):

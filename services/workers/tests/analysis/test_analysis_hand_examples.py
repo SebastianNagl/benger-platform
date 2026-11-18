@@ -195,6 +195,38 @@ def test_paired_within_reports_the_pair_count_below_min_n():
     assert "fewer than min_n" in row["message"]
 
 
+def test_ambiguous_number_texts_in_filters_and_subsets_are_reported():
+    amounts = {"u1-s1-c1": "1,000"}
+    records = []
+    for obs in _records():
+        rec = {"generation_id": obs.generation_id, "task_id": obs.task_id, "model_id": obs.model_id,
+               "variant": {"design": "d", "unit": obs.unit, "factors": dict(obs.factors)},
+               "fields": {**obs.fields, "amt": amounts.get(obs.generation_id, "2,5")}}
+        records.append(observation_from_record(rec))
+    condition = "number(amt) >= 0"
+    spec = normalize_spec({
+        "spec_version": 1, "name": "hand", "inputs": {"designs": ["d"]},
+        "measures": {"y": {"kind": "field", "field": "y"}, "amt": {"kind": "field", "field": "amt", "type": "text"}},
+        "filter": f"{condition} or cond == 'c0'",
+        "estimands": [
+            {"id": "rate", "estimator": "mean_rate", "outcome": "y", "subset": condition},
+            {"id": "pairs", "estimator": "paired_within", "outcome": "y", "pair_by": ["unit", "system"],
+             "treatment": {"factor": "cond", "level": "c1", "reference": "c0", "subset": condition},
+             "vcov": {"type": "iid"}},
+        ],
+    })
+    result = run_spec(build_frame(records, spec).frame, spec)
+    message = "1 number text(s) with an ambiguous separator set to missing"
+    assert f"/filter: {message}" in result.warnings
+    assert f"/estimands/0/subset: {message}" in result.warnings
+    assert any(w.startswith("pairs [") and w.endswith(f"/treatment/subset: {message}") for w in result.warnings)
+    # "1,000" is missing, not 1.0 or 1000: its row is left out, so the pairs
+    # are those of CELLS without (u1, s1): differences 6, 1 and 9
+    assert result.rows_in_filter == 7
+    pairs = next(e for e in result.estimates if e["estimand_id"] == "pairs")
+    assert pairs["n_obs"] == 3 and pairs["estimate"] == pytest.approx(16 / 3, rel=1e-12)
+
+
 def test_tost_decision_and_p_value():
     from scipy import stats
 

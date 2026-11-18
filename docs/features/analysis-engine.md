@@ -114,8 +114,9 @@ digits and the other separator as decimal mark are read (`"1.000,50"` and
 for example `measure 'amount': 3 number text(s) with an ambiguous separator
 set to missing`.
 
-A global `filter` and an estimand's `subset` are expressions too (rows where
-they are true are used).
+A global `filter`, an estimand's `subset` and a paired treatment's `subset`
+are expressions too (rows where they are true are used); ambiguous number
+texts read by `number()` there are reported in the run warnings as well.
 
 ### Estimators
 

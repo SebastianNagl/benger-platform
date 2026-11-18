@@ -218,11 +218,11 @@ def run_spec(frame, spec: Mapping[str, Any]) -> AnalysisResult:
     columns = frame_columns(frame)
     n = len(frame)
     warnings: List[str] = []
-    base = truthy_mask(columns, n, spec.get("filter"), "/filter")
+    base = truthy_mask(columns, n, spec.get("filter"), "/filter", warnings)
     rows: List[Dict[str, Any]] = []
     fits: List[Dict[str, Any]] = []
     for i, est in enumerate(spec["estimands"]):
-        for sf in fit_estimand(columns, n, est, base, f"/estimands/{i}"):
+        for sf in fit_estimand(columns, n, est, base, f"/estimands/{i}", warnings):
             fits.append(sf.summary())
             if sf.error:
                 warnings.append(f"{est['id']} [{sf.scope}]: {sf.error}")
