@@ -148,9 +148,10 @@ def is_transient_upstream_error(exc: BaseException) -> bool:
     failure by minutes. The caller's own job-level retry still covers a
     resolver that was briefly down.
 
-    This is the predicate the DeepInfra / Custom endpoint retry decorator
-    backs off on. :func:`classify_retryable` builds the uniform
-    ``metadata.retryable`` flag of every provider on top of it."""
+    This is the rule the DeepInfra / Custom endpoint retry decorator backs
+    off on, with :func:`classify_retryable` as a veto. That classifier
+    builds the uniform ``metadata.retryable`` flag of every provider on top
+    of it."""
     if isinstance(exc, RetryableUpstreamError):
         return True
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
@@ -259,8 +260,9 @@ def classify_retryable(exc: BaseException) -> bool:
     raise a plain ValueError), the url_guard rejection of an unreachable or
     private host (``url_guard.UNREACHABLE_HOST_MESSAGE``) and our own bugs.
 
-    It only describes the error: each provider's retry decorator keeps its
-    own rule for when it backs off.
+    Every provider's retry decorator consults it too: the decorator backs
+    off only on an error that both its own rule matches and this function
+    deems retryable, so an exhausted quota fails on the first attempt.
     """
     if _is_exhausted_quota(exc):
         return False
