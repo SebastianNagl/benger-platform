@@ -9,6 +9,11 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-18-per-item-answers',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
     id: '2026-11-18-personal-dashboard-for-students',
     date: '2026-11-18',
     audience: 'benger',

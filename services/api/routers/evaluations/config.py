@@ -22,6 +22,7 @@ from grade_scale_history import (
 )
 from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
+from services.label_config.project_expansion import expanded_project_label_config_async
 from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
@@ -202,9 +203,13 @@ async def get_project_evaluation_config(
                     if (force_regenerate or project.evaluation_config)
                     else None
                 )
+                # A <Repeater> lists its indexed fields (risk_0, risk_1, ...)
+                label_config_for_fields, _ = await expanded_project_label_config_async(
+                    db, project_id, project.label_config
+                )
                 project.evaluation_config = generate_evaluation_config(
                     project_id=project_id,
-                    label_config=project.label_config,
+                    label_config=label_config_for_fields,
                     existing_config=existing_config,
                     label_config_version=project.label_config_version,
                 )
@@ -970,10 +975,14 @@ async def detect_answer_types(
                 "message": "No label configuration found",
             }
 
-        # Generate evaluation config based on label_config
+        # Generate evaluation config based on label_config (a <Repeater>
+        # lists its indexed fields)
+        label_config_for_fields, _ = await expanded_project_label_config_async(
+            db, project_id, project.label_config
+        )
         config = generate_evaluation_config(
             project_id=project_id,
-            label_config=project.label_config,
+            label_config=label_config_for_fields,
             existing_config=project.evaluation_config,
         )
 
@@ -1027,10 +1036,14 @@ async def get_field_types_for_llm_judge(
                 field_types={},
             )
 
-        # Generate evaluation config to get field types
+        # Generate evaluation config to get field types (a <Repeater> lists
+        # its indexed fields)
+        label_config_for_fields, _ = await expanded_project_label_config_async(
+            db, project_id, project.label_config
+        )
         config = generate_evaluation_config(
             project_id=project_id,
-            label_config=project.label_config,
+            label_config=label_config_for_fields,
             existing_config=project.evaluation_config,
         )
 

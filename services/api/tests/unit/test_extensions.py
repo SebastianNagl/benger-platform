@@ -171,7 +171,9 @@ class TestExtensionLoader:
         # findings, migration 145, shared compliance_records).
         # 2.58 adds metadata.retryable on every provider's error response
         # (base_service.classify_retryable).
-        assert CORE_API_VERSION == "2.58"
+        # 2.59 adds per-slot label configs (<Repeater>, label_config_repeater,
+        # task_data on the response parser and the schema generator).
+        assert CORE_API_VERSION == "2.59"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

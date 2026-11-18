@@ -1076,11 +1076,61 @@ migration).
     own retry behaviour are unchanged; ``base_service`` also exports
     ``is_transient_upstream_error``, the DeepInfra / Custom backoff
     predicate.
+
+2.59 (2026-11-18): per-slot label configs (Label Studio ``<Repeater>``; no
+migration).
+  - Label configs may contain ``<Repeater on="$array" indexFlag="{{idx}}">``.
+    It is expanded against each task's data exactly as Label Studio's
+    ``Tree.tsx`` expands it (children once per array element, the index flag
+    replaced by the 0-based element index in every attribute, the Repeater
+    becoming a ``<View>``), so results are stored under plain indexed control
+    names (``risk_0``, ``risk_1``, ...). BenGER attributes ``answerKey`` and
+    ``answerKeyStart`` (default 1) name the key that identifies an item in an
+    array answer. Rules (``label_config_repeater.repeater_errors``, enforced
+    by ``LabelConfigValidator``): ``on`` is a ``$`` binding, no nesting, every
+    named control carries the flag in its name, at most once per attribute,
+    and answer keys are unique.
+  - ``shared/label_config_repeater.py``: ``expand_repeaters(config,
+    task_data)`` (a config without a Repeater comes back unchanged),
+    ``expand_repeaters_for_tasks`` / ``expand_repeaters_with_counts`` (to the
+    longest array), ``repeater_blocks`` (``RepeaterBlock`` / ``RepeaterControl``
+    with ``answer_property``, ``item_key``, ``item_count``),
+    ``map_array_answers`` (``ArrayAnswerError``), ``repeater_answer_schema``,
+    ``repeater_answer_example``, ``derive_slot_map(config, task_data,
+    patterns)`` (slot index to control names, from a Repeater or from
+    ``{idx}`` name patterns for hand-written indexed controls) and
+    ``control_targets``.
+  - ``ResponseParser.parse(..., task_data=None)``: required for a Repeater
+    config; an array answer (top-level list for the only block, or an object
+    keyed by ``answer_property``) is mapped onto the indexed names, by
+    ``answerKey`` or by position, and a misfitting array is a
+    ``validation_error``. ``generate_json_schema_from_label_config(...,
+    task_data=None)`` and ``generate_format_instructions(...,
+    task_data=None)`` describe a Repeater block as one array of objects,
+    pinned to the task's item count when ``task_data`` is given. The
+    generation worker and the reparse route pass the task's data.
+  - ``LabelConfigParser.extract_fields(..., task_data=None)``: expanded names
+    with task data, otherwise template names with a ``repeater`` entry;
+    ``bound_data_fields`` includes a Repeater's ``on`` array and blinding
+    reads ``$a[i].b`` as the top-level key ``a``.
+  - ``services/label_config/project_expansion.expanded_project_label_config_async``
+    (longest array per Repeater, one SQL aggregate each), used by evaluation
+    field detection and the multi-field field list.
+  - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
+    expanded for Label Studio, with ``item_counts``) and ``GET
+    /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).
+  - The Label Studio task export fills a result's missing or dangling
+    ``to_name`` from its control's ``toName`` in the task's expanded config
+    (``convert_to_label_studio_format(results, targets)``); stored results are
+    unchanged.
+  - Frontend: ``parseLabelConfig(xml, taskData?)`` expands Repeaters
+    (``@/lib/labelConfig/repeater``), and data bindings resolve ``[n]``
+    indexes.
 """
 
 import os
 
-CORE_API_VERSION = "2.58"
+CORE_API_VERSION = "2.59"
 
 
 def extended_required() -> bool:

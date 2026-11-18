@@ -21,6 +21,13 @@ import re
 from typing import List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
+from label_config_repeater import (
+    REPEATER_TAG,
+    index_flag_of,
+    repeater_errors,
+    substitute_index_flag,
+)
+
 
 class LabelConfigValidator:
     """
@@ -65,6 +72,9 @@ class LabelConfigValidator:
         'Style',
         'Filter',
         'List',
+        # Label Studio's per-item block, expanded against each task's data
+        # (see services/shared/label_config_repeater.py).
+        'Repeater',
     }
 
     # Field types that require a 'name' attribute
@@ -256,6 +266,9 @@ class LabelConfigValidator:
         # Recursively validate all elements
         cls._validate_element(root, errors, field_names)
 
+        # Repeater blocks: binding, index flag and answer-key rules
+        errors.extend(repeater_errors(root))
+
         # Check for duplicate field names
         seen_names = set()
         for name in field_names:
@@ -267,7 +280,11 @@ class LabelConfigValidator:
 
     @classmethod
     def _validate_element(
-        cls, element: ET.Element, errors: List[str], field_names: List[str]
+        cls,
+        element: ET.Element,
+        errors: List[str],
+        field_names: List[str],
+        index_flag: Optional[str] = None,
     ) -> None:
         """
         Recursively validate an XML element
@@ -276,6 +293,9 @@ class LabelConfigValidator:
             element: Element to validate
             errors: List to append errors to
             field_names: List to append field names to
+            index_flag: The index flag of the enclosing <Repeater>, if any;
+                a name inside one is checked as its first expansion
+                (``risk_{{idx}}`` as ``risk_0``)
         """
         # Check if field type is supported (built-in or extension-registered)
         if (
@@ -293,8 +313,11 @@ class LabelConfigValidator:
             if not name:
                 errors.append(f"Field type '{element.tag}' requires a 'name' attribute")
             elif name:
+                expanded = (
+                    substitute_index_flag(name, index_flag, 0) if index_flag else name
+                )
                 # Validate name format (supports Unicode letters including German umlauts)
-                if not name.isidentifier():
+                if not expanded.isidentifier():
                     errors.append(
                         f"Invalid field name '{name}': must be a valid identifier "
                         "(start with a letter or underscore, followed by letters, digits, "
@@ -302,9 +325,12 @@ class LabelConfigValidator:
                     )
                 field_names.append(name)
 
+        if element.tag == REPEATER_TAG:
+            index_flag = index_flag_of(element)
+
         # Recursively validate children
         for child in element:
-            cls._validate_element(child, errors, field_names)
+            cls._validate_element(child, errors, field_names, index_flag)
 
     @classmethod
     def _validate_attributes(cls, root: ET.Element) -> List[str]:

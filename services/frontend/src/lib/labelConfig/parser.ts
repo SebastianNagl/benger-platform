@@ -6,6 +6,7 @@
  */
 
 import { translate } from '@/lib/utils/translate'
+import { expandRepeaters, indexFlagOf, REPEATER_TAG } from './repeater'
 
 export interface ParsedComponent {
   type: string
@@ -22,9 +23,14 @@ export interface ParseError {
 
 /**
  * Parse Label Studio XML configuration
+ *
+ * With `taskData`, every `<Repeater>` is expanded against the task as Label
+ * Studio does (see ./repeater), so the tree carries the task's indexed
+ * control names. Without it, a Repeater stays in the tree as it is.
  */
 export function parseLabelConfig(
   xmlString: string,
+  taskData?: Record<string, any>,
 ): ParsedComponent | ParseError {
   try {
     // Create a DOM parser
@@ -49,7 +55,8 @@ export function parseLabelConfig(
     }
 
     // Parse the component tree
-    return parseElement(root)
+    const tree = parseElement(root)
+    return taskData ? expandRepeaters(tree, taskData) : tree
   } catch (error) {
     return {
       message:
@@ -253,17 +260,29 @@ export function extractImportDataFields(config: ParsedComponent): {
   const required = new Set<string>()
   const all = new Set<string>()
 
-  function visit(component: ParsedComponent) {
+  function visit(component: ParsedComponent, indexFlag?: string) {
+    if (component.type === REPEATER_TAG) {
+      // A Repeater's items render from the array its `on` names; the
+      // bindings inside it (`$cases[{{idx}}].text`) point into that array.
+      const on = component.props.on
+      if (typeof on === 'string' && on.startsWith('$') && on.length > 1) {
+        all.add(on.substring(1))
+        required.add(on.substring(1))
+      }
+      const flag = indexFlagOf(component)
+      component.children.forEach((child) => visit(child, flag))
+      return
+    }
     const isRequired =
       component.props.required === 'true' || component.props.required === true
     for (const [key, value] of Object.entries(component.props)) {
       if (typeof value !== 'string' || !value.startsWith('$')) continue
       const field = value.substring(1)
-      if (!field) continue
+      if (!field || (indexFlag && field.includes(indexFlag))) continue
       all.add(field)
       if (key === 'value' || isRequired) required.add(field)
     }
-    component.children.forEach(visit)
+    component.children.forEach((child) => visit(child, indexFlag))
   }
 
   visit(config)

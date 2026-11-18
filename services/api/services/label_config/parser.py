@@ -10,8 +10,15 @@ XSS Prevention: All extracted field metadata is sanitized before returning
 """
 
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+from label_config_repeater import (
+    REPEATER_TAG,
+    expand_repeaters,
+    index_flag_of,
+    item_key_for,
+    repeater_attribute,
+)
 from services.label_config.sanitizer import LabelConfigSanitizer
 
 
@@ -63,6 +70,13 @@ class LabelConfigParser:
         """
         bound: set = set()
         try:
+            # A Repeater's ``on`` binding names the array its items render
+            # from, so that array is visible too.
+            if label_config and REPEATER_TAG in label_config:
+                for elem in ET.fromstring(label_config).iter(REPEATER_TAG):
+                    on = repeater_attribute(elem, "on")
+                    if isinstance(on, str) and on.startswith("$") and len(on) > 1:
+                        bound.add(on[1:])
             for field in cls.extract_fields(label_config or "", sanitize=False):
                 # ANY $-prefixed attribute is a data binding, not just
                 # ``value`` — the frontend resolver
@@ -77,7 +91,9 @@ class LabelConfigParser:
         return bound
 
     @staticmethod
-    def extract_fields(label_config: str, sanitize: bool = True) -> List[Dict]:
+    def extract_fields(
+        label_config: str, sanitize: bool = True, task_data: Optional[Any] = None
+    ) -> List[Dict]:
         """
         Extract all fields with full metadata from label config.
 
@@ -85,6 +101,12 @@ class LabelConfigParser:
             label_config: Label Studio XML configuration string
             sanitize: Whether to sanitize field metadata (default: True)
                      XSS Prevention: Sanitization prevents stored XSS attacks
+            task_data: A task's data. When given, every <Repeater> is first
+                expanded against it as Label Studio does, so the fields carry
+                the task's indexed names (``risk_0``, ``risk_1``, ...).
+                Without it, a field inside a <Repeater> keeps its template
+                name (``risk_{{idx}}``) and carries a ``repeater`` entry
+                (``on``, ``index_flag``, ``item_key``).
 
         Returns:
             List of field dictionaries with metadata (sanitized by default)
@@ -101,12 +123,22 @@ class LabelConfigParser:
             return []
 
         try:
+            if task_data is not None:
+                label_config = expand_repeaters(label_config, task_data)
             root = ET.fromstring(label_config)
             fields = []
+            repeated = LabelConfigParser._repeated_elements(root)
 
             for elem in root.iter():
                 if elem.tag in LabelConfigParser._allowed_field_types():
                     field = LabelConfigParser._parse_field_element(elem)
+                    if field and id(elem) in repeated:
+                        on, index_flag = repeated[id(elem)]
+                        field["repeater"] = {
+                            "on": on,
+                            "index_flag": index_flag,
+                            "item_key": item_key_for(field["name"], index_flag),
+                        }
                     if field:
                         # XSS Prevention: Sanitize field metadata before returning
                         if sanitize:
@@ -116,6 +148,19 @@ class LabelConfigParser:
             return fields
         except ET.ParseError:
             return []
+
+    @staticmethod
+    def _repeated_elements(root: ET.Element) -> Dict[int, tuple]:
+        """``{id(element): (on, index_flag)}`` for every element inside a
+        <Repeater> that was not expanded."""
+        repeated: Dict[int, tuple] = {}
+        for repeater in root.iter(REPEATER_TAG):
+            on = repeater_attribute(repeater, "on") or ""
+            index_flag = index_flag_of(repeater)
+            for elem in repeater.iter():
+                if elem is not repeater:
+                    repeated[id(elem)] = (on, index_flag)
+        return repeated
 
     @staticmethod
     def extract_field_names(label_config: str) -> List[str]:

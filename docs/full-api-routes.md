@@ -332,6 +332,8 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/imports/upload-url` | `projects:write`, `tasks:write` | bound |
 | GET | `/api/projects/{project_id}/imports/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/compare/{version1}/{version2}` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/label-studio` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/slots` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions/{version}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/members` | `projects:read` | bound |

@@ -22,6 +22,7 @@ import re
 
 import tasks
 from typing import Any, Dict, Optional
+from label_config_repeater import repeater_answer_example, repeater_blocks
 from response_parser import find_prompt_structure, prompt_structure_keys
 from system_profile import system_record
 
@@ -1056,8 +1057,10 @@ def generate_llm_responses_impl(
                             try:
                                 from ai_services import generate_json_schema_from_label_config
 
+                                # task_data: a <Repeater> block asks for one
+                                # object per item of this task's array.
                                 json_schema = generate_json_schema_from_label_config(
-                                    project.label_config
+                                    project.label_config, task_data=task_content
                                 )
                                 if json_schema.get("properties"):
                                     use_structured_output = True
@@ -1071,10 +1074,18 @@ def generate_llm_responses_impl(
                         # This ensures LLM produces fields matching annotation field names
                         if project.label_config:
                             output_fields = tasks.extract_label_config_fields(project.label_config)
-                            if output_fields:
-                                output_schema = {
-                                    field: "<your response>" for field in output_fields
-                                }
+                            output_schema = {
+                                field: "<your response>" for field in output_fields
+                            }
+                            # A <Repeater> block answers as a list with one
+                            # object per item of this task.
+                            for block in repeater_blocks(project.label_config):
+                                if block.controls:
+                                    output_schema[block.answer_property] = (
+                                        repeater_answer_example(block, task_content)
+                                    )
+                            if output_schema:
+                                output_fields = list(output_schema)
                                 schema_instruction = (
                                     "\n\n---\n"
                                     "IMPORTANT: Respond ONLY with valid JSON using these exact field names:\n"
@@ -1355,7 +1366,11 @@ def generate_llm_responses_impl(
                                 )
                                 # Pass source text for span position calculation (Issue #964)
                                 source_text = task_content.get("text") if task_content else None
-                                parse_result = parser.parse(response_text, source_text=source_text)
+                                parse_result = parser.parse(
+                                    response_text,
+                                    source_text=source_text,
+                                    task_data=task_content,
+                                )
 
                                 parse_status = parse_result.status
                                 parse_error = parse_result.error
