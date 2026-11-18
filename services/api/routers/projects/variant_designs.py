@@ -1,4 +1,4 @@
-"""Variant designs of a project (CORE 2.56): generic CRUD, checks, freeze,
+"""Variant designs of a project (CORE 2.57): generic CRUD, checks, freeze,
 export and import.
 
 A design declares a variant experiment (factors, unit, slots, outcome, gold

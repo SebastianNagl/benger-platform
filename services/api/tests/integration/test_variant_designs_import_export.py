@@ -1,4 +1,4 @@
-"""Variant designs through export and import (CORE 2.56).
+"""Variant designs through export and import (CORE 2.57).
 
 Every import path validates ``meta.variant`` (nested JSON, a flat CSV-style
 row, the tabular CSV import, the full project import or clone in both

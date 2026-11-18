@@ -471,7 +471,7 @@ class Task(Base):
 
 
 class VariantDesign(Base):
-    """The declared design of a variant experiment in a project (CORE 2.56).
+    """The declared design of a variant experiment in a project (CORE 2.57).
 
     ``spec`` follows ``schemas/variant_design.schema.json`` (factors with
     typed levels and roles, the unit, slots, outcome, gold and invariance

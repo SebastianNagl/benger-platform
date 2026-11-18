@@ -2,7 +2,7 @@
 
 A variant experiment runs the same item in several controlled variants and
 compares the answers. Its design is now a first-class, freezable object,
-while each task's place in it stays in ``task.meta.variant`` (CORE 2.56):
+while each task's place in it stays in ``task.meta.variant`` (CORE 2.57):
 
 - New table ``variant_designs``: one row per design of a project (``key``
   unique per project), the spec (JSONB, ``schemas/variant_design.schema.json``),

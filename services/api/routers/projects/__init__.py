@@ -14,7 +14,7 @@ This module aggregates all project-related endpoints into sub-routers:
 - generation_reparse: re-parse stored generations (superadmin)
 - label_config_versions: Label config version management
 - wizard_drafts: creation-wizard draft projects (CORE 2.55)
-- variant_designs: variant experiment designs, checks and freeze (CORE 2.56)
+- variant_designs: variant experiment designs, checks and freeze (CORE 2.57)
 """
 
 from fastapi import APIRouter

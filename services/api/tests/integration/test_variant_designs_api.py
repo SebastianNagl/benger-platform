@@ -1,4 +1,4 @@
-"""Variant designs through the API (CORE 2.56).
+"""Variant designs through the API (CORE 2.57).
 
 Routes under ``/api/projects/{id}/variant-designs`` (CRUD, export and import
 of a design, checks, freeze), the meta and data write routes against a

@@ -1,4 +1,4 @@
-"""Variant designs: the database side (CORE 2.56).
+"""Variant designs: the database side (CORE 2.57).
 
 - :func:`check_session_tasks` runs before every ORM flush (registered in
   ``project_models``) and validates ``meta.variant`` of each task the flush
