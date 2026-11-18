@@ -94,7 +94,7 @@ class PromptStructureBase(BaseModel):
     format_retry: Optional[Dict[str, Any]] = Field(
         None,
         description=(
-            "{max: 1-3, message}: ask again in the same conversation when the "
+            "{message}: ask once again in the same conversation when the "
             "answer yields no answer field; the first answer is kept."
         ),
     )

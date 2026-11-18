@@ -6,6 +6,7 @@ import pytest
 
 from generation_fidelity import (
     AnswerFormat,
+    FormatRetry,
     answer_format,
     refusal_matches,
     render_answer_schema,
@@ -52,17 +53,18 @@ def test_options_are_read_and_invalid_ones_fall_back():
     fmt = answer_format({
         "append_schema_instruction": False,
         "structured_output": "off",
-        "format_retry": {"max": 1, "message": "Bitte nur JSON."},
+        "format_retry": {"message": "Bitte nur JSON."},
         "refusal_heuristic": {"pattern": "kann ich nicht", "window": 100},
     })
     assert (fmt.append_schema_instruction, fmt.structured_output) == (False, "off")
-    assert (fmt.format_retry.max, fmt.format_retry.message) == (1, "Bitte nur JSON.")
+    assert fmt.format_retry == FormatRetry(message="Bitte nur JSON.")
+    assert fmt.as_record()["format_retry"] == {"message": "Bitte nur JSON."}
     assert fmt.refusal_heuristic.window == 100 and fmt.refusal_heuristic.flags == "i"
 
     broken = answer_format({
         "append_schema_instruction": "no",
         "structured_output": "maybe",
-        "format_retry": {"max": 9, "message": "x"},
+        "format_retry": {"message": "x", "extra": 1},
         "refusal_heuristic": {"pattern": "("},
         "answer_schema": {"fields": []},
     })
@@ -71,14 +73,19 @@ def test_options_are_read_and_invalid_ones_fall_back():
 
 @pytest.mark.parametrize("value, message", [
     ("x", "must be an object"),
-    ({"max": 0, "message": "m"}, "between 1 and 3"),
-    ({"max": True, "message": "m"}, "between 1 and 3"),
-    ({"max": 1, "message": "  "}, "non-empty"),
-    ({"max": 1, "message": "m", "extra": 1}, "unknown keys"),
+    ({"message": "  "}, "non-empty"),
+    ({}, "non-empty"),
+    ({"max": 1, "message": "m"}, "unknown keys"),
+    ({"message": "m", "extra": 1}, "unknown keys"),
 ])
 def test_format_retry_validation(value, message):
     with pytest.raises(ValueError, match=message):
         validate_format_retry(value)
+
+
+def test_a_stored_format_retry_with_max_is_read_as_one_re_ask():
+    fmt = answer_format({"format_retry": {"max": 3, "message": "Bitte nur JSON."}})
+    assert fmt.format_retry == FormatRetry(message="Bitte nur JSON.")
 
 
 @pytest.mark.parametrize("value, message", [

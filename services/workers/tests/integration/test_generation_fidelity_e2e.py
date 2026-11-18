@@ -17,7 +17,9 @@ OpenAI-compatible server (``mock_chat_server``). Pinned:
 * format retry: an answer without an answer field is asked again once in the
   same conversation (answer as assistant turn, retry message as user turn);
   the first answer is kept, ``retried`` set, tokens summed; no retry when
-  the first answer parses, and never more than ``max``;
+  the first answer parses (also for answer controls such as ``Loesung``),
+  never more than one re-ask, and a provider refusal of the first answer
+  still counts;
 * answer keys built from task data and the refusal heuristic.
 
 All fixture content is invented.
@@ -199,7 +201,7 @@ def test_format_retry_asks_again_in_the_same_conversation(
     task_data = TASKS[0]
     first = "Ich halte den Anspruch für überwiegend begründet."
     final = '{"anteil_mieter": 20, "begruendung": "Frist nicht eingehalten."}'
-    structure = _structure(**OFF, format_retry={"max": 1, "message": RETRY_MESSAGE})
+    structure = _structure(**OFF, format_retry={"message": RETRY_MESSAGE})
     with mock_chat_server() as server:
         server.reply(first, prompt_tokens=100, completion_tokens=12)
         server.reply(final, prompt_tokens=130, completion_tokens=20)
@@ -228,10 +230,11 @@ def test_format_retry_asks_again_in_the_same_conversation(
     assert _metadata(gen)["system"]["model_id"] == gen.model_id
 
 
-def test_format_retry_stops_at_max_and_skips_a_parsed_answer(
+def test_format_retry_asks_only_once_and_skips_a_parsed_answer(
     db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
 ):
-    structure = _structure(**OFF, format_retry={"max": 1, "message": RETRY_MESSAGE})
+    # Stored by an earlier version with "max": still a single re-ask.
+    structure = _structure(**OFF, format_retry={"max": 3, "message": RETRY_MESSAGE})
     with mock_chat_server() as server:
         server.reply("Erste Antwort ohne JSON.")
         server.reply("Zweite Antwort ohne JSON.")
@@ -244,6 +247,8 @@ def test_format_retry_stops_at_max_and_skips_a_parsed_answer(
         assert gen.retried is True
         assert gen.first_response_content == "Erste Antwort ohne JSON."
         assert gen.response_content == "Zweite Antwort ohne JSON."
+        assert _metadata(gen)["format_retry"] == {"attempts": 1, "error": None}
+        assert _metadata(gen)["answer_format"]["format_retry"] == {"message": RETRY_MESSAGE}
 
         server.replies.clear()
         server.bodies.clear()
@@ -253,6 +258,52 @@ def test_format_retry_stops_at_max_and_skips_a_parsed_answer(
         )
         assert len(server.bodies) == 1
         assert parsed.retried is False and parsed.first_response_content is None
+
+
+LOESUNG_ONLY_CONFIG = """<View>
+  <Text name="akte" value="$akte"/>
+  <Loesung name="loesung" toName="akte"/>
+</View>"""
+
+
+def test_format_retry_skips_a_parsed_answer_of_a_loesung_only_config(
+    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+):
+    answer = '{"loesung": "Der Anspruch aus § 556 BGB besteht nicht."}'
+    structure = _structure(**OFF, format_retry={"message": RETRY_MESSAGE})
+    with mock_chat_server() as server:
+        server.reply(answer)
+        server.reply("Nie angefragt.")
+        deepinfra_against(server)
+        _, [gen] = _generate(
+            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+            label_config=LOESUNG_ONLY_CONFIG,
+        )
+    assert len(server.bodies) == 1
+    assert gen.retried is False and gen.first_response_content is None
+    assert gen.response_content == answer
+    assert [i["from_name"] for i in gen.parsed_annotation] == ["loesung"]
+
+
+def test_provider_refusal_of_the_first_answer_survives_a_format_retry(
+    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+):
+    structure = _structure(
+        **OFF,
+        format_retry={"message": RETRY_MESSAGE},
+        refusal_heuristic={"pattern": r"^nie passend$"},
+    )
+    with mock_chat_server() as server:
+        server.reply("Dazu äußere ich mich nicht.", finish_reason="content_filter")
+        server.reply('{"anteil_mieter": 10, "begruendung": "Geringer Anteil."}')
+        deepinfra_against(server)
+        _, [gen] = _generate(
+            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+        )
+    assert len(server.bodies) == 2
+    assert gen.retried is True
+    assert gen.refusal is True
+    assert _metadata(gen)["refusal_sources"] == {"provider": True, "heuristic": False}
 
 
 def test_answer_keys_from_task_data_and_refusal_heuristic(

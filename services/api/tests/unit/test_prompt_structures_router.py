@@ -572,7 +572,7 @@ class TestAnswerFormatOptions:
                     "instruction_prompt": "$akte",
                     "append_schema_instruction": False,
                     "structured_output": "off",
-                    "format_retry": {"max": 1, "message": "Bitte nur JSON."},
+                    "format_retry": {"message": "Bitte nur JSON."},
                     "answer_schema": {"fields": {"anteil": {"key": "anteil_{{name}}"}}},
                     "refusal_heuristic": {"pattern": "kann nicht"},
                 },
@@ -587,7 +587,7 @@ class TestAnswerFormatOptions:
             ["anteil", "begruendung"]
         )
         assert body["fixed"]["schema_instruction_preview"] is None
-        assert body["fixed"]["format_retry"] == {"max": 1, "message": "Bitte nur JSON."}
+        assert body["fixed"]["format_retry"] == {"message": "Bitte nur JSON."}
         assert body["fixed"]["refusal_heuristic"] == {
             "pattern": "kann nicht", "flags": "i", "window": 1500,
         }
@@ -598,8 +598,8 @@ class TestAnswerFormatOptions:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("options", [
         {"structured_output": "maybe"},
-        {"format_retry": {"max": 4, "message": "x"}},
-        {"format_retry": {"max": 1, "message": ""}},
+        {"format_retry": {"max": 1, "message": "x"}},
+        {"format_retry": {"message": ""}},
         {"refusal_heuristic": {"pattern": "("}},
         {"answer_schema": {"fields": {"anteil": {}}}},
     ])
@@ -625,7 +625,7 @@ class TestAnswerFormatOptions:
                 "imported": {
                     "name": "I", "system_prompt": "S", "instruction_prompt": "$akte",
                     "append_schema_instruction": False,
-                    "format_retry": {"max": 99, "message": "x"},
+                    "format_retry": {"message": ""},
                 }
             }
         })

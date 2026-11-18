@@ -214,15 +214,15 @@ def _extract_response(
     return response_text, usage_stats, metadata
 
 
-def _answer_fields_parsed(parse_result: Any, label_fields: Any) -> bool:
-    """Whether a parse read at least one answer field of the label config.
+def _answer_fields_parsed(parse_result: Any, answer_controls: Any) -> bool:
+    """Whether a parse read at least one of the parser's answer controls.
 
     The parser's pattern fallback reports success for any text, filing it
     under ``__response__``; for a format retry that is an unparsed answer.
     """
     if parse_result is None or getattr(parse_result, "status", None) != "success":
         return False
-    names = set(label_fields or ())
+    names = set(answer_controls or ())
     for item in getattr(parse_result, "parsed_annotation", None) or []:
         if isinstance(item, dict) and item.get("from_name") in names:
             return True
@@ -1404,17 +1404,20 @@ def generate_llm_responses_impl(
                         # Pass source text for span position calculation (Issue #964)
                         source_text = task_content.get("text") if task_content else None
 
-                        def _parse(text: str):
-                            """(parse_result, status, error) of one answer."""
+                        def _parser():
                             # generation_structure is optional - ResponseParser
                             # auto-derives the schema from label_config.
+                            return tasks.ResponseParser(
+                                generation_structure=generation_structure or {},
+                                label_config=project.label_config,
+                                answer_keys=answer_keys,
+                            )
+
+                        def _parse(text: str):
+                            """(parse_result, status, error) of one answer."""
                             try:
                                 tasks.logger.info(f"🔍 Parsing LLM response for task {task_data['id']}")
-                                result = tasks.ResponseParser(
-                                    generation_structure=generation_structure or {},
-                                    label_config=project.label_config,
-                                    answer_keys=answer_keys,
-                                ).parse(text, source_text=source_text)
+                                result = _parser().parse(text, source_text=source_text)
                                 tasks.logger.info(f"📋 Parse status: {result.status}")
                                 if result.status != "success":
                                     tasks.logger.warning(f"⚠️ Parse failed: {result.error}")
@@ -1424,63 +1427,63 @@ def generate_llm_responses_impl(
                                 return None, "failed", f"Parser exception: {str(e)}"
 
                         first_response_content = None
+                        first_provider_refusal = False
                         retry_record: Optional[Dict[str, Any]] = None
                         if project.label_config:
                             parse_result, parse_status, parse_error = _parse(response_text)
+                            answer_controls = (
+                                _parser().label_config_map if parse_result is not None else ()
+                            )
 
                             # Format retry: an answer that yields no answer
-                            # field is asked again in the same conversation,
-                            # the answer as the assistant turn and the
-                            # structure's retry message as the user turn. The
-                            # first answer is kept beside the final one.
+                            # field is asked once again in the same
+                            # conversation, the answer as the assistant turn
+                            # and the structure's retry message as the user
+                            # turn. The first answer is kept beside the final one.
                             if fmt.format_retry is not None and not _answer_fields_parsed(
-                                parse_result, label_fields
+                                parse_result, answer_controls
                             ):
                                 first_response_content = response_text
-                                conversation: list = []
-                                retry_record = {"attempts": 0, "error": None}
-                                reasonings = [response_data.get("reasoning")]
-                                for _attempt in range(fmt.format_retry.max):
-                                    conversation = conversation + [
+                                first_provider_refusal = bool(metadata.get("refusal", False))
+                                retry_record = {"attempts": 1, "error": None}
+                                retry_kwargs = {
+                                    **call_kwargs,
+                                    "continuation": [
                                         {"role": "assistant", "content": response_text},
                                         {"role": "user", "content": fmt.format_retry.message},
+                                    ],
+                                }
+                                tasks.logger.info(f"🔁 Format retry for task {task_data['id']}")
+                                retry_data, retry_captured = _call_provider(
+                                    ai_service, use_structured_output, retry_kwargs
+                                )
+                                sent_requests.extend(
+                                    retry_captured
+                                    or [
+                                        _worker_call_entry(
+                                            model.provider,
+                                            api_model_name,
+                                            retry_kwargs,
+                                            use_structured_output,
+                                        )
                                     ]
-                                    retry_kwargs = {**call_kwargs, "continuation": conversation}
-                                    retry_record["attempts"] += 1
-                                    tasks.logger.info(
-                                        f"🔁 Format retry {_attempt + 1}/{fmt.format_retry.max} "
-                                        f"for task {task_data['id']}"
+                                )
+                                try:
+                                    retry_text, retry_usage, retry_metadata = _extract_response(
+                                        retry_data,
+                                        model=model,
+                                        model_id=model_id,
+                                        ai_service=ai_service,
+                                        base_metadata=base_metadata,
                                     )
-                                    retry_data, retry_captured = _call_provider(
-                                        ai_service, use_structured_output, retry_kwargs
+                                except Exception as retry_error:
+                                    # The retry call failed: the first answer
+                                    # stays the generation's answer.
+                                    retry_record["error"] = str(retry_error)
+                                    usage_stats = _add_usage(
+                                        usage_stats, retry_data.get("usage") or {}
                                     )
-                                    sent_requests.extend(
-                                        retry_captured
-                                        or [
-                                            _worker_call_entry(
-                                                model.provider,
-                                                api_model_name,
-                                                retry_kwargs,
-                                                use_structured_output,
-                                            )
-                                        ]
-                                    )
-                                    try:
-                                        retry_text, retry_usage, retry_metadata = _extract_response(
-                                            retry_data,
-                                            model=model,
-                                            model_id=model_id,
-                                            ai_service=ai_service,
-                                            base_metadata=base_metadata,
-                                        )
-                                    except Exception as retry_error:
-                                        # The retry call failed: the last answer
-                                        # stays the generation's answer.
-                                        retry_record["error"] = str(retry_error)
-                                        usage_stats = _add_usage(
-                                            usage_stats, retry_data.get("usage") or {}
-                                        )
-                                        break
+                                else:
                                     usage_stats = _add_usage(usage_stats, retry_usage)
                                     latency = (metadata.get("response_time_ms") or 0) + (
                                         retry_metadata.get("response_time_ms") or 0
@@ -1494,16 +1497,18 @@ def generate_llm_responses_impl(
                                     }
                                     metadata = {**retry_metadata, **first_call_keys, "response_time_ms": latency}
                                     response_text = retry_text
-                                    reasonings.append(retry_data.get("reasoning"))
                                     response_data = {
                                         **retry_data,
                                         "reasoning": "\n---\n".join(
-                                            r for r in reasonings if isinstance(r, str) and r.strip()
+                                            r
+                                            for r in (
+                                                response_data.get("reasoning"),
+                                                retry_data.get("reasoning"),
+                                            )
+                                            if isinstance(r, str) and r.strip()
                                         ) or None,
                                     }
                                     parse_result, parse_status, parse_error = _parse(response_text)
-                                    if _answer_fields_parsed(parse_result, label_fields):
-                                        break
                                 metadata["format_retry"] = retry_record
 
                             parsed_annotation = (
@@ -1521,7 +1526,9 @@ def generate_llm_responses_impl(
                         # Refusal: the provider's own signal, or the
                         # structure's heuristic on the opening of the answer
                         # (and of the first answer of a format retry).
-                        provider_refusal = bool(metadata.get("refusal", False))
+                        provider_refusal = first_provider_refusal or bool(
+                            metadata.get("refusal", False)
+                        )
                         heuristic_refusal = refusal_matches(
                             fmt.refusal_heuristic, response_text, first_response_content
                         )

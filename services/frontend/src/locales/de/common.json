@@ -1202,7 +1202,7 @@
         "instructionNotAppended": "Prompt wird unverändert gesendet",
         "structuredAuto": "Strukturierte Ausgabe: auto",
         "structuredOff": "Strukturierte Ausgabe: aus",
-        "retry": "Format-Nachfrage (max. {max})",
+        "retry": "Format-Nachfrage",
         "answerKeys": "Antwortschlüssel aus Aufgabendaten",
         "refusalHeuristic": "Verweigerungs-Heuristik",
         "appendedText": "Wird an den Instruktions-Prompt angehängt",

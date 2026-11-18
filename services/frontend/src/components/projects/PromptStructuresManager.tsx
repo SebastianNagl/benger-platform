@@ -39,7 +39,7 @@ interface PromptStructure {
   // a generation appends to the user prompt (null: nothing is appended).
   append_schema_instruction?: boolean
   structured_output?: 'auto' | 'off'
-  format_retry?: { max: number; message: string } | null
+  format_retry?: { message: string } | null
   answer_schema?: Record<string, unknown> | null
   refusal_heuristic?: {
     pattern: string
@@ -519,9 +519,7 @@ export function PromptStructuresManager({
                             </span>
                             {structure.format_retry && (
                               <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                {t('project.promptStructures.format.retry', {
-                                  max: structure.format_retry.max,
-                                })}
+                                {t('project.promptStructures.format.retry')}
                               </span>
                             )}
                             {structure.answer_schema && (

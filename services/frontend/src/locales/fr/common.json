@@ -1202,7 +1202,7 @@
         "instructionNotAppended": "Prompt envoyé tel quel",
         "structuredAuto": "Sortie structurée : auto",
         "structuredOff": "Sortie structurée : désactivée",
-        "retry": "Nouvelle demande de format (max. {max})",
+        "retry": "Nouvelle demande de format",
         "answerKeys": "Clés de réponse issues des données de la tâche",
         "refusalHeuristic": "Heuristique de refus",
         "appendedText": "Ajouté au prompt d’instruction",

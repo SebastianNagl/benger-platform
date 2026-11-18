@@ -1202,7 +1202,7 @@
         "instructionNotAppended": "Prompt sent as written",
         "structuredAuto": "Structured output: auto",
         "structuredOff": "Structured output: off",
-        "retry": "Format retry (max. {max})",
+        "retry": "Format retry",
         "answerKeys": "Answer keys from task data",
         "refusalHeuristic": "Refusal heuristic",
         "appendedText": "Appended to the instruction prompt",

@@ -1257,7 +1257,7 @@ describe('PromptStructuresManager', () => {
         instruction_prompt: '$akte',
         append_schema_instruction: false,
         structured_output: 'off',
-        format_retry: { max: 1, message: 'Bitte nur JSON.' },
+        format_retry: { message: 'Bitte nur JSON.' },
         answer_schema: { fields: { anteil: { key: 'anteil_{{name}}' } } },
         refusal_heuristic: { pattern: 'kann nicht', flags: 'i', window: 1500 },
         schema_instruction_preview: null,
@@ -1299,7 +1299,7 @@ describe('PromptStructuresManager', () => {
         within(fixed).getByText('Structured output: off'),
       ).toBeInTheDocument()
       expect(
-        within(fixed).getByText('Format retry (max. 1)'),
+        within(fixed).getByText('Format retry'),
       ).toBeInTheDocument()
       expect(
         within(fixed).getByText('Answer keys from task data'),

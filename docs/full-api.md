@@ -205,10 +205,10 @@ as `schema_instruction_preview`. To send a fixed prompt design unchanged, set
 `append_schema_instruction: false` and `structured_output: "off"` (the
 answer is then parsed from free text). Optional blocks:
 
-* `format_retry: {"max": 1, "message": "..."}`: when an answer yields no
-  answer field, ask again in the same conversation (the answer as assistant
-  turn, `message` as user turn), up to `max` (1-3) times. The generation keeps
-  the first answer in `first_response_content` and sets `retried`.
+* `format_retry: {"message": "..."}`: when an answer yields no answer field,
+  ask once again in the same conversation (the answer as assistant turn,
+  `message` as user turn). The generation keeps the first answer in
+  `first_response_content` and sets `retried`.
 * `answer_schema: {"fields": {"<control>": {"key": "...", "values": {"...":
   "<stored value>"}}}}`: answer keys and choice values that depend on the
   task, with `{{path}}` (or `{{path|lower}}`) standing for a task field, for

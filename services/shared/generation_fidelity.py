@@ -15,11 +15,11 @@ behaviour of a structure that does not set them:
     derived from the label config when it has answer fields. ``off`` sends
     a plain text request and parses the free-text answer.
 
-``format_retry`` (``{"max": 1-3, "message": str}``, default none)
-    When an answer does not parse, ask again in the same conversation (the
-    first answer as the assistant turn, then ``message`` as the user turn),
-    up to ``max`` times. The generation keeps the first answer
-    (``first_response_content``) and is marked ``retried``.
+``format_retry`` (``{"message": str}``, default none)
+    When an answer does not parse, ask once again in the same conversation
+    (the first answer as the assistant turn, then ``message`` as the user
+    turn). The generation keeps the first answer (``first_response_content``)
+    and is marked ``retried``.
 
 ``answer_schema`` (default none)
     ``{"fields": {<control name>: {"key": <template>, "values": {<template>:
@@ -49,9 +49,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 #: task stay one task with many runs; variant designs need dozens of them.
 MAX_GENERATION_RUNS_PER_TASK = 100
 
-#: Upper bound of ``format_retry.max``.
-MAX_FORMAT_RETRIES = 3
-
 #: Default and upper bound of ``refusal_heuristic.window`` (characters).
 DEFAULT_REFUSAL_WINDOW = 1500
 MAX_REFUSAL_WINDOW = 100_000
@@ -67,7 +64,6 @@ _KEY_TEMPLATE = re.compile(
 
 @dataclass(frozen=True)
 class FormatRetry:
-    max: int
     message: str
 
 
@@ -98,7 +94,7 @@ class AnswerFormat:
             "append_schema_instruction": self.append_schema_instruction,
             "structured_output": self.structured_output,
             "format_retry": (
-                {"max": self.format_retry.max, "message": self.format_retry.message}
+                {"message": self.format_retry.message}
                 if self.format_retry
                 else None
             ),
@@ -124,17 +120,14 @@ def validate_format_retry(value: Any) -> Optional[Dict[str, Any]]:
     if value is None:
         return None
     if not isinstance(value, dict):
-        raise ValueError("format_retry must be an object with 'max' and 'message'")
-    unknown = set(value) - {"max", "message"}
+        raise ValueError("format_retry must be an object with 'message'")
+    unknown = set(value) - {"message"}
     if unknown:
         raise ValueError(f"format_retry has unknown keys: {sorted(unknown)}")
-    max_ = value.get("max", 1)
-    if not isinstance(max_, int) or isinstance(max_, bool) or not 1 <= max_ <= MAX_FORMAT_RETRIES:
-        raise ValueError(f"format_retry.max must be an integer between 1 and {MAX_FORMAT_RETRIES}")
     message = value.get("message")
     if not isinstance(message, str) or not message.strip():
         raise ValueError("format_retry.message must be a non-empty string")
-    return {"max": max_, "message": message}
+    return {"message": message}
 
 
 def validate_refusal_heuristic(value: Any) -> Optional[Dict[str, Any]]:
@@ -203,8 +196,11 @@ def answer_format(structure: Any) -> AnswerFormat:
     append = structure.get("append_schema_instruction", True)
     mode = structure.get("structured_output", "auto")
     retry = refusal = schema = None
+    stored_retry = structure.get("format_retry")
+    if isinstance(stored_retry, dict):
+        stored_retry = {k: v for k, v in stored_retry.items() if k != "max"}
     try:
-        raw = validate_format_retry(structure.get("format_retry"))
+        raw = validate_format_retry(stored_retry)
         retry = FormatRetry(**raw) if raw else None
     except ValueError:
         retry = None
