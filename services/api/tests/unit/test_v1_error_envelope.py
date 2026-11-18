@@ -1,6 +1,6 @@
 """The v1 error envelope applies to /api/v1 paths only."""
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from httpx import ASGITransport, AsyncClient
 
 from middleware.api_usage import ApiUsageMiddleware
@@ -44,6 +44,14 @@ def _app() -> FastAPI:
     @app.get("/api/validated")
     def browser_validated(n: int = Query(...)):
         return {"n": n}
+
+    @app.post("/api/finite")
+    def browser_finite(x: float = Body(..., embed=True, allow_inf_nan=False)):
+        return {"x": x}
+
+    @app.post("/api/v1/finite")
+    def v1_finite(x: float = Body(..., embed=True, allow_inf_nan=False)):
+        return {"x": x}
 
     return app
 
@@ -96,6 +104,23 @@ async def test_validation_errors():
         assert "input" not in error["details"]["errors"][0]
         r = await c.get("/api/validated", params={"n": "abc"})
         assert r.status_code == 422 and "detail" in r.json()
+
+
+async def test_non_finite_inputs_get_a_422_not_a_500():
+    """``Infinity`` / ``NaN`` in a body parse as floats; the error echoing
+    them must still render as JSON."""
+    async with await _client() as c:
+        for value in ("Infinity", "-Infinity", "NaN"):
+            body = '{"x": %s}' % value
+            headers = {"Content-Type": "application/json"}
+            r = await c.post("/api/finite", content=body, headers=headers)
+            assert r.status_code == 422, r.text
+            (error,) = r.json()["detail"]
+            assert error["loc"] == ["body", "x"]
+            assert error["input"] in ("inf", "-inf", "nan")
+            r = await c.post("/api/v1/finite", content=body, headers=headers)
+            assert r.status_code == 422, r.text
+            assert r.json()["error"]["code"] == "validation_error"
 
 
 async def test_unknown_routes_on_the_main_app(async_test_client):
