@@ -1050,11 +1050,32 @@ whenever one is added, renamed or removed):
     ORG_ADMIN and CONTRIBUTOR members of the assessment's organization,
     deletes ORG_ADMIN only, 409 ``{"code", "message"}`` from the guards.
     Access keys are refused (``key_routes``).
+
+2.58 (2026-11-18): uniform retryability of a failed provider call (no
+migration).
+  - Every provider's error response (OpenAI, Anthropic, Google, Mistral,
+    Cohere, Grok, DeepInfra, Custom endpoints) carries a boolean
+    ``metadata.retryable``: whether the same call can succeed when tried
+    again. It comes from one shared classifier,
+    ``ai_services.base_service.classify_retryable(exc)``, on the original
+    exception: False for an invalid or missing key, any 4xx other than
+    408/409/429 (unknown model 404, bad request, content filter, context
+    length), an exhausted quota or billing limit sent as 429
+    (``insufficient_quota`` / ``billing_hard_limit_reached``, where the
+    provider names it), an unresolvable host and the url_guard rejection;
+    True for 408/409/429, 5xx, timeouts, connection failures and a model
+    answer that did not parse. Google's own empty-answer error is False for
+    a safety block and True otherwise. Callers that repeat a failed
+    generation read this flag instead of ``error_type`` or
+    ``retry_attempts[-1].retryable``. ``error_type`` and each provider's
+    own retry behaviour are unchanged; ``base_service`` also exports
+    ``is_transient_upstream_error``, the DeepInfra / Custom backoff
+    predicate.
 """
 
 import os
 
-CORE_API_VERSION = "2.57"
+CORE_API_VERSION = "2.58"
 
 
 def extended_required() -> bool:

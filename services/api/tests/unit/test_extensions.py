@@ -169,7 +169,9 @@ class TestExtensionLoader:
         # response_metadata.system) and the enable_thinking knob.
         # 2.57 adds the compliance records (assessments, suite runs and
         # findings, migration 145, shared compliance_records).
-        assert CORE_API_VERSION == "2.57"
+        # 2.58 adds metadata.retryable on every provider's error response
+        # (base_service.classify_retryable).
+        assert CORE_API_VERSION == "2.58"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

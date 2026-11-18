@@ -6,7 +6,6 @@ import asyncio
 import logging
 import os
 import random
-import socket
 import time
 from datetime import datetime
 from functools import wraps
@@ -19,6 +18,7 @@ from .base_service import (
     RetryableUpstreamError,
     derive_refusal,
     derive_truncated,
+    is_transient_upstream_error,
 )
 from system_profile import openai_compatible_reasoning_payload, reasoning_params_sent
 
@@ -53,56 +53,11 @@ _sleep = asyncio.sleep
 DEEPINFRA_REQUEST_TIMEOUT_S = int(os.getenv("DEEPINFRA_REQUEST_TIMEOUT_S", "900"))
 
 
-def _is_dns_resolution_error(exc: BaseException) -> bool:
-    """True when ``exc`` is a failed host lookup: aiohttp's
-    ClientConnectorDNSError, or any error whose ``os_error`` or cause chain
-    holds a ``socket.gaierror``."""
-    try:
-        import aiohttp as _aiohttp
-
-        if isinstance(exc, _aiohttp.ClientConnectorDNSError):
-            return True
-    except ImportError:  # pragma: no cover
-        pass
-    seen = set()
-    current: Optional[BaseException] = exc
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        if isinstance(current, socket.gaierror):
-            return True
-        if isinstance(getattr(current, "os_error", None), socket.gaierror):
-            return True
-        current = current.__cause__ or current.__context__
-    return False
-
-
-def _is_retryable_error(exc: BaseException) -> bool:
-    """Transient errors worth re-attempting: typed 429/5xx raises from our
-    HTTP paths, timeouts, and connection-layer failures. Everything else
-    (auth, other 4xx, SSRF-guard rejections, bugs) fails fast.
-
-    A host that does not resolve fails fast too: it is almost always a
-    misconfigured endpoint, and backing off five times only delays the
-    failure by minutes. The caller's own job-level retry still covers a
-    resolver that was briefly down."""
-    if isinstance(exc, RetryableUpstreamError):
-        return True
-    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
-        return True
-    if _is_dns_resolution_error(exc):
-        return False
-    try:
-        # Import the REAL aiohttp here: tests replace this module's
-        # ``aiohttp`` binding with a fake, which isinstance() can't take.
-        import aiohttp as _aiohttp
-
-        if isinstance(exc, _aiohttp.ClientConnectionError):
-            return True
-    except ImportError:  # pragma: no cover
-        pass
-    # Legacy substring fallback (untyped raise sites, foreign callers).
-    msg = str(exc).lower()
-    return "429" in msg or "rate limit" in msg or "too many requests" in msg
+# The predicate this module's retry decorator backs off on (and the one the
+# Custom endpoint service inherits through the decorator). It lives in
+# base_service so classify_retryable builds every provider's uniform
+# ``metadata.retryable`` flag on the same rules.
+_is_retryable_error = is_transient_upstream_error
 
 
 def async_retry_with_exponential_backoff(
