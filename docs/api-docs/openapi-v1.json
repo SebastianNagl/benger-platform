@@ -934,8 +934,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "maxLength": 200
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -951,8 +950,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "maxLength": 500
+                  "type": "string"
                 },
                 {
                   "type": "null"

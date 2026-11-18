@@ -236,6 +236,27 @@ async def test_estimates_in_engine_order_with_filters(async_test_client, async_t
     assert [i["position"] for i in page.json()["items"]] == [1, 2]
 
 
+async def test_long_data_built_labels_are_selectable(async_test_client, async_test_db, world):
+    db = async_test_db
+    run = await _completed_run(db, world["project"], world["admin"], estimates=1)
+    level = "x" * 600
+    scope, contrast = f"fact={level}", f"cond[{level}]:type[{level}]"
+    db.add(AnalysisEstimate(
+        run_id=run.id, position=1, estimand_id="role", contrast_id=contrast, estimator="fe_ols", kind="linear",
+        outcome="share", scope=scope, scope_values={"fact": level}, status="ok", estimate=1.0,
+    ))
+    await db.commit()
+    key = await _key(db, world, ["results:read"])
+    params = {"scope": scope, "contrast_id": contrast}
+    with v1_auth(db, session_user=world["member"]):
+        full = await async_test_client.get(f"/api/analysis-runs/{run.id}/estimates", params=params)
+    with v1_auth(db):
+        v1 = await async_test_client.get(f"/api/v1/analysis-runs/{run.id}/estimates", params=params, headers=bearer(key))
+    for response in (full, v1):
+        assert response.status_code == 200, response.text
+        assert [(e["position"], e["scope"]) for e in response.json()["items"]] == [(1, scope)]
+
+
 async def test_frame_download_needs_full_data_access(async_test_client, async_test_db, world):
     stored = await _completed_run(async_test_db, world["project"], world["admin"], frame_key="analysis/2026/11/f.parquet")
     pending = await _completed_run(async_test_db, world["project"], world["admin"])

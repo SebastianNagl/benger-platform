@@ -326,8 +326,8 @@ def build_select_estimates(
 async def list_analysis_estimates(
     analysis_run_id: str,
     estimand_id: Optional[str] = Query(None, max_length=200),
-    contrast_id: Optional[str] = Query(None, max_length=200),
-    scope: Optional[str] = Query(None, max_length=500),
+    contrast_id: Optional[str] = Query(None),
+    scope: Optional[str] = Query(None),
     family: Optional[str] = Query(None, max_length=200),
     status: Optional[str] = Query(None, max_length=32),
     limit: int = Query(1000, ge=1, le=MAX_ESTIMATES_PAGE),
