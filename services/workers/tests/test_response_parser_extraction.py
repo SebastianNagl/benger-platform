@@ -92,7 +92,7 @@ class TestJsonAfterProse:
     def test_the_last_json_value_wins(self):
         answer = (
             'A first draft: {"liable": "True", "reason": "draft"}\n'
-            'Final: {"liable": "False", "reason": "final"} Done.'
+            'Final: {"liable": "False", "reason": "final"}'
         )
         result = ResponseParser({}, BOOLEAN_CHOICES).parse(answer)
         assert _values(result)["reason"] == {"text": ["final"]}
@@ -105,9 +105,16 @@ class TestJsonAfterProse:
             'On reflection the draft is wrong. Final: {"liable": "False", "reason": "no duty was ow',
             # a complete inner object inside a cut-off outer one
             'Answer: {"details": {"liable": "True", "reason": "inner"}, "liable": "Fal',
+            # the final object is closed but malformed (trailing comma)
+            'Draft: {"liable": "True", "reason": "draft"}\n'
+            'Final: {"liable": "False", "reason": "x",}',
+            # a valid inner object inside a malformed (Python-quoted) outer one
+            "Final: {'liable': 'False', \"details\": {\"reason\": \"x\"}}",
+            # prose after the final object: the answer does not end with JSON
+            'Final: {"liable": "False", "reason": "x"} That is all.',
         ],
     )
-    def test_truncated_final_value_promotes_no_earlier_value(self, answer):
+    def test_no_trailing_json_value_promotes_no_other_value(self, answer):
         result = ResponseParser({}, BOOLEAN_CHOICES).parse(answer)
         assert result.status == "success"
         assert result.field_values == {"__response__": answer}

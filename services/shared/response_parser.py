@@ -101,52 +101,32 @@ def multi_choice_names(label_config: Optional[str]) -> List[str]:
     ]
 
 
-def _closes(text: str, start: int) -> bool:
-    """Whether the bracket opened at ``text[start]`` is closed later on,
-    counting brackets outside JSON strings."""
+def last_json_value(text: str) -> Any:
+    """The JSON object or array that ends ``text`` (after trailing
+    whitespace), or None when the text does not end with one.
+
+    The value must decode up to the very end, and the text before it must
+    hold no unclosed ``{`` or ``[``, so a truncated or malformed final value
+    never promotes an earlier draft or a value nested inside it.
+    """
+    stripped = text.rstrip()
+    if not stripped or stripped[-1] not in "}]":
+        return None
+    decoder = json.JSONDecoder()
     depth = 0
-    in_string = False
-    escaped = False
-    for char in text[start:]:
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
-        elif char == '"':
-            in_string = True
-        elif char in "{[":
+    for position, char in enumerate(stripped):
+        if char in "{[":
+            if depth == 0:
+                try:
+                    value, end = decoder.raw_decode(stripped, position)
+                except json.JSONDecodeError:
+                    end = -1
+                if end == len(stripped):
+                    return value
             depth += 1
         elif char in "}]":
-            depth -= 1
-            if depth == 0:
-                return True
-    return False
-
-
-def last_json_value(text: str) -> Any:
-    """The last top-level JSON object or array in ``text`` that decodes, or
-    None when there is none. A bracket that is never closed is a truncated
-    value, which everything after it belongs to, so it yields None."""
-    decoder = json.JSONDecoder()
-    found = None
-    position = 0
-    while position < len(text):
-        if text[position] in "{[":
-            try:
-                value, end = decoder.raw_decode(text, position)
-            except json.JSONDecodeError:
-                if not _closes(text, position):
-                    return None
-                position += 1
-                continue
-            found = value
-            position = end
-        else:
-            position += 1
-    return found
+            depth = max(depth - 1, 0)
+    return None
 
 
 @dataclass
