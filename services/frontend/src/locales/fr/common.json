@@ -96,6 +96,7 @@
   "dashboard": {
     "title": "Tableau de bord",
     "subtitle": "Gérez vos projets d'annotation et suivez leur progression",
+    "subtitlePersonal": "Vos examens et tâches ouverts, vos réponses et vos résultats en un coup d'œil",
     "totalQuestions": "Total des questions",
     "recentDocuments": "Tâches récentes",
     "viewAll": "Tout afficher",
@@ -106,6 +107,10 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "openExams": "Examens ouverts",
+      "openTasks": "Tâches ouvertes",
+      "submittedAnswers": "Réponses soumises",
+      "releasedResults": "Résultats publiés",
       "unavailable": "Indisponible",
       "unavailableShort": "n.d."
     },

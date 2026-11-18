@@ -114,9 +114,20 @@ class _DataScope:
       like the per-project listing narrows them (own submissions for the
       attempted tier; open assignments for org ANNOTATORs in manual / auto
       assignment mode).
+    - ``tiers``: per project, the access tier the caller holds
+      (``TIER_FULL`` / ``TIER_PARTICIPANT`` / ``TIER_ATTEMPTED``), so a
+      reader can tell a read-only attempted project from a Safe Exam Browser
+      exam, which ``attempted_only`` both narrow.
     """
 
-    __slots__ = ("user_id", "project_ids", "bound", "attempted_only", "assigned_only")
+    __slots__ = (
+        "user_id",
+        "project_ids",
+        "bound",
+        "attempted_only",
+        "assigned_only",
+        "tiers",
+    )
 
     def __init__(self, user_id: str):
         self.user_id = user_id
@@ -124,6 +135,7 @@ class _DataScope:
         self.bound: Dict[str, Optional[Set[str]]] = {}
         self.attempted_only: Set[str] = set()
         self.assigned_only: Set[str] = set()
+        self.tiers: Dict[str, str] = {}
 
     def is_blinded(self, project_id: str) -> bool:
         return self.bound.get(project_id) is not None
@@ -154,16 +166,46 @@ class _DataScope:
             clauses.append(
                 and_(
                     Task.project_id.in_(sorted(self.assigned_only)),
-                    exists().where(
-                        TaskAssignment.task_id == Task.id,
-                        TaskAssignment.user_id == self.user_id,
-                        # Same as the per-project listing: completed
-                        # assignments drop out of the annotator's list.
-                        TaskAssignment.status != "completed",
-                    ),
+                    self._open_assignment_exists(),
                 )
             )
         return or_(*clauses) if clauses else false()
+
+    def answerable_task_clause(self, project_ids: Iterable[str]):
+        """SQL condition over ``Task``: the tasks of ``project_ids`` the caller
+        is handed to answer, whether answered already or not.
+
+        Unlike :meth:`task_clause` a Safe Exam Browser exam keeps all its
+        tasks (they are answered inside SEB), while a manual / auto assignment
+        project keeps only the caller's open assignments. Projects outside the
+        scope, and attempted-tier projects (read-only), give no task.
+        """
+        from routers.projects.helpers import TIER_ATTEMPTED
+
+        ids = {
+            pid
+            for pid in project_ids
+            if pid in self.tiers and self.tiers[pid] != TIER_ATTEMPTED
+        }
+        free = sorted(ids - self.assigned_only)
+        assigned = sorted(ids & self.assigned_only)
+        clauses = []
+        if free:
+            clauses.append(Task.project_id.in_(free))
+        if assigned:
+            clauses.append(
+                and_(Task.project_id.in_(assigned), self._open_assignment_exists())
+            )
+        return or_(*clauses) if clauses else false()
+
+    def _open_assignment_exists(self):
+        return exists().where(
+            TaskAssignment.task_id == Task.id,
+            TaskAssignment.user_id == self.user_id,
+            # Same as the per-project listing: completed assignments drop
+            # out of the annotator's list.
+            TaskAssignment.status != "completed",
+        )
 
 
 async def _resolve_data_scope(
@@ -266,6 +308,7 @@ async def _resolve_data_scope(
                     continue
                 tier = TIER_ATTEMPTED
         scope.project_ids.append(pid)
+        scope.tiers[pid] = tier
         scope.bound[pid] = bound_fields_for_role(role, project)
         # Safe Exam Browser exams hand out their tasks inside SEB only (the
         # exam page); here non-editors see just the tasks they submitted.

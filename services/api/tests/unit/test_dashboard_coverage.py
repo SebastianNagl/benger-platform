@@ -12,7 +12,7 @@ shims keep working unchanged.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -68,6 +68,16 @@ def _mock_async_db(scalar_value=None):
 async def _client():
     transport = ASGITransport(app=app)
     return AsyncClient(transport=transport, base_url="http://testserver")
+
+
+
+@pytest.fixture(autouse=True)
+def _overview_view():
+    """These tests drive the overview of the dashboard (teachers and admins);
+    the personal view of annotators is covered by
+    tests/integration/test_dashboard_personal_view.py."""
+    with patch("routers.dashboard.sees_overview_async", AsyncMock(return_value=True)):
+        yield
 
 
 class TestDashboardStats:
@@ -292,6 +302,7 @@ class TestDashboardStats:
                     resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 assert resp.json() == {
+                    "scope": "overview",
                     "project_count": 2, "task_count": 10, "annotation_count": 0,
                     "projects_with_generations": 0, "projects_with_evaluations": 0,
                 }
@@ -335,6 +346,7 @@ class TestDashboardStats:
                     resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 assert resp.json() == {
+                    "scope": "overview",
                     "project_count": 2, "task_count": 12, "annotation_count": 5,
                     "projects_with_generations": 4, "projects_with_evaluations": 12,
                 }

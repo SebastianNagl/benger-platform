@@ -96,6 +96,7 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Verwalte deine Annotationsprojekte und verfolge den Fortschritt",
+    "subtitlePersonal": "Deine offenen Klausuren und Aufgaben, deine Antworten und Ergebnisse auf einen Blick",
     "totalQuestions": "Gesamte Fragen",
     "recentDocuments": "Letzte Aufgaben",
     "viewAll": "Alle anzeigen",
@@ -106,6 +107,10 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "evaluations": "Evaluierungen",
+      "openExams": "Offene Klausuren",
+      "openTasks": "Offene Aufgaben",
+      "submittedAnswers": "Abgegebene Antworten",
+      "releasedResults": "Erhaltene Ergebnisse",
       "unavailable": "Nicht verfügbar",
       "unavailableShort": "k. A."
     },

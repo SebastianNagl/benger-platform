@@ -22,7 +22,14 @@ const formatStatCount = (n: number): string =>
 // "Aktuelle Projekte" shows the newest projects by creation date.
 const RECENT_PROJECTS_COUNT = 5
 
-type DashboardStats = {
+// GET /api/dashboard/stats answers in one of two views. Teachers and admins
+// (superadmins, ORG_ADMIN or CONTRIBUTOR of an organization or of a group,
+// creators of their own projects) get the overview of the projects they can
+// reach; everyone else gets their own counters only,
+// so a student never sees the totals of other courses or other people's
+// answers. The API decides the view and says which one it sent (`scope`).
+type OverviewStats = {
+  scope?: 'overview' // absent in answers of an API before the personal view
   project_count: number
   task_count: number
   annotation_count: number
@@ -30,35 +37,98 @@ type DashboardStats = {
   projects_with_evaluations: number
 }
 
-// The five stat tiles, in display order. `icon` is the tile's SVG path.
-const STAT_TILES: { key: keyof DashboardStats; label: string; icon: string }[] =
-  [
-    {
-      key: 'project_count',
-      label: 'dashboard.stats.projects',
-      icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
-    },
-    {
-      key: 'task_count',
-      label: 'dashboard.stats.issues',
-      icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
-    },
-    {
-      key: 'annotation_count',
-      label: 'dashboard.stats.annotations',
-      icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-    },
-    {
-      key: 'projects_with_generations',
-      label: 'dashboard.stats.generations',
-      icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
-    },
-    {
-      key: 'projects_with_evaluations',
-      label: 'dashboard.stats.evaluations',
-      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-    },
-  ]
+type PersonalStats = {
+  scope: 'personal'
+  open_exams: number
+  open_tasks: number
+  submitted_answers: number
+  released_results: number
+}
+
+type DashboardStats = OverviewStats | PersonalStats
+
+type StatTileBase = {
+  key: string
+  label: string
+  icon: string // the tile's SVG path
+  // Shown only when the count is above zero (once loaded).
+  hideWhenZero?: boolean
+}
+
+type StatTile<T> = StatTileBase & { key: Exclude<keyof T, 'scope'> & string }
+
+const ICON_FOLDER =
+  'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
+const ICON_CLIPBOARD =
+  'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'
+const ICON_PENCIL =
+  'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+const ICON_SPARKLES =
+  'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
+const ICON_CHART =
+  'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+const ICON_DOCUMENT =
+  'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+const ICON_CHECK_BADGE =
+  'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+
+// The overview tiles, in display order.
+const OVERVIEW_TILES: StatTile<OverviewStats>[] = [
+  {
+    key: 'project_count',
+    label: 'dashboard.stats.projects',
+    icon: ICON_FOLDER,
+  },
+  { key: 'task_count', label: 'dashboard.stats.issues', icon: ICON_CLIPBOARD },
+  {
+    key: 'annotation_count',
+    label: 'dashboard.stats.annotations',
+    icon: ICON_PENCIL,
+  },
+  {
+    key: 'projects_with_generations',
+    label: 'dashboard.stats.generations',
+    icon: ICON_SPARKLES,
+  },
+  {
+    key: 'projects_with_evaluations',
+    label: 'dashboard.stats.evaluations',
+    icon: ICON_CHART,
+  },
+]
+
+// The personal tiles, in display order. Released results appear once there
+// is one.
+const PERSONAL_TILES: StatTile<PersonalStats>[] = [
+  {
+    key: 'open_exams',
+    label: 'dashboard.stats.openExams',
+    icon: ICON_DOCUMENT,
+  },
+  {
+    key: 'open_tasks',
+    label: 'dashboard.stats.openTasks',
+    icon: ICON_CLIPBOARD,
+  },
+  {
+    key: 'submitted_answers',
+    label: 'dashboard.stats.submittedAnswers',
+    icon: ICON_PENCIL,
+  },
+  {
+    key: 'released_results',
+    label: 'dashboard.stats.releasedResults',
+    icon: ICON_CHECK_BADGE,
+    hideWhenZero: true,
+  },
+]
+
+// Literal class names (Tailwind only emits classes it finds in the source).
+const TILE_GRID_COLUMNS: Record<number, string> = {
+  3: 'md:grid-cols-3',
+  4: 'md:grid-cols-2 lg:grid-cols-4',
+  5: 'md:grid-cols-3 lg:grid-cols-5',
+}
 
 export default function DashboardPage() {
   const { t, locale } = useI18n()
@@ -69,13 +139,11 @@ export default function DashboardPage() {
 
   // All authenticated users can access projects (including private projects)
   const canAccessProjects = !!user
-  // Import, generation and evaluation need ORG_ADMIN or CONTRIBUTOR in at
-  // least one organization (the same gate that greys out those entries in
-  // the sidebar), so annotators and students do not get actions that lead
-  // to pages they cannot use. Creating a project stays open to everyone: a
-  // private project is always allowed.
+  // Until the stats arrive (or when they fail), the user's org roles stand
+  // in for the view the API will choose (ORG_ADMIN or CONTRIBUTOR in at
+  // least one organization, the gate of the sidebar entries).
   const permissions = usePermissions()
-  const canManageProjectData = permissions.canAccessProjectData()
+  const staffHint = permissions.canAccessProjectData()
 
   // Show error from redirect and clear the query param to prevent showing on refresh
   useEffect(() => {
@@ -104,7 +172,8 @@ export default function DashboardPage() {
   })
 
   const statsQuery = useQuery({
-    queryKey: ['dashboard', 'stats'],
+    // Keyed by user: the view (and the numbers) belong to who is signed in.
+    queryKey: ['dashboard', 'stats', user?.id],
     queryFn: async () => {
       const { default: api } = await import('@/lib/api')
       return api.getDashboardStats() as Promise<DashboardStats>
@@ -115,6 +184,27 @@ export default function DashboardPage() {
   // No zero fallback: when the stats request fails the tiles say the
   // numbers are unavailable instead of showing 0 as if it were a real count.
   const dashboardStats: DashboardStats | undefined = statsQuery.data
+
+  // The tiles and the teacher quick actions follow the view the API sent
+  // (teachers and admins, group teachers included, and creators of their own
+  // projects get the overview). While loading, or when the request failed,
+  // they follow the hint from the user's org roles.
+  const personalView = dashboardStats
+    ? dashboardStats.scope === 'personal'
+    : !staffHint
+  const statTiles: StatTileBase[] = personalView
+    ? PERSONAL_TILES
+    : OVERVIEW_TILES
+  // A count missing from the answer reads as unavailable, never as 0.
+  const statValue = (tile: StatTileBase): number | undefined => {
+    const value = (dashboardStats as Record<string, unknown> | undefined)?.[
+      tile.key
+    ]
+    return typeof value === 'number' ? value : undefined
+  }
+  const visibleTiles = statTiles.filter(
+    (tile) => !(tile.hideWhenZero && statValue(tile) === 0),
+  )
 
   // Sort a copy: the order must not depend on the response order, and the
   // query data must not be mutated in place.
@@ -139,7 +229,9 @@ export default function DashboardPage() {
           {t('dashboard.title')}
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          {t('dashboard.subtitle')}
+          {t(
+            personalView ? 'dashboard.subtitlePersonal' : 'dashboard.subtitle',
+          )}
         </p>
       </div>
 
@@ -176,15 +268,17 @@ export default function DashboardPage() {
         </Alert>
       )}
       <div
-        className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+        className={`mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 ${TILE_GRID_COLUMNS[visibleTiles.length]}`}
         aria-busy={statsQuery.isLoading}
+        data-testid="dashboard-stats"
+        data-scope={personalView ? 'personal' : 'overview'}
       >
         {statsQuery.isLoading && (
           <p className="sr-only" role="status">
             {t('common.loading')}
           </p>
         )}
-        {STAT_TILES.map((tile) => (
+        {visibleTiles.map((tile) => (
           <div
             key={tile.key}
             className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
@@ -222,9 +316,9 @@ export default function DashboardPage() {
                         data-testid={`stat-loading-${tile.key}`}
                         aria-hidden="true"
                       />
-                    ) : dashboardStats ? (
+                    ) : statValue(tile) !== undefined ? (
                       <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                        {formatStatCount(dashboardStats[tile.key])}
+                        {formatStatCount(statValue(tile)!)}
                       </dd>
                     ) : (
                       <dd
@@ -359,7 +453,10 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                {canManageProjectData && (
+                {/* Import, generation and evaluation are teacher actions;
+                    creating a project stays open to everyone (a private
+                    project is always allowed). */}
+                {!personalView && (
                   <>
                     <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
                       <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
