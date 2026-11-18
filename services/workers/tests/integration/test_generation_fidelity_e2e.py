@@ -378,8 +378,48 @@ def test_a_client_that_reports_no_request_is_recorded_as_a_worker_call(
     assert len(record["requests"]) == len(answers)
     assert all(r["capture"] == "worker_call" and r["sends"] == 0 for r in record["requests"])
     assert record["messages"] == _expected_messages(TASKS[0])
+    # Nothing was observed on the wire: the system profile is the run config.
+    profile = _metadata(gen)["system"]["parameter_profile"]
+    assert profile["temperature"] == float(service.calls[0]["temperature"])
+    assert profile["max_tokens"] == service.calls[0]["max_tokens"]
     if retried:
         assert record["requests"][1]["body"]["messages"][-2:] == [
             {"role": "assistant", "content": "Ohne JSON."},
             {"role": "user", "content": RETRY_MESSAGE},
         ]
+
+
+class _CoercingService(_SilentService):
+    """A client that changes the configured knobs before it sends (as the
+    OpenAI service does for GPT-5) and records what it sent."""
+
+    def generate(self, **kwargs):
+        from ai_services.request_capture import record_request
+
+        record_request("OpenAI", "chat.completions", {
+            "model": "gpt-5",
+            "messages": [
+                {"role": "system", "content": kwargs["system_prompt"]},
+                {"role": "user", "content": kwargs["prompt"]},
+            ],
+            "temperature": 1.0,
+            "max_completion_tokens": 321,
+        })
+        return super().generate(**kwargs)
+
+
+def test_the_system_profile_is_what_the_client_sent(
+    db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
+):
+    service = _CoercingService(['{"anteil_mieter": 30, "begruendung": "Verspätet."}'])
+    monkeypatch.setattr(
+        tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: service
+    )
+    _, [gen] = _generate(
+        db_conn, make_user, make_llm_model, make_project, make_task, _structure(**OFF), TASKS[0],
+    )
+    assert service.calls[0]["max_tokens"] != 321
+    assert gen.request_record["capture"] == "http_body"
+    assert _metadata(gen)["system"]["parameter_profile"] == {
+        "temperature": 1.0, "max_tokens": 321,
+    }

@@ -563,3 +563,29 @@ class TestMockRunSystemKey:
             "max_tokens": 4000,
         }
         assert md["system"]["provider_model_id"] == PHI_4
+
+
+class TestParametersSent:
+    def test_worker_call_and_unknown_api_give_nothing(self):
+        body = {"temperature": 0.5, "max_tokens": 10}
+        assert sp.parameters_sent(
+            {"api": "worker_call", "capture": "worker_call", "body": body}
+        ) == {}
+        assert sp.parameters_sent({"api": "acme.generate", "body": body}) == {}
+
+    def test_chat_completions_reads_the_thinking_switch_and_completion_budget(self):
+        sent = sp.parameters_sent({
+            "api": "chat.completions",
+            "capture": "http_body",
+            "body": {
+                "model": "m", "messages": [], "temperature": 0, "top_p": 0.9,
+                "max_completion_tokens": 512, "seed": 7, "stream": False,
+                "chat_template_kwargs": {"enable_thinking": False},
+            },
+        })
+        assert sent == {
+            "temperature": 0, "top_p": 0.9, "max_tokens": 512, "enable_thinking": "off",
+        }
+        assert sp.parameter_profile(sent) == {
+            "temperature": 0.0, "top_p": 0.9, "max_tokens": 512, "enable_thinking": "off",
+        }

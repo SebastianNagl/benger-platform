@@ -1107,6 +1107,12 @@ migration).
   - Exports carry every generation column in both modes (``data`` also
     names the job's ``structure_key``); the task-level import keeps them,
     groups jobs by model and structure and keeps each row's ``run_index``.
+  - The ``system`` block's ``parameter_profile`` is read from the first
+    request the client sent (``system_profile.parameters_sent(entry)``, per
+    API: chat.completions, openai.responses, anthropic.messages,
+    google.generate_content, mistral.chat, cohere.chat), so filled-in and
+    coerced values count; a ``worker_call`` entry or a body without those
+    parameters falls back to the run config as in 2.56.
 """
 
 import os

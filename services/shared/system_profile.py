@@ -190,3 +190,75 @@ def reasoning_params_sent(payload: Mapping[str, Any]) -> Dict[str, Any]:
     if isinstance(ctk, dict) and "enable_thinking" in ctk:
         sent["enable_thinking"] = "on" if ctk["enable_thinking"] else "off"
     return sent
+
+
+def _first(mapping: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if mapping.get(key) is not None:
+            return mapping[key]
+    return None
+
+
+def _dict(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def parameters_sent(entry: Mapping[str, Any]) -> Dict[str, Any]:
+    """Profile parameters of one captured request, read from the body the
+    provider client sent (``request_record.requests[i]``), per API.
+
+    Returns ``{}`` for a ``worker_call`` entry (nothing observed on the
+    wire) and for an API or body it does not recognise.
+    """
+    if entry.get("capture") == "worker_call":
+        return {}
+    api = entry.get("api")
+    body = _dict(entry.get("body"))
+    sent: Dict[str, Any] = {}
+    if api == "chat.completions":
+        sent = {
+            "temperature": body.get("temperature"),
+            "top_p": body.get("top_p"),
+            "max_tokens": _first(body, "max_tokens", "max_completion_tokens"),
+            **reasoning_params_sent(body),
+        }
+    elif api == "openai.responses":
+        sent = {
+            "temperature": body.get("temperature"),
+            "top_p": body.get("top_p"),
+            "max_tokens": body.get("max_output_tokens"),
+            "reasoning_effort": _dict(body.get("reasoning")).get("effort"),
+        }
+    elif api == "anthropic.messages":
+        sent = {
+            "temperature": body.get("temperature"),
+            "top_p": body.get("top_p"),
+            "max_tokens": body.get("max_tokens"),
+            "thinking_budget": _dict(body.get("thinking")).get("budget_tokens"),
+        }
+    elif api == "google.generate_content":
+        config = _dict(_first(body, "generationConfig", "generation_config", "config"))
+        thinking = _dict(_first(config, "thinkingConfig", "thinking_config"))
+        sent = {
+            "temperature": config.get("temperature"),
+            "top_p": _first(config, "topP", "top_p"),
+            "max_tokens": _first(config, "maxOutputTokens", "max_output_tokens"),
+            "thinking_budget": _first(thinking, "thinkingBudget", "thinking_budget"),
+        }
+    elif api == "mistral.chat":
+        sent = {
+            "temperature": body.get("temperature"),
+            "top_p": body.get("top_p"),
+            "max_tokens": body.get("max_tokens"),
+            "prompt_mode": body.get("prompt_mode"),
+        }
+    elif api == "cohere.chat":
+        sent = {
+            "temperature": body.get("temperature"),
+            "top_p": body.get("p"),
+            "max_tokens": body.get("max_tokens"),
+            "thinking_token_budget": _first(
+                _dict(body.get("thinking")), "token_budget", "tokenBudget"
+            ),
+        }
+    return {k: v for k, v in sent.items() if v is not None}

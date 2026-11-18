@@ -630,6 +630,67 @@ describe('GenerationRunDetailPage', () => {
     expect(screen.queryByTestId('sent-request')).not.toBeInTheDocument()
   })
 
+  it('shows a trial that loads after an earlier failure, not the old error', async () => {
+    const user = userEvent.setup()
+    const record = {
+      capture: 'http_body',
+      messages: [{ role: 'user', content: 'Erster Lauf, zweiter Versuch' }],
+    }
+    let attempts = 0
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.endsWith('/trials/c0/request')) {
+        attempts += 1
+        return attempts === 1
+          ? Promise.reject(new Error('Zeitüberschreitung'))
+          : Promise.resolve({ id: 'c0', run_index: 0, request_record: record })
+      }
+      if (url.endsWith('/trials/c1/request')) {
+        return Promise.resolve({
+          id: 'c1',
+          run_index: 1,
+          request_record: {
+            messages: [{ role: 'user', content: 'Zweiter Lauf' }],
+          },
+        })
+      }
+      return Promise.resolve({
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: true,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
+        ],
+      })
+    })
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Zeitüberschreitung',
+    )
+    const select = screen.getByTestId('request-run-select')
+    await user.selectOptions(select, '1')
+    expect(await screen.findByText('Zweiter Lauf')).toBeInTheDocument()
+    await user.selectOptions(select, '0')
+    expect(
+      await screen.findByText('Erster Lauf, zweiter Versuch'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(attempts).toBe(2)
+  })
+
   it('renders em-dash placeholders when optional fields are missing', async () => {
     ;(apiClient.get as jest.Mock).mockResolvedValue({
       id: 'gen-run-123',

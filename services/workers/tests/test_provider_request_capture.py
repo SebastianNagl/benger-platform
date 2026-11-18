@@ -18,6 +18,7 @@ import pytest  # noqa: E402
 
 from ai_services.request_capture import build_request_record, capture_requests  # noqa: E402
 from mock_chat_server import mock_chat_server  # noqa: E402
+from system_profile import parameters_sent  # noqa: E402
 
 SYSTEM = "Du bist Schlichterin für Mietsachen. Antworte nur mit JSON:\n{\"anteil\": <Zahl>}"
 USER = "Akte S-41/26 \u2013 Müller ./. Öztürk\n\nDie Mieterin minderte die Miete; § 536 BGB."
@@ -81,6 +82,7 @@ def test_http_clients_record_the_body_the_server_received(make, provider):
     assert [e["body"] for e in captured_retry] == [wire_retry]
     assert captured_first[0]["provider"] == provider
     assert captured_first[0]["capture"] == "http_body"
+    assert parameters_sent(captured_first[0]) == {"temperature": 0.7, "max_tokens": 600}
     assert wire_first["messages"] == EXPECTED_MESSAGES[:2]
     assert wire_retry["messages"] == EXPECTED_MESSAGES
     # The record's neutral view is the same conversation.
@@ -238,6 +240,25 @@ def test_sdk_clients_record_the_body_the_server_received(name, model, api):
     assert entry["path"] == server.paths[0].split("?")[0]
     # The provider-neutral view is the conversation that was sent.
     assert build_request_record(captured)["messages"] == EXPECTED_MESSAGES
+    sent = parameters_sent(entry)
+    assert (sent["temperature"], sent["max_tokens"]) == (0.3, 300)
+
+
+@pytest.mark.parametrize("name, model, knob, expected", [
+    ("mistral", "magistral-medium-latest", {"prompt_mode": "reasoning"}, {"prompt_mode": "reasoning"}),
+    ("cohere", "command-a-reasoning-08-2025", {"thinking_token_budget": 2048},
+     {"thinking_token_budget": 2048}),
+], ids=["mistral", "cohere"])
+def test_sdk_reasoning_knobs_enter_the_profile_as_sent(name, model, knob, expected):
+    with mock_chat_server() as server:
+        server.reply('{"anteil": 30}')
+        _, captured = _call(
+            _sdk_service(name, server.base_url),
+            model_name=model, temperature=0.3, max_tokens=300, **knob,
+        )
+    assert captured[0]["capture"] == "http_body"
+    sent = parameters_sent(captured[0])
+    assert {k: sent.get(k) for k in expected} == expected
 
 
 def test_filled_coerced_and_dropped_knobs_are_recorded_as_sent():
@@ -278,6 +299,37 @@ def test_filled_coerced_and_dropped_knobs_are_recorded_as_sent():
     assert wire_gpt5["temperature"] == 1.0
     assert not {"top_p", "frequency_penalty", "presence_penalty", "seed"} & set(wire_gpt5)
     assert wire_gpt5["max_completion_tokens"] == 300
+
+    # The system profile is what was sent, not what was configured.
+    assert parameters_sent(anthropic[0]) == {
+        "temperature": 0.2, "max_tokens": 300, "thinking_budget": 2048,
+    }
+    assert parameters_sent(google[0]) == {
+        "temperature": 0.2, "max_tokens": 300, "thinking_budget": 1024,
+    }
+    assert parameters_sent(gpt5[0]) == {"temperature": 1.0, "max_tokens": 300}
+
+
+def test_openai_responses_profile_is_read_from_the_wire():
+    from openai import OpenAI
+
+    from ai_services.openai_service import OpenAIService
+
+    with mock_chat_server() as server:
+        server.reply("{}")
+        service = OpenAIService(api_key="test-key")
+        service.client = OpenAI(api_key="test-key", base_url=server.base_url, max_retries=0)
+        _, captured = _call(
+            service, model_name="gpt-5-pro", temperature=0.2, max_tokens=400,
+            reasoning_effort="high",
+        )
+    [wire] = server.json_bodies()
+    assert server.paths[0].endswith("/responses")
+    assert captured[0]["api"] == "openai.responses" and captured[0]["body"] == wire
+    sent = parameters_sent(captured[0])
+    assert sent["max_tokens"] == wire["max_output_tokens"] == 400
+    assert sent["reasoning_effort"] == "high"
+    assert sent.get("temperature") == wire.get("temperature")
 
 
 class _KeepKwargs:

@@ -30,7 +30,7 @@ from generation_fidelity import (
     schema_instruction,
 )
 from response_parser import find_prompt_structure, prompt_structure_keys
-from system_profile import system_record
+from system_profile import parameters_sent, system_record
 
 
 def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
@@ -1346,9 +1346,11 @@ def generate_llm_responses_impl(
                         # System identity: model id plus a hash of the
                         # parameter profile that was sent. A reasoning arm of
                         # the same model is a system of its own; seeds and run
-                        # indexes are not part of the profile. Reasoning knobs
-                        # come from what the service reports as sent when it
-                        # reports it (DeepInfra), else from the run config.
+                        # indexes are not part of the profile. The profile is
+                        # read from the first request the client sent; for a
+                        # worker call or an unrecognised body it comes from
+                        # the run config (and the reasoning knobs DeepInfra
+                        # reports as sent).
                         _profile_params: Dict[str, Any] = {
                             "temperature": temperature,
                             "max_tokens": max_tokens,
@@ -1362,6 +1364,7 @@ def generate_llm_responses_impl(
                             _profile_params.update(
                                 {k: v for k, v in reasoning_kwargs.items() if k != "seed"}
                             )
+                        _profile_params = parameters_sent(sent_requests[0]) or _profile_params
                         _system = system_record(
                             model_id,
                             _profile_params,

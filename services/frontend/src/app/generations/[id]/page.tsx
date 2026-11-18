@@ -113,9 +113,7 @@ function SentRequest({
 }) {
   const { t } = useI18n()
   const [trial, setTrial] = useState<TrialRequest | null>(null)
-  const [error, setError] = useState<{ id: string; message: string } | null>(
-    null,
-  )
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!child.has_request_record) return
@@ -128,10 +126,7 @@ function SentRequest({
         if (!cancelled) setTrial(resp as TrialRequest)
       } catch (err: any) {
         if (!cancelled)
-          setError({
-            id: child.id,
-            message: err?.message || t('generations.detail.request.loadFailed'),
-          })
+          setError(err?.message || t('generations.detail.request.loadFailed'))
       }
     })()
     return () => {
@@ -139,23 +134,21 @@ function SentRequest({
     }
   }, [generationId, child.id, child.has_request_record])
 
-  const loaded = trial?.id === child.id ? trial : null
-  const failed = error?.id === child.id ? error.message : null
-  if (child.has_request_record && !loaded && !failed) {
+  if (child.has_request_record && !trial && !error) {
     return (
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {t('generations.detail.request.loading')}
       </p>
     )
   }
-  if (failed) {
+  if (error) {
     return (
       <p className="text-xs text-red-700 dark:text-red-400" role="alert">
-        {failed}
+        {error}
       </p>
     )
   }
-  const record = loaded?.request_record
+  const record = trial?.request_record
   if (!record) {
     return (
       <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
@@ -590,6 +583,9 @@ export default function GenerationRunDetailPage({
             {t('generations.detail.request.help')}
           </p>
           <SentRequest
+            key={
+              data.children[Math.min(requestRun, data.children.length - 1)].id
+            }
             generationId={data.id}
             child={
               data.children[Math.min(requestRun, data.children.length - 1)]
