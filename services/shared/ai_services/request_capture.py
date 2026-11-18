@@ -252,10 +252,16 @@ def normalized_view(entry: Dict[str, Any]) -> Dict[str, Any]:
     elif api == "google.generate_content":
         # SDK kwargs (config.system_instruction) or the REST body on the
         # wire (systemInstruction, generationConfig).
-        config = dict(body.pop("config", None) or body.pop("generationConfig", None) or {})
-        system = config.pop("system_instruction", None) or body.pop("systemInstruction", None)
+        config = dict(
+            body.pop("config", None) or body.pop("generationConfig", None) or {}
+        )
+        system = config.pop("system_instruction", None) or body.pop(
+            "systemInstruction", None
+        )
         if isinstance(system, dict):
-            texts = [p.get("text") for p in system.get("parts") or [] if isinstance(p, dict)]
+            texts = [
+                p.get("text") for p in system.get("parts") or [] if isinstance(p, dict)
+            ]
             system = "".join(t for t in texts if isinstance(t, str))
         if system:
             messages.append({"role": "system", "content": system})
@@ -263,10 +269,18 @@ def normalized_view(entry: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(contents, list):
             for item in contents:
                 if isinstance(item, dict) and "role" in item:
-                    role = "assistant" if item.get("role") == "model" else item.get("role")
+                    role = (
+                        "assistant" if item.get("role") == "model" else item.get("role")
+                    )
                     parts = item.get("parts") or []
-                    texts = [p.get("text") for p in parts if isinstance(p, dict) and "text" in p]
-                    content: Any = texts[0] if len(texts) == 1 and len(parts) == 1 else parts
+                    texts = [
+                        p.get("text")
+                        for p in parts
+                        if isinstance(p, dict) and "text" in p
+                    ]
+                    content: Any = (
+                        texts[0] if len(texts) == 1 and len(parts) == 1 else parts
+                    )
                     messages.append({"role": role, "content": content})
                 else:
                     messages.append({"role": "user", "content": item})
@@ -278,7 +292,9 @@ def normalized_view(entry: Dict[str, Any]) -> Dict[str, Any]:
             or config.pop("responseSchema", None)
             or config.pop("responseJsonSchema", None)
         )
-        mime = config.pop("response_mime_type", None) or config.pop("responseMimeType", None)
+        mime = config.pop("response_mime_type", None) or config.pop(
+            "responseMimeType", None
+        )
         if schema is not None or mime == "application/json":
             response_format = {"response_mime_type": mime, "response_schema": schema}
         elif mime is not None:
@@ -295,7 +311,11 @@ def normalized_view(entry: Dict[str, Any]) -> Dict[str, Any]:
         # Role and content only: wire details of a message (Mistral's
         # ``prefix: false`` on assistant turns) stay in ``requests[].body``.
         "messages": [
-            {"role": m.get("role"), "content": m.get("content")} if isinstance(m, dict) else m
+            (
+                {"role": m.get("role"), "content": m.get("content")}
+                if isinstance(m, dict)
+                else m
+            )
             for m in messages
         ],
         "response_format": response_format,

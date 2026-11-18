@@ -50,34 +50,41 @@ def test_defaults_keep_the_existing_behaviour():
 
 
 def test_options_are_read_and_invalid_ones_fall_back():
-    fmt = answer_format({
-        "append_schema_instruction": False,
-        "structured_output": "off",
-        "format_retry": {"message": "Bitte nur JSON."},
-        "refusal_heuristic": {"pattern": "kann ich nicht", "window": 100},
-    })
+    fmt = answer_format(
+        {
+            "append_schema_instruction": False,
+            "structured_output": "off",
+            "format_retry": {"message": "Bitte nur JSON."},
+            "refusal_heuristic": {"pattern": "kann ich nicht", "window": 100},
+        }
+    )
     assert (fmt.append_schema_instruction, fmt.structured_output) == (False, "off")
     assert fmt.format_retry == FormatRetry(message="Bitte nur JSON.")
     assert fmt.as_record()["format_retry"] == {"message": "Bitte nur JSON."}
     assert fmt.refusal_heuristic.window == 100 and fmt.refusal_heuristic.flags == "i"
 
-    broken = answer_format({
-        "append_schema_instruction": "no",
-        "structured_output": "maybe",
-        "format_retry": {"message": "x", "extra": 1},
-        "refusal_heuristic": {"pattern": "("},
-        "answer_schema": {"fields": []},
-    })
+    broken = answer_format(
+        {
+            "append_schema_instruction": "no",
+            "structured_output": "maybe",
+            "format_retry": {"message": "x", "extra": 1},
+            "refusal_heuristic": {"pattern": "("},
+            "answer_schema": {"fields": []},
+        }
+    )
     assert broken == AnswerFormat()
 
 
-@pytest.mark.parametrize("value, message", [
-    ("x", "must be an object"),
-    ({"message": "  "}, "non-empty"),
-    ({}, "non-empty"),
-    ({"max": 1, "message": "m"}, "unknown keys"),
-    ({"message": "m", "extra": 1}, "unknown keys"),
-])
+@pytest.mark.parametrize(
+    "value, message",
+    [
+        ("x", "must be an object"),
+        ({"message": "  "}, "non-empty"),
+        ({}, "non-empty"),
+        ({"max": 1, "message": "m"}, "unknown keys"),
+        ({"message": "m", "extra": 1}, "unknown keys"),
+    ],
+)
 def test_format_retry_validation(value, message):
     with pytest.raises(ValueError, match=message):
         validate_format_retry(value)
@@ -88,24 +95,30 @@ def test_a_stored_format_retry_with_max_is_read_as_one_re_ask():
     assert fmt.format_retry == FormatRetry(message="Bitte nur JSON.")
 
 
-@pytest.mark.parametrize("value, message", [
-    ({"pattern": ""}, "non-empty"),
-    ({"pattern": "("}, "not a valid regular expression"),
-    ({"pattern": "a", "flags": "x"}, "flags"),
-    ({"pattern": "a", "window": 0}, "window"),
-])
+@pytest.mark.parametrize(
+    "value, message",
+    [
+        ({"pattern": ""}, "non-empty"),
+        ({"pattern": "("}, "not a valid regular expression"),
+        ({"pattern": "a", "flags": "x"}, "flags"),
+        ({"pattern": "a", "window": 0}, "window"),
+    ],
+)
 def test_refusal_heuristic_validation(value, message):
     with pytest.raises(ValueError, match=message):
         validate_refusal_heuristic(value)
 
 
-@pytest.mark.parametrize("value, message", [
-    ({"fields": {}}, "non-empty"),
-    ({"fields": {"a": {"key": ""}}}, "non-empty string"),
-    ({"fields": {"a": {}}}, "needs a 'key' or 'values'"),
-    ({"fields": {"a": {"values": {"x": 1}}}}, "map answer values"),
-    ({"other": 1}, "only 'fields'"),
-])
+@pytest.mark.parametrize(
+    "value, message",
+    [
+        ({"fields": {}}, "non-empty"),
+        ({"fields": {"a": {"key": ""}}}, "non-empty string"),
+        ({"fields": {"a": {}}}, "needs a 'key' or 'values'"),
+        ({"fields": {"a": {"values": {"x": 1}}}}, "map answer values"),
+        ({"other": 1}, "only 'fields'"),
+    ],
+)
 def test_answer_schema_validation(value, message):
     with pytest.raises(ValueError, match=message):
         validate_answer_schema(value)
@@ -114,7 +127,12 @@ def test_answer_schema_validation(value, message):
 def test_schema_instruction_text_is_stable():
     text = schema_instruction(["anteil", "begruendung"])
     assert text.startswith("\n\n---\nIMPORTANT: Respond ONLY with valid JSON")
-    assert json.dumps({"anteil": "<your response>", "begruendung": "<your response>"}, indent=2) in text
+    assert (
+        json.dumps(
+            {"anteil": "<your response>", "begruendung": "<your response>"}, indent=2
+        )
+        in text
+    )
 
 
 def test_answer_keys_render_from_task_data():
@@ -131,7 +149,8 @@ def test_answer_keys_refuse_missing_and_sensitive_paths():
         render_answer_schema(PARTY_SCHEMA, {"parteien": {"mieter": "Wagner"}})
     with pytest.raises(ValueError, match="sensitive"):
         render_answer_schema(
-            {"fields": {"a": {"key": "{{loesung}}"}}}, {"loesung": "x"},
+            {"fields": {"a": {"key": "{{loesung}}"}}},
+            {"loesung": "x"},
             is_sensitive=lambda path: path == "loesung",
         )
     with pytest.raises(ValueError, match="two fields"):

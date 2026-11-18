@@ -94,9 +94,7 @@ class AnswerFormat:
             "append_schema_instruction": self.append_schema_instruction,
             "structured_output": self.structured_output,
             "format_retry": (
-                {"message": self.format_retry.message}
-                if self.format_retry
-                else None
+                {"message": self.format_retry.message} if self.format_retry else None
             ),
             "refusal_heuristic": (
                 {
@@ -140,12 +138,18 @@ def validate_refusal_heuristic(value: Any) -> Optional[Dict[str, Any]]:
         raise ValueError(f"refusal_heuristic has unknown keys: {sorted(unknown)}")
     pattern = value.get("pattern")
     if not isinstance(pattern, str) or not pattern:
-        raise ValueError("refusal_heuristic.pattern must be a non-empty regular expression")
+        raise ValueError(
+            "refusal_heuristic.pattern must be a non-empty regular expression"
+        )
     flags = value.get("flags", "i")
     if not isinstance(flags, str) or any(f not in _REGEX_FLAGS for f in flags):
         raise ValueError("refusal_heuristic.flags may only contain i, m and s")
     window = value.get("window", DEFAULT_REFUSAL_WINDOW)
-    if not isinstance(window, int) or isinstance(window, bool) or not 1 <= window <= MAX_REFUSAL_WINDOW:
+    if (
+        not isinstance(window, int)
+        or isinstance(window, bool)
+        or not 1 <= window <= MAX_REFUSAL_WINDOW
+    ):
         raise ValueError(
             f"refusal_heuristic.window must be an integer between 1 and {MAX_REFUSAL_WINDOW}"
         )
@@ -153,7 +157,9 @@ def validate_refusal_heuristic(value: Any) -> Optional[Dict[str, Any]]:
     try:
         heuristic.compiled()
     except re.error as e:
-        raise ValueError(f"refusal_heuristic.pattern is not a valid regular expression: {e}")
+        raise ValueError(
+            f"refusal_heuristic.pattern is not a valid regular expression: {e}"
+        )
     return {"pattern": pattern, "flags": flags, "window": window}
 
 
@@ -167,10 +173,14 @@ def validate_answer_schema(value: Any) -> Optional[Dict[str, Any]]:
         raise ValueError("answer_schema.fields must be a non-empty object")
     for name, spec in fields.items():
         if not isinstance(spec, dict) or set(spec) - {"key", "values"}:
-            raise ValueError(f"answer_schema.fields.{name} may only have 'key' and 'values'")
+            raise ValueError(
+                f"answer_schema.fields.{name} may only have 'key' and 'values'"
+            )
         key = spec.get("key")
         if key is not None and (not isinstance(key, str) or not key.strip()):
-            raise ValueError(f"answer_schema.fields.{name}.key must be a non-empty string")
+            raise ValueError(
+                f"answer_schema.fields.{name}.key must be a non-empty string"
+            )
         values = spec.get("values")
         if values is not None:
             if not isinstance(values, dict) or not all(
@@ -251,7 +261,9 @@ def label_config_answer_fields(label_config: Optional[str]) -> List[str]:
     ]
 
 
-def schema_instruction_preview(structure: Any, label_config: Optional[str]) -> Optional[str]:
+def schema_instruction_preview(
+    structure: Any, label_config: Optional[str]
+) -> Optional[str]:
     """The text a generation with ``structure`` appends to the user prompt,
     or None when it appends nothing. Answer keys of an ``answer_schema`` are
     rendered per task; the preview names the label-config fields."""
@@ -302,10 +314,14 @@ def render_key_template(
     def _replace(match: "re.Match[str]") -> str:
         path, case = match.group(1), match.group(2)
         if is_sensitive is not None and is_sensitive(path):
-            raise ValueError(f"answer_schema may not reference the sensitive field '{path}'")
+            raise ValueError(
+                f"answer_schema may not reference the sensitive field '{path}'"
+            )
         value = _lookup(task_data, path)
         if value is None or isinstance(value, (dict, list)):
-            raise ValueError(f"answer_schema references '{path}', which the task does not hold")
+            raise ValueError(
+                f"answer_schema references '{path}', which the task does not hold"
+            )
         text = str(value)
         if case == "lower":
             text = text.lower()
@@ -331,7 +347,9 @@ class AnswerKeys:
                 return key
         return control
 
-    def map_answer(self, parsed: Any) -> Tuple[Any, Dict[str, str], Dict[str, Dict[str, Any]]]:
+    def map_answer(
+        self, parsed: Any
+    ) -> Tuple[Any, Dict[str, str], Dict[str, Dict[str, Any]]]:
         """Rename rendered keys to control names and map rendered values.
 
         Returns ``(data, mapped_keys, mapped_values)``; a control name the
@@ -341,7 +359,11 @@ class AnswerKeys:
             return parsed, {}, {}
         result: Dict[str, Any] = {}
         mapped_keys: Dict[str, str] = {}
-        taken = {k for k in parsed if k in self.key_to_field.values() and k not in self.key_to_field}
+        taken = {
+            k
+            for k in parsed
+            if k in self.key_to_field.values() and k not in self.key_to_field
+        }
         for key, value in parsed.items():
             target = self.key_to_field.get(key) if isinstance(key, str) else None
             if target is not None and target != key and target not in taken:
@@ -367,14 +389,20 @@ class AnswerKeys:
     def rename_schema(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """A JSON schema over control names, re-keyed to the answer keys
         (and choice enums to the answer values) the prompt asks for."""
-        if not isinstance(schema, dict) or not isinstance(schema.get("properties"), dict):
+        if not isinstance(schema, dict) or not isinstance(
+            schema.get("properties"), dict
+        ):
             return schema
         renamed = dict(schema)
         properties: Dict[str, Any] = {}
         for control, prop in schema["properties"].items():
             prop = dict(prop) if isinstance(prop, dict) else prop
             value_map = self.value_maps.get(control)
-            if value_map and isinstance(prop, dict) and isinstance(prop.get("enum"), list):
+            if (
+                value_map
+                and isinstance(prop, dict)
+                and isinstance(prop.get("enum"), list)
+            ):
                 targeted = set(value_map.values())
                 prop["enum"] = list(value_map.keys()) + [
                     v for v in prop["enum"] if v not in targeted and v not in value_map
@@ -416,7 +444,9 @@ def render_answer_schema(
 # --------------------------------------------------------------------------
 
 
-def refusal_matches(heuristic: Optional[RefusalHeuristic], *texts: Optional[str]) -> bool:
+def refusal_matches(
+    heuristic: Optional[RefusalHeuristic], *texts: Optional[str]
+) -> bool:
     """Whether the heuristic matches the opening of any of ``texts``."""
     if heuristic is None:
         return False

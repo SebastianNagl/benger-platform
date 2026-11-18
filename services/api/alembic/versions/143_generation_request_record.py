@@ -22,12 +22,11 @@ Revises: 145_compliance_findings
 Create Date: 2026-11-18
 """
 
+import sqlalchemy as sa
 from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-import sqlalchemy as sa
-
 
 revision = "143_generation_request_record"
 down_revision = "145_compliance_findings"
@@ -57,16 +56,22 @@ def upgrade() -> None:
     if "request_record" not in existing:
         op.add_column(
             _TABLE,
-            sa.Column("request_record", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+            sa.Column(
+                "request_record", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+            ),
         )
     if "request_sha256" not in existing:
         op.add_column(_TABLE, sa.Column("request_sha256", sa.String(64), nullable=True))
     if "first_response_content" not in existing:
-        op.add_column(_TABLE, sa.Column("first_response_content", sa.Text(), nullable=True))
+        op.add_column(
+            _TABLE, sa.Column("first_response_content", sa.Text(), nullable=True)
+        )
     if "retried" not in existing:
         op.add_column(
             _TABLE,
-            sa.Column("retried", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+            sa.Column(
+                "retried", sa.Boolean(), nullable=False, server_default=sa.text("false")
+            ),
         )
     if _INDEX not in _indexes():
         op.create_index(_INDEX, _TABLE, ["request_sha256"])
@@ -76,6 +81,11 @@ def downgrade() -> None:
     if _INDEX in _indexes():
         op.drop_index(_INDEX, table_name=_TABLE)
     existing = _columns()
-    for column in ("retried", "first_response_content", "request_sha256", "request_record"):
+    for column in (
+        "retried",
+        "first_response_content",
+        "request_sha256",
+        "request_record",
+    ):
         if column in existing:
             op.drop_column(_TABLE, column)

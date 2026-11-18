@@ -16,7 +16,10 @@ BODY = {
     "model": "acme/model-1",
     "messages": [
         {"role": "system", "content": "Du bist Schlichter für Mietsachen."},
-        {"role": "user", "content": "Akte S-12/26 \u2013 Mieterin gegen Vermieter, § 535 BGB."},
+        {
+            "role": "user",
+            "content": "Akte S-12/26 \u2013 Mieterin gegen Vermieter, § 535 BGB.",
+        },
     ],
     "temperature": 0.7,
     "max_tokens": 600,
@@ -57,23 +60,35 @@ def test_nested_scopes_are_independent():
 def test_sdk_kwargs_are_made_json_safe():
     class _Config:
         def model_dump(self, exclude_none=False):
-            return {"temperature": 0.0, "system_instruction": "Sys", "skip": None} if not exclude_none else {"temperature": 0.0, "system_instruction": "Sys"}
+            return (
+                {"temperature": 0.0, "system_instruction": "Sys", "skip": None}
+                if not exclude_none
+                else {"temperature": 0.0, "system_instruction": "Sys"}
+            )
 
     with capture_requests() as captured:
         record_request(
-            "Google", "google.generate_content",
+            "Google",
+            "google.generate_content",
             {"model": "g", "contents": "Frage", "config": _Config()},
             capture="sdk_kwargs",
         )
-    assert captured[0]["body"]["config"] == {"temperature": 0.0, "system_instruction": "Sys"}
+    assert captured[0]["body"]["config"] == {
+        "temperature": 0.0,
+        "system_instruction": "Sys",
+    }
     json.dumps(captured[0]["body"])
 
 
 def test_build_record_describes_the_first_request():
-    retry = dict(BODY, messages=BODY["messages"] + [
-        {"role": "assistant", "content": "kein JSON"},
-        {"role": "user", "content": "Bitte nur den JSON-Block."},
-    ])
+    retry = dict(
+        BODY,
+        messages=BODY["messages"]
+        + [
+            {"role": "assistant", "content": "kein JSON"},
+            {"role": "user", "content": "Bitte nur den JSON-Block."},
+        ],
+    )
     with capture_requests() as captured:
         record_request("DeepInfra", "chat.completions", BODY)
         record_request("DeepInfra", "chat.completions", retry)
@@ -82,7 +97,11 @@ def test_build_record_describes_the_first_request():
     assert record["model"] == "acme/model-1"
     assert record["messages"] == BODY["messages"]
     assert record["response_format"] is None
-    assert record["parameters"] == {"temperature": 0.7, "max_tokens": 600, "stream": False}
+    assert record["parameters"] == {
+        "temperature": 0.7,
+        "max_tokens": 600,
+        "stream": False,
+    }
     assert [r["body"] for r in record["requests"]] == [BODY, retry]
     # The hash identifies the designed (first) request, independent of key order.
     reordered = dict(reversed(list(BODY.items())))
@@ -95,24 +114,40 @@ def test_no_request_gives_no_record():
 
 
 def test_normalized_views_put_the_system_prompt_first():
-    anthropic = normalized_view({"api": "anthropic.messages", "body": {
-        "model": "c", "system": "Sys", "max_tokens": 5,
-        "messages": [{"role": "user", "content": "U"}],
-    }})
+    anthropic = normalized_view(
+        {
+            "api": "anthropic.messages",
+            "body": {
+                "model": "c",
+                "system": "Sys",
+                "max_tokens": 5,
+                "messages": [{"role": "user", "content": "U"}],
+            },
+        }
+    )
     assert anthropic["messages"] == [
-        {"role": "system", "content": "Sys"}, {"role": "user", "content": "U"},
+        {"role": "system", "content": "Sys"},
+        {"role": "user", "content": "U"},
     ]
     assert anthropic["parameters"] == {"max_tokens": 5}
 
-    google = normalized_view({"api": "google.generate_content", "body": {
-        "model": "g",
-        "contents": [
-            {"role": "user", "parts": [{"text": "U"}]},
-            {"role": "model", "parts": [{"text": "A"}]},
-        ],
-        "config": {"system_instruction": "Sys", "response_mime_type": "application/json",
-                   "temperature": 0.0},
-    }})
+    google = normalized_view(
+        {
+            "api": "google.generate_content",
+            "body": {
+                "model": "g",
+                "contents": [
+                    {"role": "user", "parts": [{"text": "U"}]},
+                    {"role": "model", "parts": [{"text": "A"}]},
+                ],
+                "config": {
+                    "system_instruction": "Sys",
+                    "response_mime_type": "application/json",
+                    "temperature": 0.0,
+                },
+            },
+        }
+    )
     assert google["messages"] == [
         {"role": "system", "content": "Sys"},
         {"role": "user", "content": "U"},
@@ -121,14 +156,30 @@ def test_normalized_views_put_the_system_prompt_first():
     assert google["response_format"]["response_mime_type"] == "application/json"
     assert google["parameters"] == {"config": {"temperature": 0.0}}
 
-    responses = normalized_view({"api": "openai.responses", "body": {
-        "model": "o", "instructions": "Sys", "input": "U", "max_output_tokens": 9,
-    }})
+    responses = normalized_view(
+        {
+            "api": "openai.responses",
+            "body": {
+                "model": "o",
+                "instructions": "Sys",
+                "input": "U",
+                "max_output_tokens": 9,
+            },
+        }
+    )
     assert responses["messages"] == [
-        {"role": "system", "content": "Sys"}, {"role": "user", "content": "U"},
+        {"role": "system", "content": "Sys"},
+        {"role": "user", "content": "U"},
     ]
 
-    chat = normalized_view({"api": "chat.completions", "body": {
-        "model": "m", "messages": [], "response_format": {"type": "json_object"},
-    }})
+    chat = normalized_view(
+        {
+            "api": "chat.completions",
+            "body": {
+                "model": "m",
+                "messages": [],
+                "response_format": {"type": "json_object"},
+            },
+        }
+    )
     assert chat["response_format"] == {"type": "json_object"}
