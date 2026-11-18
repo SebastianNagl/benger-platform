@@ -278,9 +278,7 @@ export default function GenerationRunDetailPage({
     }
   }, [id])
 
-  const loaded = trial?.id === child.id ? trial : null
-  const failed = error?.id === child.id ? error.message : null
-  if (child.has_request_record && !loaded && !failed) {
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 text-sm text-zinc-500">
         {t('generations.detail.loading')}
