@@ -263,6 +263,11 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- generation ------------------------------------------------------ #
         allow("/api/runs", "runs:read", methods="read", bind=("query:project_id",)),
         allow("/api/runs/generations/{generation_id}", "runs:read", methods="read"),
+        allow(
+            "/api/runs/generations/{generation_id}/trials/{trial_id}/request",
+            "runs:read",
+            methods="read",
+        ),
         allow("/api/generation/parse-metrics", "runs:read", methods="read"),
         allow("/api/generation/status/{generation_id}", "runs:read", methods="read"),
         area("/api/generation/{generation_id}*", ["runs:read"], ["runs:write"]),

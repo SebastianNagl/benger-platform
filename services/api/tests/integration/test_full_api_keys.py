@@ -349,6 +349,42 @@ async def test_restricted_key_polls_its_runs_by_id(async_test_client, async_test
         assert r.status_code == 404 and _code(r) == "not_found", (path, r.text)
 
 
+async def test_runs_read_key_fetches_a_trial_request_record(
+    async_test_client, async_test_db, world
+):
+    """A trial's request record is read with runs:read, like its run."""
+    import uuid as _uuid
+
+    from models import Generation, ResponseGeneration
+
+    db = async_test_db
+    run = ResponseGeneration(
+        id=str(_uuid.uuid4()), project_id=world["project"].id, model_id="m",
+        status="completed", created_by=world["admin"].id,
+    )
+    db.add(run)
+    await db.flush()
+    trial = Generation(
+        id=str(_uuid.uuid4()), generation_id=run.id, task_id=world["tasks"][0].id,
+        model_id="m", run_index=0, case_data="{}", response_content="...",
+        status="completed", request_record={"model": "m", "messages": []},
+        request_sha256="0" * 64,
+    )
+    db.add(trial)
+    await db.flush()
+    path = f"/api/runs/generations/{run.id}/trials/{trial.id}/request"
+
+    reader = await _personal(db, world["admin"], ["runs:read"])
+    r = await async_test_client.get(path, headers=bearer(reader))
+    assert r.status_code == 200, r.text
+    assert r.json()["request_record"] == {"model": "m", "messages": []}
+    assert r.json()["request_sha256"] == "0" * 64
+
+    other = await _personal(db, world["admin"], ["projects:read"])
+    r = await async_test_client.get(path, headers=bearer(other))
+    assert r.status_code == 403 and _code(r) == "insufficient_scope", r.text
+
+
 async def test_generation_config_put_merges(async_test_client, async_test_db, world):
     """Selecting models with PUT keeps the prompt structures."""
     from sqlalchemy.orm.attributes import flag_modified
