@@ -392,9 +392,8 @@ export function ProjectCreationWizard() {
 
   // A <Repeater> config lists its indexed fields only against the imported
   // tasks, so the selected file is read when the config has one.
-  const configHasRepeater = !!wizardData.labelingConfig?.config?.includes(
-    '<Repeater',
-  )
+  const configHasRepeater =
+    !!wizardData.labelingConfig?.config?.includes('<Repeater')
   const [readFile, setReadFile] = useState<{
     file: File
     content: string
