@@ -1065,12 +1065,12 @@ migration).
     provider names it), an unresolvable host and the url_guard rejection;
     True for 408/409/429, 5xx, timeouts, connection failures, a stream
     whose connection drops midway (httpx ``ReadError`` or
-    ``RemoteProtocolError``) and a model
-    answer that did not parse. Only a 4xx or 5xx counts as an HTTP status:
-    an Anthropic stream that fails after HTTP 200 is True when its error
-    event's ``error.type`` is ``overloaded_error``, ``api_error``,
-    ``rate_limit_error`` or ``timeout_error``. Google's own empty-answer error is False for
-    a safety block and True otherwise. Callers that repeat a failed
+    ``RemoteProtocolError``) and a model answer that did not parse. Only a
+    4xx or 5xx counts as an HTTP status: an Anthropic stream that fails
+    after HTTP 200 is True when its error event's ``error.type`` is
+    ``overloaded_error``, ``api_error``, ``rate_limit_error`` or
+    ``timeout_error``. Google's own empty-answer error is False for a
+    safety block and True otherwise. Callers that repeat a failed
     generation read this flag instead of ``error_type`` or
     ``retry_attempts[-1].retryable``. ``error_type`` and each provider's
     own retry behaviour are unchanged; ``base_service`` also exports
