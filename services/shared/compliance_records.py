@@ -1,4 +1,4 @@
-"""Generic rules for the compliance records (migration 145, core 2.56).
+"""Generic rules for the compliance records (migration 145, core 2.57).
 
 The platform owns the persistence of compliance assessments, their suite runs
 and the findings those runs produce (``models.ComplianceAssessment``,

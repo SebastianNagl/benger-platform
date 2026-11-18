@@ -4017,7 +4017,7 @@ class ProjectPurgeJob(Base):
 
 
 # --------------------------------------------------------------------------- #
-# Compliance records (migration 145, core 2.56)
+# Compliance records (migration 145, core 2.57)
 #
 # Persistence and generic CRUD are platform (``routers/compliance_records.py``,
 # rules in ``compliance_records``); what a suite, threshold or verdict means,

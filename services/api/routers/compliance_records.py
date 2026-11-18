@@ -1,6 +1,6 @@
 """Compliance records: generic CRUD over assessments, suite runs and findings.
 
-Platform-owned persistence (migration 145, core 2.56) for the compliance
+Platform-owned persistence (migration 145, core 2.57) for the compliance
 overlay: ``/api/compliance/assessments``, ``/api/compliance/suite-runs`` and
 ``/api/compliance/findings``. The routes store and return rows and enforce
 only the generic rules of ``compliance_records``:

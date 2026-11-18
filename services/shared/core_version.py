@@ -994,7 +994,31 @@ whenever one is added, renamed or removed):
     guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
     applying policies.
 
-2.56 (2026-11-18): compliance records (migration 145).
+2.56 (2026-11-18): system key of a generation (no migration).
+  - ``services/shared/system_profile.py``: ``parameter_profile(params)``
+    (temperature, top_p, max_tokens and the reasoning knobs
+    ``reasoning_effort``, ``thinking_budget``, ``thinking_token_budget``,
+    ``prompt_mode``, ``enable_thinking``; never seed or run index),
+    ``parameter_profile_sha256`` (SHA-256 of the sorted compact JSON) and
+    ``system_key(model_id, profile)`` = ``"<model_id>@<first 12 hex>"``. A
+    reasoning arm of one model is a system of its own; its repeats are not.
+    The profile holds the parameters as sent for DeepInfra and as
+    configured for other providers until they report what they sent.
+  - ``generations.response_metadata.system`` and the run's
+    ``parameters.system``: ``{key, model_id, provider, provider_model_id,
+    response_model, parameter_profile, parameter_profile_sha256}``. Answers
+    generated before 2.56 carry no ``system`` block.
+  - Reasoning knob ``enable_thinking`` (``"on"`` / ``"off"``, a
+    ``reasoning_config`` select) in a model's run config. DeepInfra sends a
+    model's declared ``reasoning_effort`` or ``enable_thinking`` (as
+    ``chat_template_kwargs``) with the run value or the declared default,
+    and reports ``reasoning_params_sent``, ``provider_model_id`` and
+    ``response_model`` in its response metadata; the worker records the
+    reported knob in the run's ``parameters``.
+    ``provider_capabilities.model_reasoning_config(model_id)`` reads the
+    catalog declaration.
+
+2.57 (2026-11-18): compliance records (migration 145).
   - Tables ``compliance_assessments``, ``compliance_suite_runs`` and
     ``compliance_findings`` (``models.ComplianceAssessment``,
     ``ComplianceSuiteRun``, ``ComplianceFinding``). A finding carries
@@ -1030,7 +1054,7 @@ whenever one is added, renamed or removed):
 
 import os
 
-CORE_API_VERSION = "2.56"
+CORE_API_VERSION = "2.57"
 
 
 def extended_required() -> bool:

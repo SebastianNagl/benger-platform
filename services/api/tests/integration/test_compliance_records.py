@@ -1,4 +1,4 @@
-"""Compliance records CRUD (core 2.56, migration 145).
+"""Compliance records CRUD (core 2.57, migration 145).
 
 Pinned here: the routes under ``/api/compliance`` for assessments, suite runs
 and findings; organization access (editors read and write, admins delete,

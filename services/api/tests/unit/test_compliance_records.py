@@ -1,4 +1,4 @@
-"""Rules of the compliance records (shared ``compliance_records``, core 2.56).
+"""Rules of the compliance records (shared ``compliance_records``, core 2.57).
 
 Pure tests on stand-in objects: the static transition tables and the stamps
 they set, the registration lock, the read-only states, the canonical hash,

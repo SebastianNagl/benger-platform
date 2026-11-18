@@ -165,9 +165,11 @@ class TestExtensionLoader:
         # sheet judges, dispatch_waiting_gradings).
         # 2.55 adds creation-wizard drafts (projects.is_wizard_draft,
         # project_wizard_drafts, project_listable, the draft key scope).
-        # 2.56 adds the compliance records (assessments, suite runs and
+        # 2.56 adds the generation system key (system_profile,
+        # response_metadata.system) and the enable_thinking knob.
+        # 2.57 adds the compliance records (assessments, suite runs and
         # findings, migration 145, shared compliance_records).
-        assert CORE_API_VERSION == "2.56"
+        assert CORE_API_VERSION == "2.57"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

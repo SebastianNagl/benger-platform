@@ -314,9 +314,11 @@ def reload_capability_caches() -> None:
     lookup re-reads the YAML. Called after `POST /api/admin/llm-models/reseed`
     to make hotfix YAML edits visible without a process restart."""
     global _COST_CACHE, _SEED_SUPPORT_CACHE, _PROVIDER_BY_MODEL_CACHE
+    global _REASONING_CONFIG_CACHE
     _COST_CACHE = None
     _SEED_SUPPORT_CACHE = None
     _PROVIDER_BY_MODEL_CACHE = None
+    _REASONING_CONFIG_CACHE = None
 
 
 # Backward-compat alias — the function used to be called `reload_cost_cache`
@@ -379,6 +381,39 @@ def model_supports_seed(provider: str, model_name: str) -> bool:
     if model_name in _SEED_SUPPORT_CACHE:
         return _SEED_SUPPORT_CACHE[model_name]
     return supports_feature(provider, "seed")
+
+
+# Per-model reasoning knob declarations (``default_config.reasoning_config``)
+# from llm_models.yaml, keyed by model id. Lazy-loaded like the caches above.
+_REASONING_CONFIG_CACHE: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+def _load_reasoning_configs_from_catalog() -> Dict[str, Dict[str, Any]]:
+    from seeds.llm_models_loader import load_catalog
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for m in load_catalog().models:
+        rc = (m.get("default_config") or {}).get("reasoning_config")
+        if isinstance(rc, dict) and isinstance(rc.get("parameter"), str):
+            out[m["id"]] = dict(rc)
+    return out
+
+
+def model_reasoning_config(model_name: str) -> Optional[Dict[str, Any]]:
+    """The catalog's ``default_config.reasoning_config`` for a model, or None.
+
+    Provider services that send a reasoning knob only for models declaring
+    it (DeepInfra) read the declaration here; it is the same one the model
+    picker renders its control from.
+    """
+    global _REASONING_CONFIG_CACHE
+    if _REASONING_CONFIG_CACHE is None:
+        try:
+            _REASONING_CONFIG_CACHE = _load_reasoning_configs_from_catalog()
+        except Exception:
+            _REASONING_CONFIG_CACHE = {}
+    rc = _REASONING_CONFIG_CACHE.get(model_name)
+    return dict(rc) if rc is not None else None
 
 
 def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:
