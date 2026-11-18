@@ -57,6 +57,7 @@ SYSTEM_KEY_HASH_CHARS = 12
 #: catalog model declares them.
 OPENAI_COMPATIBLE_REASONING_PARAMS = frozenset({"reasoning_effort", "enable_thinking"})
 
+
 def thinking_flag(value: Any) -> Optional[bool]:
     """``enable_thinking`` value (``"on"`` / ``"off"`` or a bool) as a bool;
     None for anything else."""
@@ -106,7 +107,9 @@ def parameter_profile(params: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def canonical_json(profile: Mapping[str, Any]) -> str:
-    return json.dumps(profile, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        profile, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
 
 
 def parameter_profile_sha256(profile: Mapping[str, Any]) -> str:

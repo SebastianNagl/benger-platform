@@ -54,7 +54,9 @@ def _catalog_rows(ids):
 
 
 class TestSeededOpenWeightModels:
-    def test_seed_writes_active_official_rows_with_reasoning_declarations(self, test_db):
+    def test_seed_writes_active_official_rows_with_reasoning_declarations(
+        self, test_db
+    ):
         initialize_llm_models(test_db)
         test_db.expire_all()
 
@@ -65,7 +67,11 @@ class TestSeededOpenWeightModels:
             assert row.is_official is True
             assert row.provider == "DeepInfra"
 
-        gpt_oss = test_db.query(DBLLMModel).filter(DBLLMModel.id == "openai/gpt-oss-20b").first()
+        gpt_oss = (
+            test_db.query(DBLLMModel)
+            .filter(DBLLMModel.id == "openai/gpt-oss-20b")
+            .first()
+        )
         rc = gpt_oss.default_config["reasoning_config"]
         assert rc["parameter"] == "reasoning_effort"
         assert rc["values"] == ["low", "medium", "high"]
@@ -99,7 +105,9 @@ def _as_user(db_user: User):
 
 class TestAvailableModelsOffersOpenWeight:
     @pytest.mark.asyncio
-    async def test_caller_with_deepinfra_key_sees_the_models(self, async_test_client, async_test_db):
+    async def test_caller_with_deepinfra_key_sees_the_models(
+        self, async_test_client, async_test_db
+    ):
         uid = str(uuid.uuid4())
         user = User(
             id=uid,
@@ -129,16 +137,21 @@ class TestAvailableModelsOffersOpenWeight:
             assert model_id in offered, model_id
             assert offered[model_id]["provider"] == "DeepInfra"
         assert (
-            offered["openai/gpt-oss-20b"]["default_config"]["reasoning_config"]["parameter"]
+            offered["openai/gpt-oss-20b"]["default_config"]["reasoning_config"][
+                "parameter"
+            ]
             == "reasoning_effort"
         )
         assert (
-            offered["Qwen/Qwen3.8-27B"]["default_config"]["reasoning_config"]["default"] == "on"
+            offered["Qwen/Qwen3.8-27B"]["default_config"]["reasoning_config"]["default"]
+            == "on"
         )
         assert offered["microsoft/phi-4"]["default_config"] is None
 
     @pytest.mark.asyncio
-    async def test_caller_without_deepinfra_key_does_not(self, async_test_client, async_test_db):
+    async def test_caller_without_deepinfra_key_does_not(
+        self, async_test_client, async_test_db
+    ):
         uid = str(uuid.uuid4())
         user = User(
             id=uid,

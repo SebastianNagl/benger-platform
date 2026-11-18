@@ -71,19 +71,38 @@ class TestParameterProfile:
                 "reasoning_effort": "low",
             }
         )
-        assert profile == {"temperature": 0.7, "max_tokens": 4000, "reasoning_effort": "low"}
+        assert profile == {
+            "temperature": 0.7,
+            "max_tokens": 4000,
+            "reasoning_effort": "low",
+        }
 
     def test_numbers_and_thinking_values_are_normalised(self):
-        a = sp.parameter_profile({"temperature": 1, "max_tokens": 4000.0, "enable_thinking": True})
-        b = sp.parameter_profile({"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"})
-        assert a == b == {"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"}
-        assert sp.parameter_profile({"enable_thinking": False}) == {"enable_thinking": "off"}
+        a = sp.parameter_profile(
+            {"temperature": 1, "max_tokens": 4000.0, "enable_thinking": True}
+        )
+        b = sp.parameter_profile(
+            {"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"}
+        )
+        assert (
+            a == b == {"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"}
+        )
+        assert sp.parameter_profile({"enable_thinking": False}) == {
+            "enable_thinking": "off"
+        }
 
     @pytest.mark.parametrize("value", ["true", "Yes", "1", "no", " on", "OFF"])
     def test_thinking_flag_accepts_only_the_select_values(self, value):
         assert sp.thinking_flag(value) is None
-        think = {"parameter": "enable_thinking", "values": ["off", "on"], "default": "on"}
-        assert sp.openai_compatible_reasoning_payload(think, {"enable_thinking": value}) == {}
+        think = {
+            "parameter": "enable_thinking",
+            "values": ["off", "on"],
+            "default": "on",
+        }
+        assert (
+            sp.openai_compatible_reasoning_payload(think, {"enable_thinking": value})
+            == {}
+        )
 
     def test_hash_is_sha256_of_sorted_compact_json(self):
         profile = {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "off"}
@@ -100,10 +119,15 @@ class TestParameterProfile:
 
     def test_reasoning_arm_and_seed_change(self):
         base = {"temperature": 0.7, "max_tokens": 4000}
-        off = sp.system_key(QWEN_27B, sp.parameter_profile({**base, "enable_thinking": "off"}))
-        on = sp.system_key(QWEN_27B, sp.parameter_profile({**base, "enable_thinking": "on"}))
+        off = sp.system_key(
+            QWEN_27B, sp.parameter_profile({**base, "enable_thinking": "off"})
+        )
+        on = sp.system_key(
+            QWEN_27B, sp.parameter_profile({**base, "enable_thinking": "on"})
+        )
         off_other_seed = sp.system_key(
-            QWEN_27B, sp.parameter_profile({**base, "enable_thinking": "off", "seed": 99})
+            QWEN_27B,
+            sp.parameter_profile({**base, "enable_thinking": "off", "seed": 99}),
         )
         assert off != on
         assert off == off_other_seed
@@ -111,7 +135,12 @@ class TestParameterProfile:
     def test_system_record_shape(self):
         rec = sp.system_record(
             GPT_OSS_20B,
-            {"temperature": 0.7, "max_tokens": 4000, "reasoning_effort": "low", "seed": 1},
+            {
+                "temperature": 0.7,
+                "max_tokens": 4000,
+                "reasoning_effort": "low",
+                "seed": 1,
+            },
             provider="DeepInfra",
             provider_model_id=GPT_OSS_20B,
             response_model=GPT_OSS_20B,
@@ -132,33 +161,65 @@ class TestParameterProfile:
 
 
 class TestReasoningPayload:
-    EFFORT = {"parameter": "reasoning_effort", "type": "select", "values": ["low", "medium", "high"], "default": "medium"}
-    THINK = {"parameter": "enable_thinking", "type": "select", "values": ["off", "on"], "default": "on"}
+    EFFORT = {
+        "parameter": "reasoning_effort",
+        "type": "select",
+        "values": ["low", "medium", "high"],
+        "default": "medium",
+    }
+    THINK = {
+        "parameter": "enable_thinking",
+        "type": "select",
+        "values": ["off", "on"],
+        "default": "on",
+    }
 
     def test_effort_run_value_default_and_invalid(self):
-        assert sp.openai_compatible_reasoning_payload(self.EFFORT, {"reasoning_effort": "low"}) == {"reasoning_effort": "low"}
-        assert sp.openai_compatible_reasoning_payload(self.EFFORT, {}) == {"reasoning_effort": "medium"}
-        assert sp.openai_compatible_reasoning_payload(self.EFFORT, {"reasoning_effort": "xhigh"}) == {}
+        assert sp.openai_compatible_reasoning_payload(
+            self.EFFORT, {"reasoning_effort": "low"}
+        ) == {"reasoning_effort": "low"}
+        assert sp.openai_compatible_reasoning_payload(self.EFFORT, {}) == {
+            "reasoning_effort": "medium"
+        }
+        assert (
+            sp.openai_compatible_reasoning_payload(
+                self.EFFORT, {"reasoning_effort": "xhigh"}
+            )
+            == {}
+        )
 
     def test_thinking_switch(self):
-        assert sp.openai_compatible_reasoning_payload(self.THINK, {"enable_thinking": "off"}) == {
-            "chat_template_kwargs": {"enable_thinking": False}
-        }
+        assert sp.openai_compatible_reasoning_payload(
+            self.THINK, {"enable_thinking": "off"}
+        ) == {"chat_template_kwargs": {"enable_thinking": False}}
         assert sp.openai_compatible_reasoning_payload(self.THINK, {}) == {
             "chat_template_kwargs": {"enable_thinking": True}
         }
-        assert sp.openai_compatible_reasoning_payload(self.THINK, {"enable_thinking": "maybe"}) == {}
+        assert (
+            sp.openai_compatible_reasoning_payload(
+                self.THINK, {"enable_thinking": "maybe"}
+            )
+            == {}
+        )
 
     def test_undeclared_or_unsupported_knob_sends_nothing(self):
-        assert sp.openai_compatible_reasoning_payload(None, {"reasoning_effort": "low"}) == {}
+        assert (
+            sp.openai_compatible_reasoning_payload(None, {"reasoning_effort": "low"})
+            == {}
+        )
         budget = {"parameter": "thinking_budget", "type": "number", "default": 1024}
-        assert sp.openai_compatible_reasoning_payload(budget, {"thinking_budget": 512}) == {}
+        assert (
+            sp.openai_compatible_reasoning_payload(budget, {"thinking_budget": 512})
+            == {}
+        )
 
     def test_reasoning_params_sent_round_trip(self):
-        assert sp.reasoning_params_sent({"chat_template_kwargs": {"enable_thinking": False}}) == {
-            "enable_thinking": "off"
+        assert sp.reasoning_params_sent(
+            {"chat_template_kwargs": {"enable_thinking": False}}
+        ) == {"enable_thinking": "off"}
+        assert sp.reasoning_params_sent({"reasoning_effort": "low", "model": "x"}) == {
+            "reasoning_effort": "low"
         }
-        assert sp.reasoning_params_sent({"reasoning_effort": "low", "model": "x"}) == {"reasoning_effort": "low"}
         assert sp.reasoning_params_sent({"model": "x"}) == {}
 
 
@@ -175,7 +236,9 @@ class TestCatalogEntries:
             (GPT_OSS_20B, 0.03, 0.14),
         ],
     )
-    def test_added_models_are_active_deepinfra_rows(self, model_id, price_in, price_out):
+    def test_added_models_are_active_deepinfra_rows(
+        self, model_id, price_in, price_out
+    ):
         row = _catalog_by_id()[model_id]
         assert row["provider"] == "DeepInfra"
         assert row["is_active"] is True
@@ -191,7 +254,9 @@ class TestCatalogEntries:
         assert rc["values"] == ["low", "medium", "high"]
         assert rc["default"] in rc["values"]
 
-    @pytest.mark.parametrize("model_id,default", [(QWEN_27B, "on"), (GEMMA_26B, "off"), (NEMOTRON, "off")])
+    @pytest.mark.parametrize(
+        "model_id,default", [(QWEN_27B, "on"), (GEMMA_26B, "off"), (NEMOTRON, "off")]
+    )
     def test_thinking_switch_defaults_to_provider_default(self, model_id, default):
         # The default equals what DeepInfra does when no switch is sent, so
         # existing runs that never set it keep their behaviour.
@@ -249,8 +314,17 @@ class _FakeSession:
         return _FakeResponse(
             {
                 "model": json["model"],
-                "choices": [{"message": {"content": '{"antwort": "ja"}'}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+                "choices": [
+                    {
+                        "message": {"content": '{"antwort": "ja"}'},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
             }
         )
 
@@ -268,7 +342,9 @@ class TestDeepInfraReasoningKnobs:
         return di_mod.DeepInfraService(api_key="test-deepinfra-key")
 
     def test_gpt_oss_effort_sent_and_reported(self, fake_http):
-        out = self._svc().generate(prompt="p", model_name=GPT_OSS_20B, reasoning_effort="low", seed=7)
+        out = self._svc().generate(
+            prompt="p", model_name=GPT_OSS_20B, reasoning_effort="low", seed=7
+        )
         payload = fake_http.payloads[-1]
         assert payload["reasoning_effort"] == "low"
         assert "chat_template_kwargs" not in payload
@@ -281,9 +357,16 @@ class TestDeepInfraReasoningKnobs:
         self._svc().generate(prompt="p", model_name=GPT_OSS_20B)
         assert fake_http.payloads[-1]["reasoning_effort"] == "medium"
 
-    @pytest.mark.parametrize("model_id,value,flag", [(QWEN_27B, "off", False), (GEMMA_26B, "on", True), (NEMOTRON, "off", False)])
-    def test_thinking_switch_sent_as_chat_template_kwargs(self, fake_http, model_id, value, flag):
-        out = self._svc().generate(prompt="p", model_name=model_id, enable_thinking=value)
+    @pytest.mark.parametrize(
+        "model_id,value,flag",
+        [(QWEN_27B, "off", False), (GEMMA_26B, "on", True), (NEMOTRON, "off", False)],
+    )
+    def test_thinking_switch_sent_as_chat_template_kwargs(
+        self, fake_http, model_id, value, flag
+    ):
+        out = self._svc().generate(
+            prompt="p", model_name=model_id, enable_thinking=value
+        )
         payload = fake_http.payloads[-1]
         assert payload["chat_template_kwargs"] == {"enable_thinking": flag}
         assert "reasoning_effort" not in payload
@@ -291,7 +374,12 @@ class TestDeepInfraReasoningKnobs:
 
     @pytest.mark.parametrize("model_id", [LLAMA_8B_TURBO, MISTRAL_SMALL, PHI_4])
     def test_models_without_knob_get_no_reasoning_fields(self, fake_http, model_id):
-        out = self._svc().generate(prompt="p", model_name=model_id, reasoning_effort="low", enable_thinking="on")
+        out = self._svc().generate(
+            prompt="p",
+            model_name=model_id,
+            reasoning_effort="low",
+            enable_thinking="on",
+        )
         payload = fake_http.payloads[-1]
         assert payload["model"] == model_id
         assert "reasoning_effort" not in payload
@@ -320,7 +408,9 @@ def _query_side_effect(gen, project, task, model):
         elif idx == 4:
             q.filter.return_value.first.return_value = model
         elif idx == 5:
-            q.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+            q.join.return_value.filter.return_value.order_by.return_value.first.return_value = (
+                None
+            )
         elif idx == 6:
             q.filter.return_value.count.return_value = 0
         else:
@@ -347,9 +437,18 @@ def _mock_run(model_id, model_config):
     project.deleted_at = None
     project.generation_config = {
         "prompt_structures": [
-            {"key": "default", "structure": {"system_prompt": "Du bist Richter.", "instruction_prompt": "$text"}},
+            {
+                "key": "default",
+                "structure": {
+                    "system_prompt": "Du bist Richter.",
+                    "instruction_prompt": "$text",
+                },
+            },
         ],
-        "selected_configuration": {"parameters": {}, "model_configs": {model_id: model_config}},
+        "selected_configuration": {
+            "parameters": {},
+            "model_configs": {model_id: model_config},
+        },
     }
     project.label_config = None
     project.label_config_version = None
@@ -380,12 +479,15 @@ def _mock_run(model_id, model_config):
     user_aware.get_ai_service_for_user.return_value = service
     user_aware.get_ai_service_for_model_row.return_value = service
 
-    with patch.object(tasks_module, "HAS_DATABASE", True), \
-         patch.object(tasks_module, "HAS_AI_SERVICES", True), \
-         patch.object(tasks_module, "HAS_GENERATION_PARSER", True), \
-         patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
-         patch.object(tasks_module, "user_aware_ai_service", user_aware), \
-         patch.object(tasks_module, "notify_task_completed", MagicMock()):
+    with patch.object(tasks_module, "HAS_DATABASE", True), patch.object(
+        tasks_module, "HAS_AI_SERVICES", True
+    ), patch.object(tasks_module, "HAS_GENERATION_PARSER", True), patch.object(
+        tasks_module, "SessionLocal", MagicMock(return_value=db)
+    ), patch.object(
+        tasks_module, "user_aware_ai_service", user_aware
+    ), patch.object(
+        tasks_module, "notify_task_completed", MagicMock()
+    ):
         result = generate_llm_responses(
             generation_id="gen-1",
             config_data={"project_id": "p1"},
@@ -402,7 +504,10 @@ def _mock_run(model_id, model_config):
 
 class TestMockRunSystemKey:
     def test_run_records_provider_ids_and_profile_hash(self, fake_http):
-        md, gen = _mock_run(GPT_OSS_20B, {"temperature": 0.7, "max_tokens": 4000, "reasoning_effort": "low"})
+        md, gen = _mock_run(
+            GPT_OSS_20B,
+            {"temperature": 0.7, "max_tokens": 4000, "reasoning_effort": "low"},
+        )
         system = md["system"]
         assert system["model_id"] == GPT_OSS_20B
         assert system["provider"] == "DeepInfra"
@@ -425,8 +530,12 @@ class TestMockRunSystemKey:
         assert payload["max_tokens"] == 4000
 
     def test_reasoning_arm_is_a_distinct_system(self, fake_http):
-        off, _ = _mock_run(QWEN_27B, {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "off"})
-        on, _ = _mock_run(QWEN_27B, {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "on"})
+        off, _ = _mock_run(
+            QWEN_27B, {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "off"}
+        )
+        on, _ = _mock_run(
+            QWEN_27B, {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "on"}
+        )
         assert [p["chat_template_kwargs"] for p in fake_http.payloads] == [
             {"enable_thinking": False},
             {"enable_thinking": True},
@@ -441,11 +550,16 @@ class TestMockRunSystemKey:
         # catalog declared it) shows the default in the model picker; the
         # model receives that same value and the profile records it.
         md, gen = _mock_run(QWEN_27B, {"temperature": 0.7, "max_tokens": 4000})
-        assert fake_http.payloads[-1]["chat_template_kwargs"] == {"enable_thinking": True}
+        assert fake_http.payloads[-1]["chat_template_kwargs"] == {
+            "enable_thinking": True
+        }
         assert md["system"]["parameter_profile"]["enable_thinking"] == "on"
         assert gen.parameters["enable_thinking"] == "on"
 
     def test_model_without_knob_profile_has_no_reasoning(self, fake_http):
         md, _ = _mock_run(PHI_4, {"temperature": 0.7, "max_tokens": 4000})
-        assert md["system"]["parameter_profile"] == {"temperature": 0.7, "max_tokens": 4000}
+        assert md["system"]["parameter_profile"] == {
+            "temperature": 0.7,
+            "max_tokens": 4000,
+        }
         assert md["system"]["provider_model_id"] == PHI_4
