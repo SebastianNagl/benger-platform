@@ -108,6 +108,34 @@ class TestJsonAfterProse:
         spans = _values(result)["ner"]["spans"]
         assert [(s["start"], s["end"], s["labels"]) for s in spans] == [(0, 3, ["PER"])]
 
+    def test_json_without_a_known_field_leaves_the_pattern_fallback(self):
+        cfg = """<View>
+  <Text name="facts" value="$facts"/>
+  <TextArea name="verdict" toName="facts"/>
+  <TextArea name="reason" toName="facts"/>
+</View>"""
+        answer = 'Verdict: no\nReason: see {"a": 1}'
+        result = ResponseParser({}, cfg).parse(answer)
+        assert result.status == "success", result.error
+        assert _values(result)["verdict"] == {"text": ["no"]}
+
+    def test_truncated_repeater_array_is_not_an_empty_success(self):
+        cfg = """<View>
+  <Repeater on="$cases" answerKey="item">
+    <Text name="case_{{idx}}" value="$cases[{{idx}}].text"/>
+    <Choices name="risk_{{idx}}" toName="case_{{idx}}">
+      <Choice value="high"/><Choice value="low"/>
+    </Choices>
+  </Repeater>
+</View>"""
+        task = {"cases": [{"text": "a"}, {"text": "b"}, {"text": "c"}]}
+        answer = '[{"item":1,"risk":"high"},{"item":2,"risk":"low"},{"item":3,"ri'
+        parser = ResponseParser({}, cfg)
+        assert parser._for_task(task)._try_json_parse(answer).status == "failed"
+        result = parser.parse(answer, task_data=task)
+        assert result.status == "success"
+        assert result.field_values == {"__response__": answer}
+
     def test_prose_without_json_stays_free_text(self):
         answer = "The claim fails because no duty was owed."
         result = ResponseParser({}, BOOLEAN_CHOICES).parse(answer)

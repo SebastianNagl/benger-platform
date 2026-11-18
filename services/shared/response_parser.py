@@ -264,14 +264,33 @@ class ResponseParser:
                 json_text = response_text.strip()
 
             # Parse JSON; failing that, the last JSON object or array in the
-            # text (an answer that puts its JSON after some prose)
+            # text (an answer that puts its JSON after some prose), but only
+            # when it answers at least one known field
             try:
                 parsed_data = json.loads(json_text)
-            except json.JSONDecodeError:
-                parsed_data = last_json_value(response_text)
-                if parsed_data is None:
-                    raise
+            except json.JSONDecodeError as decode_error:
+                fallback = last_json_value(response_text)
+                if fallback is not None:
+                    result = self._parse_decoded(fallback)
+                    known = set(self._answer_fields)
+                    if result.status == "success" and any(
+                        r.get("from_name") in known for r in result.parsed_annotation or []
+                    ):
+                        return result
+                    self._array_error = False
+                raise decode_error
 
+            return self._parse_decoded(parsed_data)
+
+        except json.JSONDecodeError as e:
+            return ParseResult(status="failed", error=f"JSON parsing failed: {str(e)}")
+        except Exception as e:
+            return ParseResult(status="failed", error=f"Unexpected error in JSON parsing: {str(e)}")
+
+    def _parse_decoded(self, parsed_data: Any) -> ParseResult:
+        """Validate a decoded JSON answer and transform it to Label Studio
+        results."""
+        try:
             # Array answers of <Repeater> blocks -> indexed control names
             if self._array_blocks:
                 try:
@@ -319,8 +338,6 @@ class ResponseParser:
                 mapped_keys=mapped_keys,
             )
 
-        except json.JSONDecodeError as e:
-            return ParseResult(status="failed", error=f"JSON parsing failed: {str(e)}")
         except Exception as e:
             return ParseResult(status="failed", error=f"Unexpected error in JSON parsing: {str(e)}")
 
