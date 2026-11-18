@@ -363,6 +363,9 @@ class GoogleService(BaseAIService):
                         # content_filter; otherwise treat as api_error so
                         # downstream filters can spot it.
                         "error_type": "content_filter" if refusal else "api_error",
+                        # A safety block repeats on the same prompt; an
+                        # empty answer without one is a capacity hiccup.
+                        "retryable": not refusal,
                         "seed": None,
                         "created_at": end_time.isoformat(),
                         **self.get_invocation_provenance(),
