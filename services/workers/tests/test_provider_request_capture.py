@@ -16,11 +16,16 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import pytest  # noqa: E402
 
-from ai_services.request_capture import build_request_record, capture_requests  # noqa: E402
+from ai_services.request_capture import (  # noqa: E402
+    build_request_record,
+    capture_requests,
+)
 from mock_chat_server import mock_chat_server  # noqa: E402
 from system_profile import parameters_sent  # noqa: E402
 
-SYSTEM = "Du bist Schlichterin für Mietsachen. Antworte nur mit JSON:\n{\"anteil\": <Zahl>}"
+SYSTEM = (
+    'Du bist Schlichterin für Mietsachen. Antworte nur mit JSON:\n{"anteil": <Zahl>}'
+)
 USER = "Akte S-41/26 \u2013 Müller ./. Öztürk\n\nDie Mieterin minderte die Miete; § 536 BGB."
 CONTINUATION = [
     {"role": "assistant", "content": "Die Minderung ist teilweise berechtigt."},
@@ -31,7 +36,11 @@ EXPECTED_MESSAGES = [
     {"role": "user", "content": USER},
     *CONTINUATION,
 ]
-SCHEMA = {"type": "object", "properties": {"anteil": {"type": "number"}}, "required": ["anteil"]}
+SCHEMA = {
+    "type": "object",
+    "properties": {"anteil": {"type": "number"}},
+    "required": ["anteil"],
+}
 
 
 def _call(service, *, structured=False, continuation=None, **kwargs):
@@ -42,7 +51,9 @@ def _call(service, *, structured=False, continuation=None, **kwargs):
                 prompt=USER, system_prompt=SYSTEM, json_schema=SCHEMA, **kwargs, **extra
             )
         else:
-            result = service.generate(prompt=USER, system_prompt=SYSTEM, **kwargs, **extra)
+            result = service.generate(
+                prompt=USER, system_prompt=SYSTEM, **kwargs, **extra
+            )
     return result, captured
 
 
@@ -71,9 +82,14 @@ def test_http_clients_record_the_body_the_server_received(make, provider):
         server.reply('{"anteil": 30}')
         server.reply('{"anteil": 40}')
         service = make(server.base_url)
-        first, captured_first = _call(service, model_name="acme/model", temperature=0.7, max_tokens=600)
+        first, captured_first = _call(
+            service, model_name="acme/model", temperature=0.7, max_tokens=600
+        )
         retry, captured_retry = _call(
-            service, model_name="acme/model", temperature=0.7, max_tokens=600,
+            service,
+            model_name="acme/model",
+            temperature=0.7,
+            max_tokens=600,
             continuation=CONTINUATION,
         )
     assert first["success"] and retry["success"]
@@ -135,9 +151,14 @@ def test_openai_sdk_records_the_body_on_the_wire():
     with mock_chat_server() as server:
         server.reply('{"anteil": 30}')
         service = OpenAIService(api_key="test-key")
-        service.client = OpenAI(api_key="test-key", base_url=server.base_url, max_retries=0)
+        service.client = OpenAI(
+            api_key="test-key", base_url=server.base_url, max_retries=0
+        )
         result, captured = _call(
-            service, model_name="gpt-4o", temperature=0.0, max_tokens=300,
+            service,
+            model_name="gpt-4o",
+            temperature=0.0,
+            max_tokens=300,
             continuation=CONTINUATION,
         )
     assert result["success"], result.get("error")
@@ -158,7 +179,9 @@ def test_openai_prompt_json_fallback_sends_the_schema_not_a_placeholder():
     with mock_chat_server() as server:
         server.reply('{"anteil": 30}')
         service = OpenAIService(api_key="test-key")
-        service.client = OpenAI(api_key="test-key", base_url=server.base_url, max_retries=0)
+        service.client = OpenAI(
+            api_key="test-key", base_url=server.base_url, max_retries=0
+        )
         _call(service, structured=True, model_name="gpt-3.5-turbo", temperature=0.0)
     [wire] = server.json_bodies()
     system = wire["messages"][0]["content"]
@@ -228,7 +251,10 @@ def test_sdk_clients_record_the_body_the_server_received(name, model, api):
         server.reply('{"anteil": 30}')
         service = _sdk_service(name, server.base_url)
         _, captured = _call(
-            service, model_name=model, temperature=0.3, max_tokens=300,
+            service,
+            model_name=model,
+            temperature=0.3,
+            max_tokens=300,
             continuation=CONTINUATION,
         )
     assert server.bodies, "the SDK sent nothing"
@@ -244,17 +270,33 @@ def test_sdk_clients_record_the_body_the_server_received(name, model, api):
     assert (sent["temperature"], sent["max_tokens"]) == (0.3, 300)
 
 
-@pytest.mark.parametrize("name, model, knob, expected", [
-    ("mistral", "magistral-medium-latest", {"prompt_mode": "reasoning"}, {"prompt_mode": "reasoning"}),
-    ("cohere", "command-a-reasoning-08-2025", {"thinking_token_budget": 2048},
-     {"thinking_token_budget": 2048}),
-], ids=["mistral", "cohere"])
+@pytest.mark.parametrize(
+    "name, model, knob, expected",
+    [
+        (
+            "mistral",
+            "magistral-medium-latest",
+            {"prompt_mode": "reasoning"},
+            {"prompt_mode": "reasoning"},
+        ),
+        (
+            "cohere",
+            "command-a-reasoning-08-2025",
+            {"thinking_token_budget": 2048},
+            {"thinking_token_budget": 2048},
+        ),
+    ],
+    ids=["mistral", "cohere"],
+)
 def test_sdk_reasoning_knobs_enter_the_profile_as_sent(name, model, knob, expected):
     with mock_chat_server() as server:
         server.reply('{"anteil": 30}')
         _, captured = _call(
             _sdk_service(name, server.base_url),
-            model_name=model, temperature=0.3, max_tokens=300, **knob,
+            model_name=model,
+            temperature=0.3,
+            max_tokens=300,
+            **knob,
         )
     assert captured[0]["capture"] == "http_body"
     sent = parameters_sent(captured[0])
@@ -277,15 +319,24 @@ def test_filled_coerced_and_dropped_knobs_are_recorded_as_sent():
         server.reply("{}")
         _, anthropic = _call(
             _sdk_service("anthropic", server.base_url),
-            model_name="claude-sonnet-4-5", temperature=0.2, max_tokens=300, thinking_budget=2048,
+            model_name="claude-sonnet-4-5",
+            temperature=0.2,
+            max_tokens=300,
+            thinking_budget=2048,
         )
         _, google = _call(
             _sdk_service("google", server.base_url),
-            model_name="gemini-2.5-flash", temperature=0.2, max_tokens=300,
+            model_name="gemini-2.5-flash",
+            temperature=0.2,
+            max_tokens=300,
         )
         openai_service = OpenAIService(api_key="test-key")
-        openai_service.client = OpenAI(api_key="test-key", base_url=server.base_url, max_retries=0)
-        _, gpt5 = _call(openai_service, model_name="gpt-5", temperature=0.2, max_tokens=300)
+        openai_service.client = OpenAI(
+            api_key="test-key", base_url=server.base_url, max_retries=0
+        )
+        _, gpt5 = _call(
+            openai_service, model_name="gpt-5", temperature=0.2, max_tokens=300
+        )
     wire_anthropic, wire_google, wire_gpt5 = server.json_bodies()
 
     assert anthropic[0]["body"] == wire_anthropic
@@ -297,15 +348,21 @@ def test_filled_coerced_and_dropped_knobs_are_recorded_as_sent():
 
     assert gpt5[0]["body"] == wire_gpt5
     assert wire_gpt5["temperature"] == 1.0
-    assert not {"top_p", "frequency_penalty", "presence_penalty", "seed"} & set(wire_gpt5)
+    assert not {"top_p", "frequency_penalty", "presence_penalty", "seed"} & set(
+        wire_gpt5
+    )
     assert wire_gpt5["max_completion_tokens"] == 300
 
     # The system profile is what was sent, not what was configured.
     assert parameters_sent(anthropic[0]) == {
-        "temperature": 0.2, "max_tokens": 300, "thinking_budget": 2048,
+        "temperature": 0.2,
+        "max_tokens": 300,
+        "thinking_budget": 2048,
     }
     assert parameters_sent(google[0]) == {
-        "temperature": 0.2, "max_tokens": 300, "thinking_budget": 1024,
+        "temperature": 0.2,
+        "max_tokens": 300,
+        "thinking_budget": 1024,
     }
     assert parameters_sent(gpt5[0]) == {"temperature": 1.0, "max_tokens": 300}
 
@@ -318,9 +375,14 @@ def test_openai_responses_profile_is_read_from_the_wire():
     with mock_chat_server() as server:
         server.reply("{}")
         service = OpenAIService(api_key="test-key")
-        service.client = OpenAI(api_key="test-key", base_url=server.base_url, max_retries=0)
+        service.client = OpenAI(
+            api_key="test-key", base_url=server.base_url, max_retries=0
+        )
         _, captured = _call(
-            service, model_name="gpt-5-pro", temperature=0.2, max_tokens=400,
+            service,
+            model_name="gpt-5-pro",
+            temperature=0.2,
+            max_tokens=400,
             reasoning_effort="high",
         )
     [wire] = server.json_bodies()
@@ -351,7 +413,9 @@ def test_sdk_kwargs_are_kept_when_nothing_reaches_httpx():
     service = AnthropicService(api_key="test-key")
     create = _KeepKwargs()
     service.client = type("C", (), {"messages": type("M", (), {"create": create})()})()
-    _, captured = _call(service, model_name="claude-x", max_tokens=300, continuation=CONTINUATION)
+    _, captured = _call(
+        service, model_name="claude-x", max_tokens=300, continuation=CONTINUATION
+    )
     [kwargs] = create.calls
     assert captured[0]["capture"] == "sdk_kwargs"
     assert captured[0]["body"] == _jsonable(kwargs)
@@ -363,6 +427,8 @@ def test_google_single_prompt_keeps_the_plain_contents():
 
     service = GoogleService(api_key="test-key")
     keep = _KeepKwargs()
-    service.client = type("C", (), {"models": type("M", (), {"generate_content": keep})()})()
+    service.client = type(
+        "C", (), {"models": type("M", (), {"generate_content": keep})()}
+    )()
     _call(service, model_name="gemini-x")
     assert keep.calls[-1]["contents"] == USER

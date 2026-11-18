@@ -28,12 +28,12 @@ All fixture content is invented.
 import json
 
 import pytest
-
-import tasks
 from ai_services.request_capture import sha256_of
 from generation_fidelity import schema_instruction
 from mock_chat_server import mock_chat_server
 from models import Generation, ResponseGeneration
+
+import tasks
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
 
@@ -88,7 +88,9 @@ def _structure(**options):
 
 
 OFF = {"append_schema_instruction": False, "structured_output": "off"}
-RETRY_MESSAGE = "Ihre Antwort enthielt keinen gültigen JSON-Block. Bitte antworten Sie erneut."
+RETRY_MESSAGE = (
+    "Ihre Antwort enthielt keinen gültigen JSON-Block. Bitte antworten Sie erneut."
+)
 
 
 @pytest.fixture
@@ -101,15 +103,25 @@ def deepinfra_against(monkeypatch):
         service.base_url = server.base_url
         service._provider_name = "DeepInfra"
         monkeypatch.setattr(
-            tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: service
+            tasks.user_aware_ai_service,
+            "get_ai_service_for_user",
+            lambda *a, **k: service,
         )
         return service
 
     return _route
 
 
-def _generate(db_conn, make_user, make_llm_model, make_project, make_task, structure, task_data,
-              label_config=LABEL_CONFIG):
+def _generate(
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    structure,
+    task_data,
+    label_config=LABEL_CONFIG,
+):
     import uuid
 
     user = make_user()
@@ -122,8 +134,14 @@ def _generate(db_conn, make_user, make_llm_model, make_project, make_task, struc
     task = make_task(project.id, task_data, created_by=user.id)
     db_conn.commit()
     rg = ResponseGeneration(
-        id=str(uuid.uuid4()), project_id=project.id, task_id=task.id, model_id=model.id,
-        status="pending", runs_requested=1, structure_key="s0", created_by=user.id,
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        task_id=task.id,
+        model_id=model.id,
+        status="pending",
+        runs_requested=1,
+        structure_key="s0",
+        created_by=user.id,
     )
     db_conn.add(rg)
     db_conn.commit()
@@ -147,13 +165,25 @@ def _metadata(gen):
 
 @pytest.mark.parametrize("task_data", TASKS, ids=["civil", "unicode_and_braces"])
 def test_options_off_send_the_rendered_messages_byte_for_byte(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against, task_data,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
+    task_data,
 ):
     with mock_chat_server() as server:
         server.reply('{"anteil_mieter": 30, "begruendung": "Verspätete Abrechnung."}')
         deepinfra_against(server)
         result, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, _structure(**OFF), task_data,
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            _structure(**OFF),
+            task_data,
         )
     assert result["status"] == "success"
     [raw] = server.bodies
@@ -176,18 +206,31 @@ def test_options_off_send_the_rendered_messages_byte_for_byte(
 
 
 def test_defaults_record_every_block_the_platform_adds(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     task_data = TASKS[0]
     with mock_chat_server() as server:
         server.reply('{"anteil_mieter": 30, "begruendung": "Verspätete Abrechnung."}')
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, _structure(), task_data,
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            _structure(),
+            task_data,
         )
     [wire] = server.json_bodies()
     system, user = wire["messages"][0]["content"], wire["messages"][1]["content"]
-    assert user == task_data["akte"] + schema_instruction(["anteil_mieter", "begruendung"])
+    assert user == task_data["akte"] + schema_instruction(
+        ["anteil_mieter", "begruendung"]
+    )
     assert system.startswith(_expected_messages(task_data)[0]["content"])
     assert "## Output Format" in system
     # Nothing the platform added is missing from the record.
@@ -196,7 +239,12 @@ def test_defaults_record_every_block_the_platform_adds(
 
 
 def test_format_retry_asks_again_in_the_same_conversation(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     task_data = TASKS[0]
     first = "Ich halte den Anspruch für überwiegend begründet."
@@ -207,7 +255,13 @@ def test_format_retry_asks_again_in_the_same_conversation(
         server.reply(final, prompt_tokens=130, completion_tokens=20)
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, task_data,
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            task_data,
         )
     first_body, retry_body = server.json_bodies()
     designed = _expected_messages(task_data)
@@ -222,7 +276,10 @@ def test_format_retry_asks_again_in_the_same_conversation(
     assert gen.parse_status == "success"
     assert {i["from_name"] for i in gen.parsed_annotation} >= {"anteil_mieter"}
     assert (gen.input_tokens, gen.output_tokens) == (230, 32)
-    assert [r["body"] for r in gen.request_record["requests"]] == [first_body, retry_body]
+    assert [r["body"] for r in gen.request_record["requests"]] == [
+        first_body,
+        retry_body,
+    ]
     # The hash names the designed request, not the retry.
     assert gen.request_sha256 == sha256_of(first_body)
     assert _metadata(gen)["format_retry"] == {"attempts": 1, "error": None}
@@ -231,7 +288,12 @@ def test_format_retry_asks_again_in_the_same_conversation(
 
 
 def test_format_retry_asks_only_once_and_skips_a_parsed_answer(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     # Stored by an earlier version with "max": still a single re-ask.
     structure = _structure(**OFF, format_retry={"max": 3, "message": RETRY_MESSAGE})
@@ -241,20 +303,34 @@ def test_format_retry_asks_only_once_and_skips_a_parsed_answer(
         server.reply("Dritte Antwort, nie angefragt.")
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            TASKS[0],
         )
         assert len(server.bodies) == 2
         assert gen.retried is True
         assert gen.first_response_content == "Erste Antwort ohne JSON."
         assert gen.response_content == "Zweite Antwort ohne JSON."
         assert _metadata(gen)["format_retry"] == {"attempts": 1, "error": None}
-        assert _metadata(gen)["answer_format"]["format_retry"] == {"message": RETRY_MESSAGE}
+        assert _metadata(gen)["answer_format"]["format_retry"] == {
+            "message": RETRY_MESSAGE
+        }
 
         server.replies.clear()
         server.bodies.clear()
         server.reply('{"anteil_mieter": 50, "begruendung": "Unklar."}')
         _, [parsed] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[1],
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            TASKS[1],
         )
         assert len(server.bodies) == 1
         assert parsed.retried is False and parsed.first_response_content is None
@@ -267,7 +343,12 @@ LOESUNG_ONLY_CONFIG = """<View>
 
 
 def test_format_retry_skips_a_parsed_answer_of_a_loesung_only_config(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     answer = '{"loesung": "Der Anspruch aus § 556 BGB besteht nicht."}'
     structure = _structure(**OFF, format_retry={"message": RETRY_MESSAGE})
@@ -276,7 +357,13 @@ def test_format_retry_skips_a_parsed_answer_of_a_loesung_only_config(
         server.reply("Nie angefragt.")
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            TASKS[0],
             label_config=LOESUNG_ONLY_CONFIG,
         )
     assert len(server.bodies) == 1
@@ -286,7 +373,12 @@ def test_format_retry_skips_a_parsed_answer_of_a_loesung_only_config(
 
 
 def test_provider_refusal_of_the_first_answer_survives_a_format_retry(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     structure = _structure(
         **OFF,
@@ -298,7 +390,13 @@ def test_provider_refusal_of_the_first_answer_survives_a_format_retry(
         server.reply('{"anteil_mieter": 10, "begruendung": "Geringer Anteil."}')
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            TASKS[0],
         )
     assert len(server.bodies) == 2
     assert gen.retried is True
@@ -307,7 +405,12 @@ def test_provider_refusal_of_the_first_answer_survives_a_format_retry(
 
 
 def test_answer_keys_from_task_data_and_refusal_heuristic(
-    db_conn, make_user, make_llm_model, make_project, make_task, deepinfra_against,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    deepinfra_against,
 ):
     task_data = dict(TASKS[0], mieter_key="kroeger")
     structure = _structure(
@@ -318,23 +421,39 @@ def test_answer_keys_from_task_data_and_refusal_heuristic(
         server.reply('{"anteil_kroeger": 40, "begruendung": "Teilweise berechtigt."}')
         deepinfra_against(server)
         _, [gen] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, structure, task_data,
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            structure,
+            task_data,
         )
     by_field = {i["from_name"]: i["value"] for i in gen.parsed_annotation}
     assert by_field["anteil_mieter"] == {"number": 40}
     assert gen.parse_metadata["mapped_keys"] == {"anteil_kroeger": "anteil_mieter"}
 
     refusing = _structure(
-        **OFF, refusal_heuristic={"pattern": r"ich kann (dazu )?(keine|nicht)", "window": 200},
+        **OFF,
+        refusal_heuristic={"pattern": r"ich kann (dazu )?(keine|nicht)", "window": 200},
     )
     with mock_chat_server() as server:
         server.reply("Ich kann dazu keine rechtliche Einschätzung abgeben.")
         deepinfra_against(server)
         _, [refused] = _generate(
-            db_conn, make_user, make_llm_model, make_project, make_task, refusing, TASKS[1],
+            db_conn,
+            make_user,
+            make_llm_model,
+            make_project,
+            make_task,
+            refusing,
+            TASKS[1],
         )
     assert refused.refusal is True
-    assert _metadata(refused)["refusal_sources"] == {"provider": False, "heuristic": True}
+    assert _metadata(refused)["refusal_sources"] == {
+        "provider": False,
+        "heuristic": True,
+    }
 
 
 class _SilentService:
@@ -357,12 +476,23 @@ class _SilentService:
         }
 
 
-@pytest.mark.parametrize("answers, retried", [
-    (['{"anteil_mieter": 30, "begruendung": "Verspätet."}'], False),
-    (["Ohne JSON.", '{"anteil_mieter": 30, "begruendung": "Verspätet."}'], True),
-], ids=["single_call", "format_retry"])
+@pytest.mark.parametrize(
+    "answers, retried",
+    [
+        (['{"anteil_mieter": 30, "begruendung": "Verspätet."}'], False),
+        (["Ohne JSON.", '{"anteil_mieter": 30, "begruendung": "Verspätet."}'], True),
+    ],
+    ids=["single_call", "format_retry"],
+)
 def test_a_client_that_reports_no_request_is_recorded_as_a_worker_call(
-    db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch, answers, retried,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    monkeypatch,
+    answers,
+    retried,
 ):
     service = _SilentService(answers)
     monkeypatch.setattr(
@@ -370,13 +500,21 @@ def test_a_client_that_reports_no_request_is_recorded_as_a_worker_call(
     )
     structure = _structure(**OFF, format_retry={"message": RETRY_MESSAGE})
     _, [gen] = _generate(
-        db_conn, make_user, make_llm_model, make_project, make_task, structure, TASKS[0],
+        db_conn,
+        make_user,
+        make_llm_model,
+        make_project,
+        make_task,
+        structure,
+        TASKS[0],
     )
     assert gen.retried is retried
     record = gen.request_record
     assert record["capture"] == "worker_call"
     assert len(record["requests"]) == len(answers)
-    assert all(r["capture"] == "worker_call" and r["sends"] == 0 for r in record["requests"])
+    assert all(
+        r["capture"] == "worker_call" and r["sends"] == 0 for r in record["requests"]
+    )
     assert record["messages"] == _expected_messages(TASKS[0])
     # Nothing was observed on the wire: the system profile is the run config.
     profile = _metadata(gen)["system"]["parameter_profile"]
@@ -396,30 +534,46 @@ class _CoercingService(_SilentService):
     def generate(self, **kwargs):
         from ai_services.request_capture import record_request
 
-        record_request("OpenAI", "chat.completions", {
-            "model": "gpt-5",
-            "messages": [
-                {"role": "system", "content": kwargs["system_prompt"]},
-                {"role": "user", "content": kwargs["prompt"]},
-            ],
-            "temperature": 1.0,
-            "max_completion_tokens": 321,
-        })
+        record_request(
+            "OpenAI",
+            "chat.completions",
+            {
+                "model": "gpt-5",
+                "messages": [
+                    {"role": "system", "content": kwargs["system_prompt"]},
+                    {"role": "user", "content": kwargs["prompt"]},
+                ],
+                "temperature": 1.0,
+                "max_completion_tokens": 321,
+            },
+        )
         return super().generate(**kwargs)
 
 
 def test_the_system_profile_is_what_the_client_sent(
-    db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
+    db_conn,
+    make_user,
+    make_llm_model,
+    make_project,
+    make_task,
+    monkeypatch,
 ):
     service = _CoercingService(['{"anteil_mieter": 30, "begruendung": "Verspätet."}'])
     monkeypatch.setattr(
         tasks.user_aware_ai_service, "get_ai_service_for_user", lambda *a, **k: service
     )
     _, [gen] = _generate(
-        db_conn, make_user, make_llm_model, make_project, make_task, _structure(**OFF), TASKS[0],
+        db_conn,
+        make_user,
+        make_llm_model,
+        make_project,
+        make_task,
+        _structure(**OFF),
+        TASKS[0],
     )
     assert service.calls[0]["max_tokens"] != 321
     assert gen.request_record["capture"] == "http_body"
     assert _metadata(gen)["system"]["parameter_profile"] == {
-        "temperature": 1.0, "max_tokens": 321,
+        "temperature": 1.0,
+        "max_tokens": 321,
     }
