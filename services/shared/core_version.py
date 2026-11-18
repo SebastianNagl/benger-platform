@@ -1063,7 +1063,9 @@ migration).
     length), an exhausted quota or billing limit sent as 429
     (``insufficient_quota`` / ``billing_hard_limit_reached``, where the
     provider names it), an unresolvable host and the url_guard rejection;
-    True for 408/409/429, 5xx, timeouts, connection failures and a model
+    True for 408/409/429, 5xx, timeouts, connection failures, a stream
+    whose connection drops midway (httpx ``ReadError`` or
+    ``RemoteProtocolError``) and a model
     answer that did not parse. Only a 4xx or 5xx counts as an HTTP status:
     an Anthropic stream that fails after HTTP 200 is True when its error
     event's ``error.type`` is ``overloaded_error``, ``api_error``,

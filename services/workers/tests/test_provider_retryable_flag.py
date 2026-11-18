@@ -505,3 +505,41 @@ def test_anthropic_midstream_error_after_200(error_type, retryable):
 
     assert result["success"] is False
     assert result["metadata"]["retryable"] is retryable
+
+
+@pytest.mark.parametrize(
+    "drop",
+    [
+        lambda httpx2: httpx2.RemoteProtocolError(
+            "peer closed connection without sending complete message body (incomplete chunked read)"
+        ),
+        lambda httpx2: httpx2.ReadError("[Errno 104] Connection reset by peer"),
+    ],
+    ids=["remote-protocol-error", "read-error"],
+)
+def test_anthropic_stream_dropped_after_200_is_retryable(drop):
+    # The SDK wraps only failures of the initial request; a connection that
+    # drops while the 200 stream is read surfaces as the raw httpx error.
+    import httpx2
+
+    class _DroppingStream(httpx2.SyncByteStream):
+        def __iter__(self):
+            yield f"event: message_start\ndata: {_MESSAGE_START}\n\n".encode()
+            raise drop(httpx2)
+
+    def handler(request):
+        return httpx2.Response(
+            200, headers={"content-type": "text/event-stream"}, stream=_DroppingStream()
+        )
+
+    svc = anthropic_mod.AnthropicService(api_key="sk-ant-test")
+    svc.client = anthropic.Anthropic(
+        api_key="sk-ant-test",
+        max_retries=0,
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler)),
+    )
+
+    result = svc.generate("q", "s", model_name="claude-sonnet-4-5", max_tokens=20000)
+
+    assert result["success"] is False
+    assert result["metadata"]["retryable"] is True

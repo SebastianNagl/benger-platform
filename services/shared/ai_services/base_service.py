@@ -247,8 +247,10 @@ def classify_retryable(exc: BaseException) -> bool:
     * no error status, but an error body whose ``error.type`` is in
       :data:`RETRYABLE_PROVIDER_ERROR_TYPES` -> True (an Anthropic stream
       that fails after HTTP 200, e.g. a mid-stream ``overloaded_error``);
-    * a timeout, a connection failure or a :class:`RetryableUpstreamError`
-      -> True;
+    * a timeout, a connection failure, a dropped HTTP stream (httpx
+      ``NetworkError`` such as ``ReadError``, or ``RemoteProtocolError``,
+      raised raw when a stream breaks after HTTP 200) or a
+      :class:`RetryableUpstreamError` -> True;
     * no status: the :func:`classify_error_type` class decides, True for
       ``rate_limit``, ``timeout`` and ``parse_error`` (a fresh sample can
       return valid JSON), False for the rest.
@@ -272,7 +274,10 @@ def classify_retryable(exc: BaseException) -> bool:
     if is_transient_upstream_error(exc):
         return True
     names = [cls.__name__.lower() for cls in type(exc).__mro__]
-    if any("timeout" in n or "connection" in n or "connecterror" in n for n in names):
+    if any(
+        "timeout" in n or "connection" in n or n in ("networkerror", "remoteprotocolerror")
+        for n in names
+    ):
         return True
     return classify_error_type(exc) in ("rate_limit", "timeout", "parse_error")
 
