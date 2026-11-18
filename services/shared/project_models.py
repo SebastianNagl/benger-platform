@@ -384,6 +384,26 @@ class Task(Base):
     # (migration 130).
     source_task_id = Column(String, nullable=True)
 
+    # The task's place in a variant design, derived by the database from
+    # ``meta.variant`` (``design``, ``unit``, ``factors``) on every write: the
+    # trigger of :data:`TASKS_VARIANT_DDL` (migration 142) overwrites whatever
+    # a writer sends, so ``meta.variant`` stays the single source of truth.
+    # ``uq_tasks_variant_cell`` allows one task per cell and unit (the jsonb
+    # cell compares regardless of key order); ``fk_tasks_variant_design``
+    # makes the design exist. Never write these columns.
+    variant_design = Column(
+        String(100), nullable=True, server_default=sa.FetchedValue(),
+        server_onupdate=sa.FetchedValue(),
+    )
+    variant_unit = Column(
+        Text, nullable=True, server_default=sa.FetchedValue(),
+        server_onupdate=sa.FetchedValue(),
+    )
+    variant_cell = Column(
+        JSONB, nullable=True, server_default=sa.FetchedValue(),
+        server_onupdate=sa.FetchedValue(),
+    )
+
     # User tracking
     created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     updated_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -421,8 +441,170 @@ class Task(Base):
     updater = relationship("User", foreign_keys=[updated_by])
     assigned_user = relationship("User", foreign_keys=[assigned_to])
 
+    __table_args__ = (
+        sa.Index(
+            "uq_tasks_variant_cell",
+            "project_id",
+            "variant_design",
+            "variant_unit",
+            "variant_cell",
+            unique=True,
+            postgresql_where=sa.text("variant_design IS NOT NULL"),
+        ),
+        # Not deferrable: a deferred key would leave a pending trigger event
+        # for every task a transaction inserts, and a later ALTER TABLE tasks
+        # in that transaction would fail. The unit of work does not order the
+        # two tables, so a writer flushes a new design before its tasks (the
+        # importers do). NO ACTION is checked at the end of each statement,
+        # so a project's delete cascades through both tables.
+        sa.ForeignKeyConstraint(
+            ["project_id", "variant_design"],
+            ["variant_designs.project_id", "variant_designs.key"],
+            name="fk_tasks_variant_design",
+        ),
+    )
+
     def __repr__(self):
         return f"<Task(id={self.id}, project_id={self.project_id}, is_labeled={self.is_labeled})>"
+
+
+class VariantDesign(Base):
+    """The declared design of a variant experiment in a project (CORE 2.56).
+
+    ``spec`` follows ``schemas/variant_design.schema.json`` (factors with
+    typed levels and roles, the unit, slots, outcome, gold and invariance
+    bindings; see ``variant_designs``). Each task's place in the design is
+    ``task.meta.variant`` with ``design`` = :attr:`key`.
+
+    ``version`` counts the spec edits of a draft. Freezing (``status
+    'frozen'``) runs the balance and invariance checks, records
+    ``content_hash`` (spec plus every task's data and assignment) and makes
+    the tasks' ``data`` and ``meta.variant`` read-only: the trigger of
+    :data:`TASKS_VARIANT_DDL` refuses such edits and new tasks in the design.
+    A frozen design is never thawed; a changed experiment is a new design.
+    """
+
+    __tablename__ = "variant_designs"
+
+    id = Column(String, primary_key=True)  # uuid4 str
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    key = Column(String(100), nullable=False)
+    version = Column(Integer, nullable=False, default=1, server_default="1")
+    spec = Column(JSONB, nullable=False)
+    status = Column(String(16), nullable=False, default="draft", server_default="draft")
+    content_hash = Column(String(64), nullable=True)
+    frozen_at = Column(DateTime(timezone=True), nullable=True)
+    frozen_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Who or what made the design (generator name and version, code hashes,
+    # source commit); free-form.
+    provenance = Column(JSONB, nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        sa.UniqueConstraint("project_id", "key", name="uq_variant_designs_project_key"),
+        sa.CheckConstraint("status IN ('draft', 'frozen')", name="ck_variant_designs_status"),
+        sa.CheckConstraint(
+            "(status = 'frozen') = (content_hash IS NOT NULL AND frozen_at IS NOT NULL)",
+            name="ck_variant_designs_frozen_hash",
+        ),
+    )
+
+
+# The derived variant columns of ``tasks`` and the frozen-design guard.
+# Migration 142 runs the same statements (kept verbatim there; a migration
+# never imports the models); a schema built with ``Base.metadata.create_all``
+# (the test databases) gets them through the ``after_create`` listener below.
+#
+# The trigger takes a share lock on the design row, so a freeze (which locks
+# the row for update before it reads the tasks) and a task write never
+# interleave: the write either lands before the freeze reads, or sees the
+# frozen status and fails. The error message starts with
+# ``variant_design_frozen`` (SQLSTATE 23001), which the API maps to 409.
+TASKS_VARIANT_FUNCTION = """
+CREATE OR REPLACE FUNCTION tasks_variant_sync() RETURNS trigger AS $fn$
+DECLARE
+    new_meta jsonb := NEW.meta::jsonb;
+    new_variant jsonb;
+    old_variant jsonb;
+    design_status text;
+BEGIN
+    IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'variant') = 'object' THEN
+        new_variant := new_meta -> 'variant';
+        NEW.variant_design := new_variant ->> 'design';
+        NEW.variant_unit := new_variant ->> 'unit';
+        NEW.variant_cell := new_variant -> 'factors';
+    ELSE
+        NEW.variant_design := NULL;
+        NEW.variant_unit := NULL;
+        NEW.variant_cell := NULL;
+    END IF;
+
+    IF TG_OP = 'UPDATE' AND OLD.variant_design IS NOT NULL THEN
+        SELECT d.status INTO design_status FROM variant_designs d
+         WHERE d.project_id = OLD.project_id AND d.key = OLD.variant_design
+           FOR SHARE;
+        IF design_status = 'frozen' THEN
+            IF jsonb_typeof(OLD.meta::jsonb) = 'object' THEN
+                old_variant := OLD.meta::jsonb -> 'variant';
+            END IF;
+            IF NEW.project_id IS DISTINCT FROM OLD.project_id
+               OR NEW.data::jsonb IS DISTINCT FROM OLD.data::jsonb
+               OR new_variant IS DISTINCT FROM old_variant THEN
+                RAISE EXCEPTION USING ERRCODE = 'restrict_violation',
+                    MESSAGE = 'variant_design_frozen: task ' || OLD.id
+                        || ' belongs to the frozen variant design ' || OLD.variant_design
+                        || '; its data and meta.variant are read-only';
+            END IF;
+            RETURN NEW;
+        END IF;
+    END IF;
+
+    IF NEW.variant_design IS NOT NULL AND (
+        TG_OP = 'INSERT'
+        OR NEW.variant_design IS DISTINCT FROM OLD.variant_design
+        OR NEW.project_id IS DISTINCT FROM OLD.project_id
+    ) THEN
+        SELECT d.status INTO design_status FROM variant_designs d
+         WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design
+           FOR SHARE;
+        IF design_status = 'frozen' THEN
+            RAISE EXCEPTION USING ERRCODE = 'restrict_violation',
+                MESSAGE = 'variant_design_frozen: the variant design ' || NEW.variant_design
+                    || ' is frozen and takes no new tasks';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql
+"""
+TASKS_VARIANT_TRIGGER = """
+CREATE OR REPLACE TRIGGER trg_tasks_variant_sync
+BEFORE INSERT OR UPDATE OF meta, data, project_id, variant_design, variant_unit, variant_cell
+ON tasks
+FOR EACH ROW EXECUTE FUNCTION tasks_variant_sync()
+"""
+TASKS_VARIANT_DDL = (TASKS_VARIANT_FUNCTION, TASKS_VARIANT_TRIGGER)
+for _statement in TASKS_VARIANT_DDL:
+    sa.event.listen(
+        Task.__table__,
+        "after_create",
+        sa.DDL(_statement).execute_if(dialect="postgresql"),
+    )
+del _statement
+
+
+@sa.event.listens_for(sa.orm.Session, "before_flush")
+def _validate_task_variants_before_flush(session, flush_context, instances):
+    """Validate ``meta.variant`` of every task this flush writes against its
+    design (every ORM write path: imports, PATCH routes, wizard drafts, ...).
+    Raises ``variant_design_guard.VariantDesignError``."""
+    from variant_design_guard import check_session_tasks
+
+    check_session_tasks(session)
 
 
 class Annotation(Base):
