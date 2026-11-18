@@ -23,8 +23,9 @@ const formatStatCount = (n: number): string =>
 const RECENT_PROJECTS_COUNT = 5
 
 // GET /api/dashboard/stats answers in one of two views. Teachers and admins
-// (ORG_ADMIN or CONTRIBUTOR somewhere, superadmins) get the overview of the
-// projects of their organizations; everyone else gets their own counters only,
+// (superadmins, ORG_ADMIN or CONTRIBUTOR of an organization or of a group,
+// creators of their own projects) get the overview of the projects they can
+// reach; everyone else gets their own counters only,
 // so a student never sees the totals of other courses or other people's
 // answers. The API decides the view and says which one it sent (`scope`).
 type OverviewStats = {
@@ -138,13 +139,11 @@ export default function DashboardPage() {
 
   // All authenticated users can access projects (including private projects)
   const canAccessProjects = !!user
-  // Import, generation and evaluation need ORG_ADMIN or CONTRIBUTOR in at
-  // least one organization (the same gate that greys out those entries in
-  // the sidebar), so annotators and students do not get actions that lead
-  // to pages they cannot use. Creating a project stays open to everyone: a
-  // private project is always allowed.
+  // Until the stats arrive (or when they fail), the user's org roles stand
+  // in for the view the API will choose (ORG_ADMIN or CONTRIBUTOR in at
+  // least one organization, the gate of the sidebar entries).
   const permissions = usePermissions()
-  const canManageProjectData = permissions.canAccessProjectData()
+  const staffHint = permissions.canAccessProjectData()
 
   // Show error from redirect and clear the query param to prevent showing on refresh
   useEffect(() => {
@@ -186,12 +185,13 @@ export default function DashboardPage() {
   // numbers are unavailable instead of showing 0 as if it were a real count.
   const dashboardStats: DashboardStats | undefined = statsQuery.data
 
-  // The tiles follow the view the API sent. While loading, or when the
-  // request failed, they follow the view the user's roles lead to (the rule
-  // the API applies), so the placeholders match the numbers to come.
+  // The tiles and the teacher quick actions follow the view the API sent
+  // (teachers and admins, group teachers included, and creators of their own
+  // projects get the overview). While loading, or when the request failed,
+  // they follow the hint from the user's org roles.
   const personalView = dashboardStats
     ? dashboardStats.scope === 'personal'
-    : !canManageProjectData
+    : !staffHint
   const statTiles: StatTileBase[] = personalView
     ? PERSONAL_TILES
     : OVERVIEW_TILES
@@ -453,7 +453,10 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                {canManageProjectData && (
+                {/* Import, generation and evaluation are teacher actions;
+                    creating a project stays open to everyone (a private
+                    project is always allowed). */}
+                {!personalView && (
                   <>
                     <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
                       <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">

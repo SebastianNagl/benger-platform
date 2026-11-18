@@ -4,9 +4,10 @@ The dashboard summed every project the user reaches through any of their
 organizations, so a student (ANNOTATOR) of an organization saw the totals of
 every course of that organization, an annotation count made of everyone
 else's answers, and the teachers' generation and evaluation counts. Users
-without an ORG_ADMIN or CONTRIBUTOR membership (the rule that also hides the
-teacher quick actions) now get ``scope: "personal"`` with their own counters
-only; teachers and admins keep the overview.
+who only answer tasks now get ``scope: "personal"`` with their own counters
+only. Teachers and admins keep the overview: superadmins, ORG_ADMIN or
+CONTRIBUTOR members, Contributors and Admins of a group of an organization
+they belong to, and creators of a listed project.
 """
 
 import uuid
@@ -16,7 +17,13 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 
-from models import EvaluationJudgeRun, EvaluationRun, OrganizationRole, TaskEvaluation
+from models import (
+    EvaluationJudgeRun,
+    EvaluationRun,
+    OrganizationMembership,
+    OrganizationRole,
+    TaskEvaluation,
+)
 from project_models import (
     Annotation,
     ProjectShareLink,
@@ -27,6 +34,7 @@ from project_models import (
 from tests.integration.test_group_visibility import (
     _as_user,
     _attach,
+    _group,
     _org,
     _project,
     _user,
@@ -205,11 +213,76 @@ async def test_a_user_without_an_organization_gets_the_personal_view(
     assert stats["submitted_answers"] == 0
 
 
+@pytest.mark.parametrize("group_role", [OrganizationRole.CONTRIBUTOR, OrganizationRole.ORG_ADMIN])
+async def test_a_group_teacher_keeps_the_overview(async_test_client, async_test_db, group_role):
+    """A course teacher may be only ANNOTATOR at org level and Contributor or
+    Admin of their group, which lets them create projects in the group."""
+    db = async_test_db
+    w = await _school(db)
+    group_teacher = await _user(db)
+    db.add(OrganizationMembership(
+        id=str(uuid.uuid4()), user_id=group_teacher.id, organization_id=w["org"].id,
+        role=OrganizationRole.ANNOTATOR, is_active=True,
+    ))
+    await db.commit()
+    await _group(db, w["org"], "Lehrstuhl", (group_teacher, group_role))
+
+    assert (await _stats(async_test_client, group_teacher))["scope"] == "overview"
+
+
+async def test_a_group_annotator_or_a_former_member_gets_the_personal_view(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    w = await _school(db)
+    await _group(db, w["org"], "Kurs", (w["student"], OrganizationRole.ANNOTATOR))
+    assert (await _stats(async_test_client, w["student"]))["scope"] == "personal"
+
+    # A group role counts only while the org membership is active.
+    await _group(db, w["org"], "Lehrstuhl", (w["classmate"], OrganizationRole.ORG_ADMIN))
+    membership = (
+        await db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == w["org"].id,
+                OrganizationMembership.user_id == w["classmate"].id,
+            )
+        )
+    ).scalar_one()
+    membership.is_active = False
+    await db.commit()
+    assert (await _stats(async_test_client, w["classmate"]))["scope"] == "personal"
+
+
+async def test_the_creator_of_a_private_project_keeps_the_overview(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    owner = await _user(db)
+    await _project(db, owner, private=True, tasks=2)
+
+    stats = await _stats(async_test_client, owner)
+
+    assert stats["scope"] == "overview"
+    assert (stats["project_count"], stats["task_count"]) == (1, 2)
+
+
+async def test_a_wizard_draft_or_a_deleted_project_is_no_teacher_role(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    creator = await _user(db)
+    draft = await _project(db, creator, private=True)
+    draft.is_wizard_draft = True
+    deleted = await _project(db, creator, private=True)
+    deleted.deleted_at = NOW
+    await db.commit()
+
+    assert (await _stats(async_test_client, creator))["scope"] == "personal"
+
+
 async def test_an_inactive_staff_membership_does_not_keep_the_overview(
     async_test_client, async_test_db
 ):
-    from models import OrganizationMembership
-
     db = async_test_db
     w = await _school(db)
     former = await _org(db, (w["student"], OrganizationRole.CONTRIBUTOR))
@@ -294,6 +367,8 @@ async def test_a_shared_exam_counts_as_open(async_test_client, async_test_db):
 
     stats = await _stats(async_test_client, student)
 
+    # A share-link student has no membership and no own project.
+    assert stats["scope"] == "personal"
     assert (stats["open_exams"], stats["open_tasks"]) == (1, 3)
 
 
@@ -333,7 +408,8 @@ async def test_tasks_filled_up_by_others_are_not_open(async_test_client, async_t
 
     w["other_course"].maximum_annotations = 0  # unlimited answers per task
     await db.commit()
-    assert (await _stats(async_test_client, w["student"]))["open_tasks"] == 2 + 3
+    with patch("routers.dashboard.cache.get", return_value=None):
+        assert (await _stats(async_test_client, w["student"]))["open_tasks"] == 2 + 3
 
 
 async def test_released_results_count_only_what_the_student_sees(

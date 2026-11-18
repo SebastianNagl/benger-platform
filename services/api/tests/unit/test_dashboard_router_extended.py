@@ -65,7 +65,7 @@ def _overview_view():
     """These tests drive the overview of the dashboard (teachers and admins);
     the personal view of annotators is covered by
     tests/integration/test_dashboard_personal_view.py."""
-    with patch("routers.dashboard._sees_personal_view_async", AsyncMock(return_value=False)):
+    with patch("routers.dashboard.sees_overview_async", AsyncMock(return_value=True)):
         yield
 
 

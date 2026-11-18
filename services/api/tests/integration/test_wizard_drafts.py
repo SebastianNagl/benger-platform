@@ -516,13 +516,8 @@ async def test_a_draft_is_absent_from_every_list_and_refused_by_sharing(
             assert pid not in {t.get("project_id") for t in data.get("items", [])}
     with _as_user(teacher) as auth:
         assert regular.id in [p["id"] for p in (await c.get("/api/projects/")).json()["items"]]
-        # Without a teacher role the dashboard shows the personal view: the
-        # draft's task is no open task.
         stats = (await c.get("/api/dashboard/stats")).json()
-        assert (stats["scope"], stats["open_tasks"]) == ("personal", 0)
-        await _org(db, (teacher, OrganizationRole.CONTRIBUTOR))
-        stats = (await c.get("/api/dashboard/stats")).json()
-        assert (stats["scope"], stats["project_count"]) == ("overview", 1)
+        assert stats["project_count"] == 1
         # Refused: a share link, a personal key scoped to it, a visibility change.
         r = await c.post(f"/api/projects/{pid}/shares", json={"password": "geheim123"})
         assert r.status_code == 409 and r.json()["detail"]["code"] == "wizard_draft"

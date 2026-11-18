@@ -13,6 +13,8 @@ from database import get_async_db
 from models import (
     EvaluationRun,
     Generation,
+    OrganizationGroup,
+    OrganizationGroupMembership,
     OrganizationMembership,
     OrganizationRole,
     TaskEvaluation,
@@ -54,32 +56,60 @@ PERSONAL_TTL = 60
 STUDENT_VISIBLE_RUN_MODELS = ("immediate", "human")
 
 
-async def _sees_personal_view_async(db: AsyncSession, user) -> bool:
-    """Whether the user gets the personal view of the dashboard.
+async def sees_overview_async(db: AsyncSession, user) -> bool:
+    """Whether the user gets the overview of the dashboard (``scope``
+    ``"overview"``) rather than the personal view.
 
-    The rule of the frontend's ``canAccessProjectData()`` without a project,
-    which also hides the teacher quick actions: everyone except superadmins
-    and users who are ORG_ADMIN or CONTRIBUTOR in at least one organization
-    (active memberships, whichever organization the client has selected).
-    That is annotators and students of an organization, and users without
-    any membership, such as students who joined an exam by share link.
+    Teachers and admins keep the overview: superadmins, users with an active
+    ORG_ADMIN or CONTRIBUTOR membership, users who hold the Contributor or
+    Admin role in a group of an organization they are an active member of
+    (the group role :func:`org_groups.attachment_role` gives on the group's
+    projects), and users who created a project that is listed (not a wizard
+    draft, not deleted). Everyone else, annotators and students of an
+    organization and users without any membership such as students who
+    joined an exam by share link, gets the personal view.
     """
     if user.is_superadmin:
-        return False
-    staff = (
-        await db.execute(
-            select(OrganizationMembership.id)
-            .where(
-                OrganizationMembership.user_id == str(user.id),
-                OrganizationMembership.is_active == True,  # noqa: E712
-                OrganizationMembership.role.in_(
-                    (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
-                ),
-            )
-            .limit(1)
+        return True
+    uid = str(user.id)
+    staff_roles = (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
+    org_staff = select(OrganizationMembership.id).where(
+        OrganizationMembership.user_id == uid,
+        OrganizationMembership.is_active == True,  # noqa: E712
+        OrganizationMembership.role.in_(staff_roles),
+    )
+    group_staff = (
+        select(OrganizationGroupMembership.id)
+        .join(
+            OrganizationGroup,
+            OrganizationGroup.id == OrganizationGroupMembership.group_id,
         )
-    ).first()
-    return staff is None
+        .join(
+            OrganizationMembership,
+            and_(
+                OrganizationMembership.organization_id
+                == OrganizationGroup.organization_id,
+                OrganizationMembership.user_id == uid,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            ),
+        )
+        .where(
+            OrganizationGroupMembership.user_id == uid,
+            OrganizationGroupMembership.role.in_(staff_roles),
+        )
+    )
+    own_project = select(Project.id).where(
+        Project.created_by == uid, project_listable()
+    )
+    return bool(
+        (
+            await db.execute(
+                select(
+                    or_(exists(org_staff), exists(group_staff), exists(own_project))
+                )
+            )
+        ).scalar()
+    )
 
 
 def _submitted_by(user_id: str):
@@ -251,8 +281,9 @@ async def get_dashboard_stats(
     """
     Returns the dashboard statistics in one of two views (``scope``).
 
-    ``scope: "personal"`` for users who only answer tasks (no ORG_ADMIN or
-    CONTRIBUTOR membership, not superadmin; :func:`_sees_personal_view_async`):
+    ``scope: "personal"`` for users who only answer tasks (no staff role in
+    an organization or group, no own listed project, not superadmin;
+    :func:`sees_overview_async`):
     their own counters only (:func:`_personal_stats_async`), never totals of
     the organization's projects or other people's answers.
 
@@ -278,9 +309,9 @@ async def get_dashboard_stats(
     # from the cache (`v5`).
     try:
         scope = (
-            SCOPE_PERSONAL
-            if await _sees_personal_view_async(db, current_user)
-            else SCOPE_OVERVIEW
+            SCOPE_OVERVIEW
+            if await sees_overview_async(db, current_user)
+            else SCOPE_PERSONAL
         )
     except Exception as e:
         logger.error(f"Error resolving the dashboard view: {e!r}")
