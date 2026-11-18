@@ -7,9 +7,9 @@ output budget. Every generation therefore records
 
 * ``parameter_profile``: the generation parameters that define the system
   (temperature, max_tokens, top_p when it is sent, and the reasoning knob),
-  never the per-trial ones (seed, run index). The reasoning knob is the one
-  sent for DeepInfra and the configured one for other providers until those
-  report what they sent;
+  never the per-trial ones (seed, run index). The values are read from the
+  first request the provider client sent (``parameters_sent``); the run
+  config is the fallback when no request was observed;
 * ``parameter_profile_sha256``: SHA-256 of the profile's canonical JSON
   (sorted keys, no whitespace, numbers normalised so ``1`` and ``1.0`` hash
   alike for float parameters);
