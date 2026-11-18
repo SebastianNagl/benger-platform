@@ -23,11 +23,7 @@ import re
 import tasks
 from typing import Any, Dict, Optional
 from response_parser import find_prompt_structure, prompt_structure_keys
-from system_profile import (
-    OPENAI_COMPATIBLE_REASONING_PARAMS,
-    declared_reasoning_config,
-    system_record,
-)
+from system_profile import system_record
 
 
 def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
@@ -932,22 +928,6 @@ def generate_llm_responses_impl(
                                 reasoning_kwargs["enable_thinking"] = model_config[
                                     "enable_thinking"
                                 ]
-                        # DeepInfra sends the model's declared reasoning knob
-                        # with the declared default when the run sets none
-                        # (the value the model picker shows), so record that
-                        # default as the run's value too.
-                        _declared_rc = declared_reasoning_config(
-                            getattr(model, "default_config", None)
-                        )
-                        if (
-                            str(getattr(model, "provider", "") or "").lower() == "deepinfra"
-                            and _declared_rc is not None
-                            and _declared_rc["parameter"] in OPENAI_COMPATIBLE_REASONING_PARAMS
-                            and reasoning_kwargs.get(_declared_rc["parameter"]) is None
-                            and _declared_rc.get("default") is not None
-                        ):
-                            reasoning_kwargs[_declared_rc["parameter"]] = _declared_rc["default"]
-
                         # Apply model-specific parameter constraints (final
                         # guardrail after the precedence chain). Clamping
                         # also patches `_provenance.temperature.value` so
@@ -1318,6 +1298,8 @@ def generate_llm_responses_impl(
                         _sent_reasoning = metadata.get("reasoning_params_sent")
                         if isinstance(_sent_reasoning, dict):
                             _profile_params.update(_sent_reasoning)
+                            if _captured_parameters is not None:
+                                _captured_parameters.update(_sent_reasoning)
                         else:
                             _profile_params.update(
                                 {k: v for k, v in reasoning_kwargs.items() if k != "seed"}

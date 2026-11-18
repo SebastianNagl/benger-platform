@@ -5,9 +5,11 @@ and with thinking off answers differently enough to be two systems (a
 reasoning arm), and so does the same model at another temperature or
 output budget. Every generation therefore records
 
-* ``parameter_profile``: the generation parameters that define the system,
-  as they were sent (temperature, max_tokens, top_p and the reasoning knob),
-  never the per-trial ones (seed, run index);
+* ``parameter_profile``: the generation parameters that define the system
+  (temperature, max_tokens, top_p when it is sent, and the reasoning knob),
+  never the per-trial ones (seed, run index). The reasoning knob is the one
+  sent for DeepInfra and the configured one for other providers until those
+  report what they sent;
 * ``parameter_profile_sha256``: SHA-256 of the profile's canonical JSON
   (sorted keys, no whitespace, numbers normalised so ``1`` and ``1.0`` hash
   alike for float parameters);
@@ -55,20 +57,15 @@ SYSTEM_KEY_HASH_CHARS = 12
 #: catalog model declares them.
 OPENAI_COMPATIBLE_REASONING_PARAMS = frozenset({"reasoning_effort", "enable_thinking"})
 
-_THINKING_ON = {"on", "true", "1", "yes"}
-_THINKING_OFF = {"off", "false", "0", "no"}
-
-
 def thinking_flag(value: Any) -> Optional[bool]:
-    """``enable_thinking`` value as a bool; None when it is not one."""
+    """``enable_thinking`` value (``"on"`` / ``"off"`` or a bool) as a bool;
+    None for anything else."""
     if isinstance(value, bool):
         return value
-    if isinstance(value, str):
-        v = value.strip().lower()
-        if v in _THINKING_ON:
-            return True
-        if v in _THINKING_OFF:
-            return False
+    if value == "on":
+        return True
+    if value == "off":
+        return False
     return None
 
 
@@ -147,16 +144,6 @@ def system_record(
         "parameter_profile": profile,
         "parameter_profile_sha256": digest,
     }
-
-
-def declared_reasoning_config(default_config: Any) -> Optional[Dict[str, Any]]:
-    """A model row's ``default_config.reasoning_config`` when well formed."""
-    if not isinstance(default_config, dict):
-        return None
-    rc = default_config.get("reasoning_config")
-    if not isinstance(rc, dict) or not isinstance(rc.get("parameter"), str):
-        return None
-    return rc
 
 
 def openai_compatible_reasoning_payload(

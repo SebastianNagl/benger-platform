@@ -426,8 +426,11 @@ Every answer stores a `system` block in `response_metadata` (the run's
 }
 ```
 
-- `parameter_profile` holds the parameters as sent: `temperature`, `top_p`,
-  `max_tokens` and the reasoning knob. Seed and run index are left out.
+- `parameter_profile` holds `temperature`, `max_tokens`, the reasoning knob
+  and `top_p` when it is sent (the worker does not send `top_p` today). Seed
+  and run index are left out. For DeepInfra the reasoning knob is the one
+  sent; for other providers the profile holds the parameters as configured
+  until those providers report what they sent.
   Float parameters are stored as floats, so `1` and `1.0` give the same
   profile.
 - `parameter_profile_sha256` is the SHA-256 of the profile as JSON with

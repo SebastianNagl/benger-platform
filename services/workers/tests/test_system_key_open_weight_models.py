@@ -77,7 +77,13 @@ class TestParameterProfile:
         a = sp.parameter_profile({"temperature": 1, "max_tokens": 4000.0, "enable_thinking": True})
         b = sp.parameter_profile({"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"})
         assert a == b == {"temperature": 1.0, "max_tokens": 4000, "enable_thinking": "on"}
-        assert sp.parameter_profile({"enable_thinking": "False"}) == {"enable_thinking": "off"}
+        assert sp.parameter_profile({"enable_thinking": False}) == {"enable_thinking": "off"}
+
+    @pytest.mark.parametrize("value", ["true", "Yes", "1", "no", " on", "OFF"])
+    def test_thinking_flag_accepts_only_the_select_values(self, value):
+        assert sp.thinking_flag(value) is None
+        think = {"parameter": "enable_thinking", "values": ["off", "on"], "default": "on"}
+        assert sp.openai_compatible_reasoning_payload(think, {"enable_thinking": value}) == {}
 
     def test_hash_is_sha256_of_sorted_compact_json(self):
         profile = {"temperature": 0.7, "max_tokens": 4000, "enable_thinking": "off"}
@@ -115,8 +121,10 @@ class TestParameterProfile:
             "max_tokens": 4000,
             "reasoning_effort": "low",
         }
-        assert rec["parameter_profile_sha256"] == sp.parameter_profile_sha256(rec["parameter_profile"])
-        assert rec["key"] == sp.system_key(GPT_OSS_20B, rec["parameter_profile"])
+        canonical = '{"max_tokens":4000,"reasoning_effort":"low","temperature":0.7}'
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        assert rec["parameter_profile_sha256"] == digest
+        assert rec["key"] == f"{GPT_OSS_20B}@{digest[:12]}"
         assert rec["model_id"] == GPT_OSS_20B
         assert rec["provider"] == "DeepInfra"
         assert rec["provider_model_id"] == GPT_OSS_20B
@@ -432,9 +440,10 @@ class TestMockRunSystemKey:
         # A run config that never set the switch (selected before the
         # catalog declared it) shows the default in the model picker; the
         # model receives that same value and the profile records it.
-        md, _ = _mock_run(QWEN_27B, {"temperature": 0.7, "max_tokens": 4000})
+        md, gen = _mock_run(QWEN_27B, {"temperature": 0.7, "max_tokens": 4000})
         assert fake_http.payloads[-1]["chat_template_kwargs"] == {"enable_thinking": True}
         assert md["system"]["parameter_profile"]["enable_thinking"] == "on"
+        assert gen.parameters["enable_thinking"] == "on"
 
     def test_model_without_knob_profile_has_no_reasoning(self, fake_http):
         md, _ = _mock_run(PHI_4, {"temperature": 0.7, "max_tokens": 4000})

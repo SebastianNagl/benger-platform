@@ -1002,6 +1002,8 @@ whenever one is added, renamed or removed):
     ``parameter_profile_sha256`` (SHA-256 of the sorted compact JSON) and
     ``system_key(model_id, profile)`` = ``"<model_id>@<first 12 hex>"``. A
     reasoning arm of one model is a system of its own; its repeats are not.
+    The profile holds the parameters as sent for DeepInfra and as
+    configured for other providers until they report what they sent.
   - ``generations.response_metadata.system`` and the run's
     ``parameters.system``: ``{key, model_id, provider, provider_model_id,
     response_model, parameter_profile, parameter_profile_sha256}``. Answers
@@ -1011,7 +1013,8 @@ whenever one is added, renamed or removed):
     model's declared ``reasoning_effort`` or ``enable_thinking`` (as
     ``chat_template_kwargs``) with the run value or the declared default,
     and reports ``reasoning_params_sent``, ``provider_model_id`` and
-    ``response_model`` in its response metadata.
+    ``response_model`` in its response metadata; the worker records the
+    reported knob in the run's ``parameters``.
     ``provider_capabilities.model_reasoning_config(model_id)`` reads the
     catalog declaration.
 """
