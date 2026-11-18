@@ -72,7 +72,9 @@ describe('LabelingInterface: exam not released yet', () => {
       render(<LabelingInterface projectId="exam-1" />)
 
       expect(await screen.findByTestId('exam-not-ready')).toBeInTheDocument()
-      expect(screen.getByText(NOTICE[locale].title)).toBeInTheDocument()
+      expect(
+        screen.queryByText(NOTICE[locale].formerTitle),
+      ).not.toBeInTheDocument()
       expect(screen.getByText(NOTICE[locale].description)).toBeInTheDocument()
       expect(screen.queryByText(/Initiali[sz]ation/i)).not.toBeInTheDocument()
       expect(
@@ -95,7 +97,7 @@ describe('LabelingInterface: exam not released yet', () => {
     render(<LabelingInterface projectId="exam-1" />)
 
     expect(await screen.findByTestId('exam-not-ready')).toBeInTheDocument()
-    expect(screen.getByText(NOTICE.en.title)).toBeInTheDocument()
+    expect(screen.getByText(NOTICE.en.description)).toBeInTheDocument()
     expect(mockToast.addToast).not.toHaveBeenCalled()
   })
 

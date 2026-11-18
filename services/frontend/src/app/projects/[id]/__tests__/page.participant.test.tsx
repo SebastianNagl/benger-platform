@@ -515,3 +515,183 @@ describe('ProjectDetailPage — header icon editing', () => {
     expect(icon.tagName).toBe('SPAN')
   })
 })
+
+describe('ProjectDetailPage — header spacing, activity counts, held exam', () => {
+  const student = {
+    ...mockUser,
+    id: 'student-1',
+    role: 'ANNOTATOR',
+    is_superadmin: false,
+  }
+  const setup = (
+    projectOverrides: any,
+    user: any = mockUser,
+    nextTask: () => Promise<unknown> = () =>
+      Promise.resolve({ task: { id: 't1' }, remaining: 1 }),
+  ) => {
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+    ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
+    ;(useI18n as jest.Mock).mockReturnValue({
+      t: (key: string, vars?: Record<string, unknown>) =>
+        vars && 'count' in vars ? `${key}:${vars.count}` : key,
+    })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useModels as jest.Mock).mockReturnValue({
+      models: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: {},
+    })
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: { ...mockProject, ...projectOverrides },
+      loading: false,
+      fetchProject: jest.fn(),
+      updateProject: jest.fn().mockResolvedValue({}),
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+      String(url).endsWith('/next')
+        ? nextTask()
+        : Promise.resolve({ status: 'ok' }),
+    )
+    jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
+    jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
+  }
+  const renderPage = () =>
+    render(
+      <ProjectDetailPage
+        params={Promise.resolve({ id: 'test-project-123' })}
+      />,
+    )
+  beforeEach(() => jest.clearAllMocks())
+
+  it('without a description there is no empty subtitle row; editors add one from the title row', async () => {
+    setup({ description: '' })
+    renderPage()
+    await screen.findByTestId('project-header-icon')
+    expect(screen.queryByTestId('project-description')).not.toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText('project.editing.titlePlaceholder'),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('project-add-description'))
+    expect(
+      screen.getByPlaceholderText('project.editing.titlePlaceholder'),
+    ).toBeInTheDocument()
+  })
+
+  it('a project with a description shows it and no add-description button', async () => {
+    setup({ description: 'Zivilrecht I' })
+    renderPage()
+    expect(await screen.findByTestId('project-description')).toHaveTextContent(
+      'Zivilrecht I',
+    )
+    expect(
+      screen.queryByTestId('project-add-description'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('a student never gets the add-description button', async () => {
+    setup(
+      {
+        description: '',
+        access_tier: 'participant',
+        effective_role: 'ANNOTATOR',
+        created_by: 'someone-else',
+      },
+      student,
+    )
+    renderPage()
+    await screen.findByTestId('project-header-icon')
+    expect(
+      screen.queryByTestId('project-add-description'),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [1, 0, 'project.recentActivity.tasksImportedOne:1'],
+    [3, 0, 'project.recentActivity.tasksImported:3'],
+  ])(
+    '%i task(s) use the matching recent-activity form',
+    async (taskCount, annotationCount, expected) => {
+      setup({ task_count: taskCount, annotation_count: annotationCount })
+      renderPage()
+      expect(await screen.findByText(expected)).toBeInTheDocument()
+    },
+  )
+
+  it.each([
+    [1, 'project.recentActivity.annotationsCompletedOne:1'],
+    [2, 'project.recentActivity.annotationsCompleted:2'],
+  ])(
+    '%i annotation(s) use the matching recent-activity form',
+    async (annotationCount, expected) => {
+      setup({ task_count: 5, annotation_count: annotationCount })
+      renderPage()
+      expect(await screen.findByText(expected)).toBeInTheDocument()
+    },
+  )
+
+  it('a held exam (403 exam_not_ready) disables "Annotation starten"', async () => {
+    const { EXAM_NOT_READY } = jest.requireActual('@/test-utils/examNotReady')
+    setup(
+      {
+        access_tier: 'participant',
+        participant_via: 'org',
+        effective_role: 'ANNOTATOR',
+        created_by: 'someone-else',
+        task_count: 1,
+      },
+      student,
+      () => Promise.reject(EXAM_NOT_READY),
+    )
+    renderPage()
+    const start = await screen.findByTestId('project-start-labeling')
+    await waitFor(() => expect(start).toBeDisabled())
+    expect(start).toHaveAttribute(
+      'title',
+      'annotation.examNotReady.description',
+    )
+    fireEvent.click(start)
+    expect(mockRouter.push).not.toHaveBeenCalled()
+  })
+
+  it('a released exam keeps "Annotation starten" enabled', async () => {
+    setup(
+      {
+        access_tier: 'participant',
+        participant_via: 'org',
+        effective_role: 'ANNOTATOR',
+        created_by: 'someone-else',
+        task_count: 1,
+      },
+      student,
+    )
+    renderPage()
+    const start = await screen.findByTestId('project-start-labeling')
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/test-project-123/next',
+      ),
+    )
+    expect(start).not.toBeDisabled()
+    expect(start).not.toHaveAttribute('title')
+  })
+
+  it('another /next failure does not disable the start button', async () => {
+    setup({ task_count: 1 }, student, () =>
+      Promise.reject(
+        Object.assign(new Error('boom'), { response: { status: 500 } }),
+      ),
+    )
+    renderPage()
+    const start = await screen.findByTestId('project-start-labeling')
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/test-project-123/next',
+      ),
+    )
+    expect(start).not.toBeDisabled()
+  })
+})

@@ -591,6 +591,95 @@ class TestRetryBehavior:
         assert recorded_sleeps == []
 
 
+class TestDnsFailureFailsFast:
+    """A host that does not resolve is a configuration error, not a transient
+    upstream fault: retrying it 5 times with backoff only delayed the
+    failure by minutes (a custom model pointing at a dead host made the
+    rubric generation step spin for 2.5-4 minutes before reporting
+    ``provider_unavailable``). DNS failures must fail in ONE attempt, while
+    other connection-layer drops keep their retries."""
+
+    @staticmethod
+    def _connector_error(os_error):
+        import aiohttp
+        from aiohttp.client_reqrep import ConnectionKey
+
+        key = ConnectionKey(
+            "models.example.org", 443, True, True, None, None, None
+        )
+        if isinstance(os_error, __import__("socket").gaierror):
+            return aiohttp.ClientConnectorDNSError(key, os_error)
+        return aiohttp.ClientConnectorError(key, os_error)
+
+    def test_dns_error_fails_fast_single_attempt(self, fake_http, recorded_sleeps):
+        import socket
+
+        fake_http.responses = [
+            self._connector_error(
+                socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+            )
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert fake_http.calls == 1
+        assert result["metadata"]["retry_count"] == 1
+        assert result["metadata"]["retry_attempts"][0]["retryable"] is False
+        assert recorded_sleeps == []
+
+    def test_temporary_dns_failure_also_fails_fast(self, fake_http, recorded_sleeps):
+        # EAI_AGAIN is what a resolver without upstream answers for a dead
+        # name too; the outer generation loop owns any whole-job retry.
+        import socket
+
+        fake_http.responses = [
+            self._connector_error(
+                socket.gaierror(socket.EAI_AGAIN, "Temporary failure in name resolution")
+            )
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert fake_http.calls == 1
+        assert recorded_sleeps == []
+
+    def test_connection_refused_is_still_retried(self, fake_http, recorded_sleeps):
+        fake_http.responses = [
+            self._connector_error(ConnectionRefusedError(111, "Connection refused")),
+            _FakeResponse(200, _openai_response()),
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert fake_http.calls == 2
+        assert len(recorded_sleeps) == 1
+
+    def test_server_disconnect_is_still_retried(self, fake_http, recorded_sleeps):
+        import aiohttp
+
+        fake_http.responses = [
+            aiohttp.ServerDisconnectedError(),
+            _FakeResponse(200, _openai_response()),
+        ]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert len(recorded_sleeps) == 1
+
+    def test_unreachable_invalid_host_fails_at_once_over_real_aiohttp(
+        self, recorded_sleeps, monkeypatch
+    ):
+        """End to end through the real aiohttp client and the real resolver,
+        the way the worker runs a self-hosted custom model
+        (CUSTOM_MODEL_ALLOW_PRIVATE_URLS skips url_guard's own DNS lookup,
+        so aiohttp resolves the host). ``.invalid`` never resolves
+        (RFC 6761), with or without network access."""
+        monkeypatch.setenv("CUSTOM_MODEL_ALLOW_PRIVATE_URLS", "true")
+        monkeypatch.delenv("E2E_TEST_MODE", raising=False)
+        service = _service(base_url="https://e2e-rubric-unreachable.invalid/v1")
+        result = service.generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert result["metadata"]["retry_count"] == 1
+        assert recorded_sleeps == []
+        assert "e2e-rubric-unreachable.invalid" not in result["error"]
+
+
 class TestErrorScrubbing:
     """``_sanitize_error_text`` must keep the endpoint's identity out of
     everything persisted on failure: ``response["error"]`` (lands in

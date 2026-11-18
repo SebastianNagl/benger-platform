@@ -120,6 +120,7 @@
       "createFirst": "Créez votre premier projet",
       "noDescription": "Aucune description",
       "tasks": "tâches",
+      "taskOne": "tâche",
       "openProject": "Ouvrir le projet",
       "loadFailed": "Les projets récents n'ont pas pu être chargés."
     },
@@ -1529,7 +1530,9 @@
       "title": "Activité récente",
       "noTasks": "Aucune tâche pour l'instant",
       "importData": "Importer des données",
+      "tasksImportedOne": "{count} tâche importée",
       "tasksImported": "{count} tâches importées",
+      "annotationsCompletedOne": "{count} annotation terminée",
       "annotationsCompleted": "{count} annotations terminées",
       "inProgress": "En cours"
     },
@@ -1622,7 +1625,8 @@
       "cancel": "Annuler",
       "saving": "Enregistrement...",
       "titlePlaceholder": "Ajouter une description...",
-      "titleCannotBeEmpty": "Le titre ne peut pas être vide"
+      "titleCannotBeEmpty": "Le titre ne peut pas être vide",
+      "addDescription": "Ajouter une description"
     },
     "sharing": {
       "title": "Partage individuel",
@@ -7174,8 +7178,7 @@
       "attemptedReadOnly": "Remise antérieure. Consultation uniquement, aucune modification possible."
     },
     "examNotReady": {
-      "title": "Pas encore disponible",
-      "description": "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification. Revenez plus tard."
+      "description": "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification."
     },
     "textAreaPlaceholder": "Saisissez votre réponse ..."
   },

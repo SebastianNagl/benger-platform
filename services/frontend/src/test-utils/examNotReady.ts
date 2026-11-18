@@ -28,20 +28,22 @@ export const EXAM_NOT_READY = apiError(
   'This exam is not open yet.',
 )
 
+// The notice is the description sentence alone; `formerTitle` is the
+// heading it used to repeat the phrase under, which must stay gone.
 export const NOTICE = {
   de: {
-    title: 'Noch nicht freigegeben',
+    formerTitle: 'Noch nicht freigegeben',
     description:
-      'Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird. Schau später wieder vorbei.',
+      'Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird.',
   },
   en: {
-    title: 'Not released yet',
+    formerTitle: 'Not released yet',
     description:
-      'This exam is not released yet because its grading sheet is still being checked. Please come back later.',
+      'This exam is not released yet because its grading sheet is still being checked.',
   },
   fr: {
-    title: 'Pas encore disponible',
+    formerTitle: 'Pas encore disponible',
     description:
-      "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification. Revenez plus tard.",
+      "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification.",
   },
 } as const

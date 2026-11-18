@@ -37,11 +37,13 @@ export function ExamNotReadyNotice({ projectId }: ExamNotReadyNoticeProps) {
       <div className="flex flex-1 items-center justify-center px-4">
         <Card className="mx-auto max-w-lg text-center">
           <div className="space-y-6 p-8">
-            <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
-            <h2 className="text-2xl font-bold">
-              {t('annotation.examNotReady.title')}
-            </h2>
-            <p className="text-zinc-500 dark:text-zinc-400">
+            <ClockIcon
+              className="mx-auto h-16 w-16 text-emerald-600"
+              aria-hidden="true"
+            />
+            {/* One sentence, no separate heading: the platform and the
+                extended project page use the same wording. */}
+            <p className="text-lg font-medium text-zinc-900 dark:text-white">
               {t('annotation.examNotReady.description')}
             </p>
           </div>

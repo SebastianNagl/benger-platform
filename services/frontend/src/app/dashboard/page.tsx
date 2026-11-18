@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePermissions } from '@/hooks/usePermissions'
 import { projectsAPI } from '@/lib/api/projects'
 import { intlTag } from '@/lib/i18n/locales'
 import { useQuery } from '@tanstack/react-query'
@@ -68,6 +69,13 @@ export default function DashboardPage() {
 
   // All authenticated users can access projects (including private projects)
   const canAccessProjects = !!user
+  // Import, generation and evaluation need ORG_ADMIN or CONTRIBUTOR in at
+  // least one organization (the same gate that greys out those entries in
+  // the sidebar), so annotators and students do not get actions that lead
+  // to pages they cannot use. Creating a project stays open to everyone: a
+  // private project is always allowed.
+  const permissions = usePermissions()
+  const canManageProjectData = permissions.canAccessProjectData()
 
   // Show error from redirect and clear the query param to prevent showing on refresh
   useEffect(() => {
@@ -304,7 +312,11 @@ export default function DashboardPage() {
                         <div className="mt-2 flex items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400">
                           <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30">
                             {project.task_count || 0}{' '}
-                            {t('dashboard.recentProjects.tasks')}
+                            {t(
+                              project.task_count === 1
+                                ? 'dashboard.recentProjects.taskOne'
+                                : 'dashboard.recentProjects.tasks',
+                            )}
                           </span>
                           <span>
                             {new Date(project.created_at).toLocaleDateString(
@@ -347,41 +359,45 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
-                  <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
-                    {t('dashboard.importData.title')}
-                  </h4>
-                  <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-                    {t('dashboard.importData.description')}
-                  </p>
-                  <Button href="/data" className="w-full">
-                    {t('dashboard.importData.button')}
-                  </Button>
-                </div>
+                {canManageProjectData && (
+                  <>
+                    <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
+                      <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
+                        {t('dashboard.importData.title')}
+                      </h4>
+                      <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        {t('dashboard.importData.description')}
+                      </p>
+                      <Button href="/data" className="w-full">
+                        {t('dashboard.importData.button')}
+                      </Button>
+                    </div>
 
-                <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
-                  <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
-                    {t('dashboard.generation.title')}
-                  </h4>
-                  <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-                    {t('dashboard.generation.description')}
-                  </p>
-                  <Button href="/generations" className="w-full">
-                    {t('dashboard.generation.button')}
-                  </Button>
-                </div>
+                    <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
+                      <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
+                        {t('dashboard.generation.title')}
+                      </h4>
+                      <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        {t('dashboard.generation.description')}
+                      </p>
+                      <Button href="/generations" className="w-full">
+                        {t('dashboard.generation.button')}
+                      </Button>
+                    </div>
 
-                <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
-                  <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
-                    {t('dashboard.evaluation.title')}
-                  </h4>
-                  <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
-                    {t('dashboard.evaluation.description')}
-                  </p>
-                  <Button href="/evaluations" className="w-full">
-                    {t('dashboard.evaluation.button')}
-                  </Button>
-                </div>
+                    <div className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5">
+                      <h4 className="mb-2 text-sm font-medium text-zinc-900 dark:text-white">
+                        {t('dashboard.evaluation.title')}
+                      </h4>
+                      <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        {t('dashboard.evaluation.description')}
+                      </p>
+                      <Button href="/evaluations" className="w-full">
+                        {t('dashboard.evaluation.button')}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

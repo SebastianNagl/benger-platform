@@ -120,6 +120,7 @@
       "createFirst": "Create Your First Project",
       "noDescription": "No description",
       "tasks": "tasks",
+      "taskOne": "task",
       "openProject": "Open Project",
       "loadFailed": "The recent projects could not be loaded."
     },
@@ -1529,7 +1530,9 @@
       "title": "Recent Activity",
       "noTasks": "No tasks yet",
       "importData": "Import Data",
+      "tasksImportedOne": "{count} task imported",
       "tasksImported": "{count} tasks imported",
+      "annotationsCompletedOne": "{count} annotation completed",
       "annotationsCompleted": "{count} annotations completed",
       "inProgress": "In progress"
     },
@@ -1622,7 +1625,8 @@
       "cancel": "Cancel",
       "saving": "Saving...",
       "titlePlaceholder": "Add a description...",
-      "titleCannotBeEmpty": "Title cannot be empty"
+      "titleCannotBeEmpty": "Title cannot be empty",
+      "addDescription": "Add a description"
     },
     "sharing": {
       "title": "Individual sharing",
@@ -7174,8 +7178,7 @@
       "attemptedReadOnly": "Past submission. View only, no further changes."
     },
     "examNotReady": {
-      "title": "Not released yet",
-      "description": "This exam is not released yet because its grading sheet is still being checked. Please come back later."
+      "description": "This exam is not released yet because its grading sheet is still being checked."
     },
     "textAreaPlaceholder": "Enter your answer ..."
   },

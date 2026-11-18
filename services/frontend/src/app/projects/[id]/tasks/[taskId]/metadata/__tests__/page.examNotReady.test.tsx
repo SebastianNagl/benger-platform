@@ -56,7 +56,9 @@ describe('TaskMetadataPage: exam not released yet', () => {
       renderPage()
 
       expect(await screen.findByTestId('exam-not-ready')).toBeInTheDocument()
-      expect(screen.getByText(NOTICE[locale].title)).toBeInTheDocument()
+      expect(
+        screen.queryByText(NOTICE[locale].formerTitle),
+      ).not.toBeInTheDocument()
       expect(screen.getByText(NOTICE[locale].description)).toBeInTheDocument()
       expect(mockToast.addToast).not.toHaveBeenCalled()
     },
