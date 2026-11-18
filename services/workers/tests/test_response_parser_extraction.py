@@ -97,6 +97,21 @@ class TestJsonAfterProse:
         result = ResponseParser({}, BOOLEAN_CHOICES).parse(answer)
         assert _values(result)["reason"] == {"text": ["final"]}
 
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            # the final object is cut off after a complete draft
+            'Draft: {"liable": "True", "reason": "draft"}\n'
+            'On reflection the draft is wrong. Final: {"liable": "False", "reason": "no duty was ow',
+            # a complete inner object inside a cut-off outer one
+            'Answer: {"details": {"liable": "True", "reason": "inner"}, "liable": "Fal',
+        ],
+    )
+    def test_truncated_final_value_promotes_no_earlier_value(self, answer):
+        result = ResponseParser({}, BOOLEAN_CHOICES).parse(answer)
+        assert result.status == "success"
+        assert result.field_values == {"__response__": answer}
+
     def test_array_after_prose(self):
         cfg = """<View>
   <Text name="body" value="$body"/>
