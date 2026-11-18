@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+import compliance_records
 from database import DATABASE_URL, Base
 
 # SQLite test engines have no JSONB; key off the URL database.py actually
@@ -4013,3 +4014,239 @@ class ProjectPurgeJob(Base):
             f"<ProjectPurgeJob(id={self.id}, project={self.project_id}, "
             f"status={self.status})>"
         )
+
+
+# --------------------------------------------------------------------------- #
+# Compliance records (migration 145, core 2.56)
+#
+# Persistence and generic CRUD are platform (``routers/compliance_records.py``,
+# rules in ``compliance_records``); what a suite, threshold or verdict means,
+# the assessment workflow and the scoring belong to the overlay that writes the
+# rows. Findings reference analysis runs and estimates by id only: those tables
+# are not part of this migration, so the columns carry no foreign key yet.
+# --------------------------------------------------------------------------- #
+
+
+def _sql_in(column: str, values) -> str:
+    return f"{column} IN (" + ", ".join(f"'{v}'" for v in values) + ")"
+
+
+class ComplianceAssessment(Base):
+    """One assessment of a system (or of a project's systems) under a
+    requirement catalog version.
+
+    ``suites`` and ``thresholds`` (default and chosen per requirement) are
+    whatever the catalog says; the platform only stores them, fixes them at
+    the registration (``compliance_records.REGISTRATION_LOCKED_FIELDS``) and
+    records ``thresholds_hash``. The target is ``system_model_id`` (a system
+    under test), ``project_id`` (a project whose generations are assessed)
+    and/or ``release_id`` (a benchmark release; no foreign key until that
+    table exists). Assessments are evidence: after the registration they are
+    withdrawn, not deleted.
+    """
+
+    __tablename__ = "compliance_assessments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title = Column(String(300), nullable=False)
+    status = Column(
+        String(32),
+        nullable=False,
+        default=compliance_records.ASSESSMENT_DRAFT,
+        server_default=compliance_records.ASSESSMENT_DRAFT,
+    )
+    catalog_version = Column(String(64), nullable=True)
+    suites = Column(JSONB, nullable=False, default=list, server_default=text("'[]'"))
+    thresholds = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    thresholds_hash = Column(String(64), nullable=True)
+    system_model_id = Column(
+        String, ForeignKey("llm_models.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Benchmark release; plain id until the releases table exists.
+    release_id = Column(String, nullable=True, index=True)
+    supersedes_id = Column(
+        String,
+        ForeignKey("compliance_assessments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contamination_suspected = Column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    limitations_text = Column(Text, nullable=True)
+    registered_at = Column(DateTime(timezone=True), nullable=True)
+    attested_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_key_id = Column(
+        String, ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            _sql_in("status", compliance_records.ASSESSMENT_STATUSES),
+            name="ck_compliance_assessments_status",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceAssessment(id={self.id}, status={self.status})>"
+
+
+class ComplianceSuiteRun(Base):
+    """One execution of one suite (id and version) for an assessment.
+
+    Records what went in (``submission_ids``, ``evaluation_run_ids``,
+    ``analysis_run_ids``, ``parameters`` and their hashes) and how it ran.
+    A finished run (``succeeded``, ``failed``, ``cancelled``) and its findings
+    are read-only.
+    """
+
+    __tablename__ = "compliance_suite_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    assessment_id = Column(
+        String,
+        ForeignKey("compliance_assessments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    suite_id = Column(String(100), nullable=False)
+    suite_version = Column(String(64), nullable=True)
+    status = Column(
+        String(32),
+        nullable=False,
+        default=compliance_records.SUITE_RUN_QUEUED,
+        server_default=compliance_records.SUITE_RUN_QUEUED,
+    )
+    parameters = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    submission_ids = Column(JSONB, nullable=False, default=list, server_default=text("'[]'"))
+    evaluation_run_ids = Column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'")
+    )
+    # Analysis runs (statistics engine); ids only, no foreign key yet.
+    analysis_run_ids = Column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'")
+    )
+    inputs_hash = Column(String(128), nullable=True)
+    judge_config_hash = Column(String(128), nullable=True)
+    code_version = Column(String(128), nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    log_object_key = Column(String(1024), nullable=True)
+    error = Column(Text, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            _sql_in("status", compliance_records.SUITE_RUN_STATUSES),
+            name="ck_compliance_suite_runs_status",
+        ),
+        # Target of the findings' composite key, so a finding's
+        # assessment_id always equals its suite run's.
+        UniqueConstraint("id", "assessment_id", name="uq_compliance_suite_runs_id_assessment"),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceSuiteRun(id={self.id}, suite={self.suite_id}, status={self.status})>"
+
+
+class ComplianceFinding(Base):
+    """One result of a suite run: a requirement, a metric (or contrast), its
+    scope, the figure with its interval, the threshold it was judged against
+    and the verdict.
+
+    ``value``, ``ci_low`` and ``ci_high`` are double precision, so an estimate
+    is stored exactly as computed. ``analysis_run_id`` and
+    ``analysis_estimate_id`` name the analysis run and the estimate the
+    finding was derived from (ids only, no foreign key yet); ``system_key``
+    names the system the finding is about when a run covers several.
+    ``assessment_id`` is denormalised for listing and is tied to the suite
+    run's by a composite foreign key.
+    """
+
+    __tablename__ = "compliance_findings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    suite_run_id = Column(String, nullable=False, index=True)
+    # Indexed through ix_compliance_findings_assessment_requirement.
+    assessment_id = Column(String, nullable=False)
+    requirement_ref = Column(String(200), nullable=False)
+    metric = Column(String(200), nullable=False)
+    system_key = Column(String(255), nullable=True)
+    scope = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    n_tasks = Column(Integer, nullable=True)
+    n_runs = Column(Integer, nullable=True)
+    value = Column(Float(precision=53), nullable=True)
+    ci_low = Column(Float(precision=53), nullable=True)
+    ci_high = Column(Float(precision=53), nullable=True)
+    ci_level = Column(Float(precision=53), nullable=True)
+    ci_method = Column(String(64), nullable=True)
+    threshold = Column(JSONB, nullable=True)
+    verdict = Column(String(32), nullable=False)
+    baseline = Column(JSONB, nullable=True)
+    details = Column(JSONB, nullable=True)
+    analysis_run_id = Column(String, nullable=True, index=True)
+    analysis_estimate_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["suite_run_id", "assessment_id"],
+            ["compliance_suite_runs.id", "compliance_suite_runs.assessment_id"],
+            ondelete="CASCADE",
+            name="fk_compliance_findings_suite_run",
+        ),
+        CheckConstraint(
+            _sql_in("verdict", compliance_records.VERDICTS),
+            name="ck_compliance_findings_verdict",
+        ),
+        CheckConstraint(
+            "ci_level IS NULL OR (ci_level > 0 AND ci_level < 1)",
+            name="ck_compliance_findings_ci_level",
+        ),
+        CheckConstraint(
+            "ci_low IS NULL OR ci_high IS NULL OR ci_low <= ci_high",
+            name="ck_compliance_findings_ci_order",
+        ),
+        CheckConstraint(
+            "(n_tasks IS NULL OR n_tasks >= 0) AND (n_runs IS NULL OR n_runs >= 0)",
+            name="ck_compliance_findings_counts",
+        ),
+        Index(
+            "ix_compliance_findings_assessment_requirement",
+            "assessment_id",
+            "requirement_ref",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceFinding(id={self.id}, metric={self.metric}, verdict={self.verdict})>"

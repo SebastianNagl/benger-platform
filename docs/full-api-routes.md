@@ -83,6 +83,22 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/auth/verify-email` | never |  |
 | POST | `/api/auth/verify-email-enhanced/{token}` | never |  |
 | POST | `/api/auth/verify-email/{token}` | never |  |
+| GET | `/api/compliance/assessments` | never |  |
+| POST | `/api/compliance/assessments` | never |  |
+| DELETE | `/api/compliance/assessments/{assessment_id}` | never |  |
+| GET | `/api/compliance/assessments/{assessment_id}` | never |  |
+| PATCH | `/api/compliance/assessments/{assessment_id}` | never |  |
+| GET | `/api/compliance/assessments/{assessment_id}/suite-runs` | never |  |
+| POST | `/api/compliance/assessments/{assessment_id}/suite-runs` | never |  |
+| GET | `/api/compliance/findings` | never |  |
+| DELETE | `/api/compliance/findings/{finding_id}` | never |  |
+| GET | `/api/compliance/findings/{finding_id}` | never |  |
+| PATCH | `/api/compliance/findings/{finding_id}` | never |  |
+| DELETE | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| GET | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| PATCH | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| GET | `/api/compliance/suite-runs/{suite_run_id}/findings` | never |  |
+| POST | `/api/compliance/suite-runs/{suite_run_id}/findings` | never |  |
 | GET | `/api/custom-models/` | `models:read` | any |
 | POST | `/api/custom-models/` | `models:manage` | any |
 | POST | `/api/custom-models/test` | `models:manage` | any |

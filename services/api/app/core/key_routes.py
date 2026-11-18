@@ -247,6 +247,9 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             methods="POST",
             bind=("body:project_id",),
         ),
+        # -- compliance records (CORE 2.56) --------------------------------- #
+        # Keys reach compliance data through the overlay's /api/v1 routes.
+        never("/api/compliance/*", note="compliance records: browser sessions only"),
         # -- marketplace (vendor listings) ----------------------------------- #
         area("/api/marketplace*", ["projects:read"], ["projects:write"], neutral=True),
         # -- files ----------------------------------------------------------- #

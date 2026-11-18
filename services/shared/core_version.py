@@ -993,11 +993,44 @@ whenever one is added, renamed or removed):
     dialog. Backward moves and the wizard outside draft mode are never
     guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
     applying policies.
+
+2.56 (2026-11-18): compliance records (migration 145).
+  - Tables ``compliance_assessments``, ``compliance_suite_runs`` and
+    ``compliance_findings`` (``models.ComplianceAssessment``,
+    ``ComplianceSuiteRun``, ``ComplianceFinding``). A finding carries
+    ``requirement_ref``, ``metric``, ``system_key``, ``scope``, counts,
+    ``value`` / ``ci_low`` / ``ci_high`` / ``ci_level`` in double precision,
+    ``ci_method``, ``threshold``, ``verdict``, ``baseline``, ``details`` and
+    the ids of the analysis run and estimate it was derived from
+    (``analysis_run_id``, ``analysis_estimate_id``; plain indexed ids without
+    a foreign key, like ``compliance_suite_runs.analysis_run_ids`` and
+    ``compliance_assessments.release_id``, until those tables exist). The
+    composite key ``(suite_run_id, assessment_id)`` ties a finding to its run.
+  - ``compliance_records`` (shared, pure): the assessment statuses and the
+    static ``ASSESSMENT_TRANSITIONS`` table with ``transition_assessment``
+    (stamps ``registered_at`` and ``thresholds_hash``, ``attested_at``), the
+    suite-run statuses with ``SUITE_RUN_TRANSITIONS`` and
+    ``transition_suite_run``, ``VERDICTS``, ``REGISTRATION_LOCKED_FIELDS``,
+    the ``check_*`` guards (terminal assessments and finished suite runs are
+    read-only, only drafts are deleted) raising
+    ``ComplianceRecordConflict(code, detail)``, and ``canonical_json`` /
+    ``canonical_sha256``. The overlay's workflow and workers write through
+    these rules; the platform routes never change an assessment's status.
+  - Routes ``GET|POST /api/compliance/assessments``, ``GET|PATCH|DELETE
+    /api/compliance/assessments/{id}``, ``GET|POST
+    .../assessments/{id}/suite-runs``, ``GET|PATCH|DELETE
+    /api/compliance/suite-runs/{id}``, ``GET|POST
+    .../suite-runs/{id}/findings``, ``GET /api/compliance/findings``
+    (by assessment, suite run, analysis run or estimate) and ``GET|PATCH|DELETE
+    /api/compliance/findings/{id}`` (``routers/compliance_records.py``):
+    ORG_ADMIN and CONTRIBUTOR members of the assessment's organization,
+    deletes ORG_ADMIN only, 409 ``{"code", "message"}`` from the guards.
+    Access keys are refused (``key_routes``).
 """
 
 import os
 
-CORE_API_VERSION = "2.55"
+CORE_API_VERSION = "2.56"
 
 
 def extended_required() -> bool:
