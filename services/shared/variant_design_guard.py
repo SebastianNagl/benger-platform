@@ -509,4 +509,3 @@ def update_design_spec(
         {"p": project_id, "k": key},
     )
     return design
-
