@@ -63,7 +63,7 @@ export function MetadataField({
     setIsLoading(true)
     try {
       // Use the new simplified metadata endpoint
-      await apiClient.patch(`/api/projects/tasks/${taskId}/metadata`, {
+      await apiClient.patch(`/projects/tasks/${taskId}/metadata`, {
         [fieldName]: editValue,
       })
 
@@ -283,7 +283,7 @@ export function BulkMetadataEditor({
 
     setIsLoading(true)
     try {
-      await apiClient.patch('/api/projects/tasks/bulk-metadata', {
+      await apiClient.patch('/projects/tasks/bulk-metadata', {
         task_ids: taskIds,
         metadata,
       })

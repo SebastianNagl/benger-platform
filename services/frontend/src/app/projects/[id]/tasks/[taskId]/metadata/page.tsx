@@ -58,7 +58,7 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
   useEffect(() => {
     const fetchTask = async () => {
       try {
-        const response = await apiClient.get(`/api/projects/tasks/${taskId}`)
+        const response = await apiClient.get(`/projects/tasks/${taskId}`)
         setTask(response)
         setMetadata(response.meta || {})
       } catch (error) {
@@ -100,7 +100,7 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
 
       // Update metadata via API - send the entire metadata object
       await apiClient.patch(
-        `/api/projects/tasks/${taskId}/metadata`,
+        `/projects/tasks/${taskId}/metadata`,
         parsedMetadata,
       )
 

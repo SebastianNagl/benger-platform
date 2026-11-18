@@ -301,7 +301,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(apiClient.get).toHaveBeenCalledWith(
-          '/api/projects/tasks/task-456',
+          '/projects/tasks/task-456',
         )
       })
     })
@@ -524,7 +524,7 @@ describe('TaskMetadataPage', () => {
 
       await waitFor(() => {
         expect(apiClient.patch).toHaveBeenCalledWith(
-          '/api/projects/tasks/task-456/metadata',
+          '/projects/tasks/task-456/metadata',
           newMetadata,
         )
       })
