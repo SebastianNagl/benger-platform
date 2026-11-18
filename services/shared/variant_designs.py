@@ -218,6 +218,8 @@ def _factor_problems(factor: Dict[str, Any], path: str, *, slot: bool) -> List[D
     if levels and ftype == "numeric":
         low, high = factor.get("minimum"), factor.get("maximum")
         for i, level in enumerate(levels):
+            if not _level_fits_type(ftype, level):
+                continue
             if (low is not None and level < low) or (high is not None and level > high):
                 problems.append(
                     {"path": f"{path}/levels/{i}", "message": "outside minimum/maximum"}

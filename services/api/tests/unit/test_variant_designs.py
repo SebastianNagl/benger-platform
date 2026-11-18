@@ -122,6 +122,15 @@ class TestSpec:
         else:
             assert any(message in p["message"] for p in problems), problems
 
+    def test_bounded_numeric_factor_with_a_text_level_is_a_problem(self):
+        spec = swap_spec()
+        spec["factors"].append(
+            {"name": "lvl", "type": "numeric", "levels": ["high"], "minimum": 0}
+        )
+        index = len(spec["factors"]) - 1
+        problems = vd.validate_spec(spec)
+        assert {"path": f"/spec/factors/{index}/levels/0", "message": "not a numeric level"} in problems
+
     def test_cells_must_name_exactly_the_within_unit_task_factors(self):
         spec = swap_spec()
         spec["cells"] = [{"role": "claimant", "order": "claimant_first"}, {"role": "claimant"}]
