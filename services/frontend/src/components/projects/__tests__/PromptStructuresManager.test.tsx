@@ -1298,9 +1298,7 @@ describe('PromptStructuresManager', () => {
       expect(
         within(fixed).getByText('Structured output: off'),
       ).toBeInTheDocument()
-      expect(
-        within(fixed).getByText('Format retry'),
-      ).toBeInTheDocument()
+      expect(within(fixed).getByText('Format retry')).toBeInTheDocument()
       expect(
         within(fixed).getByText('Answer keys from task data'),
       ).toBeInTheDocument()

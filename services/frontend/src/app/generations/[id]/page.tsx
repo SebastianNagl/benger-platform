@@ -130,8 +130,7 @@ function SentRequest({
         if (!cancelled)
           setError({
             id: child.id,
-            message:
-              err?.message || t('generations.detail.request.loadFailed'),
+            message: err?.message || t('generations.detail.request.loadFailed'),
           })
       }
     })()

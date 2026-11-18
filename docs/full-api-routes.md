@@ -392,6 +392,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/reports/{report_id}/data` | `results:read` | bound |
 | GET | `/api/runs` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}` | `runs:read` | bound |
+| GET | `/api/runs/generations/{generation_id}/trials/{trial_id}/request` | never |  |
 | GET | `/api/shares/discover` | `projects:read` | any |
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |

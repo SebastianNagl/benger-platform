@@ -464,7 +464,9 @@ describe('GenerationRunDetailPage', () => {
       if (!match) return Promise.resolve(detail)
       const trial = trials[match[1]]
       if (trial instanceof Error) return Promise.reject(trial)
-      return trial === undefined ? new Promise(() => {}) : Promise.resolve(trial)
+      return trial === undefined
+        ? new Promise(() => {})
+        : Promise.resolve(trial)
     })
 
   it('fetches and shows the request the provider client sent, block for block', async () => {
@@ -543,8 +545,18 @@ describe('GenerationRunDetailPage', () => {
         ...baseDetail,
         runs_requested: 2,
         children: [
-          { id: 'c0', run_index: 0, has_response: true, has_request_record: false },
-          { id: 'c1', run_index: 1, has_response: true, has_request_record: true },
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: false,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
         ],
       },
       {
@@ -589,8 +601,18 @@ describe('GenerationRunDetailPage', () => {
         ...baseDetail,
         runs_requested: 2,
         children: [
-          { id: 'c0', run_index: 0, has_response: true, has_request_record: true },
-          { id: 'c1', run_index: 1, has_response: true, has_request_record: true },
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: true,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
         ],
       },
       { c1: new Error('Zugriff verweigert') },
