@@ -27,7 +27,7 @@ Four drivers:
   CSV/TSV/TXT rows imported as tasks into an *existing* project (the cloud
   import flow's tabular arm).
 
-Variant designs (CORE 2.57) travel with the files that can carry them: the
+Variant designs (CORE 2.59) travel with the files that can carry them: the
 ``variant_designs`` array of the nested and the comprehensive format and the
 ``variant_design`` records of NDJSON. They are created before the tasks (as
 drafts) and frozen again before the commit when the file says they were

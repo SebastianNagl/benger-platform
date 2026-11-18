@@ -138,10 +138,10 @@ def _assert_installed_trigger_behaves(conn, project_id):
 
 
 class TestMigration142:
-    def test_revision_chains_after_141(self):
+    def test_revision_chains_after_145(self):
         mig = _load()
         assert mig.revision == NAME
-        assert mig.down_revision == "141_project_wizard_drafts"
+        assert mig.down_revision == "145_compliance_findings"
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()

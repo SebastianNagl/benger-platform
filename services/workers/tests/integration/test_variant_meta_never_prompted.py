@@ -1,6 +1,6 @@
 """A task's variant assignment never reaches the system under test.
 
-``task.meta.variant`` says which tasks are twins of one another (CORE 2.57);
+``task.meta.variant`` says which tasks are twins of one another (CORE 2.59);
 a model that saw it could answer the twins alike on purpose. The generation
 loop builds prompts from ``task.data`` only, so a canary placed in the
 assignment must appear neither in the messages the provider receives nor in

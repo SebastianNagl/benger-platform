@@ -2,7 +2,7 @@
 
 A variant experiment runs the same item in several controlled variants and
 compares the answers. Its design is now a first-class, freezable object,
-while each task's place in it stays in ``task.meta.variant`` (CORE 2.57):
+while each task's place in it stays in ``task.meta.variant`` (CORE 2.59):
 
 - New table ``variant_designs``: one row per design of a project (``key``
   unique per project), the spec (JSONB, ``schemas/variant_design.schema.json``),
@@ -35,7 +35,7 @@ Idempotent: every step is guarded, so a database built from the models (the
 test DB) runs it as a no-op.
 
 Revision ID: 142_variant_designs
-Revises: 141_project_wizard_drafts
+Revises: 145_compliance_findings
 Create Date: 2026-11-18
 """
 
@@ -46,7 +46,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "142_variant_designs"
-down_revision = "141_project_wizard_drafts"
+down_revision = "145_compliance_findings"
 branch_labels = None
 depends_on = None
 
