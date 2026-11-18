@@ -44,7 +44,9 @@ jest.mock('@/contexts/AuthContext', () => ({
       email: 'test@example.com',
       is_superadmin: false,
     },
-    organizations: [{ id: 'org-1', name: 'Test Org' }],
+    // A teacher: the overview with its Annotations tile (students get their
+    // personal tiles, see dashboard-personal-view.test.tsx).
+    organizations: [{ id: 'org-1', name: 'Test Org', role: 'CONTRIBUTOR' }],
     loading: false,
   }),
 }))

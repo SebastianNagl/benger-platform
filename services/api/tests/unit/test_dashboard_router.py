@@ -11,7 +11,7 @@ callable (so the sync `get_accessible_project_ids` shims keep working) and whose
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import status
@@ -55,6 +55,16 @@ def _override_async_db(mock_db):
 async def _async_client():
     transport = ASGITransport(app=app)
     return AsyncClient(transport=transport, base_url="http://testserver")
+
+
+
+@pytest.fixture(autouse=True)
+def _overview_view():
+    """These tests drive the overview of the dashboard (teachers and admins);
+    the personal view of annotators is covered by
+    tests/integration/test_dashboard_personal_view.py."""
+    with patch("routers.dashboard._sees_personal_view_async", AsyncMock(return_value=False)):
+        yield
 
 
 class TestDashboardRouter:

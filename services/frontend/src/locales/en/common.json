@@ -106,6 +106,10 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "openExams": "Open exams",
+      "openTasks": "Open tasks",
+      "submittedAnswers": "Submitted answers",
+      "releasedResults": "Released results",
       "unavailable": "Unavailable",
       "unavailableShort": "n/a"
     },

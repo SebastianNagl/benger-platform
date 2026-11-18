@@ -9,7 +9,7 @@ test_dashboard_coverage.py for the pattern and rationale.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import status
@@ -57,6 +57,16 @@ def _async_return(value):
         return value
 
     return _fn
+
+
+
+@pytest.fixture(autouse=True)
+def _overview_view():
+    """These tests drive the overview of the dashboard (teachers and admins);
+    the personal view of annotators is covered by
+    tests/integration/test_dashboard_personal_view.py."""
+    with patch("routers.dashboard._sees_personal_view_async", AsyncMock(return_value=False)):
+        yield
 
 
 class TestDashboardStats:
