@@ -172,6 +172,13 @@ class ChildGeneration(BaseModel):
     error_message: Optional[str] = None
     has_response: bool = False
     response_preview: Optional[str] = None
+    # What the provider client sent for this trial (migration 143): the
+    # messages, response format, parameters and model id of the first
+    # request, every request verbatim, and the format-retry trail.
+    request_record: Optional[Dict[str, Any]] = None
+    request_sha256: Optional[str] = None
+    retried: bool = False
+    first_response_preview: Optional[str] = None
 
 
 class LinkedEvaluation(BaseModel):
@@ -266,6 +273,12 @@ async def get_generation_run(
             error_message=getattr(c, "error_message", None),
             has_response=bool(getattr(c, "response_content", None)),
             response_preview=_preview(getattr(c, "response_content", None)),
+            request_record=(
+                c.request_record if isinstance(getattr(c, "request_record", None), dict) else None
+            ),
+            request_sha256=getattr(c, "request_sha256", None),
+            retried=bool(getattr(c, "retried", False)),
+            first_response_preview=_preview(getattr(c, "first_response_content", None)),
         )
         for c in children_rows
     ]

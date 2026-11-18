@@ -35,7 +35,29 @@ interface PromptStructure {
   instruction_prompt: string | object
   evaluation_prompt?: string | object | null
   exclude_from_generation?: boolean
+  // Answer-format options (as generation uses them) and the read-only text
+  // a generation appends to the user prompt (null: nothing is appended).
+  append_schema_instruction?: boolean
+  structured_output?: 'auto' | 'off'
+  format_retry?: { max: number; message: string } | null
+  answer_schema?: Record<string, unknown> | null
+  refusal_heuristic?: {
+    pattern: string
+    flags?: string
+    window?: number
+  } | null
+  schema_instruction_preview?: string | null
 }
+
+/** The answer-format options a structure's JSON configuration may carry;
+ * the editor round-trips them, so editing a prompt never drops them. */
+const ANSWER_FORMAT_KEYS = [
+  'append_schema_instruction',
+  'structured_output',
+  'format_retry',
+  'answer_schema',
+  'refusal_heuristic',
+] as const
 
 interface PromptStructuresManagerProps {
   projectId: string
@@ -166,6 +188,16 @@ export function PromptStructuresManager({
           system_prompt: structure.system_prompt,
           instruction_prompt: structure.instruction_prompt,
           evaluation_prompt: structure.evaluation_prompt,
+          // The two switches are always shown so their current value is
+          // visible; the optional blocks only when set.
+          append_schema_instruction:
+            structure.append_schema_instruction ?? true,
+          structured_output: structure.structured_output ?? 'auto',
+          ...Object.fromEntries(
+            (['format_retry', 'answer_schema', 'refusal_heuristic'] as const)
+              .filter((k) => structure[k] != null)
+              .map((k) => [k, structure[k]]),
+          ),
         },
         null,
         2,
@@ -241,6 +273,17 @@ export function PromptStructuresManager({
         system_prompt: parsedConfig.system_prompt,
         instruction_prompt: parsedConfig.instruction_prompt,
         evaluation_prompt: parsedConfig.evaluation_prompt || null,
+        // The PUT replaces the structure: keep the flag the editor does not
+        // show, and send the answer-format options of the configuration.
+        exclude_from_generation: editingKey
+          ? (structures[editingKey]?.exclude_from_generation ?? false)
+          : false,
+        ...Object.fromEntries(
+          ANSWER_FORMAT_KEYS.filter((k) => k in parsedConfig).map((k) => [
+            k,
+            parsedConfig[k],
+          ]),
+        ),
       }
 
       logger.debug('Calling API with:', key, structureData)
@@ -452,6 +495,50 @@ export function PromptStructuresManager({
                               </div>
                             </div>
                           )}
+                          <div
+                            className="mt-2 flex flex-wrap gap-1"
+                            data-testid={`prompt-structure-format-${key}`}
+                          >
+                            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                              {structure.schema_instruction_preview
+                                ? t(
+                                    'project.promptStructures.format.instructionAppended',
+                                  )
+                                : t(
+                                    'project.promptStructures.format.instructionNotAppended',
+                                  )}
+                            </span>
+                            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                              {structure.structured_output === 'off'
+                                ? t(
+                                    'project.promptStructures.format.structuredOff',
+                                  )
+                                : t(
+                                    'project.promptStructures.format.structuredAuto',
+                                  )}
+                            </span>
+                            {structure.format_retry && (
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                {t('project.promptStructures.format.retry', {
+                                  max: structure.format_retry.max,
+                                })}
+                              </span>
+                            )}
+                            {structure.answer_schema && (
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                {t(
+                                  'project.promptStructures.format.answerKeys',
+                                )}
+                              </span>
+                            )}
+                            {structure.refusal_heuristic && (
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                {t(
+                                  'project.promptStructures.format.refusalHeuristic',
+                                )}
+                              </span>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={() => togglePrompts(key)}
@@ -496,6 +583,22 @@ export function PromptStructuresManager({
                           label={t('generation.prompts.instruction')}
                           value={structure.instruction_prompt}
                         />
+                        {structure.schema_instruction_preview ? (
+                          <PromptText
+                            label={t(
+                              'project.promptStructures.format.appendedText',
+                            )}
+                            value={structure.schema_instruction_preview}
+                          />
+                        ) : null}
+                        {structure.format_retry ? (
+                          <PromptText
+                            label={t(
+                              'project.promptStructures.format.retryMessage',
+                            )}
+                            value={structure.format_retry.message}
+                          />
+                        ) : null}
                         {structure.evaluation_prompt ? (
                           <PromptText
                             label={t('project.prompts.evaluation.prompt')}

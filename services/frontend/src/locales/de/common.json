@@ -1185,7 +1185,7 @@
       "description": "Beschreibung (Optional)",
       "descriptionPlaceholder": "Beschreibe, wofür diese Struktur verwendet wird...",
       "structureConfiguration": "Strukturkonfiguration",
-      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt",
+      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt. Antwortformat: append_schema_instruction (true/false), structured_output (auto/off) und optional format_retry, answer_schema und refusal_heuristic",
       "cancel": "Abbrechen",
       "saving": "Wird gespeichert...",
       "createStructure": "Struktur erstellen",
@@ -1196,7 +1196,18 @@
       "delete": "Löschen",
       "loadingStructures": "Prompt-Strukturen werden geladen...",
       "onlyCreatorCanManage": "Nur der Projektersteller kann Prompt-Strukturen verwalten",
-      "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen."
+      "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen.",
+      "format": {
+        "instructionAppended": "Hängt die Antwortfelder an den Prompt an",
+        "instructionNotAppended": "Prompt wird unverändert gesendet",
+        "structuredAuto": "Strukturierte Ausgabe: auto",
+        "structuredOff": "Strukturierte Ausgabe: aus",
+        "retry": "Format-Nachfrage (max. {max})",
+        "answerKeys": "Antwortschlüssel aus Aufgabendaten",
+        "refusalHeuristic": "Verweigerungs-Heuristik",
+        "appendedText": "Wird an den Instruktions-Prompt angehängt",
+        "retryMessage": "Nachricht der Format-Nachfrage"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -9230,11 +9241,25 @@
       "runIndex": "Lauf #",
       "preview": "Antwort (Vorschau)",
       "response": "Antwort",
-      "prompt": "Verwendeter Prompt",
+      "prompt": "Prompt-Vorlagen",
       "linkedEvaluations": "Verknüpfte Evaluierungen",
       "metric": "Metrik",
       "scoredSamples": "Bewertete Samples",
-      "loadFailed": "Der Generierungs-Lauf konnte nicht geladen werden"
+      "loadFailed": "Der Generierungs-Lauf konnte nicht geladen werden",
+      "request": {
+        "title": "An das Modell gesendete Anfrage",
+        "help": "Genau das, was der Provider-Client gesendet hat, einschließlich aller Blöcke, die die Plattform an die Prompts angehängt hat.",
+        "none": "Keine Anfrage gespeichert (erzeugt, bevor sie gespeichert wurde).",
+        "model": "Modell-ID",
+        "workerCall": "Der Provider-Client hat keine Anfrage gemeldet; das ist der Aufruf des Generierungs-Workers.",
+        "roleSystem": "System",
+        "roleUser": "Nutzer",
+        "roleAssistant": "Assistent",
+        "responseFormat": "Antwortformat",
+        "parameters": "Anfrageparameter",
+        "retried": "Format-Nachfrage: {count} Anfragen gesendet",
+        "firstAnswer": "Erste Antwort"
+      }
     }
   },
   "customModels": {

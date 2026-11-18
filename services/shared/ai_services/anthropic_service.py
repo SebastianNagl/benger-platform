@@ -13,7 +13,8 @@ from typing import Any, Dict, Optional
 import anthropic
 
 from .attachments import anthropic_content
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, continuation_turns, derive_truncated
+from .request_capture import record_request
 from .reasoning import thinking_blocks
 from .provider_capabilities import calculate_cost
 
@@ -174,7 +175,7 @@ class AnthropicService(BaseAIService):
                 "messages": [{"role": "user", "content": (
                     anthropic_content(prompt, kwargs["attachments"])
                     if kwargs.get("attachments") else prompt
-                )}],
+                )}, *continuation_turns(kwargs)],
             }
 
             # Check if model supports extended thinking (Claude 3.7+, Claude 4+)
@@ -198,6 +199,7 @@ class AnthropicService(BaseAIService):
             # (e.g. 20k+-token Bewertungsbogen documents) hard-fail without
             # this. Streaming accumulates the same final message, so the
             # response handling below is identical for both paths.
+            record_request("Anthropic", "anthropic.messages", api_params, capture="sdk_kwargs")
             if max_tokens >= 16384:
                 with self.client.messages.stream(**api_params) as stream:
                     for _ in stream.text_stream:
@@ -357,14 +359,19 @@ class AnthropicService(BaseAIService):
                 + schema_text
             )
 
-            response = self.client.messages.create(
-                model=model_name,
-                max_tokens=max_tokens,
+            api_params = {
+                "model": model_name,
+                "max_tokens": max_tokens,
                 # See generate(): temperature rides in extra_body since anthropic 1.0.
-                extra_body={"temperature": temperature},
-                system=enhanced_system,
-                messages=[{"role": "user", "content": prompt}],
-            )
+                "extra_body": {"temperature": temperature},
+                "system": enhanced_system,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    *continuation_turns(kwargs),
+                ],
+            }
+            record_request("Anthropic", "anthropic.messages", api_params, capture="sdk_kwargs")
+            response = self.client.messages.create(**api_params)
 
             end_time = datetime.now()
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)

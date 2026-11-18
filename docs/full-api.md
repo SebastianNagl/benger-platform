@@ -198,6 +198,34 @@ task. `GET /api/projects/{id}/generation-config/structures` lists the
 existing ones. A project with structures needs `structure_keys` in the
 generate call (step 6), otherwise it answers 422 and names them.
 
+A structure also decides the answer format. By default a generation appends
+the label config's answer fields as a JSON skeleton to the user prompt and
+asks the provider for structured output; the listing shows the appended text
+as `schema_instruction_preview`. To send a fixed prompt design unchanged, set
+`append_schema_instruction: false` and `structured_output: "off"` (the
+answer is then parsed from free text). Optional blocks:
+
+* `format_retry: {"max": 1, "message": "..."}`: when an answer yields no
+  answer field, ask again in the same conversation (the answer as assistant
+  turn, `message` as user turn), up to `max` (1-3) times. The generation keeps
+  the first answer in `first_response_content` and sets `retried`.
+* `answer_schema: {"fields": {"<control>": {"key": "...", "values": {"...":
+  "<stored value>"}}}}`: answer keys and choice values that depend on the
+  task, with `{{path}}` (or `{{path|lower}}`) standing for a task field, for
+  example a key named after a party of the case. The parser reads them as the
+  control name and the stored value.
+* `refusal_heuristic: {"pattern": "...", "flags": "i", "window": 1500}`: mark
+  an answer as a refusal when the pattern matches its first `window`
+  characters (the provider's own refusal signal still counts).
+
+Every generation stores what the provider client actually sent as
+`request_record` (the first request's `model`, `messages`, `response_format`
+and `parameters`, and every request verbatim under `requests`, a format retry
+included) and `request_sha256`, the SHA-256 of the first request's body in
+canonical JSON. `GET /api/runs/generations/{id}` returns both per trial, and
+project exports carry them; importing an export keeps every generation column,
+the job's `structure_key` and each answer's `run_index`.
+
 `POST /api/llm-models/cost-estimate` (scope `runs:read`) takes
 `project_id`, `mode` (`generation` or `evaluation`), `model_ids` and, to
 match what the run will queue, `generation_mode` and `structure_keys`; for
@@ -211,7 +239,7 @@ takes, besides `mode` and `model_ids`:
 * `task_ids` (default: every task), `structure_keys`, `parameters`
   (`temperature`, `max_tokens`, `seed`, default 42), `model_configs` (per-model
   settings such as `max_tokens`, merged into the stored ones),
-  `runs_per_task` (1-25) and `billing_organization_id` (the organisation
+  `runs_per_task` (1-100) and `billing_organization_id` (the organisation
   whose provider keys pay, one of the caller's billing options);
 * `mode` is `missing`, `all` or `single`. `all` regenerates every cell and
   cancels pending generations of the project, so only project members may

@@ -620,21 +620,12 @@ def extract_label_config_fields(label_config: str) -> List[str]:
     """
     Extract annotation field names from Label Studio XML config.
     These field names should match the output field names from LLM responses.
+    One source with the API's preview of the appended instruction
+    (``generation_fidelity.label_config_answer_fields``).
     """
-    from xml.etree import ElementTree
+    from generation_fidelity import label_config_answer_fields
 
-    fields = []
-    try:
-        root = ElementTree.fromstring(label_config)
-        for elem in root.iter():
-            # Only include annotation output elements (not data display elements like Header/Text)
-            if elem.tag in ["TextArea", "Choices", "Rating", "Number"]:
-                name = elem.get("name")
-                if name:
-                    fields.append(name)
-    except Exception as e:
-        logger.warning(f"Could not parse label_config for field extraction: {e}")
-    return fields
+    return label_config_answer_fields(label_config)
 
 
 # The Celery app + its config live in worker_celery so task modules can import

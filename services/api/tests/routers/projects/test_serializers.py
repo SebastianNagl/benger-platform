@@ -187,8 +187,13 @@ class TestSerializeGeneration:
         evals = [{"id": "te-1", "field_name": "f1", "passed": True}]
         result = serialize_generation(gen, mode="data", evaluations=evals)
         assert result["evaluations"] == evals
+        # Internal foreign keys stay out of the task-level export; the
+        # research columns (usage, run, telemetry) go in, so the import can
+        # restore the row.
         assert "generation_id" not in result
-        assert "usage_stats" not in result
+        assert "task_id" not in result
+        assert result["usage_stats"] == {"total_tokens": 100}
+        assert "structure_key" in result
 
     def test_data_mode_default_empty_evaluations(self):
         gen = _mock_generation()

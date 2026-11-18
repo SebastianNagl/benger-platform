@@ -617,6 +617,45 @@ class TestGetGenerationRun:
         assert linked["samples_evaluated"] == 2
 
     @pytest.mark.asyncio
+    async def test_detail_carries_the_request_record_and_retry_trail(
+        self, async_test_client, async_test_db
+    ):
+        """The detail page shows what the provider client sent per trial
+        (request record and hash) and the first answer of a format retry."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        project = await _make_project(async_test_db, admin, org)
+        task = await _make_task(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, task, admin)
+        child = await _make_child_generation(async_test_db, rg, task, run_index=0)
+        record = {
+            "version": 1,
+            "capture": "http_body",
+            "model": "acme/model",
+            "messages": [{"role": "user", "content": "Akte"}],
+            "requests": [{"body": {"model": "acme/model"}}, {"body": {}}],
+        }
+        child.request_record = record
+        child.request_sha256 = "f" * 64
+        child.retried = True
+        child.first_response_content = "z" * 250
+        plain = await _make_child_generation(async_test_db, rg, task, run_index=1)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(f"{BASE}/generations/{rg.id}")
+        assert resp.status_code == 200
+        first, second = resp.json()["children"]
+        assert first["request_record"] == record
+        assert first["request_sha256"] == "f" * 64
+        assert first["retried"] is True
+        assert len(first["first_response_preview"]) == 201
+        assert second["id"] == plain.id
+        assert second["request_record"] is None
+        assert second["retried"] is False
+        assert second["first_response_preview"] is None
+
+    @pytest.mark.asyncio
     async def test_detail_no_children_no_linked(
         self, async_test_client, async_test_db
     ):

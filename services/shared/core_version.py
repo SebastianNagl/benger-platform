@@ -1076,11 +1076,37 @@ migration).
     own retry behaviour are unchanged; ``base_service`` also exports
     ``is_transient_upstream_error``, the DeepInfra / Custom backoff
     predicate.
+
+2.59 (2026-11-18): generation fidelity (migration 143).
+  - ``generations.request_record`` (JSONB), ``request_sha256``,
+    ``first_response_content`` and ``retried`` (``models.Generation``). The
+    record holds every request the provider client sent for the generation
+    (``ai_services.request_capture``: ``capture_requests()`` scope,
+    ``record_request(provider, api, body, capture=...)`` called by every
+    provider service right before its send, ``build_request_record``,
+    ``request_sha256``, ``normalized_view``); for SDK clients the body is
+    replaced by the JSON the SDK hands to httpx / httpx2 inside the scope
+    (``capture: "http_body"``, with ``path``). A provider service added by
+    an overlay records its requests the same way, or the worker stores the
+    call it made marked ``capture: "worker_call"``.
+  - Provider services take ``continuation=[{role, content}, ...]`` on
+    ``generate`` / ``generate_structured``: turns sent after the first user
+    prompt (``base_service.continuation_turns``).
+  - Prompt structures take ``append_schema_instruction``,
+    ``structured_output`` (``auto`` / ``off``), ``format_retry``,
+    ``answer_schema`` and ``refusal_heuristic`` (``generation_fidelity``:
+    ``answer_format(structure)``, ``schema_instruction``,
+    ``render_answer_schema`` / ``AnswerKeys``, ``refusal_matches``,
+    ``MAX_GENERATION_RUNS_PER_TASK`` = 100). ``ResponseParser`` takes
+    ``answer_keys``; ``ParseResult.mapped_values``.
+  - Exports carry every generation column in both modes (``data`` also
+    names the job's ``structure_key``); the task-level import keeps them,
+    groups jobs by model and structure and keeps each row's ``run_index``.
 """
 
 import os
 
-CORE_API_VERSION = "2.58"
+CORE_API_VERSION = "2.59"
 
 
 def extended_required() -> bool:

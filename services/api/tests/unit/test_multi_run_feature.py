@@ -165,11 +165,14 @@ def test_runs_per_task_resolution_per_trigger_overrides_project_default():
     assert resolved == 1
 
 
-def test_runs_per_task_resolution_clamps_to_25():
-    """Bounds: 1 ≤ runs_per_task ≤ 25."""
-    for raw in (0, -3, 100):
-        clamped = max(1, min(25, raw))
-        assert 1 <= clamped <= 25
+def test_runs_per_task_resolution_clamps_to_the_generation_cap():
+    """Bounds: 1 <= runs_per_task <= MAX_GENERATION_RUNS_PER_TASK (100)."""
+    from generation_fidelity import MAX_GENERATION_RUNS_PER_TASK
+
+    assert MAX_GENERATION_RUNS_PER_TASK == 100
+    for raw in (0, -3, 250):
+        clamped = max(1, min(MAX_GENERATION_RUNS_PER_TASK, raw))
+        assert 1 <= clamped <= MAX_GENERATION_RUNS_PER_TASK
 
 
 def test_judges_resolve_legacy_to_new_shape():
