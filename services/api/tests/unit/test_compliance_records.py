@@ -168,8 +168,8 @@ class TestCanonicalHash:
 
 
 class TestVocabularyParity:
-    """The router's request types, the models' CHECK constraints and
-    migration 145 all spell the same statuses and verdicts."""
+    """The router's request types and migration 145 spell the same statuses
+    and verdicts; the database checks are exercised in the migration tests."""
 
     def test_router_literals(self):
         from routers import compliance_records as router
@@ -187,19 +187,3 @@ class TestVocabularyParity:
         assert mig._ASSESSMENT_STATUSES == records.ASSESSMENT_STATUSES
         assert mig._SUITE_RUN_STATUSES == records.SUITE_RUN_STATUSES
         assert mig._VERDICTS == records.VERDICTS
-
-    def test_model_checks(self):
-        from models import ComplianceAssessment, ComplianceFinding, ComplianceSuiteRun
-
-        def check(model, name):
-            for constraint in model.__table__.constraints:
-                if constraint.name == name:
-                    return str(constraint.sqltext)
-            raise AssertionError(name)
-
-        for value in records.ASSESSMENT_STATUSES:
-            assert f"'{value}'" in check(ComplianceAssessment, "ck_compliance_assessments_status")
-        for value in records.SUITE_RUN_STATUSES:
-            assert f"'{value}'" in check(ComplianceSuiteRun, "ck_compliance_suite_runs_status")
-        for value in records.VERDICTS:
-            assert f"'{value}'" in check(ComplianceFinding, "ck_compliance_findings_verdict")

@@ -226,6 +226,45 @@ class TestMigration145:
                     {"id": str(uuid.uuid4()), "r": run, "a": assessment},
                 )
 
+    @pytest.mark.parametrize(
+        "table,column,allowed",
+        [
+            ("compliance_assessments", "status", "ASSESSMENT_STATUSES"),
+            ("compliance_suite_runs", "status", "SUITE_RUN_STATUSES"),
+            ("compliance_findings", "verdict", "VERDICTS"),
+        ],
+    )
+    def test_checks_accept_exactly_the_vocabulary(self, test_db: Session, table, column, allowed):
+        import compliance_records as records
+
+        conn = test_db.get_bind()
+        _, assessment, run = _world(conn)
+        values = getattr(records, allowed)
+
+        def set_value(value):
+            with conn.begin_nested():
+                if table == "compliance_findings":
+                    conn.execute(
+                        text(
+                            "INSERT INTO compliance_findings (id, suite_run_id, assessment_id, "
+                            "requirement_ref, metric, verdict) "
+                            "VALUES (:id, :r, :a, 'req', 'm', :v)"
+                        ),
+                        {"id": str(uuid.uuid4()), "r": run, "a": assessment, "v": value},
+                    )
+                else:
+                    row = assessment if table == "compliance_assessments" else run
+                    conn.execute(
+                        text(f"UPDATE {table} SET {column} = :v WHERE id = :id"),
+                        {"v": value, "id": row},
+                    )
+
+        for value in values:
+            set_value(value)
+        for value in ("unknown", values[0].upper(), f"{values[0]} "):
+            with pytest.raises(IntegrityError):
+                set_value(value)
+
     def test_deleting_the_assessment_cascades(self, test_db: Session):
         conn = test_db.get_bind()
         _, assessment, run = _world(conn)

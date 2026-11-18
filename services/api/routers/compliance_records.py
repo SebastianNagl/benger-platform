@@ -350,7 +350,8 @@ async def _org_role(db: AsyncSession, user: User, org_id: str) -> Optional[Organ
     """The caller's editor role in ``org_id`` (ORG_ADMIN for superadmins),
     or None."""
     if user.is_superadmin:
-        return OrganizationRole.ORG_ADMIN
+        exists = await db.scalar(select(Organization.id).where(Organization.id == org_id))
+        return OrganizationRole.ORG_ADMIN if exists is not None else None
     result = await db.execute(
         select(OrganizationMembership.role)
         .join(Organization, Organization.id == OrganizationMembership.organization_id)
@@ -420,18 +421,29 @@ async def _load_suite_run(
     return assessment, run
 
 
-async def _load_finding(db: AsyncSession, user: User, finding_id: str, *, lock: bool = False):
-    finding = (
-        await db.execute(select(ComplianceFinding).where(ComplianceFinding.id == finding_id))
-    ).scalar_one_or_none()
+async def _load_finding(
+    db: AsyncSession, user: User, finding_id: str, *, lock: bool = False, admin: bool = False
+):
+    """``(assessment, suite_run, finding)``; with ``lock`` all three rows are
+    locked in that order and the finding is read again under the locks."""
+    stmt = select(ComplianceFinding).where(ComplianceFinding.id == finding_id)
+    finding = (await db.execute(stmt)).scalar_one_or_none()
     if finding is None:
         raise _not_found("Finding")
     try:
-        assessment, run = await _load_suite_run(db, user, finding.suite_run_id, lock=lock)
+        assessment, run = await _load_suite_run(
+            db, user, finding.suite_run_id, lock=lock, admin=admin
+        )
     except HTTPException as exc:
         if exc.status_code == 404:
             raise _not_found("Finding")
         raise
+    if lock:
+        finding = (
+            await db.execute(stmt.with_for_update().execution_options(populate_existing=True))
+        ).scalar_one_or_none()
+        if finding is None:
+            raise _not_found("Finding")
     return assessment, run, finding
 
 
@@ -916,8 +928,8 @@ async def delete_finding(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Delete a finding of an open suite run."""
-    assessment, run, finding = await _load_finding(db, user, finding_id, lock=True)
+    """Delete a finding of an open suite run (organization admins only)."""
+    assessment, run, finding = await _load_finding(db, user, finding_id, lock=True, admin=True)
     try:
         records.check_findings_writable(assessment, run)
     except records.ComplianceRecordConflict as exc:

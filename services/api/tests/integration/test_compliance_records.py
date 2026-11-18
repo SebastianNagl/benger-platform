@@ -196,6 +196,16 @@ async def test_superadmin_sees_every_organization(async_test_client, async_test_
     assert [a["id"] for a in listed["items"]] == [created["id"]]
 
 
+async def test_superadmin_gets_404_for_an_unknown_organization(async_test_client, async_test_db):
+    root = await _user(async_test_db, superadmin=True)
+    with _as_user(root):
+        r = await async_test_client.post(
+            f"{BASE}/assessments",
+            json={"organization_id": str(uuid.uuid4()), "title": "Mistyped organization"},
+        )
+    assert r.status_code == 404
+
+
 async def test_targets_are_checked(async_test_client, async_test_db):
     db = async_test_db
     w = await _world(db)
@@ -474,6 +484,8 @@ async def test_finding_edits_and_deletes_while_the_run_is_open(async_test_client
         )
         crossed = await c.patch(f"{BASE}/findings/{items[0]['id']}", json={"ci_low": 0.0})
         nulled = await c.patch(f"{BASE}/findings/{items[0]['id']}", json={"verdict": None})
+        forbidden = await c.delete(f"{BASE}/findings/{items[1]['id']}")
+    with _as_user(w["admin"]):
         removed = await c.delete(f"{BASE}/findings/{items[1]['id']}")
         await c.patch(f"{BASE}/suite-runs/{run['id']}", json={"status": "cancelled"})
         frozen = await c.patch(f"{BASE}/findings/{items[0]['id']}", json={"verdict": "pass"})
@@ -484,6 +496,7 @@ async def test_finding_edits_and_deletes_while_the_run_is_open(async_test_client
     assert edited.json()["value"] == ESTIMATE
     assert crossed.status_code == 422
     assert nulled.status_code == 422
+    assert forbidden.status_code == 403
     assert removed.status_code == 204
     assert frozen.status_code == 409 and frozen_delete.status_code == 409
     assert [i["id"] for i in listed["items"]] == [items[0]["id"]]
