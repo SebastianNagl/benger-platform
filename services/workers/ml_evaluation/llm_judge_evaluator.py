@@ -331,12 +331,11 @@ def _rubric_default_reasoning_effort(judge_model: Optional[str]) -> Optional[str
     return None
 
 
-# Provider failures the multi-dim judge loop retries itself. Every provider
-# service catches its SDK exceptions and returns an error dict, so the
-# services' own retry_with_exponential_backoff decorator (it only sees
-# exceptions that escape) never fires: without this loop a single 429 or
-# a socket timeout failed the whole cell. Anything else (auth, config,
-# context length, content filter) is terminal and short-circuits.
+# Provider failures the multi-dim judge loop retries itself, after the
+# provider service's own retry decorator already backed off on them. An
+# error the service marks ``metadata.retryable=False`` (an exhausted quota is
+# a rate_limit) is terminal, as is anything else (auth, config, context
+# length, content filter).
 JUDGE_RETRY_ERROR_TYPES = ("rate_limit", "timeout")
 JUDGE_RETRY_MAX_BACKOFF_S = 30.0
 
@@ -1275,9 +1274,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 )
 
                 if not response.get("success"):
-                    # The provider returns an error dict for every SDK
-                    # failure (its retry decorator only sees exceptions
-                    # that escape, so it never fires). This per-criterion
+                    # The provider returns an error dict once its own retry
+                    # decorator gave up. This per-criterion
                     # path bails out on the first failure and keeps the
                     # metadata so the failure dict below records the typed
                     # error_type; the multi-dim path retries rate_limit /
@@ -2043,6 +2041,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     error_type = base_meta.get("error_type")
                     if (
                         error_type in JUDGE_RETRY_ERROR_TYPES
+                        and (response.get("metadata") or {}).get("retryable") is not False
                         and attempt < self.max_retries - 1
                     ):
                         delay = _judge_retry_backoff(attempt)

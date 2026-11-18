@@ -4,56 +4,19 @@ Shared Anthropic service implementation.
 
 import logging
 import os
-import random
-import time
 from datetime import datetime
-from functools import wraps
 from typing import Any, Dict, Optional
 
 import anthropic
 
 from .attachments import anthropic_content
-from .base_service import BaseAIService, classify_retryable, derive_truncated
+from .base_service import BaseAIService, derive_truncated, retry_provider_call
 from .reasoning import thinking_blocks
 from .provider_capabilities import calculate_cost
 
 logger = logging.getLogger(__name__)
 
 
-def retry_with_exponential_backoff(
-    max_retries: int = 5,
-    base_delay: float = 2.0,
-    max_delay: float = 60.0,
-    exponential_base: float = 2.0,
-    jitter: bool = True
-):
-    """Decorator for exponential backoff retry on rate limit errors."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            retries = 0
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    error_str = str(e).lower()
-                    is_rate_limit = "429" in error_str or "rate limit" in error_str or "overloaded" in error_str
-                    # Back off only on what the shared classifier deems retryable:
-                    # an exhausted quota is a 429 that no wait fixes.
-                    backs_off = is_rate_limit and classify_retryable(e)
-
-                    if not backs_off or retries >= max_retries:
-                        raise
-
-                    delay = min(base_delay * (exponential_base ** retries), max_delay)
-                    if jitter:
-                        delay = delay * (0.5 + random.random())
-
-                    logger.warning(f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s")
-                    time.sleep(delay)
-                    retries += 1
-        return wrapper
-    return decorator
 
 
 def _extract_text(content_blocks) -> str:
@@ -101,7 +64,7 @@ class AnthropicService(BaseAIService):
         """Check if Anthropic service is available (API key set)"""
         return self.client != None
 
-    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    @retry_provider_call("Anthropic")
     def generate(
         self,
         prompt: str,
@@ -161,116 +124,112 @@ class AnthropicService(BaseAIService):
                 "Anthropic service is not available - check ANTHROPIC_API_KEY configuration"
             )
 
-        try:
-            start_time = datetime.now()
+        start_time = datetime.now()
 
-            # Build API call parameters
-            api_params = {
-                "model": model_name,
-                "max_tokens": max_tokens,
-                # anthropic>=1.0 dropped `temperature` from the typed
-                # messages.create() signature; it is still accepted by the
-                # API, so send it through extra_body (temperature 0 is what
-                # makes benchmark generations reproducible).
-                "extra_body": {"temperature": temperature},
-                "system": system_prompt,
-                "messages": [{"role": "user", "content": (
-                    anthropic_content(prompt, kwargs["attachments"])
-                    if kwargs.get("attachments") else prompt
-                )}],
+        # Build API call parameters
+        api_params = {
+            "model": model_name,
+            "max_tokens": max_tokens,
+            # anthropic>=1.0 dropped `temperature` from the typed
+            # messages.create() signature; it is still accepted by the
+            # API, so send it through extra_body (temperature 0 is what
+            # makes benchmark generations reproducible).
+            "extra_body": {"temperature": temperature},
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": (
+                anthropic_content(prompt, kwargs["attachments"])
+                if kwargs.get("attachments") else prompt
+            )}],
+        }
+
+        # Check if model supports extended thinking (Claude 3.7+, Claude 4+)
+        model_lower = model_name.lower()
+        supports_thinking = any(prefix in model_lower for prefix in [
+            "claude-3-7", "claude-opus-4", "claude-sonnet-4", "claude-haiku-4"
+        ])
+
+        # Add thinking budget for supported models
+        thinking_budget = kwargs.get("thinking_budget")
+        if supports_thinking and thinking_budget:
+            api_params["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": int(thinking_budget)
             }
+            logger.info(f"🧠 Using thinking_budget={thinking_budget} for {model_name}")
 
-            # Check if model supports extended thinking (Claude 3.7+, Claude 4+)
-            model_lower = model_name.lower()
-            supports_thinking = any(prefix in model_lower for prefix in [
-                "claude-3-7", "claude-opus-4", "claude-sonnet-4", "claude-haiku-4"
-            ])
+        # Make Anthropic API call. Large-budget requests must stream:
+        # the non-streaming endpoint is bound by a ~10-minute wall and
+        # the SDK refuses big max_tokens outright — long generations
+        # (e.g. 20k+-token Bewertungsbogen documents) hard-fail without
+        # this. Streaming accumulates the same final message, so the
+        # response handling below is identical for both paths.
+        if max_tokens >= 16384:
+            with self.client.messages.stream(**api_params) as stream:
+                for _ in stream.text_stream:
+                    pass
+                response = stream.get_final_message()
+        else:
+            response = self.client.messages.create(**api_params)
 
-            # Add thinking budget for supported models
-            thinking_budget = kwargs.get("thinking_budget")
-            if supports_thinking and thinking_budget:
-                api_params["thinking"] = {
-                    "type": "enabled",
-                    "budget_tokens": int(thinking_budget)
-                }
-                logger.info(f"🧠 Using thinking_budget={thinking_budget} for {model_name}")
+        end_time = datetime.now()
+        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            # Make Anthropic API call. Large-budget requests must stream:
-            # the non-streaming endpoint is bound by a ~10-minute wall and
-            # the SDK refuses big max_tokens outright — long generations
-            # (e.g. 20k+-token Bewertungsbogen documents) hard-fail without
-            # this. Streaming accumulates the same final message, so the
-            # response handling below is identical for both paths.
-            if max_tokens >= 16384:
-                with self.client.messages.stream(**api_params) as stream:
-                    for _ in stream.text_stream:
-                        pass
-                    response = stream.get_final_message()
-            else:
-                response = self.client.messages.create(**api_params)
+        # Extract response text
+        response_text = _extract_text(response.content)
+        # Thinking blocks (extended / adaptive thinking) stay out of the
+        # answer and are stored beside it.
+        reasoning = thinking_blocks(response.content)
 
-            end_time = datetime.now()
-            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+        # Calculate token usage
+        input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
+        output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
+        total_tokens = input_tokens + output_tokens
 
-            # Extract response text
-            response_text = _extract_text(response.content)
-            # Thinking blocks (extended / adaptive thinking) stay out of the
-            # answer and are stored beside it.
-            reasoning = thinking_blocks(response.content)
+        # Phase 6.6 (#9): cost from llm_models.yaml (single source of
+        # truth) instead of a hardcoded Sonnet-3.5 estimate that
+        # silently misreports for Opus / Haiku / older snapshots.
+        # Falls back to 0.0 if the model isn't in the catalog.
+        cost_usd = calculate_cost("anthropic", model_name, input_tokens, output_tokens) or 0.0
 
-            # Calculate token usage
-            input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
-            output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
-            total_tokens = input_tokens + output_tokens
+        logger.info(f"🤖 Claude Generation: {model_name}")
+        logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
+        logger.info(f"💰 Cost: ${cost_usd:.4f}")
+        logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-            # Phase 6.6 (#9): cost from llm_models.yaml (single source of
-            # truth) instead of a hardcoded Sonnet-3.5 estimate that
-            # silently misreports for Opus / Haiku / older snapshots.
-            # Falls back to 0.0 if the model isn't in the catalog.
-            cost_usd = calculate_cost("anthropic", model_name, input_tokens, output_tokens) or 0.0
+        # Anthropic stop_reason values: end_turn, max_tokens,
+        # stop_sequence, tool_use, refusal (Claude 3.5+).
+        finish_reason = getattr(response, "stop_reason", None)
+        refusal = finish_reason == "refusal"
 
-            logger.info(f"🤖 Claude Generation: {model_name}")
-            logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
-            logger.info(f"💰 Cost: ${cost_usd:.4f}")
-            logger.info(f"⏱️ Response time: {response_time_ms}ms")
+        return self._create_response_dict(
+            content=response_text,
+            model=model_name,
+            usage={
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
+            metadata={
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_time_ms": response_time_ms,
+                "cost_usd": cost_usd,
+                "provider": "Anthropic",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": refusal,
+                "error_type": None,
+                # Anthropic API does not accept a seed parameter.
+                "seed": None,
+                "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
+            },
+            success=True,
+            error=None,
+            reasoning=reasoning,
+        )
 
-            # Anthropic stop_reason values: end_turn, max_tokens,
-            # stop_sequence, tool_use, refusal (Claude 3.5+).
-            finish_reason = getattr(response, "stop_reason", None)
-            refusal = finish_reason == "refusal"
-
-            return self._create_response_dict(
-                content=response_text,
-                model=model_name,
-                usage={
-                    "prompt_tokens": input_tokens,
-                    "completion_tokens": output_tokens,
-                    "total_tokens": total_tokens,
-                },
-                metadata={
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "response_time_ms": response_time_ms,
-                    "cost_usd": cost_usd,
-                    "provider": "Anthropic",
-                    "finish_reason": finish_reason,
-                    "truncated": derive_truncated(finish_reason),
-                    "refusal": refusal,
-                    "error_type": None,
-                    # Anthropic API does not accept a seed parameter.
-                    "seed": None,
-                    "created_at": end_time.isoformat(),
-                    **self.get_invocation_provenance(),
-                },
-                success=True,
-                error=None,
-                reasoning=reasoning,
-            )
-
-        except Exception as e:
-            return self._create_error_response(e, model_name, "Anthropic")
-
-    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    @retry_provider_call("Anthropic")
     def generate_structured(
         self,
         prompt: str,
@@ -344,80 +303,76 @@ class AnthropicService(BaseAIService):
         if not self.is_available():
             raise ValueError("Anthropic service is not available - check ANTHROPIC_API_KEY configuration")
 
-        try:
-            start_time = datetime.now()
+        start_time = datetime.now()
 
-            # Inject the JSON schema as an instruction onto the system prompt,
-            # mirroring google_service.py:_build_json_prompt. Bilingual hint
-            # because the Falllösung judge prompt is in German; the parser is
-            # robust to either-language preamble that the model might emit.
-            schema_text = json.dumps(json_schema, ensure_ascii=False, indent=2)
-            enhanced_system = (
-                system_prompt
-                + "\n\nRespond with ONLY valid JSON (no markdown fences, no "
-                  "preamble or trailing text) matching this schema. "
-                  "Antworte ausschließlich mit validem JSON nach diesem Schema:\n"
-                + schema_text
-            )
+        # Inject the JSON schema as an instruction onto the system prompt,
+        # mirroring google_service.py:_build_json_prompt. Bilingual hint
+        # because the Falllösung judge prompt is in German; the parser is
+        # robust to either-language preamble that the model might emit.
+        schema_text = json.dumps(json_schema, ensure_ascii=False, indent=2)
+        enhanced_system = (
+            system_prompt
+            + "\n\nRespond with ONLY valid JSON (no markdown fences, no "
+              "preamble or trailing text) matching this schema. "
+              "Antworte ausschließlich mit validem JSON nach diesem Schema:\n"
+            + schema_text
+        )
 
-            response = self.client.messages.create(
-                model=model_name,
-                max_tokens=max_tokens,
-                # See generate(): temperature rides in extra_body since anthropic 1.0.
-                extra_body={"temperature": temperature},
-                system=enhanced_system,
-                messages=[{"role": "user", "content": prompt}],
-            )
+        response = self.client.messages.create(
+            model=model_name,
+            max_tokens=max_tokens,
+            # See generate(): temperature rides in extra_body since anthropic 1.0.
+            extra_body={"temperature": temperature},
+            system=enhanced_system,
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-            end_time = datetime.now()
-            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+        end_time = datetime.now()
+        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            # Extract response text (same shape as generate() at line 180)
-            content = _extract_text(response.content)
-            reasoning = thinking_blocks(response.content)
+        # Extract response text (same shape as generate() at line 180)
+        content = _extract_text(response.content)
+        reasoning = thinking_blocks(response.content)
 
-            input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
-            output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
-            total_tokens = input_tokens + output_tokens
-            cost_usd = (input_tokens * 0.000003) + (output_tokens * 0.000015)
+        input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
+        output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
+        total_tokens = input_tokens + output_tokens
+        cost_usd = (input_tokens * 0.000003) + (output_tokens * 0.000015)
 
-            logger.info(f"🤖 Claude Structured Generation: {model_name}")
-            logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
-            logger.info(f"💰 Cost: ${cost_usd:.4f}")
-            logger.info(f"⏱️ Response time: {response_time_ms}ms")
+        logger.info(f"🤖 Claude Structured Generation: {model_name}")
+        logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
+        logger.info(f"💰 Cost: ${cost_usd:.4f}")
+        logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-            finish_reason = getattr(response, "stop_reason", None)
-            refusal = finish_reason == "refusal"
+        finish_reason = getattr(response, "stop_reason", None)
+        refusal = finish_reason == "refusal"
 
-            return self._create_response_dict(
-                content=content,
-                model=model_name,
-                usage={
-                    "prompt_tokens": input_tokens,
-                    "completion_tokens": output_tokens,
-                    "total_tokens": total_tokens,
-                },
-                metadata={
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "response_time_ms": response_time_ms,
-                    "cost_usd": cost_usd,
-                    "provider": "Anthropic",
-                    "finish_reason": finish_reason,
-                    "truncated": derive_truncated(finish_reason),
-                    "refusal": refusal,
-                    "error_type": None,
-                    "seed": None,
-                    "structured_output": True,
-                    "created_at": end_time.isoformat(),
-                    **self.get_invocation_provenance(),
-                },
-                success=True,
-                reasoning=reasoning,
-            )
-
-        except Exception as e:
-            return self._create_error_response(e, model_name, "Anthropic")
+        return self._create_response_dict(
+            content=content,
+            model=model_name,
+            usage={
+                "prompt_tokens": input_tokens,
+                "completion_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
+            metadata={
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_time_ms": response_time_ms,
+                "cost_usd": cost_usd,
+                "provider": "Anthropic",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": refusal,
+                "error_type": None,
+                "seed": None,
+                "structured_output": True,
+                "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
+            },
+            success=True,
+            reasoning=reasoning,
+        )
 
     async def generate_response(
         self,

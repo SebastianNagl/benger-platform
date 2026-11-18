@@ -1072,10 +1072,12 @@ migration).
     ``timeout_error``. Google's own empty-answer error is False for a
     safety block and True otherwise. Callers that repeat a failed
     generation read this flag instead of ``error_type`` or
-    ``retry_attempts[-1].retryable``. ``error_type`` and each provider's
-    own retry behaviour are unchanged; ``base_service`` also exports
-    ``is_transient_upstream_error``, the DeepInfra / Custom backoff
-    predicate.
+    ``retry_attempts[-1].retryable``. ``error_type`` is unchanged. Every
+    provider's retry decorator backs off on one shared rule,
+    ``base_service.should_back_off(exc)`` (``classify_retryable`` without a
+    malformed answer), so an exhausted quota ends after one call; the sync
+    SDK providers use ``base_service.retry_provider_call``. ``base_service``
+    also exports ``is_transient_upstream_error``.
 """
 
 import os
