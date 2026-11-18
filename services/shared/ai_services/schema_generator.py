@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
 from label_config_repeater import (
+    is_multi_choice,
     REPEATER_TAG,
     repeater_answer_schema,
     repeater_blocks,
@@ -152,6 +153,8 @@ def _parse_element(elem: ET.Element, include_descriptions: bool) -> Optional[Tup
             schema = {"type": "string", "enum": choices}
         else:
             schema = {"type": "string"}
+        if is_multi_choice(elem):
+            schema = {"type": "array", "items": schema}
         is_required = elem.get("required", "").lower() == "true"
         return (name, schema, is_required)
 
@@ -219,8 +222,11 @@ def generate_format_instructions(
         description = field_schema.get("description", "")
         enum_values = field_schema.get("enum")
 
+        item_enum = (field_schema.get("items") or {}).get("enum") if field_type == "array" else None
         if enum_values:
             type_hint = f"one of: {', '.join(enum_values)}"
+        elif item_enum:
+            type_hint = f"list of one or more of: {', '.join(item_enum)}"
         elif field_type == "array" and isinstance(field_schema.get("items"), dict):
             keys = ", ".join(field_schema["items"].get("properties", {}))
             type_hint = f"list with one object per item (keys: {keys})"
@@ -261,8 +267,11 @@ def _generate_example(schema: Dict[str, Any]) -> Dict[str, Any]:
         field_type = field_schema.get("type", "string")
         enum_values = field_schema.get("enum")
 
+        item_enum = (field_schema.get("items") or {}).get("enum") if field_type == "array" else None
         if enum_values:
             example[field_name] = enum_values[0]
+        elif item_enum:
+            example[field_name] = [item_enum[0]]
         elif field_type == "array" and isinstance(field_schema.get("items"), dict):
             # One example object per item (one when the count is open).
             count = field_schema.get("minItems", 1)

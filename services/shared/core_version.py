@@ -1129,7 +1129,9 @@ migration).
     code fence may follow the JSON directly; when neither a fenced block nor
     the whole text decodes, the last JSON object or array in the text is
     read; a ``<Choices choice="multiple">`` (or ``"multiple-dropdown"``)
-    answer may be a list of choices, stored as ``value.choices``.
+    answer may be a list of choices, stored as ``value.choices``; the
+    structured-output schema asks for a list of the choice values there,
+    also inside a Repeater block.
   - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
     expanded for Label Studio, with ``item_counts``) and ``GET
     /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).

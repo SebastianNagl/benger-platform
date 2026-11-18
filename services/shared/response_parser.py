@@ -14,6 +14,7 @@ import jsonschema
 from jsonschema import validate
 
 from label_config_repeater import (
+    is_multi_choice,
     ArrayAnswerError,
     expand_repeaters,
     map_array_answers,
@@ -82,9 +83,6 @@ def prompt_structure_keys(generation_config: Any) -> List[str]:
     return []
 
 
-MULTI_CHOICE_MODES = ("multiple", "multiple-dropdown")
-
-
 def multi_choice_names(label_config: Optional[str]) -> List[str]:
     """The names of the config's ``<Choices>`` that take several choices
     (``choice="multiple"`` or ``"multiple-dropdown"``)."""
@@ -97,7 +95,7 @@ def multi_choice_names(label_config: Optional[str]) -> List[str]:
     return [
         elem.get("name")
         for elem in root.iter("Choices")
-        if elem.get("name") and (elem.get("choice") or "").lower() in MULTI_CHOICE_MODES
+        if elem.get("name") and is_multi_choice(elem)
     ]
 
 

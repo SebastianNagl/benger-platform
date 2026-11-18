@@ -84,6 +84,16 @@ ANSWER_CONTROL_TAGS = (
     "Loesung",
 )
 
+# ``<Choices choice=...>`` modes that take several choices; Label Studio
+# stores their answer as a list (``value.choices``).
+MULTI_CHOICE_MODES = ("multiple", "multiple-dropdown")
+
+
+def is_multi_choice(element: ET.Element) -> bool:
+    """Whether a ``<Choices>`` element takes several choices."""
+    return element.tag == "Choices" and (element.get("choice") or "").lower() in MULTI_CHOICE_MODES
+
+
 # The placeholder of a hand-written slot-name pattern (``credibility_{idx}``).
 PATTERN_INDEX_PLACEHOLDER = "{idx}"
 

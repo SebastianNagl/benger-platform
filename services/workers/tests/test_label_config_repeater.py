@@ -592,6 +592,47 @@ class TestSchema:
         assert [item["case"] for item in example["cases"]] == [1, 2, 3]
         jsonschema.validate(example, _sg.generate_json_schema_from_label_config(DOCKET, task_data=DOCKET_TASK))
 
+    def test_multi_choice_asks_for_a_list_flat_and_in_a_block(self):
+        # Label Studio stores a choice="multiple" answer as a list of the
+        # choice values (value.choices), so the schema asks for a list.
+        cfg = """<View>
+  <Text name="facts" value="$facts"/>
+  <Choices name="issues" toName="facts" choice="multiple">
+    <Choice value="contract"/><Choice value="tort"/>
+  </Choices>
+  <Repeater on="$cases">
+    <Text name="case_{{idx}}" value="$cases[{{idx}}].text"/>
+    <Choices name="topics_{{idx}}" toName="case_{{idx}}" choice="multiple-dropdown">
+      <Choice value="fees"/><Choice value="damages"/>
+    </Choices>
+  </Repeater>
+</View>"""
+        task = {"facts": "f", "cases": [{"text": "a"}, {"text": "b"}]}
+        schema = _sg.generate_json_schema_from_label_config(cfg, task_data=task)
+        good = {"issues": ["contract", "tort"], "cases": [{"topics": ["fees"]}, {"topics": ["fees", "damages"]}]}
+        jsonschema.validate(good, schema)
+        for bad in (
+            {**good, "issues": "contract"},
+            {**good, "issues": ["crime"]},
+            {**good, "cases": [{"topics": "fees"}, {"topics": ["fees"]}]},
+        ):
+            with pytest.raises(jsonschema.ValidationError):
+                jsonschema.validate(bad, schema)
+        text = _sg.generate_format_instructions(cfg, task_data=task)
+        example = json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0])
+        jsonschema.validate(example, schema)
+        assert example["issues"] == ["contract"]
+        parsed = ResponseParser({}, cfg).parse(json.dumps(good), task_data=task)
+        assert parsed.status == "success", parsed.error
+        assert _fields(parsed)["issues"] == {"choices": ["contract", "tort"]}
+        assert _fields(parsed)["topics_1"] == {"choices": ["fees", "damages"]}
+
+    def test_single_choice_keeps_its_string_schema(self):
+        cfg = '<View><Choices name="c" toName="x"><Choice value="a"/></Choices></View>'
+        assert _sg.generate_json_schema_from_label_config(cfg)["properties"]["c"] == {
+            "type": "string", "enum": ["a"],
+        }
+
     def test_repeater_without_controls_adds_nothing(self):
         cfg = '<View><TextArea name="a" toName="x"/><Repeater on="$c"><Text name="t_{{idx}}" value="$c[{{idx}}]"/></Repeater></View>'
         assert list(_sg.generate_json_schema_from_label_config(cfg)["properties"]) == ["a"]
