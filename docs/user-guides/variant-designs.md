@@ -5,7 +5,7 @@ A variant experiment runs the same item in several controlled variants and compa
 - The design is a project-level object (`variant_designs`): the unit that ties the variants of one item together, the factors with their levels, optional per-answer slots, and which controls, gold values and text fields the analysis uses. A design can be checked and frozen.
 - Each task's place in the design is `task.meta.variant`. Label Studio treats `meta` as opaque task data, so the assignment survives import, export and project cloning unchanged.
 
-The database derives three columns from `meta.variant` (`tasks.variant_design`, `variant_unit`, `variant_cell`) and allows one task per cell and unit. A cell compares regardless of the order of its keys, so `{"role": "claimant", "order": "a"}` and `{"order": "a", "role": "claimant"}` are the same cell.
+The database derives three columns from `meta.variant` (`tasks.variant_design`, `variant_unit`, `variant_cell`) and allows one task per cell and unit. The cell is made of the task's within-unit task factors only, so two tasks of one unit that differ only in a `between_units` factor share a cell and the second is refused. A cell compares regardless of the order of its keys, so `{"role": "claimant", "order": "a"}` and `{"order": "a", "role": "claimant"}` are the same cell.
 
 ## The design
 
@@ -65,7 +65,7 @@ The assignment is never shown to a system under test or to an annotator who work
 - balance: every unit holds exactly the expected cells, once each, and the `between_units` factors are constant inside a unit;
 - invariance: within each unit, every pair of tasks differs only where the design allows it, and the report quotes the first offending range of both texts.
 
-`POST .../freeze` runs the same checks and, when all pass, records a content hash over the spec and every task's data and assignment. From then on the tasks' `data` and `meta.variant` are read-only (409), the design takes no new tasks, and its tasks cannot be deleted; tags and other meta stay editable. A frozen design is never thawed: a changed experiment is a new design with a new key. A draft's spec can be replaced (`PUT`, the version goes up by one) as long as every task already in it still fits.
+`POST .../freeze` runs the same checks and, when all pass, records a content hash over the spec and every task's data and assignment. From then on the tasks' `data` and `meta.variant` are read-only (409), the design takes no new tasks, and its tasks cannot be deleted; tags and other meta stay editable. A frozen design is never thawed: a changed experiment is a new design with a new key. A draft's spec can be replaced (`PUT`, the version goes up by one) as long as every task already in it still fits; the tasks' cells are derived again from the new spec, and a spec under which two tasks of one unit would share a cell is refused with 409.
 
 ## Export and import
 

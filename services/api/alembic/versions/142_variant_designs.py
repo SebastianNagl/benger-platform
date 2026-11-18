@@ -16,8 +16,9 @@ while each task's place in it stays in ``task.meta.variant`` (CORE 2.56):
   of ``data`` and ``meta.variant`` of a task whose design is frozen, and new
   tasks in a frozen design (SQLSTATE 23001, message ``variant_design_frozen``).
 - ``uq_tasks_variant_cell``: one task per (project, design, unit, cell),
-  partial on ``variant_design IS NOT NULL``; the cell is jsonb, so reordered
-  keys compare equal.
+  partial on ``variant_design IS NOT NULL``. The cell is the design cell, the
+  factors of ``meta.variant.factors`` the design declares as within-unit task
+  factors; it is jsonb, so reordered keys compare equal.
 - ``fk_tasks_variant_design``: (project_id, variant_design) references
   ``variant_designs (project_id, key)``, not deferrable (a deferred key would
   leave a pending trigger event per inserted task, which breaks a later
@@ -63,12 +64,27 @@ DECLARE
     new_variant jsonb;
     old_variant jsonb;
     design_status text;
+    design_factors jsonb;
+    cell jsonb;
 BEGIN
     IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'variant') = 'object' THEN
         new_variant := new_meta -> 'variant';
         NEW.variant_design := new_variant ->> 'design';
         NEW.variant_unit := new_variant ->> 'unit';
-        NEW.variant_cell := new_variant -> 'factors';
+        cell := new_variant -> 'factors';
+        IF NEW.variant_design IS NOT NULL AND jsonb_typeof(cell) = 'object' THEN
+            SELECT d.spec -> 'factors' INTO design_factors FROM variant_designs d
+             WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design;
+            IF jsonb_typeof(design_factors) = 'array' THEN
+                SELECT COALESCE(jsonb_object_agg(f ->> 'name', cell -> (f ->> 'name')), '{}'::jsonb)
+                  INTO cell
+                  FROM jsonb_array_elements(design_factors) AS f
+                 WHERE COALESCE(f ->> 'source', 'task') = 'task'
+                   AND COALESCE(f ->> 'varies', 'within_unit') = 'within_unit'
+                   AND cell ? (f ->> 'name');
+            END IF;
+        END IF;
+        NEW.variant_cell := cell;
     ELSE
         NEW.variant_design := NULL;
         NEW.variant_unit := NULL;

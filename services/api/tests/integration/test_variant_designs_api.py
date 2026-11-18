@@ -283,6 +283,32 @@ class TestDesignRoutes:
         assert _detail(misfit)["code"] == "variant_design_tasks_misfit"
         assert len(_detail(misfit)["problems"]) == 2  # the two respondent tasks
 
+    async def test_update_spec_derives_the_cells_again(
+        self, api, async_test_client, async_test_db, world
+    ):
+        await _create_design(async_test_client, world)
+        tasks = await _add_tasks(async_test_db, world["project"])
+        url = f"/api/projects/{world['project'].id}/variant-designs/swap"
+        within = json.loads(json.dumps(SPEC))
+        within["factors"][1] = {"name": "level", "type": "numeric", "levels": [1, 2]}
+        no_cell = json.loads(json.dumps(SPEC))
+        no_cell["factors"][0]["varies"] = "between_units"
+        with _as_user(world["admin"]):
+            ok = await api("put", url, json={"spec": within})
+        assert ok.status_code == 200, ok.text
+        cell = (
+            await async_test_db.execute(
+                text("SELECT variant_cell FROM tasks WHERE id = :id"), {"id": tasks[0].id}
+            )
+        ).scalar_one()
+        assert cell == {"role": "claimant", "level": 1}
+        with _as_user(world["admin"]):
+            shared = await api("put", url, json={"spec": no_cell})
+            after = await api("get", url)
+        assert shared.status_code == 409, shared.text
+        assert _detail(shared)["code"] == "variant_cell_duplicate"
+        assert after.json()["version"] == 2
+
     async def test_delete_draft_only_when_unused(self, api, async_test_client, async_test_db, world):
         await _create_design(async_test_client, world)
         await _create_design(async_test_client, world, key="unused")
@@ -459,6 +485,29 @@ class TestWritePaths:
         assert "uq_tasks_variant_cell" in str(exc.value)
         await async_test_db.rollback()
 
+    async def test_a_between_unit_factor_does_not_make_a_new_cell(
+        self, api, async_test_client, async_test_db, world
+    ):
+        await _create_design(async_test_client, world)
+        tasks = await _add_tasks(async_test_db, world["project"])
+        cell = (
+            await async_test_db.execute(
+                text("SELECT variant_cell FROM tasks WHERE id = :id"), {"id": tasks[0].id}
+            )
+        ).scalar_one()
+        assert cell == {"role": "claimant"}
+        twin = tasks[1].meta["variant"]
+        for factors in ({"role": "claimant", "level": 2}, {"level": 2, "role": "claimant"}):
+            clash = {**twin, "factors": factors, "spans": tasks[0].meta["variant"]["spans"]}
+            with _as_user(world["admin"]):
+                resp = await api(
+                    "patch",
+                    f"/api/projects/tasks/{tasks[1].id}/metadata",
+                    json={"variant": clash},
+                )
+            assert resp.status_code == 409, (factors, resp.text)
+            assert _detail(resp)["code"] == "variant_cell_duplicate"
+
     async def test_data_edit_that_breaks_a_span_is_refused(
         self, api, async_test_client, async_test_db, world
     ):
@@ -481,7 +530,7 @@ class TestWritePaths:
                 {"id": tasks[0].id},
             )
         ).one()
-        assert row == ("swap", "u1", {"role": "claimant", "level": 1})
+        assert row == ("swap", "u1", {"role": "claimant"})
         # Writing the columns directly is overwritten by the trigger.
         await async_test_db.execute(
             text("UPDATE tasks SET variant_unit = 'forged' WHERE id = :id"), {"id": tasks[0].id}

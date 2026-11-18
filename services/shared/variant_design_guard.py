@@ -22,7 +22,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, select, text
 
 import variant_designs as vd
 
@@ -456,7 +456,9 @@ def update_design_spec(
     set_provenance: bool = False,
 ):
     """Replace the spec of a draft (caller commits). Every task already in
-    the design must fit the new spec, so stored assignments stay valid."""
+    the design must fit the new spec, so stored assignments stay valid, and
+    the stored cells are derived again from it (two tasks that would share
+    a cell refuse the update with a unique violation of ``CELL_INDEX``)."""
     design = load_design(db, project_id, key, lock=True)
     if design is None:
         raise VariantDesignError(404, "variant_design_not_found", f"No variant design {key!r}.")
@@ -496,5 +498,9 @@ def update_design_spec(
     if set_provenance:
         design.provenance = provenance
     db.flush()
+    db.execute(
+        text("UPDATE tasks SET meta = meta WHERE project_id = :p AND variant_design = :k"),
+        {"p": project_id, "k": key},
+    )
     return design
 

@@ -388,8 +388,10 @@ class Task(Base):
     # ``meta.variant`` (``design``, ``unit``, ``factors``) on every write: the
     # trigger of :data:`TASKS_VARIANT_DDL` (migration 142) overwrites whatever
     # a writer sends, so ``meta.variant`` stays the single source of truth.
-    # ``uq_tasks_variant_cell`` allows one task per cell and unit (the jsonb
-    # cell compares regardless of key order); ``fk_tasks_variant_design``
+    # ``variant_cell`` holds the design cell: the factors of the assignment
+    # that the design declares as within-unit task factors (``{}`` when it has
+    # none). ``uq_tasks_variant_cell`` allows one task per cell and unit (the
+    # jsonb cell compares regardless of key order); ``fk_tasks_variant_design``
     # makes the design exist. Never write these columns.
     variant_design = Column(
         String(100), nullable=True, server_default=sa.FetchedValue(),
@@ -531,12 +533,27 @@ DECLARE
     new_variant jsonb;
     old_variant jsonb;
     design_status text;
+    design_factors jsonb;
+    cell jsonb;
 BEGIN
     IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'variant') = 'object' THEN
         new_variant := new_meta -> 'variant';
         NEW.variant_design := new_variant ->> 'design';
         NEW.variant_unit := new_variant ->> 'unit';
-        NEW.variant_cell := new_variant -> 'factors';
+        cell := new_variant -> 'factors';
+        IF NEW.variant_design IS NOT NULL AND jsonb_typeof(cell) = 'object' THEN
+            SELECT d.spec -> 'factors' INTO design_factors FROM variant_designs d
+             WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design;
+            IF jsonb_typeof(design_factors) = 'array' THEN
+                SELECT COALESCE(jsonb_object_agg(f ->> 'name', cell -> (f ->> 'name')), '{}'::jsonb)
+                  INTO cell
+                  FROM jsonb_array_elements(design_factors) AS f
+                 WHERE COALESCE(f ->> 'source', 'task') = 'task'
+                   AND COALESCE(f ->> 'varies', 'within_unit') = 'within_unit'
+                   AND cell ? (f ->> 'name');
+            END IF;
+        END IF;
+        NEW.variant_cell := cell;
     ELSE
         NEW.variant_design := NULL;
         NEW.variant_unit := NULL;
