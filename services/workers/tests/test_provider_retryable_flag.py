@@ -410,6 +410,14 @@ class TestClassifierRules:
     def test_non_retryable_statuses(self, status):
         assert classify_retryable(_aiohttp_status(status, "x")) is False
 
+    @pytest.mark.parametrize("status", [200, 302])
+    def test_non_error_status_does_not_decide(self, status):
+        # A status below 400 is not an HTTP error: the error body decides.
+        overloaded = _anthropic_status(anthropic.APIStatusError, status, "Overloaded", "overloaded_error")
+        invalid = _anthropic_status(anthropic.APIStatusError, status, "bad input", "invalid_request_error")
+        assert classify_retryable(overloaded) is True
+        assert classify_retryable(invalid) is False
+
     def test_deepinfra_decorator_still_retries_exhausted_quota(self):
         # The flag only describes the error: DeepInfra's backoff predicate
         # keeps backing off on every 429, as before.
@@ -454,3 +462,46 @@ class TestGoogleEmptyResponse:
         assert result["success"] is False
         assert result["metadata"]["error_type"] == "api_error"
         assert result["metadata"]["retryable"] is True
+
+
+def _anthropic_sse_client(events):
+    """A real Anthropic client whose /v1/messages answers HTTP 200 with the
+    given server-sent events, as the API does when a stream fails midway."""
+    import httpx2
+
+    payload = "".join(f"event: {name}\ndata: {data}\n\n" for name, data in events)
+
+    def handler(request):
+        return httpx2.Response(
+            200, headers={"content-type": "text/event-stream"}, content=payload.encode()
+        )
+
+    return anthropic.Anthropic(
+        api_key="sk-ant-test",
+        max_retries=0,
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler)),
+    )
+
+
+_MESSAGE_START = (
+    '{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant",'
+    '"model":"claude-sonnet-4-5","content":[],"stop_reason":null,"stop_sequence":null,'
+    '"usage":{"input_tokens":10,"output_tokens":1}}}'
+)
+
+
+@pytest.mark.parametrize(
+    "error_type, retryable",
+    [("overloaded_error", True), ("api_error", True), ("invalid_request_error", False)],
+)
+def test_anthropic_midstream_error_after_200(error_type, retryable):
+    # A large max_tokens takes the messages.stream path; the API has already
+    # answered 200 when it sends the error event.
+    error_event = '{"type":"error","error":{"type":"%s","message":"Overloaded"}}' % error_type
+    svc = anthropic_mod.AnthropicService(api_key="sk-ant-test")
+    svc.client = _anthropic_sse_client([("message_start", _MESSAGE_START), ("error", error_event)])
+
+    result = svc.generate("q", "s", model_name="claude-sonnet-4-5", max_tokens=20000)
+
+    assert result["success"] is False
+    assert result["metadata"]["retryable"] is retryable

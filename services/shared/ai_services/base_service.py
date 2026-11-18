@@ -186,21 +186,44 @@ EXHAUSTED_QUOTA_MARKERS = ("insufficient_quota", "billing_hard_limit_reached")
 # (lock contention) and rate limit; every 5xx is retryable as well.
 RETRYABLE_HTTP_STATUSES = frozenset({408, 409, 429})
 
+# Error types in the body of an Anthropic error event that a later attempt
+# can get past. A stream that already opened with HTTP 200 reports a mid-stream
+# failure only through this type, so the status says nothing about it.
+RETRYABLE_PROVIDER_ERROR_TYPES = frozenset(
+    {"overloaded_error", "api_error", "rate_limit_error", "timeout_error"}
+)
+
 _HTTP_STATUS_PREFIX = re.compile(r"\s*HTTP (\d{3})\b")
 
 
+def _is_error_status(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and 400 <= value <= 599
+
+
 def _http_status(exc: BaseException) -> Optional[int]:
-    """The HTTP status an SDK or our own HTTP path attached to ``exc``:
-    ``status_code`` (OpenAI, Anthropic, Mistral, Cohere, Grok), ``code``
-    (google.genai), ``status`` (RetryableUpstreamError, aiohttp), or the
-    ``HTTP <status>:`` prefix of the plain errors the DeepInfra / Custom
-    paths raise. None when the error is not an HTTP response."""
+    """The HTTP error status an SDK or our own HTTP path attached to
+    ``exc``: ``status_code`` (OpenAI, Anthropic, Mistral, Cohere, Grok),
+    ``code`` (google.genai), ``status`` (RetryableUpstreamError, aiohttp),
+    or the ``HTTP <status>:`` prefix of the plain errors the DeepInfra /
+    Custom paths raise. Only 4xx and 5xx count: None when the error carries
+    no such status, as an SDK error raised mid-stream from a 200 response."""
     for attr in ("status_code", "code", "status"):
         value = getattr(exc, attr, None)
-        if isinstance(value, int) and not isinstance(value, bool) and 100 <= value <= 599:
+        if _is_error_status(value):
             return value
     match = _HTTP_STATUS_PREFIX.match(str(exc))
-    return int(match.group(1)) if match else None
+    if match and _is_error_status(int(match.group(1))):
+        return int(match.group(1))
+    return None
+
+
+def _provider_error_type(exc: BaseException) -> Optional[str]:
+    """The ``error.type`` of an Anthropic-style error body
+    (``{"type": "error", "error": {"type": ...}}``), or None."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    error_type = error.get("type") if isinstance(error, dict) else None
+    return error_type if isinstance(error_type, str) else None
 
 
 def _is_exhausted_quota(exc: BaseException) -> bool:
@@ -218,9 +241,12 @@ def classify_retryable(exc: BaseException) -> bool:
     * exhausted quota or billing limit (:data:`EXHAUSTED_QUOTA_MARKERS`)
       -> False, even though the provider sends it as HTTP 429;
     * a host that does not resolve -> False (misconfigured endpoint);
-    * an HTTP status -> True for 408, 409, 429 and 5xx, False for every
-      other 4xx (invalid or missing key, unknown model 404, bad request,
-      content filter, context length);
+    * an HTTP error status -> True for 408, 409, 429 and 5xx, False for
+      every other 4xx (invalid or missing key, unknown model 404, bad
+      request, content filter, context length);
+    * no error status, but an error body whose ``error.type`` is in
+      :data:`RETRYABLE_PROVIDER_ERROR_TYPES` -> True (an Anthropic stream
+      that fails after HTTP 200, e.g. a mid-stream ``overloaded_error``);
     * a timeout, a connection failure or a :class:`RetryableUpstreamError`
       -> True;
     * no status: the :func:`classify_error_type` class decides, True for
@@ -241,6 +267,8 @@ def classify_retryable(exc: BaseException) -> bool:
     status = _http_status(exc)
     if status is not None:
         return status in RETRYABLE_HTTP_STATUSES or status >= 500
+    if _provider_error_type(exc) in RETRYABLE_PROVIDER_ERROR_TYPES:
+        return True
     if is_transient_upstream_error(exc):
         return True
     names = [cls.__name__.lower() for cls in type(exc).__mro__]
