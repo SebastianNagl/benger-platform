@@ -6,6 +6,7 @@
 
 'use client'
 
+import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Textarea } from '@/components/shared/Textarea'
@@ -13,6 +14,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import { isExamNotReadyError } from '@/lib/api/errors'
 import { useProjectStore } from '@/stores/projectStore'
 import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
@@ -42,6 +44,8 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
   const [editedMetadata, setEditedMetadata] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  // The read was refused with 403 exam_not_ready (exam not released yet).
+  const [examNotReady, setExamNotReady] = useState(false)
 
   // Load project if not already loaded
   useEffect(() => {
@@ -58,6 +62,10 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
         setTask(response)
         setMetadata(response.meta || {})
       } catch (error) {
+        if (isExamNotReadyError(error)) {
+          setExamNotReady(true)
+          return
+        }
         console.error('Failed to fetch task:', error)
         addToast(t('tasks.metadata.loadFailed'), 'error')
       } finally {
@@ -128,6 +136,10 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
         </div>
       </div>
     )
+  }
+
+  if (examNotReady) {
+    return <ExamNotReadyNotice projectId={projectId} />
   }
 
   if (!task) {

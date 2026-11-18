@@ -7173,6 +7173,10 @@
       "closedReadOnly": "This project has closed — view only, no further changes.",
       "attemptedReadOnly": "Past submission. View only, no further changes."
     },
+    "examNotReady": {
+      "title": "Not released yet",
+      "description": "This exam is not released yet because its grading sheet is still being checked. Please come back later."
+    },
     "textAreaPlaceholder": "Enter your answer ..."
   },
   "annotationTab": {

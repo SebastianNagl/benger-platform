@@ -7,6 +7,7 @@
 
 import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
 import { ServerDraftSyncWarning } from '@/components/labeling/ServerDraftSyncWarning'
+import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -87,6 +88,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     labelConfigVersion,
     allTasksCompleted,
     resetAnnotationCompletion,
+    examNotReadyProjectId,
   } = useProjectStore()
   // Modern exam layout (extended, per-user preference): widens the content
   // column and opts the interface into the ModernExamLayout slot. Inactive
@@ -760,6 +762,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         </div>
       </div>
     )
+  }
+
+  // The server refused the task reads with 403 exam_not_ready: the exam is
+  // held closed until its grading sheet is checked. Say so instead of "no
+  // tasks available" (the store turns that refusal into an empty task list).
+  if (examNotReadyProjectId === projectId) {
+    return <ExamNotReadyNotice projectId={projectId} />
   }
 
   // Show initialization error if it occurred
