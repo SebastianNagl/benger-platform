@@ -498,13 +498,3 @@ def update_design_spec(
     db.flush()
     return design
 
-
-def design_task_count(db, project_id: str, key: str) -> int:
-    from sqlalchemy import func
-
-    Task, _ = _models()
-    return db.execute(
-        select(func.count(Task.id)).where(
-            Task.project_id == project_id, Task.variant_design == key
-        )
-    ).scalar_one()

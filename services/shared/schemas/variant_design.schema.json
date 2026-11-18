@@ -1,0 +1,195 @@
+{
+"$schema": "https://json-schema.org/draft/2020-12/schema",
+"$id": "urn:benger:schema:variant-design:1",
+"title": "Variant design",
+"description": "The declared, freezable design of a variant experiment: the unit that ties variants together, the factors with their levels, optional per-answer slots, the outcome, gold and invariance bindings. Each task's place in the design lives in task.meta.variant (see task_variant.schema.json). Rules that JSON Schema cannot express (unique names, levels matching the factor type, references between sections) are checked by variant_designs.validate_spec.",
+"type": "object",
+"additionalProperties": false,
+"required": ["schema_version", "unit", "factors"],
+"properties": {
+"schema_version": {"const": 1},
+"title": {"type": "string", "maxLength": 200},
+"description": {"type": "string", "maxLength": 10000},
+"unit": {
+"description": "What ties the variants of one item together. Its value per task is meta.variant.unit; analyses use it as the fixed effect or cluster.",
+"type": "object",
+"additionalProperties": false,
+"required": ["name"],
+"properties": {
+"name": {"$ref": "#/$defs/name"},
+"description": {"type": "string", "maxLength": 2000}
+}
+},
+"factors": {
+"type": "array",
+"minItems": 1,
+"maxItems": 64,
+"items": {"$ref": "#/$defs/factor"}
+},
+"cells": {
+"description": "The cells every unit must hold, for designs that are not the full product of the levels of their within-unit task factors. Each cell names every within-unit task factor.",
+"type": "array",
+"minItems": 1,
+"maxItems": 10000,
+"items": {
+"type": "object",
+"maxProperties": 64,
+"additionalProperties": {"$ref": "#/$defs/level"}
+}
+},
+"slots": {"$ref": "#/$defs/slots"},
+"outcomes": {
+"type": "array",
+"maxItems": 256,
+"items": {"$ref": "#/$defs/outcome"}
+},
+"gold": {
+"type": "array",
+"maxItems": 256,
+"items": {"$ref": "#/$defs/gold"}
+},
+"invariance": {"$ref": "#/$defs/invariance"}
+},
+"$defs": {
+"name": {
+"type": "string",
+"pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+},
+"level": {
+"anyOf": [
+{"type": "string", "maxLength": 200},
+{"type": "number"},
+{"type": "boolean"}
+]
+},
+"data_path": {
+"description": "A path into task.data: keys separated by dots, a non-negative integer indexes a list.",
+"type": "string",
+"minLength": 1,
+"maxLength": 300,
+"pattern": "^[^.]+(\\.[^.]+)*$"
+},
+"factor": {
+"type": "object",
+"additionalProperties": false,
+"required": ["name", "type"],
+"properties": {
+"name": {"$ref": "#/$defs/name"},
+"type": {"enum": ["nominal", "ordinal", "numeric", "boolean"]},
+"levels": {
+"description": "Allowed values; required for nominal and ordinal factors and for every within-unit task factor unless the design lists its cells. Ordinal levels are given in order.",
+"type": "array",
+"minItems": 1,
+"maxItems": 1000,
+"uniqueItems": true,
+"items": {"$ref": "#/$defs/level"}
+},
+"minimum": {"type": "number"},
+"maximum": {"type": "number"},
+"baseline": {"$ref": "#/$defs/level"},
+"role": {
+"enum": ["manipulated", "counterbalanced", "blocking", "nuisance"],
+"default": "manipulated"
+},
+"source": {
+"description": "Where the factor's value comes from: the task (meta.variant.factors), the prompt structure, the system (model plus parameter profile) or the run index. Only task factors are stored per task.",
+"enum": ["task", "structure", "system", "run"],
+"default": "task"
+},
+"varies": {
+"description": "within_unit: the variants of one unit differ in it. between_units: constant inside a unit (for example a difficulty level), so it is not part of the cells a unit must hold.",
+"enum": ["within_unit", "between_units"],
+"default": "within_unit"
+},
+"description": {"type": "string", "maxLength": 2000}
+}
+},
+"slots": {
+"description": "Several records inside one answer (one per person or case), each with its own factors (meta.variant.slots).",
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"count": {"type": "integer", "minimum": 1, "maximum": 1000},
+"count_from": {
+"description": "A task.data path holding a list; the task has one slot per list item.",
+"$ref": "#/$defs/data_path"
+},
+"index_base": {"enum": [0, 1], "default": 1},
+"factors": {
+"type": "array",
+"maxItems": 64,
+"items": {"$ref": "#/$defs/factor"}
+},
+"description": {"type": "string", "maxLength": 2000}
+}
+},
+"control": {
+"description": "A label-config control name; per-slot outcomes put {idx} where the slot index goes (risk_{idx} for risk_1, risk_2, ...).",
+"type": "string",
+"minLength": 1,
+"maxLength": 200
+},
+"outcome": {
+"type": "object",
+"additionalProperties": false,
+"required": ["name"],
+"properties": {
+"name": {"$ref": "#/$defs/name"},
+"control": {"$ref": "#/$defs/control"},
+"per_slot": {"type": "boolean", "default": false},
+"by_factor": {
+"description": "The control that holds the outcome depends on a factor level (one control per level).",
+"type": "object",
+"additionalProperties": false,
+"required": ["factor", "controls"],
+"properties": {
+"factor": {"$ref": "#/$defs/name"},
+"controls": {
+"type": "object",
+"minProperties": 1,
+"additionalProperties": {"$ref": "#/$defs/control"}
+}
+}
+},
+"description": {"type": "string", "maxLength": 2000}
+},
+"oneOf": [
+{"required": ["control"], "not": {"required": ["by_factor"]}},
+{"required": ["by_factor"], "not": {"required": ["control"]}}
+]
+},
+"gold": {
+"description": "A reference value in task.data (never sent to a system under test).",
+"type": "object",
+"additionalProperties": false,
+"required": ["name", "path"],
+"properties": {
+"name": {"$ref": "#/$defs/name"},
+"path": {"$ref": "#/$defs/data_path"},
+"required": {"type": "boolean", "default": true},
+"description": {"type": "string", "maxLength": 2000}
+}
+},
+"invariance": {
+"description": "What may differ between the tasks of one unit. Every task.data value not covered here must be identical across a unit.",
+"type": "object",
+"additionalProperties": false,
+"properties": {
+"fields": {
+"description": "Data paths whose text may differ only inside the character spans each task declares (meta.variant.spans and slots[].spans).",
+"type": "array",
+"maxItems": 256,
+"uniqueItems": true,
+"items": {"$ref": "#/$defs/data_path"}
+},
+"free": {
+"description": "Data paths that may differ freely (for example a gold value that depends on the cell).",
+"type": "array",
+"maxItems": 256,
+"uniqueItems": true,
+"items": {"$ref": "#/$defs/data_path"}
+}
+}
+}
+}
+}
