@@ -627,6 +627,28 @@ class TestSchema:
         assert _fields(parsed)["issues"] == {"choices": ["contract", "tort"]}
         assert _fields(parsed)["topics_1"] == {"choices": ["fees", "damages"]}
 
+    def test_multi_choice_without_static_choices_asks_for_strings(self):
+        # Dynamic choices come from task data (value="$opts"), so the schema
+        # knows no enum: the field is a list of strings, flat and per item.
+        cfg = """<View>
+  <Text name="facts" value="$facts"/>
+  <Choices name="tags" toName="facts" choice="multiple" value="$opts"/>
+  <Repeater on="$cases">
+    <Text name="case_{{idx}}" value="$cases[{{idx}}].text"/>
+    <Choices name="labels_{{idx}}" toName="case_{{idx}}" choice="multiple" value="$opts"/>
+  </Repeater>
+</View>"""
+        task = {"facts": "f", "opts": [{"value": "x"}], "cases": [{"text": "a"}]}
+        schema = _sg.generate_json_schema_from_label_config(cfg, task_data=task)
+        text = _sg.generate_format_instructions(cfg, task_data=task)
+        assert "- **tags**: list of strings" in text
+        example = json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0])
+        assert example["tags"] == ["..."]
+        assert example["cases"] == [{"labels": ["..."]}]
+        jsonschema.validate(example, schema)
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({**example, "tags": [{}]}, schema)
+
     def test_single_choice_keeps_its_string_schema(self):
         cfg = '<View><Choices name="c" toName="x"><Choice value="a"/></Choices></View>'
         assert _sg.generate_json_schema_from_label_config(cfg)["properties"]["c"] == {

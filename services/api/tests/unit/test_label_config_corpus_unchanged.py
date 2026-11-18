@@ -8,6 +8,19 @@ structured-output schema generator returned for each of them on ``dev``
 before the Repeater work. The test recomputes those outputs with the current
 code, with and without task data, and requires them to be identical.
 
+One deliberate exception: the schema generator used to ask a
+``<Choices choice="multiple">`` field for a single string, so a model could
+pick only one option. It now asks for a list of the choice values, and the
+seven multi-choice entries were regenerated for that change alone: entry 6
+(``api/init_complete.py``), 92 (``api/tests/unit/test_evaluation_config.py``),
+184 (``api/tests/unit/test_pure_functions_coverage.py``), 210
+(``frontend/e2e/helpers/test-fixtures.ts``), 227 and 240
+(``frontend/e2e/user-workflows/label-config-updates.spec.ts``) and 290
+(``frontend/src/lib/labelConfig/__tests__/parser.test.ts``). Only their
+``generation_schema``, ``generation_schema_loose`` and
+``format_instructions`` changed; their parse, field and validator outputs are
+the ones from before the Repeater work.
+
 Regenerate the golden outputs only for a deliberate behaviour change:
 ``python tests/unit/test_label_config_corpus_unchanged.py --write`` from
 ``services/api`` (with ``services/api`` and ``services/shared`` on

@@ -227,7 +227,9 @@ def generate_format_instructions(
             type_hint = f"one of: {', '.join(enum_values)}"
         elif item_enum:
             type_hint = f"list of one or more of: {', '.join(item_enum)}"
-        elif field_type == "array" and isinstance(field_schema.get("items"), dict):
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "string":
+            type_hint = "list of strings"
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "object":
             keys = ", ".join(field_schema["items"].get("properties", {}))
             type_hint = f"list with one object per item (keys: {keys})"
         elif field_type == "integer":
@@ -272,7 +274,9 @@ def _generate_example(schema: Dict[str, Any]) -> Dict[str, Any]:
             example[field_name] = enum_values[0]
         elif item_enum:
             example[field_name] = [item_enum[0]]
-        elif field_type == "array" and isinstance(field_schema.get("items"), dict):
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "string":
+            example[field_name] = ["..."]
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "object":
             # One example object per item (one when the count is open).
             count = field_schema.get("minItems", 1)
             items = [_generate_example(field_schema["items"]) for _ in range(count)]
