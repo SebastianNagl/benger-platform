@@ -417,7 +417,9 @@ async def _load_suite_run(
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if run is None:
+            raise _not_found("Suite run")
     return assessment, run
 
 
