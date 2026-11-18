@@ -1340,7 +1340,7 @@
       "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque combinaison tâche-modèle doit être générée. Les coûts sont multipliés en conséquence.",
       "defaultRunsPerTask": "Nombre d'exécutions par tâche par défaut",
-      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 25."
+      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 100."
     },
     "settings": {
       "title": "Paramètres",

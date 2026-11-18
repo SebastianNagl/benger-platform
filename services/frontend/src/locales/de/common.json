@@ -1340,7 +1340,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
       "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
-      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25."
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 100."
     },
     "settings": {
       "title": "Einstellungen",

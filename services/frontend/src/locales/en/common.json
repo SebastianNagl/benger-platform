@@ -1340,7 +1340,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
       "defaultRunsPerTask": "Default runs per task",
-      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 25."
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 100."
     },
     "settings": {
       "title": "Settings",
