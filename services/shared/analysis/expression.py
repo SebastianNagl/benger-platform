@@ -606,6 +606,8 @@ class _Evaluator:
                 if len(nums) == 1:
                     return _V("num", np.round(nums[0]))
                 digits = nums[1]
+                if self.n == 0:
+                    return _V("num", np.round(nums[0]))
                 if np.isnan(digits).any() or not np.all(digits == digits[0]) or digits[0] != int(digits[0]):
                     raise ExpressionError("round() needs a constant whole number of digits")
                 return _V("num", np.round(nums[0], int(digits[0])))

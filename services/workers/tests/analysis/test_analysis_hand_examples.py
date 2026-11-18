@@ -17,14 +17,16 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from analysis.frame import build_frame
-from analysis.inference import mde, tost
+from analysis.inference import linear_contrast, mde, ratio_contrast, tost
+from analysis.ols import Fit
 from analysis.multiplicity import adjust
 from analysis.observations import observation_from_record
 from analysis.runner import run_spec
-from analysis.spec import normalize_spec
+from analysis.spec import DEFAULT_CONVENTIONS, normalize_spec
 
 CELLS = {("u1", "s1"): (10, 14), ("u1", "s2"): (20, 26), ("u2", "s1"): (30, 31), ("u2", "s2"): (40, 49)}
 
@@ -328,6 +330,33 @@ def test_ratio_contrast_delta_method():
         ],
     )
     assert _run(gated).estimates[0]["status"] == "not_estimable"
+
+
+def _two_way_fit(vcov):
+    # V1 + V2 - V12 need not be positive semi-definite: [[1, 2], [2, 1]] has
+    # the eigenvalues 3 and -1
+    return Fit(names=["a", "b"], beta=np.array([1.0, 2.0]), vcov=np.array(vcov, dtype=float),
+               n=10, k=2, df_resid=8, rank=2, vcov_type="cluster", ssc="none", n_clusters=[5, 4])
+
+
+def test_negative_or_non_finite_contrast_variance_is_never_significant():
+    conventions = {**DEFAULT_CONVENTIONS, "degenerate_p": "null_match"}
+    ratio = {"numerator": {"weights": {"a": 1}}, "denominator": {"weights": {"b": 1}}, "null": 0}
+    # a / b = 0.5, gradient (1/2, -1/4): 0.25 - 4 * 0.125 + 0.0625 = -0.1875
+    row = ratio_contrast(_two_way_fit([[1, 2], [2, 1]]), ratio, conventions)
+    assert row["estimate"] == 0.5 and row["status"] == "negative_variance" and "negative" in row["message"]
+    assert math.isnan(row["std_error"]) and math.isnan(row["p_value"])
+    assert row["ci_lower"] is None and row["ci_upper"] is None
+    # a - b: 1 - 4 + 1 = -2
+    row = linear_contrast(_two_way_fit([[1, 2], [2, 1]]), {"weights": {"a": 1, "b": -1}}, conventions)
+    assert row["status"] == "negative_variance" and math.isnan(row["p_value"])
+    for contrast, fn in (({"weights": {"a": 1}}, linear_contrast), (ratio, ratio_contrast)):
+        row = fn(_two_way_fit([[float("nan"), 0], [0, 1]]), contrast, conventions)
+        assert row["status"] == "not_estimable" and "not finite" in row["message"]
+        assert math.isnan(row["p_value"]) and row["ci_lower"] is None
+    # a zero variance stays degenerate, with the null_match p-value
+    row = ratio_contrast(_two_way_fit([[0, 0], [0, 0]]), ratio, conventions)
+    assert row["status"] == "degenerate" and row["std_error"] == 0.0 and row["p_value"] == 0.0
 
 
 def test_scopes_and_families():

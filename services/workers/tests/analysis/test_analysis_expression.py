@@ -87,6 +87,11 @@ def test_text_results_and_number_conversion():
     assert _eval("coalesce(t, 'none')", t=["a", None])[1] == ["a", "none"]
 
 
+def test_round_with_digits_over_an_empty_column():
+    kind, out = parse_expression("round(x, 2)").evaluate({"x": np.array([], dtype=float)}, 0)
+    assert kind == "num" and out.shape == (0,)
+
+
 def test_if_is_only_renamed_outside_strings():
     kind, out = _eval("if(t == 'if(', 1, 0)", t=["if(", "x"])
     _same(out, [1.0, 0.0])

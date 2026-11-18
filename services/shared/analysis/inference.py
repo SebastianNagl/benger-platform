@@ -164,6 +164,17 @@ def mde(se: float, power: float, alpha: float, tests: int) -> Optional[float]:
     return (z_alpha + z_power) * se
 
 
+def _standard_error(var: float) -> Tuple[float, str, Optional[str]]:
+    """``(se, status, message)`` of a contrast with variance ``var``."""
+    if not math.isfinite(var):
+        return math.nan, "not_estimable", "the variance of this contrast is not finite"
+    if var < 0:
+        return math.nan, "negative_variance", "the variance of this contrast is negative (two-way cluster variance)"
+    if var == 0:
+        return 0.0, "degenerate", "the contrast has no sampling variance"
+    return math.sqrt(var), "ok", None
+
+
 def _base_row(fit: Fit, conventions: Mapping[str, Any]) -> Dict[str, Any]:
     return {
         "n_obs": fit.n,
@@ -189,8 +200,7 @@ def linear_contrast(
         row.update(status="not_estimable", message=reason)
         return row
     est = float(L @ fit.beta)
-    var = float(L @ fit.vcov @ L)
-    se = math.sqrt(var) if var >= 0 else math.nan
+    se, status, message = _standard_error(float(L @ fit.vcov @ L))
     df = fit.df_t if conventions["inference"] == "t" else None
     p, stat = _p_value(est, se, row["null_value"], conventions, df)
     crit = _critical(conventions, df)
@@ -202,12 +212,10 @@ def linear_contrast(
         ci_level=float(conventions["ci_level"]),
         ci_lower=est - crit * se if math.isfinite(se) else None,
         ci_upper=est + crit * se if math.isfinite(se) else None,
-        status="ok" if math.isfinite(se) and se > 0 else ("degenerate" if se == 0 else "negative_variance"),
+        status=status,
     )
-    if row["status"] == "negative_variance":
-        row["message"] = "the variance of this contrast is negative (two-way cluster variance)"
-    elif row["status"] == "degenerate":
-        row["message"] = "the contrast has no sampling variance"
+    if message:
+        row["message"] = message
     if contrast.get("tost"):
         row["tost"] = [
             tost(est, se, tuple(t["bounds"]), float(t["level"]), conventions["inference"], df)
@@ -252,8 +260,7 @@ def ratio_contrast(
         return row
     est = scale * A / B
     grad = scale * (a / B - c * A / B**2)
-    var = float(grad @ fit.vcov @ grad)
-    se = math.sqrt(max(var, 0.0))
+    se, status, message = _standard_error(float(grad @ fit.vcov @ grad))
     df = fit.df_t if conventions["inference"] == "t" else None
     crit = _critical(conventions, df)
     null = contrast.get("null")
@@ -267,8 +274,10 @@ def ratio_contrast(
         p_value=p,
         null_value=float(null) if null is not None else None,
         ci_level=float(conventions["ci_level"]),
-        ci_lower=est - crit * se,
-        ci_upper=est + crit * se,
-        status="ok" if se > 0 else "degenerate",
+        ci_lower=est - crit * se if math.isfinite(se) else None,
+        ci_upper=est + crit * se if math.isfinite(se) else None,
+        status=status,
     )
+    if message:
+        row["message"] = message
     return row
