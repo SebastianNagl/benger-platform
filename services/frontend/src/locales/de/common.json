@@ -9258,7 +9258,9 @@
         "responseFormat": "Antwortformat",
         "parameters": "Anfrageparameter",
         "retried": "Format-Nachfrage: {count} Anfragen gesendet",
-        "firstAnswer": "Erste Antwort"
+        "firstAnswer": "Erste Antwort",
+        "loading": "Lade die Anfrage…",
+        "loadFailed": "Die Anfrage konnte nicht geladen werden."
       }
     }
   },

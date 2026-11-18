@@ -454,47 +454,72 @@ describe('GenerationRunDetailPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the request the provider client sent, block for block', async () => {
-    ;(apiClient.get as jest.Mock).mockResolvedValue({
-      ...baseDetail,
-      children: [
+  /** apiClient.get answering the detail and the trial-request routes. */
+  const routeGet = (
+    detail: Record<string, unknown>,
+    trials: Record<string, unknown | Error>,
+  ) =>
+    (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      const match = url.match(/\/trials\/([^/]+)\/request$/)
+      if (!match) return Promise.resolve(detail)
+      const trial = trials[match[1]]
+      if (trial instanceof Error) return Promise.reject(trial)
+      return trial === undefined ? new Promise(() => {}) : Promise.resolve(trial)
+    })
+
+  it('fetches and shows the request the provider client sent, block for block', async () => {
+    const record = {
+      capture: 'http_body',
+      model: 'acme/model-7b',
+      messages: [
+        { role: 'system', content: 'Du bist Schlichterin.' },
         {
-          id: 'child-1',
-          run_index: 0,
-          status: 'completed',
-          has_response: true,
-          response_preview: '{"anteil": 30}',
-          request_sha256: 'ab'.repeat(32),
-          retried: true,
-          first_response_preview: 'Erste Antwort ohne JSON',
-          request_record: {
-            capture: 'http_body',
-            model: 'acme/model-7b',
-            messages: [
-              { role: 'system', content: 'Du bist Schlichterin.' },
-              {
-                role: 'user',
-                content: 'Akte\n\n---\nIMPORTANT: Respond ONLY with valid JSON',
-              },
-            ],
-            response_format: { type: 'json_object' },
-            parameters: { temperature: 0.7 },
-            requests: [{}, {}],
-          },
+          role: 'user',
+          content: 'Akte\n\n---\nIMPORTANT: Respond ONLY with valid JSON',
         },
       ],
-    })
+      response_format: { type: 'json_object' },
+      parameters: { temperature: 0.7 },
+      requests: [{}, {}],
+    }
+    routeGet(
+      {
+        ...baseDetail,
+        children: [
+          {
+            id: 'child-1',
+            run_index: 0,
+            status: 'completed',
+            has_response: true,
+            response_preview: '{"anteil": 30}',
+            has_request_record: true,
+            request_sha256: 'ab'.repeat(32),
+            retried: true,
+            first_response_preview: 'Erste Antwort ohne JSON',
+          },
+        ],
+      },
+      {
+        'child-1': {
+          id: 'child-1',
+          run_index: 0,
+          request_record: record,
+          request_sha256: 'ab'.repeat(32),
+        },
+      },
+    )
     render(
       <GenerationRunDetailPage
         params={Promise.resolve({ id: 'gen-run-123' })}
       />,
     )
-    await waitFor(() => {
-      expect(
-        screen.getByText('An das Modell gesendete Anfrage'),
-      ).toBeInTheDocument()
-    })
-    const sent = screen.getByTestId('sent-request')
+    const sent = await screen.findByTestId('sent-request')
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/runs/generations/gen-run-123/trials/child-1/request',
+    )
+    expect(
+      screen.getByText('An das Modell gesendete Anfrage'),
+    ).toBeInTheDocument()
     expect(within(sent).getByText('Du bist Schlichterin.')).toBeInTheDocument()
     // The appended block is shown as part of the user message.
     expect(
@@ -511,24 +536,28 @@ describe('GenerationRunDetailPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('switches the shown request between trials and marks worker calls', async () => {
+  it('fetches the selected trial only and marks worker calls', async () => {
     const user = userEvent.setup()
-    ;(apiClient.get as jest.Mock).mockResolvedValue({
-      ...baseDetail,
-      runs_requested: 2,
-      children: [
-        { id: 'c0', run_index: 0, has_response: true, request_record: null },
-        {
+    routeGet(
+      {
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          { id: 'c0', run_index: 0, has_response: true, has_request_record: false },
+          { id: 'c1', run_index: 1, has_response: true, has_request_record: true },
+        ],
+      },
+      {
+        c1: {
           id: 'c1',
           run_index: 1,
-          has_response: true,
           request_record: {
             capture: 'worker_call',
             messages: [{ role: 'user', content: 'Zweiter Lauf' }],
           },
         },
-      ],
-    })
+      },
+    )
     render(
       <GenerationRunDetailPage
         params={Promise.resolve({ id: 'gen-run-123' })}
@@ -541,11 +570,42 @@ describe('GenerationRunDetailPage', () => {
         ),
       ).toBeInTheDocument()
     })
+    // A trial without a record is not fetched.
+    expect(apiClient.get).toHaveBeenCalledTimes(1)
     await user.selectOptions(screen.getByTestId('request-run-select'), '1')
-    expect(screen.getByText('Zweiter Lauf')).toBeInTheDocument()
+    expect(await screen.findByText('Zweiter Lauf')).toBeInTheDocument()
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/runs/generations/gen-run-123/trials/c1/request',
+    )
     expect(
       screen.getByText(/Der Provider-Client hat keine Anfrage gemeldet/),
     ).toBeInTheDocument()
+  })
+
+  it('shows a loading note while the trial request loads and the error when it fails', async () => {
+    const user = userEvent.setup()
+    routeGet(
+      {
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          { id: 'c0', run_index: 0, has_response: true, has_request_record: true },
+          { id: 'c1', run_index: 1, has_response: true, has_request_record: true },
+        ],
+      },
+      { c1: new Error('Zugriff verweigert') },
+    )
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    expect(await screen.findByText('Lade die Anfrage…')).toBeInTheDocument()
+    await user.selectOptions(screen.getByTestId('request-run-select'), '1')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Zugriff verweigert',
+    )
+    expect(screen.queryByTestId('sent-request')).not.toBeInTheDocument()
   })
 
   it('renders em-dash placeholders when optional fields are missing', async () => {

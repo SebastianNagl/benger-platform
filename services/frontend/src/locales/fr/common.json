@@ -9258,7 +9258,9 @@
         "responseFormat": "Format de réponse",
         "parameters": "Paramètres de la requête",
         "retried": "Nouvelle demande de format : {count} requêtes envoyées",
-        "firstAnswer": "Première réponse"
+        "firstAnswer": "Première réponse",
+        "loading": "Chargement de la requête…",
+        "loadFailed": "La requête n’a pas pu être chargée."
       }
     }
   },

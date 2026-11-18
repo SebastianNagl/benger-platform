@@ -36,6 +36,10 @@ Endpoints / branches exercised:
       ``linked_evaluations`` aggregation (an EvaluationRun whose
       TaskEvaluation rows reference this generation's children, with
       ``samples_evaluated`` = count of those child task-evals).
+
+- ``GET /api/runs/generations/{id}/trials/{trial_id}/request``: one trial's
+  request record; 404 for a missing parent or trial or a trial of another
+  run, 403 for an inaccessible project.
 """
 
 from __future__ import annotations
@@ -616,12 +620,7 @@ class TestGetGenerationRun:
         # Two child task-evals came from this generation.
         assert linked["samples_evaluated"] == 2
 
-    @pytest.mark.asyncio
-    async def test_detail_carries_the_request_record_and_retry_trail(
-        self, async_test_client, async_test_db
-    ):
-        """The detail page shows what the provider client sent per trial
-        (request record and hash) and the first answer of a format retry."""
+    async def _retried_and_plain_trials(self, async_test_db):
         admin = await _make_user(async_test_db, is_superadmin=True)
         org = await _make_org(async_test_db)
         project = await _make_project(async_test_db, admin, org)
@@ -641,19 +640,107 @@ class TestGetGenerationRun:
         child.first_response_content = "z" * 250
         plain = await _make_child_generation(async_test_db, rg, task, run_index=1)
         await async_test_db.commit()
+        return admin, project, task, rg, child, plain, record
+
+    @pytest.mark.asyncio
+    async def test_detail_names_the_request_record_and_retry_trail_without_the_record(
+        self, async_test_client, async_test_db
+    ):
+        """The detail lists per trial whether a request record exists, its
+        hash and the first answer of a format retry; the record itself stays
+        out of the list so a 100-run job does not inline 100 prompts."""
+        admin, _, _, rg, child, plain, _ = await self._retried_and_plain_trials(async_test_db)
 
         with _as_user(admin):
             resp = await async_test_client.get(f"{BASE}/generations/{rg.id}")
         assert resp.status_code == 200
         first, second = resp.json()["children"]
-        assert first["request_record"] == record
+        assert first["id"] == child.id
+        assert "request_record" not in first
+        assert first["has_request_record"] is True
         assert first["request_sha256"] == "f" * 64
         assert first["retried"] is True
         assert len(first["first_response_preview"]) == 201
         assert second["id"] == plain.id
-        assert second["request_record"] is None
+        assert second["has_request_record"] is False
         assert second["retried"] is False
         assert second["first_response_preview"] is None
+
+    @pytest.mark.asyncio
+    async def test_trial_request_returns_the_record_of_one_trial(
+        self, async_test_client, async_test_db
+    ):
+        admin, _, _, rg, child, plain, record = await self._retried_and_plain_trials(
+            async_test_db
+        )
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{child.id}/request"
+            )
+            none = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{plain.id}/request"
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "id": child.id,
+            "run_index": 0,
+            "request_record": record,
+            "request_sha256": "f" * 64,
+        }
+        assert none.status_code == 200
+        assert none.json()["request_record"] is None
+        assert none.json()["request_sha256"] is None
+
+    @pytest.mark.asyncio
+    async def test_trial_request_404_for_a_missing_parent_trial_or_foreign_trial(
+        self, async_test_client, async_test_db
+    ):
+        admin, project, task, rg, child, _, _ = await self._retried_and_plain_trials(
+            async_test_db
+        )
+        other = await _make_response_generation(async_test_db, project, task, admin)
+        foreign = await _make_child_generation(async_test_db, other, task, run_index=0)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            missing_parent = await async_test_client.get(
+                f"{BASE}/generations/{_uid()}/trials/{child.id}/request"
+            )
+            missing_trial = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{_uid()}/request"
+            )
+            foreign_trial = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{foreign.id}/request"
+            )
+        assert missing_parent.status_code == 404
+        assert missing_trial.status_code == 404
+        assert foreign_trial.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_trial_request_403_for_an_inaccessible_project(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db, is_superadmin=True)
+        contributor = await _make_user(async_test_db, is_superadmin=False)
+        member_org = await _make_org(async_test_db, name="Member")
+        await _add_membership(
+            async_test_db, contributor.id, member_org.id, role="CONTRIBUTOR"
+        )
+        other_org = await _make_org(async_test_db, name="Outsider")
+        hidden = await _make_project(async_test_db, owner, other_org)
+        task = await _make_task(async_test_db, hidden, owner)
+        rg = await _make_response_generation(async_test_db, hidden, task, owner)
+        child = await _make_child_generation(async_test_db, rg, task, run_index=0)
+        child.request_record = {"version": 1, "requests": []}
+        await async_test_db.commit()
+
+        with _as_user(contributor):
+            resp = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{child.id}/request"
+            )
+        assert resp.status_code == 403
+        assert "request_record" not in resp.json()
 
     @pytest.mark.asyncio
     async def test_detail_no_children_no_linked(

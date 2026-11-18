@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from auth_module import User, require_user
 from database import get_async_db
@@ -173,12 +174,22 @@ class ChildGeneration(BaseModel):
     has_response: bool = False
     response_preview: Optional[str] = None
     # What the provider client sent for this trial (migration 143): the
-    # messages, response format, parameters and model id of the first
-    # request, every request verbatim, and the format-retry trail.
-    request_record: Optional[Dict[str, Any]] = None
+    # record itself is read per trial from /trials/{id}/request.
+    has_request_record: bool = False
     request_sha256: Optional[str] = None
     retried: bool = False
     first_response_preview: Optional[str] = None
+
+
+class TrialRequest(BaseModel):
+    """What the provider client sent for one trial: the messages, response
+    format, parameters and model id of the first request, and every request
+    verbatim (a format retry included)."""
+
+    id: str
+    run_index: int
+    request_record: Optional[Dict[str, Any]] = None
+    request_sha256: Optional[str] = None
 
 
 class LinkedEvaluation(BaseModel):
@@ -217,21 +228,11 @@ class GenerationRunDetail(BaseModel):
     linked_evaluations: List[LinkedEvaluation] = []
 
 
-@router.get("/generations/{generation_id}", response_model=GenerationRunDetail)
-async def get_generation_run(
-    generation_id: str,
-    current_user: User = Depends(require_user),
-    db: AsyncSession = Depends(get_async_db),
-) -> GenerationRunDetail:
-    """Single-run detail for the /runs page deep link.
-
-    Returns the ResponseGeneration parent plus every child Generation row
-    (one per run_index trial) so the frontend can render the per-trial
-    breakdown a multi-run experiment produced — including which trials
-    succeeded vs failed and a content preview.
-    """
-    from models import Generation as DBGeneration
-
+async def _accessible_generation(
+    db: AsyncSession, current_user: User, generation_id: str
+) -> ResponseGeneration:
+    """The ResponseGeneration parent, 404 when missing, 403 when its project
+    is not accessible to the user."""
     parent_result = await db.execute(
         select(ResponseGeneration).where(ResponseGeneration.id == generation_id)
     )
@@ -249,13 +250,72 @@ async def get_generation_run(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No access to this project",
         )
+    return parent
+
+
+@router.get(
+    "/generations/{generation_id}/trials/{trial_id}/request",
+    response_model=TrialRequest,
+)
+async def get_generation_trial_request(
+    generation_id: str,
+    trial_id: str,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> TrialRequest:
+    """What the provider client sent for one trial of a generation run."""
+    from models import Generation as DBGeneration
+
+    await _accessible_generation(db, current_user, generation_id)
+    trial = (
+        await db.execute(
+            select(DBGeneration).where(
+                DBGeneration.id == trial_id,
+                DBGeneration.generation_id == generation_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not trial:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trial '{trial_id}' not found in generation '{generation_id}'",
+        )
+    return TrialRequest(
+        id=str(trial.id),
+        run_index=trial.run_index or 0,
+        request_record=trial.request_record if isinstance(trial.request_record, dict) else None,
+        request_sha256=trial.request_sha256,
+    )
+
+
+@router.get("/generations/{generation_id}", response_model=GenerationRunDetail)
+async def get_generation_run(
+    generation_id: str,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> GenerationRunDetail:
+    """Single-run detail for the /runs page deep link.
+
+    Returns the ResponseGeneration parent plus every child Generation row
+    (one per run_index trial) so the frontend can render the per-trial
+    breakdown a multi-run experiment produced — including which trials
+    succeeded vs failed and a content preview.
+    """
+    from models import Generation as DBGeneration
+
+    parent = await _accessible_generation(db, current_user, generation_id)
 
     children_result = await db.execute(
-        select(DBGeneration)
+        select(
+            DBGeneration,
+            (func.jsonb_typeof(DBGeneration.request_record) == "object").label("has_record"),
+        )
+        .options(defer(DBGeneration.request_record))
         .where(DBGeneration.generation_id == generation_id)
         .order_by(DBGeneration.run_index.asc())
     )
-    children_rows = children_result.scalars().all()
+    children_with_flag = children_result.all()
+    children_rows = [c for c, _ in children_with_flag]
 
     def _preview(content: Any) -> Optional[str]:
         if content is None:
@@ -273,14 +333,12 @@ async def get_generation_run(
             error_message=getattr(c, "error_message", None),
             has_response=bool(getattr(c, "response_content", None)),
             response_preview=_preview(getattr(c, "response_content", None)),
-            request_record=(
-                c.request_record if isinstance(getattr(c, "request_record", None), dict) else None
-            ),
+            has_request_record=bool(has_record),
             request_sha256=getattr(c, "request_sha256", None),
             retried=bool(getattr(c, "retried", False)),
             first_response_preview=_preview(getattr(c, "first_response_content", None)),
         )
-        for c in children_rows
+        for c, has_record in children_with_flag
     ]
 
     titles = await _project_titles_map(

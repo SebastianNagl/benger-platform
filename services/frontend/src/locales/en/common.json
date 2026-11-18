@@ -9258,7 +9258,9 @@
         "responseFormat": "Response format",
         "parameters": "Request parameters",
         "retried": "Format retry: {count} requests sent",
-        "firstAnswer": "First answer"
+        "firstAnswer": "First answer",
+        "loading": "Loading the request…",
+        "loadFailed": "The request could not be loaded."
       }
     }
   },

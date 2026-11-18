@@ -222,8 +222,12 @@ Every generation stores what the provider client actually sent as
 `request_record` (the first request's `model`, `messages`, `response_format`
 and `parameters`, and every request verbatim under `requests`, a format retry
 included) and `request_sha256`, the SHA-256 of the first request's body in
-canonical JSON. `GET /api/runs/generations/{id}` returns both per trial, and
-project exports carry them; importing an export keeps every generation column,
+canonical JSON. `GET /api/runs/generations/{id}` names per trial the hash,
+`has_request_record`, `retried` and `first_response_preview`;
+`GET /api/runs/generations/{id}/trials/{trial_id}/request` returns that
+trial's `request_record` and `request_sha256` (404 for a missing run or trial
+or a trial of another run, 403 without access to the project). Project
+exports carry both; importing an export keeps every generation column,
 the job's `structure_key` and each answer's `run_index`.
 
 `POST /api/llm-models/cost-estimate` (scope `runs:read`) takes

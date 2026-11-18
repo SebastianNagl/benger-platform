@@ -1099,6 +1099,11 @@ migration).
     ``render_answer_schema`` / ``AnswerKeys``, ``refusal_matches``,
     ``MAX_GENERATION_RUNS_PER_TASK`` = 100). ``ResponseParser`` takes
     ``answer_keys``; ``ParseResult.mapped_values``.
+  - ``GET /api/runs/generations/{id}`` children carry
+    ``has_request_record``, ``request_sha256``, ``retried`` and
+    ``first_response_preview``; ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` returns one trial's ``request_record`` and
+    ``request_sha256`` (same access rules, 404 for a trial of another run).
   - Exports carry every generation column in both modes (``data`` also
     names the job's ``structure_key``); the task-level import keeps them,
     groups jobs by model and structure and keeps each row's ``run_index``.

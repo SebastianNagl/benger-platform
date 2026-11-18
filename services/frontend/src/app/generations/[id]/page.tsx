@@ -30,10 +30,17 @@ interface ChildGeneration {
   error_message?: string | null
   has_response: boolean
   response_preview?: string | null
-  request_record?: RequestRecord | null
+  has_request_record?: boolean
   request_sha256?: string | null
   retried?: boolean
   first_response_preview?: string | null
+}
+
+interface TrialRequest {
+  id: string
+  run_index: number
+  request_record?: RequestRecord | null
+  request_sha256?: string | null
 }
 
 /** What the provider client sent for one trial (generations.request_record):
@@ -97,9 +104,59 @@ function contentText(content: unknown): string {
 }
 
 /** The request a trial sent, as the provider client recorded it. */
-function SentRequest({ child }: { child: ChildGeneration }) {
+function SentRequest({
+  generationId,
+  child,
+}: {
+  generationId: string
+  child: ChildGeneration
+}) {
   const { t } = useI18n()
-  const record = child.request_record
+  const [trial, setTrial] = useState<TrialRequest | null>(null)
+  const [error, setError] = useState<{ id: string; message: string } | null>(
+    null,
+  )
+
+  useEffect(() => {
+    if (!child.has_request_record) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const resp = await apiClient.get(
+          `/runs/generations/${generationId}/trials/${child.id}/request`,
+        )
+        if (!cancelled) setTrial(resp as TrialRequest)
+      } catch (err: any) {
+        if (!cancelled)
+          setError({
+            id: child.id,
+            message:
+              err?.message || t('generations.detail.request.loadFailed'),
+          })
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [generationId, child.id, child.has_request_record])
+
+  const loaded = trial?.id === child.id ? trial : null
+  const failed = error?.id === child.id ? error.message : null
+  if (child.has_request_record && !loaded && !failed) {
+    return (
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        {t('generations.detail.request.loading')}
+      </p>
+    )
+  }
+  if (failed) {
+    return (
+      <p className="text-xs text-red-700 dark:text-red-400" role="alert">
+        {failed}
+      </p>
+    )
+  }
+  const record = loaded?.request_record
   if (!record) {
     return (
       <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
@@ -221,7 +278,9 @@ export default function GenerationRunDetailPage({
     }
   }, [id])
 
-  if (loading) {
+  const loaded = trial?.id === child.id ? trial : null
+  const failed = error?.id === child.id ? error.message : null
+  if (child.has_request_record && !loaded && !failed) {
     return (
       <div className="container mx-auto px-4 py-8 text-sm text-zinc-500">
         {t('generations.detail.loading')}
@@ -534,6 +593,7 @@ export default function GenerationRunDetailPage({
             {t('generations.detail.request.help')}
           </p>
           <SentRequest
+            generationId={data.id}
             child={
               data.children[Math.min(requestRun, data.children.length - 1)]
             }
