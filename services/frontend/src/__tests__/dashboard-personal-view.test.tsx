@@ -133,6 +133,8 @@ describe('dashboard stat tiles by view', () => {
       'data-scope',
       'personal',
     )
+    expect(screen.getByText('dashboard.subtitlePersonal')).toBeInTheDocument()
+    expect(screen.queryByText('dashboard.subtitle')).not.toBeInTheDocument()
   })
 
   it('hides the released results tile while there is none', async () => {
@@ -166,6 +168,7 @@ describe('dashboard stat tiles by view', () => {
       expect(tile('dashboard.stats.annotations')).toHaveTextContent('5000'),
     )
     expect(tile('dashboard.stats.projects')).toHaveTextContent('40')
+    expect(screen.getByText('dashboard.subtitle')).toBeInTheDocument()
     for (const label of PERSONAL_LABELS) {
       expect(tiles().queryByText(label)).not.toBeInTheDocument()
     }

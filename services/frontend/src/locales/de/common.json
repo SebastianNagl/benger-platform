@@ -96,6 +96,7 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Verwalte deine Annotationsprojekte und verfolge den Fortschritt",
+    "subtitlePersonal": "Deine offenen Klausuren und Aufgaben, deine Antworten und Ergebnisse auf einen Blick",
     "totalQuestions": "Gesamte Fragen",
     "recentDocuments": "Letzte Aufgaben",
     "viewAll": "Alle anzeigen",

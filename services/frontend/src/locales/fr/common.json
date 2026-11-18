@@ -96,6 +96,7 @@
   "dashboard": {
     "title": "Tableau de bord",
     "subtitle": "Gérez vos projets d'annotation et suivez leur progression",
+    "subtitlePersonal": "Vos examens et tâches ouverts, vos réponses et vos résultats en un coup d'œil",
     "totalQuestions": "Total des questions",
     "recentDocuments": "Tâches récentes",
     "viewAll": "Tout afficher",

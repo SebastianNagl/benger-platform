@@ -229,7 +229,9 @@ export default function DashboardPage() {
           {t('dashboard.title')}
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          {t('dashboard.subtitle')}
+          {t(
+            personalView ? 'dashboard.subtitlePersonal' : 'dashboard.subtitle',
+          )}
         </p>
       </div>
 

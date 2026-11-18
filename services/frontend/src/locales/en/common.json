@@ -96,6 +96,7 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Manage your annotation projects and track progress",
+    "subtitlePersonal": "Your open exams and tasks, your answers and results at a glance",
     "totalQuestions": "Total Questions",
     "recentDocuments": "Recent Tasks",
     "viewAll": "View All",
