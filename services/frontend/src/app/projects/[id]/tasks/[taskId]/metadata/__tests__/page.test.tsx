@@ -300,9 +300,7 @@ describe('TaskMetadataPage', () => {
       render(<TaskMetadataPage params={Promise.resolve(params)} />)
 
       await waitFor(() => {
-        expect(apiClient.get).toHaveBeenCalledWith(
-          '/projects/tasks/task-456',
-        )
+        expect(apiClient.get).toHaveBeenCalledWith('/projects/tasks/task-456')
       })
     })
 
