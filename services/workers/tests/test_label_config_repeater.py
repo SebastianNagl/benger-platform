@@ -602,6 +602,16 @@ class TestSchema:
         assert [item["case"] for item in example] == [1, 2, 3]
         assert set(example[0]) == {"case", "risk", "months", "priority", "note"}
         assert len(repeater_answer_example(block)) == 1
+        assert repeater_answer_example(block, {"cases": []}) == []
+
+    def test_task_without_items_shows_an_empty_list(self):
+        empty = {"cases": []}
+        text = _sg.generate_format_instructions(DOCKET, task_data=empty)
+        example = json.loads(text.split("```json\n", 1)[1].split("\n```", 1)[0])
+        assert example["cases"] == []
+        jsonschema.validate(example, _sg.generate_json_schema_from_label_config(DOCKET, task_data=empty))
+        # the example is an answer the parser accepts for that task
+        assert ResponseParser({}, DOCKET).parse(json.dumps(example), task_data=empty).status == "success"
 
 
 # --------------------------------------------------------------------------

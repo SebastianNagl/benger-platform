@@ -265,7 +265,7 @@ def _generate_example(schema: Dict[str, Any]) -> Dict[str, Any]:
             example[field_name] = enum_values[0]
         elif field_type == "array" and isinstance(field_schema.get("items"), dict):
             # One example object per item (one when the count is open).
-            count = max(field_schema.get("minItems", 1), 1)
+            count = field_schema.get("minItems", 1)
             items = [_generate_example(field_schema["items"]) for _ in range(count)]
             # An item-number key spanning exactly the items counts up.
             for key, prop in field_schema["items"].get("properties", {}).items():

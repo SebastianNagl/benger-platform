@@ -173,6 +173,17 @@ describe('wizard fields of a Repeater config', () => {
     expect(fields.inputFields.sort()).toEqual(['cases', 'intro'])
   })
 
+  it('offers a plain binding inside a Repeater as an input field', () => {
+    const fields = extractFieldsFromLabelConfig(
+      CONFIG.replace(
+        '<Number name="risk_{{idx}}"',
+        '<Text name="note_{{idx}}" value="$guidance"/><Number name="risk_{{idx}}"',
+      ),
+      [{ cases: [{ text: 'a' }] }],
+    )
+    expect(fields.inputFields.sort()).toEqual(['cases', 'guidance', 'intro'])
+  })
+
   it('lists no Repeater fields and no template names without task data', () => {
     const fields = extractFieldsFromLabelConfig(CONFIG)
     expect(fields.outputFields.map((f) => f.name)).toEqual(['summary'])

@@ -6,7 +6,13 @@
  */
 
 import { ParsedComponent, parseLabelConfig } from './parser'
-import { expandRepeaters, REPEATER_TAG, repeaterItems, repeaterOn } from './repeater'
+import {
+  expandRepeaters,
+  indexFlagOf,
+  REPEATER_TAG,
+  repeaterItems,
+  repeaterOn,
+} from './repeater'
 
 export interface OutputField {
   name: string
@@ -43,7 +49,8 @@ const OUTPUT_COMPONENT_TYPES = new Set([
  * to the longest array any of `tasksData` holds, as the backend expands a
  * project's config. Without task data it contributes no output fields; its
  * template names (`risk_{{idx}}`) and the bindings into its array
- * (`$cases[{{idx}}].text`) are never listed.
+ * (`$cases[{{idx}}].text`) are never listed, while a binding inside it that
+ * does not use the index flag (`$intro`) is an input field like any other.
  */
 export function extractFieldsFromLabelConfig(
   xmlString: string,
@@ -77,11 +84,31 @@ export function extractFieldsFromLabelConfig(
     return longest
   }
 
+  function addInput(node: ParsedComponent, indexFlag?: string) {
+    const value = node.props.value || node.props.Value
+    if (
+      typeof value === 'string' &&
+      value.startsWith('$') &&
+      !(indexFlag && value.includes(indexFlag))
+    ) {
+      inputFieldSet.add(value.substring(1))
+    }
+  }
+
+  function collectPlainInputs(node: ParsedComponent, indexFlag: string) {
+    addInput(node, indexFlag)
+    for (const child of node.children) collectPlainInputs(child, indexFlag)
+  }
+
   function walk(node: ParsedComponent, collectInputs: boolean) {
     if (node.type === REPEATER_TAG) {
       const on = repeaterOn(node)
       if (collectInputs && on?.startsWith('$') && on.length > 1) {
         inputFieldSet.add(on.substring(1))
+      }
+      if (collectInputs) {
+        const indexFlag = indexFlagOf(node)
+        for (const child of node.children) collectPlainInputs(child, indexFlag)
       }
       walk(expandRepeaters(node, longestTask(node)), false)
       return
@@ -97,10 +124,7 @@ export function extractFieldsFromLabelConfig(
     }
 
     // Extract input fields (data references via $syntax)
-    const value = node.props.value || node.props.Value
-    if (collectInputs && typeof value === 'string' && value.startsWith('$')) {
-      inputFieldSet.add(value.substring(1))
-    }
+    if (collectInputs) addInput(node)
 
     for (const child of node.children) {
       walk(child, collectInputs)

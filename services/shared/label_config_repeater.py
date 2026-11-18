@@ -709,10 +709,11 @@ def repeater_answer_schema(
 
 def repeater_answer_example(block: RepeaterBlock, task_data: Any = None) -> List[Dict[str, Any]]:
     """An example array answer for prompt instructions: one object per item
-    of the task (one object when the item count is unknown)."""
+    of the task (empty for a task without items, one object when the item
+    count is unknown)."""
     count = block.item_count(task_data) if task_data is not None else 1
     example = []
-    for position in range(max(count, 1)):
+    for position in range(count):
         item: Dict[str, Any] = {}
         if block.answer_key:
             item[block.answer_key] = block.answer_key_start + position
