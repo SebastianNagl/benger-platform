@@ -3,13 +3,19 @@
  */
 
 import { resolveDataBinding, validateTaskDataFields } from '../dataBinding'
+import { extractFieldsFromLabelConfig } from '../fieldExtractor'
 import {
   extractImportDataFields,
   extractRequiredDataFields,
   parseLabelConfig,
   type ParsedComponent,
 } from '../parser'
-import { expandRepeaters, hasRepeater, repeaterItems } from '../repeater'
+import {
+  expandRepeaters,
+  hasRepeater,
+  repeaterItems,
+  resolveDataPath,
+} from '../repeater'
 
 const DOCKET = `<View>
   <Header value="Docket"/>
@@ -83,10 +89,24 @@ describe('expandRepeaters', () => {
     expect(names(tree)).toEqual(['t_0', 't_1', 't_2'])
   })
 
-  it('reads the array of a task wrapped in data', () => {
+  it('looks the array up exactly, as Label Studio and the backend do', () => {
     const repeater = parse(DOCKET).children[1]
-    expect(repeaterItems(repeater, { data: TASK })).toHaveLength(2)
+    expect(repeaterItems(repeater, TASK)).toHaveLength(2)
+    // keys are case-sensitive and the task is not searched for a data wrapper
+    expect(repeaterItems(repeater, { Cases: TASK.cases })).toEqual([])
+    expect(names(parse(DOCKET, { Cases: TASK.cases }))).toEqual(['summary'])
+    expect(repeaterItems(repeater, { data: TASK })).toEqual([])
     expect(repeaterItems({ ...repeater, props: {} }, TASK)).toEqual([])
+  })
+
+  it('resolves data paths like lodash get', () => {
+    const data = { a: { b: [{ c: 5 }] } }
+    expect(resolveDataPath('$a.b[0].c', data)).toBe(5)
+    expect(resolveDataPath('$a.b.0.c', data)).toBe(5)
+    expect(resolveDataPath('$a.b[3].c', data)).toBeUndefined()
+    expect(resolveDataPath('$A.b', data)).toBeUndefined()
+    expect(resolveDataPath('a.b', data)).toBeUndefined()
+    expect(resolveDataPath('$a.b.x', data)).toBeUndefined()
   })
 })
 
@@ -114,5 +134,48 @@ describe('import fields of a Repeater config', () => {
       required: ['cases'],
       optional: [],
     })
+  })
+
+  it('reads the on attribute in any case, as the expansion does', () => {
+    const tree = parse(
+      '<View><Repeater ON="$items"><TextArea name="t_{{idx}}" toName="x"/></Repeater></View>',
+    )
+    expect(extractImportDataFields(tree)).toEqual({
+      required: ['items'],
+      optional: [],
+    })
+  })
+})
+
+describe('wizard fields of a Repeater config', () => {
+  const CONFIG = `<View>
+  <Text name="intro" value="$intro"/>
+  <Repeater on="$cases">
+    <Text name="case_{{idx}}" value="$cases[{{idx}}].text"/>
+    <Number name="risk_{{idx}}" toName="case_{{idx}}"/>
+  </Repeater>
+  <TextArea name="summary" toName="intro"/>
+</View>`
+
+  it('lists indexed names to the longest array of the imported tasks', () => {
+    const fields = extractFieldsFromLabelConfig(CONFIG, [
+      { cases: [{ text: 'a' }] },
+      { cases: [{ text: 'a' }, { text: 'b' }, { text: 'c' }] },
+      { intro: 'no cases' },
+    ])
+    expect(fields.outputFields.map((f) => f.name)).toEqual([
+      'risk_0',
+      'risk_1',
+      'risk_2',
+      'summary',
+    ])
+    expect(fields.outputFields[1].toName).toBe('case_1')
+    expect(fields.inputFields.sort()).toEqual(['cases', 'intro'])
+  })
+
+  it('lists no Repeater fields and no template names without task data', () => {
+    const fields = extractFieldsFromLabelConfig(CONFIG)
+    expect(fields.outputFields.map((f) => f.name)).toEqual(['summary'])
+    expect(fields.inputFields.sort()).toEqual(['cases', 'intro'])
   })
 })

@@ -49,8 +49,9 @@ unknown attributes, and the expanded export drops them:
 Rules the validator enforces (:func:`repeater_errors`): ``on`` must be a
 ``$`` binding; Repeaters do not nest; every named control inside a Repeater
 carries the index flag in its name, exactly once per attribute (Label Studio
-replaces only the first occurrence), so expanded names never collide; and the
-answer keys of one block are unique and differ from ``answerKey``.
+replaces only the first occurrence); no expanded name can equal another
+control's name or another template's expansion; and the answer keys of one
+block are unique and differ from ``answerKey``.
 
 Pure module (``xml.etree``, ``re``, ``copy`` only): the API, the workers and
 the schema generator import it.
@@ -61,7 +62,7 @@ from __future__ import annotations
 import copy
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from xml.etree import ElementTree as ET
 
 REPEATER_TAG = "Repeater"
@@ -125,14 +126,6 @@ def resolve_data_path(task_data: Any, binding: Optional[str]) -> Any:
         else:
             return None
     return current
-
-
-def binding_top_level_key(binding: str) -> str:
-    """The top-level ``task.data`` key a binding (without ``$``) reads.
-
-    ``cases[{{idx}}].text`` -> ``cases``; ``doc.text`` -> ``doc``.
-    """
-    return re.split(r"[.\[]", binding, maxsplit=1)[0]
 
 
 # --------------------------------------------------------------------------
@@ -405,6 +398,89 @@ def repeater_errors(root: ET.Element) -> List[str]:
             if prop in seen_properties:
                 errors.append(f"Two <Repeater> blocks answer under the same key '{prop}'")
             seen_properties.add(prop)
+        errors.extend(_expanded_name_collisions(root, repeaters, inside))
+    return errors
+
+
+_DIGITS = "0123456789"
+
+
+def _templates_collide(first: Tuple[str, str], second: Tuple[str, str]) -> bool:
+    """Whether two control templates (``(name, index flag)``) expand to a
+    common name for some pair of 0-based indexes."""
+    (name_a, flag_a), (name_b, flag_b) = first, second
+    before_a, after_a = name_a.split(flag_a, 1)
+    before_b, after_b = name_b.split(flag_b, 1)
+    for width_a in range(1, len(name_a) + len(name_b) + 3):
+        total = len(before_a) + width_a + len(after_a)
+        width_b = total - len(before_b) - len(after_b)
+        if width_b < 1:
+            continue
+        side_a = list(before_a) + [None] * width_a + list(after_a)
+        side_b = list(before_b) + [None] * width_b + list(after_b)
+        chars: List[Optional[str]] = []
+        for char_a, char_b in zip(side_a, side_b):
+            if char_a is None and char_b is None:
+                chars.append(None)
+            elif char_a is None or char_b is None:
+                literal = char_a if char_b is None else char_b
+                if literal not in _DIGITS:
+                    break
+                chars.append(literal)
+            elif char_a != char_b:
+                break
+            else:
+                chars.append(char_a)
+        else:
+            # An index has no leading zero: a free digit can always be 1.
+            if not any(
+                width > 1 and chars[start] == "0"
+                for start, width in ((len(before_a), width_a), (len(before_b), width_b))
+            ):
+                return True
+    return False
+
+
+def _template_matches(template: Tuple[str, str], name: str) -> bool:
+    """Whether a control template expands to ``name`` for some index."""
+    before, after = template[0].split(template[1], 1)
+    pattern = re.escape(before) + "(0|[1-9][0-9]*)" + re.escape(after)
+    return re.fullmatch(pattern, name) is not None
+
+
+def _expanded_name_collisions(
+    root: ET.Element, repeaters: List[ET.Element], inside: set
+) -> List[str]:
+    """Names that only collide once the Repeaters are expanded: a template
+    against a name outside every Repeater, or two templates against each
+    other (identical templates are left to the duplicate-name check)."""
+    errors: List[str] = []
+    flat_names = [
+        elem.get("name") for elem in root.iter() if id(elem) not in inside and elem.get("name")
+    ]
+    templates: List[Tuple[str, str]] = []
+    for repeater in repeaters:
+        index_flag = index_flag_of(repeater)
+        if not index_flag.strip():
+            continue
+        for child in repeater.iter():
+            name = child.get("name")
+            if child is not repeater and name and name.count(index_flag) == 1:
+                templates.append((name, index_flag))
+    for template in templates:
+        for name in flat_names:
+            if _template_matches(template, name):
+                errors.append(
+                    f"Control '{template[0]}' inside a <Repeater> expands to '{name}', "
+                    f"which is also the name of a control outside it"
+                )
+    for position, first in enumerate(templates):
+        for second in templates[position + 1:]:
+            if first[0] != second[0] and _templates_collide(first, second):
+                errors.append(
+                    f"Controls '{first[0]}' and '{second[0]}' inside <Repeater> blocks "
+                    f"can expand to the same name"
+                )
     return errors
 
 
@@ -476,25 +552,6 @@ def expand_repeaters(label_config: Optional[str], task_data: Any) -> Optional[st
     return _expand(label_config, lambda block: block.item_count(task_data))
 
 
-def expand_repeaters_for_tasks(
-    label_config: Optional[str], tasks_data: Iterable[Any]
-) -> Optional[str]:
-    """The config expanded for a whole project, for export to Label Studio.
-
-    A Label Studio project has one config for all tasks, so each Repeater is
-    expanded to the longest array any of the tasks holds; on a task with a
-    shorter array the surplus controls simply stay unanswered.
-    """
-    if label_config is None or not has_repeater(label_config):
-        return label_config
-    data = list(tasks_data)
-
-    def longest(block: RepeaterBlock) -> int:
-        return max((block.item_count(task) for task in data), default=0)
-
-    return _expand(label_config, longest)
-
-
 def expand_repeaters_with_counts(
     label_config: Optional[str], counts: Mapping[str, int]
 ) -> Optional[str]:
@@ -508,15 +565,6 @@ def expand_repeaters_with_counts(
 def data_path_segments(binding: str) -> List[str]:
     """The path segments of a ``$`` binding (``$doc.cases`` -> ``["doc", "cases"]``)."""
     return _path_segments(binding[1:] if binding.startswith("$") else binding)
-
-
-def expanded_item_counts(label_config: Optional[str], tasks_data: Iterable[Any]) -> Dict[str, int]:
-    """``{on binding: longest array}`` over ``tasks_data``, per Repeater."""
-    data = list(tasks_data)
-    return {
-        block.on: max((block.item_count(task) for task in data), default=0)
-        for block in repeater_blocks(label_config)
-    }
 
 
 # --------------------------------------------------------------------------

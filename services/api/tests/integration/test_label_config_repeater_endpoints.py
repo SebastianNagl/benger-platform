@@ -192,3 +192,22 @@ class TestEvaluationFieldDetection:
         names = {t["name"] for t in response.json()["detected_types"]}
         assert {"risk_0", "risk_3", "note_2", "months_1"} <= names
         assert not any("{{idx}}" in name for name in names)
+
+
+class TestPublicProjectView:
+    @pytest.mark.asyncio
+    async def test_answer_fields_are_the_indexed_names(self, async_test_client, async_test_db):
+        from tests.fixtures.v1 import v1_auth
+
+        user, project, _ = await _seed(async_test_db)
+        with v1_auth(async_test_db, session_user=user):
+            response = await async_test_client.get(f"/api/v1/projects/{project.id}")
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert [f["name"] for f in body["answer_fields"]] == [
+            "risk_0", "note_0", "risk_1", "note_1", "risk_2", "note_2",
+            "risk_3", "note_3", "months_1", "months_2",
+        ]
+        assert body["answer_fields"][0]["to_name"] == "case_0"
+        assert not any("{{idx}}" in name for name in body["bound_fields"])
+        assert "doc.cases" in body["bound_fields"]

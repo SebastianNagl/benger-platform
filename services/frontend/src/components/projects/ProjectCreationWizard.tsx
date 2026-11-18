@@ -45,7 +45,7 @@ import { defaultIconForKind } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { wizardDataJurisdictions } from './wizard/jurisdictions'
 import { preselectActiveOrganization } from './wizard/orgPreselect'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
@@ -390,13 +390,67 @@ export function ProjectCreationWizard() {
   const currentStep = activeSteps[currentStepIndex]
   const isLastStep = currentStepIndex === activeSteps.length - 1
 
+  // A <Repeater> config lists its indexed fields only against the imported
+  // tasks, so the selected file is read when the config has one.
+  const configHasRepeater = !!wizardData.labelingConfig?.config?.includes(
+    '<Repeater',
+  )
+  const [readFile, setReadFile] = useState<{
+    file: File
+    content: string
+  } | null>(null)
+  useEffect(() => {
+    const file = wizardData.selectedFile
+    if (!file || !configHasRepeater) return
+    let cancelled = false
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (!cancelled) {
+        setReadFile({ file, content: e.target?.result as string })
+      }
+    }
+    reader.readAsText(file)
+    return () => {
+      cancelled = true
+    }
+  }, [wizardData.selectedFile, configHasRepeater])
+  const selectedFileContent =
+    readFile && readFile.file === wizardData.selectedFile
+      ? readFile.content
+      : null
+
+  const importedTasksData = useMemo(() => {
+    if (!configHasRepeater) return []
+    const content = (
+      wizardData.selectedFile ? selectedFileContent : wizardData.pastedData
+    )?.trim()
+    if (!content) return []
+    try {
+      const { rows } = parseImportData(
+        content,
+        detectFormat(content, wizardData.selectedFile?.name),
+      )
+      return rows.map((row) => row.data)
+    } catch {
+      return []
+    }
+  }, [
+    configHasRepeater,
+    selectedFileContent,
+    wizardData.pastedData,
+    wizardData.selectedFile,
+  ])
+
   // Derive fields from earlier wizard steps for cross-step data flow
   const labelConfigFields = useMemo(
     () =>
       wizardData.labelingConfig?.config
-        ? extractFieldsFromLabelConfig(wizardData.labelingConfig.config)
+        ? extractFieldsFromLabelConfig(
+            wizardData.labelingConfig.config,
+            importedTasksData,
+          )
         : { outputFields: [], inputFields: [] },
-    [wizardData.labelingConfig?.config],
+    [wizardData.labelingConfig?.config, importedTasksData],
   )
 
   const availableVariables = useMemo(() => {

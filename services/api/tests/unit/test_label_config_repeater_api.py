@@ -64,6 +64,15 @@ class TestValidator:
         assert not valid
         assert any(message in e for e in errors), errors
 
+    def test_expanded_name_equal_to_an_outside_name_is_rejected(self):
+        cfg = (
+            '<View><Text name="t" value="$t"/><Number name="risk_0" toName="t"/>'
+            '<Repeater on="$a"><Number name="risk_{{idx}}" toName="t"/></Repeater></View>'
+        )
+        valid, errors = LabelConfigValidator.validate(cfg)
+        assert not valid
+        assert any("expands to 'risk_0'" in e for e in errors), errors
+
     def test_expanded_config_is_valid_too(self):
         assert LabelConfigValidator.validate(expand_repeaters(DOCKET, TASK)) == (True, [])
 
@@ -75,20 +84,18 @@ class TestParser:
         assert risk["repeater"] == {"on": "$cases", "index_flag": "{{idx}}", "item_key": "risk"}
         assert "repeater" not in fields["summary"]
 
-    def test_fields_with_task_data_are_expanded(self):
-        names = [f["name"] for f in LabelConfigParser.extract_fields(DOCKET, task_data=TASK)]
+    def test_fields_of_an_expanded_config_are_indexed(self):
+        names = [f["name"] for f in LabelConfigParser.extract_fields(expand_repeaters(DOCKET, TASK))]
         assert names == [
             "case_0", "risk_0", "priority_0",
             "case_1", "risk_1", "priority_1",
             "case_2", "risk_2", "priority_2",
             "summary", "intro",
         ]
-        fields = LabelConfigParser.extract_fields(DOCKET, task_data=TASK)
-        assert all("repeater" not in f for f in fields)
 
     def test_bound_fields_include_the_repeated_array(self):
         bound = LabelConfigParser.bound_data_fields(DOCKET)
-        assert {"cases", "intro"} <= bound
+        assert bound == {"cases", "intro"}
 
 
 class TestBlinding:

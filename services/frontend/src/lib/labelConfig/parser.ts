@@ -6,7 +6,12 @@
  */
 
 import { translate } from '@/lib/utils/translate'
-import { expandRepeaters, indexFlagOf, REPEATER_TAG } from './repeater'
+import {
+  expandRepeaters,
+  indexFlagOf,
+  REPEATER_TAG,
+  repeaterOn,
+} from './repeater'
 
 export interface ParsedComponent {
   type: string
@@ -264,7 +269,7 @@ export function extractImportDataFields(config: ParsedComponent): {
     if (component.type === REPEATER_TAG) {
       // A Repeater's items render from the array its `on` names; the
       // bindings inside it (`$cases[{{idx}}].text`) point into that array.
-      const on = component.props.on
+      const on = repeaterOn(component)
       if (typeof on === 'string' && on.startsWith('$') && on.length > 1) {
         all.add(on.substring(1))
         required.add(on.substring(1))

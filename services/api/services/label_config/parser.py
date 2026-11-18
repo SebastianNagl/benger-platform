@@ -10,11 +10,10 @@ XSS Prevention: All extracted field metadata is sanitized before returning
 """
 
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from label_config_repeater import (
     REPEATER_TAG,
-    expand_repeaters,
     index_flag_of,
     item_key_for,
     repeater_attribute,
@@ -83,30 +82,29 @@ class LabelConfigParser:
                 # (lib/labelConfig/dataBinding.resolvePropsDataBindings)
                 # resolves every prop, e.g. the exam Angabe's
                 # ``bearbeitervermerk="$bearbeitervermerk"`` side sections.
+                index_flag = (field.get("repeater") or {}).get("index_flag")
                 for value in (field.get("attributes") or {}).values():
                     if isinstance(value, str) and value.startswith("$"):
+                        if index_flag and index_flag in value:
+                            continue
                         bound.add(value[1:])
         except Exception:  # pragma: no cover - defensive: never leak on parse error
             return set()
         return bound
 
     @staticmethod
-    def extract_fields(
-        label_config: str, sanitize: bool = True, task_data: Optional[Any] = None
-    ) -> List[Dict]:
+    def extract_fields(label_config: str, sanitize: bool = True) -> List[Dict]:
         """
         Extract all fields with full metadata from label config.
+
+        A field inside a <Repeater> keeps its template name (``risk_{{idx}}``)
+        and carries a ``repeater`` entry (``on``, ``index_flag``,
+        ``item_key``); expand the config first to get indexed names.
 
         Args:
             label_config: Label Studio XML configuration string
             sanitize: Whether to sanitize field metadata (default: True)
                      XSS Prevention: Sanitization prevents stored XSS attacks
-            task_data: A task's data. When given, every <Repeater> is first
-                expanded against it as Label Studio does, so the fields carry
-                the task's indexed names (``risk_0``, ``risk_1``, ...).
-                Without it, a field inside a <Repeater> keeps its template
-                name (``risk_{{idx}}``) and carries a ``repeater`` entry
-                (``on``, ``index_flag``, ``item_key``).
 
         Returns:
             List of field dictionaries with metadata (sanitized by default)
@@ -123,8 +121,6 @@ class LabelConfigParser:
             return []
 
         try:
-            if task_data is not None:
-                label_config = expand_repeaters(label_config, task_data)
             root = ET.fromstring(label_config)
             fields = []
             repeated = LabelConfigParser._repeated_elements(root)

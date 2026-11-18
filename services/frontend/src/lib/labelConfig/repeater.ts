@@ -15,7 +15,6 @@
  * and `mode="pagination"` renders all items stacked.
  */
 
-import { resolveDataBinding } from './dataBinding'
 import type { ParsedComponent } from './parser'
 
 export const REPEATER_TAG = 'Repeater'
@@ -57,15 +56,50 @@ export function hasRepeater(component: ParsedComponent): boolean {
   )
 }
 
+/** The `on` binding of a Repeater (`$cases`), its attribute name matched
+ * case-insensitively. */
+export function repeaterOn(component: ParsedComponent): string | undefined {
+  return repeaterProp(component, 'on')
+}
+
+/**
+ * The value a `$` binding names in `taskData`, or undefined. An exact,
+ * case-sensitive path lookup through dots and `[n]` indexes, as Label
+ * Studio's lodash `get` and the backend's `resolve_data_path` do.
+ */
+export function resolveDataPath(binding: string, taskData: unknown): unknown {
+  if (!binding.startsWith('$')) return undefined
+  const parts = binding
+    .substring(1)
+    .replace(/\[([^\]]*)\]/g, '.$1')
+    .split('.')
+    .filter((part) => part !== '')
+  let current: unknown = taskData
+  for (const part of parts) {
+    if (Array.isArray(current)) {
+      if (!/^-?\d+$/.test(part)) return undefined
+      const index = Number(part)
+      if (index < 0 || index >= current.length) return undefined
+      current = current[index]
+    } else if (current !== null && typeof current === 'object') {
+      if (!Object.prototype.hasOwnProperty.call(current, part)) return undefined
+      current = (current as Record<string, unknown>)[part]
+    } else {
+      return undefined
+    }
+  }
+  return current
+}
+
 /** The array a Repeater iterates over in `taskData` (empty when the binding
  * names no array, as Label Studio then repeats nothing). */
 export function repeaterItems(
   component: ParsedComponent,
   taskData: Record<string, any>,
 ): unknown[] {
-  const on = repeaterProp(component, 'on')
+  const on = repeaterOn(component)
   if (!on || !on.startsWith('$')) return []
-  const value = resolveDataBinding(on, taskData || {})
+  const value = resolveDataPath(on, taskData)
   return Array.isArray(value) ? value : []
 }
 

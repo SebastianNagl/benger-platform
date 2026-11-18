@@ -35,14 +35,26 @@ numbers of items.
 Rules (the config editor rejects a config that breaks them):
 
 - `on` is a `$` binding to an array in the task data (`$cases`, `$doc.cases`).
+  The path is looked up exactly as written, as in Label Studio: keys are
+  case-sensitive, so `$cases` does not find a `Cases` array.
 - Every named control inside the block contains the index flag in its name,
-  once per attribute, so the expanded names never collide.
+  once per attribute.
+- No expanded name may equal the name of a control outside the block
+  (`risk_0` next to `risk_{{idx}}`) or the expansion of another template
+  (`a_{{idx}}` in one block and `a_{{i}}` in another).
 - Repeaters do not nest.
 - `indexFlag` is optional (`{{idx}}` by default); `mode="pagination"` is
   accepted, and BenGER shows all items one below the other.
 
 Hand-written indexed names need no `<Repeater>`: a config with `months_1`,
 `months_2` and so on is an ordinary config.
+
+Wherever BenGER lists a project's fields (evaluation setup, the project
+creation wizard, the public project view of the v1 API), a Repeater appears
+under its indexed names, expanded to the longest list any task of the project
+holds, and never under its template names. Before any task is imported the
+wizard lists no fields for it; the array `on` names is offered as a prompt
+variable, the bindings into its items are not.
 
 ## Model answers
 
@@ -65,6 +77,10 @@ task's number of items, and the answer is stored under the indexed names:
 - A list with the wrong number of objects, an item number out of range or an
   item answered twice is a failed parse (`validation_error`); nothing is
   stored under the indexed names then.
+- The flat form works too: an object keyed by the indexed names
+  (`{"risk_0": 45, "risk_1": 60}`) is stored exactly like the list above.
+- A block without answer controls (one that only displays the items) asks
+  for no list, so a bare JSON list still goes to the config's labels field.
 
 ## Label Studio
 

@@ -195,7 +195,7 @@ class ResponseParser:
                 self.generation_structure,
                 expand_repeaters(self.label_config, task_data),
             )
-            parser._array_blocks = self._repeater_blocks
+            parser._array_blocks = [b for b in self._repeater_blocks if b.controls]
             self._task_parsers[shape] = parser
         parser._array_task_data = task_data
         return parser

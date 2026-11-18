@@ -30,6 +30,7 @@ for _path in (_API_ROOT, _SHARED):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from label_config_repeater import expand_repeaters  # noqa: E402
 from response_parser import ResponseParser  # noqa: E402
 from services.label_config.parser import LabelConfigParser  # noqa: E402
 from services.label_config.validator import LabelConfigValidator  # noqa: E402
@@ -71,6 +72,7 @@ def _strip_ids(value: Any) -> Any:
 def snapshot(label_config: str, task_data: Any = None) -> Dict[str, Any]:
     """The observable outputs of every label-config consumer for one config."""
     kwargs = {} if task_data is None else {"task_data": task_data}
+    expanded = label_config if task_data is None else expand_repeaters(label_config, task_data)
     parser = ResponseParser({}, label_config)
     answer = {name: _sample_value(cfg) for name, cfg in parser.label_config_map.items()}
     parsed = parser.parse(json.dumps(answer, ensure_ascii=False), **kwargs)
@@ -80,8 +82,8 @@ def snapshot(label_config: str, task_data: Any = None) -> Dict[str, Any]:
         # Built from a set: its order changes with string hashing per run.
         summary["field_types"] = sorted(summary["field_types"])
     return {
-        "fields": LabelConfigParser.extract_fields(label_config, **kwargs),
-        "fields_raw": LabelConfigParser.extract_fields(label_config, sanitize=False, **kwargs),
+        "fields": LabelConfigParser.extract_fields(expanded),
+        "fields_raw": LabelConfigParser.extract_fields(expanded, sanitize=False),
         "bound": sorted(LabelConfigParser.bound_data_fields(label_config)),
         "validate_config": summary,
         "validator": [valid, errors],

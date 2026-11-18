@@ -29,9 +29,7 @@ from label_config_repeater import (  # noqa: E402
     ArrayAnswerError,
     derive_slot_map,
     expand_repeaters,
-    expand_repeaters_for_tasks,
     expand_repeaters_with_counts,
-    expanded_item_counts,
     has_repeater,
     item_key_for,
     map_array_answers,
@@ -148,17 +146,13 @@ class TestExpansion:
 
     def test_config_without_repeater_is_returned_unchanged(self):
         assert expand_repeaters(TWO_DEFENDANTS, {"facts": "x"}) is TWO_DEFENDANTS
-        assert expand_repeaters_for_tasks(TWO_DEFENDANTS, [{"a": 1}]) is TWO_DEFENDANTS
+        assert expand_repeaters_with_counts(TWO_DEFENDANTS, {"$a": 2}) is TWO_DEFENDANTS
         assert expand_repeaters(None, {}) is None
         assert not has_repeater(TWO_DEFENDANTS)
         assert not has_repeater("<View><Repeater")  # unparseable
         assert has_repeater(DOCKET)
 
-    def test_project_expansion_uses_the_longest_array(self):
-        tasks = [{"cases": [1]}, {"cases": [1, 2, 3, 4]}, {"other": True}]
-        assert expanded_item_counts(DOCKET, tasks) == {"$cases": 4}
-        root = ET.fromstring(expand_repeaters_for_tasks(DOCKET, tasks))
-        assert len(list(root.iter("TextArea"))) == 4
+    def test_expansion_to_given_counts(self):
         root = ET.fromstring(expand_repeaters_with_counts(DOCKET, {"$cases": 2}))
         assert len(list(root.iter("TextArea"))) == 2
         root = ET.fromstring(expand_repeaters_with_counts(DOCKET, {}))
@@ -271,6 +265,68 @@ class TestRepeaterErrors:
             '<Repeater on="$doc.a"><Number name="m_{{idx}}" toName="x"/></Repeater></View>'
         )
         assert any("same key" in e for e in repeater_errors(ET.fromstring(cfg)))
+
+    @pytest.mark.parametrize(
+        "outside",
+        [
+            '<Number name="risk_0" toName="x"/>',
+            '<Number name="risk_12" toName="x"/>',
+            '<Text name="risk_3" value="$x"/>',
+        ],
+    )
+    def test_expanded_name_must_not_equal_an_outside_name(self, outside):
+        cfg = (
+            f'<View>{outside}<Repeater on="$a"><Number name="risk_{{{{idx}}}}" toName="x"/>'
+            "</Repeater></View>"
+        )
+        assert any("outside it" in e for e in repeater_errors(ET.fromstring(cfg)))
+
+    @pytest.mark.parametrize(
+        "outside",
+        ['<Number name="risk_01" toName="x"/>', '<Number name="risk_x" toName="x"/>',
+         '<Number name="risk_" toName="x"/>', '<Number name="risk_0_b" toName="x"/>'],
+    )
+    def test_names_no_index_produces_are_fine(self, outside):
+        cfg = (
+            f'<View>{outside}<Repeater on="$a"><Number name="risk_{{{{idx}}}}" toName="x"/>'
+            "</Repeater></View>"
+        )
+        assert repeater_errors(ET.fromstring(cfg)) == []
+
+    @pytest.mark.parametrize(
+        "first, second",
+        [
+            # a_{{idx}} and a_{{i}} both give a_0, a_1, ...
+            ('<Repeater on="$a"><Number name="a_{{idx}}" toName="x"/></Repeater>',
+             '<Repeater on="$b" indexFlag="{{i}}"><Number name="a_{{i}}" toName="x"/></Repeater>'),
+            # a{{idx}} at 15 and a1{{i}} at 5 both give a15
+            ('<Repeater on="$a"><Number name="a{{idx}}" toName="x"/></Repeater>',
+             '<Repeater on="$b" indexFlag="{{i}}"><Number name="a1{{i}}" toName="x"/></Repeater>'),
+            # within one block: x{{idx}}1 and x1{{idx}} both give x11 at index 1
+            ('<Repeater on="$a"><Number name="x{{idx}}1" toName="x"/>'
+             '<Number name="x1{{idx}}" toName="x"/></Repeater>', ""),
+        ],
+    )
+    def test_templates_must_not_expand_to_the_same_name(self, first, second):
+        cfg = f"<View>{first}{second}</View>"
+        assert any("can expand to the same name" in e for e in repeater_errors(ET.fromstring(cfg)))
+
+    @pytest.mark.parametrize(
+        "first, second",
+        [
+            # a_{{idx}} never yields a_0b; b_{{i}} never yields a_...
+            ('<Repeater on="$a"><Number name="a_{{idx}}" toName="x"/></Repeater>',
+             '<Repeater on="$b" indexFlag="{{i}}"><Number name="b_{{i}}" toName="x"/></Repeater>'),
+            # a_{{idx}} ends with digits, a_0{{i}} needs a leading zero
+            ('<Repeater on="$a"><Number name="a_{{idx}}" toName="x"/></Repeater>',
+             '<Repeater on="$b" indexFlag="{{i}}"><Number name="a_0{{i}}" toName="x"/></Repeater>'),
+            ('<Repeater on="$a"><Number name="a_{{idx}}" toName="x"/></Repeater>',
+             '<Repeater on="$b" indexFlag="{{i}}"><Number name="a_{{i}}_b" toName="x"/></Repeater>'),
+        ],
+    )
+    def test_disjoint_templates_are_fine(self, first, second):
+        cfg = f"<View>{first}{second}</View>"
+        assert repeater_errors(ET.fromstring(cfg)) == []
 
 
 # --------------------------------------------------------------------------
@@ -429,6 +485,53 @@ class TestResponseParser:
 
     def test_template_names_are_no_fields(self):
         assert ResponseParser({}, DOCKET).label_config_map == {}
+
+    def test_array_and_flat_indexed_answers_parse_identically(self):
+        # The same content in the two shapes the intent names: one object
+        # per item keyed by an item number, and flat indexed control names.
+        array_answer = json.dumps(
+            {
+                "cases": [
+                    {"case": 2, "risk": 60, "months": 8, "priority": "high", "note": "Second."},
+                    {"case": 1, "risk": 45, "months": 4, "priority": "low", "note": "First."},
+                    {"case": 3, "risk": 70, "months": 10, "priority": "high", "note": "Third."},
+                ]
+            }
+        )
+        flat_answer = json.dumps(
+            {
+                "risk_0": 45, "months_0": 4, "priority_0": "low", "note_0": "First.",
+                "risk_1": 60, "months_1": 8, "priority_1": "high", "note_1": "Second.",
+                "risk_2": 70, "months_2": 10, "priority_2": "high", "note_2": "Third.",
+            }
+        )
+        parser = ResponseParser({}, DOCKET)
+        from_array = parser.parse(array_answer, task_data=DOCKET_TASK)
+        from_flat = parser.parse(flat_answer, task_data=DOCKET_TASK)
+        assert from_array.status == from_flat.status == "success"
+
+        def by_name(result):
+            return sorted(result.parsed_annotation, key=lambda r: r["from_name"])
+
+        assert by_name(from_array) == by_name(from_flat)
+        assert from_array.field_values == from_flat.field_values
+        assert len(from_flat.parsed_annotation) == 12
+
+    def test_display_only_repeater_does_not_take_a_bare_list(self):
+        # A Repeater without answer controls asks for no array answer, so a
+        # bare list still goes to the Labels field outside it.
+        cfg = """<View>
+  <Repeater on="$docs"><Text name="doc_{{idx}}" value="$docs[{{idx}}]"/></Repeater>
+  <Text name="body" value="$body"/>
+  <Labels name="ner" toName="body"><Label value="PER"/></Labels>
+</View>"""
+        task = {"docs": ["one", "two"], "body": "Ann met Bob."}
+        answer = json.dumps([{"start": 0, "end": 3, "type": "PER", "text": "Ann"}])
+        result = ResponseParser({}, cfg).parse(answer, source_text=task["body"], task_data=task)
+        assert result.status == "success", result.error
+        assert [r["from_name"] for r in result.parsed_annotation] == ["ner"]
+        spans = result.parsed_annotation[0]["value"]["spans"]
+        assert [(s["start"], s["end"], s["labels"]) for s in spans] == [(0, 3, ["PER"])]
 
     def test_hand_written_indexed_names_parse_as_flat_fields(self):
         answer = '{"months_1": 6, "probation_1": 80, "credibility_1": 6, "months_2": 1, "probation_2": 90, "credibility_2": 7}'

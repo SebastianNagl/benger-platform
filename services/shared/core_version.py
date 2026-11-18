@@ -1087,13 +1087,15 @@ migration).
     names (``risk_0``, ``risk_1``, ...). BenGER attributes ``answerKey`` and
     ``answerKeyStart`` (default 1) name the key that identifies an item in an
     array answer. Rules (``label_config_repeater.repeater_errors``, enforced
-    by ``LabelConfigValidator``): ``on`` is a ``$`` binding, no nesting, every
-    named control carries the flag in its name, at most once per attribute,
-    and answer keys are unique.
+    by ``LabelConfigValidator``): ``on`` is a ``$`` binding (looked up
+    exactly, case-sensitive), no nesting, every named control carries the
+    flag in its name, at most once per attribute, no expanded name equals an
+    outside control's name or another template's expansion, and answer keys
+    are unique.
   - ``shared/label_config_repeater.py``: ``expand_repeaters(config,
     task_data)`` (a config without a Repeater comes back unchanged),
-    ``expand_repeaters_for_tasks`` / ``expand_repeaters_with_counts`` (to the
-    longest array), ``repeater_blocks`` (``RepeaterBlock`` / ``RepeaterControl``
+    ``expand_repeaters_with_counts`` (to given counts, e.g. the longest
+    array), ``repeater_blocks`` (``RepeaterBlock`` / ``RepeaterControl``
     with ``answer_property``, ``item_key``, ``item_count``),
     ``map_array_answers`` (``ArrayAnswerError``), ``repeater_answer_schema``,
     ``repeater_answer_example``, ``derive_slot_map(config, task_data,
@@ -1104,18 +1106,22 @@ migration).
     config; an array answer (top-level list for the only block, or an object
     keyed by ``answer_property``) is mapped onto the indexed names, by
     ``answerKey`` or by position, and a misfitting array is a
-    ``validation_error``. ``generate_json_schema_from_label_config(...,
+    ``validation_error``; only blocks with answer controls take array
+    answers. ``generate_json_schema_from_label_config(...,
     task_data=None)`` and ``generate_format_instructions(...,
     task_data=None)`` describe a Repeater block as one array of objects,
     pinned to the task's item count when ``task_data`` is given. The
     generation worker and the reparse route pass the task's data.
-  - ``LabelConfigParser.extract_fields(..., task_data=None)``: expanded names
-    with task data, otherwise template names with a ``repeater`` entry;
-    ``bound_data_fields`` includes a Repeater's ``on`` array and blinding
-    reads ``$a[i].b`` as the top-level key ``a``.
+  - ``LabelConfigParser.extract_fields``: a field inside a Repeater keeps
+    its template name with a ``repeater`` entry (expand the config first for
+    indexed names); ``bound_data_fields`` includes a Repeater's ``on`` array
+    instead of the bindings into its items, and blinding reads ``$a[i].b``
+    as the top-level key ``a``.
   - ``services/label_config/project_expansion.expanded_project_label_config_async``
     (longest array per Repeater, one SQL aggregate each), used by evaluation
-    field detection and the multi-field field list.
+    field detection, the multi-field field list and the ``answer_fields`` of
+    the v1 project view (``serialize_project_public`` takes
+    ``expanded_label_config``).
   - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
     expanded for Label Studio, with ``item_counts``) and ``GET
     /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).
@@ -1124,8 +1130,11 @@ migration).
     (``convert_to_label_studio_format(results, targets)``); stored results are
     unchanged.
   - Frontend: ``parseLabelConfig(xml, taskData?)`` expands Repeaters
-    (``@/lib/labelConfig/repeater``), and data bindings resolve ``[n]``
-    indexes.
+    (``@/lib/labelConfig/repeater``, exact path lookup like the backend),
+    data bindings resolve ``[n]`` indexes, and
+    ``extractFieldsFromLabelConfig(xml, tasksData)`` (project creation
+    wizard) lists a Repeater's indexed names to the longest array of the
+    imported tasks, none without data.
 """
 
 import os
