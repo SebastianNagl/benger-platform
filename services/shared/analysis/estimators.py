@@ -411,7 +411,9 @@ def fit_mean(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: s
     return fit, set(), len(idx), int((mask & miss).sum()), 0
 
 
-def fit_paired(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+def fit_paired(
+    columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str, *, treated_subset: np.ndarray
+):
     outcome = est["outcome"]
     treat = est["treatment"]
     factor = _column(columns, treat["factor"], where)
@@ -421,10 +423,7 @@ def fit_paired(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
     for c in pair_by + _vcov_keys(est["vcov"]):
         key_miss |= _is_missing(_column(columns, c, where))
     ref_rows = mask & _match(factor, treat["reference"]) & ~np.isnan(y_all) & ~key_miss
-    treated = mask & _match(factor, treat["level"]) & ~key_miss
-    subset_warnings: List[str] = []
-    if treat.get("subset"):
-        treated &= truthy_mask(columns, n, treat["subset"], f"{where}/treatment/subset", subset_warnings)
+    treated = mask & _match(factor, treat["level"]) & ~key_miss & treated_subset
     pair_keys = [_column(columns, c, where) for c in pair_by]
     sums: Dict[Tuple, List[float]] = {}
     for i in np.flatnonzero(ref_rows):
@@ -456,7 +455,6 @@ def fit_paired(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
         clusters=clusters,
         ssc=est["conventions"]["ssc"],
     )
-    fit.warnings.extend(subset_warnings)
     return fit, set(), len(idx), int((treated & mask).sum()) - len(idx), 0
 
 
@@ -471,16 +469,21 @@ def fit_estimand(
     where: str,
     warnings: Optional[List[str]] = None,
 ) -> List[ScopedFit]:
-    """Fit ``est`` (normalized) once per scope; warnings of its subset go to
-    ``warnings`` (when given)."""
+    """Fit ``est`` (normalized) once per scope; warnings of its subset and
+    of a paired treatment's subset go to ``warnings`` (when given)."""
     mask = base_mask & truthy_mask(columns, n, est.get("subset"), f"{where}/subset", warnings)
+    extra: Dict[str, Any] = {}
+    if est["estimator"] == "paired_within":
+        extra["treated_subset"] = truthy_mask(
+            columns, n, est["treatment"].get("subset"), f"{where}/treatment/subset", warnings
+        )
     out: List[ScopedFit] = []
     for scope in est["scopes"]:
         for label, values, smask in _scope_slices(columns, n, scope, mask, where):
             sf = ScopedFit(estimand_id=est["id"], scope=label, scope_values=values)
             try:
                 fit, implied, rows, dropped, iterations = ESTIMATORS[est["estimator"]](
-                    columns, n, est, smask, f"{where}[{label}]"
+                    columns, n, est, smask, f"{where}[{label}]", **extra
                 )
                 sf.fit, sf.implied_zero, sf.rows, sf.rows_dropped, sf.iterations = (
                     fit,

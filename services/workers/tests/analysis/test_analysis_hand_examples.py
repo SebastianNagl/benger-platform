@@ -219,12 +219,37 @@ def test_ambiguous_number_texts_in_filters_and_subsets_are_reported():
     message = "1 number text(s) with an ambiguous separator set to missing"
     assert f"/filter: {message}" in result.warnings
     assert f"/estimands/0/subset: {message}" in result.warnings
-    assert any(w.startswith("pairs [") and w.endswith(f"/treatment/subset: {message}") for w in result.warnings)
+    assert f"/estimands/1/treatment/subset: {message}" in result.warnings
     # "1,000" is missing, not 1.0 or 1000: its row is left out, so the pairs
     # are those of CELLS without (u1, s1): differences 6, 1 and 9
     assert result.rows_in_filter == 7
     pairs = next(e for e in result.estimates if e["estimand_id"] == "pairs")
     assert pairs["n_obs"] == 3 and pairs["estimate"] == pytest.approx(16 / 3, rel=1e-12)
+
+
+def test_paired_treatment_subset_warning_survives_a_failed_fit():
+    records = []
+    for obs in _records():
+        amt = "1,000" if obs.factors["cond"] == "c1" else "2,5"
+        rec = {"generation_id": obs.generation_id, "task_id": obs.task_id, "model_id": obs.model_id,
+               "variant": {"design": "d", "unit": obs.unit, "factors": dict(obs.factors)},
+               "fields": {**obs.fields, "amt": amt}}
+        records.append(observation_from_record(rec))
+    spec = normalize_spec({
+        "spec_version": 1, "name": "hand", "inputs": {"designs": ["d"]},
+        "measures": {"y": {"kind": "field", "field": "y"}, "amt": {"kind": "field", "field": "amt", "type": "text"}},
+        "estimands": [
+            {"id": "pairs", "estimator": "paired_within", "outcome": "y", "pair_by": ["unit", "system"],
+             "treatment": {"factor": "cond", "level": "c1", "reference": "c0", "subset": "number(amt) > 0"},
+             "min_n": 2, "scopes": ["pooled", {"by": ["system"]}]},
+        ],
+    })
+    result = run_spec(build_frame(records, spec).frame, spec)
+    # every treated answer reads "1,000", so no pair is left and each scope errors
+    rows = [e for e in result.estimates if e["estimand_id"] == "pairs"]
+    assert rows and all(e["status"] == "error" and "fewer than min_n" in e["message"] for e in rows)
+    ambiguous = [w for w in result.warnings if "ambiguous separator" in w]
+    assert ambiguous == ["/estimands/0/treatment/subset: 4 number text(s) with an ambiguous separator set to missing"]
 
 
 def test_tost_decision_and_p_value():
