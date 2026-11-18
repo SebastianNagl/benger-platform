@@ -121,12 +121,12 @@ def iter_observations(
         if structures:
             stmt = stmt.where(ResponseGeneration.structure_key.in_(structures))
         for row in db.execute(stmt):
+            system = _system(row.model_id, row.response_metadata)
+            if systems and system not in systems and row.model_id not in systems:
+                continue
             if row.status != "completed":
                 if counts is not None:
                     counts["failed_generations"] += 1
-                continue
-            system = _system(row.model_id, row.response_metadata)
-            if systems and system not in systems and row.model_id not in systems:
                 continue
             data, variant = by_id[row.task_id]
             yield Observation(

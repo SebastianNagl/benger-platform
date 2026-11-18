@@ -344,7 +344,7 @@ def test_negative_or_non_finite_contrast_variance_is_never_significant():
     ratio = {"numerator": {"weights": {"a": 1}}, "denominator": {"weights": {"b": 1}}, "null": 0}
     # a / b = 0.5, gradient (1/2, -1/4): 0.25 - 4 * 0.125 + 0.0625 = -0.1875
     row = ratio_contrast(_two_way_fit([[1, 2], [2, 1]]), ratio, conventions)
-    assert row["estimate"] == 0.5 and row["status"] == "negative_variance" and "negative" in row["message"]
+    assert row["estimate"] == 0.5 and row["status"] == "negative_variance" and row["message"] == "the variance of this contrast is negative"
     assert math.isnan(row["std_error"]) and math.isnan(row["p_value"])
     assert row["ci_lower"] is None and row["ci_upper"] is None
     # a - b: 1 - 4 + 1 = -2

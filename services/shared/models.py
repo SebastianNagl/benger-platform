@@ -4338,11 +4338,11 @@ class AnalysisEstimate(Base):
     )
     position = Column(Integer, nullable=False)
     estimand_id = Column(String(200), nullable=False)
-    contrast_id = Column(String(200), nullable=True)
+    contrast_id = Column(Text, nullable=True)
     estimator = Column(String(32), nullable=False)
     kind = Column(String(16), nullable=False, server_default="linear")
     outcome = Column(String(100), nullable=False)
-    scope = Column(String(500), nullable=False)
+    scope = Column(Text, nullable=False)
     scope_values = Column(JSONB, nullable=True)
     # ok | degenerate | negative_variance | not_estimable | error
     status = Column(String(32), nullable=False)

@@ -169,7 +169,7 @@ def _standard_error(var: float) -> Tuple[float, str, Optional[str]]:
     if not math.isfinite(var):
         return math.nan, "not_estimable", "the variance of this contrast is not finite"
     if var < 0:
-        return math.nan, "negative_variance", "the variance of this contrast is negative (two-way cluster variance)"
+        return math.nan, "negative_variance", "the variance of this contrast is negative"
     if var == 0:
         return 0.0, "degenerate", "the contrast has no sampling variance"
     return math.sqrt(var), "ok", None

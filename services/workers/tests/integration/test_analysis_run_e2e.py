@@ -235,6 +235,10 @@ def test_inputs_filter_systems_and_structures(db_conn, seeded):
     obs = list(iter_observations(db_conn, project.id, {"designs": ["role_swap"], "systems": ["sys_b"]}, counts))
     assert obs and {o.system for o in obs} == {"sys_b"}
     assert counts["variant_tasks"] == UNITS * 4
+    assert counts["failed_generations"] == 0
+    counts = {}
+    list(iter_observations(db_conn, project.id, {"designs": ["role_swap"], "systems": ["sys_a"]}, counts))
+    assert counts["failed_generations"] == 1
     assert list(iter_observations(db_conn, project.id, {"designs": ["role_swap"], "structures": ["other"]})) == []
     assert list(iter_observations(db_conn, project.id, {"designs": ["no_such_design"]})) == []
 
