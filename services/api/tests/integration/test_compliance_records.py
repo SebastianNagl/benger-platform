@@ -397,7 +397,9 @@ async def test_findings_reference_analysis_runs_and_estimates(async_test_client,
                 ]
             },
         )
-        by_run = (await c.get(f"{BASE}/findings", params={"analysis_run_id": "analysis-run-1"})).json()
+        by_run = (
+            await c.get(f"{BASE}/findings", params={"analysis_run_id": "analysis-run-1"})
+        ).json()
         by_estimate = (
             await c.get(f"{BASE}/findings", params={"analysis_estimate_id": "estimate-2"})
         ).json()

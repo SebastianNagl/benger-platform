@@ -27,7 +27,9 @@ TABLES = ("compliance_assessments", "compliance_suite_runs", "compliance_finding
 
 
 def _load():
-    spec = importlib.util.spec_from_file_location(f"mig_{NAME}", os.path.join(VERSIONS, f"{NAME}.py"))
+    spec = importlib.util.spec_from_file_location(
+        f"mig_{NAME}", os.path.join(VERSIONS, f"{NAME}.py")
+    )
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module

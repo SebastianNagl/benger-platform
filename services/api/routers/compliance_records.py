@@ -648,7 +648,8 @@ async def list_suite_runs(
         clauses.append(ComplianceSuiteRun.suite_id == suite_id)
     if status:
         clauses.append(ComplianceSuiteRun.status == status)
-    total = (await db.execute(select(func.count(ComplianceSuiteRun.id)).where(*clauses))).scalar_one()
+    count = select(func.count(ComplianceSuiteRun.id)).where(*clauses)
+    total = (await db.execute(count)).scalar_one()
     rows = (
         (
             await db.execute(
@@ -779,7 +780,8 @@ def _finding_filters(
 
 
 async def _finding_page(db: AsyncSession, clauses: list, limit: int, offset: int) -> dict:
-    total = (await db.execute(select(func.count(ComplianceFinding.id)).where(*clauses))).scalar_one()
+    count = select(func.count(ComplianceFinding.id)).where(*clauses)
+    total = (await db.execute(count)).scalar_one()
     rows = (
         (
             await db.execute(
