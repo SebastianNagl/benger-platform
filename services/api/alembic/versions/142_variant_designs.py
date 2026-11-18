@@ -64,6 +64,7 @@ DECLARE
     new_variant jsonb;
     old_variant jsonb;
     design_status text;
+    new_status text;
     design_factors jsonb;
     cell jsonb;
 BEGIN
@@ -72,10 +73,12 @@ BEGIN
         NEW.variant_design := new_variant ->> 'design';
         NEW.variant_unit := new_variant ->> 'unit';
         cell := new_variant -> 'factors';
-        IF NEW.variant_design IS NOT NULL AND jsonb_typeof(cell) = 'object' THEN
-            SELECT d.spec -> 'factors' INTO design_factors FROM variant_designs d
-             WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design;
-            IF jsonb_typeof(design_factors) = 'array' THEN
+        IF NEW.variant_design IS NOT NULL THEN
+            SELECT d.status, d.spec -> 'factors' INTO new_status, design_factors
+              FROM variant_designs d
+             WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design
+               FOR SHARE;
+            IF jsonb_typeof(cell) = 'object' AND jsonb_typeof(design_factors) = 'array' THEN
                 SELECT COALESCE(jsonb_object_agg(f ->> 'name', cell -> (f ->> 'name')), '{}'::jsonb)
                   INTO cell
                   FROM jsonb_array_elements(design_factors) AS f
@@ -116,10 +119,7 @@ BEGIN
         OR NEW.variant_design IS DISTINCT FROM OLD.variant_design
         OR NEW.project_id IS DISTINCT FROM OLD.project_id
     ) THEN
-        SELECT d.status INTO design_status FROM variant_designs d
-         WHERE d.project_id = NEW.project_id AND d.key = NEW.variant_design
-           FOR SHARE;
-        IF design_status = 'frozen' THEN
+        IF new_status = 'frozen' THEN
             RAISE EXCEPTION USING ERRCODE = 'restrict_violation',
                 MESSAGE = 'variant_design_frozen: the variant design ' || NEW.variant_design
                     || ' is frozen and takes no new tasks';
