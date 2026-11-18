@@ -131,6 +131,27 @@ describe('ProjectListTable in deleted mode', () => {
     expect(push).toHaveBeenCalledWith('/projects/p1')
   })
 
+  it('labels a discarded wizard draft whose purge has not finished', () => {
+    ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+      store([
+        deleted,
+        project({
+          id: 'p3',
+          title: 'Entwurf',
+          is_wizard_draft: true,
+          deleted_at: '2026-11-17T10:00:00Z',
+        }),
+      ]),
+    )
+    render(<ProjectListTable showDeletedOnly />)
+    expect(
+      screen.getByTestId('project-wizard-draft-badge-p3'),
+    ).toHaveTextContent('Assistenten-Entwurf')
+    expect(
+      screen.queryByTestId('project-wizard-draft-badge-p1'),
+    ).not.toBeInTheDocument()
+  })
+
   it('restores a row without opening it, then re-fetches the deleted view', async () => {
     mockRestore.mockResolvedValue(undefined)
     render(<ProjectListTable showDeletedOnly />)

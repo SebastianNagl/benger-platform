@@ -39,6 +39,24 @@ export type { ExtensionName } from './enabled'
 export { getRegistrationOwner, setRegistrationOwner } from './owner'
 export { getSlot, hasSlot, registerSlot, useSlot } from './slots'
 export {
+  getApplyingWizardDraftPolicies,
+  getWizardDraftHooks,
+  getWizardDraftPolicies,
+  registerWizardDraftHook,
+  registerWizardDraftPolicy,
+  wizardDraftApplies,
+} from './wizardDraft'
+export type {
+  WizardConfirmRequest,
+  WizardDraftHook,
+  WizardDraftHookContexts,
+  WizardDraftHookName,
+  WizardDraftPolicy,
+  WizardDraftSyncedTask,
+  WizardDraftTaskStatus,
+  WizardLeaveStepContext,
+} from './wizardDraft'
+export {
   getRegisteredWizardProjectTypes,
   getRegisteredWizardTemplates,
   getWizardKindPreset,

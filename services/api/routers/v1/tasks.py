@@ -220,8 +220,10 @@ async def list_tasks(
     """Tasks ordered by ``inner_id``. ``data`` and ``meta`` are blinded as
     described for the project's ``access.blinded``."""
     project = access.project
-    await enforce_project_read_window_async(db, user, project, tier=access.tier)
-    clause, assigned_only = await _visible_tasks_filter(db, request, user, project, access.tier)
+    tier = await enforce_project_read_window_async(
+        db, user, project, tier=access.tier, allow_attempted=True
+    )
+    clause, assigned_only = await _visible_tasks_filter(db, request, user, project, tier)
     position = decode_cursor(_CURSOR_KIND, cursor)
     bound = await v1_task_blinding(db, request, user, project)
     blinded = bound is not None
@@ -303,14 +305,14 @@ async def get_task(
     ).scalar_one_or_none()
     if task is None:
         raise V1Error(404, "task_not_found", "Task not found")
-    if access.tier == TIER_ATTEMPTED and not await user_attempted_task_async(
-        db, user.id, task_id
-    ):
-        raise V1Error(404, "task_not_found", "Task not found")
     if not await check_task_assigned_to_user_async(db, user, task_id, project):
         raise V1Error(404, "task_not_found", "Task not found")
-    await enforce_project_read_window_async(db, user, project, tier=access.tier)
-    await enforce_seb_async(db, user, project, request, tier=access.tier, read_task_id=task_id)
+    tier = await enforce_project_read_window_async(
+        db, user, project, tier=access.tier, allow_attempted=True
+    )
+    if tier == TIER_ATTEMPTED and not await user_attempted_task_async(db, user.id, task_id):
+        raise V1Error(404, "task_not_found", "Task not found")
+    await enforce_seb_async(db, user, project, request, tier=tier, read_task_id=task_id)
 
     bound = await v1_task_blinding(db, request, user, project)
     principal = get_principal(request)

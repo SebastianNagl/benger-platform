@@ -17,6 +17,7 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING
 
 
 def _resolve_task_rubric(db, task, metric_parameters):
@@ -26,45 +27,20 @@ def _resolve_task_rubric(db, task, metric_parameters):
     ``ux_task_rubrics_one_active``). ``metric_parameters.rubric_selector``
     with ``{"generator_model_id": ...}`` overrides that and grades with a
     specific generator's newest non-archived candidate instead — the lever
-    for crossed rubric-source × judge designs.
+    for crossed rubric-source × judge designs; on a project that requires the
+    check only a confirmed one.
 
     Returns ``None`` when no usable rubric exists, including rubrics whose
     ``criteria`` carry no ``max_score`` (those cannot drive multi-dim mode).
-    Generic row lookup only — rubric semantics live in benger_extended.
+    Thin delegate of ``task_rubric_resolution.resolve_grading_rubric``, the
+    one lookup the immediate dispatch shares.
     """
-    from project_models import TaskRubric
+    from task_rubric_resolution import resolve_grading_rubric
 
-    selector = (metric_parameters or {}).get("rubric_selector") or {}
-    generator = selector.get("generator_model_id")
-
-    query = db.query(TaskRubric).filter(TaskRubric.task_id == task.id)
-    if generator:
-        row = (
-            query.filter(
-                TaskRubric.generator_model_id == generator,
-                TaskRubric.status != "archived",
-            )
-            .order_by(TaskRubric.created_at.desc())
-            .first()
-        )
-    else:
-        row = query.filter(TaskRubric.status == "active").first()
-
-    if row is None or not isinstance(row.criteria, dict):
-        return None
-    has_scored_step = any(
-        isinstance(d, dict) and d.get("max_score") is not None
-        for d in row.criteria.values()
-    )
-    return row if has_scored_step else None
+    return resolve_grading_rubric(db, task, metric_parameters)
 
 
-_NO_RUBRIC_ERROR = (
-    "No usable Bewertungsbogen for task {task_id}: the llm_judge_rubric "
-    "metric grades against a per-task rubric (status='active' in "
-    "task_rubrics), and none was found. Generate and activate one, or set "
-    "metric_parameters.rubric_selector."
-)
+_NO_RUBRIC_ERROR = NO_RUBRIC_ERROR
 
 
 def _rubric_score_unit_kwargs(metric_parameters) -> Dict[str, Any]:
@@ -651,6 +627,7 @@ def evaluate_generation_cell_impl(
                                                 "value": None,
                                                 "method": metric,
                                                 "error": err,
+                                                "error_code": RUBRIC_MISSING,
                                                 "details": {},
                                             },
                                         },
@@ -1326,6 +1303,7 @@ def evaluate_annotation_cell_impl(
                                                     "value": None,
                                                     "method": metric,
                                                     "error": err,
+                                                    "error_code": RUBRIC_MISSING,
                                                     "details": {},
                                                 },
                                             },

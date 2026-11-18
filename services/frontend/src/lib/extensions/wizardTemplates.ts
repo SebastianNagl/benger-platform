@@ -64,10 +64,14 @@ export function getRegisteredWizardTemplates(): RegisteredWizardTemplate[] {
  * options that need the project id (e.g. kicking off rubric generation for
  * every imported task) register one; the wizard awaits them in order. A
  * hook that throws only surfaces a toast: the project is already created.
+ * In draft mode (CORE 2.55, ./wizardDraft.ts) the project is the draft, its
+ * tasks are already synced, the hooks run right before the finish route
+ * makes it visible, and `draft` is true.
  */
 export type WizardPostCreateHook = (ctx: {
   projectId: string
   wizardData: Record<string, any>
+  draft?: boolean
 }) => Promise<void> | void
 
 const postCreateHooks: { owner: string; hook: WizardPostCreateHook }[] = []

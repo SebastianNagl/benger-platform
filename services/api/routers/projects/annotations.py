@@ -255,6 +255,12 @@ async def list_task_annotations(
     ).scalar_one_or_none()
     if project and not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    # Timed access window: hide data from the access group before the window
+    # opens (editors exempt, attempted exempt). No-op without a window.
+    if project is not None:
+        tier = await enforce_project_read_window_async(
+            db, current_user, project, tier=tier, allow_attempted=True
+        )
     # Attempted tier: only the tasks the caller submitted exist for them, and
     # they only ever see their own rows.
     if tier == TIER_ATTEMPTED:
@@ -270,11 +276,6 @@ async def list_task_annotations(
         if role not in ("ORG_ADMIN", "CONTRIBUTOR"):
             all_users = False
             completed_by_username = None
-
-    # Timed access window: hide data from the access group before the window
-    # opens (editors exempt, attempted exempt). No-op without a window.
-    if project is not None:
-        await enforce_project_read_window_async(db, current_user, project, tier=tier)
 
     stmt = (
         select(Annotation)

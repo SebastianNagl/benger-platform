@@ -74,6 +74,7 @@ function dynamicKeys(): string[] {
     'org_key_missing',
     'connection_removed',
     'billing_check_failed',
+    'rubric_missing',
     'something_else',
   ]) {
     describeBillingBlock(`billing_blocked:${reason}`, record)

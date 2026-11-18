@@ -33,6 +33,14 @@ ANNOTATOR membership then counts as no membership (personal keys). Without
 ``min_role`` (grading that an annotator's submission triggers on a project
 an editor configured) every active membership counts.
 
+A creation-wizard draft (CORE 2.55) has no organization rows while the
+wizard runs. For its creator only, the draft's target organization then counts
+as the project's organization, with the same membership and ``min_role``
+rules, and its target group as the attachment group (the group only while the
+creator may still create a project there, ``org_groups.wizard_draft_target``
+and ``resolve_project_group_for_org``). Anyone else resolves the draft to no
+organization (personal keys).
+
 Lives in /shared so the api, the workers, and the extended package import one
 implementation. No fastapi/pydantic imports (worker container constraint);
 sync + async variants follow the dual-mode pattern from the workspace
@@ -68,10 +76,14 @@ def _is_superadmin_sync(db, user) -> bool:
         return False
 
 
-def _eligible_member_org_ids_sync(db, user_id, project_id, member_rows, min_role):
+def _eligible_member_org_ids_sync(
+    db, user_id, project_id, member_rows, min_role, groups=None
+):
     """The org ids among ``member_rows`` ((org_id, org_role) pairs of ACTIVE
     memberships in the project's orgs) whose attachment role reaches
-    ``min_role``; all of them when ``min_role`` is None."""
+    ``min_role``; all of them when ``min_role`` is None. ``groups`` overrides
+    the project's attachment groups (``{org_id: group_id | None}``; a draft
+    passes its target scope)."""
     if not min_role:
         return {str(org_id) for org_id, _ in member_rows}
     from org_groups import (
@@ -81,7 +93,8 @@ def _eligible_member_org_ids_sync(db, user_id, project_id, member_rows, min_role
         role_at_least,
     )
 
-    groups = get_attachment_group_map(db, str(project_id))
+    if groups is None:
+        groups = get_attachment_group_map(db, str(project_id))
     user_groups = get_user_group_context(db, str(user_id))
     return {
         str(org_id)
@@ -92,7 +105,9 @@ def _eligible_member_org_ids_sync(db, user_id, project_id, member_rows, min_role
     }
 
 
-async def _eligible_member_org_ids_async(db, user_id, project_id, member_rows, min_role):
+async def _eligible_member_org_ids_async(
+    db, user_id, project_id, member_rows, min_role, groups=None
+):
     """Async twin of :func:`_eligible_member_org_ids_sync`."""
     if not min_role:
         return {str(org_id) for org_id, _ in member_rows}
@@ -103,7 +118,8 @@ async def _eligible_member_org_ids_async(db, user_id, project_id, member_rows, m
         role_at_least,
     )
 
-    groups = await get_attachment_group_map_async(db, str(project_id))
+    if groups is None:
+        groups = await get_attachment_group_map_async(db, str(project_id))
     user_groups = await get_user_group_context_async(db, str(user_id))
     return {
         str(org_id)
@@ -129,6 +145,61 @@ def _payer_options(orgs, member_org_ids, is_superadmin, org_pays) -> List[Dict[s
     return sorted(options, key=lambda o: (o["name"].casefold(), o["id"]))
 
 
+def _draft_scope_sync(db, user, project_id):
+    """``(org_id, groups)`` of the wizard draft ``project_id`` when ``user`` is
+    its creator and it targets an organization, else None. ``groups`` is the
+    attachment-group map the draft's target stands for."""
+    from org_groups import resolve_project_group_for_org, wizard_draft_target
+
+    target = wizard_draft_target(db, project_id)
+    if target is None or not target[1] or _user_id_of(user) != target[0]:
+        return None
+    org_id = target[1]
+    return org_id, {org_id: resolve_project_group_for_org(db, project_id, org_id)}
+
+
+async def _draft_scope_async(db, user, project_id):
+    """Async twin of :func:`_draft_scope_sync`."""
+    from org_groups import resolve_project_group_for_org_async, wizard_draft_target_async
+
+    target = await wizard_draft_target_async(db, project_id)
+    if target is None or not target[1] or _user_id_of(user) != target[0]:
+        return None
+    org_id = target[1]
+    return org_id, {org_id: await resolve_project_group_for_org_async(db, project_id, org_id)}
+
+
+def _draft_org_sync(db, user, project, min_role):
+    """The draft's target org when its creator ``user`` may spend it under
+    the default rule (eligible active membership, else superadmin), else
+    None. Only a loaded wizard draft is looked up (no query for any other
+    project without organizations)."""
+    if getattr(project, "is_wizard_draft", False) is not True:
+        return None
+    project_id = project.id
+    scope = _draft_scope_sync(db, user, project_id)
+    if scope is None:
+        return None
+    org_id, groups = scope
+    from models import OrganizationMembership
+
+    member_rows = (
+        db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
+        .filter(
+            OrganizationMembership.user_id == _user_id_of(user),
+            OrganizationMembership.is_active == True,  # noqa: E712
+            OrganizationMembership.organization_id == org_id,
+        )
+        .all()
+    )
+    eligible = _eligible_member_org_ids_sync(
+        db, _user_id_of(user), project_id, member_rows, min_role, groups=groups
+    )
+    if org_id in eligible or _is_superadmin_sync(db, user):
+        return org_id
+    return None
+
+
 def billing_org_options(
     db, user, project, *, min_role: Optional[str] = None
 ) -> List[Dict[str, str]]:
@@ -136,7 +207,16 @@ def billing_org_options(
     (``min_role``: see the module docstring)."""
     orgs = getattr(project, "organizations", None) or []
     if not orgs:
-        return []
+        org_id = _draft_org_sync(db, user, project, min_role)
+        if org_id is None:
+            return []
+        from models import Organization
+        from org_groups import org_pays_for_project
+
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        if org is None or not org_pays_for_project(db, org_id, project):
+            return []
+        return [{"id": org_id, "name": org.display_name or org.name}]
     from models import OrganizationMembership
     from org_groups import org_pays_for_project
 
@@ -194,7 +274,7 @@ def resolve_dispatch_org_for_project(
         )
     orgs = getattr(project, "organizations", None) or []
     if not orgs:
-        return None
+        return _draft_org_sync(db, user, project, min_role)
     from models import OrganizationMembership
 
     org_ids = {str(o.id) for o in orgs}
@@ -237,6 +317,35 @@ async def _is_superadmin_async(db, user) -> bool:
     return bool(row)
 
 
+async def _draft_org_async(db, user, project_id, min_role):
+    """Async twin of :func:`_draft_org_sync`."""
+    scope = await _draft_scope_async(db, user, project_id)
+    if scope is None:
+        return None
+    org_id, groups = scope
+    from sqlalchemy import select
+
+    from models import OrganizationMembership
+
+    member_rows = (
+        await db.execute(
+            select(
+                OrganizationMembership.organization_id, OrganizationMembership.role
+            ).where(
+                OrganizationMembership.user_id == _user_id_of(user),
+                OrganizationMembership.organization_id == org_id,
+                OrganizationMembership.is_active.is_(True),
+            )
+        )
+    ).all()
+    eligible = await _eligible_member_org_ids_async(
+        db, _user_id_of(user), project_id, member_rows, min_role, groups=groups
+    )
+    if org_id in eligible or await _is_superadmin_async(db, user):
+        return org_id
+    return None
+
+
 async def billing_org_options_async(
     db, user, project_id: str, *, min_role: Optional[str] = None
 ) -> List[Dict[str, str]]:
@@ -255,7 +364,20 @@ async def billing_org_options_async(
         )
     ).all()
     if not rows:
-        return []
+        org_id = await _draft_org_async(db, user, project_id, min_role)
+        if org_id is None:
+            return []
+        org = (
+            await db.execute(
+                select(Organization.display_name, Organization.name).where(
+                    Organization.id == org_id
+                )
+            )
+        ).first()
+        group_id = await resolve_project_group_for_org_async(db, project_id, org_id)
+        if org is None or await require_private_keys_for_async(db, org_id, group_id):
+            return []
+        return [{"id": org_id, "name": org[0] or org[1]}]
     orgs = [(str(r[0]), r[1] or r[2]) for r in rows]
     org_ids = [o for o, _ in orgs]
     member_rows = (
@@ -314,7 +436,7 @@ async def resolve_dispatch_org_for_project_async(
         .all()
     )
     if not project_org_ids:
-        return None
+        return await _draft_org_async(db, user, project_id, min_role)
     user_id = _user_id_of(user)
     member_rows = (
         await db.execute(

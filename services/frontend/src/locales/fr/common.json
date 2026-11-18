@@ -120,6 +120,7 @@
       "createFirst": "Créez votre premier projet",
       "noDescription": "Aucune description",
       "tasks": "tâches",
+      "taskOne": "tâche",
       "openProject": "Ouvrir le projet",
       "loadFailed": "Les projets récents n'ont pas pu être chargés."
     },
@@ -618,7 +619,45 @@
           "add": "+ Ajouter une étiquette"
         },
         "variantIdPlaceholder": "par ex. variant_a",
-        "dataFieldOption": "{field} (données)"
+        "dataFieldOption": "{field} (données)",
+        "draft": {
+          "listTitle": "Projets inachevés",
+          "listHint": "Reprenez là où vous vous êtes arrêté. Un brouillon est supprimé 30 jours après sa dernière modification.",
+          "lastChanged": "Modifié le {date}",
+          "expiresOn": "supprimé le {date}",
+          "continue": "Reprendre",
+          "discard": "Supprimer",
+          "discardDraft": "Supprimer le brouillon",
+          "discardTitle": "Supprimer ce brouillon ?",
+          "discardMessage": "Le brouillon « {title} » et tout ce qu'il contient (tâches, grilles d'évaluation et leurs vérifications) seront supprimés. Cette action est irréversible.",
+          "discardConfirm": "Supprimer le brouillon",
+          "discarded": "Brouillon supprimé",
+          "discardFailed": "Le brouillon n'a pas pu être supprimé : {error}",
+          "saving": "Enregistrement du brouillon...",
+          "saved": "Enregistré comme brouillon",
+          "saveFailed": "Le brouillon n'a pas pu être enregistré : {error}",
+          "loadFailed": "Le brouillon n'a pas pu être ouvert : {error}",
+          "createFailed": "Le brouillon n'a pas pu être créé : {error}",
+          "syncFailed": "Les tâches n'ont pas pu être enregistrées dans le brouillon : {error}",
+          "configSyncFailed": "Les paramètres n'ont pas pu être enregistrés dans le brouillon : {error}",
+          "leaveCheckFailed": "L'étape n'a pas pu être vérifiée avant de continuer : {error}",
+          "conflict": "Ce brouillon a été modifié dans un autre onglet ou sur un autre appareil. Chargez la dernière version pour continuer.",
+          "reload": "Charger la dernière version",
+          "expired": "Ce brouillon n'existe plus. Il a été supprimé, ou effacé après 30 jours sans modification.",
+          "startOver": "Recommencer",
+          "kindChangeTitle": "Changer le type de projet ?",
+          "kindChangeMessage": "Le type de projet ne peut plus être modifié une fois le brouillon « {title} » créé. Supprimer le brouillon et en commencer un nouveau avec le nouveau type ?",
+          "kindChangeConfirm": "Supprimer et recommencer",
+          "taskChangeTitle": "Remplacer des grilles d'évaluation ?",
+          "taskChangeMessage": "Vos modifications des tâches concernent des grilles d'évaluation de ce brouillon :",
+          "taskChangeUpdated": "La tâche {n} a été modifiée : {sheets} grille(s) d'évaluation, dont {checked} vérifiée(s), seront mises de côté.",
+          "taskChangeRemoved": "La tâche {n} est retirée : {sheets} grille(s) d'évaluation, dont {checked} vérifiée(s), seront supprimées avec leurs vérifications.",
+          "taskChangeGenerating": "Une grille d'évaluation est encore en cours de génération pour elle.",
+          "taskChangeNote": "Les tâches que vous n'avez pas modifiées conservent leurs grilles d'évaluation.",
+          "taskChangeConfirm": "Appliquer les modifications",
+          "importedNotice": "{count} tâches issues de {name} se trouvent dans le brouillon. Choisissez à nouveau un fichier uniquement si vous voulez les remplacer.",
+          "targetFailed": "L'organisation ou le groupe de ce brouillon n'a pas pu être modifié : {error}"
+        }
       },
       "structuredExam": {
         "button": "Saisir l'examen de façon structurée",
@@ -708,6 +747,7 @@
       "participantBadge": "Participant",
       "attemptedBadge": "Remise antérieure",
       "archivedBadge": "Archivé",
+      "wizardDraftBadge": "Brouillon de l'assistant",
       "participantVia": {
         "share": "Rejoint via un lien de partage",
         "entitlement": "Débloqué via « Découvrir »",
@@ -1490,7 +1530,9 @@
       "title": "Activité récente",
       "noTasks": "Aucune tâche pour l'instant",
       "importData": "Importer des données",
+      "tasksImportedOne": "{count} tâche importée",
       "tasksImported": "{count} tâches importées",
+      "annotationsCompletedOne": "{count} annotation terminée",
       "annotationsCompleted": "{count} annotations terminées",
       "inProgress": "En cours"
     },
@@ -1583,7 +1625,8 @@
       "cancel": "Annuler",
       "saving": "Enregistrement...",
       "titlePlaceholder": "Ajouter une description...",
-      "titleCannotBeEmpty": "Le titre ne peut pas être vide"
+      "titleCannotBeEmpty": "Le titre ne peut pas être vide",
+      "addDescription": "Ajouter une description"
     },
     "sharing": {
       "title": "Partage individuel",
@@ -7134,6 +7177,9 @@
       "closedReadOnly": "Ce projet est terminé : consultation uniquement, aucune modification possible.",
       "attemptedReadOnly": "Remise antérieure. Consultation uniquement, aucune modification possible."
     },
+    "examNotReady": {
+      "description": "Cet examen n'est pas encore disponible, car sa grille d'évaluation est encore en cours de vérification."
+    },
     "textAreaPlaceholder": "Saisissez votre réponse ..."
   },
   "annotationTab": {
@@ -7580,7 +7626,8 @@
         "connectionRemoved": "La connexion de cet examen à la plateforme d'apprentissage n'existe plus. L'évaluation par IA n'a donc pas été lancée.",
         "orgKeyMissing": "L'organisation via la plateforme d'apprentissage de laquelle cet examen est proposé n'a enregistré aucune clé API pour les modèles d'évaluation choisis. L'évaluation par IA n'a donc pas été lancée.",
         "orgNotPaying": "L'organisation via la plateforme d'apprentissage de laquelle cet examen est proposé ne fournit pas de clés API. L'évaluation par IA n'a donc pas été lancée.",
-        "other": "La facturation a refusé l'évaluation par IA."
+        "other": "La facturation a refusé l'évaluation par IA.",
+        "rubricMissing": "Aucune grille d'évaluation n'est encore active pour cette tâche. L'évaluation par IA démarrera dès qu'une grille sera prête."
       },
       "unmatchedConfigsTitle": "Évaluations sans données correspondantes",
       "openProject": "Ouvrir le projet",

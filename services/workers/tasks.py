@@ -3398,14 +3398,49 @@ def run_single_sample_evaluation(
         # grade, so the two cannot disagree. Model-side selectors never
         # resolve: single-sample immediate eval has no model generations.
         from immediate_eval_dispatch import resolve_human_prediction
+        from task_rubric_resolution import (
+            RUBRIC_MISSING,
+            is_rubric_judge,
+            resolve_grading_rubric,
+        )
 
         jobs: List[Dict[str, Any]] = []
         skipped_configs: List[Dict[str, Any]] = []
+        rubric_task = None
         for idx, eval_cfg in enumerate(eligible_configs):
             metric_type = eval_cfg.get("metric", "")
             pred_fields = eval_cfg.get("prediction_fields", [])
             ref_fields = eval_cfg.get("reference_fields", [])
             metric_params = eval_cfg.get("metric_parameters") or {}
+
+            # A sheet judge without a usable Bewertungsbogen would only write
+            # an error row (the judge raises NoUsableRubricError). The shared
+            # dispatch already holds such configs; this catches runs that
+            # were dispatched another way, or a sheet that went away since.
+            if is_rubric_judge(eval_cfg):
+                if rubric_task is None:
+                    from project_models import Task as _RubricTask
+
+                    rubric_task = (
+                        db.query(_RubricTask).filter(_RubricTask.id == task_id).first()
+                    )
+                if (
+                    rubric_task is None
+                    or resolve_grading_rubric(db, rubric_task, metric_params) is None
+                ):
+                    logger.warning(
+                        "[SingleSampleEval] Skipping %s - no usable Bewertungsbogen "
+                        "for task %s",
+                        metric_type,
+                        task_id,
+                    )
+                    skipped_configs.append({
+                        "id": eval_cfg.get("id", metric_type),
+                        "metric": metric_type,
+                        "prediction_fields": list(pred_fields or []),
+                        "reason": RUBRIC_MISSING,
+                    })
+                    continue
 
             prediction_value = resolve_human_prediction(eval_cfg, annotation_results)
             reference_value = None
@@ -3504,10 +3539,17 @@ def run_single_sample_evaluation(
                 # `completed`, so the results modal lists the methods as
                 # skipped rather than as a failed grading.
                 eval_run.samples_evaluated = 0
+                skip_reasons = {c.get("reason") for c in skipped_configs}
                 eval_run.eval_metadata = {
                     **(eval_run.eval_metadata or {}),
                     "nothing_to_grade": {
-                        "reason": "no_prediction_value",
+                        # Every config waited for a sheet: say so, the
+                        # grading is not empty, it is not possible yet.
+                        "reason": (
+                            RUBRIC_MISSING
+                            if skip_reasons == {RUBRIC_MISSING}
+                            else "no_prediction_value"
+                        ),
                         "skipped_configs": skipped_configs,
                     },
                 }
@@ -5056,6 +5098,30 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
         db.close()
 
 
+@app.task(name="tasks.dispatch_waiting_gradings", bind=True)
+def dispatch_waiting_gradings(self, task_id: str):
+    """Grade the answers of a task that waited for its Bewertungsbogen.
+
+    Queued by ``immediate_eval_dispatch.queue_waiting_gradings`` once a sheet
+    of the task became usable (the extended edition does it when a sheet is
+    confirmed). The hourly sweep stays the backstop if this never runs.
+    """
+    from immediate_eval_dispatch import dispatch_waiting_gradings as _dispatch_waiting
+
+    db = SessionLocal()
+    try:
+        return {"status": "success", **_dispatch_waiting(db, task_id)}
+    except Exception as exc:
+        logger.error("dispatch_waiting_gradings(%s) failed: %s", task_id, exc, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+
+
 @app.task(name="tasks.update_report_annotations_async", bind=True)
 def update_report_annotations_async(self, project_id: str):
     """Refresh a project's report annotation section off the request thread.
@@ -5191,6 +5257,33 @@ def import_project(
 
 def _fail_import_job(db, job_id: str, message: str) -> Optional[bool]:
     return _fail_import_job_impl(db, job_id, message)
+
+
+# Creation-wizard drafts nobody changed for 30 days (wizard_drafts.
+# WIZARD_DRAFT_RETENTION) are discarded like the wizard's "Discard draft":
+# deleted_at is stamped and the batched purge below is queued. Discarded
+# drafts whose purge never finished get it queued again. Daily, via beat.
+@app.task(name="tasks.purge_stale_wizard_drafts", bind=True)
+def purge_stale_wizard_drafts(self) -> Dict[str, Any]:
+    from wizard_drafts import purge_stale_wizard_drafts as sweep
+
+    db = SessionLocal()
+    try:
+        result = sweep(
+            db, lambda job_id: app.send_task("tasks.purge_project", args=[job_id])
+        )
+        logger.info(
+            "purge_stale_wizard_drafts: %d discarded, %d purge(s) queued",
+            len(result["stamped"]),
+            len(result["purge_queued"]),
+        )
+        return result
+    except Exception:
+        db.rollback()
+        logger.exception("purge_stale_wizard_drafts failed")
+        raise
+    finally:
+        db.close()
 
 
 # Irreversible purge of a soft-deleted project (superadmin action). A large

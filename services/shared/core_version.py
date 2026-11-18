@@ -873,11 +873,131 @@ whenever one is added, renamed or removed):
   - ``app_version.app_version()``: the image tag from ``BENGER_APP_VERSION``
     (set by the Helm chart on the api, every worker, the beat and the
     migration job), ``None`` when unset.
+
+2.54 (2026-11-17): exam readiness seams (no grading without a usable sheet).
+  - Exam not open yet: optional worker attribute
+    ``<package>.workers.get_exam_open_block_fn`` (gating class ``gated``)
+    returning ``fn(db, *, project, user_id) -> None | dict | str``. The
+    platform asks it in ``enforce_project_read_window(_async)`` after the
+    window rule and in the ``/api/data`` scope, never on writes; editors,
+    superadmins and the attempted tier pass. The guards now return the tier
+    the caller must apply from then on; with the keyword
+    ``allow_attempted=True`` a blocked non-editor with an own submission is
+    demoted to ``TIER_ATTEMPTED`` (own submissions only) instead of refused.
+    Opt in only where the attempted tier's scoping is applied to the
+    returned tier; without it every blocked non-editor is refused, an own
+    submission included. A block answers 403
+    ``{"code": "exam_not_ready", "reason", "message", "project_id"}``
+    (``helpers.EXAM_NOT_READY_CODE``; ``exam_open_block(_async)`` is the
+    rule itself). A failing hook counts as open. Without a package nothing
+    changes.
+  - ``task_rubric_resolution`` (sync): ``resolve_grading_rubric(db, task,
+    metric_parameters, *, review_required=None)`` is the one sheet lookup of
+    the judge cells, the immediate grading and the dispatch
+    (``evaluation.cell_evaluator._resolve_task_rubric`` delegates to it);
+    ``split_held_rubric_judges``, ``RUBRIC_JUDGE_METRIC``,
+    ``RUBRIC_MISSING`` (``"rubric_missing"``), ``NoUsableRubricError``.
+    ``metric_parameters.rubric_selector`` picks only a sheet with
+    ``review_state == "confirmed"`` when the project has
+    ``rubric_review_required``.
+  - Immediate dispatch: a sheet judge on a task without a usable sheet is
+    not dispatched; the other configs run and the run lists the held ones in
+    ``eval_metadata.held_configs``. With nothing else to grade the grading
+    is blocked (``billing_block`` with ``code``/``reason``
+    ``rubric_missing``, ``task_id``, ``held_configs``; error
+    ``billing_blocked:rubric_missing``), which the hourly sweep retries
+    without the attempt cap. ``immediate_eval_dispatch``:
+    ``split_held_configs(db, project, task, configs)`` for dispatchers that
+    build their own run, ``dispatch_waiting_gradings(db, task_id)`` grades
+    the held answers of a task (trigger ``rubric_ready``),
+    ``queue_waiting_gradings(task_id)`` queues it as the worker task
+    ``tasks.dispatch_waiting_gradings`` (``interactive``), and
+    ``grading_retry_state(db, project, annotation)`` says whether an
+    ungraded answer is ``held``, ``retrying``, ``exhausted`` or
+    ``none``.
+  - Worker: the immediate grading skips a sheet judge without a usable sheet
+    (``skipped_configs[].reason == "rubric_missing"``, also
+    ``nothing_to_grade.reason`` when nothing else ran) instead of writing
+    an error row; an error row that still says the sheet is missing (bulk
+    cells, a sheet removed mid-grading) carries
+    ``metrics[<metric>].error_code == "rubric_missing"``.
+
+2.55 (2026-11-17): creation-wizard drafts (migration 141).
+  - ``projects.is_wizard_draft`` (``ProjectResponse.is_wizard_draft``,
+    read-only) and the table ``project_wizard_drafts``
+    (``project_models.ProjectWizardDraft``: ``project_id``, ``created_by``,
+    ``client_key`` unique per creator, ``target_organization_id`` /
+    ``target_group_id`` (SET NULL), ``state`` JSONB with ``state_version``,
+    ``step_id``, ``touched_at``, ``created_at``, ``finished_at``). A draft is
+    private and has no organization rows until its finish.
+  - ``project_models.project_listable()`` (not deleted and not a draft: the
+    predicate of every list, count and aggregate) and
+    ``project_is_wizard_draft(project)``. ``get_accessible_project_ids``
+    (sync and async), the project list, the dashboard counts, the aggregate
+    summaries, the v1 project list and ``/api/data`` leave drafts out; the
+    per-project deciders do not, so the creator opens the draft.
+  - Routes ``POST|GET /api/projects/wizard-drafts``, ``GET|PUT|DELETE
+    /api/projects/{id}/wizard-draft``, ``POST .../wizard-draft/finish``,
+    ``GET .../wizard-draft/tasks`` and ``PUT .../wizard-draft/tasks/{task_id}``
+    (``routers/projects/wizard_drafts.py``; ``discard_wizard_draft``). The
+    visibility PATCH and share-link creation answer 409 ``{"code":
+    "wizard_draft"}`` on a draft (``wizard_drafts.wizard_draft_refusal``),
+    ``DELETE /api/projects/{id}`` discards it, and a draft's share links do
+    not resolve.
+  - Key scope: while a draft has no organization rows, its target
+    organization counts as the project's organization for its creator in
+    ``org_resolution`` (``resolve_dispatch_org_for_project`` and
+    ``billing_org_options``, sync and async; same membership and
+    ``min_role`` rules), and its target group is the scope group of
+    ``org_groups.resolve_project_group_for_org`` (sync and async) while the
+    creator may create a project there (``user_may_scope_to_group`` and its
+    new twin ``user_may_scope_to_group_async``). ``org_groups.
+    wizard_draft_target(_async)`` reads the target.
+  - ``project_purge.enqueue_purge_job_async`` / ``enqueue_purge_job_sync``
+    (with ``active_purge_job_*``, ``supersede_if_stale_*``,
+    ``PurgeQueueUnavailable``): queueing a purge, shared by the purge and
+    discard routes and the worker.
+  - ``wizard_drafts``: ``WIZARD_DRAFT_RETENTION`` (30 days since the last
+    change), ``draft_expires_at``, ``purge_stale_wizard_drafts`` and the
+    daily beat task ``tasks.purge_stale_wizard_drafts`` (queue
+    ``maintenance``).
+  - Frontend: ``registerWizardDraftPolicy({ applies, describeDiscard? })``
+    and the draft hooks ``registerWizardDraftHook('created' |
+    'tasksSynced' | 'configSynced', fn)`` (``@/lib/extensions/wizardDraft``).
+    ``created`` runs once after the draft was created; ``tasksSynced`` after
+    every task sync (moving past the data step, and on "Create");
+    ``configSynced`` after title, label config and evaluation configs were
+    written into the draft and before they are read back, every time the
+    user moves to the rubric step and once more on "Create" (before the
+    post-create hooks and the finish route). Draft mode applies only while a
+    registered policy applies or a draft is open; otherwise the wizard
+    navigates and creates as before. The policy's ``applies(wizardData)``
+    is asked when the user leaves step 1; ``describeDiscard({ projectId })``
+    returns extra lines for the confirmation before a draft is discarded
+    (wizard footer or unfinished-drafts list), e.g. how many generated or
+    checked grading sheets will be lost, and is ignored when it fails. The
+    stale-draft sweep also discards a draft whose ``project_wizard_drafts``
+    row is gone (it cascades away when the creator is hard-deleted).
+    The rubric step slot
+    ``ProjectWizardRubricStep`` gets ``draftProjectId``; post-create hooks
+    get ``draft: true`` in draft mode.
+  - Frontend: the policy's awaited guard ``beforeLeaveStep?({ projectId,
+    fromStepId, toStepId, skippedStepIds, wizardData, confirm })``, the only
+    member that can hold the wizard. In draft mode it is asked for each
+    applying policy on every forward move (Next and step-dot jumps forward,
+    which pass ``skippedStepIds`` without opening them; after the draft
+    exists, before the move's syncs) and on "Create" (``toStepId`` null,
+    before the final syncs). Resolving false keeps the user on the current
+    step; a guard that throws shows its message and keeps the user there.
+    ``confirm(WizardConfirmRequest)`` opens the wizard's own confirmation
+    dialog. Backward moves and the wizard outside draft mode are never
+    guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
+    applying policies.
 """
 
 import os
 
-CORE_API_VERSION = "2.53"
+CORE_API_VERSION = "2.55"
 
 
 def extended_required() -> bool:

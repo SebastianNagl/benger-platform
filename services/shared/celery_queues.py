@@ -95,6 +95,10 @@ TASK_QUEUES: dict[str, str] = {
     # fan-out (marks rows, queues staggered lti_push_grade tasks) next to the
     # pushes it queues.
     "tasks.lti_resend_all_grades": INTERACTIVE,
+    # Answers that waited for their task's Bewertungsbogen, graded right after
+    # the sheet is confirmed: a short fan-out of run_single_sample_evaluation
+    # dispatches while the students wait for their grade.
+    "tasks.dispatch_waiting_gradings": INTERACTIVE,
     # --- emails: rate-limited, own pool ---
     "emails.send_invitation": EMAILS,
     "emails.send_bulk_invitations": EMAILS,
@@ -116,6 +120,7 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.exam_tools_gc_bundles": MAINTENANCE,  # extended (core 2.50)
     "tasks.cleanup_project_data": MAINTENANCE,
     "tasks.cleanup_api_key_usage_events": MAINTENANCE,
+    "tasks.purge_stale_wizard_drafts": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
     # --- generation: one LLM call per task, minutes each ---
     "tasks.generate_response": GENERATION,

@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional
 
 import tasks
 from evaluation.inline_judges import resolve_inline_judge
+from task_rubric_resolution import NoUsableRubricError
 
 
 def _run_immediate_config_job_impl(
@@ -269,6 +270,13 @@ def _run_immediate_config_job_impl(
                                 "method": metric_type,
                                 "details": {},
                                 "error": str(e),
+                                # A stable reason for readers that must not
+                                # show the developer text (participants).
+                                **(
+                                    {"error_code": e.code}
+                                    if isinstance(e, NoUsableRubricError)
+                                    else {}
+                                ),
                             }
                         },
                         error_message=str(e),

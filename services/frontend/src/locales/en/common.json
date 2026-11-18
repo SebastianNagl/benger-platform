@@ -120,6 +120,7 @@
       "createFirst": "Create Your First Project",
       "noDescription": "No description",
       "tasks": "tasks",
+      "taskOne": "task",
       "openProject": "Open Project",
       "loadFailed": "The recent projects could not be loaded."
     },
@@ -618,7 +619,45 @@
           "add": "+ Add label"
         },
         "variantIdPlaceholder": "e.g., variant_a",
-        "dataFieldOption": "{field} (data)"
+        "dataFieldOption": "{field} (data)",
+        "draft": {
+          "listTitle": "Unfinished projects",
+          "listHint": "Continue where you left off. A draft is deleted 30 days after its last change.",
+          "lastChanged": "Last changed on {date}",
+          "expiresOn": "deleted on {date}",
+          "continue": "Continue",
+          "discard": "Discard",
+          "discardDraft": "Discard draft",
+          "discardTitle": "Discard this draft?",
+          "discardMessage": "The draft \"{title}\" and everything in it (tasks, grading sheets and their checks) will be deleted. This cannot be undone.",
+          "discardConfirm": "Discard draft",
+          "discarded": "Draft discarded",
+          "discardFailed": "The draft could not be discarded: {error}",
+          "saving": "Saving draft...",
+          "saved": "Saved as draft",
+          "saveFailed": "The draft could not be saved: {error}",
+          "loadFailed": "The draft could not be opened: {error}",
+          "createFailed": "The draft could not be created: {error}",
+          "syncFailed": "The tasks could not be saved in the draft: {error}",
+          "configSyncFailed": "The settings could not be saved in the draft: {error}",
+          "leaveCheckFailed": "The step could not be checked before moving on: {error}",
+          "conflict": "This draft was changed in another tab or on another device. Load the latest version to continue.",
+          "reload": "Load latest version",
+          "expired": "This draft no longer exists. It was discarded, or deleted after 30 days without changes.",
+          "startOver": "Start over",
+          "kindChangeTitle": "Change the project type?",
+          "kindChangeMessage": "The project type cannot be changed once the draft \"{title}\" exists. Discard the draft and start a new one with the new type?",
+          "kindChangeConfirm": "Discard and start new",
+          "taskChangeTitle": "Replace grading sheets?",
+          "taskChangeMessage": "Your changes to the tasks affect grading sheets in this draft:",
+          "taskChangeUpdated": "Task {n} changed: {sheets} grading sheet(s), {checked} of them checked, will be set aside.",
+          "taskChangeRemoved": "Task {n} is removed: {sheets} grading sheet(s), {checked} of them checked, will be deleted with their checks.",
+          "taskChangeGenerating": "A grading sheet for it is still being generated.",
+          "taskChangeNote": "Tasks you did not change keep their grading sheets.",
+          "taskChangeConfirm": "Apply changes",
+          "importedNotice": "{count} tasks from {name} are in the draft. Choose a file again only if you want to replace them.",
+          "targetFailed": "The organization or group of this draft could not be changed: {error}"
+        }
       },
       "structuredExam": {
         "button": "Enter exam (structured)",
@@ -708,6 +747,7 @@
       "participantBadge": "Participant",
       "attemptedBadge": "Past submission",
       "archivedBadge": "Archived",
+      "wizardDraftBadge": "Wizard draft",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
@@ -1490,7 +1530,9 @@
       "title": "Recent Activity",
       "noTasks": "No tasks yet",
       "importData": "Import Data",
+      "tasksImportedOne": "{count} task imported",
       "tasksImported": "{count} tasks imported",
+      "annotationsCompletedOne": "{count} annotation completed",
       "annotationsCompleted": "{count} annotations completed",
       "inProgress": "In progress"
     },
@@ -1583,7 +1625,8 @@
       "cancel": "Cancel",
       "saving": "Saving...",
       "titlePlaceholder": "Add a description...",
-      "titleCannotBeEmpty": "Title cannot be empty"
+      "titleCannotBeEmpty": "Title cannot be empty",
+      "addDescription": "Add a description"
     },
     "sharing": {
       "title": "Individual sharing",
@@ -7134,6 +7177,9 @@
       "closedReadOnly": "This project has closed — view only, no further changes.",
       "attemptedReadOnly": "Past submission. View only, no further changes."
     },
+    "examNotReady": {
+      "description": "This exam is not released yet because its grading sheet is still being checked."
+    },
     "textAreaPlaceholder": "Enter your answer ..."
   },
   "annotationTab": {
@@ -8929,7 +8975,8 @@
         "connectionRemoved": "The learning platform connection of this exam no longer exists, so the AI grading was not started.",
         "orgKeyMissing": "The organization whose learning platform runs this exam holds no API key for the chosen grading models, so the AI grading was not started.",
         "orgNotPaying": "The organization whose learning platform runs this exam does not provide API keys, so the AI grading was not started.",
-        "other": "Billing refused the AI grading."
+        "other": "Billing refused the AI grading.",
+        "rubricMissing": "No grading sheet is active for this task yet. The AI grading starts as soon as one is ready."
       },
       "unmatchedConfigsTitle": "Evaluations that matched no data",
       "openProject": "Open project",

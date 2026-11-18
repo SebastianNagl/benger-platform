@@ -4,6 +4,7 @@ Shared helper functions for projects API.
 These functions provide common operations used across multiple project endpoints.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -71,6 +72,8 @@ from metric_filters import (  # noqa: F401 — re-exported for legacy callers
     is_unreleased_feedback,
     metric_key_counts_as_evaluation,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def attempt_score_from_metrics(metrics: Any) -> Optional[float]:
@@ -784,7 +787,7 @@ def get_accessible_project_ids(
                     Project.is_private == False,  # noqa: E712
                     Project.created_by == str(user.id),
                 ),
-                not_deleted(),
+                listable(),
             )
             .all()
         )
@@ -799,7 +802,7 @@ def get_accessible_project_ids(
     public_ids = [
         r.id
         for r in db.query(Project.id)
-        .filter(Project.is_public == True, not_deleted())  # noqa: E712
+        .filter(Project.is_public == True, listable())  # noqa: E712
         .all()
     ]
 
@@ -812,7 +815,7 @@ def get_accessible_project_ids(
         .filter(
             Project.is_private == True,  # noqa: E712
             Project.created_by == str(user.id),
-            not_deleted(),
+            listable(),
         )
         .all()
     ]
@@ -1107,7 +1110,7 @@ async def get_accessible_project_ids_async(
                         Project.is_private == False,  # noqa: E712
                         Project.created_by == str(user.id),
                     ),
-                    not_deleted(),
+                    listable(),
                 )
             )
         ).all()
@@ -1115,7 +1118,7 @@ async def get_accessible_project_ids_async(
 
     public_rows = (
         await db.execute(
-            select(Project.id).where(Project.is_public == True, not_deleted())  # noqa: E712
+            select(Project.id).where(Project.is_public == True, listable())  # noqa: E712
         )
     ).all()
     public_ids = [r.id for r in public_rows]
@@ -1126,7 +1129,7 @@ async def get_accessible_project_ids_async(
             select(Project.id).where(
                 Project.is_private == True,  # noqa: E712
                 Project.created_by == str(user.id),
-                not_deleted(),
+                listable(),
             )
         )
     ).all()
@@ -1889,6 +1892,9 @@ async def check_task_assigned_to_user_async(
 # module.
 from project_models import project_is_deleted as _is_deleted  # noqa: E402
 from project_models import project_not_deleted as not_deleted  # noqa: E402
+# Lists and counts also leave out creation-wizard drafts (migration 141); the
+# per-project deciders keep ``not_deleted``, so the creator opens the draft.
+from project_models import project_listable as listable  # noqa: E402
 
 
 def _build_select_project_org_ids(project_id: str):
@@ -2201,7 +2207,7 @@ def _build_select_attempted_project_ids(user_id):
         .where(
             Annotation.completed_by == str(user_id),
             Annotation.was_cancelled == False,  # noqa: E712
-            not_deleted(),
+            listable(),
         )
         .distinct()
     )
@@ -2398,7 +2404,7 @@ async def get_participant_project_ids_async(
     """
     uid = str(user_id)
     not_archived = or_(Project.is_archived.is_(None), Project.is_archived == False)  # noqa: E712
-    alive = not_deleted()
+    alive = listable()
     result: Dict[str, str] = {}
 
     share_rows = await db.execute(
@@ -2829,9 +2835,87 @@ def _window_403(project, state: str) -> HTTPException:
     )
 
 
+# ── Exam not open yet (extension seam) ──────────────────────────────────────
+# An overlay can keep an exam closed for its participants until it is ready to
+# be taken, e.g. until every task has a checked grading sheet: the optional
+# worker attribute ``<package>.workers.get_exam_open_block_fn`` returns
+# ``fn(db, *, project, user_id) -> None | dict | str``. A dict carries at
+# least ``reason`` (``"rubric_missing"``). Only data reads ask it (via the
+# read guards below and the ``/api/data`` scope); writes are never refused for
+# it, so an answer already being written is not lost. Editors, superadmins and
+# the attempted tier pass, like for the window; a caller that scopes to own
+# submissions may opt in to demoting any other caller with an own submission
+# to the attempted tier (``allow_attempted``). Community edition: no package
+# has the attribute, nothing is ever blocked.
+
+EXAM_NOT_READY_CODE = "exam_not_ready"
+
+
+def exam_open_block(db: Session, user, project) -> Optional[dict]:
+    """Why ``project`` is not open for ``user`` yet, else None (sync).
+
+    Asks every package's hook in ``BENGER_EXTENSIONS`` order, each in a
+    savepoint; the first block wins. A failing hook is logged and counts as
+    "not blocked": a broken readiness check must not lock a running exam.
+    """
+    import extension_registry
+
+    for package, getter in extension_registry.worker_attrs("get_exam_open_block_fn"):
+        try:
+            block_fn = getter()
+            if block_fn is None:
+                continue
+            with db.begin_nested():
+                block = block_fn(
+                    db, project=project, user_id=str(user.id) if user is not None else None
+                )
+        except Exception:
+            logger.exception(
+                "exam open block hook of %s failed for project %s; treating it as open",
+                package,
+                getattr(project, "id", None),
+            )
+            continue
+        if not block:
+            continue
+        if isinstance(block, dict):
+            out = dict(block)
+            out["reason"] = str(out.get("reason") or out.get("code") or "not_ready")
+            return out
+        return {"reason": str(block)}
+    return None
+
+
+async def exam_open_block_async(db: AsyncSession, user, project) -> Optional[dict]:
+    """Async twin of :func:`exam_open_block` (the hooks are sync)."""
+    import extension_registry
+
+    if not extension_registry.worker_attrs("get_exam_open_block_fn"):
+        return None
+    return await db.run_sync(lambda sync_db: exam_open_block(sync_db, user, project))
+
+
+def _exam_not_ready_403(project, block: dict) -> HTTPException:
+    """403 for a participant read of an exam that is not open yet."""
+    return HTTPException(
+        status_code=403,
+        detail={
+            "code": EXAM_NOT_READY_CODE,
+            "reason": block.get("reason"),
+            "message": "This exam is not open yet.",
+            "project_id": str(project.id),
+        },
+    )
+
+
 def enforce_project_read_window(
-    db: Session, user, project, tier: Optional[str] = None
-) -> None:
+    db: Session,
+    user,
+    project,
+    tier: Optional[str] = None,
+    *,
+    allow_attempted: bool = False,
+) -> Optional[str]:
     """Sync: raise 403 if the pre-open window hides task data from a non-editor.
 
     No-op when there's no window, when the window is open/closed (reads stay
@@ -2839,39 +2923,79 @@ def enforce_project_read_window(
     edit the project. Call at the DATA-serving read endpoints only — never the
     project LIST query, so pre-open projects stay listed.
 
+    After the window, an overlay may still keep the exam closed
+    (:func:`exam_open_block`): 403 ``{code: "exam_not_ready", reason}``, with
+    the same exemptions.
+
     ``tier``: the caller's already-resolved access tier, if it has one. The
     attempted tier is never window-gated (its whole point is reading an own
     submission after the fact). When no tier is passed the predicate is
     re-checked here, so older call sites stay correct without threading it.
+
+    The readiness block refuses every non-editor, an own submission
+    included, unless the caller passes ``allow_attempted=True``: then a
+    non-editor with an own submission is demoted to the attempted tier
+    instead, whatever tier was passed. Only callers that narrow what they
+    serve to the caller's own submissions for the attempted tier may opt in.
+
+    Returns the tier the caller must apply from here on: ``tier`` itself, or
+    ``TIER_ATTEMPTED`` after such a demotion.
     """
-    if project_reads_allowed(project):
-        return
     if tier == TIER_ATTEMPTED:
-        return
+        return tier
+    if project_reads_allowed(project):
+        # The readiness hook decides first: it is cheap for projects it does
+        # not gate, while the exemptions below cost queries.
+        block = exam_open_block(db, user, project)
+        if block is None:
+            return tier
+        refusal = _exam_not_ready_403(project, block)
+    else:
+        block = None
+        refusal = _window_403(project, "upcoming")
     if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
         db, user, project.id
     ):
-        return
+        return tier
+    if block is not None:
+        if allow_attempted and user_attempted_project(db, user.id, project.id):
+            return TIER_ATTEMPTED
+        raise refusal
     if tier is None and user_attempted_project(db, user.id, project.id):
-        return
-    raise _window_403(project, "upcoming")
+        return tier
+    raise refusal
 
 
 async def enforce_project_read_window_async(
-    db: AsyncSession, user, project, tier: Optional[str] = None
-) -> None:
+    db: AsyncSession,
+    user,
+    project,
+    tier: Optional[str] = None,
+    *,
+    allow_attempted: bool = False,
+) -> Optional[str]:
     """Async twin of :func:`enforce_project_read_window`."""
-    if project_reads_allowed(project):
-        return
     if tier == TIER_ATTEMPTED:
-        return
+        return tier
+    if project_reads_allowed(project):
+        block = await exam_open_block_async(db, user, project)
+        if block is None:
+            return tier
+        refusal = _exam_not_ready_403(project, block)
+    else:
+        block = None
+        refusal = _window_403(project, "upcoming")
     if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
         db, user, project.id
     ):
-        return
+        return tier
+    if block is not None:
+        if allow_attempted and await user_attempted_project_async(db, user.id, project.id):
+            return TIER_ATTEMPTED
+        raise refusal
     if tier is None and await user_attempted_project_async(db, user.id, project.id):
-        return
-    raise _window_403(project, "upcoming")
+        return tier
+    raise refusal
 
 
 def enforce_project_write_window(db: Session, user, project) -> None:

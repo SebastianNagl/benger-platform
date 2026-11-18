@@ -6,6 +6,7 @@
  */
 
 import { toast } from '@/components/shared/Toast'
+import { isExamNotReadyError } from '@/lib/api/errors'
 import { projectsAPI } from '@/lib/api/projects'
 import { logger } from '@/lib/utils/logger'
 import { translate as t } from '@/lib/utils/translate'
@@ -36,6 +37,10 @@ interface ProjectStore {
   currentTaskIndex: number
   // Annotation completion state
   allTasksCompleted: boolean
+  // Project whose task reads the server last refused with 403
+  // `exam_not_ready` (a participant of an exam not released yet), else null.
+  // The labeling page shows a notice for it instead of "no tasks".
+  examNotReadyProjectId: string | null
   // Pagination state
   currentPage: number
   pageSize: number
@@ -134,6 +139,7 @@ export const useProjectStore = create<ProjectStore>()(
       currentTaskIndex: 0,
       // Annotation completion
       allTasksCompleted: false,
+      examNotReadyProjectId: null,
       currentPage: 1,
       pageSize: 50,
       totalProjects: 0,
@@ -369,7 +375,7 @@ export const useProjectStore = create<ProjectStore>()(
           sortOrder?: 'asc' | 'desc'
         },
       ) => {
-        set({ loading: true, error: null })
+        set({ loading: true, error: null, examNotReadyProjectId: null })
         try {
           // Fetch all tasks by using pagination if necessary. When the caller
           // passes `search`/date/sort options, those propagate to every page
@@ -408,6 +414,12 @@ export const useProjectStore = create<ProjectStore>()(
           })
           return allTasks
         } catch (error) {
+          if (isExamNotReadyError(error)) {
+            // Not an error to toast: the page shows the "not released yet"
+            // notice (the server's English message would not be localized).
+            set({ loading: false, examNotReadyProjectId: projectId })
+            return []
+          }
           const message =
             error instanceof Error
               ? error.message
@@ -419,7 +431,7 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       getNextTask: async (projectId: string) => {
-        set({ loading: true, error: null })
+        set({ loading: true, error: null, examNotReadyProjectId: null })
         try {
           const state = get()
           const project = state.currentProject
@@ -431,6 +443,10 @@ export const useProjectStore = create<ProjectStore>()(
             // Use excludeMyAnnotations so the backend filters out tasks
             // the current user has already annotated (per-user, not global is_labeled)
             const tasks = await get().fetchProjectTasks(projectId, true)
+            if (get().examNotReadyProjectId === projectId) {
+              // /next would be refused the same way.
+              return null
+            }
             if (tasks && tasks.length > 0) {
               // Backend already excludes user's completed tasks and applies
               // randomized ordering when project.randomize_task_order is enabled
@@ -484,6 +500,10 @@ export const useProjectStore = create<ProjectStore>()(
             return null
           }
         } catch (error) {
+          if (isExamNotReadyError(error)) {
+            set({ loading: false, examNotReadyProjectId: projectId })
+            return null
+          }
           const message =
             error instanceof Error
               ? error.message

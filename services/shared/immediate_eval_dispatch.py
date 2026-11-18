@@ -32,6 +32,15 @@ blocking, the next attempt dispatches normally and stamps
 ``billing_block.superseded_by`` on the old run. The hourly sweep therefore
 costs one lookup per blocked annotation until the block is lifted.
 
+Held sheet judges: a Bewertungsbogen judge (``llm_judge_rubric``) on a task
+without a usable sheet (``task_rubric_resolution``) is not dispatched, so it
+writes no error row. The other configs of the grading still run (the held
+ones are listed in ``eval_metadata.held_configs``). When nothing else is left
+to grade, the grading is recorded as blocked with reason ``rubric_missing``
+(same mechanism as a billing block, so the hourly sweep retries it without
+the attempt cap), and :func:`dispatch_waiting_gradings` grades the waiting
+answers of a task as soon as its sheet is usable.
+
 This module lives in ``/shared`` so the api (hook, endpoint, CLI) and the
 workers (auto-submit, sweep) import the same logic. It avoids importing any
 api-only module at top level — the Celery dispatch is resolved lazily so it
@@ -49,11 +58,18 @@ from typing import Optional
 import celery_queues
 from metric_filters import is_immediate_eligible
 from models import EvaluationRun, TaskEvaluation
-from project_models import Annotation, Task
+from project_models import Annotation, Project, Task
+from task_rubric_resolution import RUBRIC_MISSING, split_held_rubric_judges
 
 logger = logging.getLogger(__name__)
 
 BILLING_BLOCK_KEY = "billing_block"
+
+#: ``eval_metadata`` key listing the sheet judges a dispatched run left out.
+HELD_CONFIGS_KEY = "held_configs"
+
+#: Trigger stamped on runs that :func:`dispatch_waiting_gradings` starts.
+RUBRIC_READY_TRIGGER = "rubric_ready"
 
 
 def _select_immediate_configs(db, user_id, configs, project=None):
@@ -601,6 +617,212 @@ def record_blocked_immediate_run(
 
 
 # --------------------------------------------------------------------------- #
+# Held sheet judges (no usable Bewertungsbogen yet).
+# --------------------------------------------------------------------------- #
+def held_configs_metadata(held) -> list:
+    """``eval_metadata.held_configs``: the sheet judges a grading left out."""
+    return [
+        {
+            "id": c.get("id", c.get("metric", "")),
+            "metric": c.get("metric", ""),
+            "display_name": c.get("display_name", c.get("metric", "")),
+            "reason": RUBRIC_MISSING,
+        }
+        for c in held or []
+    ]
+
+
+def rubric_missing_block(task, held) -> dict:
+    """The block of a grading that waits for the task's sheet."""
+    return {
+        "code": RUBRIC_MISSING,
+        "reason": RUBRIC_MISSING,
+        "task_id": str(task.id),
+        "held_configs": held_configs_metadata(held),
+    }
+
+
+def split_held_configs(db, project, task, configs):
+    """``(kept, held)`` of ``configs`` for one grading of ``task``.
+
+    For dispatchers that build their own run (the extended ``/immediate``
+    endpoint): the same rule :func:`ensure_immediate_evaluation` applies.
+    """
+    return split_held_rubric_judges(
+        db,
+        task,
+        configs,
+        review_required=bool(getattr(project, "rubric_review_required", False)),
+    )
+
+
+def _waiting_annotation_ids(db, project_id) -> set:
+    """Annotations of a project whose newest immediate run is a held
+    (``rubric_missing``) grading."""
+    runs = (
+        db.query(EvaluationRun.eval_metadata)
+        .filter(
+            EvaluationRun.project_id == str(project_id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.status == "failed",
+            EvaluationRun.eval_metadata[BILLING_BLOCK_KEY]["reason"].as_string()
+            == RUBRIC_MISSING,
+        )
+        .all()
+    )
+    out: set = set()
+    for (meta,) in runs:
+        if _open_block(meta) is not None:
+            aid = str((meta or {}).get("annotation_id") or "")
+            if aid:
+                out.add(aid)
+    return out
+
+
+def dispatch_waiting_gradings(db, task_id, *, trigger: str = RUBRIC_READY_TRIGGER) -> dict:
+    """Grade the answers of ``task_id`` that wait for its sheet.
+
+    Call after a sheet of the task became usable (confirmed and active).
+    Every waiting answer goes through :func:`ensure_immediate_evaluation_outcome`
+    again, so the usual rules hold: an answer that got a grade meanwhile is
+    left alone, a sheet that is still missing keeps the answer waiting, a
+    billing block is recorded instead of a dispatch. Commits per answer; a
+    failing answer is logged and does not stop the others. The hourly sweep
+    stays the backstop. Returns counts (``waiting``, ``dispatched``,
+    ``blocked``, ``other``, ``failed``).
+    """
+    counts = {"waiting": 0, "dispatched": 0, "blocked": 0, "other": 0, "failed": 0}
+    task = db.query(Task).filter(Task.id == str(task_id)).first()
+    if task is None:
+        return counts
+    project = db.query(Project).filter(Project.id == task.project_id).first()
+    if (
+        project is None
+        or getattr(project, "deleted_at", None) is not None
+        or not getattr(project, "immediate_evaluation_enabled", False)
+    ):
+        return counts
+    waiting = _waiting_annotation_ids(db, project.id)
+    if not waiting:
+        return counts
+    annotations = (
+        db.query(Annotation)
+        .filter(
+            Annotation.id.in_(waiting),
+            Annotation.task_id == task.id,
+            Annotation.was_cancelled == False,  # noqa: E712
+        )
+        .order_by(Annotation.created_at)
+        .all()
+    )
+    counts["waiting"] = len(annotations)
+    for annotation in annotations:
+        try:
+            outcome = ensure_immediate_evaluation_outcome(
+                db, project, task, annotation, trigger=trigger
+            )
+        except Exception:
+            logger.exception(
+                "[immediate-eval] waiting grading of annotation %s failed", annotation.id
+            )
+            db.rollback()
+            counts["failed"] += 1
+            continue
+        if outcome.status == OUTCOME_DISPATCHED:
+            counts["dispatched"] += 1
+        elif outcome.status == OUTCOME_BLOCKED:
+            counts["blocked"] += 1
+        else:
+            counts["other"] += 1
+    logger.info("[immediate-eval] waiting gradings of task %s: %s", task.id, counts)
+    return counts
+
+
+DISPATCH_WAITING_TASK = "tasks.dispatch_waiting_gradings"
+
+
+def queue_waiting_gradings(task_id) -> None:
+    """Queue :func:`dispatch_waiting_gradings` for ``task_id`` on a worker.
+
+    For request handlers (the confirm of a sheet), so the request does not
+    wait for every answer of a large exam. Call after the commit that made
+    the sheet usable.
+    """
+    _dispatch_task(
+        DISPATCH_WAITING_TASK,
+        {"task_id": str(task_id)},
+        celery_queues.queue_for(DISPATCH_WAITING_TASK),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Will anything grade this answer again?
+# --------------------------------------------------------------------------- #
+RETRY_HELD = "held"
+RETRY_SWEEP = "retrying"
+RETRY_EXHAUSTED = "exhausted"
+RETRY_NONE = "none"
+
+
+def grading_retry_state(db, project, annotation) -> dict:
+    """Whether an answer without a grade will still be graded by itself.
+
+    ``state``:
+
+    - ``held``: the newest immediate run is an open block (``reason`` says
+      why, e.g. ``rubric_missing``); the sweep retries it until the block is
+      lifted, without the attempt cap;
+    - ``retrying``: the sweep will try again (``attempts`` of
+      ``max_attempts`` used);
+    - ``exhausted``: the sweep stopped after ``max_attempts``; only a manual
+      retrigger grades it now;
+    - ``none``: nothing grades it automatically (no immediate grading on the
+      project, the project is deleted, or the sweep skips the answer because
+      no configured grader has anything in it to grade).
+
+    Says nothing about an answer that already has a grade; callers ask only
+    for ungraded ones.
+    """
+    state = {
+        "state": RETRY_NONE,
+        "reason": None,
+        "attempts": 0,
+        "max_attempts": SWEEP_MAX_ATTEMPTS,
+    }
+    if (
+        project is None
+        or getattr(project, "deleted_at", None) is not None
+        or not getattr(project, "immediate_evaluation_enabled", False)
+    ):
+        return state
+    cfgs = eligible_configs(project)
+    if not cfgs or not gradable_configs(cfgs, parse_annotation_results(annotation)):
+        return state
+    blocked = latest_blocked_run(db, project.id, annotation)
+    if blocked is not None:
+        block = _open_block(blocked.eval_metadata) or {}
+        state.update(state=RETRY_HELD, reason=block.get("reason"))
+        return state
+    attempts = (
+        db.query(EvaluationRun.eval_metadata)
+        .filter(
+            EvaluationRun.project_id == str(project.id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.status.notin_(IN_FLIGHT_RUN_STATUSES),
+            EvaluationRun.eval_metadata["trigger"].as_string() == SWEEP_TRIGGER,
+            EvaluationRun.eval_metadata["annotation_id"].as_string() == str(annotation.id),
+        )
+        .all()
+    )
+    used = sum(
+        1 for (meta,) in attempts if isinstance(meta, dict) and not meta.get(BILLING_BLOCK_KEY)
+    )
+    state["attempts"] = used
+    state["state"] = RETRY_EXHAUSTED if used >= SWEEP_MAX_ATTEMPTS else RETRY_SWEEP
+    return state
+
+
+# --------------------------------------------------------------------------- #
 # Portable Celery dispatch (api: send_task_safe; worker: worker_celery.app).
 # --------------------------------------------------------------------------- #
 def _dispatch_task(task_name: str, kwargs: dict, queue: str):
@@ -730,6 +952,35 @@ def ensure_immediate_evaluation_outcome(
 
     user = str(user_id or annotation.completed_by)
 
+    # A sheet judge without a usable Bewertungsbogen would only write an
+    # error row. Leave it out; when nothing else is left to grade, hold the
+    # whole grading until the sheet is there.
+    all_cfgs = cfgs
+    cfgs, held = split_held_rubric_judges(
+        db,
+        task,
+        cfgs,
+        review_required=bool(getattr(project, "rubric_review_required", False)),
+    )
+    if held and not gradable_configs(cfgs, annotation_results):
+        run_id = record_blocked_immediate_run(
+            db,
+            project,
+            annotation,
+            user_id=user,
+            configs=all_cfgs,
+            block=rubric_missing_block(task, held),
+            trigger=trigger,
+        )
+        logger.info(
+            "[immediate-eval] held run=%s annotation=%s trigger=%s reason=%s",
+            run_id,
+            annotation.id,
+            trigger,
+            RUBRIC_MISSING,
+        )
+        return EnsureOutcome(run_id, OUTCOME_BLOCKED)
+
     # Billing may refuse the grading (extended edition). Keep one failed run
     # with the reason instead of dispatching a task that cannot run.
     block = _grading_block(db, project, user, cfgs)
@@ -754,6 +1005,8 @@ def ensure_immediate_evaluation_outcome(
 
     eval_record_id = str(uuid.uuid4())
     meta = _run_metadata(annotation, cfgs, trigger)
+    if held:
+        meta[HELD_CONFIGS_KEY] = held_configs_metadata(held)
     prior_block = latest_blocked_run(db, project.id, annotation)
     if prior_block is not None:
         from sqlalchemy.orm.attributes import flag_modified

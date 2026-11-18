@@ -161,7 +161,11 @@ class TestExtensionLoader:
         # ExamToolDock / project-exam-tools / OrgToolProvidersPanel slots).
         # 2.53 adds rubric_generation_jobs, the rubric check step
         # (rubric_review_required, task_rubric_review_events) and app_version.
-        assert CORE_API_VERSION == "2.53"
+        # 2.54 adds the exam readiness seams (get_exam_open_block_fn, held
+        # sheet judges, dispatch_waiting_gradings).
+        # 2.55 adds creation-wizard drafts (projects.is_wizard_draft,
+        # project_wizard_drafts, project_listable, the draft key scope).
+        assert CORE_API_VERSION == "2.55"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

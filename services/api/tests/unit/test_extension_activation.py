@@ -271,6 +271,7 @@ class TestWorkerAttrGating:
             "get_falloesung_compute_fn",
             "get_falloesung_bulk_compute_fn",
             "get_inline_judge",
+            "get_exam_open_block_fn",
             "anything_else",
         ):
             assert extension_registry.worker_attr_gating(attr) == activation.GATED

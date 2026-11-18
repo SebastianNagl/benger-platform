@@ -21,7 +21,7 @@ from sqlalchemy.orm import selectinload
 from auth_module import require_user
 from auth_module.principal import Principal
 from database import get_async_db
-from project_models import Project, ProjectOrganization, Task
+from project_models import Project, ProjectOrganization, Task, project_listable
 from routers.projects.deps import ProjectAccess
 from routers.projects.helpers import (
     TIER_ATTEMPTED,
@@ -116,7 +116,7 @@ def _build_select_visible_projects(
     stmt = (
         select(Project)
         .options(selectinload(Project.project_organizations))
-        .where(Project.id.in_(ids), Project.deleted_at.is_(None))
+        .where(Project.id.in_(ids), project_listable())
     )
     if principal.is_api_key:
         stmt = stmt.where(Project.seb_required.is_not(True))

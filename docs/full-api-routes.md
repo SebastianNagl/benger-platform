@@ -286,6 +286,8 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/projects/tasks/{task_id}/annotations` | `annotations:read` | bound |
 | POST | `/api/projects/tasks/{task_id}/annotations` | `annotations:write` | bound |
 | PATCH | `/api/projects/tasks/{task_id}/metadata` | `tasks:write` | bound |
+| GET | `/api/projects/wizard-drafts` | never |  |
+| POST | `/api/projects/wizard-drafts` | never |  |
 | DELETE | `/api/projects/{project_id}` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}` | `projects:read` | bound |
 | PATCH | `/api/projects/{project_id}` | `projects:write` | bound |
@@ -364,6 +366,12 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/tasks/{task_id}/questionnaire-response` | `annotations:write` | bound |
 | POST | `/api/projects/{project_id}/tasks/{task_id}/skip` | `annotations:write` | bound |
 | PATCH | `/api/projects/{project_id}/visibility` | `projects:write` | bound |
+| DELETE | `/api/projects/{project_id}/wizard-draft` | never |  |
+| GET | `/api/projects/{project_id}/wizard-draft` | never |  |
+| PUT | `/api/projects/{project_id}/wizard-draft` | never |  |
+| POST | `/api/projects/{project_id}/wizard-draft/finish` | never |  |
+| GET | `/api/projects/{project_id}/wizard-draft/tasks` | never |  |
+| PUT | `/api/projects/{project_id}/wizard-draft/tasks/{task_id}` | never |  |
 | GET | `/api/reports` | `results:read` | any |
 | GET | `/api/reports/{report_id}/data` | `results:read` | bound |
 | GET | `/api/runs` | `runs:read` | bound |

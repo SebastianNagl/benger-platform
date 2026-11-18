@@ -49,7 +49,7 @@ from models import (
     ProjectSummary,
     ResponseGeneration,
 )
-from project_models import Annotation, Project, ProjectOrganization, Task
+from project_models import Annotation, Project, ProjectOrganization, Task, project_listable
 
 
 PERIODS: Tuple[str, ...] = ("overall", "monthly", "weekly")
@@ -288,7 +288,8 @@ def recompute_project_summaries(db: Session) -> int:
             "still being filled (migration 138); keeping the previous rows"
         )
         return 0
-    project_ids = [row[0] for row in db.execute(select(Project.id).where(Project.deleted_at.is_(None))).all()]
+    # Creation-wizard drafts are never listed or counted, so they get no row.
+    project_ids = [row[0] for row in db.execute(select(Project.id).where(project_listable())).all()]
     now = datetime.now(timezone.utc)
     upserts = 0
     for pid in project_ids:
@@ -901,9 +902,10 @@ def _build_dashboard_sum_stmt(
     else:
         # Rows of soft-deleted projects stay behind (the refresh skips those
         # projects but never removes their rows); the unscoped sum must not
-        # count them, like the project count and the projects list.
+        # count them, like the project count and the projects list. Neither
+        # does it count creation-wizard drafts.
         stmt = stmt.join(Project, Project.id == ProjectSummary.project_id).where(
-            Project.deleted_at.is_(None)
+            project_listable()
         )
     return stmt
 
@@ -918,7 +920,7 @@ def _build_unsummarized_project_ids_stmt(
         .where(ProjectSummary.project_id == Project.id, ProjectSummary.period == period)
         .exists()
     )
-    stmt = select(Project.id).where(Project.deleted_at.is_(None), ~has_summary)
+    stmt = select(Project.id).where(project_listable(), ~has_summary)
     if accessible_project_ids is not None:
         stmt = stmt.where(Project.id.in_(accessible_project_ids))
     return stmt

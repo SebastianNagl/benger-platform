@@ -120,6 +120,7 @@
       "createFirst": "Erstelle dein erstes Projekt",
       "noDescription": "Keine Beschreibung",
       "tasks": "Aufgaben",
+      "taskOne": "Aufgabe",
       "openProject": "Projekt öffnen",
       "loadFailed": "Die aktuellen Projekte konnten nicht geladen werden."
     },
@@ -618,7 +619,45 @@
           "add": "+ Label hinzufügen"
         },
         "variantIdPlaceholder": "z. B. variant_a",
-        "dataFieldOption": "{field} (Daten)"
+        "dataFieldOption": "{field} (Daten)",
+        "draft": {
+          "listTitle": "Unfertige Projekte",
+          "listHint": "Mach dort weiter, wo du aufgehört hast. Ein Entwurf wird 30 Tage nach seiner letzten Änderung gelöscht.",
+          "lastChanged": "Zuletzt geändert am {date}",
+          "expiresOn": "wird am {date} gelöscht",
+          "continue": "Weitermachen",
+          "discard": "Verwerfen",
+          "discardDraft": "Entwurf verwerfen",
+          "discardTitle": "Diesen Entwurf verwerfen?",
+          "discardMessage": "Der Entwurf „{title}“ und alles darin (Aufgaben, Bewertungsbögen und ihre Prüfungen) werden gelöscht. Das lässt sich nicht rückgängig machen.",
+          "discardConfirm": "Entwurf verwerfen",
+          "discarded": "Entwurf verworfen",
+          "discardFailed": "Der Entwurf konnte nicht verworfen werden: {error}",
+          "saving": "Entwurf wird gespeichert...",
+          "saved": "Als Entwurf gespeichert",
+          "saveFailed": "Der Entwurf konnte nicht gespeichert werden: {error}",
+          "loadFailed": "Der Entwurf konnte nicht geöffnet werden: {error}",
+          "createFailed": "Der Entwurf konnte nicht angelegt werden: {error}",
+          "syncFailed": "Die Aufgaben konnten nicht im Entwurf gespeichert werden: {error}",
+          "configSyncFailed": "Die Einstellungen konnten nicht im Entwurf gespeichert werden: {error}",
+          "leaveCheckFailed": "Der Schritt konnte vor dem Weitergehen nicht geprüft werden: {error}",
+          "conflict": "Dieser Entwurf wurde in einem anderen Tab oder auf einem anderen Gerät geändert. Lade die neueste Fassung, um weiterzumachen.",
+          "reload": "Neueste Fassung laden",
+          "expired": "Diesen Entwurf gibt es nicht mehr. Er wurde verworfen oder nach 30 Tagen ohne Änderung gelöscht.",
+          "startOver": "Neu beginnen",
+          "kindChangeTitle": "Projekttyp ändern?",
+          "kindChangeMessage": "Der Projekttyp lässt sich nicht mehr ändern, sobald der Entwurf „{title}“ angelegt ist. Den Entwurf verwerfen und einen neuen mit dem neuen Typ beginnen?",
+          "kindChangeConfirm": "Verwerfen und neu beginnen",
+          "taskChangeTitle": "Bewertungsbögen ersetzen?",
+          "taskChangeMessage": "Deine Änderungen an den Aufgaben betreffen Bewertungsbögen in diesem Entwurf:",
+          "taskChangeUpdated": "Aufgabe {n} wurde geändert: {sheets} Bewertungsbogen/-bögen, davon {checked} geprüft, werden beiseitegelegt.",
+          "taskChangeRemoved": "Aufgabe {n} fällt weg: {sheets} Bewertungsbogen/-bögen, davon {checked} geprüft, werden mit ihren Prüfungen gelöscht.",
+          "taskChangeGenerating": "Für sie wird gerade noch ein Bewertungsbogen erzeugt.",
+          "taskChangeNote": "Aufgaben, die du nicht geändert hast, behalten ihre Bewertungsbögen.",
+          "taskChangeConfirm": "Änderungen übernehmen",
+          "importedNotice": "{count} Aufgaben aus {name} sind im Entwurf. Wähle nur dann erneut eine Datei, wenn du sie ersetzen willst.",
+          "targetFailed": "Organisation oder Gruppe dieses Entwurfs konnten nicht geändert werden: {error}"
+        }
       },
       "structuredExam": {
         "button": "Klausur strukturiert erfassen",
@@ -708,6 +747,7 @@
       "participantBadge": "Teilnehmer",
       "attemptedBadge": "Frühere Abgabe",
       "archivedBadge": "Archiviert",
+      "wizardDraftBadge": "Assistenten-Entwurf",
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
@@ -1490,7 +1530,9 @@
       "title": "Letzte Aktivität",
       "noTasks": "Noch keine Aufgaben",
       "importData": "Daten importieren",
+      "tasksImportedOne": "{count} Aufgabe importiert",
       "tasksImported": "{count} Aufgaben importiert",
+      "annotationsCompletedOne": "{count} Annotation abgeschlossen",
       "annotationsCompleted": "{count} Annotationen abgeschlossen",
       "inProgress": "In Bearbeitung"
     },
@@ -1583,7 +1625,8 @@
       "cancel": "Abbrechen",
       "saving": "Wird gespeichert...",
       "titlePlaceholder": "Beschreibung hinzufügen...",
-      "titleCannotBeEmpty": "Titel kann nicht leer sein"
+      "titleCannotBeEmpty": "Titel kann nicht leer sein",
+      "addDescription": "Beschreibung hinzufügen"
     },
     "sharing": {
       "title": "Einzel-Freigabe",
@@ -7134,6 +7177,9 @@
       "closedReadOnly": "Dieses Projekt ist beendet – nur Ansicht, keine weiteren Änderungen.",
       "attemptedReadOnly": "Frühere Abgabe. Nur Ansicht, keine weiteren Änderungen."
     },
+    "examNotReady": {
+      "description": "Diese Klausur ist noch nicht freigegeben, weil ihr Bewertungsbogen noch geprüft wird."
+    },
     "textAreaPlaceholder": "Deine Antwort ..."
   },
   "annotationTab": {
@@ -7580,7 +7626,8 @@
         "connectionRemoved": "Die Lernplattform-Anbindung dieser Klausur besteht nicht mehr. Die KI-Bewertung wurde deshalb nicht gestartet.",
         "orgKeyMissing": "Die Organisation, über deren Lernplattform diese Klausur läuft, hat keinen API-Schlüssel für die gewählten Bewertungsmodelle hinterlegt. Die KI-Bewertung wurde deshalb nicht gestartet.",
         "orgNotPaying": "Die Organisation, über deren Lernplattform diese Klausur läuft, stellt keine API-Schlüssel bereit. Die KI-Bewertung wurde deshalb nicht gestartet.",
-        "other": "Die Abrechnung hat die KI-Bewertung abgelehnt."
+        "other": "Die Abrechnung hat die KI-Bewertung abgelehnt.",
+        "rubricMissing": "Für diese Aufgabe ist noch kein Bewertungsbogen aktiv. Die KI-Bewertung startet, sobald einer bereitsteht."
       },
       "unmatchedConfigsTitle": "Evaluierungen ohne passende Daten",
       "openProject": "Projekt öffnen",
