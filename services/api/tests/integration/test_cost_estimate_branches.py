@@ -905,6 +905,68 @@ class TestModelParameterBranches:
         reasoning = _per_model(body, rec_model)
         assert reasoning["per_call_usd"] > plain["per_call_usd"]
 
+    @pytest.mark.asyncio
+    async def test_thinking_switch_sets_reasoning_tier(
+        self, async_test_client, async_test_db
+    ):
+        """A model whose knob is the enable_thinking switch is reasoning-tier
+        only while thinking is on: the run's value wins, the declared default
+        applies without one. Off prices like a plain model."""
+        actor = await _seed_user(async_test_db)
+        await _seed_model(async_test_db, PRICED_MODEL, input_cost=10.0, output_cost=30.0)
+        switch = {
+            "reasoning_config": {
+                "parameter": "enable_thinking",
+                "type": "select",
+                "values": ["off", "on"],
+                "default": "off",
+                "label": "Thinking",
+            }
+        }
+        off_default = "test-thinking-off-default"
+        on_by_run = "test-thinking-on-by-run"
+        off_by_run = "test-thinking-off-by-run"
+        for model_id in (off_default, on_by_run):
+            await _seed_model(
+                async_test_db, model_id, input_cost=10.0, output_cost=30.0,
+                default_config=switch,
+            )
+        await _seed_model(
+            async_test_db, off_by_run, input_cost=10.0, output_cost=30.0,
+            default_config={
+                "reasoning_config": {**switch["reasoning_config"], "default": "on"}
+            },
+        )
+        gen_config = {
+            "selected_configuration": {
+                "parameters": {"max_tokens": 1000},
+                "model_configs": {
+                    on_by_run: {"enable_thinking": "on"},
+                    off_by_run: {"enable_thinking": "off"},
+                },
+            },
+            "prompt_structures": {"s0": {"name": "s0", "system_prompt": "S", "instruction_prompt": "$q"}},
+        }
+        project = await _seed_project(
+            async_test_db, actor, num_tasks=3, generation_config=gen_config,
+        )
+        pid = project.id
+        await async_test_db.commit()
+        with _as_user(actor):
+            body_resp = await _post(
+                async_test_client,
+                project_id=pid,
+                mode="generation", structure_keys=["s0"],
+                model_ids=[PRICED_MODEL, off_default, on_by_run, off_by_run],
+                generation_mode="all",
+            )
+        assert body_resp.status_code == 200, body_resp.text
+        body = body_resp.json()
+        plain = _per_model(body, PRICED_MODEL)["per_call_usd"]
+        assert _per_model(body, off_default)["per_call_usd"] == plain
+        assert _per_model(body, off_by_run)["per_call_usd"] == plain
+        assert _per_model(body, on_by_run)["per_call_usd"] > plain
+
 
 # ---------------------------------------------------------------------------
 # Response note text branches (mode + generation_mode)

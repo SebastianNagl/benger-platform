@@ -23,6 +23,11 @@ import re
 import tasks
 from typing import Any, Dict, Optional
 from response_parser import find_prompt_structure, prompt_structure_keys
+from system_profile import (
+    OPENAI_COMPATIBLE_REASONING_PARAMS,
+    declared_reasoning_config,
+    system_record,
+)
 
 
 def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
@@ -921,6 +926,27 @@ def generate_llm_responses_impl(
                                 reasoning_kwargs["thinking_token_budget"] = model_config[
                                     "thinking_token_budget"
                                 ]
+                            # Qwen / Gemma / Nemotron chat templates on
+                            # DeepInfra: enable_thinking ("on" / "off")
+                            if "enable_thinking" in model_config:
+                                reasoning_kwargs["enable_thinking"] = model_config[
+                                    "enable_thinking"
+                                ]
+                        # DeepInfra sends the model's declared reasoning knob
+                        # with the declared default when the run sets none
+                        # (the value the model picker shows), so record that
+                        # default as the run's value too.
+                        _declared_rc = declared_reasoning_config(
+                            getattr(model, "default_config", None)
+                        )
+                        if (
+                            str(getattr(model, "provider", "") or "").lower() == "deepinfra"
+                            and _declared_rc is not None
+                            and _declared_rc["parameter"] in OPENAI_COMPATIBLE_REASONING_PARAMS
+                            and reasoning_kwargs.get(_declared_rc["parameter"]) is None
+                            and _declared_rc.get("default") is not None
+                        ):
+                            reasoning_kwargs[_declared_rc["parameter"]] = _declared_rc["default"]
 
                         # Apply model-specific parameter constraints (final
                         # guardrail after the precedence chain). Clamping
@@ -1278,6 +1304,34 @@ def generate_llm_responses_impl(
                                 if isinstance(_seed_prov, dict):
                                     _seed_prov["value"] = None
                                     _seed_prov["not_sent"] = not_sent
+
+                        # System identity: model id plus a hash of the
+                        # parameter profile that was sent. A reasoning arm of
+                        # the same model is a system of its own; seeds and run
+                        # indexes are not part of the profile. Reasoning knobs
+                        # come from what the service reports as sent when it
+                        # reports it (DeepInfra), else from the run config.
+                        _profile_params: Dict[str, Any] = {
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                        }
+                        _sent_reasoning = metadata.get("reasoning_params_sent")
+                        if isinstance(_sent_reasoning, dict):
+                            _profile_params.update(_sent_reasoning)
+                        else:
+                            _profile_params.update(
+                                {k: v for k, v in reasoning_kwargs.items() if k != "seed"}
+                            )
+                        _system = system_record(
+                            model_id,
+                            _profile_params,
+                            provider=getattr(model, "provider", None),
+                            provider_model_id=metadata.get("provider_model_id") or api_model_name,
+                            response_model=metadata.get("response_model"),
+                        )
+                        metadata["system"] = _system
+                        if _captured_parameters is not None and "system" not in _captured_parameters:
+                            _captured_parameters["system"] = _system
 
                         tasks.logger.info(
                             f"📝 Final response_text length: {len(response_text)}"

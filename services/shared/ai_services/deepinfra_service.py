@@ -20,7 +20,13 @@ from .base_service import (
     derive_refusal,
     derive_truncated,
 )
-from .provider_capabilities import calculate_cost, model_supports_seed
+from system_profile import openai_compatible_reasoning_payload, reasoning_params_sent
+
+from .provider_capabilities import (
+    calculate_cost,
+    model_reasoning_config,
+    model_supports_seed,
+)
 from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
@@ -278,6 +284,13 @@ class DeepInfraService(BaseAIService):
                     # Most DeepInfra-hosted models do not support a seed
                     # parameter; we don't send one.
                     "seed": None,
+                    "reasoning_params_sent": reasoning_params_sent(
+                        openai_compatible_reasoning_payload(
+                            model_reasoning_config(model_name), kwargs
+                        )
+                    ),
+                    "provider_model_id": self.model_mapping.get(model_name, model_name),
+                    "response_model": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -346,6 +359,15 @@ class DeepInfraService(BaseAIService):
         }
         if supports_seed_here:
             payload["seed"] = requested_seed
+        # The reasoning knob the catalog declares for this model
+        # (reasoning_effort for gpt-oss, enable_thinking for Qwen, Gemma and
+        # Nemotron chat templates), with the run's value or the declared
+        # default. Undeclared knobs are never sent.
+        payload.update(
+            openai_compatible_reasoning_payload(
+                model_reasoning_config(model_name), kwargs
+            )
+        )
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -425,6 +447,11 @@ class DeepInfraService(BaseAIService):
                 "error_type": None,
                 # Per-model gated; None when the model doesn't accept seed.
                 "seed": requested_seed if supports_seed_here else None,
+                # Reasoning knobs as sent, and the model id sent to and
+                # reported by DeepInfra (the system key's provider side).
+                "reasoning_params_sent": reasoning_params_sent(payload),
+                "provider_model_id": api_model_name,
+                "response_model": result.get("model"),
                 "created_at": end_time.isoformat(),
                 **self.get_invocation_provenance(),
             },

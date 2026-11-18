@@ -993,11 +993,32 @@ whenever one is added, renamed or removed):
     dialog. Backward moves and the wizard outside draft mode are never
     guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
     applying policies.
+
+2.56 (2026-11-18): system key of a generation (no migration).
+  - ``services/shared/system_profile.py``: ``parameter_profile(params)``
+    (temperature, top_p, max_tokens and the reasoning knobs
+    ``reasoning_effort``, ``thinking_budget``, ``thinking_token_budget``,
+    ``prompt_mode``, ``enable_thinking``; never seed or run index),
+    ``parameter_profile_sha256`` (SHA-256 of the sorted compact JSON) and
+    ``system_key(model_id, profile)`` = ``"<model_id>@<first 12 hex>"``. A
+    reasoning arm of one model is a system of its own; its repeats are not.
+  - ``generations.response_metadata.system`` and the run's
+    ``parameters.system``: ``{key, model_id, provider, provider_model_id,
+    response_model, parameter_profile, parameter_profile_sha256}``. Answers
+    generated before 2.56 carry no ``system`` block.
+  - Reasoning knob ``enable_thinking`` (``"on"`` / ``"off"``, a
+    ``reasoning_config`` select) in a model's run config. DeepInfra sends a
+    model's declared ``reasoning_effort`` or ``enable_thinking`` (as
+    ``chat_template_kwargs``) with the run value or the declared default,
+    and reports ``reasoning_params_sent``, ``provider_model_id`` and
+    ``response_model`` in its response metadata.
+    ``provider_capabilities.model_reasoning_config(model_id)`` reads the
+    catalog declaration.
 """
 
 import os
 
-CORE_API_VERSION = "2.55"
+CORE_API_VERSION = "2.56"
 
 
 def extended_required() -> bool:
