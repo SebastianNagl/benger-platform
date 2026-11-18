@@ -82,6 +82,45 @@ def prompt_structure_keys(generation_config: Any) -> List[str]:
     return []
 
 
+MULTI_CHOICE_MODES = ("multiple", "multiple-dropdown")
+
+
+def multi_choice_names(label_config: Optional[str]) -> List[str]:
+    """The names of the config's ``<Choices>`` that take several choices
+    (``choice="multiple"`` or ``"multiple-dropdown"``)."""
+    if not label_config:
+        return []
+    try:
+        root = ET.fromstring(label_config)
+    except ET.ParseError:
+        return []
+    return [
+        elem.get("name")
+        for elem in root.iter("Choices")
+        if elem.get("name") and (elem.get("choice") or "").lower() in MULTI_CHOICE_MODES
+    ]
+
+
+def last_json_value(text: str) -> Any:
+    """The last top-level JSON object or array in ``text`` that decodes, or
+    None when there is none."""
+    decoder = json.JSONDecoder()
+    found = None
+    position = 0
+    while position < len(text):
+        if text[position] in "{[":
+            try:
+                value, end = decoder.raw_decode(text, position)
+            except json.JSONDecodeError:
+                position += 1
+                continue
+            found = value
+            position = end
+        else:
+            position += 1
+    return found
+
+
 @dataclass
 class ParseResult:
     """Result of parsing an LLM response."""
@@ -128,6 +167,13 @@ class ResponseParser:
             for template in repeater_control_names(label_config):
                 self.label_config_map.pop(template, None)
         self.json_schema = self._build_json_schema(generation_structure)
+        # Label Studio stores a <Choices choice="multiple"> answer as a list.
+        self._multi_choice_fields = {
+            name
+            for name in multi_choice_names(label_config)
+            if name in self.label_config_map
+        }
+        self._validation_schema = self._with_choice_lists(self.json_schema)
         # The answer fields a response key may name.
         self._answer_fields = list(self.label_config_map) + [
             name
@@ -211,14 +257,20 @@ class ResponseParser:
         """
         try:
             # Extract JSON if embedded in markdown code blocks
-            json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response_text, re.DOTALL)
+            json_match = re.search(r'```(?:json)?\s*\n(.*?)\s*```', response_text, re.DOTALL)
             if json_match:
                 json_text = json_match.group(1)
             else:
                 json_text = response_text.strip()
 
-            # Parse JSON
-            parsed_data = json.loads(json_text)
+            # Parse JSON; failing that, the last JSON object or array in the
+            # text (an answer that puts its JSON after some prose)
+            try:
+                parsed_data = json.loads(json_text)
+            except json.JSONDecodeError:
+                parsed_data = last_json_value(response_text)
+                if parsed_data is None:
+                    raise
 
             # Array answers of <Repeater> blocks -> indexed control names
             if self._array_blocks:
@@ -245,11 +297,12 @@ class ResponseParser:
                     parsed_data = {labels_field: parsed_data}
 
             parsed_data, mapped_keys = self._map_answer_keys(parsed_data)
+            parsed_data = self._coerce_boolean_choices(parsed_data)
 
             # Validate against schema if available
-            if self.json_schema:
+            if self._validation_schema:
                 try:
-                    validate(instance=parsed_data, schema=self.json_schema)
+                    validate(instance=parsed_data, schema=self._validation_schema)
                 except jsonschema.ValidationError as e:
                     return ParseResult(
                         status="validation_error", error=f"JSON schema validation failed: {str(e)}"
@@ -270,6 +323,45 @@ class ResponseParser:
             return ParseResult(status="failed", error=f"JSON parsing failed: {str(e)}")
         except Exception as e:
             return ParseResult(status="failed", error=f"Unexpected error in JSON parsing: {str(e)}")
+
+    def _with_choice_lists(self, schema: Dict) -> Dict:
+        """``schema`` with each multi-choice field also taking a list of
+        its choice values."""
+        properties = (schema or {}).get("properties") or {}
+        multi = [name for name in self._multi_choice_fields if name in properties]
+        if not multi:
+            return schema
+        widened = dict(schema, properties=dict(properties))
+        for name in multi:
+            single = properties[name]
+            widened["properties"][name] = {
+                "anyOf": [single, {"type": "array", "items": single}]
+            }
+        return widened
+
+    def _coerce_boolean_choices(self, parsed_data: Any) -> Any:
+        """A JSON ``true``/``false`` answering a Choices field whose choice
+        values are ``"true"``/``"false"`` (any case), read as that choice."""
+        if not isinstance(parsed_data, dict):
+            return parsed_data
+
+        def coerce(value: Any, choices: List[str]) -> Any:
+            if isinstance(value, bool):
+                for choice in choices:
+                    if choice.strip().lower() == str(value).lower():
+                        return choice
+            return value
+
+        result = dict(parsed_data)
+        for name, value in parsed_data.items():
+            config = self.label_config_map.get(name) if isinstance(name, str) else None
+            if not config or config.get("type") != "Choices" or not config.get("choices"):
+                continue
+            if isinstance(value, list):
+                result[name] = [coerce(item, config["choices"]) for item in value]
+            else:
+                result[name] = coerce(value, config["choices"])
+        return result
 
     def _map_answer_keys(self, parsed_data: Any):
         """Read the English name of a German schema field as that field.

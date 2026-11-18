@@ -211,3 +211,45 @@ class TestPublicProjectView:
         assert body["answer_fields"][0]["to_name"] == "case_0"
         assert not any("{{idx}}" in name for name in body["bound_fields"])
         assert "doc.cases" in body["bound_fields"]
+
+
+class TestStoredEvaluationConfig:
+    @pytest.mark.asyncio
+    async def test_follows_item_counts_of_later_imported_tasks(
+        self, async_test_client, async_test_db
+    ):
+        user, project, _ = await _seed(async_test_db, task_cases=((1, 2, 3),))
+
+        async def stored_names():
+            response = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
+            assert response.status_code == 200, response.text
+            return {t["name"] for t in response.json()["detected_answer_types"]}
+
+        with _as_user(user):
+            before = await stored_names()
+            assert {"risk_0", "risk_2"} <= before
+            assert "risk_3" not in before
+
+            async_test_db.add(
+                Task(
+                    id=_uid(),
+                    project_id=project.id,
+                    data={"facts": "f", "doc": {"cases": [{"text": f"c{n}"} for n in range(5)]}},
+                    inner_id=2,
+                    created_by=user.id,
+                )
+            )
+            await async_test_db.commit()
+
+            after = await stored_names()
+            detected = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/detect-answer-types"
+            )
+            available = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/available-fields"
+            )
+        assert {"risk_3", "risk_4", "note_4"} <= after
+        assert after == {t["name"] for t in detected.json()["detected_types"]}
+        assert after <= set(available.json()["human_annotation_fields"])

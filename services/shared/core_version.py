@@ -1121,7 +1121,15 @@ migration).
     (longest array per Repeater, one SQL aggregate each), used by evaluation
     field detection, the multi-field field list and the ``answer_fields`` of
     the v1 project view (``serialize_project_public`` takes
-    ``expanded_label_config``).
+    ``expanded_label_config``). The stored evaluation config of a Repeater
+    project keeps the ``repeater_item_counts`` it was expanded to and is
+    regenerated on read when the tasks' counts change.
+  - ``ResponseParser`` JSON extraction: a JSON boolean answering a Choices
+    field with "true"/"false" choices is stored as that choice; a closing
+    code fence may follow the JSON directly; when neither a fenced block nor
+    the whole text decodes, the last JSON object or array in the text is
+    read; a ``<Choices choice="multiple">`` (or ``"multiple-dropdown"``)
+    answer may be a list of choices, stored as ``value.choices``.
   - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
     expanded for Label Studio, with ``item_counts``) and ``GET
     /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).
