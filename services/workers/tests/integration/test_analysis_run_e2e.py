@@ -227,6 +227,34 @@ def test_an_error_outside_the_body_still_fails_the_run(db_conn, seeded, monkeypa
     assert run.status == "failed" and "internal error" in run.error_message
 
 
+def test_a_failure_after_the_upload_deletes_the_frame(db_conn, seeded, monkeypatch):
+    import analysis_jobs.service as service
+    from storage.object_storage import object_storage
+
+    project, user, _ = seeded
+    run = _new_run(db_conn, project, user)
+    uploaded = []
+
+    class RecordingStorage:
+        def upload_file(self, *args, **kwargs):
+            stored = object_storage.upload_file(*args, **kwargs)
+            uploaded.append(stored["file_key"])
+            return stored
+
+        def delete_file(self, key):
+            return object_storage.delete_file(key)
+
+    def broken_versions():
+        raise RuntimeError("version probe failed")
+
+    monkeypatch.setattr(service, "library_versions", broken_versions)
+    assert service.run_analysis_impl(run.id, storage=RecordingStorage())["status"] == "failed"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed" and run.frame_object_key is None and estimates == []
+    assert len(uploaded) == 1
+    assert not os.path.exists(os.path.join(object_storage.local_storage_path, uploaded[0]))
+
+
 def test_inputs_filter_systems_and_structures(db_conn, seeded):
     from analysis.db_source import iter_observations
 

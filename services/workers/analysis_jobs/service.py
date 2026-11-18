@@ -168,8 +168,8 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     t_frame = time.perf_counter()
     result = run_spec(frame, spec)
     t_fit = time.perf_counter()
-    # Stored only once the estimates exist, so a run that fails leaves no
-    # object behind.
+    # Stored only once the estimates exist and deleted again when the run
+    # cannot be recorded, so a run that fails leaves no object behind.
     if storage is None:
         from storage.object_storage import object_storage as storage
     stored = storage.upload_file(
@@ -181,35 +181,42 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     )
     t_store = time.perf_counter()
 
-    db.query(AnalysisEstimate).filter(AnalysisEstimate.run_id == run.id).delete(
-        synchronize_session=False
-    )
-    db.add_all([_estimate_row(run.id, row) for row in result.estimates])
-    counts = dict(built.counts)
-    counts.update(source_counts)
-    counts["rows_in_filter"] = result.rows_in_filter
-    run.frame_hash = frame_hash
-    run.frame_object_key = stored["file_key"]
-    run.frame_sha256 = frame_sha256(parquet)
-    run.frame_bytes = len(parquet)
-    run.frame_rows = int(len(frame))
-    run.frame_counts = counts
-    run.engine_version = ENGINE_VERSION
-    run.library_versions = library_versions()
-    run.lockfile_sha256 = lockfile_sha256()
-    run.fits = result.fits
-    run.warnings = built.warnings + result.warnings
-    run.estimates_count = len(result.estimates)
-    run.timings = {
-        "read_s": round(t_read - t0, 6),
-        "frame_s": round(t_frame - t_read, 6),
-        "fit_s": round(t_fit - t_frame, 6),
-        "store_s": round(t_store - t_fit, 6),
-        "total_s": round(time.perf_counter() - t0, 6),
-    }
-    run.status = "completed"
-    run.completed_at = _now()
-    db.commit()
+    try:
+        db.query(AnalysisEstimate).filter(AnalysisEstimate.run_id == run.id).delete(
+            synchronize_session=False
+        )
+        db.add_all([_estimate_row(run.id, row) for row in result.estimates])
+        counts = dict(built.counts)
+        counts.update(source_counts)
+        counts["rows_in_filter"] = result.rows_in_filter
+        run.frame_hash = frame_hash
+        run.frame_object_key = stored["file_key"]
+        run.frame_sha256 = frame_sha256(parquet)
+        run.frame_bytes = len(parquet)
+        run.frame_rows = int(len(frame))
+        run.frame_counts = counts
+        run.engine_version = ENGINE_VERSION
+        run.library_versions = library_versions()
+        run.lockfile_sha256 = lockfile_sha256()
+        run.fits = result.fits
+        run.warnings = built.warnings + result.warnings
+        run.estimates_count = len(result.estimates)
+        run.timings = {
+            "read_s": round(t_read - t0, 6),
+            "frame_s": round(t_frame - t_read, 6),
+            "fit_s": round(t_fit - t_frame, 6),
+            "store_s": round(t_store - t_fit, 6),
+            "total_s": round(time.perf_counter() - t0, 6),
+        }
+        run.status = "completed"
+        run.completed_at = _now()
+        db.commit()
+    except Exception:
+        try:
+            storage.delete_file(stored["file_key"])
+        except Exception:  # noqa: BLE001 - the run failure is what is reported
+            logger.error("run_analysis: run %s left frame %s behind", run.id, stored["file_key"], exc_info=True)
+        raise
     logger.info(
         "run_analysis: run %s completed: %d rows, %d estimates, frame %s",
         run.id, len(frame), len(result.estimates), frame_hash[:12],
