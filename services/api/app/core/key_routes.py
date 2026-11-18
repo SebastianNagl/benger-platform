@@ -58,6 +58,7 @@ PROJECT_PARAMS: Dict[str, str] = {
     "evaluation_id": "evaluation_run",
     "generation_id": "response_generation",
     "report_id": "report",
+    "analysis_run_id": "analysis_run",
 }
 
 
@@ -316,6 +317,18 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/evaluations/projects/{project_id}/*", ["evaluations:read"], ["evaluations:run"]),
         allow("/api/evaluations/evaluation/status/{evaluation_id}", "evaluations:read", methods="read"),
         allow("/api/evaluations/stream/{evaluation_id}", "evaluations:read", methods="read"),
+        # -- analysis runs of variant experiments ---------------------------- #
+        allow("/api/analysis/engine", "results:read", methods="read", neutral=True),
+        allow("/api/analysis/specs/validate", "results:read", methods="POST", neutral=True),
+        allow(
+            "/api/analysis-runs/{analysis_run_id}/frame",
+            "exports:read",
+            "results:read",
+            REF,
+            methods="read",
+            note="the frame carries task data (gold) and parsed answers",
+        ),
+        allow("/api/analysis-runs/{analysis_run_id}*", "results:read", methods="read"),
         # -- legacy data API (tasks.py) -------------------------------------- #
         allow("/api/data/export", "exports:read", REF, methods="POST"),
         allow("/api/data/", REF, methods="read"),
@@ -356,6 +369,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # only (the handler requires it too), before the read rule below.
         allow("/api/projects/{project_id}/generations/reparse", "admin:platform", methods="POST"),
         allow("/api/projects/{project_id}/generations/*", "runs:read", methods="read"),
+        area("/api/projects/{project_id}/analysis-runs", ["results:read"], ["evaluations:run"]),
         allow("/api/projects/{project_id}/cohort-leaderboard", "results:read", methods="read"),
         allow("/api/projects/{project_id}/completion-stats", "results:read", methods="read"),
         allow("/api/projects/{project_id}/grading-feedback/*", "results:read", methods="read"),

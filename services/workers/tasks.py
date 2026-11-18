@@ -5306,6 +5306,29 @@ def purge_project(self, job_id: str) -> Dict[str, Any]:
         db.close()
 
 
+# One analysis run of a variant experiment (services/shared/analysis): the
+# frame of the run's spec over the project's generations, every estimand,
+# the estimates. Minutes and CPU-bound, so its own `analysis` queue. The body
+# is idempotent for a redelivered message (a finished run is left alone, a
+# run a dead worker left `running` is recomputed), and the numeric stack is
+# imported inside it, so `import tasks` stays light.
+@app.task(
+    name="tasks.run_analysis",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def run_analysis(self, run_id: str) -> Dict[str, Any]:
+    try:
+        from analysis_jobs.service import run_analysis_impl
+
+        return run_analysis_impl(run_id, session_factory=SessionLocal)
+    except Exception as exc:
+        from analysis_jobs.service import fail_escaped_run
+
+        return fail_escaped_run(run_id, exc, session_factory=SessionLocal)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Extracted implementations (structural decomposition of this module).
 #

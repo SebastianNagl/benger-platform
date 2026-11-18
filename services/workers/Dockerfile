@@ -62,7 +62,7 @@ USER 1000
 # Deployments override `command` per pool (see workers.queues + workerPools in
 # infra/helm/benger/values.yaml) -- that split is where the actual starvation fix
 # lives. Compose overrides it too; see infra/docker-compose.yml.
-CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "interactive,emails,maintenance,generation,evaluation,bulk,celery,default"]
+CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "interactive,emails,maintenance,generation,evaluation,bulk,ocr,analysis,celery,default"]
 
 # Test runner image (infra/docker-compose.test.yml test-workers-runner, built
 # with `target: test`). Adds the `test` extra and stays root: the runner

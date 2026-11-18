@@ -106,8 +106,9 @@ endpoints on this page:
 | `tasks:read` | reading tasks (blinded, see below) |
 | `tasks:read_reference` | reading tasks with reference solutions; also required for exports. Only grantable to personal keys and CONTRIBUTOR or ORG_ADMIN organisation keys |
 | `exports:read` | starting, polling and downloading exports |
+| `results:read` | reading analysis runs and their estimates |
 
-The other scopes (`runs:*`, `evaluations:*`, `results:read`, `models:*`,
+The other scopes (`runs:*`, `evaluations:*`, `models:*`,
 `projects:write`, `tasks:write`, `annotations:*`, `account:*`, `org:*`,
 `files:*`, `keys:manage`, `admin:platform`) open routes of the
 [full API](full-api.md); `submissions:*` and `systems:*` are reserved for
@@ -126,6 +127,9 @@ packages) can add scopes and endpoints of their own under `/api/v1/<overlay>`.
 | `POST /api/v1/projects/{project_id}/exports` | `exports:read`, `tasks:read_reference` | start an export job (idempotent) |
 | `GET /api/v1/exports/{job_id}` | `exports:read`, `tasks:read_reference` | poll an export job |
 | `GET /api/v1/exports/{job_id}/download` | `exports:read`, `tasks:read_reference` | `302` to a presigned download URL (valid 5 minutes) |
+| `GET /api/v1/projects/{project_id}/analysis-runs` | `results:read` | the project's analysis runs, newest first (paginated) |
+| `GET /api/v1/analysis-runs/{analysis_run_id}` | `results:read` | one run with its normalized spec, hashes and versions |
+| `GET /api/v1/analysis-runs/{analysis_run_id}/estimates` | `results:read` | its estimates in engine order (paginated; filters `estimand_id`, `contrast_id`, `scope`, `family`, `status`) |
 | `GET /api/v1/openapi.json`, `GET /api/v1/docs` | no login (behind the `public_api` flag) | the spec and Swagger UI |
 | `GET /api/v1/reference/openapi.json`, `GET /api/v1/reference` | no login (behind the `public_api` flag) | spec and Swagger UI of the [full API](full-api.md) |
 
@@ -207,6 +211,17 @@ subset. The answer is `202` with the job and a `Location` header. Poll
 `GET /api/v1/exports/{id}` until `status` is `completed`, then follow
 `download_url` (a `302` to object storage, valid for 5 minutes). Finished
 exports expire after 7 days (`410 export_expired`).
+
+### Analysis runs
+
+Analysis runs of variant experiments (see
+[features/analysis-engine.md](features/analysis-engine.md)) are started in
+the browser or with `POST /api/projects/{project_id}/analysis-runs` of the
+full API and read back here. The routes need full (non-participant) access
+to the project; a key gets `404 analysis_run_not_found` for runs of projects
+it may not see. The frame snapshot a run read is not served on `/api/v1`
+(it carries task data); the full API serves it to the ORG_ADMIN and
+CONTRIBUTOR roles.
 
 ## Pagination
 

@@ -89,6 +89,9 @@ dependencies = [
     "POT>=0.9.6.post1",  # Earth Mover Distance (works on ARM64, replaces pyemd)
     # Statistics
     "statsmodels>=0.14.0",
+    # Frame snapshots of analysis runs (services/shared/analysis/frame.py):
+    # the Parquet writer. Imported only inside the analysis task.
+    "pyarrow>=21.0,<27",
     # Anki flashcard import (issue #35): decompresses the newest .apkg form
     # (collection.anki21b = zstd-compressed SQLite). Used by services/shared/anki,
     # imported by both api and workers. arm64 wheels published — normal pin is fine.

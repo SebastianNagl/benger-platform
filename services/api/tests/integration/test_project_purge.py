@@ -155,7 +155,7 @@ async def test_purge_job_removes_generations_and_generation_jobs(async_test_clie
         assert done["status"] == "completed" and done["progress"] == 100
         assert done["result"] == {
             "tasks": 5, "task_evaluations": 5, "generations": 6,
-            "generation_jobs": 6, "projects": 1,
+            "generation_jobs": 6, "analysis_runs": 0, "projects": 1,
         }
 
     await _assert_gone(db, p.id, task_ids)
@@ -179,6 +179,43 @@ async def test_purge_progress_is_recorded_per_batch(async_test_db):
     counts = await db.run_sync(_purge)
     assert seen == [(2, 5), (4, 5), (5, 5)]
     assert counts["tasks"] == 5 and counts["projects"] == 1
+
+
+async def test_purge_removes_analysis_runs_and_their_stored_frames(async_test_db):
+    from models import AnalysisEstimate, AnalysisRun
+    from storage.object_storage import object_storage
+
+    db = async_test_db
+    owner = await _user(db)
+    p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
+    stored = object_storage.upload_file(b"PAR1 frame", filename="frame.parquet", file_type="analysis")
+    key = stored["file_key"]
+    runs = []
+    for frame_key in (key, None):
+        run = AnalysisRun(
+            id=str(uuid.uuid4()), project_id=p.id, created_by=owner.id, name="a", status="completed",
+            spec={}, normalized_spec={}, spec_hash="h" * 64, spec_version=1, engine_version="1.0.0",
+            frame_object_key=frame_key,
+        )
+        db.add(run)
+        runs.append(run)
+    await db.flush()
+    db.add(AnalysisEstimate(run_id=runs[0].id, position=0, estimand_id="e", estimator="fe_ols",
+                            outcome="y", scope="pooled", status="ok"))
+    await db.flush()
+    assert key.startswith("analysis/")
+
+    counts = await db.run_sync(lambda s: purge_project_data(s, p.id))
+    assert counts["analysis_runs"] == 2 and counts["projects"] == 1
+    assert await _count(db, AnalysisRun, AnalysisRun.project_id == p.id) == 0
+    assert await _count(db, AnalysisEstimate, AnalysisEstimate.run_id == runs[0].id) == 0
+    assert object_storage.get_file_info(key) is None
+
+
+async def test_deleting_analysis_frames_is_best_effort():
+    with patch("storage.object_storage.object_storage.delete_file", side_effect=[True, False, RuntimeError("down")]):
+        assert project_purge.delete_analysis_frames(["a", "b", "c"]) == 1
+    assert project_purge.delete_analysis_frames([]) == 0
 
 
 async def test_purge_refuses_a_live_project_and_accepts_a_gone_one(async_test_db):

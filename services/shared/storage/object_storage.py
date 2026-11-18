@@ -182,6 +182,9 @@ class ObjectStorageService:
             "static": "static/assets",
             "temp": "temp",
             "backups": "backups/{year}/{month}",
+            # Frame snapshots of analysis runs (Parquet): kept, like
+            # submissions/, because a run's estimates point at them.
+            "analysis": "analysis/{year}/{month}",
         }
 
         # Presigned URL expiration times (in seconds)

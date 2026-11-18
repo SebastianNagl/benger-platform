@@ -493,6 +493,7 @@ from routers.cost_estimate import router as cost_estimate_router  # noqa: E402
 from routers.generation_task_list import router as generation_task_list_router  # noqa: E402
 from routers.health import router as health_router  # noqa: E402
 from routers.leaderboards import router as leaderboards_router  # noqa: E402
+from routers.analysis import router as analysis_router  # noqa: E402
 
 # Legacy routers
 from routers.legacy.debug import router as debug_router  # noqa: E402
@@ -578,6 +579,7 @@ app.include_router(marketplace_router)  # Vendor marketplace: /api/marketplace/*
 app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api/admin/vendors
 app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedback export (/api/admin/grading-feedback)
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
+app.include_router(analysis_router)  # Analysis runs of variant experiments (/api/analysis*, project runs)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 # Feature flags (core 2.42): /api/feature-flags, plus the pre-2.42 extended
 # path for one release. Included before the extension routers so the

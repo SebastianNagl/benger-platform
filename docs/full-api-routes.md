@@ -50,6 +50,11 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/admin/vendors` | `admin:platform` | any |
 | POST | `/api/admin/vendors` | `admin:platform` | any |
 | DELETE | `/api/admin/vendors/{organization_id}` | `admin:platform` | any |
+| GET | `/api/analysis-runs/{analysis_run_id}` | `results:read` | bound |
+| GET | `/api/analysis-runs/{analysis_run_id}/estimates` | `results:read` | bound |
+| GET | `/api/analysis-runs/{analysis_run_id}/frame` | `exports:read`, `results:read`, `tasks:read_reference` | bound |
+| GET | `/api/analysis/engine` | `results:read` | any |
+| POST | `/api/analysis/specs/validate` | `results:read` | any |
 | POST | `/api/auth/activate-account` | never |  |
 | POST | `/api/auth/change-password` | never |  |
 | GET | `/api/auth/check-profile-status` | `account:read` | any |
@@ -307,6 +312,8 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/projects/{project_id}` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}` | `projects:read` | bound |
 | PATCH | `/api/projects/{project_id}` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/analysis-runs` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/analysis-runs` | `evaluations:run` | bound |
 | GET | `/api/projects/{project_id}/annotators` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/cloud-imports` | `projects:read` | bound |
 | POST | `/api/projects/{project_id}/cloud-imports` | `projects:write`, `tasks:write` | bound |
