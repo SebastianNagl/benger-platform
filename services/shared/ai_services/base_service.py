@@ -3,22 +3,14 @@ Base AI Service class with common functionality for all AI service integrations.
 """
 
 import asyncio
-import inspect
 import logging
-import random
 import re
 import socket
-import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from functools import wraps
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
-
-# Seam for tests: the sync retry decorator's backoff sleeps go through this
-# module attribute so suites can make them instant.
-_sleep = time.sleep
 
 
 # Phase 6.6: academic-rigor metadata. Centralized helpers so each
@@ -156,8 +148,10 @@ def is_transient_upstream_error(exc: BaseException) -> bool:
     failure by minutes. The caller's own job-level retry still covers a
     resolver that was briefly down.
 
-    :func:`classify_retryable` builds the uniform ``metadata.retryable``
-    flag of every provider on top of it."""
+    This is the rule the DeepInfra / Custom endpoint retry decorator backs
+    off on, with :func:`classify_retryable` as a veto. That classifier
+    builds the uniform ``metadata.retryable`` flag of every provider on top
+    of it."""
     if isinstance(exc, RetryableUpstreamError):
         return True
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
@@ -266,9 +260,9 @@ def classify_retryable(exc: BaseException) -> bool:
     raise a plain ValueError), the url_guard rejection of an unreachable or
     private host (``url_guard.UNREACHABLE_HOST_MESSAGE``) and our own bugs.
 
-    Every provider's retry decorator backs off on it too, through
-    :func:`should_back_off`, so an exhausted quota fails on the first
-    attempt.
+    Every provider's retry decorator consults it too: the decorator backs
+    off only on an error that both its own rule matches and this function
+    deems retryable, so an exhausted quota fails on the first attempt.
     """
     if _is_exhausted_quota(exc):
         return False
@@ -289,19 +283,6 @@ def classify_retryable(exc: BaseException) -> bool:
         return True
     return classify_error_type(exc) in ("rate_limit", "timeout", "parse_error")
 
-
-
-def should_back_off(exc: BaseException) -> bool:
-    """Whether a provider's retry decorator waits and tries the call again:
-    every error :func:`classify_retryable` deems retryable (a plain 429,
-    408, 409, 5xx, a timeout, a dropped connection), except a malformed
-    answer that carries no HTTP status. A fresh sample of that needs no
-    wait, so resampling stays the caller's choice. An error a retry cannot
-    fix, such as an exhausted quota sent as HTTP 429, ends the call after
-    one attempt."""
-    if not classify_retryable(exc):
-        return False
-    return _http_status(exc) is not None or classify_error_type(exc) != "parse_error"
 
 class BaseAIService(ABC):
     """
@@ -550,13 +531,13 @@ class BaseAIService(ABC):
 # Phase 6.2: Per-call retry history (academic-rigor audit trail)
 # ----------------------------------------------------------------
 #
-# Every provider service backs off through one of two retry decorators:
-# :func:`retry_provider_call` below for the sync SDK providers, and
-# ``deepinfra_service.async_retry_with_exponential_backoff`` for the
-# DeepInfra and Custom endpoint HTTP paths. Each pushes attempt records into
-# the contextvar below; each generate() reads it back when building
-# response_metadata so consumers see exactly which failures preceded a
-# successful response. Empty when the call succeeded on the first attempt.
+# All provider services use a `retry_with_exponential_backoff` decorator
+# (one duplicated copy each in openai_service / cohere_service /
+# mistral_service / deepinfra_service). Each decorator pushes attempt
+# records into the contextvar below; each generate() reads it back when
+# building response_metadata so consumers see exactly which rate-limit
+# failures preceded a successful response. Empty when the call succeeded
+# on the first attempt.
 import contextvars
 
 _retry_history_ctx: contextvars.ContextVar = contextvars.ContextVar(
@@ -573,75 +554,3 @@ def get_retry_history_snapshot() -> list:
     """
     history = _retry_history_ctx.get()
     return list(history) if history else []
-
-
-def retry_provider_call(
-    service_name: str,
-    max_retries: int = 5,
-    base_delay: float = 2.0,
-    max_delay: float = 60.0,
-    exponential_base: float = 2.0,
-    jitter: bool = True,
-):
-    """Retry decorator for a sync provider method (``generate``,
-    ``generate_structured``) whose body raises on failure.
-
-    Backs off exponentially on every error :func:`should_back_off` accepts
-    and makes one call for the rest. When the call finally fails, it
-    returns the standard error dict (``_create_error_response`` for
-    ``service_name``, with the method's ``model_name`` argument), so callers
-    never see an exception out of the method. Each failed attempt is
-    recorded in :data:`_retry_history_ctx`, and the error dict keeps that
-    trail in ``metadata.retry_attempts``.
-    """
-
-    def decorator(func):
-        signature = inspect.signature(func)
-
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            history: list = []
-            token = _retry_history_ctx.set(history)
-            try:
-                retries = 0
-                while True:
-                    attempt_start = time.time()
-                    try:
-                        return func(self, *args, **kwargs)
-                    except Exception as e:
-                        error_str = str(e).lower()
-                        backs_off = should_back_off(e)
-                        history.append({
-                            "attempt": retries + 1,
-                            "error": self._sanitize_error_text(str(e))[:200],
-                            "is_rate_limit": "429" in error_str or "rate limit" in error_str,
-                            "retryable": backs_off,
-                            "latency_ms": int((time.time() - attempt_start) * 1000),
-                            "retried": backs_off and retries < max_retries,
-                        })
-                        if not backs_off or retries >= max_retries:
-                            e._retry_history = list(history)
-                            failure = e
-                            break
-
-                        delay = min(base_delay * (exponential_base ** retries), max_delay)
-                        if jitter:
-                            delay = delay * (0.5 + random.random())
-                        logger.warning(
-                            f"⏳ {service_name} transient error, retry "
-                            f"{retries + 1}/{max_retries} in {delay:.1f}s"
-                        )
-                        _sleep(delay)
-                        retries += 1
-            finally:
-                _retry_history_ctx.reset(token)
-
-            bound = signature.bind(self, *args, **kwargs)
-            bound.apply_defaults()
-            return self._error_response_with_history(
-                failure, bound.arguments.get("model_name"), service_name
-            )
-
-        return wrapper
-
-    return decorator

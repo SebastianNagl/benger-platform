@@ -153,26 +153,20 @@ except ImportError:
 def _instant_ai_backoff_sleep(monkeypatch):
     """Make the AI-services retry backoff instant for every worker test.
 
-    Both retry decorators expose their backoff sleep as a module seam:
-    ``ai_services.base_service._sleep`` (``time.sleep``) for
-    ``retry_provider_call``, the decorator of the sync SDK providers, and
-    ``ai_services.deepinfra_service._sleep`` (``asyncio.sleep``) for
-    ``async_retry_with_exponential_backoff``, shared by the DeepInfra and
-    OpenAI-compatible (BYOM) clients. Left unpatched, any test that drives a
-    retryable failure (429/5xx/timeout) would wait out real exponential
-    delays (2s, 4s, ... capped at 60s, up to 5 retries).
+    ``ai_services.deepinfra_service`` exposes its backoff sleep as a module
+    seam (``_sleep = asyncio.sleep``), awaited by
+    ``async_retry_with_exponential_backoff`` — the retry decorator shared by
+    the DeepInfra and OpenAI-compatible (BYOM) clients. Left unpatched, any
+    test that drives a retryable failure (429/5xx/timeout) would wait out
+    real exponential delays (2s, 4s, ... capped at 60s, up to 5 retries).
 
     sys.modules-only on purpose: any test that can reach the backoff has
     the module imported at collection time (directly or via tasks.py), long
     before fixtures run — while importing it here would pull the whole
     ai_services package (and every provider SDK) into unrelated tests.
-    Dedicated retry tests re-patch the same seams with a recording version;
+    Dedicated retry tests re-patch the same seam with a recording version;
     theirs wins because autouse fixtures are applied first.
     """
-    base_mod = sys.modules.get("ai_services.base_service")
-    if base_mod is not None:
-        monkeypatch.setattr(base_mod, "_sleep", lambda _delay: None)
-
     di_mod = sys.modules.get("ai_services.deepinfra_service")
     if di_mod is None:
         return

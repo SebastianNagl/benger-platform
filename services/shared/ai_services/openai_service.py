@@ -4,13 +4,16 @@ Shared OpenAI service implementation.
 
 import logging
 import os
+import random
+import time
 from datetime import datetime
+from functools import wraps
 from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
 from .attachments import openai_chat_content
-from .base_service import BaseAIService, derive_truncated, retry_provider_call
+from .base_service import BaseAIService, classify_retryable, derive_truncated
 from .reasoning import chat_message_reasoning, responses_api_reasoning
 from .provider_capabilities import (
     is_openai_gpt5_or_later,
@@ -29,6 +32,69 @@ from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa
 logger = logging.getLogger(__name__)
 
 
+def retry_with_exponential_backoff(
+    max_retries: int = 5,
+    base_delay: float = 2.0,
+    max_delay: float = 60.0,
+    exponential_base: float = 2.0,
+    jitter: bool = True
+):
+    """
+    Decorator for exponential backoff retry on rate limit errors.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        base_delay: Initial delay in seconds
+        max_delay: Maximum delay cap in seconds
+        exponential_base: Base for exponential growth
+        jitter: Add randomness to prevent thundering herd
+
+    Records each rate-limited attempt in :data:`_retry_history_ctx` so
+    the wrapped function's response-builder can include the audit trail
+    in its response_metadata.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            history: list = []
+            token = _retry_history_ctx.set(history)
+            try:
+                retries = 0
+                while True:
+                    attempt_start = time.time()
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        is_rate_limit = "429" in error_str or "rate limit" in error_str
+                        # Back off only on what the shared classifier deems retryable:
+                        # an exhausted quota is a 429 that no wait fixes.
+                        backs_off = is_rate_limit and classify_retryable(e)
+                        attempt_ms = int((time.time() - attempt_start) * 1000)
+                        history.append({
+                            "attempt": retries + 1,
+                            "error": str(e)[:200],
+                            "is_rate_limit": is_rate_limit,
+                            "latency_ms": attempt_ms,
+                            "retried": backs_off and retries < max_retries,
+                        })
+
+                        if not backs_off or retries >= max_retries:
+                            raise
+
+                        delay = min(base_delay * (exponential_base ** retries), max_delay)
+                        if jitter:
+                            delay = delay * (0.5 + random.random())
+
+                        logger.warning(
+                            f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
+                        )
+                        time.sleep(delay)
+                        retries += 1
+            finally:
+                _retry_history_ctx.reset(token)
+        return wrapper
+    return decorator
 
 
 # Local alias kept for backward compat with downstream call sites in
@@ -89,7 +155,7 @@ class OpenAIService(BaseAIService):
             return False
         return m.startswith(("gpt-5", "o1", "o3", "o4"))
 
-    @retry_provider_call("OpenAI")
+    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
         self,
         prompt: str,
@@ -163,172 +229,176 @@ class OpenAIService(BaseAIService):
                 **kwargs,
             )
 
-        start_time = datetime.now()
+        try:
+            start_time = datetime.now()
 
-        # GPT-5/GPT-6 models use max_completion_tokens instead of max_tokens
-        model_lower = model_name.lower()
-        is_gpt5 = is_openai_gpt5_or_later(model_name)
+            # GPT-5/GPT-6 models use max_completion_tokens instead of max_tokens
+            model_lower = model_name.lower()
+            is_gpt5 = is_openai_gpt5_or_later(model_name)
 
-        # Check if model is o-series (reasoning models)
-        is_o_series = any(model_lower.startswith(prefix) for prefix in ["o1", "o3", "o4"])
+            # Check if model is o-series (reasoning models)
+            is_o_series = any(model_lower.startswith(prefix) for prefix in ["o1", "o3", "o4"])
 
-        # Build API call parameters
-        api_params = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": (
-                    openai_chat_content(prompt, kwargs["attachments"])
-                    if kwargs.get("attachments") else prompt
-                )},
-            ],
-            "top_p": 1.0,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 0.0,
-        }
-        # Phase 6.6 (#7): only forward seed when this specific model
-        # accepts it. Per-model overrides in llm_models.yaml
-        # (`constraints.seed.supported`) win over the provider-level
-        # default. ``supports_seed_here`` is also written into the
-        # response metadata below so consumers can tell when a
-        # requested seed was *not* honored.
-        supports_seed_here = model_supports_seed("openai", model_name)
-        if supports_seed_here:
-            api_params["seed"] = requested_seed
+            # Build API call parameters
+            api_params = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": (
+                        openai_chat_content(prompt, kwargs["attachments"])
+                        if kwargs.get("attachments") else prompt
+                    )},
+                ],
+                "top_p": 1.0,
+                "frequency_penalty": 0.0,
+                "presence_penalty": 0.0,
+            }
+            # Phase 6.6 (#7): only forward seed when this specific model
+            # accepts it. Per-model overrides in llm_models.yaml
+            # (`constraints.seed.supported`) win over the provider-level
+            # default. ``supports_seed_here`` is also written into the
+            # response metadata below so consumers can tell when a
+            # requested seed was *not* honored.
+            supports_seed_here = model_supports_seed("openai", model_name)
+            if supports_seed_here:
+                api_params["seed"] = requested_seed
 
-        # o-series and GPT-5 models require temperature=1 (API rejects other values).
-        # Record BOTH the user-requested value and the value we actually
-        # sent to the API so a researcher exporting data can tell whether
-        # determinism (temperature=0) was honored or coerced. Phase 6.1.
-        requested_temperature = temperature
-        temperature_coerced = False
-        if is_o_series or is_gpt5:
-            api_params["temperature"] = 1.0
-            if temperature != 1.0:
-                logger.info(
-                    f"Overriding temperature={temperature} -> 1.0 for "
-                    f"{model_name} (required by API)"
-                )
-                temperature_coerced = True
-        else:
-            api_params["temperature"] = temperature
-        actual_temperature = api_params["temperature"]
+            # o-series and GPT-5 models require temperature=1 (API rejects other values).
+            # Record BOTH the user-requested value and the value we actually
+            # sent to the API so a researcher exporting data can tell whether
+            # determinism (temperature=0) was honored or coerced. Phase 6.1.
+            requested_temperature = temperature
+            temperature_coerced = False
+            if is_o_series or is_gpt5:
+                api_params["temperature"] = 1.0
+                if temperature != 1.0:
+                    logger.info(
+                        f"Overriding temperature={temperature} -> 1.0 for "
+                        f"{model_name} (required by API)"
+                    )
+                    temperature_coerced = True
+            else:
+                api_params["temperature"] = temperature
+            actual_temperature = api_params["temperature"]
 
-        # GPT-5 models don't support these parameters. Track which ones
-        # we silently dropped so the audit trail is complete (Phase 6.1).
-        unsupported_dropped: list[str] = []
-        if is_gpt5:
-            for unsupported in ["top_p", "frequency_penalty", "presence_penalty", "seed"]:
-                if unsupported in api_params:
-                    api_params.pop(unsupported)
-                    unsupported_dropped.append(unsupported)
+            # GPT-5 models don't support these parameters. Track which ones
+            # we silently dropped so the audit trail is complete (Phase 6.1).
+            unsupported_dropped: list[str] = []
+            if is_gpt5:
+                for unsupported in ["top_p", "frequency_penalty", "presence_penalty", "seed"]:
+                    if unsupported in api_params:
+                        api_params.pop(unsupported)
+                        unsupported_dropped.append(unsupported)
 
-        # GPT-5 and o-series use max_completion_tokens, older models use max_tokens
-        if is_gpt5 or is_o_series:
-            api_params["max_completion_tokens"] = max_tokens
-        else:
-            api_params["max_tokens"] = max_tokens
+            # GPT-5 and o-series use max_completion_tokens, older models use max_tokens
+            if is_gpt5 or is_o_series:
+                api_params["max_completion_tokens"] = max_tokens
+            else:
+                api_params["max_tokens"] = max_tokens
 
-        # Reasoning models (GPT-5/GPT-6 families, o-series) take the Chat
-        # Completions ``reasoning_effort``. Only values the model family
-        # accepts are sent, exactly as generate_structured() does;
-        # anything else keeps the API default and is logged.
-        reasoning_effort = kwargs.get("reasoning_effort")
-        sent_effort = None
-        if reasoning_effort:
-            accepted_efforts = openai_reasoning_efforts(model_name)
-            if reasoning_effort in accepted_efforts:
-                api_params["reasoning_effort"] = reasoning_effort
-                sent_effort = reasoning_effort
-                logger.info(f"🧠 Using reasoning_effort={reasoning_effort} for {model_name}")
-            elif accepted_efforts:
-                logger.warning(
-                    f"Ignoring reasoning_effort={reasoning_effort!r} for {model_name}; "
-                    f"accepted: {sorted(accepted_efforts)}"
-                )
+            # Reasoning models (GPT-5/GPT-6 families, o-series) take the Chat
+            # Completions ``reasoning_effort``. Only values the model family
+            # accepts are sent, exactly as generate_structured() does;
+            # anything else keeps the API default and is logged.
+            reasoning_effort = kwargs.get("reasoning_effort")
+            sent_effort = None
+            if reasoning_effort:
+                accepted_efforts = openai_reasoning_efforts(model_name)
+                if reasoning_effort in accepted_efforts:
+                    api_params["reasoning_effort"] = reasoning_effort
+                    sent_effort = reasoning_effort
+                    logger.info(f"🧠 Using reasoning_effort={reasoning_effort} for {model_name}")
+                elif accepted_efforts:
+                    logger.warning(
+                        f"Ignoring reasoning_effort={reasoning_effort!r} for {model_name}; "
+                        f"accepted: {sorted(accepted_efforts)}"
+                    )
 
-        # Make OpenAI API call with deterministic settings
-        response = self.client.chat.completions.create(**api_params)
+            # Make OpenAI API call with deterministic settings
+            response = self.client.chat.completions.create(**api_params)
 
-        end_time = datetime.now()
-        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+            end_time = datetime.now()
+            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-        # Extract response data
-        message = response.choices[0].message
-        content = message.content.strip() if message.content else ""
-        # OpenAI's own chat models keep their reasoning hidden; an
-        # OpenAI-compatible endpoint behind this client may still send
-        # message.reasoning_content, which is stored beside the answer.
-        reasoning = chat_message_reasoning(message)
+            # Extract response data
+            message = response.choices[0].message
+            content = message.content.strip() if message.content else ""
+            # OpenAI's own chat models keep their reasoning hidden; an
+            # OpenAI-compatible endpoint behind this client may still send
+            # message.reasoning_content, which is stored beside the answer.
+            reasoning = chat_message_reasoning(message)
 
-        # Log the generation
-        logger.info(f"🤖 OpenAI Generation: {model_name}")
-        logger.info(
-            f"📊 Usage: {response.usage.prompt_tokens} prompt + "
-            f"{response.usage.completion_tokens} completion = "
-            f"{response.usage.total_tokens} total tokens"
-        )
-        logger.info(f"⏱️ Response time: {response_time_ms}ms")
+            # Log the generation
+            logger.info(f"🤖 OpenAI Generation: {model_name}")
+            logger.info(
+                f"📊 Usage: {response.usage.prompt_tokens} prompt + "
+                f"{response.usage.completion_tokens} completion = "
+                f"{response.usage.total_tokens} total tokens"
+            )
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-        finish_reason = response.choices[0].finish_reason
-        # OpenAI surfaces safety refusals via message.refusal (gpt-4o+).
-        refusal = bool(getattr(message, "refusal", None))
-        # The seed actually sent reflects (a) per-model support and
-        # (b) GPT-5's silent drop. If neither honored it, record None.
-        if not supports_seed_here or "seed" in unsupported_dropped:
-            seed_in_metadata = None
-        else:
-            seed_in_metadata = requested_seed
+            finish_reason = response.choices[0].finish_reason
+            # OpenAI surfaces safety refusals via message.refusal (gpt-4o+).
+            refusal = bool(getattr(message, "refusal", None))
+            # The seed actually sent reflects (a) per-model support and
+            # (b) GPT-5's silent drop. If neither honored it, record None.
+            if not supports_seed_here or "seed" in unsupported_dropped:
+                seed_in_metadata = None
+            else:
+                seed_in_metadata = requested_seed
 
-        return self._create_response_dict(
-            content=content,
-            model=model_name,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-            },
-            metadata={
-                # Legacy field — still echoes the actual value sent to
-                # the API so existing consumers don't break. Researchers
-                # comparing runs should rely on requested_/actual_ pairs.
-                "temperature": actual_temperature,
-                "requested_temperature": requested_temperature,
-                "actual_temperature": actual_temperature,
-                "temperature_coerced": temperature_coerced,
-                "max_tokens": max_tokens,
-                "response_time_ms": response_time_ms,
-                "finish_reason": finish_reason,
-                # Phase 6.6: academic-rigor standard fields.
-                "seed": seed_in_metadata,
-                "refusal": refusal,
-                "truncated": derive_truncated(finish_reason),
-                "error_type": None,
-                "created_at": end_time.isoformat(),
-                "reasoning_effort": sent_effort,
-                "unsupported_params_dropped": unsupported_dropped,
-                "is_gpt5_series": is_gpt5,
-                "is_o_series": is_o_series,
-                # Phase 6.2: per-call retry history. Empty when the
-                # call succeeded on the first attempt; non-empty
-                # entries each record one rate-limit retry that
-                # preceded the success.
-                "retry_attempts": _get_retry_history_snapshot(),
-                "retry_count": len(_get_retry_history_snapshot()),
-                # Phase 6.5: stamped by user_aware_ai_service when
-                # the service was created. None for direct/standalone
-                # service instances (E2E mocks, scripts).
-                "provider_route": getattr(self, "_key_resolution_route", None),
-                "provider_name": getattr(self, "_provider_name", "openai"),
-                "billed_user_id": getattr(self, "_invocation_user_id", None),
-                "billed_organization_id": getattr(
-                    self, "_invocation_organization_id", None
-                ),
-            },
-            success=True,
-            reasoning=reasoning,
-            error=None,
-        )
+            return self._create_response_dict(
+                content=content,
+                model=model_name,
+                usage={
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                },
+                metadata={
+                    # Legacy field — still echoes the actual value sent to
+                    # the API so existing consumers don't break. Researchers
+                    # comparing runs should rely on requested_/actual_ pairs.
+                    "temperature": actual_temperature,
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": actual_temperature,
+                    "temperature_coerced": temperature_coerced,
+                    "max_tokens": max_tokens,
+                    "response_time_ms": response_time_ms,
+                    "finish_reason": finish_reason,
+                    # Phase 6.6: academic-rigor standard fields.
+                    "seed": seed_in_metadata,
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
+                    "created_at": end_time.isoformat(),
+                    "reasoning_effort": sent_effort,
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": is_gpt5,
+                    "is_o_series": is_o_series,
+                    # Phase 6.2: per-call retry history. Empty when the
+                    # call succeeded on the first attempt; non-empty
+                    # entries each record one rate-limit retry that
+                    # preceded the success.
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
+                    # Phase 6.5: stamped by user_aware_ai_service when
+                    # the service was created. None for direct/standalone
+                    # service instances (E2E mocks, scripts).
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
+                },
+                success=True,
+                reasoning=reasoning,
+                error=None,
+            )
+
+        except Exception as e:
+            return self._create_error_response(e, model_name, "OpenAI")
 
     def _generate_via_responses_api(
         self,
@@ -353,135 +423,139 @@ class OpenAIService(BaseAIService):
         `prompt_tokens`/`completion_tokens` aliases), and the same
         metadata fields the chat-completions path produces.
         """
-        start_time = datetime.now()
+        try:
+            start_time = datetime.now()
 
-        api_params: Dict[str, Any] = {
-            "model": model_name,
-            "input": prompt,
-            # max_output_tokens caps the *visible* answer; reasoning
-            # tokens are billed separately and don't count toward it.
-            "max_output_tokens": max_tokens,
-        }
-        if system_prompt:
-            api_params["instructions"] = system_prompt
+            api_params: Dict[str, Any] = {
+                "model": model_name,
+                "input": prompt,
+                # max_output_tokens caps the *visible* answer; reasoning
+                # tokens are billed separately and don't count toward it.
+                "max_output_tokens": max_tokens,
+            }
+            if system_prompt:
+                api_params["instructions"] = system_prompt
 
-        # `*-pro` tiers enforce temperature=1.0 like every other
-        # GPT-5/o-series model. Record the coercion the same way so
-        # researchers exporting data see consistent fields.
-        requested_temperature = temperature
-        api_params["temperature"] = 1.0
-        temperature_coerced = temperature != 1.0
-        if temperature_coerced:
+            # `*-pro` tiers enforce temperature=1.0 like every other
+            # GPT-5/o-series model. Record the coercion the same way so
+            # researchers exporting data see consistent fields.
+            requested_temperature = temperature
+            api_params["temperature"] = 1.0
+            temperature_coerced = temperature != 1.0
+            if temperature_coerced:
+                logger.info(
+                    f"Overriding temperature={temperature} -> 1.0 for "
+                    f"{model_name} (Responses API enforces 1.0 for *-pro)"
+                )
+
+            reasoning_effort = kwargs.get("reasoning_effort")
+            if reasoning_effort in ("low", "medium", "high"):
+                api_params["reasoning"] = {"effort": reasoning_effort}
+                logger.info(f"🧠 Using reasoning.effort={reasoning_effort} for {model_name}")
+
+            # `*-pro` models silently ignore seed/top_p/etc. so we don't
+            # send them. Track which of the requested params were dropped
+            # so the audit trail mirrors the chat-completions path.
+            unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty", "seed"]
+
+            response = self.client.responses.create(**api_params)
+
+            end_time = datetime.now()
+            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # `output_text` is the SDK's convenience accessor that joins
+            # all visible message-content text items, skipping the hidden
+            # reasoning items. Empty string means a refusal or truncation.
+            content = (response.output_text or "").strip()
+            # Reasoning items carry a summary only when one was requested
+            # (reasoning.summary); BenGER does not request it, so this is
+            # usually None. Stored as-is when the endpoint returns one.
+            reasoning = responses_api_reasoning(getattr(response, "output", None))
+
+            # Responses-API usage uses input_tokens/output_tokens; map to
+            # legacy keys so downstream cost/aggregation code keeps working.
+            usage = response.usage
+            prompt_tokens = getattr(usage, "input_tokens", 0)
+            completion_tokens = getattr(usage, "output_tokens", 0)
+            total_tokens = getattr(
+                usage, "total_tokens", prompt_tokens + completion_tokens
+            )
+
+            # Finish reason: responses-API emits status='completed' or
+            # status='incomplete' on the response itself; per-item
+            # reasons (length, content_filter, refusal) live on the last
+            # output item. Prefer the item-level reason when present.
+            status = getattr(response, "status", None)
+            finish_reason: Optional[str] = None
+            refusal = False
+            if response.output:
+                last = response.output[-1]
+                finish_reason = getattr(last, "stop_reason", None) or getattr(
+                    last, "finish_reason", None
+                )
+                refusal = bool(getattr(last, "refusal", None))
+            if not finish_reason:
+                # Fall back to response-level status — `incomplete` with
+                # `incomplete_details.reason == "max_output_tokens"` is
+                # the common truncation signal on this endpoint.
+                if status == "incomplete":
+                    details = getattr(response, "incomplete_details", None)
+                    finish_reason = getattr(details, "reason", "incomplete")
+                else:
+                    finish_reason = status
+
+            logger.info(f"🤖 OpenAI Responses-API Generation: {model_name}")
             logger.info(
-                f"Overriding temperature={temperature} -> 1.0 for "
-                f"{model_name} (Responses API enforces 1.0 for *-pro)"
+                f"📊 Usage: {prompt_tokens} prompt + {completion_tokens} completion = "
+                f"{total_tokens} total tokens"
+            )
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
+
+            return self._create_response_dict(
+                content=content,
+                model=model_name,
+                usage={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                },
+                metadata={
+                    "temperature": api_params["temperature"],
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": api_params["temperature"],
+                    "temperature_coerced": temperature_coerced,
+                    "max_tokens": max_tokens,
+                    "response_time_ms": response_time_ms,
+                    "finish_reason": finish_reason,
+                    "seed": None,  # *-pro tiers don't honor seed
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
+                    "created_at": end_time.isoformat(),
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": "gpt-5" in model_name.lower(),
+                    "is_o_series": any(
+                        model_name.lower().startswith(p) for p in ("o1", "o3", "o4")
+                    ),
+                    "api_endpoint": "responses",
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
+                },
+                success=True,
+                reasoning=reasoning,
+                error=None,
             )
 
-        reasoning_effort = kwargs.get("reasoning_effort")
-        if reasoning_effort in ("low", "medium", "high"):
-            api_params["reasoning"] = {"effort": reasoning_effort}
-            logger.info(f"🧠 Using reasoning.effort={reasoning_effort} for {model_name}")
+        except Exception as e:
+            return self._create_error_response(e, model_name, "OpenAI")
 
-        # `*-pro` models silently ignore seed/top_p/etc. so we don't
-        # send them. Track which of the requested params were dropped
-        # so the audit trail mirrors the chat-completions path.
-        unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty", "seed"]
-
-        response = self.client.responses.create(**api_params)
-
-        end_time = datetime.now()
-        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
-
-        # `output_text` is the SDK's convenience accessor that joins
-        # all visible message-content text items, skipping the hidden
-        # reasoning items. Empty string means a refusal or truncation.
-        content = (response.output_text or "").strip()
-        # Reasoning items carry a summary only when one was requested
-        # (reasoning.summary); BenGER does not request it, so this is
-        # usually None. Stored as-is when the endpoint returns one.
-        reasoning = responses_api_reasoning(getattr(response, "output", None))
-
-        # Responses-API usage uses input_tokens/output_tokens; map to
-        # legacy keys so downstream cost/aggregation code keeps working.
-        usage = response.usage
-        prompt_tokens = getattr(usage, "input_tokens", 0)
-        completion_tokens = getattr(usage, "output_tokens", 0)
-        total_tokens = getattr(
-            usage, "total_tokens", prompt_tokens + completion_tokens
-        )
-
-        # Finish reason: responses-API emits status='completed' or
-        # status='incomplete' on the response itself; per-item
-        # reasons (length, content_filter, refusal) live on the last
-        # output item. Prefer the item-level reason when present.
-        status = getattr(response, "status", None)
-        finish_reason: Optional[str] = None
-        refusal = False
-        if response.output:
-            last = response.output[-1]
-            finish_reason = getattr(last, "stop_reason", None) or getattr(
-                last, "finish_reason", None
-            )
-            refusal = bool(getattr(last, "refusal", None))
-        if not finish_reason:
-            # Fall back to response-level status — `incomplete` with
-            # `incomplete_details.reason == "max_output_tokens"` is
-            # the common truncation signal on this endpoint.
-            if status == "incomplete":
-                details = getattr(response, "incomplete_details", None)
-                finish_reason = getattr(details, "reason", "incomplete")
-            else:
-                finish_reason = status
-
-        logger.info(f"🤖 OpenAI Responses-API Generation: {model_name}")
-        logger.info(
-            f"📊 Usage: {prompt_tokens} prompt + {completion_tokens} completion = "
-            f"{total_tokens} total tokens"
-        )
-        logger.info(f"⏱️ Response time: {response_time_ms}ms")
-
-        return self._create_response_dict(
-            content=content,
-            model=model_name,
-            usage={
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "total_tokens": total_tokens,
-            },
-            metadata={
-                "temperature": api_params["temperature"],
-                "requested_temperature": requested_temperature,
-                "actual_temperature": api_params["temperature"],
-                "temperature_coerced": temperature_coerced,
-                "max_tokens": max_tokens,
-                "response_time_ms": response_time_ms,
-                "finish_reason": finish_reason,
-                "seed": None,  # *-pro tiers don't honor seed
-                "refusal": refusal,
-                "truncated": derive_truncated(finish_reason),
-                "error_type": None,
-                "created_at": end_time.isoformat(),
-                "unsupported_params_dropped": unsupported_dropped,
-                "is_gpt5_series": "gpt-5" in model_name.lower(),
-                "is_o_series": any(
-                    model_name.lower().startswith(p) for p in ("o1", "o3", "o4")
-                ),
-                "api_endpoint": "responses",
-                "retry_attempts": _get_retry_history_snapshot(),
-                "retry_count": len(_get_retry_history_snapshot()),
-                "provider_route": getattr(self, "_key_resolution_route", None),
-                "provider_name": getattr(self, "_provider_name", "openai"),
-                "billed_user_id": getattr(self, "_invocation_user_id", None),
-                "billed_organization_id": getattr(
-                    self, "_invocation_organization_id", None
-                ),
-            },
-            success=True,
-            reasoning=reasoning,
-            error=None,
-        )
-
-    @retry_provider_call("OpenAI")
+    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate_structured(
         self,
         prompt: str,
@@ -584,151 +658,155 @@ Your response must be ONLY the JSON object, no other text before or after.
                 **kwargs
             )
 
-        start_time = datetime.now()
+        try:
+            start_time = datetime.now()
 
-        model_lower = model_name.lower()
-        is_gpt5 = is_openai_gpt5_or_later(model_name)
-        is_o_series = any(model_lower.startswith(p) for p in ["o1", "o3", "o4"])
+            model_lower = model_name.lower()
+            is_gpt5 = is_openai_gpt5_or_later(model_name)
+            is_o_series = any(model_lower.startswith(p) for p in ["o1", "o3", "o4"])
 
-        # o-series and GPT-5 models require temperature=1 (API rejects
-        # other values). Record BOTH the requested and the sent value,
-        # exactly as generate() does, so a persisted judge row shows
-        # whether determinism was honored or coerced.
-        requested_temperature = temperature
-        temperature_coerced = False
-        effective_temperature = temperature
-        if is_o_series or is_gpt5:
-            effective_temperature = 1.0
-            if temperature != 1.0:
-                logger.info(f"Overriding temperature={temperature} -> 1.0 for {model_name} (required by API)")
-                temperature_coerced = True
-        actual_temperature = effective_temperature
+            # o-series and GPT-5 models require temperature=1 (API rejects
+            # other values). Record BOTH the requested and the sent value,
+            # exactly as generate() does, so a persisted judge row shows
+            # whether determinism was honored or coerced.
+            requested_temperature = temperature
+            temperature_coerced = False
+            effective_temperature = temperature
+            if is_o_series or is_gpt5:
+                effective_temperature = 1.0
+                if temperature != 1.0:
+                    logger.info(f"Overriding temperature={temperature} -> 1.0 for {model_name} (required by API)")
+                    temperature_coerced = True
+            actual_temperature = effective_temperature
 
-        api_params = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": effective_temperature,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "annotation_response",
-                    "schema": json_schema,
-                    "strict": True
+            api_params = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": effective_temperature,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "annotation_response",
+                        "schema": json_schema,
+                        "strict": True
+                    }
                 }
             }
-        }
 
-        # Only add these params for non-GPT-5 models. Phase 6.6 (#7):
-        # also gate seed on per-model support. The GPT-5 family takes
-        # none of them; list what was withheld (the same list
-        # generate() drops) so the audit trail is complete.
-        supports_seed_here = model_supports_seed("openai", model_name)
-        seed_in_metadata = requested_seed if supports_seed_here else None
-        unsupported_dropped: list[str] = []
-        if not is_gpt5:
-            api_params["top_p"] = 1.0
-            api_params["frequency_penalty"] = 0.0
-            api_params["presence_penalty"] = 0.0
-            if supports_seed_here:
-                api_params["seed"] = requested_seed
-        else:
-            unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty"]
-            if supports_seed_here:
-                unsupported_dropped.append("seed")
-            # GPT-5 silently drops seed; record None so the persisted
-            # row reflects what actually happened.
-            seed_in_metadata = None
+            # Only add these params for non-GPT-5 models. Phase 6.6 (#7):
+            # also gate seed on per-model support. The GPT-5 family takes
+            # none of them; list what was withheld (the same list
+            # generate() drops) so the audit trail is complete.
+            supports_seed_here = model_supports_seed("openai", model_name)
+            seed_in_metadata = requested_seed if supports_seed_here else None
+            unsupported_dropped: list[str] = []
+            if not is_gpt5:
+                api_params["top_p"] = 1.0
+                api_params["frequency_penalty"] = 0.0
+                api_params["presence_penalty"] = 0.0
+                if supports_seed_here:
+                    api_params["seed"] = requested_seed
+            else:
+                unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty"]
+                if supports_seed_here:
+                    unsupported_dropped.append("seed")
+                # GPT-5 silently drops seed; record None so the persisted
+                # row reflects what actually happened.
+                seed_in_metadata = None
 
-        if is_gpt5 or is_o_series:
-            api_params["max_completion_tokens"] = max_tokens
-        else:
-            api_params["max_tokens"] = max_tokens
+            if is_gpt5 or is_o_series:
+                api_params["max_completion_tokens"] = max_tokens
+            else:
+                api_params["max_tokens"] = max_tokens
 
-        # Reasoning models (GPT-5 family, o-series) take the Chat
-        # Completions ``reasoning_effort``. Only values the model family
-        # accepts are sent (the API 400s on e.g. "minimal" for gpt-5.4-mini);
-        # anything else keeps the API default and is logged.
-        requested_effort = kwargs.get("reasoning_effort")
-        sent_effort = None
-        if requested_effort:
-            accepted_efforts = openai_reasoning_efforts(model_name)
-            if requested_effort in accepted_efforts:
-                api_params["reasoning_effort"] = requested_effort
-                sent_effort = requested_effort
-                logger.info(f"🧠 Using reasoning_effort={requested_effort} for {model_name}")
-            elif accepted_efforts:
-                logger.warning(
-                    f"Ignoring reasoning_effort={requested_effort!r} for {model_name}; "
-                    f"accepted: {sorted(accepted_efforts)}"
-                )
+            # Reasoning models (GPT-5 family, o-series) take the Chat
+            # Completions ``reasoning_effort``. Only values the model family
+            # accepts are sent (the API 400s on e.g. "minimal" for gpt-5.4-mini);
+            # anything else keeps the API default and is logged.
+            requested_effort = kwargs.get("reasoning_effort")
+            sent_effort = None
+            if requested_effort:
+                accepted_efforts = openai_reasoning_efforts(model_name)
+                if requested_effort in accepted_efforts:
+                    api_params["reasoning_effort"] = requested_effort
+                    sent_effort = requested_effort
+                    logger.info(f"🧠 Using reasoning_effort={requested_effort} for {model_name}")
+                elif accepted_efforts:
+                    logger.warning(
+                        f"Ignoring reasoning_effort={requested_effort!r} for {model_name}; "
+                        f"accepted: {sorted(accepted_efforts)}"
+                    )
 
-        response = self.client.chat.completions.create(**api_params)
+            response = self.client.chat.completions.create(**api_params)
 
-        end_time = datetime.now()
-        response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+            end_time = datetime.now()
+            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-        message = response.choices[0].message
-        content = message.content.strip() if message.content else ""
-        # OpenAI's own chat models keep their reasoning hidden; an
-        # OpenAI-compatible endpoint behind this client may still send
-        # message.reasoning_content, which is stored beside the answer.
-        reasoning = chat_message_reasoning(message)
+            message = response.choices[0].message
+            content = message.content.strip() if message.content else ""
+            # OpenAI's own chat models keep their reasoning hidden; an
+            # OpenAI-compatible endpoint behind this client may still send
+            # message.reasoning_content, which is stored beside the answer.
+            reasoning = chat_message_reasoning(message)
 
-        logger.info(f"🤖 OpenAI Structured Generation: {model_name}")
-        logger.info(
-            f"📊 Usage: {response.usage.prompt_tokens} prompt + "
-            f"{response.usage.completion_tokens} completion = "
-            f"{response.usage.total_tokens} total tokens"
-        )
-        logger.info(f"⏱️ Response time: {response_time_ms}ms")
+            logger.info(f"🤖 OpenAI Structured Generation: {model_name}")
+            logger.info(
+                f"📊 Usage: {response.usage.prompt_tokens} prompt + "
+                f"{response.usage.completion_tokens} completion = "
+                f"{response.usage.total_tokens} total tokens"
+            )
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-        finish_reason = response.choices[0].finish_reason
-        refusal = bool(getattr(message, "refusal", None))
+            finish_reason = response.choices[0].finish_reason
+            refusal = bool(getattr(message, "refusal", None))
 
-        return self._create_response_dict(
-            content=content,
-            model=model_name,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-            },
-            metadata={
-                # Legacy field: the value actually sent, as in generate().
-                # Researchers comparing runs should rely on the
-                # requested_/actual_ pair.
-                "temperature": actual_temperature,
-                "requested_temperature": requested_temperature,
-                "actual_temperature": actual_temperature,
-                "temperature_coerced": temperature_coerced,
-                "max_tokens": max_tokens,
-                "response_time_ms": response_time_ms,
-                "finish_reason": finish_reason,
-                "seed": seed_in_metadata,
-                "refusal": refusal,
-                "truncated": derive_truncated(finish_reason),
-                "error_type": None,
-                "structured_output": True,
-                "reasoning_effort": sent_effort,
-                "unsupported_params_dropped": unsupported_dropped,
-                "is_gpt5_series": is_gpt5,
-                "is_o_series": is_o_series,
-                "created_at": end_time.isoformat(),
-                "retry_attempts": _get_retry_history_snapshot(),
-                "retry_count": len(_get_retry_history_snapshot()),
-                "provider_route": getattr(self, "_key_resolution_route", None),
-                "provider_name": getattr(self, "_provider_name", "openai"),
-                "billed_user_id": getattr(self, "_invocation_user_id", None),
-                "billed_organization_id": getattr(
-                    self, "_invocation_organization_id", None
-                ),
-            },
-            success=True,
-            reasoning=reasoning,
-        )
+            return self._create_response_dict(
+                content=content,
+                model=model_name,
+                usage={
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                },
+                metadata={
+                    # Legacy field: the value actually sent, as in generate().
+                    # Researchers comparing runs should rely on the
+                    # requested_/actual_ pair.
+                    "temperature": actual_temperature,
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": actual_temperature,
+                    "temperature_coerced": temperature_coerced,
+                    "max_tokens": max_tokens,
+                    "response_time_ms": response_time_ms,
+                    "finish_reason": finish_reason,
+                    "seed": seed_in_metadata,
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
+                    "structured_output": True,
+                    "reasoning_effort": sent_effort,
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": is_gpt5,
+                    "is_o_series": is_o_series,
+                    "created_at": end_time.isoformat(),
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
+                },
+                success=True,
+                reasoning=reasoning,
+            )
+
+        except Exception as e:
+            return self._create_error_response(e, model_name, "OpenAI")
 
     async def generate_response(
         self,

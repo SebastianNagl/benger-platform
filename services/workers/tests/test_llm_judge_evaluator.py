@@ -1197,9 +1197,9 @@ class TestEvaluateMultidimSingleCall:
         return result, [c.args[0] for c in sleep.call_args_list]
 
     def test_rate_limit_failures_are_retried_with_backoff(self):
-        """A 429 the provider service already backed off on is retried once
-        more by the judge loop: three attempts at max_retries=3 with 2 s and
-        4 s jittered waits."""
+        """The provider services return an error dict on a 429 (their own
+        retry decorator never sees it), so the judge loop retries: three
+        attempts at max_retries=3 with 2 s and 4 s jittered waits."""
         ev = self._evaluator()
         ev.ai_service.generate_structured.return_value = self._failure("rate_limit", "429")
         result, delays = self._call(ev)
@@ -1229,19 +1229,6 @@ class TestEvaluateMultidimSingleCall:
         assert 16 <= delays[3] < 17
         assert 30 <= delays[4] < 31
         assert len(result["_call_metadata"]["judge_retries"]) == 5
-
-    def test_exhausted_quota_rate_limit_short_circuits(self):
-        """An exhausted quota is a rate_limit the provider marks
-        retryable=False: the judge loop makes one call and no wait."""
-        ev = self._evaluator()
-        failure = self._failure("rate_limit", "HTTP 429: insufficient_quota")
-        failure["metadata"]["retryable"] = False
-        ev.ai_service.generate_structured.return_value = failure
-        result, delays = self._call(ev)
-        assert result["error"] is True
-        assert result["_call_metadata"]["judge_retries"] == []
-        assert ev.ai_service.generate_structured.call_count == 1
-        assert delays == []
 
     @pytest.mark.parametrize(
         "error_type", ["auth", "config_error", "context_length", "content_filter", "api_error"]

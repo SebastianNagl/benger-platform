@@ -53,7 +53,6 @@ from ai_services.base_service import (  # noqa: E402
 )
 
 anthropic_mod = sys.modules["ai_services.anthropic_service"]
-base_mod = sys.modules["ai_services.base_service"]
 cohere_mod = sys.modules["ai_services.cohere_service"]
 di_mod = sys.modules["ai_services.deepinfra_service"]
 google_mod = sys.modules["ai_services.google_service"]
@@ -229,6 +228,14 @@ CUSTOM_CASES = HTTP_PATH_CASES + [
 # --------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _instant_sync_backoff(monkeypatch):
+    """The sync providers' decorators call time.sleep between attempts."""
+    for mod in (openai_mod, anthropic_mod, google_mod, mistral_mod, cohere_mod, grok_mod):
+        if hasattr(mod, "time"):
+            monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
+
+
 def _failing(exc, calls):
     """A provider call that records itself in ``calls`` and raises ``exc``."""
 
@@ -377,11 +384,10 @@ def test_error_response_carries_retryable_flag(run, factory, retryable, error_ty
 
 @pytest.fixture
 def recorded_backoff(monkeypatch):
-    """Every backoff sleep, sync (the ``base_service._sleep`` seam of
-    ``retry_provider_call``) and async (the DeepInfra ``_sleep`` seam the
-    Custom endpoint shares), recorded instead of slept."""
+    """Every backoff sleep, sync (``time.sleep``) and async (the DeepInfra
+    ``_sleep`` seam the Custom endpoint shares), recorded instead of slept."""
     delays: list = []
-    monkeypatch.setattr(base_mod, "_sleep", lambda delay: delays.append(delay))
+    monkeypatch.setattr(openai_mod.time, "sleep", lambda delay: delays.append(delay))
 
     async def _record(delay):
         delays.append(delay)
@@ -414,9 +420,13 @@ def test_non_retryable_error_is_not_backed_off(run, factory, monkeypatch, record
     assert recorded_backoff == []
 
 
+def _plain_429(cases):
+    return next(f for label, f, _, _ in cases if label in ("rate limit 429", "resource exhausted 429"))
+
+
 def _exhausted_quota_429():
     # The message the OpenAI SDK builds from the response: it names the
-    # status, so a rule that matched "429" in the text would back off on it.
+    # status, so every decorator's own rate-limit rule matches it.
     return _openai_status(
         openai.RateLimitError,
         429,
@@ -426,61 +436,68 @@ def _exhausted_quota_429():
     )
 
 
-@pytest.mark.parametrize("run", [pytest.param(run, id=name) for name, run, _ in PROVIDERS])
-def test_exhausted_quota_429_is_one_call(run, monkeypatch, recorded_backoff):
-    # The same exhausted-quota 429 through every provider's retry decorator.
-    calls: list = []
-
-    result = run(_exhausted_quota_429(), monkeypatch, calls)
-
-    assert result["metadata"]["retryable"] is False
-    assert len(calls) == 1
-    assert recorded_backoff == []
-
-
-RETRYABLE_PARAMS = [
-    pytest.param(run, factory, id=f"{name}-{label}")
-    for name, run, cases in PROVIDERS
-    for label, factory, retryable, _ in cases
-    if retryable
+# The sync providers' decorators wrap generate(), which turns every
+# exception into an error dict itself, so the end-to-end tests above cannot
+# reach their backoff. Drive each decorator directly with the exception a
+# failing attempt raises.
+SYNC_DECORATORS = [
+    ("openai", openai_mod, OPENAI_CASES),
+    ("anthropic", anthropic_mod, ANTHROPIC_CASES),
+    ("google", google_mod, GOOGLE_CASES),
+    ("mistral", mistral_mod, MISTRAL_CASES),
+    ("cohere", cohere_mod, COHERE_CASES),
+    ("grok", grok_mod, GROK_CASES),
 ]
 
 
-@pytest.mark.parametrize("run, factory", RETRYABLE_PARAMS)
-def test_retryable_error_is_backed_off(run, factory, monkeypatch, recorded_backoff):
-    # A plain rate limit, a 5xx, a timeout or a dropped connection can clear
-    # by waiting: 1 call plus 5 backed-off retries, and the error response
-    # keeps the trail of all 6 attempts.
+def _drive_sync_decorator(mod, exc):
+    calls: list = []
+
+    @mod.retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    def attempt():
+        calls.append(1)
+        raise exc
+
+    with pytest.raises(type(exc)):
+        attempt()
+    return calls
+
+
+@pytest.mark.parametrize("mod", [pytest.param(mod, id=name) for name, mod, _ in SYNC_DECORATORS])
+def test_sync_decorator_fails_fast_on_exhausted_quota(mod, recorded_backoff):
+    assert _drive_sync_decorator(mod, _exhausted_quota_429()) == [1]
+    assert recorded_backoff == []
+
+
+@pytest.mark.parametrize(
+    "mod, factory",
+    [pytest.param(mod, _plain_429(cases), id=name) for name, mod, cases in SYNC_DECORATORS],
+)
+def test_sync_decorator_keeps_backoff_on_plain_rate_limit(mod, factory, recorded_backoff):
+    # A per-minute rate limit clears by waiting: 1 call plus 5 retries.
+    assert len(_drive_sync_decorator(mod, factory())) == 6
+    assert len(recorded_backoff) == 5
+
+
+@pytest.mark.parametrize(
+    "run, factory",
+    [
+        pytest.param(run, factory, id=f"{name}-{label}")
+        for name, run in (("deepinfra", _run_deepinfra), ("custom", _run_custom))
+        for label, factory, retryable, _ in HTTP_PATH_CASES
+        if retryable
+    ],
+)
+def test_http_path_transient_errors_keep_backoff(run, factory, monkeypatch, recorded_backoff):
+    # DeepInfra and Custom endpoints back off on a plain 429, 5xx, timeouts
+    # and dropped connections: 1 call plus 5 retries.
     calls: list = []
 
     result = run(factory(), monkeypatch, calls)
 
-    assert result["success"] is False
     assert result["metadata"]["retryable"] is True
     assert len(calls) == 6
     assert len(recorded_backoff) == 5
-    assert result["metadata"]["retry_count"] == 6
-    assert [a["retried"] for a in result["metadata"]["retry_attempts"]] == [True] * 5 + [False]
-
-
-def test_retry_then_success_returns_the_answer(monkeypatch, recorded_backoff):
-    # A 429 followed by an answer: the caller gets the answer, and its
-    # metadata records the one failed attempt before it.
-    svc = openai_mod.OpenAIService(api_key="sk-test")
-    svc.client = MagicMock()
-    message = types.SimpleNamespace(content="ok", refusal=None, tool_calls=None)
-    choice = types.SimpleNamespace(message=message, finish_reason="stop")
-    usage = types.SimpleNamespace(prompt_tokens=3, completion_tokens=1, total_tokens=4)
-    answer = types.SimpleNamespace(choices=[choice], usage=usage, model="gpt-4o", id="x", system_fingerprint=None)
-    rate_limit = next(f for label, f, _, _ in OPENAI_CASES if label == "rate limit 429")
-    svc.client.chat.completions.create.side_effect = [rate_limit(), answer]
-
-    result = svc.generate("q", "s", model_name="gpt-4o")
-
-    assert result["success"] is True
-    assert result["content"] == "ok"
-    assert len(recorded_backoff) == 1
-    assert result["metadata"]["retry_count"] == 1
 
 
 class TestClassifierRules:

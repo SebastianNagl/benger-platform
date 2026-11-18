@@ -16,9 +16,10 @@ import aiohttp
 from .base_service import (
     BaseAIService,
     RetryableUpstreamError,
+    classify_retryable,
     derive_refusal,
     derive_truncated,
-    should_back_off,
+    is_transient_upstream_error,
 )
 from system_profile import openai_compatible_reasoning_payload, reasoning_params_sent
 
@@ -53,6 +54,13 @@ _sleep = asyncio.sleep
 DEEPINFRA_REQUEST_TIMEOUT_S = int(os.getenv("DEEPINFRA_REQUEST_TIMEOUT_S", "900"))
 
 
+# The transient-error rule this module's retry decorator backs off on (and the
+# one the Custom endpoint service inherits through the decorator), vetoed by
+# classify_retryable. It lives in base_service so classify_retryable builds
+# every provider's uniform ``metadata.retryable`` flag on the same rules.
+_is_retryable_error = is_transient_upstream_error
+
+
 def async_retry_with_exponential_backoff(
     max_retries: int = 5,
     base_delay: float = 2.0,
@@ -61,10 +69,9 @@ def async_retry_with_exponential_backoff(
     jitter: bool = True
 ):
     """Async decorator for exponential backoff retry on transient upstream
-    errors, the same rule (:func:`base_service.should_back_off`) the sync
-    providers' :func:`base_service.retry_provider_call` backs off on: rate
-    limits, 5xx, timeouts, connection failures. An error a retry cannot fix,
-    such as an exhausted quota sent as HTTP 429, fails on the first attempt.
+    errors (rate limits, 5xx, timeouts, connection failures). An error
+    :func:`classify_retryable` marks non-retryable, such as an exhausted
+    quota sent as HTTP 429, fails fast on the first attempt.
 
     Records attempts in the shared retry-history contextvar (Phase 6.2) and
     stamps the final exception with ``_retry_history`` so callers can rebuild
@@ -89,7 +96,10 @@ def async_retry_with_exponential_backoff(
                             or "rate limit" in error_str
                             or "too many requests" in error_str
                         )
-                        retryable = should_back_off(e)
+                        # Back off only on what the shared classifier also
+                        # deems retryable: an exhausted quota is a 429 that
+                        # no wait fixes.
+                        retryable = _is_retryable_error(e) and classify_retryable(e)
                         # Scrub BEFORE truncating so a cut-off endpoint host
                         # can't survive the provider's sanitizer.
                         error_text = str(e)

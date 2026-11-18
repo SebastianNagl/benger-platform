@@ -5,14 +5,17 @@ Updated to use the new google.genai SDK (replacing deprecated google.generativea
 
 import logging
 import os
+import random
+import time
 from datetime import datetime
+from functools import wraps
 from typing import Any, Dict, Optional
 
 from google import genai
 from google.genai import types
 
 from .attachments import google_contents
-from .base_service import BaseAIService, derive_truncated, retry_provider_call
+from .base_service import BaseAIService, classify_retryable, derive_truncated
 from .reasoning import google_thoughts
 from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
@@ -20,6 +23,42 @@ from .response_validator import ResponseValidator
 logger = logging.getLogger(__name__)
 
 
+def retry_with_exponential_backoff(
+    max_retries: int = 5,
+    base_delay: float = 2.0,
+    max_delay: float = 60.0,
+    exponential_base: float = 2.0,
+    jitter: bool = True
+):
+    """Decorator for exponential backoff retry on rate limit errors."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_rate_limit = "429" in error_str or "rate limit" in error_str or "quota" in error_str or "resource exhausted" in error_str
+                    # Back off only on what the shared classifier deems retryable:
+                    # an exhausted quota is a 429 that no wait fixes.
+                    backs_off = is_rate_limit and classify_retryable(e)
+
+                    if not backs_off or retries >= max_retries:
+                        raise
+
+                    delay = min(
+                        base_delay * (exponential_base ** retries), max_delay)
+                    if jitter:
+                        delay = delay * (0.5 + random.random())
+
+                    logger.warning(
+                        f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s")
+                    time.sleep(delay)
+                    retries += 1
+        return wrapper
+    return decorator
 
 
 
@@ -74,7 +113,7 @@ class GoogleService(BaseAIService):
         """Check if Google service is available (API key set)"""
         return self.client != None
 
-    @retry_provider_call("Google Gemini")
+    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
         self,
         prompt: str,
@@ -134,183 +173,213 @@ class GoogleService(BaseAIService):
             raise ValueError(
                 "Google service is not available - check GOOGLE_API_KEY configuration")
 
-        start_time = datetime.now()
+        try:
+            start_time = datetime.now()
 
-        # Configure safety settings to allow legitimate legal/research content
-        # This is necessary for academic legal exam content which may be falsely flagged
-        # Using proper enum types as per Google SDK documentation
-        # Including CIVIC_INTEGRITY for legal/political content
-        safety_settings = [
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-        ]
+            # Configure safety settings to allow legitimate legal/research content
+            # This is necessary for academic legal exam content which may be falsely flagged
+            # Using proper enum types as per Google SDK documentation
+            # Including CIVIC_INTEGRITY for legal/political content
+            safety_settings = [
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+            ]
 
-        # Configure thinking budget for models that support it
-        # Thinking tokens count against max_output_tokens, so we limit them
-        # to ensure actual response content is generated
-        thinking_config = None
-        supports_thinking = (
-            "2.5-pro" in model_name
-            or "2.5-flash" in model_name
-            or "3-flash" in model_name
-            or "3.1-pro" in model_name
-        )
-        if supports_thinking:
-            thinking_budget = kwargs.get("thinking_budget", 1024)
-            thinking_config = _thinking_config(int(thinking_budget))
-            logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
+            # Configure thinking budget for models that support it
+            # Thinking tokens count against max_output_tokens, so we limit them
+            # to ensure actual response content is generated
+            thinking_config = None
+            supports_thinking = (
+                "2.5-pro" in model_name
+                or "2.5-flash" in model_name
+                or "3-flash" in model_name
+                or "3.1-pro" in model_name
+            )
+            if supports_thinking:
+                thinking_budget = kwargs.get("thinking_budget", 1024)
+                thinking_config = _thinking_config(int(thinking_budget))
+                logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
 
-        # Configure generation settings using new SDK types
-        config = types.GenerateContentConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            system_instruction=system_prompt if system_prompt else None,
-            safety_settings=safety_settings,
-            thinking_config=thinking_config,
-        )
+            # Configure generation settings using new SDK types
+            config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+                system_instruction=system_prompt if system_prompt else None,
+                safety_settings=safety_settings,
+                thinking_config=thinking_config,
+            )
 
-        # Log exact API request for debugging
-        logger.info(f"📤 GOOGLE API REQUEST for {model_name}:")
-        logger.info(f"📤 System prompt ({len(system_prompt) if system_prompt else 0} chars): {system_prompt[:500] if system_prompt else 'None'}{'...' if system_prompt and len(system_prompt) > 500 else ''}")
-        logger.info(f"📤 User prompt ({len(prompt)} chars): {prompt[:500]}{'...' if len(prompt) > 500 else ''}")
-        logger.info(f"📤 Config: temperature={temperature}, max_tokens={max_tokens}, thinking_config={thinking_config}")
+            # Log exact API request for debugging
+            logger.info(f"📤 GOOGLE API REQUEST for {model_name}:")
+            logger.info(f"📤 System prompt ({len(system_prompt) if system_prompt else 0} chars): {system_prompt[:500] if system_prompt else 'None'}{'...' if system_prompt and len(system_prompt) > 500 else ''}")
+            logger.info(f"📤 User prompt ({len(prompt)} chars): {prompt[:500]}{'...' if len(prompt) > 500 else ''}")
+            logger.info(f"📤 Config: temperature={temperature}, max_tokens={max_tokens}, thinking_config={thinking_config}")
 
-        # Make Google Gemini API call using new client-based approach
-        response = self.client.models.generate_content(
-            model=model_name,
-            contents=(
-                google_contents(prompt, kwargs["attachments"])
-                if kwargs.get("attachments") else prompt
-            ),
-            config=config,
-        )
+            # Make Google Gemini API call using new client-based approach
+            response = self.client.models.generate_content(
+                model=model_name,
+                contents=(
+                    google_contents(prompt, kwargs["attachments"])
+                    if kwargs.get("attachments") else prompt
+                ),
+                config=config,
+            )
 
-        end_time = datetime.now()
-        response_time_ms = int(
-            (end_time - start_time).total_seconds() * 1000)
+            end_time = datetime.now()
+            response_time_ms = int(
+                (end_time - start_time).total_seconds() * 1000)
 
-        # Extract response text with detailed logging
-        response_text = ""
-        reasoning: Optional[str] = None
-        finish_reason: Optional[str] = None
-        refusal = False
+            # Extract response text with detailed logging
+            response_text = ""
+            reasoning: Optional[str] = None
+            finish_reason: Optional[str] = None
+            refusal = False
 
-        # Log response structure for debugging
-        if hasattr(response, 'candidates') and response.candidates:
-            candidate = response.candidates[0]
-            logger.info(
-                f"🔍 Response has {len(response.candidates)} candidate(s)")
+            # Log response structure for debugging
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                logger.info(
+                    f"🔍 Response has {len(response.candidates)} candidate(s)")
 
-            # Check finish reason — also persist it (Phase 6.6).
-            # The genai SDK returns an enum; coerce to its string name
-            # so the JSON column doesn't capture a Python repr.
-            if hasattr(candidate, 'finish_reason'):
-                raw_fr = candidate.finish_reason
-                finish_reason = (
-                    raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
-                )
-                logger.info(f"🔍 Finish reason: {finish_reason}")
-                # Google genai surfaces safety blocks via finish_reason=SAFETY.
-                if finish_reason == "SAFETY":
-                    refusal = True
+                # Check finish reason — also persist it (Phase 6.6).
+                # The genai SDK returns an enum; coerce to its string name
+                # so the JSON column doesn't capture a Python repr.
+                if hasattr(candidate, 'finish_reason'):
+                    raw_fr = candidate.finish_reason
+                    finish_reason = (
+                        raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
+                    )
+                    logger.info(f"🔍 Finish reason: {finish_reason}")
+                    # Google genai surfaces safety blocks via finish_reason=SAFETY.
+                    if finish_reason == "SAFETY":
+                        refusal = True
 
-            # Check for safety ratings/blocks
-            if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
-                for rating in candidate.safety_ratings:
-                    if hasattr(rating, 'blocked') and rating.blocked:
-                        logger.warning(
-                            f"⚠️ Content blocked by safety filter: {rating.category}")
+                # Check for safety ratings/blocks
+                if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
+                    for rating in candidate.safety_ratings:
+                        if hasattr(rating, 'blocked') and rating.blocked:
+                            logger.warning(
+                                f"⚠️ Content blocked by safety filter: {rating.category}")
 
-            # Extract content from candidate
-            if hasattr(candidate, 'content') and candidate.content:
-                if hasattr(candidate.content, 'parts') and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        # Thought parts are reasoning, not answer text.
-                        if getattr(part, 'thought', None) is True:
-                            continue
-                        if hasattr(part, 'text') and part.text:
-                            response_text += part.text
-                    reasoning = google_thoughts(candidate.content.parts)
-                    logger.info(
-                        f"🔍 Extracted text from {len(candidate.content.parts)} part(s), length: {len(response_text)}")
+                # Extract content from candidate
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            # Thought parts are reasoning, not answer text.
+                            if getattr(part, 'thought', None) is True:
+                                continue
+                            if hasattr(part, 'text') and part.text:
+                                response_text += part.text
+                        reasoning = google_thoughts(candidate.content.parts)
+                        logger.info(
+                            f"🔍 Extracted text from {len(candidate.content.parts)} part(s), length: {len(response_text)}")
+                    else:
+                        logger.warning(f"⚠️ Candidate content has no parts. Content type: {type(candidate.content)}, content: {candidate.content}")
+                        # Try direct text extraction from candidate
+                        if hasattr(candidate, 'text') and candidate.text:
+                            response_text = candidate.text
+                            logger.info(f"🔍 Extracted from candidate.text, length: {len(response_text)}")
                 else:
-                    logger.warning(f"⚠️ Candidate content has no parts. Content type: {type(candidate.content)}, content: {candidate.content}")
-                    # Try direct text extraction from candidate
-                    if hasattr(candidate, 'text') and candidate.text:
-                        response_text = candidate.text
-                        logger.info(f"🔍 Extracted from candidate.text, length: {len(response_text)}")
+                    logger.warning(f"⚠️ Candidate has no content. Candidate attrs: {dir(candidate)}")
             else:
-                logger.warning(f"⚠️ Candidate has no content. Candidate attrs: {dir(candidate)}")
-        else:
-            logger.warning("⚠️ Response has no candidates")
-            # Check for prompt feedback (safety block at prompt level)
-            if hasattr(response, 'prompt_feedback'):
-                feedback = response.prompt_feedback
-                logger.warning(f"⚠️ Prompt feedback: {feedback}")
+                logger.warning("⚠️ Response has no candidates")
+                # Check for prompt feedback (safety block at prompt level)
+                if hasattr(response, 'prompt_feedback'):
+                    feedback = response.prompt_feedback
+                    logger.warning(f"⚠️ Prompt feedback: {feedback}")
 
-                # Check if blocked due to policy
-                if hasattr(feedback, 'block_reason') and feedback.block_reason:
-                    block_reason = str(feedback.block_reason)
-                    error_msg = f"Google blocked this request due to content policy: {block_reason}. This is a Google API policy restriction, not a code error. Consider using a different model (Claude, GPT-4, DeepSeek) for this content."
-                    logger.error(f"❌ {error_msg}")
-                    raise ValueError(error_msg)
+                    # Check if blocked due to policy
+                    if hasattr(feedback, 'block_reason') and feedback.block_reason:
+                        block_reason = str(feedback.block_reason)
+                        error_msg = f"Google blocked this request due to content policy: {block_reason}. This is a Google API policy restriction, not a code error. Consider using a different model (Claude, GPT-4, DeepSeek) for this content."
+                        logger.error(f"❌ {error_msg}")
+                        raise ValueError(error_msg)
 
-        # Fallback to .text property if direct extraction failed
-        if not response_text and hasattr(response, 'text') and response.text:
-            response_text = response.text
+            # Fallback to .text property if direct extraction failed
+            if not response_text and hasattr(response, 'text') and response.text:
+                response_text = response.text
+                logger.info(
+                    f"🔍 Used response.text fallback, length: {len(response_text)}")
+
+            # Get actual token usage if available, otherwise estimate
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                input_tokens = getattr(
+                    response.usage_metadata, 'prompt_token_count', 0) or 0
+                output_tokens = getattr(
+                    response.usage_metadata, 'candidates_token_count', 0) or 0
+                total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (
+                    input_tokens + output_tokens)
+            else:
+                # Fallback to estimation
+                prompt_length = len(system_prompt + prompt)
+                input_tokens = int(prompt_length / 4)
+                response_length = len(response_text)
+                output_tokens = int(response_length / 4)
+                total_tokens = input_tokens + output_tokens
+
+            # Phase 6.6 (#9): cost from llm_models.yaml (single source of
+            # truth) instead of a hardcoded $7/1M-tokens estimate that
+            # ignores Gemini's input/output pricing asymmetry.
+            cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
+
+            logger.info(f"🤖 Gemini Generation: {model_name}")
             logger.info(
-                f"🔍 Used response.text fallback, length: {len(response_text)}")
+                f"📊 Tokens: {input_tokens} input + "
+                f"{output_tokens} output = {total_tokens}"
+            )
+            logger.info(f"💰 Cost: ~${cost_usd:.4f}")
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-        # Get actual token usage if available, otherwise estimate
-        if hasattr(response, 'usage_metadata') and response.usage_metadata:
-            input_tokens = getattr(
-                response.usage_metadata, 'prompt_token_count', 0) or 0
-            output_tokens = getattr(
-                response.usage_metadata, 'candidates_token_count', 0) or 0
-            total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (
-                input_tokens + output_tokens)
-        else:
-            # Fallback to estimation
-            prompt_length = len(system_prompt + prompt)
-            input_tokens = int(prompt_length / 4)
-            response_length = len(response_text)
-            output_tokens = int(response_length / 4)
-            total_tokens = input_tokens + output_tokens
+            if not response_text.strip():
+                return self._create_response_dict(
+                    content="",
+                    model=model_name,
+                    usage={
+                        "prompt_tokens": input_tokens,
+                        "completion_tokens": output_tokens,
+                        "total_tokens": total_tokens,
+                    },
+                    metadata={
+                        "provider": "Google",
+                        "finish_reason": finish_reason,
+                        "truncated": derive_truncated(finish_reason),
+                        "refusal": refusal,
+                        # Empty content with SAFETY finish_reason maps to
+                        # content_filter; otherwise treat as api_error so
+                        # downstream filters can spot it.
+                        "error_type": "content_filter" if refusal else "api_error",
+                        # A safety block repeats on the same prompt; an
+                        # empty answer without one is a capacity hiccup.
+                        "retryable": not refusal,
+                        "seed": None,
+                        "created_at": end_time.isoformat(),
+                        **self.get_invocation_provenance(),
+                    },
+                    success=False,
+                    error="Model returned empty response (possible safety filter or capacity issue)",
+                    reasoning=reasoning,
+                )
 
-        # Phase 6.6 (#9): cost from llm_models.yaml (single source of
-        # truth) instead of a hardcoded $7/1M-tokens estimate that
-        # ignores Gemini's input/output pricing asymmetry.
-        cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
-
-        logger.info(f"🤖 Gemini Generation: {model_name}")
-        logger.info(
-            f"📊 Tokens: {input_tokens} input + "
-            f"{output_tokens} output = {total_tokens}"
-        )
-        logger.info(f"💰 Cost: ~${cost_usd:.4f}")
-        logger.info(f"⏱️ Response time: {response_time_ms}ms")
-
-        if not response_text.strip():
             return self._create_response_dict(
-                content="",
+                content=response_text,
                 model=model_name,
                 usage={
                     "prompt_tokens": input_tokens,
@@ -318,54 +387,28 @@ class GoogleService(BaseAIService):
                     "total_tokens": total_tokens,
                 },
                 metadata={
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "response_time_ms": response_time_ms,
+                    "cost_usd": cost_usd,
                     "provider": "Google",
                     "finish_reason": finish_reason,
                     "truncated": derive_truncated(finish_reason),
                     "refusal": refusal,
-                    # Empty content with SAFETY finish_reason maps to
-                    # content_filter; otherwise treat as api_error so
-                    # downstream filters can spot it.
-                    "error_type": "content_filter" if refusal else "api_error",
-                    # A safety block repeats on the same prompt; an
-                    # empty answer without one is a capacity hiccup.
-                    "retryable": not refusal,
+                    "error_type": None,
                     "seed": None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
-                success=False,
-                error="Model returned empty response (possible safety filter or capacity issue)",
+                success=True,
+                error=None,
                 reasoning=reasoning,
             )
 
-        return self._create_response_dict(
-            content=response_text,
-            model=model_name,
-            usage={
-                "prompt_tokens": input_tokens,
-                "completion_tokens": output_tokens,
-                "total_tokens": total_tokens,
-            },
-            metadata={
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "response_time_ms": response_time_ms,
-                "cost_usd": cost_usd,
-                "provider": "Google",
-                "finish_reason": finish_reason,
-                "truncated": derive_truncated(finish_reason),
-                "refusal": refusal,
-                "error_type": None,
-                "seed": None,
-                "created_at": end_time.isoformat(),
-                **self.get_invocation_provenance(),
-            },
-            success=True,
-            error=None,
-            reasoning=reasoning,
-        )
+        except Exception as e:
+            return self._create_error_response(e, model_name, "Google Gemini")
 
-    @retry_provider_call("Google Gemini")
+    @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate_structured(
         self,
         prompt: str,
@@ -433,175 +476,179 @@ class GoogleService(BaseAIService):
             raise ValueError(
                 "Google service is not available - check GOOGLE_API_KEY configuration")
 
-        start_time = datetime.now()
+        try:
+            start_time = datetime.now()
 
-        # Add format instructions to prompt since Gemini may not support schema directly
-        format_instructions = f"\n\nRespond with a JSON object matching this schema:\n{json.dumps(json_schema, indent=2)}\n\nRespond ONLY with valid JSON."
-        enhanced_prompt = prompt + format_instructions
+            # Add format instructions to prompt since Gemini may not support schema directly
+            format_instructions = f"\n\nRespond with a JSON object matching this schema:\n{json.dumps(json_schema, indent=2)}\n\nRespond ONLY with valid JSON."
+            enhanced_prompt = prompt + format_instructions
 
-        # Configure safety settings to allow legitimate legal/research content
-        # Using OFF threshold for academic legal exam content which may be falsely flagged
-        # Using proper enum types as per Google SDK documentation
-        # Including CIVIC_INTEGRITY for legal/political content
-        safety_settings = [
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-            types.SafetySetting(
-                category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
-                threshold=types.HarmBlockThreshold.OFF,
-            ),
-        ]
+            # Configure safety settings to allow legitimate legal/research content
+            # Using OFF threshold for academic legal exam content which may be falsely flagged
+            # Using proper enum types as per Google SDK documentation
+            # Including CIVIC_INTEGRITY for legal/political content
+            safety_settings = [
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+                    threshold=types.HarmBlockThreshold.OFF,
+                ),
+            ]
 
-        # Configure thinking budget for thinking-capable Gemini models
-        thinking_config = None
-        supports_thinking = (
-            "2.5-pro" in model_name
-            or "2.5-flash" in model_name
-            or "3-flash" in model_name
-            or "3.1-pro" in model_name
-        )
-        if supports_thinking:
-            thinking_budget = kwargs.get("thinking_budget", 1024)
-            thinking_config = _thinking_config(int(thinking_budget))
-            logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
+            # Configure thinking budget for thinking-capable Gemini models
+            thinking_config = None
+            supports_thinking = (
+                "2.5-pro" in model_name
+                or "2.5-flash" in model_name
+                or "3-flash" in model_name
+                or "3.1-pro" in model_name
+            )
+            if supports_thinking:
+                thinking_budget = kwargs.get("thinking_budget", 1024)
+                thinking_config = _thinking_config(int(thinking_budget))
+                logger.info(f"🧠 Configured thinking_budget={thinking_budget} for {model_name}")
 
-        # Configure generation with JSON mode using new SDK types
-        config = types.GenerateContentConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            system_instruction=system_prompt if system_prompt else None,
-            response_mime_type="application/json",
-            safety_settings=safety_settings,
-            thinking_config=thinking_config,
-        )
+            # Configure generation with JSON mode using new SDK types
+            config = types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+                system_instruction=system_prompt if system_prompt else None,
+                response_mime_type="application/json",
+                safety_settings=safety_settings,
+                thinking_config=thinking_config,
+            )
 
-        response = self.client.models.generate_content(
-            model=model_name,
-            contents=enhanced_prompt,
-            config=config,
-        )
+            response = self.client.models.generate_content(
+                model=model_name,
+                contents=enhanced_prompt,
+                config=config,
+            )
 
-        end_time = datetime.now()
-        response_time_ms = int(
-            (end_time - start_time).total_seconds() * 1000)
+            end_time = datetime.now()
+            response_time_ms = int(
+                (end_time - start_time).total_seconds() * 1000)
 
-        # response.text skips thought parts; they are read separately.
-        response_text = response.text if response.text else ""
-        reasoning = (
-            google_thoughts(response.candidates[0].content.parts)
-            if getattr(response, "candidates", None)
-            and getattr(response.candidates[0], "content", None)
-            else None
-        )
+            # response.text skips thought parts; they are read separately.
+            response_text = response.text if response.text else ""
+            reasoning = (
+                google_thoughts(response.candidates[0].content.parts)
+                if getattr(response, "candidates", None)
+                and getattr(response.candidates[0], "content", None)
+                else None
+            )
 
-        # Phase 6.6: extract finish_reason for academic-rigor logging.
-        finish_reason: Optional[str] = None
-        refusal = False
-        if hasattr(response, 'candidates') and response.candidates:
-            cand = response.candidates[0]
-            if hasattr(cand, 'finish_reason'):
-                raw_fr = cand.finish_reason
-                finish_reason = (
-                    raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
-                )
-                if finish_reason == "SAFETY":
-                    refusal = True
+            # Phase 6.6: extract finish_reason for academic-rigor logging.
+            finish_reason: Optional[str] = None
+            refusal = False
+            if hasattr(response, 'candidates') and response.candidates:
+                cand = response.candidates[0]
+                if hasattr(cand, 'finish_reason'):
+                    raw_fr = cand.finish_reason
+                    finish_reason = (
+                        raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
+                    )
+                    if finish_reason == "SAFETY":
+                        refusal = True
 
-        # Get actual token usage if available, otherwise estimate
-        if hasattr(response, 'usage_metadata') and response.usage_metadata:
-            input_tokens = getattr(
-                response.usage_metadata, 'prompt_token_count', 0) or 0
-            output_tokens = getattr(
-                response.usage_metadata, 'candidates_token_count', 0) or 0
-            total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (
-                input_tokens + output_tokens)
-        else:
-            prompt_length = len(system_prompt + enhanced_prompt)
-            input_tokens = int(prompt_length / 4)
-            response_length = len(response_text)
-            output_tokens = int(response_length / 4)
-            total_tokens = input_tokens + output_tokens
+            # Get actual token usage if available, otherwise estimate
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                input_tokens = getattr(
+                    response.usage_metadata, 'prompt_token_count', 0) or 0
+                output_tokens = getattr(
+                    response.usage_metadata, 'candidates_token_count', 0) or 0
+                total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (
+                    input_tokens + output_tokens)
+            else:
+                prompt_length = len(system_prompt + enhanced_prompt)
+                input_tokens = int(prompt_length / 4)
+                response_length = len(response_text)
+                output_tokens = int(response_length / 4)
+                total_tokens = input_tokens + output_tokens
 
-        # Phase 6.6 (#9): cost from llm_models.yaml.
-        cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
+            # Phase 6.6 (#9): cost from llm_models.yaml.
+            cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
 
-        logger.info(f"🤖 Gemini Structured Generation: {model_name}")
-        logger.info(
-            f"📊 Tokens: {input_tokens} input + "
-            f"{output_tokens} output = {total_tokens}"
-        )
-        logger.info(f"💰 Cost: ~${cost_usd:.4f}")
-        logger.info(f"⏱️ Response time: {response_time_ms}ms")
+            logger.info(f"🤖 Gemini Structured Generation: {model_name}")
+            logger.info(
+                f"📊 Tokens: {input_tokens} input + "
+                f"{output_tokens} output = {total_tokens}"
+            )
+            logger.info(f"💰 Cost: ~${cost_usd:.4f}")
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
-        # Validate and extract JSON using ResponseValidator
-        validator = ResponseValidator(strict=True)
-        validation_result = validator.validate_response(
-            response_text,
-            json_schema,
-        )
+            # Validate and extract JSON using ResponseValidator
+            validator = ResponseValidator(strict=True)
+            validation_result = validator.validate_response(
+                response_text,
+                json_schema,
+            )
 
-        result_metadata = {
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "response_time_ms": response_time_ms,
-            "cost_usd": cost_usd,
-            "provider": "Google",
-            "finish_reason": finish_reason,
-            "truncated": derive_truncated(finish_reason),
-            "refusal": refusal,
-            "error_type": None,
-            "seed": None,
-            "structured_output": True,
-            "created_at": end_time.isoformat(),
-            **self.get_invocation_provenance(),
-        }
+            result_metadata = {
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "response_time_ms": response_time_ms,
+                "cost_usd": cost_usd,
+                "provider": "Google",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": refusal,
+                "error_type": None,
+                "seed": None,
+                "structured_output": True,
+                "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
+            }
 
-        if validation_result.valid and validation_result.data != None:
-            content = json.dumps(
-                validation_result.data, ensure_ascii=False)
-            result_metadata["validation_status"] = "valid"
-            result_metadata["schema_validated"] = True
-        elif validation_result.extracted_json:
-            content = validation_result.extracted_json
-            result_metadata["validation_status"] = "extracted_only"
-            result_metadata["schema_validated"] = False
-            result_metadata["validation_errors"] = validation_result.errors
-            logger.warning(
-                f"Google response extracted but not schema-valid: {validation_result.errors}")
-        else:
-            content = response_text
-            result_metadata["validation_status"] = "invalid"
-            result_metadata["schema_validated"] = False
-            result_metadata["validation_errors"] = validation_result.errors
-            logger.warning(
-                f"Google response not valid JSON: {validation_result.errors}")
+            if validation_result.valid and validation_result.data != None:
+                content = json.dumps(
+                    validation_result.data, ensure_ascii=False)
+                result_metadata["validation_status"] = "valid"
+                result_metadata["schema_validated"] = True
+            elif validation_result.extracted_json:
+                content = validation_result.extracted_json
+                result_metadata["validation_status"] = "extracted_only"
+                result_metadata["schema_validated"] = False
+                result_metadata["validation_errors"] = validation_result.errors
+                logger.warning(
+                    f"Google response extracted but not schema-valid: {validation_result.errors}")
+            else:
+                content = response_text
+                result_metadata["validation_status"] = "invalid"
+                result_metadata["schema_validated"] = False
+                result_metadata["validation_errors"] = validation_result.errors
+                logger.warning(
+                    f"Google response not valid JSON: {validation_result.errors}")
 
-        return self._create_response_dict(
-            content=content,
-            model=model_name,
-            usage={
-                "prompt_tokens": input_tokens,
-                "completion_tokens": output_tokens,
-                "total_tokens": total_tokens,
-            },
-            metadata=result_metadata,
-            success=True,
-            reasoning=reasoning,
-        )
+            return self._create_response_dict(
+                content=content,
+                model=model_name,
+                usage={
+                    "prompt_tokens": input_tokens,
+                    "completion_tokens": output_tokens,
+                    "total_tokens": total_tokens,
+                },
+                metadata=result_metadata,
+                success=True,
+                reasoning=reasoning,
+            )
+
+        except Exception as e:
+            return self._create_error_response(e, model_name, "Google Gemini")
 
     async def generate_response(
         self,
