@@ -238,7 +238,7 @@ class TestDesignRoutes:
             doc = (await api("get", f"/api/projects/{pid}/variant-designs/swap/export")).json()
             imported = await api("post", f"/api/projects/{other}/variant-designs/import", json=doc)
             again = await api("post", f"/api/projects/{other}/variant-designs/import", json=doc)
-            wrong = await api("post", 
+            wrong = await api("post",
                 f"/api/projects/{other}/variant-designs/import", json={**doc, "format": "x"}
             )
         assert imported.status_code == 201, imported.text
@@ -251,10 +251,10 @@ class TestDesignRoutes:
         bad = json.loads(json.dumps(SPEC))
         bad["factors"][0].pop("levels")
         with _as_user(world["admin"]):
-            r1 = await api("post", 
+            r1 = await api("post",
                 f"/api/projects/{pid}/variant-designs", json={"key": "swap", "spec": bad}
             )
-            r2 = await api("post", 
+            r2 = await api("post",
                 f"/api/projects/{pid}/variant-designs", json={"key": "bad key", "spec": SPEC}
             )
         assert r1.status_code == 422
@@ -344,17 +344,17 @@ class TestChecksAndFreeze:
             check = await api("post", f"{base}/check")
             frozen = await api("post", f"{base}/freeze")
             twice = await api("post", f"{base}/freeze")
-            data_edit = await api("put", 
+            data_edit = await api("put",
                 f"/api/projects/{pid}/tasks/{tasks[0].id}", json={"data": {"facts": "changed"}}
             )
-            variant_edit = await api("patch", 
+            variant_edit = await api("patch",
                 f"/api/projects/tasks/{tasks[0].id}/metadata",
                 json={"variant": {**tasks[0].meta["variant"], "unit": "u9"}},
             )
-            tags_edit = await api("patch", 
+            tags_edit = await api("patch",
                 f"/api/projects/tasks/{tasks[0].id}/metadata", json={"tags": ["kept"]}
             )
-            delete = await api("post", 
+            delete = await api("post",
                 f"/api/projects/{pid}/tasks/bulk-delete", json={"task_ids": [tasks[1].id]}
             )
             spec_edit = await api("put", base, json={"spec": SPEC})
@@ -454,7 +454,7 @@ class TestChecksAndFreeze:
         await _create_design(async_test_client, world)
         await _add_tasks(async_test_db, world["project"])
         with _as_user(world["admin"]):
-            resp = await api("post", 
+            resp = await api("post",
                 f"/api/projects/{world['project'].id}/variant-designs/swap/freeze"
             )
         assert resp.status_code == 200, resp.text
@@ -514,10 +514,10 @@ class TestWritePaths:
         }
         for label, variant in cases.items():
             with _as_user(world["admin"]):
-                single = await api("patch", 
+                single = await api("patch",
                     f"/api/projects/tasks/{tasks[0].id}/metadata", json={"variant": variant}
                 )
-                bulk = await api("patch", 
+                bulk = await api("patch",
                     "/api/projects/tasks/bulk-metadata",
                     json={"task_ids": [tasks[2].id], "metadata": {"variant": variant}},
                 )
@@ -535,7 +535,7 @@ class TestWritePaths:
         clash = {**twin, "factors": {"level": 1, "role": "claimant"}}
         clash["spans"] = tasks[0].meta["variant"]["spans"]
         with _as_user(world["admin"]):
-            resp = await api("patch", 
+            resp = await api("patch",
                 f"/api/projects/tasks/{tasks[1].id}/metadata",
                 json={"variant": clash},
             )
@@ -588,7 +588,7 @@ class TestWritePaths:
         await _create_design(async_test_client, world)
         tasks = await _add_tasks(async_test_db, world["project"])
         with _as_user(world["admin"]):
-            resp = await api("put", 
+            resp = await api("put",
                 f"/api/projects/{world['project'].id}/tasks/{tasks[0].id}",
                 json={"data": {"facts": "short"}},
             )
@@ -616,7 +616,7 @@ class TestWritePaths:
         ).scalar_one()
         assert unit == "u1"
         with _as_user(world["admin"]):
-            resp = await api("patch", 
+            resp = await api("patch",
                 f"/api/projects/tasks/{tasks[0].id}/metadata?merge=false", json={"tags": []}
             )
         assert resp.status_code == 200, resp.text
