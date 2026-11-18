@@ -3,8 +3,9 @@
 An :class:`Observation` is one answer of one system to one task of a variant
 design, flattened to what an analysis needs:
 
-* identity: generation, task, system (model id; a parameter profile later),
-  prompt structure and run index;
+* identity: generation, task, system (the system key ``<model_id>@<parameter
+  profile hash>``, or the model id when none was recorded), model id, prompt
+  structure and run index;
 * the task's place in its design, read from ``tasks.meta.variant``
   (``{"design", "unit", "factors": {...}, ...}``, see
   :func:`variant_of_task_meta`);

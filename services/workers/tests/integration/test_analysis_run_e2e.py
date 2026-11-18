@@ -239,5 +239,56 @@ def test_inputs_filter_systems_and_structures(db_conn, seeded):
     assert list(iter_observations(db_conn, project.id, {"designs": ["no_such_design"]})) == []
 
 
+def _record_system_keys(db_conn, project, keys):
+    """Give the completed ``sys_a`` generations of the design a recorded
+    system block, alternating over ``keys`` (two parameter profiles of one
+    model); the other systems keep answers without one (generated before
+    2.56)."""
+    from models import Generation
+    from project_models import Task
+
+    gens = (
+        db_conn.query(Generation).join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project.id, Generation.model_id == "sys_a", Generation.status == "completed")
+        .order_by(Generation.id).all()
+    )
+    for i, gen in enumerate(gens):
+        gen.response_metadata = {"retried": False, "system": {"key": keys[i % len(keys)], "model_id": "sys_a"}}
+    db_conn.commit()
+
+
+def test_the_system_is_the_recorded_system_key_with_the_model_id_as_fallback(db_conn, seeded):
+    project, user, _ = seeded
+    _record_system_keys(db_conn, project, ["sys_a@aaaaaaaaaaaa"])
+    run = _new_run(db_conn, project, user)
+    assert tasks.run_analysis.apply(args=[run.id]).get()["status"] == "completed"
+    run, _ = _reload(db_conn, run.id)
+    from storage.object_storage import object_storage
+
+    with open(os.path.join(object_storage.local_storage_path, run.frame_object_key), "rb") as fh:
+        frame = from_parquet(fh.read())
+    pairs = set(zip(frame["system"], frame["model_id"]))
+    assert pairs == {("sys_a@aaaaaaaaaaaa", "sys_a"), ("sys_b", "sys_b"), ("sys_c", "sys_c")}
+
+
+def test_inputs_systems_select_by_system_key_or_by_model_id(db_conn, seeded):
+    from analysis.db_source import iter_observations
+
+    project, _, _ = seeded
+    first, second = "sys_a@aaaaaaaaaaaa", "sys_a@bbbbbbbbbbbb"
+    _record_system_keys(db_conn, project, [first, second])
+    inputs = {"designs": ["role_swap"]}
+    everything = list(iter_observations(db_conn, project.id, inputs))
+    assert {o.system for o in everything} == {first, second, "sys_b", "sys_c"}
+
+    by_key = list(iter_observations(db_conn, project.id, {**inputs, "systems": [first]}))
+    assert by_key and {(o.system, o.model_id) for o in by_key} == {(first, "sys_a")}
+    by_model = list(iter_observations(db_conn, project.id, {**inputs, "systems": ["sys_a"]}))
+    assert {o.system for o in by_model} == {first, second}
+    assert len(by_model) == sum(o.model_id == "sys_a" for o in everything)
+    fallback = list(iter_observations(db_conn, project.id, {**inputs, "systems": ["sys_b"]}))
+    assert fallback and {(o.system, o.model_id) for o in fallback} == {("sys_b", "sys_b")}
+
+
 def test_missing_run_is_skipped():
     assert tasks.run_analysis.apply(args=[str(uuid.uuid4())]).get()["status"] == "skipped"

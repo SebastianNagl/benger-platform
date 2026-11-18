@@ -19,9 +19,11 @@ Three kinds (spec ``measures``):
 Coercion (``type``):
 
 ``number``
-    int and float as they are, booleans 1/0, numeric text (comma or dot as
-    decimal separator), a one-element list by its element; anything else is
-    missing.
+    int and float as they are, booleans 1/0, numeric text read by
+    :func:`analysis.expression.number_from_text` (which never guesses between
+    a thousands and a decimal separator), a one-element list by its element;
+    anything else is missing. A text with an ambiguous separator
+    (``"1,000"``, ``"1.000.000"``) is missing and reported per measure.
 ``text``
     strings as they are, whole numbers without a decimal point, booleans
     ``true``/``false``, a one-element list by its element; an empty or
@@ -29,8 +31,10 @@ Coercion (``type``):
 ``bool``
     booleans and 0/1 as 1.0/0.0, ``"true"``/``"false"`` in any case.
 
-Non-finite numbers (a log of zero, a division by zero) become missing; the
-frame builder reports how many.
+Non-finite numbers (a log of zero, a division by zero) and number texts
+with an ambiguous separator (in a ``number`` field or gold value, or read by
+``number()`` in an expression) become missing; the frame builder reports how
+many per measure.
 """
 
 from __future__ import annotations
@@ -40,7 +44,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
-from analysis.expression import ExpressionError, parse_expression
+from analysis.expression import ExpressionError, number_from_text, parse_expression
 
 
 class MeasureError(ValueError):
@@ -73,7 +77,9 @@ def _unwrap(value: Any) -> Tuple[Any, bool]:
     return value, True
 
 
-def coerce(value: Any, kind: str) -> Any:
+def coerce(value: Any, kind: str, ambiguous: Optional[List[str]] = None) -> Any:
+    """``value`` as ``kind``; ``ambiguous`` (when given) receives every number
+    text set to missing for an ambiguous separator."""
     value, ok = _unwrap(value)
     if not ok or value is None:
         return math.nan if kind != "text" else None
@@ -84,12 +90,7 @@ def coerce(value: Any, kind: str) -> Any:
             v = float(value)
             return v if math.isfinite(v) else math.nan
         if isinstance(value, str):
-            s = value.strip().replace(",", ".")
-            try:
-                v = float(s)
-            except ValueError:
-                return math.nan
-            return v if math.isfinite(v) else math.nan
+            return number_from_text(value, ambiguous)
         return math.nan
     if kind == "bool":
         if isinstance(value, bool):
@@ -137,11 +138,12 @@ def evaluate_measures(
     for mid in order:
         m = measures[mid]
         kind = m["kind"]
+        ambiguous: List[str] = []
         if kind == "field":
             vtype = m.get("type", "number")
             if "field" in m:
                 name = m["field"]
-                values = [coerce(f.get(name), vtype) for f in fields]
+                values = [coerce(f.get(name), vtype, ambiguous) for f in fields]
                 if n and all(name not in f for f in fields):
                     warnings.append(f"measure {mid!r}: no answer has the field {name!r}")
             else:
@@ -156,11 +158,11 @@ def evaluate_measures(
                         None if (isinstance(key, float) and math.isnan(key)) else key
                     )
                     name = mapping.get(text) if text is not None else None
-                    values.append(coerce(f.get(name), vtype) if name else coerce(None, vtype))
+                    values.append(coerce(f.get(name), vtype, ambiguous) if name else coerce(None, vtype))
             arr = _array(values, "text" if vtype == "text" else "number")
         elif kind == "gold":
             vtype = m.get("type", "number")
-            values = [coerce(lookup_path(d, m["path"]), vtype) for d in task_data]
+            values = [coerce(lookup_path(d, m["path"]), vtype, ambiguous) for d in task_data]
             arr = _array(values, "text" if vtype == "text" else "number")
         elif kind == "expression":
             try:
@@ -170,11 +172,15 @@ def evaluate_measures(
                     raise MeasureError(
                         f"measure {mid!r}: unknown column(s) {', '.join(missing)}"
                     )
-                _, arr = expr.evaluate(columns, n)
+                _, arr = expr.evaluate(columns, n, ambiguous)
             except ExpressionError as exc:
                 raise MeasureError(f"measure {mid!r}: {exc}") from None
         else:  # pragma: no cover - the schema allows nothing else
             raise MeasureError(f"measure {mid!r}: unknown kind {kind!r}")
+        if ambiguous:
+            warnings.append(
+                f"measure {mid!r}: {len(ambiguous)} number text(s) with an ambiguous separator set to missing"
+            )
         if arr.dtype != object:
             arr = np.asarray(arr, dtype=float)
             bad = ~np.isfinite(arr) & ~np.isnan(arr)

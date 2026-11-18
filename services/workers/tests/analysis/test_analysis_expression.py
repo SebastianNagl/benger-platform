@@ -79,6 +79,11 @@ def test_text_results_and_number_conversion():
     assert kind == "str"
     assert out == ["pos", None, None]
     _same(_eval("number(t)", t=["1,5", "2.25", "n/a", None])[1], [1.5, 2.25, NAN, NAN])
+    ambiguous = []
+    texts = ["1,000", "1.000,50", "1,000.50", "1,2,3", "12,25", "1.000", None]
+    _, out = parse_expression("number(t)").evaluate({"t": np.array(texts, dtype=object)}, len(texts), ambiguous)
+    _same(list(out), [NAN, 1000.5, 1000.5, NAN, 12.25, 1.0, NAN])
+    assert ambiguous == ["1,000", "1,2,3"]
     assert _eval("coalesce(t, 'none')", t=["a", None])[1] == ["a", "none"]
 
 

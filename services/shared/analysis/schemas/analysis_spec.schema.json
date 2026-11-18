@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://benger.dev/schemas/analysis_spec.schema.json",
+  "title": "BenGER analysis spec",
+  "description": "Declares the inputs, measures, estimands, contrasts, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax) are checked by analysis.spec.validate_spec.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec_version", "name", "inputs", "estimands"],
+  "properties": {
+    "spec_version": {"const": 1},
+    "name": {"type": "string", "minLength": 1, "maxLength": 200},
+    "description": {"type": "string", "maxLength": 5000},
+    "inputs": {"$ref": "#/$defs/inputs"},
+    "measures": {
+      "type": "object",
+      "maxProperties": 500,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/measure"}
+    },
+    "filter": {"$ref": "#/$defs/expression"},
+    "conventions": {"$ref": "#/$defs/conventions"},
+    "estimands": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {"$ref": "#/$defs/estimand"}
+    },
+    "families": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {"$ref": "#/$defs/family"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 100},
+    "label": {"type": "string", "minLength": 1, "maxLength": 200},
+    "expression": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "column_list": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["designs"],
+      "properties": {
+        "designs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 200}
+        },
+        "systems": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 300}
+        },
+        "structures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 300}
+        },
+        "factor_types": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"enum": ["number", "text"]}
+        }
+      }
+    },
+    "value_type": {"enum": ["number", "text", "bool"]},
+    "measure": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {"kind": {"enum": ["field", "expression", "gold"]}},
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "field"],
+          "properties": {
+            "kind": {"const": "field"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "by", "fields"],
+          "properties": {
+            "kind": {"const": "field"},
+            "by": {"$ref": "#/$defs/identifier"},
+            "fields": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 100,
+              "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 200}
+            },
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "expr"],
+          "properties": {
+            "kind": {"const": "expression"},
+            "expr": {"$ref": "#/$defs/expression"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": {"const": "gold"},
+            "path": {"type": "string", "pattern": "^[^.\\s]+(\\.[^.\\s]+)*$", "maxLength": 300},
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ssc": {"enum": ["statsmodels", "fixest", "none"]},
+        "inference": {"enum": ["normal", "t"]},
+        "ci_level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "ci_critical": {
+          "oneOf": [
+            {"const": "exact"},
+            {"type": "number", "exclusiveMinimum": 0, "maximum": 100}
+          ]
+        },
+        "tost_level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "drop_zero_columns": {"type": "boolean"},
+        "degenerate_p": {"enum": ["nan", "null_match"]},
+        "fe_tolerance": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.001},
+        "fe_max_iter": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    },
+    "vcov": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["iid", "hc1", "cluster"]},
+        "by": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/identifier"},
+              {"$ref": "#/$defs/column_list"}
+            ]
+          }
+        }
+      },
+      "if": {"properties": {"type": {"const": "cluster"}}},
+      "then": {"required": ["type", "by"]},
+      "else": {"not": {"required": ["by"]}}
+    },
+    "term": {
+      "oneOf": [
+        {"$ref": "#/$defs/identifier"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dummies"],
+          "properties": {
+            "dummies": {"$ref": "#/$defs/identifier"},
+            "reference": {"type": ["string", "number"]},
+            "levels": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 500,
+              "items": {"type": ["string", "number"]}
+            },
+            "by": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["interact"],
+          "properties": {
+            "interact": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 4,
+              "items": {"$ref": "#/$defs/term"}
+            }
+          }
+        }
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {"const": "pooled"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by"],
+          "properties": {"by": {"$ref": "#/$defs/column_list"}}
+        }
+      ]
+    },
+    "linear_part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weights"],
+      "properties": {
+        "weights": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1000,
+          "additionalProperties": {"type": "number"}
+        },
+        "constant": {"type": "number"}
+      }
+    },
+    "tost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "margin": {"type": "number", "exclusiveMinimum": 0},
+        "bounds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "number"}
+        },
+        "level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1}
+      },
+      "oneOf": [{"required": ["margin"]}, {"required": ["bounds"]}]
+    },
+    "mde": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "power": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "alpha": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "tests": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    },
+    "contrast": {
+      "type": "object",
+      "required": ["id"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["id", "weights"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "linear"},
+            "weights": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 1000,
+              "additionalProperties": {"type": "number"}
+            },
+            "null": {"type": "number"},
+            "tost": {
+              "oneOf": [
+                {"$ref": "#/$defs/tost"},
+                {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/tost"}}
+              ]
+            },
+            "mde": {"$ref": "#/$defs/mde"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "kind", "numerator", "denominator"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "ratio"},
+            "numerator": {"$ref": "#/$defs/linear_part"},
+            "denominator": {"$ref": "#/$defs/linear_part"},
+            "scale": {"type": "number"},
+            "min_abs_denominator": {"type": "number", "minimum": 0},
+            "null": {"type": "number"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    },
+    "estimand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "estimator", "outcome"],
+      "properties": {
+        "id": {"$ref": "#/$defs/label"},
+        "description": {"type": "string", "maxLength": 2000},
+        "estimator": {"enum": ["fe_ols", "mean_rate", "paired_within"]},
+        "outcome": {"$ref": "#/$defs/identifier"},
+        "subset": {"$ref": "#/$defs/expression"},
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/scope"}
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": {"$ref": "#/$defs/term"}
+        },
+        "fixed_effects": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/column_list"}
+        },
+        "method": {"enum": ["within", "dummies"]},
+        "intercept": {"type": "boolean"},
+        "pair_by": {"$ref": "#/$defs/column_list"},
+        "treatment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["factor", "level"],
+          "properties": {
+            "factor": {"$ref": "#/$defs/identifier"},
+            "level": {"type": ["string", "number"]},
+            "reference": {"type": ["string", "number"]},
+            "subset": {"$ref": "#/$defs/expression"}
+          }
+        },
+        "min_n": {"type": "integer", "minimum": 1},
+        "vcov": {"$ref": "#/$defs/vcov"},
+        "conventions": {"$ref": "#/$defs/conventions"},
+        "contrasts": {
+          "oneOf": [
+            {"const": "terms"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 500,
+              "items": {"$ref": "#/$defs/contrast"}
+            }
+          ]
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimand"],
+      "properties": {
+        "estimand": {"$ref": "#/$defs/label"},
+        "contrast": {"$ref": "#/$defs/label"},
+        "scope": {"type": "string", "minLength": 1, "maxLength": 200}
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "method", "members"],
+      "properties": {
+        "id": {"$ref": "#/$defs/label"},
+        "description": {"type": "string", "maxLength": 2000},
+        "method": {"enum": ["holm", "bonferroni", "bh"]},
+        "exploratory": {"type": "boolean"},
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": {"$ref": "#/$defs/member"}
+        },
+        "split_by": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"enum": ["estimand", "contrast", "scope_kind", "scope"]}
+        },
+        "missing_p": {"enum": ["skip", "count"]},
+        "mde": {"$ref": "#/$defs/mde"}
+      }
+    }
+  }
+}

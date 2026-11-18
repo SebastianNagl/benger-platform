@@ -19,8 +19,19 @@ Grammar (version :data:`analysis.version.EXPRESSION_GRAMMAR_VERSION`):
 * functions: ``if(cond, a, b)``, ``abs``, ``log`` (natural), ``exp``,
   ``sqrt``, ``sign``, ``round(x[, digits])`` (half to even), ``clip(x, lo,
   hi)``, ``min(a, b, ...)``, ``max(a, b, ...)``, ``isnull``, ``notnull``,
-  ``coalesce(a, b, ...)``, ``number(x)`` (text to number, comma or dot as
-  decimal separator).
+  ``coalesce(a, b, ...)``, ``number(x)`` (text to number by
+  :func:`number_from_text`; texts with an ambiguous separator become missing
+  and are counted).
+
+Numeric text never guesses between a thousands and a decimal separator
+(:func:`number_from_text`, shared with the measures' ``number`` coercion): a
+dot is the decimal mark (``"2.5"``, ``"1.000"`` is 1.0, ``"1e3"``); a single
+comma without a dot is the decimal mark unless exactly three digits follow it
+(``"1,5"``, ``"12,25"``); the grouped forms with groups of exactly three digits
+and the other separator as decimal mark are read (``"1.000,50"`` and
+``"1,000.50"`` are 1000.5). Any other text made of digits and separators
+(``"1,000"``, ``"1,2,3"``, ``"1.000.000"``) is ambiguous: it becomes missing
+and is reported, never converted.
 
 Nothing else parses: no attribute access, indexing, keywords, lambdas or
 comprehensions, and the tree is interpreted here, never handed to ``eval``.
@@ -42,7 +53,7 @@ import math
 import re
 import tokenize
 from dataclasses import dataclass
-from typing import Any, Dict, FrozenSet, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple
 
 MAX_EXPRESSION_LENGTH = 4000
 MAX_NODES = 1000
@@ -312,13 +323,14 @@ class Expression:
     root: Any
     names: FrozenSet[str]
 
-    def evaluate(self, columns: Mapping[str, Any], n: int):
+    def evaluate(self, columns: Mapping[str, Any], n: int, ambiguous: Optional[List[str]] = None):
         """Evaluate over ``columns`` (name -> numpy array of length ``n``).
 
         Returns ``(kind, array)`` with kind ``"num"`` (float64) or ``"str"``
         (object array of str/None). A bare ``null`` evaluates to an all-missing
-        number column."""
-        ev = _Evaluator(columns, n)
+        number column. ``ambiguous`` (when given) receives every text that
+        ``number()`` set to missing for an ambiguous separator."""
+        ev = _Evaluator(columns, n, ambiguous)
         value = ev.eval(self.root)
         if value.kind == "null":
             import numpy as np
@@ -363,12 +375,13 @@ class _V:
 
 
 class _Evaluator:
-    def __init__(self, columns: Mapping[str, Any], n: int) -> None:
+    def __init__(self, columns: Mapping[str, Any], n: int, ambiguous: Optional[List[str]] = None) -> None:
         import numpy as np
 
         self.np = np
         self.columns = columns
         self.n = n
+        self.ambiguous = ambiguous
 
     # -- helpers ------------------------------------------------------------
     def _num(self, v: _V, what: str):
@@ -572,7 +585,11 @@ class _Evaluator:
             v = args[0]
             if v.kind != "str":
                 return _V("num", self._num(v, "number()").copy())
-            return _V("num", np.array([_to_number(x) for x in v.data], dtype=float))
+            out = np.full(self.n, np.nan)
+            for i, x in enumerate(v.data):
+                if x is not None:
+                    out[i] = number_from_text(str(x), self.ambiguous)
+            return _V("num", out)
         nums = [self._num(a, f"{fn}()") for a in args]
         with np.errstate(all="ignore"):
             if fn == "abs":
@@ -609,12 +626,38 @@ class _Evaluator:
         raise ExpressionError(f"unknown function {fn!r}")  # pragma: no cover
 
 
-def _to_number(x) -> float:
-    if x is None:
-        return math.nan
-    s = str(x).strip().replace(",", ".")
+_SEPARATED = re.compile(r"[+-]?\d+(?:[.,]\d+)+")
+_DOT_GROUPED = re.compile(r"[+-]?\d{1,3}(?:\.\d{3})+,\d+")
+_COMMA_GROUPED = re.compile(r"[+-]?\d{1,3}(?:,\d{3})+\.\d+")
+
+
+def _comma_candidate(s: str) -> Optional[str]:
+    if "." not in s:
+        if s.count(",") == 1:
+            tail = s.partition(",")[2]
+            if not (len(tail) == 3 and tail.isdigit()):
+                return s.replace(",", ".")
+        return None
+    if _DOT_GROUPED.fullmatch(s):
+        return s.replace(".", "").replace(",", ".")
+    if _COMMA_GROUPED.fullmatch(s):
+        return s.replace(",", "")
+    return None
+
+
+def number_from_text(text: str, ambiguous: Optional[List[str]] = None) -> float:
+    """The number a text states, or NaN (rules in the module docstring).
+
+    A text made of digits and separators that the rules do not read is
+    ambiguous: NaN, and appended to ``ambiguous`` when given."""
+    s = text.strip()
+    candidate = s if "," not in s else _comma_candidate(s)
     try:
-        v = float(s)
+        v = float(candidate) if candidate is not None else math.nan
     except ValueError:
+        v = math.nan
+    if math.isnan(v) and _SEPARATED.fullmatch(s):
+        if ambiguous is not None:
+            ambiguous.append(text)
         return math.nan
     return v if math.isfinite(v) else math.nan

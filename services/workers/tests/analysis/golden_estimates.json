@@ -1,0 +1,1840 @@
+{
+ "engine_version": "1.0.0",
+ "estimates": [
+  {
+   "adjustments": [
+    {
+     "family": "primary",
+     "group": [],
+     "mde": {
+      "alpha": 0.05,
+      "power": 0.8,
+      "tests": 3,
+      "value": 1.7820656599474223
+     },
+     "method": "holm",
+     "p_adjusted": 4.616024164762013e-18,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -5.893837513126586,
+   "ci_upper": -3.7348267714123105,
+   "contrast_id": "role",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "role",
+   "estimate": -4.814332142269448,
+   "estimator": "fe_ols",
+   "family": "primary",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 4.616024164762013e-18,
+   "p_value": 2.3080120823810065e-18,
+   "position": 0,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -8.74112464244228,
+   "status": "ok",
+   "std_error": 0.5507680463556824,
+   "tost": [
+    {
+     "ci_lower": -5.720264960926569,
+     "ci_upper": -3.9083993236123273,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -3.0,
+     "p_lower": 0.999506463424611,
+     "p_tost": 0.999506463424611,
+     "p_upper": 5.43082503128226e-46,
+     "upper": 3.0
+    },
+    {
+     "ci_lower": -5.720264960926569,
+     "ci_upper": -3.9083993236123273,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -2.0,
+     "p_lower": 0.9999998387772269,
+     "p_tost": 0.9999998387772269,
+     "p_upper": 1.8427980639400175e-35,
+     "upper": 2.0
+    }
+   ]
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 0.2842940683668749,
+   "ci_upper": 3.3637406762204467,
+   "contrast_id": "order",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role",
+   "estimate": 1.8240173722936608,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 0.020238652765033543,
+   "position": 1,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": 2.3218938367549513,
+   "status": "ok",
+   "std_error": 0.7855731142483602,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "role"
+     ],
+     "method": "holm",
+     "p_adjusted": 1.5178816548455065e-20,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -15.13228133497834,
+   "ci_upper": -9.914225262469214,
+   "contrast_id": "role",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "role",
+   "estimate": -12.523253298723777,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 184,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 1.5178816548455065e-20,
+   "p_value": 5.059605516151689e-21,
+   "position": 2,
+   "ratio": null,
+   "scope": "system=sys_a",
+   "scope_values": {
+    "system": "sys_a"
+   },
+   "statistic": -9.407938942938861,
+   "status": "ok",
+   "std_error": 1.3311367531911034,
+   "tost": [
+    {
+     "ci_lower": -14.712778415178569,
+     "ci_upper": -10.333728182268985,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -3.0,
+     "p_lower": 0.9999999999995792,
+     "p_tost": 0.9999999999995792,
+     "p_upper": 1.000609737623999e-31,
+     "upper": 3.0
+    },
+    {
+     "ci_lower": -14.712778415178569,
+     "ci_upper": -10.333728182268985,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -2.0,
+     "p_lower": 0.9999999999999987,
+     "p_tost": 0.9999999999999987,
+     "p_upper": 5.139348801814982e-28,
+     "upper": 2.0
+    }
+   ]
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": -0.7138805449414038,
+   "ci_upper": 3.8763291713744517,
+   "contrast_id": "order",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role",
+   "estimate": 1.5812243132165238,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 184,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 0.1769030693171445,
+   "position": 3,
+   "ratio": null,
+   "scope": "system=sys_a",
+   "scope_values": {
+    "system": "sys_a"
+   },
+   "statistic": 1.3503520951943924,
+   "status": "ok",
+   "std_error": 1.170971866407106,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "role"
+     ],
+     "method": "holm",
+     "p_adjusted": 0.08461036693491057,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -4.760375768356261,
+   "ci_upper": -0.08410779971885773,
+   "contrast_id": "role",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "role",
+   "estimate": -2.4222417840375594,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 191,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 0.08461036693491057,
+   "p_value": 0.042305183467455286,
+   "position": 4,
+   "ratio": null,
+   "scope": "system=sys_b",
+   "scope_values": {
+    "system": "sys_b"
+   },
+   "statistic": -2.0305054922235333,
+   "status": "ok",
+   "std_error": 1.1929255022034193,
+   "tost": [
+    {
+     "ci_lower": -4.38442962301976,
+     "ci_upper": -0.4600539450553587,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -3.0,
+     "p_lower": 0.31407923245188457,
+     "p_tost": 0.31407923245188457,
+     "p_upper": 2.74244389065954e-06,
+     "upper": 3.0
+    },
+    {
+     "ci_lower": -4.38442962301976,
+     "ci_upper": -0.4600539450553587,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -2.0,
+     "p_lower": 0.6383136452739173,
+     "p_tost": 0.6383136452739173,
+     "p_upper": 0.00010484124511021788,
+     "upper": 2.0
+    }
+   ]
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": -1.8132252606064254,
+   "ci_upper": 4.05207502586464,
+   "contrast_id": "order",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role",
+   "estimate": 1.119424882629107,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 191,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 0.45436751316894575,
+   "position": 5,
+   "ratio": null,
+   "scope": "system=sys_b",
+   "scope_values": {
+    "system": "sys_b"
+   },
+   "statistic": 0.7481536026429578,
+   "status": "ok",
+   "std_error": 1.4962500730793533,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "role"
+     ],
+     "method": "holm",
+     "p_adjusted": 0.7488582547740039,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -2.455200319557026,
+   "ci_upper": 3.4138469360983796,
+   "contrast_id": "role",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": true,
+   "estimand_id": "role",
+   "estimate": 0.479323308270677,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 181,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 0.7488582547740039,
+   "p_value": 0.7488582547740039,
+   "position": 6,
+   "ratio": null,
+   "scope": "system=sys_c",
+   "scope_values": {
+    "system": "sys_c"
+   },
+   "statistic": 0.3201452103849569,
+   "status": "ok",
+   "std_error": 1.4972059325651546,
+   "tost": [
+    {
+     "ci_lower": -1.9833613002023789,
+     "ci_upper": 2.9420079167437327,
+     "equivalent": true,
+     "level": 0.9,
+     "lower": -3.0,
+     "p_lower": 0.010066027943175121,
+     "p_tost": 0.04613074044405554,
+     "p_upper": 0.04613074044405554,
+     "upper": 3.0
+    },
+    {
+     "ci_lower": -1.9833613002023789,
+     "ci_upper": 2.9420079167437327,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -2.0,
+     "p_lower": 0.04886427178792676,
+     "p_tost": 0.15489176129608545,
+     "p_upper": 0.15489176129608545,
+     "upper": 2.0
+    }
+   ]
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 1.4082386644617444,
+   "ci_upper": 4.550407952079611,
+   "contrast_id": "order",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role",
+   "estimate": 2.9793233082706774,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 181,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 0.000201728360064851,
+   "position": 7,
+   "ratio": null,
+   "scope": "system=sys_c",
+   "scope_values": {
+    "system": "sys_c"
+   },
+   "statistic": 3.7168421874796795,
+   "status": "ok",
+   "std_error": 0.8015737978617005,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "primary",
+     "group": [],
+     "mde": {
+      "alpha": 0.05,
+      "power": 0.8,
+      "tests": 3,
+      "value": 0.06548901403945313
+     },
+     "method": "holm",
+     "p_adjusted": 1.0038587200224313e-277,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": 0.23896738402013226,
+   "ci_upper": 0.3183087281430126,
+   "contrast_id": "slope",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "scenario",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "slope",
+   "estimate": 0.27863805608157244,
+   "estimator": "fe_ols",
+   "family": "primary",
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 556,
+   "null_value": 1.0,
+   "outcome": "share_x",
+   "p_adjusted": 1.0038587200224313e-277,
+   "p_value": 3.3461957334081045e-278,
+   "position": 8,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -35.64016782701286,
+   "status": "ok",
+   "std_error": 0.02024013880685723,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 0.5697344532495574,
+   "ci_upper": 0.6689928866611563,
+   "contrast_id": "slope",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "scenario",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "slope",
+   "estimate": 0.6193636699553569,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 184,
+   "null_value": 1.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 4.5025470829607353e-51,
+   "position": 9,
+   "ratio": null,
+   "scope": "system=sys_a",
+   "scope_values": {
+    "system": "sys_a"
+   },
+   "statistic": -15.03241953847561,
+   "status": "ok",
+   "std_error": 0.02532102893153036,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 0.1943057031093395,
+   "ci_upper": 0.3475810666397734,
+   "contrast_id": "slope",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "scenario",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "slope",
+   "estimate": 0.27094338487455644,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 191,
+   "null_value": 1.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 1.372612297266718e-77,
+   "position": 10,
+   "ratio": null,
+   "scope": "system=sys_b",
+   "scope_values": {
+    "system": "sys_b"
+   },
+   "statistic": -18.645540062439864,
+   "status": "ok",
+   "std_error": 0.03910085804347803,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": -0.11455117188637012,
+   "ci_upper": 0.0016925974127024665,
+   "contrast_id": "slope",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "scenario",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "slope",
+   "estimate": -0.056429287236833825,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48,
+    11
+   ],
+   "n_obs": 181,
+   "null_value": 1.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 5.714668374939234e-278,
+   "position": 11,
+   "ratio": null,
+   "scope": "system=sys_c",
+   "scope_values": {
+    "system": "sys_c"
+   },
+   "statistic": -35.625159360704146,
+   "status": "ok",
+   "std_error": 0.02965402278037566,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "exploratory",
+     "group": [],
+     "method": "bh",
+     "p_adjusted": 6.663425301076923e-11,
+     "size": 4
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -16.78806726965763,
+   "ci_upper": -9.217404064897334,
+   "contrast_id": "did sys_a",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role_by_system",
+   "estimate": -13.002735667277483,
+   "estimator": "fe_ols",
+   "family": "exploratory",
+   "k_params": 4,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 6.663425301076923e-11,
+   "p_value": 1.6658563252692308e-11,
+   "position": 12,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -6.732662969827828,
+   "status": "ok",
+   "std_error": 1.931291633867423,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "exploratory",
+     "group": [],
+     "method": "bh",
+     "p_adjusted": 0.1054594270096196,
+     "size": 4
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -6.3935774104388035,
+   "ci_upper": 0.6092779488578972,
+   "contrast_id": "did sys_b",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role_by_system",
+   "estimate": -2.892149730790453,
+   "estimator": "fe_ols",
+   "family": "exploratory",
+   "k_params": 4,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": 0.1054594270096196,
+   "p_value": 0.1054594270096196,
+   "position": 13,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -1.6189434684878565,
+   "status": "ok",
+   "std_error": 1.786442693698138,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "exploratory",
+     "group": [],
+     "method": "bh",
+     "p_adjusted": null,
+     "size": 4
+    }
+   ],
+   "ci_level": null,
+   "ci_lower": null,
+   "ci_upper": null,
+   "contrast_id": "share removed sys_a",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role_by_system",
+   "estimate": null,
+   "estimator": "fe_ols",
+   "family": "exploratory",
+   "k_params": 4,
+   "kind": "ratio",
+   "mde": null,
+   "message": "denominator 0.475182 is below the minimum 0.5 in absolute value",
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 556,
+   "null_value": null,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": null,
+   "position": 14,
+   "ratio": {
+    "denominator": 0.4751821652981141,
+    "numerator": -13.002735667277483,
+    "scale": -1.0
+   },
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": null,
+   "status": "not_estimable",
+   "std_error": null,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "primary",
+     "group": [],
+     "mde": {
+      "alpha": 0.05,
+      "power": 0.8,
+      "tests": 3,
+      "value": 11.507667886885123
+     },
+     "method": "holm",
+     "p_adjusted": 0.8679808257279292,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -6.379705190202065,
+   "ci_upper": 7.562081096504354,
+   "contrast_id": "wrong side",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "wrong_side",
+   "estimate": 0.5911879531511441,
+   "estimator": "fe_ols",
+   "family": "primary",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    19,
+    11
+   ],
+   "n_obs": 221,
+   "null_value": 0.0,
+   "outcome": "wrong",
+   "p_adjusted": 0.8679808257279292,
+   "p_value": 0.8679808257279292,
+   "position": 15,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": 0.16622380580902998,
+   "status": "ok",
+   "std_error": 3.5565781343638823,
+   "tost": [
+    {
+     "ci_lower": -5.258862490693588,
+     "ci_upper": 6.441238396995876,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -5.0,
+     "p_lower": 0.05796721882788565,
+     "p_tost": 0.10755764332919782,
+     "p_upper": 0.10755764332919782,
+     "upper": 5.0
+    }
+   ]
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "wrong_side"
+     ],
+     "method": "holm",
+     "p_adjusted": 1.0,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": 0.0,
+   "ci_upper": 0.0,
+   "contrast_id": "wrong side",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": true,
+   "estimand_id": "wrong_side",
+   "estimate": 0.0,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": "the contrast has no sampling variance",
+   "n_clusters": [
+    19,
+    11
+   ],
+   "n_obs": 73,
+   "null_value": 0.0,
+   "outcome": "wrong",
+   "p_adjusted": 1.0,
+   "p_value": 1.0,
+   "position": 16,
+   "ratio": null,
+   "scope": "system=sys_a",
+   "scope_values": {
+    "system": "sys_a"
+   },
+   "statistic": null,
+   "status": "degenerate",
+   "std_error": 0.0,
+   "tost": [
+    {
+     "ci_lower": 0.0,
+     "ci_upper": 0.0,
+     "equivalent": true,
+     "level": 0.9,
+     "lower": -5.0,
+     "p_lower": 0.0,
+     "p_tost": 0.0,
+     "p_upper": 0.0,
+     "upper": 5.0
+    }
+   ]
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "wrong_side"
+     ],
+     "method": "holm",
+     "p_adjusted": 1.0,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -6.863348180131009,
+   "ci_upper": 11.935118515059237,
+   "contrast_id": "wrong side",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "wrong_side",
+   "estimate": 2.5358851674641145,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    19,
+    11
+   ],
+   "n_obs": 75,
+   "null_value": 0.0,
+   "outcome": "wrong",
+   "p_adjusted": 1.0,
+   "p_value": 0.5969426968605223,
+   "position": 17,
+   "ratio": null,
+   "scope": "system=sys_b",
+   "scope_values": {
+    "system": "sys_b"
+   },
+   "statistic": 0.5288021633702038,
+   "status": "ok",
+   "std_error": 4.795527218160777,
+   "tost": [
+    {
+     "ci_lower": -5.352055170472143,
+     "ci_upper": 10.423825505400373,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -5.0,
+     "p_lower": 0.05804019506415305,
+     "p_tost": 0.30368330556786394,
+     "p_upper": 0.30368330556786394,
+     "upper": 5.0
+    }
+   ]
+  },
+  {
+   "adjustments": [
+    {
+     "family": "per_system",
+     "group": [
+      "wrong_side"
+     ],
+     "method": "holm",
+     "p_adjusted": 1.0,
+     "size": 3
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -19.86383049804281,
+   "ci_upper": 17.977038045212623,
+   "contrast_id": "wrong side",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [
+     [
+      "unit",
+      "system"
+     ]
+    ],
+    "inference": "normal",
+    "method": "within",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit",
+      "name_id"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": false,
+   "estimand_id": "wrong_side",
+   "estimate": -0.9433962264150928,
+   "estimator": "fe_ols",
+   "family": "per_system",
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    19,
+    11
+   ],
+   "n_obs": 73,
+   "null_value": 0.0,
+   "outcome": "wrong",
+   "p_adjusted": 1.0,
+   "p_value": 0.9221482642660415,
+   "position": 18,
+   "ratio": null,
+   "scope": "system=sys_c",
+   "scope_values": {
+    "system": "sys_c"
+   },
+   "statistic": -0.0977280213143072,
+   "status": "ok",
+   "std_error": 9.653282791646793,
+   "tost": [
+    {
+     "ci_lower": -16.821633438243552,
+     "ci_upper": 14.934840985413368,
+     "equivalent": false,
+     "level": 0.9,
+     "lower": -5.0,
+     "p_lower": 0.3371585409272806,
+     "p_tost": 0.3371585409272806,
+     "p_upper": 0.2690507131666263,
+     "upper": 5.0
+    }
+   ]
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": -6.223386820036549,
+   "ci_upper": 0.9570095508968235,
+   "contrast_id": "credible[P]",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [],
+    "inference": "normal",
+    "method": null,
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "type": "hc1"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "credible_claimant",
+   "estimate": -2.633188634569863,
+   "estimator": "fe_ols",
+   "family": null,
+   "k_params": 2,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": null,
+   "n_obs": 377,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 0.15056491417529297,
+   "position": 19,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -1.4375389483090755,
+   "status": "ok",
+   "std_error": 1.8317337680952481,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 10.483339440720137,
+   "ci_upper": 16.13536559525108,
+   "contrast_id": "rate",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "inference": "normal",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "type": "iid"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "fifty_rate",
+   "estimate": 13.309352517985609,
+   "estimator": "mean_rate",
+   "family": null,
+   "k_params": 1,
+   "kind": "linear",
+   "mde": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "tests": 3,
+    "value": 4.66523001692747
+   },
+   "message": null,
+   "n_clusters": null,
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "fifty",
+   "p_adjusted": null,
+   "p_value": 2.6864520304273525e-20,
+   "position": 20,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": 9.230789179678405,
+   "status": "ok",
+   "std_error": 1.441843406768098,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 2.5432185048492797,
+   "ci_upper": 9.413303234281159,
+   "contrast_id": "rate",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "inference": "normal",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "type": "iid"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "fifty_rate",
+   "estimate": 5.9782608695652195,
+   "estimator": "mean_rate",
+   "family": null,
+   "k_params": 1,
+   "kind": "linear",
+   "mde": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "tests": 3,
+    "value": 5.670625829090928
+   },
+   "message": null,
+   "n_clusters": null,
+   "n_obs": 184,
+   "null_value": 0.0,
+   "outcome": "fifty",
+   "p_adjusted": null,
+   "p_value": 0.0006469318569865359,
+   "position": 21,
+   "ratio": null,
+   "scope": "system=sys_a",
+   "scope_values": {
+    "system": "sys_a"
+   },
+   "statistic": 3.411134437439987,
+   "status": "ok",
+   "std_error": 1.752572635059153,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 8.293107079735346,
+   "ci_upper": 17.884903391468843,
+   "contrast_id": "rate",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "inference": "normal",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "type": "iid"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "fifty_rate",
+   "estimate": 13.089005235602095,
+   "estimator": "mean_rate",
+   "family": null,
+   "k_params": 1,
+   "kind": "linear",
+   "mde": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "tests": 3,
+    "value": 7.9171495046747316
+   },
+   "message": null,
+   "n_clusters": null,
+   "n_obs": 191,
+   "null_value": 0.0,
+   "outcome": "fifty",
+   "p_adjusted": null,
+   "p_value": 8.832027862338621e-08,
+   "position": 22,
+   "ratio": null,
+   "scope": "system=sys_b",
+   "scope_values": {
+    "system": "sys_b"
+   },
+   "statistic": 5.349248342648273,
+   "status": "ok",
+   "std_error": 2.446886814217728,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": 15.044693035298193,
+   "ci_upper": 26.944257240944893,
+   "contrast_id": "rate",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "inference": "normal",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "type": "iid"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "fifty_rate",
+   "estimate": 20.994475138121544,
+   "estimator": "mean_rate",
+   "family": null,
+   "k_params": 1,
+   "kind": "linear",
+   "mde": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "tests": 3,
+    "value": 9.822000571606651
+   },
+   "message": null,
+   "n_clusters": null,
+   "n_obs": 181,
+   "null_value": 0.0,
+   "outcome": "fifty",
+   "p_adjusted": null,
+   "p_value": 4.643110125370228e-12,
+   "position": 23,
+   "ratio": null,
+   "scope": "system=sys_c",
+   "scope_values": {
+    "system": "sys_c"
+   },
+   "statistic": 6.916080380690195,
+   "status": "ok",
+   "std_error": 3.035603113685383,
+   "tost": null
+  },
+  {
+   "adjustments": [],
+   "ci_level": 0.95,
+   "ci_lower": -5.899180480018114,
+   "ci_upper": -3.9749202394063445,
+   "contrast_id": "(difference)",
+   "conventions": {
+    "ci_critical": 1.96,
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "inference": "normal",
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": null,
+   "equivalent": null,
+   "estimand_id": "role_pairs",
+   "estimate": -4.937050359712229,
+   "estimator": "paired_within",
+   "family": null,
+   "k_params": 1,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 278,
+   "null_value": 0.0,
+   "outcome": "share_x",
+   "p_adjusted": null,
+   "p_value": 8.513719286348661e-24,
+   "position": 24,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -10.05749482404681,
+   "status": "ok",
+   "std_error": 0.49088271444177783,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "exploratory",
+     "group": [],
+     "method": "bh",
+     "p_adjusted": 0.040169097725480184,
+     "size": 4
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -24.026576902265255,
+   "ci_upper": -1.2693484334962015,
+   "contrast_id": "system[sys_b]",
+   "conventions": {
+    "ci_critical": "exact",
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [],
+    "inference": "t",
+    "method": null,
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": 47,
+   "equivalent": null,
+   "estimand_id": "in_gold",
+   "estimate": -12.647962667880728,
+   "estimator": "fe_ols",
+   "family": "exploratory",
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "in_gold",
+   "p_adjusted": 0.040169097725480184,
+   "p_value": 0.03012682329411014,
+   "position": 25,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -2.2361614860118832,
+   "status": "ok",
+   "std_error": 5.656104331909379,
+   "tost": null
+  },
+  {
+   "adjustments": [
+    {
+     "family": "exploratory",
+     "group": [],
+     "method": "bh",
+     "p_adjusted": 3.824285824784124e-06,
+     "size": 4
+    }
+   ],
+   "ci_level": 0.95,
+   "ci_lower": -38.340575374248075,
+   "ci_upper": -17.62267228369092,
+   "contrast_id": "system[sys_c]",
+   "conventions": {
+    "ci_critical": "exact",
+    "ci_level": 0.95,
+    "degenerate_p": "null_match",
+    "drop_zero_columns": true,
+    "fe_max_iter": 10000,
+    "fe_tolerance": 1e-12,
+    "fixed_effects": [],
+    "inference": "t",
+    "method": null,
+    "ssc": "statsmodels",
+    "tost_level": 0.9,
+    "vcov": {
+     "by": [
+      "unit"
+     ],
+     "type": "cluster"
+    }
+   },
+   "df": 47,
+   "equivalent": null,
+   "estimand_id": "in_gold",
+   "estimate": -27.981623828969497,
+   "estimator": "fe_ols",
+   "family": "exploratory",
+   "k_params": 3,
+   "kind": "linear",
+   "mde": null,
+   "message": null,
+   "n_clusters": [
+    48
+   ],
+   "n_obs": 556,
+   "null_value": 0.0,
+   "outcome": "in_gold",
+   "p_adjusted": 3.824285824784124e-06,
+   "p_value": 1.912142912392062e-06,
+   "position": 26,
+   "ratio": null,
+   "scope": "pooled",
+   "scope_values": {},
+   "statistic": -5.4341181200274,
+   "status": "ok",
+   "std_error": 5.1492483620927265,
+   "tost": null
+  }
+ ],
+ "frame_hash": "c689222df16a3fddcac56a5dba3624dd0e3f0b6e88bd1c2368843df1192ef137",
+ "spec_hash": "e8b39e3aff6d9c532c85baca77dc4d16eb615cee9c796bad44437fff55919df4",
+ "warnings": []
+}

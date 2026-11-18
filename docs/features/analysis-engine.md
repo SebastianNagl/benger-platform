@@ -29,11 +29,15 @@ A task belongs to a design through its `meta.variant` block:
 place in the design. `meta` is never shown to a system under test.
 
 Every completed generation of such a task becomes one row of the frame:
-generation, task, system (the model id), prompt structure, run index,
+generation, task, system, model id, prompt structure, run index,
 design, unit, the factors, the quality flags (`parse_ok`, `refusal`,
 `truncated`, `retried`, `finish_reason`) and the measures of the spec. Rows
 are sorted canonically (design, unit, task, system, structure, run index,
-generation), so the same data always gives the same frame. The frame is
+generation), so the same data always gives the same frame. The system is
+the generation's system key `response_metadata.system.key`
+(`<model_id>@<12 hex digits of the parameter profile hash>`), so two
+parameter profiles of one model are two systems; answers generated before
+CORE 2.56 have no key and fall back to the model id. The frame is
 stored as Parquet under `analysis/` in object storage, with a content hash
 that does not depend on the Parquet writer.
 
@@ -78,7 +82,8 @@ and returns its normalized form and hash.
 
 ### Inputs
 
-`designs` (required), and optionally `systems` and `structures` to narrow the
+`designs` (required), and optionally `systems` (each a system key or a model
+id, which selects every profile of that model) and `structures` to narrow the
 frame, and `factor_types` to declare a factor `number` or `text` instead of
 inferring it.
 
@@ -97,6 +102,17 @@ arithmetic, comparisons, `in`, `and`/`or`/`not` and the functions `if`, `abs`,
 `notnull`, `coalesce` and `number`. Missing values propagate (a comparison
 with a missing operand is missing, not false); non-finite results become
 missing and are reported. Nothing is evaluated as Python.
+
+Number text (a `number` field or gold value, or `number()` in an expression)
+never guesses between a thousands and a decimal separator. A dot is the
+decimal mark (`"2.5"`, `"1e3"`, and `"1.000"` is 1.0). A single comma without
+a dot is the decimal mark unless exactly three digits follow it (`"1,5"` is
+1.5, `"12,25"` is 12.25). The grouped forms with groups of exactly three
+digits and the other separator as decimal mark are read (`"1.000,50"` and
+`"1,000.50"` are 1000.5). Any other text of digits and separators (`"1,000"`,
+`"1,2,3"`, `"1.000.000"`) is ambiguous: it becomes missing and the run warns,
+for example `measure 'amount': 3 number text(s) with an ambiguous separator
+set to missing`.
 
 A global `filter` and an estimand's `subset` are expressions too (rows where
 they are true are used).

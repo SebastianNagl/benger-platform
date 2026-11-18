@@ -7,8 +7,9 @@ module selects the project's tasks whose design is one of the spec's
 ``inputs.designs`` and turns every completed generation of those tasks into
 an :class:`~analysis.observations.Observation`:
 
-* system: the generation's model id (a parameter-profile key can replace it
-  here without touching the engine);
+* system: the generation's system key ``response_metadata.system.key``
+  (``"<model_id>@<parameter profile hash>"``, recorded since CORE 2.56), or
+  the model id for answers generated before; ``model_id`` stays the model id;
 * structure: the prompt structure of its generation job; run index;
 * fields: the typed values of ``generations.parsed_annotation``;
 * quality flags: ``parse_status == "success"``, ``refusal``, ``truncated``,
@@ -16,9 +17,10 @@ an :class:`~analysis.observations.Observation`:
   format retry.
 
 Failed generations are not observations; their number is reported. The
-selection filters on ``meta -> variant -> design`` in SQL (tasks.meta is
-plain JSON, cast to JSONB for the operator) and streams generations in
-batches. Sync session only: the engine runs in the workers.
+selection filters on ``meta -> variant -> design`` and on ``inputs.structures``
+in SQL (tasks.meta is plain JSON, cast to JSONB for the operator) and streams
+generations in batches; ``inputs.systems`` is matched in Python against either
+the system key or the model id. Sync session only: the engine runs in the workers.
 """
 
 from __future__ import annotations
@@ -67,6 +69,12 @@ def _retried(metadata: Any) -> Optional[bool]:
     return None
 
 
+def _system(model_id: str, metadata: Any) -> str:
+    block = metadata.get("system") if isinstance(metadata, Mapping) else None
+    key = block.get("key") if isinstance(block, Mapping) else None
+    return key if isinstance(key, str) and key else model_id
+
+
 def iter_observations(
     db,
     project_id: str,
@@ -87,7 +95,7 @@ def iter_observations(
         counts["failed_generations"] = 0
     by_id = {task_id: (data, variant) for task_id, data, variant in tasks}
     ids = list(by_id)
-    systems = list(inputs.get("systems") or [])
+    systems = set(inputs.get("systems") or [])
     structures = list(inputs.get("structures") or [])
     for start in range(0, len(ids), TASK_BATCH):
         batch = ids[start : start + TASK_BATCH]
@@ -110,8 +118,6 @@ def iter_observations(
             .where(Generation.task_id.in_(batch))
             .order_by(Generation.task_id, Generation.id)
         )
-        if systems:
-            stmt = stmt.where(Generation.model_id.in_(systems))
         if structures:
             stmt = stmt.where(ResponseGeneration.structure_key.in_(structures))
         for row in db.execute(stmt):
@@ -119,11 +125,14 @@ def iter_observations(
                 if counts is not None:
                     counts["failed_generations"] += 1
                 continue
+            system = _system(row.model_id, row.response_metadata)
+            if systems and system not in systems and row.model_id not in systems:
+                continue
             data, variant = by_id[row.task_id]
             yield Observation(
                 generation_id=row.id,
                 task_id=row.task_id,
-                system=row.model_id,
+                system=system,
                 model_id=row.model_id,
                 design=variant["design"],
                 unit=variant["unit"],

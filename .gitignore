@@ -212,6 +212,10 @@ targeted_fix.py
 # worker code (services/workers/scripts/write_rubric_requirement_prompts.py)
 !services/shared/rubric_requirement_prompts.json
 
+# Unignore the analysis spec schema and the analysis golden and reference files
+!services/shared/analysis/schemas/*.json
+!services/workers/tests/analysis/*.json
+
 # Unignore root-level JSON files that are meant to be tracked
 !package.json
 !package-lock.json

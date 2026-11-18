@@ -219,6 +219,53 @@ def test_coercion(value, kind, expected):
         assert out == expected
 
 
+NUMBER_TEXTS = [
+    # (text, value, ambiguous): a dot is the decimal mark; one comma without a
+    # dot is the decimal mark unless three digits follow; the two grouped
+    # forms; everything else of digits and separators is ambiguous
+    ("2.5", 2.5, False), ("-3", -3.0, False), (" 1e3 ", 1000.0, False), ("1.000", 1.0, False),
+    ("1,5", 1.5, False), ("12,25", 12.25, False), ("-0,25", -0.25, False),
+    ("1.000,50", 1000.5, False), ("1,000.50", 1000.5, False), ("12.345.678,9", 12345678.9, False),
+    ("1,000", math.nan, True), ("1,2,3", math.nan, True), ("1.000.000,5,5", math.nan, True),
+    ("1.000.000", math.nan, True), ("1,00.5", math.nan, True), ("1.00,5", math.nan, True),
+    ("n/a", math.nan, False), ("", math.nan, False), ("inf", math.nan, False),
+]
+
+
+@pytest.mark.parametrize("text, value, is_ambiguous", NUMBER_TEXTS)
+def test_number_text_never_guesses_the_separator(text, value, is_ambiguous):
+    ambiguous = []
+    out = coerce(text, "number", ambiguous)
+    if math.isnan(value):
+        assert isinstance(out, float) and math.isnan(out)
+    else:
+        assert out == value
+    assert ambiguous == ([text] if is_ambiguous else [])
+
+
+def test_ambiguous_number_texts_are_missing_with_a_warning_per_measure():
+    amounts = ["1,000", "1,5", "1.000.000", "1,000.50", "x"]
+    records = [{"generation_id": f"g{i}", "task_id": f"t{i}", "model_id": "m",
+                "variant": {"design": "d", "unit": "u", "factors": {}},
+                "fields": {"amount": a, "label": a}, "task_data": {"gold": {"amount": a}}}
+               for i, a in enumerate(amounts)]
+    spec = normalize_spec({
+        "spec_version": 1, "name": "x", "inputs": {"designs": ["d"]},
+        "measures": {"amount": {"kind": "field", "field": "amount"},
+                     "gold_amount": {"kind": "gold", "path": "gold.amount"},
+                     "label": {"kind": "field", "field": "label", "type": "text"},
+                     "parsed": {"kind": "expression", "expr": "number(label)"}},
+        "estimands": [{"id": "m", "estimator": "mean_rate", "outcome": "amount"}],
+    })
+    built = build_frame(observations_from_records(records), spec)
+    by_text = dict(zip(built.frame["label"], built.frame["parsed"]))
+    assert by_text["1,5"] == 1.5 and by_text["1,000.50"] == 1000.5
+    assert all(math.isnan(by_text[t]) for t in ("1,000", "1.000.000", "x"))
+    for name in ("amount", "gold_amount", "parsed"):
+        assert f"measure {name!r}: 2 number text(s) with an ambiguous separator set to missing" in built.warnings
+    assert not any(w.startswith("measure 'label'") for w in built.warnings)
+
+
 def test_lookup_path():
     data = {"gold": {"range": [10, 20]}, "x": None}
     assert lookup_path(data, "gold.range.1") == 20
