@@ -384,7 +384,18 @@ class TestErrorMapping:
                 409,
                 "variant_cell_duplicate",
             ),
-            ('violates foreign key constraint "fk_tasks_variant_design"', 422, "variant_design_unknown"),
+            (
+                'insert or update on table "tasks" violates foreign key constraint '
+                '"fk_tasks_variant_design"',
+                422,
+                "variant_design_unknown",
+            ),
+            (
+                'update or delete on table "variant_designs" violates foreign key constraint '
+                '"fk_tasks_variant_design" on table "tasks"',
+                409,
+                "variant_design_in_use",
+            ),
         ],
     )
     def test_database_guard_errors(self, text, status, code):

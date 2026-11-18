@@ -376,6 +376,80 @@ class TestChecksAndFreeze:
         assert spec_edit.status_code == 409
         assert drop.status_code == 409
 
+    async def test_locked_reads_see_the_committed_design(
+        self, async_test_client, async_test_db, world
+    ):
+        from project_models import VariantDesign
+        from variant_design_guard import VariantDesignError, freeze_design, update_design_spec
+
+        await _create_design(async_test_client, world)
+        pid = world["project"].id
+        db = async_test_db
+
+        async def _held_then_changed(sql):
+            held = (
+                await db.execute(
+                    select(VariantDesign).where(
+                        VariantDesign.project_id == pid, VariantDesign.key == "swap"
+                    )
+                )
+            ).scalar_one()
+            await db.execute(text(sql), {"p": pid})
+            return held
+
+        held = await _held_then_changed(
+            "UPDATE variant_designs SET version = 5 WHERE project_id = :p AND key = 'swap'"
+        )
+        assert held.version == 1
+        with pytest.raises(VariantDesignError) as stale:
+            await db.run_sync(
+                lambda s: update_design_spec(s, pid, "swap", SPEC, expected_version=1)
+            )
+        assert (stale.value.status_code, stale.value.code) == (409, "variant_design_version_conflict")
+        await db.rollback()
+
+        held = await _held_then_changed(
+            "UPDATE variant_designs SET status = 'frozen', content_hash = repeat('0', 64), "
+            "frozen_at = now() WHERE project_id = :p AND key = 'swap'"
+        )
+        assert held.status == "draft"
+        for work in (
+            lambda s: update_design_spec(s, pid, "swap", SPEC),
+            lambda s: freeze_design(s, pid, "swap", None),
+        ):
+            with pytest.raises(VariantDesignError) as frozen:
+                await db.run_sync(work)
+            assert (frozen.value.status_code, frozen.value.code) == (409, "variant_design_frozen")
+        await db.rollback()
+
+    async def test_flush_guard_reads_the_committed_spec(
+        self, async_test_client, async_test_db, world
+    ):
+        from project_models import VariantDesign
+        from variant_design_guard import VariantDesignError
+
+        await _create_design(async_test_client, world)
+        pid = world["project"].id
+        narrower = json.loads(json.dumps(SPEC))
+        narrower["factors"][0]["levels"] = ["claimant"]
+        db = async_test_db
+        held = (
+            await db.execute(
+                select(VariantDesign).where(VariantDesign.project_id == pid, VariantDesign.key == "swap")
+            )
+        ).scalar_one()
+        await db.execute(
+            text("UPDATE variant_designs SET spec = CAST(:s AS jsonb) WHERE project_id = :p"),
+            {"s": json.dumps(narrower), "p": pid},
+        )
+        data, meta = task_payload("u1", "respondent")
+        db.add(Task(id=_uid(), project_id=pid, inner_id=98, data=data, meta=meta))
+        with pytest.raises(VariantDesignError) as exc:
+            await db.flush()
+        assert exc.value.status_code == 422
+        assert held.spec["factors"][0]["levels"] == ["claimant", "respondent"]
+        await db.rollback()
+
     async def test_frozen_design_takes_no_new_tasks(self, api, async_test_client, async_test_db, world):
         await _create_design(async_test_client, world)
         await _add_tasks(async_test_db, world["project"])

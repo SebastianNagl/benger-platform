@@ -87,6 +87,12 @@ def error_from_db(exc: BaseException) -> Optional[VariantDesignError]:
             "Two tasks would hold the same cell of the same unit of a variant "
             "design." + detail,
         )
+    if DESIGN_FK in text and 'update or delete on table "variant_designs"' in text:
+        return VariantDesignError(
+            409,
+            "variant_design_in_use",
+            "Tasks name this variant design; it was not deleted.",
+        )
     if DESIGN_FK in text:
         return VariantDesignError(
             422,
@@ -182,7 +188,7 @@ def check_session_tasks(session) -> None:
 
     # Designs written in this same flush win over the stored rows.
     in_session: Dict[Tuple[str, str], Any] = {}
-    for obj in list(session.new) + list(session.dirty) + list(session.identity_map.values()):
+    for obj in list(session.new) + list(session.dirty):
         if isinstance(obj, VariantDesign) and obj.project_id and obj.key:
             in_session.setdefault((obj.project_id, obj.key), obj)
 
@@ -366,7 +372,7 @@ def load_design(db, project_id: str, key: str, *, lock: bool = False):
         VariantDesign.project_id == project_id, VariantDesign.key == key
     )
     if lock:
-        stmt = stmt.with_for_update()
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
     return db.execute(stmt).scalar_one_or_none()
 
 

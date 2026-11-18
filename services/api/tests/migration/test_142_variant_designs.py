@@ -5,8 +5,8 @@ trigger, the unique cell index and the design key (built from the models),
 so ``upgrade()`` must be a no-op through its guards, twice. ``downgrade()``
 removes all of it, and a re-run ``upgrade()`` rebuilds the shape of the
 models; an assignment stored before the key was reserved moves to
-``meta.variant_legacy`` on that first run. The migration's trigger function
-is a verbatim copy of the models' one.
+``meta.variant_legacy`` on that first run. The trigger the re-run installs
+derives the cell from the within-unit task factors and guards frozen designs.
 """
 
 from __future__ import annotations
@@ -17,7 +17,9 @@ import os
 import uuid
 from contextlib import contextmanager
 
+import pytest
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 VERSIONS = os.path.normpath(
@@ -73,18 +75,73 @@ def _assert_shape(conn):
     ).scalar()
 
 
+_INSERT_TASK = text(
+    "INSERT INTO tasks (id, project_id, data, meta, inner_id, is_labeled, "
+    "total_annotations, cancelled_annotations, comment_count, "
+    "unresolved_comment_count, korrektur_count, unresolved_korrektur_count) "
+    "VALUES (:t, :p, CAST(:d AS json), CAST(:m AS json), :n, false, 0, 0, 0, 0, 0, 0)"
+)
+
+
+def _insert_task(conn, project_id, inner_id, factors):
+    task_id = str(uuid.uuid4())
+    meta = {"variant": {"design": "swap", "unit": "u1", "factors": factors}}
+    conn.execute(
+        _INSERT_TASK,
+        {"t": task_id, "p": project_id, "d": json.dumps({"facts": "x"}), "m": json.dumps(meta), "n": inner_id},
+    )
+    return task_id
+
+
+def _assert_installed_trigger_behaves(conn, project_id):
+    """The function the migration installed derives the cell from the
+    within-unit task factors only and refuses edits of a frozen design."""
+    spec = {
+        "schema_version": 1,
+        "unit": {"name": "case"},
+        "factors": [
+            {"name": "role", "type": "nominal", "levels": ["claimant", "respondent"]},
+            {"name": "level", "type": "numeric", "varies": "between_units"},
+        ],
+    }
+    conn.execute(
+        text(
+            "INSERT INTO variant_designs (id, project_id, key, version, spec, status) "
+            "VALUES (:i, :p, 'swap', 1, CAST(:s AS jsonb), 'draft')"
+        ),
+        {"i": str(uuid.uuid4()), "p": project_id, "s": json.dumps(spec)},
+    )
+    first = _insert_task(conn, project_id, 2, {"role": "claimant", "level": 1})
+    cell = conn.execute(
+        text("SELECT variant_cell FROM tasks WHERE id = :t"), {"t": first}
+    ).scalar_one()
+    assert cell == {"role": "claimant"}
+    for n, factors in ((3, {"role": "claimant", "level": 2}), (4, {"level": 2, "role": "claimant"})):
+        with pytest.raises(IntegrityError) as exc:
+            with conn.begin_nested():
+                _insert_task(conn, project_id, n, factors)
+        assert "uq_tasks_variant_cell" in str(exc.value)
+    conn.execute(
+        text(
+            "UPDATE variant_designs SET status = 'frozen', content_hash = :h, frozen_at = now() "
+            "WHERE project_id = :p AND key = 'swap'"
+        ),
+        {"h": "0" * 64, "p": project_id},
+    )
+    with pytest.raises(DBAPIError) as exc:
+        with conn.begin_nested():
+            conn.execute(
+                text("UPDATE tasks SET data = CAST(:d AS json) WHERE id = :t"),
+                {"d": json.dumps({"facts": "changed"}), "t": first},
+            )
+    assert "variant_design_frozen" in str(exc.value)
+
+
 class TestMigration142:
     def test_revision_chains_after_141(self):
         mig = _load()
         assert mig.revision == NAME
         assert mig.down_revision == "141_project_wizard_drafts"
-
-    def test_trigger_ddl_matches_the_models(self):
-        from project_models import TASKS_VARIANT_FUNCTION, TASKS_VARIANT_TRIGGER
-
-        mig = _load()
-        assert mig._VARIANT_FUNCTION == TASKS_VARIANT_FUNCTION
-        assert mig._VARIANT_TRIGGER == TASKS_VARIANT_TRIGGER
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()
@@ -127,3 +184,4 @@ class TestMigration142:
         ).one()
         assert meta == {"tags": ["a"], "variant_legacy": {"design": "x"}}
         assert design is None
+        _assert_installed_trigger_behaves(conn, project_id)
