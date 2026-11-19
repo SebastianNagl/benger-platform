@@ -736,6 +736,14 @@ class TestGetGenerationRun:
         assert flagged["computed_sha256"] == request_sha256(tampered) != digest
         assert flagged["hash_matches"] is False
 
+        child.request_record = {"version": 1, "requests": []}
+        await async_test_db.commit()
+        with _as_user(admin):
+            emptied = (await async_test_client.get(url)).json()
+        assert emptied["request_sha256"] == digest
+        assert emptied["computed_sha256"] is None
+        assert emptied["hash_matches"] is False
+
     @pytest.mark.asyncio
     async def test_trial_request_alias_404_and_403(self, async_test_client, async_test_db):
         """The trial-only route answers like the route under the run: 404

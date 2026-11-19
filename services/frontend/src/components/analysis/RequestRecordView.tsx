@@ -44,15 +44,6 @@ export function RequestHashStatus({ view }: { view: TrialRequestView }) {
     )
   }
   if (view.hash_matches === undefined) return null
-  if (view.hash_matches === null && view.request_sha256) {
-    // A stored hash but no request body to recompute it from.
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-        <MinusCircleIcon className="h-4 w-4" aria-hidden="true" />
-        {t('generations.detail.request.hashUnchecked')}
-      </span>
-    )
-  }
   if (view.hash_matches) {
     return (
       <span

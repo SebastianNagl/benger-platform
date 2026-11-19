@@ -217,6 +217,7 @@ def shape_unit_view(
             "texts": _task_texts(spec, data, variant),
             "gold": _gold_values(spec, data),
             "generations": [],
+            "generations_truncated": False,
         }
     check = vd.DesignCheck(vd.DesignView.build(design.key, spec))
     for record in records:
@@ -233,6 +234,7 @@ def shape_unit_view(
             continue
         entry = tasks[g.task_id]["generations"]
         if len(entry) >= MAX_RUNS_PER_TASK:
+            tasks[g.task_id]["generations_truncated"] = True
             continue
         content, cut = _text(g.response_content)
         entry.append(

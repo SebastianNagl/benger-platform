@@ -86,6 +86,7 @@ def test_unit_view_shapes_tasks_spans_gold_answers_and_check():
     assert view["systems"] == [SYS, "sim-b"]
     assert view["check"]["ok"] is True and view["check"]["task_count"] == 2
     assert view["tasks_truncated"] is False
+    assert [t["generations_truncated"] for t in view["tasks"]] == [False, False]
     assert view["design"]["unit_name"] == "case"
     assert [f["name"] for f in view["design"]["factors"]] == ["party", "level"]
     ta = view["tasks"][0]
@@ -124,6 +125,7 @@ def test_unit_view_reports_the_unit_check_and_caps_what_it_returns(monkeypatch):
     view = units.shape_unit_view("p", design(), rows, [gen("g1", "ta"), gen("g2", "ta", run=1)], "u1")
     assert view["tasks_truncated"] is True and len(view["tasks"]) == 2
     assert [g["id"] for g in view["tasks"][0]["generations"]] == ["g1"]
+    assert [t["generations_truncated"] for t in view["tasks"]] == [True, False]
     assert view["tasks"][0]["generations"][0]["response_truncated"] is True
     case = view["tasks"][0]["texts"][0]
     assert case["text"] == "Tenant A" and case["truncated"] is True and case["spans"] == [[7, 8]]

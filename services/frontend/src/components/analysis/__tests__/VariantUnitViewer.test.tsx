@@ -114,6 +114,26 @@ describe('VariantUnitViewer', () => {
     ).toBeInTheDocument()
   })
 
+  it('says when a task has more answers than are shown', () => {
+    const view = makeUnitView()
+    render(
+      <VariantUnitViewer
+        view={{
+          ...view,
+          tasks: view.tasks.map((task, i) => ({
+            ...task,
+            generations_truncated: i === 0,
+          })),
+          system: null,
+        }}
+      />,
+    )
+    expect(screen.getAllByTestId('unit-answers-truncated')).toHaveLength(1)
+    expect(screen.getByTestId('unit-answers-truncated')).toHaveTextContent(
+      'Only the first answers to this task are shown.',
+    )
+  })
+
   it('shows answer flags, the answer text and the request of an answer', async () => {
     const user = userEvent.setup()
     const view = makeUnitView()

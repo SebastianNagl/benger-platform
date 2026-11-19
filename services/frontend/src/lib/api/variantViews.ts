@@ -124,6 +124,8 @@ export interface UnitTask {
   texts: UnitText[]
   gold: { name: string; path: string; value: unknown }[]
   generations: UnitGeneration[]
+  /** Answers beyond the per-task cap were left out. */
+  generations_truncated?: boolean
 }
 
 export interface UnitView {

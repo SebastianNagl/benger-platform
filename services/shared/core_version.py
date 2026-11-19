@@ -1461,8 +1461,9 @@ API change).
     to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
     of one unit with its factors, the texts the design lets vary with their
     declared spans, gold values, the answers of one system with parsed
-    values, flags and request hashes, and the unit's assignment, balance and
-    invariance check). Both need full read access to the project's task
+    values, flags and request hashes, ``generations_truncated`` when answers
+    beyond ``MAX_RUNS_PER_TASK`` were left out, and the unit's assignment,
+    balance and invariance check). Both need full read access to the project's task
     content, like the frame download (403 ``variant_unit_forbidden``), and
     answer 404 ``variant_design_not_found`` or ``variant_unit_not_found``.
     Read models in ``variant_unit_views`` (``list_units``, ``unit_view``,

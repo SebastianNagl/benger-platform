@@ -63,23 +63,28 @@ describe('RequestRecordView', () => {
     expect(screen.getByText('cd'.repeat(32))).toBeInTheDocument()
   })
 
-  it('says when no hash was stored or none can be computed', () => {
-    const { rerender } = render(
+  it('says when no hash was stored', () => {
+    render(
       <RequestRecordView
         view={makeTrialRequest({ request_sha256: null, hash_matches: null })}
       />,
     )
     expect(screen.getByTestId('request-hash-missing')).toBeInTheDocument()
-    rerender(
+  })
+
+  it('flags a stored hash next to a record with no request to hash', () => {
+    render(
       <RequestRecordView
-        view={makeTrialRequest({ computed_sha256: null, hash_matches: null })}
+        view={makeTrialRequest({
+          request_record: { version: 1, requests: [] },
+          computed_sha256: null,
+          hash_matches: false,
+        })}
       />,
     )
-    expect(
-      screen.getByText(
-        'The hash cannot be checked: the record holds no request',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('request-hash-mismatch')).toHaveTextContent(
+      'The stored hash does not match the record',
+    )
   })
 
   it('shows an older answer without a hash check, roles, a retry and a worker call', () => {

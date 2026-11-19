@@ -376,6 +376,14 @@ function TaskColumn({
             ))}
           </ul>
         )}
+        {task.generations_truncated && (
+          <p
+            className="mt-2 text-xs text-zinc-500 dark:text-zinc-400"
+            data-testid="unit-answers-truncated"
+          >
+            {t('analysis.views.unit.answersTruncated')}
+          </p>
+        )}
       </div>
     </div>
   )
