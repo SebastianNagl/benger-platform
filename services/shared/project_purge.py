@@ -195,13 +195,13 @@ def purge_project_data(
         ).all()
     ]
     # A cross-project run of another project read this project's answers
-    # into its frame (inputs.projects): the frame goes, the run and its
-    # aggregate estimates stay and say why the frame is gone.
+    # or one of its lookup tables into its frame: the frame goes, the run
+    # and its aggregate estimates stay and say why the frame is gone.
     readers = db.execute(
         select(AnalysisRun).where(
             AnalysisRun.project_id != project_id,
             AnalysisRun.frame_object_key.isnot(None),
-            AnalysisRun.normalized_spec.contains({"inputs": {"projects": [{"project_id": project_id}]}}),
+            AnalysisRun.reads_project(project_id),
         )
     ).scalars().all()
     for run in readers:

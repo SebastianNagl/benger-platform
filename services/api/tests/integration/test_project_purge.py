@@ -220,13 +220,20 @@ async def test_purge_removes_the_frames_other_projects_read_from_it(async_test_d
     owner = await _user(db)
     p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
     reader, _ = await _seed_generated_project(db, owner, tasks=1)
+    lookup_reader, _ = await _seed_generated_project(db, owner, tasks=1)
     bystander, _ = await _seed_generated_project(db, owner, tasks=1)
     db.add(AnalysisLookupTable(project_id=p.id, name="codes", version=1, columns=["k"], rows=[["a"]],
                                row_count=1, content_hash="c" * 64))
     keys = {}
-    for project, inputs in ((reader, [{"project_id": p.id, "designs": ["d"]}]), (bystander, [])):
+    joined = [{"id": "c", "table": {"name": "codes", "version": 1, "project_id": p.id}, "keys": {"k": "k"}, "columns": {}}]
+    own_table = [{"id": "c", "table": {"name": "codes", "version": 1}, "keys": {"k": "k"}, "columns": {}}]
+    for project, inputs, lookups in (
+        (reader, [{"project_id": p.id, "designs": ["d"]}], []),
+        (lookup_reader, [], joined),
+        (bystander, [], own_table),
+    ):
         key = object_storage.upload_file(b"PAR1 frame", filename="frame.parquet", file_type="analysis")["file_key"]
-        spec = {"inputs": {"designs": ["d"], **({"projects": inputs} if inputs else {})}}
+        spec = {"inputs": {"designs": ["d"], **({"projects": inputs} if inputs else {})}, "lookups": lookups}
         run = AnalysisRun(
             id=str(uuid.uuid4()), project_id=project.id, created_by=owner.id, name="a", status="completed",
             spec=spec, normalized_spec=spec, spec_hash="h" * 64, spec_version=1, engine_version="1.1.0",
@@ -237,13 +244,14 @@ async def test_purge_removes_the_frames_other_projects_read_from_it(async_test_d
     await db.flush()
 
     counts = await db.run_sync(lambda s: purge_project_data(s, p.id))
-    assert counts["analysis_frames_of_other_projects"] == 1
+    assert counts["analysis_frames_of_other_projects"] == 2
     assert await _count(db, AnalysisLookupTable, AnalysisLookupTable.project_id == p.id) == 0
-    run, key = keys[reader.id]
-    await db.refresh(run)
-    assert run.frame_object_key is None and run.status == "completed"
-    assert run.warnings == [f"frame deleted: input project {p.id} was purged"]
-    assert object_storage.get_file_info(key) is None
+    for project in (reader, lookup_reader):
+        run, key = keys[project.id]
+        await db.refresh(run)
+        assert run.frame_object_key is None and run.status == "completed"
+        assert run.warnings == [f"frame deleted: input project {p.id} was purged"]
+        assert object_storage.get_file_info(key) is None
     run, key = keys[bystander.id]
     await db.refresh(run)
     assert run.frame_object_key == key and object_storage.get_file_info(key) is not None

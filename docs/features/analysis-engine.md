@@ -85,8 +85,13 @@ effects and clusters when two projects can use the same unit ids, and scope
 by `project_id` to report each project separately. Starting such a run and
 downloading its frame need the ORG_ADMIN or CONTRIBUTOR role on every input
 project (a project-restricted access key must also include each of them),
-because their answers enter the frame. Purging an input project deletes the
-frames of the runs that read it; the runs and their estimates stay.
+because their answers enter the frame. Reading such a run (its detail, fits
+and estimates, also through `/api/v1`) needs read access to every input
+project as well, as for the run's own project; a viewer without it gets 404
+and does not see the run in the run lists. The input projects of a run are
+those of `inputs.projects` and the projects that own a stored lookup table
+it joins. Purging an input project deletes the frames of the runs that read
+it; the runs and their estimates stay.
 
 ### Lookup tables
 
@@ -198,7 +203,7 @@ texts read by `number()` there are reported in the run warnings as well.
 | `mean_rate` | the mean of `outcome` (parameter `(mean)`); with the iid variance its SE is `sd / sqrt(n)` |
 | `paired_within` | the mean within-pair difference: treated rows minus the mean of the reference rows of the same `pair_by` group (parameter `(difference)`); `min_n` gates small samples |
 | `logit` | a logit of `outcome` (0/1, or a share between 0 and 1) on `terms`, fitted by Newton-Raphson to machine precision; `fixed_effects` as dummies; with `informative_only` (default) the fixed-effect groups whose outcome does not vary are left out and counted. Contrasts of kind `ame` give average marginal effects. |
-| `bradley_terry` | paired comparisons: `outcome` is 1 when the first of the two `players` columns wins; one strength `strength[<level>]` per player level other than `reference` on the +1/-1 coding (first minus second), with optional `terms` and `fixed_effects` (dummies; an intercept without them); `link` `logit` (default) or `linear` (a linear probability model by OLS, without the informative-cell filter) |
+| `bradley_terry` | paired comparisons: `outcome` is 1 when the first of the two `players` columns wins; one strength `strength[<level>]` per player level other than `reference` on the +1/-1 coding (first minus second), with optional `terms` and `fixed_effects` (dummies; an intercept without them); `link` `logit` (default) or `linear` (a linear probability model by OLS, without the informative-cell filter); with declared `levels`, rows with a player outside them are left out and counted as dropped, with a warning |
 | `plackett_luce` | a rank-ordered logit: the rows of one `choice_set` (default `generation_id`, the slots of an answer in a slot frame) are alternatives ranked by `outcome` (1 = chosen first); each of `stages` choices (default all) picks from the alternatives left. A choice set whose ranks are not exactly 1..n, or with a missing regressor, is left out and counted; regressors constant within every choice set cancel and are dropped. Newton-Raphson with the analytic Hessian. |
 | `clogit_rank1` | the conditional logit of the first choice only: the alternative with `outcome` 1 against all of its choice set (exactly one per set) |
 | `mixedlm` | a linear mixed model with a random intercept per `groups` (statsmodels MixedLM, REML by default): the optimizers of `mixedlm_optimizers` are tried in order and the first fit is accepted that converged with a finite log-likelihood and finite, positive variances whose standard errors are at most `mixedlm_max_se_ratio` times the outcome's standard deviation. The variance is model-based (`vcov` iid); the fit summary reports the variance components and the optimizer. |
@@ -264,7 +269,9 @@ the estimation sample of the predicted probability with `column` set to
 percentage points), with a delta-method standard error. Interactions that
 involve the column follow it, so with `group x gender` terms the effect
 averages over the sample's genders. The column must be read by a term and
-may not be a fixed-effect column.
+may not be a fixed-effect column. A column read only by dummy codings must
+have rows at `level` and at `reference` in the estimation sample (of the
+scope); otherwise the effect is `not_estimable`.
 
 ### Joint tests
 
@@ -296,9 +303,9 @@ p-value; `family` and `p_adjusted` are its first family.
 | Route | Who | What |
 |---|---|---|
 | `POST /api/projects/{project_id}/analysis-runs` | edit rights | start a run: `{"spec": {...}, "name": "optional"}` (202) |
-| `GET /api/projects/{project_id}/analysis-runs` | project members | the runs, newest first |
-| `GET /api/analysis-runs/{analysis_run_id}` | project members | the run: normalized spec and hash, frame hash and counts, engine and library versions, lockfile hash, per-fit summaries, warnings, timings |
-| `GET /api/analysis-runs/{analysis_run_id}/estimates` | project members | the estimates in engine order, each with its row `id` (what a compliance finding's `analysis_estimate_id` cites; the v1 route leaves it out) |
+| `GET /api/projects/{project_id}/analysis-runs` | project members | the runs, newest first (without those reading an input project the viewer may not read) |
+| `GET /api/analysis-runs/{analysis_run_id}` | project members (and of every input project) | the run: normalized spec and hash, frame hash and counts, engine and library versions, lockfile hash, per-fit summaries, warnings, timings |
+| `GET /api/analysis-runs/{analysis_run_id}/estimates` | project members (and of every input project) | the estimates in engine order, each with its row `id` (what a compliance finding's `analysis_estimate_id` cites; the v1 route leaves it out) |
 | `GET /api/analysis-runs/{analysis_run_id}/frame` | ORG_ADMIN, CONTRIBUTOR (on every input project) | the Parquet snapshot (short-lived URL) |
 | `POST /api/projects/{project_id}/analysis-lookups` | edit rights | store the next version of a lookup table (201) |
 | `GET /api/projects/{project_id}/analysis-lookups` | project members | the tables without rows, by name and newest version first (`?name=`) |

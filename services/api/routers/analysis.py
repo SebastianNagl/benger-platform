@@ -32,9 +32,12 @@ Routes:
 
 Reads need full (non-participant) access to the project; participants of an
 exam never see analyses. A run whose frame reads further projects
-(``inputs.projects``) or a lookup table of another project needs, at start,
-the ORG_ADMIN or CONTRIBUTOR role on each of those projects (their task
-content enters the frame); its frame download needs the same.
+(``inputs.projects`` and the owners of the stored lookup tables it joins)
+needs, at start, the ORG_ADMIN or CONTRIBUTOR role on each of those projects
+(their task content enters the frame); its frame download needs the same.
+Reading such a run (detail, estimates, the run lists) needs read access to
+each of those projects as well; without it the run is 404 and left out of
+the lists.
 """
 
 from __future__ import annotations
@@ -44,7 +47,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
@@ -235,17 +238,14 @@ async def check_run_inputs(
     """Access to every further project of the spec and existence of every
     stored lookup table it names (422 ``invalid_analysis_spec`` for a
     missing table or a content hash that differs)."""
-    for other in normalized["inputs"].get("projects") or []:
-        if other["project_id"] != project.id:
-            await _content_project_or_403(db, user, other["project_id"], "The input project", principal)
+    for other in AnalysisRun.input_projects(normalized, project.id):
+        await _content_project_or_403(db, user, other, "The input project", principal)
     errors: List[str] = []
     for i, lk in enumerate(normalized.get("lookups") or []):
         ref = lk.get("table")
         if not ref:
             continue
         owner = ref.get("project_id") or project.id
-        if owner != project.id:
-            await _content_project_or_403(db, user, owner, "The lookup table's project", principal)
         row = (
             await db.execute(
                 select(AnalysisLookupTable)
@@ -331,36 +331,70 @@ async def start_analysis_run(
     )
 
 
-def _build_select_runs(project_id: str, limit: int, offset: int):
-    return (
-        select(AnalysisRun)
-        .where(AnalysisRun.project_id == project_id)
-        .order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+async def may_read_project(db: AsyncSession, user, project_id: str, principal=None) -> bool:
+    """Read access to a project: it exists (a deleted one only for a
+    superadmin), the user may access it and an access key limited to some
+    projects may see it."""
+    from routers.v1._deps import key_may_see_project
+
+    project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
+    if project is None or (project.deleted_at is not None and not user.is_superadmin):
+        return False
+    if not await check_project_accessible_async(db, user, project.id, project=project):
+        return False
+    return await key_may_see_project(db, principal, project)
+
+
+async def hidden_runs_filter(db: AsyncSession, user, project_id: str, principal=None):
+    """SQL condition that leaves out the project's runs reading a further
+    project the user may not read; None when there is none."""
+    specs = (
+        await db.execute(select(AnalysisRun.normalized_spec).where(AnalysisRun.project_id == project_id))
+    ).scalars().all()
+    further = dict.fromkeys(pid for spec in specs for pid in AnalysisRun.input_projects(spec, project_id))
+    hidden = [pid for pid in further if not await may_read_project(db, user, pid, principal)]
+    if not hidden:
+        return None
+    return ~or_(*[AnalysisRun.reads_project(pid) for pid in hidden])
+
+
+def _build_select_runs(project_id: str, limit: int, offset: int, hidden=None):
+    stmt = select(AnalysisRun).where(AnalysisRun.project_id == project_id)
+    if hidden is not None:
+        stmt = stmt.where(hidden)
+    return stmt.order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc()).limit(limit).offset(offset)
 
 
 @router.get("/api/projects/{project_id}/analysis-runs")
 async def list_analysis_runs(
     project_id: str,
+    request: Request,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     access: ProjectAccess = Depends(require_project_access()),
     db: AsyncSession = Depends(get_async_db),
 ):
-    total = (
-        await db.execute(
-            select(func.count()).select_from(AnalysisRun).where(AnalysisRun.project_id == project_id)
-        )
-    ).scalar_one()
-    rows = (await db.execute(_build_select_runs(project_id, limit, offset))).scalars().all()
+    hidden = await hidden_runs_filter(db, access.user, project_id, getattr(request.state, "principal", None))
+    count = select(func.count()).select_from(AnalysisRun).where(AnalysisRun.project_id == project_id)
+    if hidden is not None:
+        count = count.where(hidden)
+    total = (await db.execute(count)).scalar_one()
+    rows = (await db.execute(_build_select_runs(project_id, limit, offset, hidden))).scalars().all()
     return {"items": [serialize_run(r, detail=False) for r in rows], "total": total}
 
 
-async def load_run_for_read(db: AsyncSession, user, run_id: str) -> AnalysisRun:
-    """The run if the user has full read access to its project; 404
-    otherwise, so run ids cannot be probed."""
+async def may_read_run_inputs(db: AsyncSession, user, run: AnalysisRun, principal=None) -> bool:
+    """Read access to every further project the run reads."""
+    for pid in AnalysisRun.input_projects(run.normalized_spec, run.project_id):
+        if not await may_read_project(db, user, pid, principal):
+            return False
+    return True
+
+
+async def load_run_for_read(db: AsyncSession, user, run_id: str, principal=None) -> AnalysisRun:
+    """The run if the user has full read access to its project and read
+    access to every further project it reads; 404 otherwise, so run ids
+    cannot be probed."""
     run = (await db.execute(select(AnalysisRun).where(AnalysisRun.id == run_id))).scalar_one_or_none()
     if run is None:
         raise HTTPException(status_code=404, detail="Analysis run not found")
@@ -369,16 +403,20 @@ async def load_run_for_read(db: AsyncSession, user, run_id: str) -> AnalysisRun:
         raise HTTPException(status_code=404, detail="Analysis run not found")
     if not await check_project_accessible_async(db, user, project.id, project=project):
         raise HTTPException(status_code=404, detail="Analysis run not found")
+    if not await may_read_run_inputs(db, user, run, principal):
+        raise HTTPException(status_code=404, detail="Analysis run not found")
     return run
 
 
 @router.get("/api/analysis-runs/{analysis_run_id}")
 async def get_analysis_run(
     analysis_run_id: str,
+    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    return serialize_run(await load_run_for_read(db, current_user, analysis_run_id))
+    principal = getattr(request.state, "principal", None)
+    return serialize_run(await load_run_for_read(db, current_user, analysis_run_id, principal))
 
 
 def build_select_estimates(
@@ -417,6 +455,7 @@ def build_select_estimates(
 @router.get("/api/analysis-runs/{analysis_run_id}/estimates")
 async def list_analysis_estimates(
     analysis_run_id: str,
+    request: Request,
     estimand_id: Optional[str] = Query(None, max_length=200),
     contrast_id: Optional[str] = Query(None),
     scope: Optional[str] = Query(None),
@@ -427,7 +466,7 @@ async def list_analysis_estimates(
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    run = await load_run_for_read(db, current_user, analysis_run_id)
+    run = await load_run_for_read(db, current_user, analysis_run_id, getattr(request.state, "principal", None))
     filters = dict(estimand_id=estimand_id, contrast_id=contrast_id, scope=scope, family=family, status=status)
     rows = (
         await db.execute(build_select_estimates(run.id, limit=limit, offset=offset, **filters))
@@ -446,19 +485,16 @@ async def download_analysis_frame(
     """Redirect to a short-lived download URL of the run's frame snapshot
     (``?json=1`` returns the URL in the body). 404 until the frame exists;
     403 without full read access to the project's task content."""
-    run = await load_run_for_read(db, current_user, analysis_run_id)
+    principal = getattr(request.state, "principal", None)
+    run = await load_run_for_read(db, current_user, analysis_run_id, principal)
     project = (await db.execute(select(Project).where(Project.id == run.project_id))).scalar_one()
     if not await can_read_all_task_content_async(db, current_user, project):
         raise HTTPException(
             status_code=403,
             detail="The frame needs the ORG_ADMIN or CONTRIBUTOR role on the project",
         )
-    for other in (run.normalized_spec or {}).get("inputs", {}).get("projects") or []:
-        if other["project_id"] != project.id:
-            await _content_project_or_403(
-                db, current_user, other["project_id"], "The frame reads project",
-                getattr(request.state, "principal", None),
-            )
+    for other in AnalysisRun.input_projects(run.normalized_spec, project.id):
+        await _content_project_or_403(db, current_user, other, "The frame reads project", principal)
     if not run.frame_object_key:
         raise HTTPException(status_code=404, detail="The frame of this run is not stored (yet)")
     from storage.object_storage import object_storage

@@ -4364,6 +4364,29 @@ class AnalysisRun(Base):
         Index("ix_analysis_runs_project_created", "project_id", "created_at"),
     )
 
+    @staticmethod
+    def input_projects(normalized_spec, project_id: str) -> list:
+        """The further projects a run of ``project_id`` reads, in spec
+        order: those of ``inputs.projects`` and the owners of the stored
+        lookup tables it joins, without ``project_id`` itself."""
+        spec = normalized_spec or {}
+        ids = [p["project_id"] for p in (spec.get("inputs") or {}).get("projects") or []]
+        ids += [
+            lk["table"]["project_id"]
+            for lk in spec.get("lookups") or []
+            if (lk.get("table") or {}).get("project_id")
+        ]
+        return [pid for pid in dict.fromkeys(ids) if pid != project_id]
+
+    @classmethod
+    def reads_project(cls, project_id: str):
+        """SQL condition: the run's spec reads ``project_id`` as an input
+        project or through one of its lookup tables."""
+        return sa.or_(
+            cls.normalized_spec.contains({"inputs": {"projects": [{"project_id": project_id}]}}),
+            cls.normalized_spec.contains({"lookups": [{"table": {"project_id": project_id}}]}),
+        )
+
     def __repr__(self):
         return (
             f"<AnalysisRun(id={self.id}, project={self.project_id}, "

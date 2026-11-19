@@ -565,6 +565,9 @@ class LogitDesign:
             raise EngineError(f"{self.where}: {column!r} is a fixed-effect column; a margin cannot set it")
         if column not in self.term_inputs:
             raise EngineError(f"{self.where}: no term reads {column!r}")
+        numeric, _ = _ml_inputs(None, self.terms)
+        if column not in numeric and not _match(self.sub[column], value).any():
+            raise EngineError(f"{self.where}: {column!r} has no level {value!r} in the estimation sample")
         m = len(next(iter(self.sub.values())))
         cols = dict(self.sub)
         if cols[column].dtype == object:
@@ -675,6 +678,17 @@ def fit_bradley_terry(columns, n: int, est: Mapping[str, Any], mask: np.ndarray,
         columns, n, est, mask, [est["outcome"]] + numeric,
         [first, second] + factors + fe_cols + _vcov_keys(est["vcov"]), where,
     )
+    outside = 0
+    if est.get("levels") is not None:
+        inside = np.ones(n, dtype=bool)
+        for player in (first, second):
+            values = _column(columns, player, where)
+            known = np.zeros(n, dtype=bool)
+            for lv in est["levels"]:
+                known |= _match(values, lv)
+            inside &= known
+        outside = int((use & ~inside).sum())
+        use = use & inside
     y_all = _numeric(columns, est["outcome"], where)
     uninformative = 0
     if logit and fes and conv.get("informative_only", True):
@@ -722,8 +736,10 @@ def fit_bradley_terry(columns, n: int, est: Mapping[str, Any], mask: np.ndarray,
     if uninformative:
         fit.warnings.append(f"{uninformative} row(s) of fixed-effect groups without outcome variation left out")
         fit.extra["rows_uninformative"] = uninformative
+    if outside:
+        fit.warnings.append(f"{outside} row(s) with a player outside the declared levels left out")
     fit.extra["players"] = levels
-    return fit, implied, m, dropped_rows + uninformative, 0
+    return fit, implied, m, dropped_rows + outside + uninformative, 0
 
 
 def fit_mixedlm_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):

@@ -294,6 +294,49 @@ def test_marginal_effects_need_a_term_column():
     assert row["status"] == "not_estimable" and "no term reads 'unit'" in row["message"]
 
 
+def test_marginal_effects_need_both_levels_in_the_sample():
+    # setting g to a level without rows changes no dummy column, so without
+    # the check the effect would come out as exactly 0
+    est, _, _ = _estimates(_two_groups(), [{
+        "id": "l", "estimator": "logit", "outcome": "y",
+        "terms": [{"dummies": "g", "levels": ["a", "b", "c"], "reference": "a"}],
+        "contrasts": [{"id": "typo", "kind": "ame", "column": "g", "level": "bb", "reference": "a"},
+                      {"id": "declared", "kind": "ame", "column": "g", "level": "c", "reference": "a"},
+                      {"id": "no_ref", "kind": "ame", "column": "g", "level": "b", "reference": "c"},
+                      {"id": "ok", "kind": "ame", "column": "g", "level": "b", "reference": "a"}],
+        "joint_tests": [{"id": "both", "contrasts": ["ok", "declared"]}],
+    }])
+    for cid, level in (("typo", "bb"), ("declared", "c"), ("no_ref", "c")):
+        row = est[("l", cid, "pooled")]
+        assert row["status"] == "not_estimable" and row["estimate"] is None, row
+        assert f"no level {level!r}" in row["message"]
+    _close(est[("l", "ok", "pooled")]["estimate"], 0.7 - 0.3)
+    assert est[("l", "both", "pooled")]["status"] == "not_estimable"
+
+
+def test_bradley_terry_leaves_out_players_outside_the_declared_levels():
+    records = pairs_records(units=60)
+    measures = {
+        "choice": {"kind": "field", "field": "choice"},
+        "first_wins": {"kind": "expression", "expr": "1 * (choice == 1)"},
+        "g1": {"kind": "slot_factor", "factor": "group", "slot": 1},
+        "g2": {"kind": "slot_factor", "factor": "group", "slot": 2},
+    }
+    spec = dict(measures=measures, inputs={"designs": ["pairs"]})
+    bt = {"estimator": "bradley_terry", "outcome": "first_wins", "players": ["g1", "g2"], "reference": "ref"}
+    declared, result, _ = _estimates(records, [{"id": "bt", **bt, "levels": ["ref", "a", "b", "c", "d", "e"]}], **spec)
+    without_f = [r for r in records if all(s["factors"]["group"] != "f" for s in r["variant"]["slots"])]
+    assert 0 < len(without_f) < len(records)
+    reference, _, _ = _estimates(without_f, [{"id": "bt", **bt}], **spec)
+    for lv in ("a", "b", "c", "d", "e"):
+        mine, ref = declared[("bt", f"strength[{lv}]", "pooled")], reference[("bt", f"strength[{lv}]", "pooled")]
+        _close(mine["estimate"], ref["estimate"], 1e-12)
+        _close(mine["std_error"], ref["std_error"], 1e-12)
+    fit = result.fits[0]
+    assert fit["n"] == len(without_f) and fit["rows_dropped_missing"] == len(records) - len(without_f)
+    assert any("outside the declared levels" in w for w in result.warnings)
+
+
 def test_mixedlm_skips_a_boundary_lbfgs_fit():
     # On these records statsmodels' lbfgs reports convergence at a variance
     # component of 0 with an infinite log-likelihood; powell finds the maximum.
