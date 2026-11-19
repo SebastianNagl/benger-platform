@@ -58,7 +58,8 @@ const mean = (values: number[]) =>
 
 /**
  * The ends of a slope across the x axis: through the means of its line's
- * points in the panel, or of every point; null when its line is not here.
+ * points in the panel, or of every point of the panel (of the chart when
+ * the panel has none); null when its line is not here.
  */
 function slopeLine(
   data: ProfileData,
@@ -68,12 +69,14 @@ function slopeLine(
 ) {
   let x0 = data.xMean
   let y0 = data.yMean
-  if (s.line !== undefined) {
-    const points = panel.lines.find((l) => l.key === s.line)?.points ?? []
-    if (points.length === 0) return null
+  const points =
+    s.line === undefined
+      ? panel.lines.flatMap((l) => l.points)
+      : (panel.lines.find((l) => l.key === s.line)?.points ?? [])
+  if (points.length > 0) {
     x0 = mean(points.map((p) => p.x))
     y0 = mean(points.map((p) => p.estimate))
-  }
+  } else if (s.line !== undefined) return null
   return [xs.min, xs.max].map((gx) => ({
     gx,
     gy: y0 + s.slope * (gx - x0),

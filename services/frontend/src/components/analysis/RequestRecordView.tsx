@@ -46,6 +46,17 @@ export function RequestHashStatus({ view }: { view: TrialRequestView }) {
       </span>
     )
   }
+  if (!view.request_record && view.request_sha256) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400"
+        data-testid="request-hash-unverifiable"
+      >
+        <MinusCircleIcon className="h-4 w-4" aria-hidden="true" />
+        {t('generations.detail.request.hashUnverifiable')}
+      </span>
+    )
+  }
   if (!view.request_record) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">

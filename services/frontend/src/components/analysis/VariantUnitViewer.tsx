@@ -157,6 +157,14 @@ function Answer({
             SHA-256 <ShortHash value={g.request_sha256} />
           </span>
         )}
+        {g.request_sha256 && !g.has_request_record && (
+          <span
+            className="min-w-0 text-zinc-500 dark:text-zinc-400"
+            data-testid="unit-answer-hash-unverifiable"
+          >
+            {t('generations.detail.request.hashUnverifiable')}
+          </span>
+        )}
       </div>
       {showText && (
         <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-zinc-50 p-2 font-mono text-xs break-words whitespace-pre-wrap text-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-200">

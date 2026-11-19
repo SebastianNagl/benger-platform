@@ -542,7 +542,11 @@ describe('GenerationRunDetailPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('flags a stored hash whose request record was removed', async () => {
+  it.each([
+    ['verified', true, true, 'request-hash-ok'],
+    ['mismatch', true, false, 'request-hash-mismatch'],
+    ['record_missing', false, null, 'request-hash-unverifiable'],
+  ] as const)('shows the hash check of a trial (%s)', async (state, hasRecord, matches, testId) => {
     routeGet(
       {
         ...baseDetail,
@@ -552,7 +556,7 @@ describe('GenerationRunDetailPage', () => {
             run_index: 0,
             status: 'completed',
             has_response: true,
-            has_request_record: false,
+            has_request_record: hasRecord,
             request_sha256: 'ab'.repeat(32),
           },
         ],
@@ -561,10 +565,13 @@ describe('GenerationRunDetailPage', () => {
         'child-1': {
           id: 'child-1',
           run_index: 0,
-          request_record: null,
+          request_record: hasRecord
+            ? { capture: 'http_body', messages: [{ role: 'user', content: 'Akte' }] }
+            : null,
           request_sha256: 'ab'.repeat(32),
-          computed_sha256: null,
-          hash_matches: false,
+          computed_sha256: matches === false ? 'cd'.repeat(32) : hasRecord ? 'ab'.repeat(32) : null,
+          hash_matches: matches,
+          hash_check: state,
         },
       },
     )
@@ -577,9 +584,9 @@ describe('GenerationRunDetailPage', () => {
     expect(apiClient.get).toHaveBeenCalledWith(
       '/runs/generations/gen-run-123/trials/child-1/request',
     )
-    expect(
-      within(sent).getByTestId('request-hash-mismatch'),
-    ).toBeInTheDocument()
+    expect(within(sent).getByTestId(testId)).toBeInTheDocument()
+    if (state !== 'mismatch')
+      expect(within(sent).queryByTestId('request-hash-mismatch')).toBeNull()
   })
 
   it('fetches the selected trial only and marks worker calls', async () => {

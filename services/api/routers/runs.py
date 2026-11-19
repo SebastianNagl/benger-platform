@@ -194,9 +194,11 @@ class TrialRequest(BaseModel):
     The hash check (CORE 2.69): ``computed_sha256`` is the hash of the stored
     record (``request_capture.request_sha256``, over the first request's
     body) and ``hash_matches`` says whether it equals the stored
-    ``request_sha256``; null when no hash was stored. A mismatch means the
-    stored hash does not belong to the stored record, also when the record is
-    missing or holds no request to hash."""
+    ``request_sha256``. ``hash_check`` names the state: ``verified`` (true),
+    ``mismatch`` (false: a record is stored and the hash differs, also when
+    the record holds no request to hash or is not an object),
+    ``record_missing`` (null: a hash without its record, e.g. imported
+    without it, so it cannot be checked) and ``no_hash`` (null)."""
 
     id: str
     run_index: int
@@ -204,6 +206,7 @@ class TrialRequest(BaseModel):
     request_sha256: Optional[str] = None
     computed_sha256: Optional[str] = None
     hash_matches: Optional[bool] = None
+    hash_check: Literal["verified", "mismatch", "record_missing", "no_hash"] = "no_hash"
     parent_id: Optional[str] = None
     task_id: Optional[str] = None
     model_id: Optional[str] = None
@@ -283,6 +286,12 @@ def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
     record = trial.request_record if isinstance(trial.request_record, dict) else None
     computed = request_sha256(record) if record is not None else None
     stored = trial.request_sha256
+    if not stored:
+        check = "no_hash"
+    elif trial.request_record is None:
+        check = "record_missing"
+    else:
+        check = "verified" if computed == stored else "mismatch"
     first = trial.first_response_content
     if first is not None and not isinstance(first, str):
         first = str(first)
@@ -292,7 +301,8 @@ def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
         request_record=record,
         request_sha256=stored,
         computed_sha256=computed,
-        hash_matches=(computed == stored) if stored else None,
+        hash_matches={"verified": True, "mismatch": False}.get(check),
+        hash_check=check,
         parent_id=str(parent.id),
         task_id=trial.task_id,
         model_id=trial.model_id,

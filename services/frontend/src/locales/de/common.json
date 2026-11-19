@@ -9329,6 +9329,7 @@
         "hashOk": "Der gespeicherte Hash passt zur Anfrage",
         "hashMismatch": "Der gespeicherte Hash passt nicht zur Anfrage",
         "hashMissing": "Zu dieser Anfrage wurde kein Hash gespeichert",
+        "hashUnverifiable": "Aufzeichnung nicht verfügbar, der Hash lässt sich nicht prüfen",
         "storedHash": "Gespeicherter SHA-256",
         "computedHash": "SHA-256 der Aufzeichnung",
         "structure": "Prompt-Struktur",

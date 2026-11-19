@@ -178,6 +178,8 @@ export interface TrialRequestView {
   request_sha256?: string | null
   computed_sha256?: string | null
   hash_matches?: boolean | null
+  /** The hash check's state; `record_missing` is a hash without its record. */
+  hash_check?: 'verified' | 'mismatch' | 'record_missing' | 'no_hash'
   parent_id?: string | null
   task_id?: string | null
   model_id?: string | null

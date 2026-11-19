@@ -9329,6 +9329,7 @@
         "hashOk": "The stored hash matches the record",
         "hashMismatch": "The stored hash does not match the record",
         "hashMissing": "No hash was stored for this record",
+        "hashUnverifiable": "Record not available, the hash cannot be checked",
         "storedHash": "Stored SHA-256",
         "computedHash": "SHA-256 of the record",
         "structure": "Prompt structure",

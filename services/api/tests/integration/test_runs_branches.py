@@ -699,13 +699,15 @@ class TestGetGenerationRun:
         assert none.json()["request_sha256"] is None
         assert none.json()["computed_sha256"] is None
         assert none.json()["hash_matches"] is None
+        assert none.json()["hash_check"] == "no_hash"
 
     @pytest.mark.asyncio
     async def test_trial_request_checks_the_stored_hash_against_the_record(
         self, async_test_client, async_test_db
     ):
         """The stored hash is recomputed from the stored record: equal for an
-        untouched record, flagged once the record or the hash was changed."""
+        untouched record, flagged once the record or the hash was changed,
+        and not checkable (never flagged) for a hash without its record."""
         from ai_services.request_capture import request_sha256
 
         admin, _, task, rg, child, _, record = await self._retried_and_plain_trials(
@@ -722,6 +724,7 @@ class TestGetGenerationRun:
             intact = (await async_test_client.get(url)).json()
             alias = (await async_test_client.get(f"{BASE}/trials/{child.id}/request")).json()
         assert intact["computed_sha256"] == digest and intact["hash_matches"] is True
+        assert intact["hash_check"] == "verified"
         assert intact["system_key"] == "acme/model@abc123"
         assert (intact["task_id"], intact["structure_key"]) == (task.id, "default")
         assert alias == intact
@@ -735,6 +738,7 @@ class TestGetGenerationRun:
         assert flagged["request_sha256"] == digest
         assert flagged["computed_sha256"] == request_sha256(tampered) != digest
         assert flagged["hash_matches"] is False
+        assert flagged["hash_check"] == "mismatch"
 
         child.request_record = {"version": 1, "requests": []}
         await async_test_db.commit()
@@ -743,6 +747,15 @@ class TestGetGenerationRun:
         assert emptied["request_sha256"] == digest
         assert emptied["computed_sha256"] is None
         assert emptied["hash_matches"] is False
+        assert emptied["hash_check"] == "mismatch"
+
+        child.request_record = ["not", "an", "object"]
+        await async_test_db.commit()
+        with _as_user(admin):
+            shapeless = (await async_test_client.get(url)).json()
+        assert shapeless["request_record"] is None
+        assert shapeless["hash_matches"] is False
+        assert shapeless["hash_check"] == "mismatch"
 
         child.request_record = None
         await async_test_db.commit()
@@ -751,7 +764,8 @@ class TestGetGenerationRun:
         assert removed["request_record"] is None
         assert removed["request_sha256"] == digest
         assert removed["computed_sha256"] is None
-        assert removed["hash_matches"] is False
+        assert removed["hash_matches"] is None
+        assert removed["hash_check"] == "record_missing"
 
     @pytest.mark.asyncio
     async def test_trial_request_alias_404_and_403(self, async_test_client, async_test_db):

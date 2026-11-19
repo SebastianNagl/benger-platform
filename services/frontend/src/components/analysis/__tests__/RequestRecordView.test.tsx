@@ -87,20 +87,22 @@ describe('RequestRecordView', () => {
     )
   })
 
-  it('flags a stored hash whose record was removed', () => {
+  it('says a stored hash without its record cannot be checked, without a tamper warning', () => {
     render(
       <RequestRecordView
         view={makeTrialRequest({
           request_record: null,
           computed_sha256: null,
-          hash_matches: false,
+          hash_matches: null,
+          hash_check: 'record_missing',
         })}
       />,
     )
-    expect(screen.getByTestId('request-hash-mismatch')).toHaveTextContent(
-      'The stored hash does not match the record',
+    expect(screen.getByTestId('request-hash-unverifiable')).toHaveTextContent(
+      'Record not available, the hash cannot be checked',
     )
-    expect(screen.queryByText('No request record')).toBeNull()
+    expect(screen.queryByTestId('request-hash-mismatch')).toBeNull()
+    expect(screen.queryByTestId('request-hash-ok')).toBeNull()
   })
 
   it('shows an older answer without a hash check, roles, a retry and a worker call', () => {

@@ -63,6 +63,54 @@ describe('EstimateProfileChart', () => {
     ).toBe(true)
   })
 
+  it('runs a common slope through the points of each facet panel', () => {
+    const estimates = ['A', 'B'].flatMap((condition, c) =>
+      [1, 2, 3, 4].map((pos) =>
+        makeEstimate({
+          position: c * 4 + pos,
+          estimand_id: 'mean_by_condition',
+          contrast_id: '(mean)',
+          estimator: 'mean_rate',
+          outcome: 'risk',
+          scope: 'by condition, pos',
+          scope_values: { condition, pos },
+          estimate: (c === 0 ? 0.2 : 0.8) + 0.1 * (pos - 2.5),
+          ci_lower: null,
+          ci_upper: null,
+        }),
+      ),
+    )
+    const data = profileFromEstimates(estimates, {
+      x: 'pos',
+      series: null,
+      facet: 'condition',
+    })
+    render(
+      <EstimateProfileChart
+        data={data}
+        xLabel="pos"
+        yLabel="risk"
+        slopes={[{ slope: 0.1, label: 'per position' }]}
+      />,
+    )
+    const panels = screen.getAllByTestId('profile-panel')
+    expect(panels).toHaveLength(2)
+    for (const panel of panels) {
+      const circles = [...panel.querySelectorAll('circle')]
+      expect(circles).toHaveLength(4)
+      const cx =
+        circles.reduce((a, c) => a + Number(c.getAttribute('cx')), 0) / 4
+      const cy =
+        circles.reduce((a, c) => a + Number(c.getAttribute('cy')), 0) / 4
+      const line = within(panel).getByTestId('profile-slope')
+      const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((k) =>
+        Number(line.getAttribute(k)),
+      )
+      // The dashed line passes through the panel's own mean point.
+      expect(y1 + ((y2 - y1) * (cx - x1)) / (x2 - x1)).toBeCloseTo(cy, 6)
+    }
+  })
+
   it('shows a tooltip with the estimate, interval and n of a point', () => {
     const data = profileFromEstimates(curve(), {
       x: 'pos',

@@ -1471,8 +1471,10 @@ API change).
     ``results:read``.
   - The trial request route ``GET /api/runs/generations/{id}/trials/
     {trial_id}/request`` gains the hash check (``computed_sha256``, the hash
-    of the stored record by ``request_capture.request_sha256``, and
-    ``hash_matches``) and ``parent_id``, ``task_id``, ``model_id``,
+    of the stored record by ``request_capture.request_sha256``,
+    ``hash_matches`` and ``hash_check``: ``verified``, ``mismatch``,
+    ``record_missing`` for a hash kept without its record, which is shown
+    as not checkable rather than tampered, or ``no_hash``) and ``parent_id``, ``task_id``, ``model_id``,
     ``system_key``, ``structure_key``, ``retried``, ``first_response`` and
     ``first_response_truncated``; ``GET /api/runs/trials/{trial_id}/request``
     answers the same by the trial id alone (``routers.runs.trial_request_view``;

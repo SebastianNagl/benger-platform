@@ -177,37 +177,52 @@ describe('VariantUnitViewer', () => {
     expect(within(reference).queryByText('request of g1')).toBeNull()
   })
 
-  it('opens the hash check of an answer whose record was removed', async () => {
-    const user = userEvent.setup()
-    const view = makeUnitView()
-    view.tasks[0].generations = [
-      makeGeneration({ id: 'g1', has_request_record: false }),
-    ]
-    render(
-      <VariantUnitViewer
-        view={view}
-        requestView={(g) => (
-          <RequestRecordView
-            view={{
-              id: g.id,
-              run_index: g.run_index,
-              request_record: null,
-              request_sha256: g.request_sha256,
-              computed_sha256: null,
-              hash_matches: false,
-            }}
-          />
-        )}
-      />,
-    )
-    const reference = screen.getByTestId('unit-reference')
-    const button = within(reference).getByTestId('unit-answer-request')
-    expect(button).toBeEnabled()
-    await user.click(button)
-    expect(
-      within(reference).getByTestId('request-hash-mismatch'),
-    ).toBeInTheDocument()
-  })
+  it.each([
+    ['verified', true, true, 'request-hash-ok'],
+    ['mismatch', true, false, 'request-hash-mismatch'],
+    ['record_missing', false, null, 'request-hash-unverifiable'],
+  ] as const)(
+    'opens the hash check of an answer (%s)',
+    async (state, hasRecord, matches, testId) => {
+      const user = userEvent.setup()
+      const view = makeUnitView()
+      view.tasks[0].generations = [
+        makeGeneration({ id: 'g1', has_request_record: hasRecord }),
+      ]
+      const record = makeTrialRequest().request_record
+      render(
+        <VariantUnitViewer
+          view={view}
+          requestView={(g) => (
+            <RequestRecordView
+              view={makeTrialRequest({
+                id: g.id,
+                request_record: hasRecord ? record : null,
+                request_sha256: g.request_sha256,
+                computed_sha256: hasRecord ? 'cd'.repeat(32) : null,
+                hash_matches: matches,
+                hash_check: state,
+              })}
+            />
+          )}
+        />,
+      )
+      const reference = screen.getByTestId('unit-reference')
+      const note = within(reference).queryByTestId(
+        'unit-answer-hash-unverifiable',
+      )
+      if (hasRecord) expect(note).toBeNull()
+      else expect(note).toBeInTheDocument()
+      const button = within(reference).getByTestId('unit-answer-request')
+      expect(button).toBeEnabled()
+      await user.click(button)
+      expect(within(reference).getByTestId(testId)).toBeInTheDocument()
+      if (state !== 'mismatch')
+        expect(
+          within(reference).queryByTestId('request-hash-mismatch'),
+        ).toBeNull()
+    },
+  )
 
   it('disables the request of an answer without a record and shows no values', () => {
     const view = makeUnitView()
