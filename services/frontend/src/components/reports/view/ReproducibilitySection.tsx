@@ -150,7 +150,7 @@ export function ReproducibilitySection({
           >
             {repro.prompt_structures.map((s) => (
               <tr key={s.key ?? ''}>
-                <td className={clsx(TD, 'font-mono text-xs')}>
+                <td className={clsx(TD, s.key != null && 'font-mono text-xs')}>
                   {s.key ?? t('reports.view.records.noStructure')}
                 </td>
                 <td className={clsx(TD, NUM)}>

@@ -278,6 +278,21 @@
     overflow: visible !important;
   }
 
+  /* Unclipped tables must still fit the page width: drop the screen
+     min-widths and tighten the cells. */
+  .report-print th,
+  .report-print td {
+    min-width: 0 !important;
+    padding-left: 0.375rem !important;
+    padding-right: 0.375rem !important;
+    letter-spacing: normal !important;
+  }
+
+  .report-print th {
+    font-size: 0.625rem !important;
+    text-transform: none !important;
+  }
+
   .report-print h1,
   .report-print h2,
   .report-print h3 {
