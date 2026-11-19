@@ -307,6 +307,12 @@ async def create_coding_project(
         raise HTTPException(status_code=403, detail="Coding projects copy answers: needs full read access")
     request = parse_coding_request(body)
     candidates = await _candidates(db, source.id, request["filters"])
+    if request["size"] is None and len(candidates) > MAX_CODING_TASKS:
+        raise _invalid(
+            [f"/sample/size: {len(candidates)} answers match; a coding project holds at most "
+             f"{MAX_CODING_TASKS}, so give a size or narrow the filters"],
+            "coding_sample_too_large",
+        )
     drawn = await _draw(db, request, candidates)
     if not drawn:
         raise _invalid(["/sample: no completed answer with a usable text matches"], "empty_coding_sample")

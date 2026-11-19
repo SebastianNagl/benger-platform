@@ -291,13 +291,17 @@ class SampleEvaluator:
                     # consumers see provenance (sub-method used, backend,
                     # fallback reasons). Bare-float consumers extract the
                     # number via ml_evaluation.extract_value at read time.
+                    # task_data only when there is some, so overrides of
+                    # _compute_metric_with_details with the older signature
+                    # keep working.
+                    extra = {"task_data": task_data} if task_data is not None else {}
                     metric_result = self._compute_metric_with_details(
                         metric_name,
                         ground_truth,
                         prediction,
                         answer_type,
                         metric_params,
-                        task_data=task_data,
+                        **extra,
                     )
                     sample_metrics[metric_name] = metric_result
 

@@ -1457,6 +1457,20 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     immediate_eligible: false,
   },
 
+  // Codes
+  text_pattern: {
+    name: 'text_pattern',
+    displayNameKey: 'evaluation.methodSelector.metricName.text_pattern',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.text_pattern',
+    display_name: 'Text pattern code',
+    description: 'Codes the answer with a versioned set of regular expressions',
+    category: 'Codes',
+    status: 'stable',
+    supports_parameters: true,
+    display_scale: 'raw',
+    summable: true,
+  },
+
   // Classification Metrics
   accuracy: {
     name: 'accuracy',
@@ -1560,6 +1574,13 @@ export const GROUPED_METRICS: MetricCategory[] = [
     nameKey: 'evaluation.methodSelector.category.factualityMetrics',
     descriptionKey: 'evaluation.methodSelector.categoryDesc.factualityMetrics',
     metrics: ['factcc', 'qags', 'coherence'],
+  },
+  {
+    name: 'Codes',
+    description: 'Codes read off the answer by a versioned rule set',
+    nameKey: 'evaluation.methodSelector.category.codes',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.codes',
+    metrics: ['text_pattern'],
   },
   {
     name: 'Classification Metrics',

@@ -69,6 +69,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DimensionsEditor } from './DimensionsEditor'
 import { FieldMappingEditor } from './FieldMappingEditor'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
+import { TextPatternEditor, textPatternReady } from './TextPatternEditor'
 import { JudgeEnsembleControl } from './builder/JudgeEnsembleControl'
 import { MetricStep } from './builder/MetricStep'
 import { PredictionFieldsStep } from './builder/PredictionFieldsStep'
@@ -619,6 +620,9 @@ export function EvaluationBuilder({
       case 'reference_fields':
         return newEvaluation.reference_fields.length > 0
       case 'parameters':
+        if (newEvaluation.metric === 'text_pattern') {
+          return textPatternReady(newEvaluation.metric_parameters)
+        }
         // Classic LLM Judge: require at least one dimension
         if (newEvaluation.metric === 'llm_judge_classic') {
           const dimensions = newEvaluation.metric_parameters.dimensions || []
@@ -1691,6 +1695,19 @@ export function EvaluationBuilder({
                   />
                 </div>
               </div>
+            ) : newEvaluation.metric === 'text_pattern' ? (
+              <TextPatternEditor
+                parameters={newEvaluation.metric_parameters}
+                onChange={(patch) =>
+                  setNewEvaluation((prev) => ({
+                    ...prev,
+                    metric_parameters: {
+                      ...prev.metric_parameters,
+                      ...patch,
+                    },
+                  }))
+                }
+              />
             ) : newEvaluation.metric === 'factcc' ? (
               <div>
                 <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">

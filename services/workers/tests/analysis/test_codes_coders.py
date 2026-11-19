@@ -27,7 +27,6 @@ import overlay_coder_fixture  # noqa: E402
 from analysis.canonical import json_hash  # noqa: E402
 from analysis.coders import (  # noqa: E402
     CODER_FORMAT_VERSION,
-    Coder,
     CoderContext,
     CoderError,
     CoderRegistry,
