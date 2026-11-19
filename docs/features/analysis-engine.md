@@ -333,6 +333,30 @@ problem the engine can name (an unknown column, a text outcome) fails the run
 with that message. Runs and their estimates are deleted with the project,
 and the purge removes their stored frames.
 
+### Counts and the run inventory
+
+Completed runs count wherever a project's numbers are shown. The project
+response carries `analysis_count` (detail and list), the project page's
+statistics card shows an Analyses line and the project list a badge once
+there is one, the dashboard overview answers `analyses_count` with an
+Analyses tile, and report statistics, the report snapshot and the published
+report list carry `analysis_count`. A run that reads further projects
+counts for its own project, also for viewers who may not open it: the
+number says only that a run exists. Pending, running and failed runs are
+not counted.
+
+`GET /api/runs?type=analysis` lists runs across projects for the `/runs`
+inventory (its Analyses tab), newest first, with the run's name, project,
+status, frame rows, estimates, spec hash and engine version, filtered by
+`project_id` and `status` and paged with `page` and `page_size`. It leaves
+out the runs the viewer could not open (inaccessible projects, and runs
+reading an input project the viewer may not read), and `total` counts the
+same runs, so the pages add up. A row opens the run page.
+
+The dashboard's older keys `projects_with_generations` and
+`projects_with_evaluations` stay as aliases of `generations_count` and
+`evaluations_count`.
+
 ## Results pages
 
 Once a project declares a variant design, its page shows an **Analysis**

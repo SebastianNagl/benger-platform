@@ -17,7 +17,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from metric_values import coerce_metric_value
-from models import EvaluationRun, EvaluationType, Generation, ResponseGeneration, TaskEvaluation, User
+from models import (
+    AnalysisRun,
+    EvaluationRun,
+    EvaluationType,
+    Generation,
+    ResponseGeneration,
+    TaskEvaluation,
+    User,
+)
 from project_models import Annotation, Project, Task
 from report_models import ProjectReport
 from report_snapshot import hidden_model_ids
@@ -486,7 +494,8 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
         project_id: ID of the project
 
     Returns:
-        Dict with task_count, annotation_count, participant_count, model_count
+        Dict with task_count, annotation_count, participant_count,
+        model_count and analysis_count (completed analysis runs)
     """
     task_count = db.query(Task).filter(Task.project_id == project_id).count()
 
@@ -511,21 +520,29 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
         .count()
     )
 
+    analysis_count = (
+        db.query(AnalysisRun)
+        .filter(AnalysisRun.project_id == project_id, AnalysisRun.status == "completed")
+        .count()
+    )
+
     return {
         "task_count": task_count,
         "annotation_count": annotation_count,
         "participant_count": participant_count,
         "model_count": model_count,
+        "analysis_count": analysis_count,
     }
 
 
 def get_report_statistics_batch(
     db: Session, project_ids: List[str]
 ) -> Dict[str, Dict[str, int]]:
-    """Per-project statistics for a list of project ids in 4 grouped queries.
+    """Per-project statistics for a list of project ids in 5 grouped queries.
 
-    Replaces the per-project 4-query fan-out used by `list_published_reports`
-    (4 × N round-trips for the list view → 4 round-trips total).
+    Replaces the per-project fan-out used by `list_published_reports`
+    (5 × N round-trips for the list view → 5 round-trips total). Same keys
+    and values as :func:`get_report_statistics`.
     """
     if not project_ids:
         return {}
@@ -535,6 +552,7 @@ def get_report_statistics_batch(
         "annotation_count": 0,
         "participant_count": 0,
         "model_count": 0,
+        "analysis_count": 0,
     }
     out: Dict[str, Dict[str, int]] = {pid: dict(zeros) for pid in project_ids}
 
@@ -586,6 +604,18 @@ def get_report_statistics_batch(
     )
     for pid, c in model_rows:
         out[pid]["model_count"] = int(c or 0)
+
+    analysis_rows = (
+        db.query(AnalysisRun.project_id, func.count(AnalysisRun.id))
+        .filter(
+            AnalysisRun.project_id.in_(project_ids),
+            AnalysisRun.status == "completed",
+        )
+        .group_by(AnalysisRun.project_id)
+        .all()
+    )
+    for pid, c in analysis_rows:
+        out[pid]["analysis_count"] = int(c or 0)
 
     return out
 

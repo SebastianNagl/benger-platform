@@ -1422,11 +1422,52 @@ frame format 2).
     (cells run once per prediction field, under the field key
     ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
+
+2.67 (2026-11-19): counts and listings reflect analysis runs (no
+  migration, additive response fields only).
+  - ``ProjectResponse.analysis_count``: completed analysis runs of the
+    project, on the detail and, batched in one grouped count, on the list
+    (``routers.projects.helpers.count_analysis_runs_by_project`` and
+    ``count_analysis_runs_by_project_async``, ``build_select_analysis_counts``).
+    A run that reads a further project counts for its own project.
+  - ``GET /api/dashboard/stats`` (overview) adds ``generations_count``,
+    ``evaluations_count`` and ``analyses_count``; ``projects_with_generations``
+    and ``projects_with_evaluations`` stay as aliases with the same values
+    (they always carried the counts, not a number of projects).
+  - ``GET /api/runs`` takes ``type=analysis`` (``RunSummary`` gains ``name``,
+    ``frame_rows``, ``estimates_count``, ``spec_hash``, ``engine_version``).
+    Every type filters the accessible projects in the query, so ``total``
+    and the pages count exactly the listed runs; analysis runs that read a
+    further project the user may not read are left out, as in the
+    per-project run list.
+  - Report statistics (``report_service.get_report_statistics`` and
+    ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
+    published list items carry ``analysis_count``.
+
+2.69 (2026-11-19): the project report covers the whole project (no
+  migration, additive API changes only; 2.68 is reserved for the analysis
+  start change).
+  - ``report_snapshot.build_report_snapshot`` adds the ``data``,
+    ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
+    ``reproducibility.snapshot_sha256`` is the SHA-256 of
+    ``report_snapshot.canonical_snapshot_json`` (``snapshot_sha256``).
+    ``report_snapshot.public_snapshot`` is the view served to readers
+    outside the project (judge parameters, import manifests and design
+    provenance as hashes only); ``model_is_public`` and ``hidden_model_ids``
+    hold the hidden-model rule the report applies in every section.
+  - ``report_service.can_publish_report`` and ``can_publish_project`` allow
+    any project with tasks and at least one result (annotations,
+    generations, evaluation or analysis runs); the refusal reasons are
+    ``REASON_NO_TASKS`` and ``REASON_NO_RESULTS``.
+  - ``routers.reports.can_edit_report`` and ``require_report_author``: a
+    superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
+    organization authors the report; ``ReportResponse.can_edit`` carries
+    the answer. Saving report content keeps the server's snapshot.
 """
 
 import os
 
-CORE_API_VERSION = "2.66"
+CORE_API_VERSION = "2.69"
 
 
 def extended_required() -> bool:

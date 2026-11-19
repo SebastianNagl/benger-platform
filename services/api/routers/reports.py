@@ -152,6 +152,8 @@ class PublishedReportListItem(BaseModel):
     task_count: int
     annotation_count: int
     model_count: int
+    # Completed analysis runs (as of the snapshot when it records them).
+    analysis_count: int = 0
     organizations: List[Dict[str, str]]
     is_public: bool = False
     # 'public' (anyone) or 'organizations' (members of the project's orgs)
@@ -755,7 +757,13 @@ async def list_published_reports(
     for report in reports:
         stats = dict(stats_map.get(
             report.project_id,
-            {"task_count": 0, "annotation_count": 0, "participant_count": 0, "model_count": 0},
+            {
+                "task_count": 0,
+                "annotation_count": 0,
+                "participant_count": 0,
+                "model_count": 0,
+                "analysis_count": 0,
+            },
         ))
         # A published report shows its frozen snapshot, so the card must count
         # the same way (hidden private models excluded, numbers as of the
@@ -764,7 +772,9 @@ async def list_published_reports(
         snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else None
         if snapshot:
             snap_stats = snapshot.get("statistics") or {}
-            for key in ("task_count", "annotation_count", "model_count"):
+            # A snapshot from before analyses were counted has no
+            # analysis_count; the card then shows the live count.
+            for key in ("task_count", "annotation_count", "model_count", "analysis_count"):
                 if isinstance(snap_stats.get(key), int):
                     stats[key] = snap_stats[key]
         result.append(
@@ -776,6 +786,7 @@ async def list_published_reports(
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
+                analysis_count=stats["analysis_count"],
                 organizations=orgs_by_project.get(report.project_id, []),
                 is_public=bool(report.is_public),
                 visibility="public" if report.is_public else "organizations",

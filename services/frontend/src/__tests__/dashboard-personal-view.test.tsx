@@ -91,8 +91,9 @@ const OVERVIEW = {
   project_count: 40,
   task_count: 900,
   annotation_count: 5000,
-  projects_with_generations: 6,
-  projects_with_evaluations: 4,
+  generations_count: 6,
+  evaluations_count: 4,
+  analyses_count: 0,
 }
 
 function signIn(orgRoles: string[], user: Record<string, unknown> = {}) {

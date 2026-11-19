@@ -257,7 +257,8 @@ SELECT
   (SELECT COUNT(*) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS annotation_count,
   (SELECT COUNT(DISTINCT completed_by) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS participant_count,
   (SELECT COUNT(*) FROM task_evaluations te JOIN evaluation_runs r ON r.id = te.evaluation_id
-     WHERE r.project_id = :project_id AND r.status = 'completed') AS evaluation_count
+     WHERE r.project_id = :project_id AND r.status = 'completed') AS evaluation_count,
+  (SELECT COUNT(*) FROM analysis_runs WHERE project_id = :project_id AND status = 'completed') AS analysis_count
 """
 
 _MODELS_SQL = """
@@ -1238,6 +1239,7 @@ def build_report_snapshot(
             "participant_count": int(counts["participant_count"]),
             "model_count": len(model_info),
             "evaluation_count": int(counts["evaluation_count"]),
+            "analysis_count": int(counts["analysis_count"]),
         },
         "methods": methods,
         "configs": configs,
