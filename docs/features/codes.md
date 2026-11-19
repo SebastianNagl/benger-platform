@@ -259,7 +259,10 @@ filter, directly or through expressions) must name a validation:
 ```
 
 The run fails unless that validation is completed, was drawn from the
-analysed project and has the measure's identity hash. Exploratory families
+analysed project, has the measure's identity hash, compared at least one
+item and has a kappa. A validation in which no coding task has both a human
+and a usable reference code fails with that message instead of completing,
+so a validation started before anyone coded is never accepted. Exploratory families
 and estimands outside families need no validation. Whether the agreement is
 good enough is not the engine's call; the run records the validation's kappa
 next to the code.

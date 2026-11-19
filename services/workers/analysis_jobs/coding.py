@@ -79,6 +79,11 @@ def check_code_validations(
             errors.append(f"measure {mid!r}: validation {vid!r} is not a validation of this project's answers")
         elif v.status != "completed":
             errors.append(f"measure {mid!r}: validation {vid!r} is {v.status}, not completed")
+        elif not v.n_compared or v.kappa is None:
+            errors.append(
+                f"measure {mid!r}: validation {vid!r} compared {v.n_compared or 0} item(s) and has no "
+                "kappa, so it is no evidence of agreement; validate the code on coded items"
+            )
         elif v.code_hash != rec["hash"]:
             errors.append(
                 f"measure {mid!r}: validation {vid!r} validated another code "
@@ -283,14 +288,12 @@ def _automatic_codes(db, v, coding, tasks: List[Dict[str, Any]], warnings: List[
 
 
 def _execute(db, v) -> Dict[str, Any]:
-    from analysis.coding import CODING_VERSION, code_label, validation_metrics
+    from analysis.coding import CODING_VERSION, CodingError, code_label, validation_metrics
     from models import CodeValidation, CodingProject
 
     warnings: List[str] = []
     coding = db.query(CodingProject).filter(CodingProject.project_id == v.project_id).first()
     if coding is None:
-        from analysis.coding import CodingError
-
         raise CodingError(["the project is not a coding project"])
     tasks = _coding_tasks(db, v.project_id)
     task_ids = [t["task_id"] for t in tasks]
@@ -309,7 +312,7 @@ def _execute(db, v) -> Dict[str, Any]:
         )
     metrics = validation_metrics(items, missing=(v.options or {}).get("missing", "category"))
     if not metrics["compared"]:
-        warnings.append("no coding task has both a human and a usable reference code")
+        raise CodingError(["no coding task has both a human and a usable reference code"])
     main = metrics["automatic_vs_reference"]
     v.identity = identity
     ref = identity.get("ref")

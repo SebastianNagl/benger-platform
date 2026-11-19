@@ -262,6 +262,23 @@ def test_a_confirmatory_family_needs_the_matching_validation(db_conn, coded):
     assert ok.frame_counts["observations"] == 8
 
 
+def test_a_validation_without_compared_items_fails_and_is_refused(db_conn, coded):
+    measure = {"kind": "text_pattern", "set": PATTERN_SET, "code": "side"}
+    empty = _validation(db_conn, coded, measure, control="uncoded")
+    assert empty.status == "failed" and empty.kappa is None
+    assert empty.error_message == "no coding task has both a human and a usable reference code"
+    refused = _run(db_conn, coded, _spec({"side": {**measure, "validation": empty.id}}))
+    assert refused.status == "failed" and "is failed, not completed" in refused.error_message
+
+    v = _validation(db_conn, coded, measure)
+    assert v.status == "completed" and v.n_compared == 8
+    assert _run(db_conn, coded, _spec({"side": {**measure, "validation": v.id}})).status == "completed"
+    v.n_compared, v.kappa = 0, None
+    db_conn.commit()
+    hollow = _run(db_conn, coded, _spec({"side": {**measure, "validation": v.id}}))
+    assert hollow.status == "failed" and "compared 0 item(s) and has no kappa" in hollow.error_message
+
+
 def test_judge_codes_reach_the_frame_of_the_source_project(db_conn, coded):
     from analysis.frame import from_parquet
     from storage.object_storage import object_storage
