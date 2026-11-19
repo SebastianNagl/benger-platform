@@ -123,6 +123,27 @@ BATCH_SIZE = 50
 MAX_BATCH_TASK_EVALS = 1000
 
 
+def variant_design_docs(db: Session, project_id: str, *, subset: bool = False) -> list:
+    """The project's variant designs as export documents (key order).
+
+    A subset export (``task_ids``) is not the frozen experiment, so its
+    designs travel as drafts: the importer could never freeze them again.
+    """
+    from project_models import VariantDesign
+    from variant_design_guard import export_document
+
+    docs = [
+        export_document(row)
+        for row in db.query(VariantDesign)
+        .filter(VariantDesign.project_id == project_id)
+        .order_by(VariantDesign.key)
+    ]
+    if subset:
+        for doc in docs:
+            doc.update(status="draft", content_hash=None, frozen_at=None)
+    return docs
+
+
 def _tasks_in_order(db: Session, project_id: str):
     """A project's tasks in task-number order. The importer numbers tasks in
     file order, so an export in heap order would renumber them on every
@@ -333,6 +354,11 @@ def stream_export_json(
     header["evaluation_runs"] = [
         serialize_evaluation_run(er, mode="data") for er in eval_runs
     ]
+    # Variant designs (CORE 2.59): only when the project has any, so other
+    # exports keep their exact shape. The tasks carry their meta.variant.
+    designs = variant_design_docs(db, project_id, subset=task_ids is not None)
+    if designs:
+        header["variant_designs"] = designs
     yield json.dumps(header)[:-1] + ', "tasks": ['
 
     first = True
@@ -779,6 +805,11 @@ def stream_comprehensive_project_data_json(
     yield '"exported_at": ' + json.dumps(datetime.utcnow().isoformat()) + ','
     yield '"exported_by": ' + json.dumps(project.created_by) + ','
     yield '"project": ' + json.dumps(project_data, ensure_ascii=False) + ','
+
+    # --- variant designs (before their tasks; only when there are any) ---
+    designs = variant_design_docs(db, project_id)
+    if designs:
+        yield '"variant_designs": ' + json.dumps(designs, ensure_ascii=False) + ','
 
     # --- tasks (heavy) ---
     yield '"tasks": ['
@@ -1236,6 +1267,10 @@ def stream_export_ndjson(
             db, users, project_id=project_id, viewer=viewer
         ):
             yield _emit("user", row)
+
+    # --- variant designs (before their tasks) ---
+    for doc in variant_design_docs(db, project_id):
+        yield _emit("variant_design", doc)
 
     # --- tasks (heavy) ---
     for task in _drain(_tasks_in_order(db, project_id)):

@@ -212,6 +212,9 @@ targeted_fix.py
 # worker code (services/workers/scripts/write_rubric_requirement_prompts.py)
 !services/shared/rubric_requirement_prompts.json
 
+# Unignore the JSON schemas of variant designs (services/shared/variant_designs.py)
+!services/shared/schemas/*.json
+
 # Unignore root-level JSON files that are meant to be tracked
 !package.json
 !package-lock.json
