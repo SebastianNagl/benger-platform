@@ -237,9 +237,11 @@ class Imports(_Resource):
         ``source_manifest``; ``source_manifest`` here adds the caller's own
         description of the source (a JSON object of at most 64 KiB, kept
         under ``source_manifest.declared``). Importing the same bytes into
-        the same project again completes as a no-op: nothing is added and
-        ``duplicate_of_job_id`` names the earlier job. ``reimport=True``
-        imports them again on purpose.
+        the same project again completes as a no-op while every task the
+        earlier import wrote still exists: nothing is added and
+        ``duplicate_of_job_id`` names the earlier job. Once any of those
+        tasks was deleted, the repeat imports again. ``reimport=True``
+        imports them again in any case.
         """
         merge = mode == "merge"
         content, name = _read_source(source, filename, wrap_list=not merge)
@@ -280,7 +282,8 @@ class Imports(_Resource):
         ``project_id`` is the new project. Importing the same file again
         (same caller, organization and group) is a no-op whose
         ``project_id`` is the project the earlier import created, as long as
-        that project exists; ``source_manifest`` and ``reimport`` work as in
+        that project and every task the import wrote into it still exist;
+        ``source_manifest`` and ``reimport`` work as in
         :meth:`upload`.
         """
         content, name = _read_source(source, filename, wrap_list=False)
