@@ -26,6 +26,11 @@ from grade_scale_history import (
     apply_grade_scale_write,
     grade_scale_changed,
 )
+from services.analysis_plans import (
+    ANALYSIS_PLANS_KEY,
+    apply_analysis_plans_write,
+    without_analysis_plans,
+)
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
 from services.member_privacy import (
@@ -913,6 +918,14 @@ async def update_project(
     eval_config_after = None
     if "evaluation_config" in update_data:
         eval_config_body = update_data.pop("evaluation_config")
+        # Analysis plans belong to variant_experiments (core 2.73): off for
+        # the caller, the body's plans are ignored and the stored ones stay.
+        if (
+            isinstance(eval_config_body, dict)
+            and ANALYSIS_PLANS_KEY in eval_config_body
+            and not await flag_on(db, current_user, VARIANT_EXPERIMENTS)
+        ):
+            eval_config_body = without_analysis_plans(eval_config_body)
         if eval_config_body is not None:
             from routers.evaluations.config import (
                 merge_evaluation_config,
@@ -926,6 +939,13 @@ async def update_project(
             # server-owned and every change of the key is appended.
             eval_config_after = apply_grade_scale_write(
                 eval_config_before, eval_config_after, actor_id=str(current_user.id)
+            )
+            # Analysis plans: spec hash and save stamp are server-owned.
+            eval_config_after = apply_analysis_plans_write(
+                eval_config_before,
+                eval_config_after,
+                eval_config_body,
+                actor_id=str(current_user.id),
             )
 
     # Kind is editable on expert projects (the extended student surfaces key

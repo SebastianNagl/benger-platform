@@ -20,6 +20,14 @@ from grade_scale_history import (
     apply_grade_scale_write,
     grade_scale_changed,
 )
+from feature_flags.deps import flag_on_sync
+from feature_flags.registry import VARIANT_EXPERIMENTS
+from services.analysis_plans import (
+    ANALYSIS_PLANS_KEY,
+    apply_analysis_plans_write,
+    validate_analysis_plans,
+    without_analysis_plans,
+)
 from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import metric_flag_on
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
@@ -799,6 +807,11 @@ def validate_evaluation_config_write(body: Any, merged: Any) -> None:
     if GRADE_SCALE_KEY in body:
         validate_eval_config_grade_scale(merged)
 
+    # Analysis plans: every spec through the analysis engine (422 with the
+    # engine's messages). The list replaces the stored one, null deletes it.
+    if ANALYSIS_PLANS_KEY in body:
+        validate_analysis_plans(body[ANALYSIS_PLANS_KEY])
+
 
 @router.put("/projects/{project_id}/evaluation-config")
 def update_project_evaluation_config(
@@ -821,6 +834,11 @@ def update_project_evaluation_config(
     sends ``{"evaluation_configs": [...]}`` — and sibling keys survive
     (issue #289). The Notenschlüssel (``grade_scale``) is the one exception:
     it is replaced as a whole (see :func:`merge_evaluation_config`).
+
+    ``analysis_plans`` (a list, so replaced as a whole) holds named analysis
+    specs: each spec is validated by the analysis engine (422
+    ``invalid_analysis_plan`` with its messages) and stored with the hash of
+    its normalized form (``services/analysis_plans.py``).
     """
     try:
         # Verify project exists. FOR UPDATE: the deep-merge below is a
@@ -855,6 +873,12 @@ def update_project_evaluation_config(
         # bodies (e.g. only evaluation_configs) without clobbering sibling
         # keys a concurrent eval-defaults PATCH wrote (issue #289 lost-update).
         # Nothing is written before the checks pass.
+        # Analysis plans belong to variant_experiments (core 2.73): off for
+        # the caller, the body's plans are ignored and the stored ones stay.
+        if ANALYSIS_PLANS_KEY in config and not flag_on_sync(
+            db, current_user, VARIANT_EXPERIMENTS
+        ):
+            config = without_analysis_plans(config)
         stored_config = project.evaluation_config or {}
         merged = merge_evaluation_config(stored_config, config)
         validate_evaluation_config_write(config, merged)
@@ -868,6 +892,11 @@ def update_project_evaluation_config(
         # endpoint cannot be used to rewrite the audit.
         merged = apply_grade_scale_write(
             stored_config, merged, actor_id=str(current_user.id)
+        )
+        # Analysis plans carry their spec hash and save stamp, both
+        # server-owned (services/analysis_plans.py).
+        merged = apply_analysis_plans_write(
+            stored_config, merged, config, actor_id=str(current_user.id)
         )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET

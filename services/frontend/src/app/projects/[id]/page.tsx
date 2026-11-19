@@ -14,6 +14,7 @@
 
 'use client'
 
+import { ProjectAnalysesSection } from '@/components/analysis/ProjectAnalysesSection'
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
@@ -84,7 +85,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // providerColors is shared with ModelSelectionSection — imported above.
 
@@ -209,6 +210,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [showEvaluationStartModal, setShowEvaluationStartModal] =
     useState(false)
 
+  // Saved analysis plans (evaluation_config.analysis_plans), for the badge
+  // of the Evaluation card's Analyses part.
+  const [analysisPlanCount, setAnalysisPlanCount] = useState(0)
   // Evaluation configs (Phase 8: N:M Field Mapping)
   const [evaluationConfigs, setEvaluationConfigs] = useState<
     EvaluationConfig[]
@@ -572,6 +576,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         if (existingConfigs.length > 0) {
           setEvaluationConfigs(existingConfigs)
         }
+        setAnalysisPlanCount(
+          Array.isArray(configResponse?.analysis_plans)
+            ? configResponse.analysis_plans.length
+            : 0,
+        )
         // Hydrate the project-level blind toggles from the korrektur_falloesung
         // metric's parameters. Missing keys default to true (matches the
         // extended POLICY_DEFAULTS for least-biased grading).
@@ -921,6 +930,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [analysisPresence, setAnalysisPresence] = useState<{
     projectId: string
     any: boolean
+    designs: number
   } | null>(null)
   useEffect(() => {
     if (!projectId || !mayLookForAnalyses) return
@@ -934,7 +944,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         runs.status === 'fulfilled' && (runs.value?.total ?? 0) > 0
       const hasDesigns =
         designs.status === 'fulfilled' && (designs.value?.length ?? 0) > 0
-      setAnalysisPresence({ projectId, any: hasRuns || hasDesigns })
+      setAnalysisPresence({
+        projectId,
+        any: hasRuns || hasDesigns,
+        designs: hasDesigns ? designs.value.length : 0,
+      })
     })
     return () => {
       cancelled = true
@@ -944,6 +958,33 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     analysisPresence?.projectId === projectId &&
     analysisPresence.any &&
     evaluationConfigs.length === 0
+
+  // Variant designs, analysis plans and starting analysis runs (the
+  // Analyses part of the Evaluation card): variant_experiments, edit rights
+  // and the CONTRIBUTOR or ORG_ADMIN role, like starting a run in the API.
+  const canManageAnalyses =
+    variantExperiments &&
+    canEditProject() &&
+    (Boolean(user?.is_superadmin) ||
+      currentProject?.effective_role === 'ORG_ADMIN' ||
+      currentProject?.effective_role === 'CONTRIBUTOR')
+  const analysisDesignCount =
+    analysisPresence?.projectId === projectId ? analysisPresence.designs : 0
+  const onAnalysesSummary = useCallback(
+    (summary: { designs: number; plans: number }) => {
+      setAnalysisPlanCount(summary.plans)
+      setAnalysisPresence((prev) =>
+        prev && prev.projectId === projectId
+          ? {
+              ...prev,
+              designs: summary.designs,
+              any: prev.any || summary.designs > 0,
+            }
+          : prev,
+      )
+    },
+    [projectId],
+  )
 
   const handleStartLabeling = () => {
     if (projectId) {
@@ -2843,6 +2884,36 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           />
                         </div>
                       </SubSection>
+
+                      {/* Analyses of variant experiments: designs, saved
+                      plans and the start dialog the evaluations page
+                      shares. Saves itself. */}
+                      {canManageAnalyses && projectId && (
+                        <SubSection
+                          title={t('analysis.section.title')}
+                          badge={
+                            analysisDesignCount > 0 || analysisPlanCount > 0
+                              ? [
+                                  analysisDesignCount === 1
+                                    ? t('analysis.section.designsOne')
+                                    : t('analysis.section.designsMany', {
+                                        count: analysisDesignCount,
+                                      }),
+                                  analysisPlanCount === 1
+                                    ? t('analysis.section.plansOne')
+                                    : t('analysis.section.plansMany', {
+                                        count: analysisPlanCount,
+                                      }),
+                                ].join(', ')
+                              : t('project.evaluation.notConfigured')
+                          }
+                        >
+                          <ProjectAnalysesSection
+                            projectId={projectId}
+                            onSummaryChange={onAnalysesSummary}
+                          />
+                        </SubSection>
+                      )}
                     </>
                   ) : (
                     <div className="py-6 text-center">

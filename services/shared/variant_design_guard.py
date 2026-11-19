@@ -299,7 +299,7 @@ def _iso(value) -> Optional[str]:
     return value.isoformat() if value is not None else None
 
 
-def serialize_design(row, task_count: Optional[int] = None) -> Dict[str, Any]:
+def serialize_design(row, **counts: int) -> Dict[str, Any]:
     out = {
         "id": row.id,
         "project_id": row.project_id,
@@ -316,8 +316,7 @@ def serialize_design(row, task_count: Optional[int] = None) -> Dict[str, Any]:
         "created_at": _iso(row.created_at),
         "updated_at": _iso(row.updated_at),
     }
-    if task_count is not None:
-        out["task_count"] = task_count
+    out.update(counts)
     return out
 
 

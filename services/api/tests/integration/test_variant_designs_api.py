@@ -231,6 +231,30 @@ class TestDesignRoutes:
         assert doc.json()["format"] == "benger.variant_design.v1"
         assert doc.json()["spec"] == SPEC
 
+    async def test_list_counts_units_cells_and_tasks(self, api, async_test_client, async_test_db, world):
+        """Three units with both roles each: the role factor varies within a
+        unit, so the design has two cells; ``level`` varies between units and
+        is no part of a cell. A unit holding one role only adds a unit and a
+        task but no cell, and a second design is counted on its own."""
+        await _create_design(async_test_client, world)
+        await _create_design(async_test_client, world, key="empty")
+        project = world["project"]
+        await _add_tasks(async_test_db, project, units=("u1", "u2", "u3"))
+        data, meta = task_payload("u4", "claimant", level=4)
+        inner = max((await async_test_db.execute(select(Task.inner_id).where(Task.project_id == project.id))).scalars().all())
+        async_test_db.add(Task(id=_uid(), project_id=project.id, inner_id=inner + 1, data=data, meta=meta))
+        await async_test_db.commit()
+        with _as_user(world["admin"]):
+            listing = await api("get", f"/api/projects/{project.id}/variant-designs")
+            one = await api("get", f"/api/projects/{project.id}/variant-designs/swap")
+        assert listing.status_code == 200, listing.text
+        counts = {
+            d["key"]: (d["unit_count"], d["cell_count"], d["task_count"])
+            for d in listing.json()["items"]
+        }
+        assert counts == {"empty": (0, 0, 0), "swap": (4, 2, 7)}
+        assert (one.json()["unit_count"], one.json()["cell_count"], one.json()["task_count"]) == (4, 2, 7)
+
     async def test_import_of_an_export_document(self, api, async_test_client, world):
         await _create_design(async_test_client, world)
         pid, other = world["project"].id, world["other"].id
