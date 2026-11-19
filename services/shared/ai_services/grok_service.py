@@ -17,7 +17,8 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, classify_retryable, derive_refusal, derive_truncated
+from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_refusal, derive_truncated
+from .request_capture import record_request
 from .provider_capabilities import model_supports_seed
 from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
@@ -207,6 +208,7 @@ class GrokService(BaseAIService):
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
+            messages.extend(continuation_turns(kwargs))
 
             # Prepare payload (OpenAI-compatible format). Phase 6.6 (#7):
             # only forward seed when this model accepts it.
@@ -232,6 +234,9 @@ class GrokService(BaseAIService):
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             }
+
+            # The body below is json.dumps(payload): record exactly that.
+            record_request("Grok", "chat.completions", payload)
 
             # Make xAI API call
             async with aiohttp.ClientSession() as session:
@@ -410,6 +415,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             if enhanced_system_prompt:
                 messages.append({"role": "system", "content": enhanced_system_prompt})
             messages.append({"role": "user", "content": prompt})
+            messages.extend(continuation_turns(kwargs))
 
             # Prepare payload with JSON mode. Phase 6.6 (#7): gate seed.
             supports_seed_here = model_supports_seed("grok", model_name)
@@ -427,6 +433,9 @@ Your response must be ONLY the JSON object, no other text before or after.
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             }
+
+            # The body below is json.dumps(payload): record exactly that.
+            record_request("Grok", "chat.completions", payload)
 
             # Make xAI API call
             async with aiohttp.ClientSession() as session:

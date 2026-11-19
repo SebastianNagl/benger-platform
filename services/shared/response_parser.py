@@ -138,25 +138,35 @@ class ParseResult:
     # Answer keys read as a schema field of another name ({"answer":
     # "kurzantwort"}); see ResponseParser._map_answer_keys.
     mapped_keys: Dict[str, str] = None
+    # Choice values the structure's answer_schema mapped onto stored values
+    # ({field: {answer value: stored value}}).
+    mapped_values: Dict[str, Dict[str, Any]] = None
 
     def __post_init__(self):
         if self.field_values == None:
             self.field_values = {}
         if self.mapped_keys is None:
             self.mapped_keys = {}
+        if self.mapped_values is None:
+            self.mapped_values = {}
 
 
 class ResponseParser:
     """Parser for LLM generation responses with Label Studio transformation."""
 
-    def __init__(self, generation_structure: Dict, label_config: str):
+    def __init__(self, generation_structure: Dict, label_config: str, answer_keys=None):
         """Initialize parser with generation structure and label config.
 
         Args:
             generation_structure: Dict defining expected response structure
             label_config: XML string of Label Studio configuration
+            answer_keys: The structure's ``answer_schema`` rendered for the
+                task (``generation_fidelity.AnswerKeys``): answer keys and
+                values the prompt asked for, read as control names and
+                stored values.
         """
         self.generation_structure = generation_structure
+        self.answer_keys = answer_keys
         self.label_config = label_config
         # <Repeater> blocks: their controls only get names (risk_0, risk_1,
         # ...) once the config is expanded against a task, so parse() builds
@@ -234,6 +244,14 @@ class ResponseParser:
             status="failed", error="Unable to parse response as JSON or structured text"
         )
 
+    def answer_controls(self, task_data: Any = None) -> List[str]:
+        """The control names a parse of a ``task_data`` answer can fill: for
+        a ``<Repeater>`` config the indexed names of the config expanded
+        against the task, otherwise the config's own controls."""
+        if self._repeater_blocks and task_data is not None:
+            return list(self._for_task(task_data).label_config_map)
+        return list(self.label_config_map)
+
     def _for_task(self, task_data: Any) -> "ResponseParser":
         """The parser of this config expanded against ``task_data``.
 
@@ -246,6 +264,7 @@ class ResponseParser:
             parser = ResponseParser(
                 self.generation_structure,
                 expand_repeaters(self.label_config, task_data),
+                answer_keys=self.answer_keys,
             )
             parser._array_blocks = [b for b in self._repeater_blocks if b.controls]
             self._task_parsers[shape] = parser
@@ -321,7 +340,14 @@ class ResponseParser:
                 if labels_field:
                     parsed_data = {labels_field: parsed_data}
 
+            mapped_values: Dict[str, Dict[str, Any]] = {}
+            schema_keys: Dict[str, str] = {}
+            if self.answer_keys is not None:
+                parsed_data, schema_keys, mapped_values = self.answer_keys.map_answer(
+                    parsed_data
+                )
             parsed_data, mapped_keys = self._map_answer_keys(parsed_data)
+            mapped_keys = {**schema_keys, **mapped_keys}
             parsed_data = self._coerce_boolean_choices(parsed_data)
 
             # Validate against schema if available
@@ -342,6 +368,7 @@ class ResponseParser:
                 parsed_annotation=ls_annotation,
                 field_values=field_values,
                 mapped_keys=mapped_keys,
+                mapped_values=mapped_values,
             )
 
         except Exception as e:

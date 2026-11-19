@@ -16,6 +16,7 @@ import { ModelScopeProvider, useModelScope } from '@/contexts/ModelScopeContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
+import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
 import {
   getRecommendedParam,
   getTemperatureConstraints,
@@ -682,13 +683,16 @@ function GenerationControlModalBody({
                             <Input
                               type="number"
                               min={1}
-                              max={25}
+                              max={MAX_GENERATION_RUNS_PER_TASK}
                               value={runsPerTask}
                               onChange={(e) =>
                                 setRunsPerTask(
                                   Math.max(
                                     1,
-                                    Math.min(25, parseInt(e.target.value) || 1),
+                                    Math.min(
+                                      MAX_GENERATION_RUNS_PER_TASK,
+                                      parseInt(e.target.value) || 1,
+                                    ),
                                   ),
                                 )
                               }

@@ -54,11 +54,13 @@ import aiohttp
 from .base_service import (
     BaseAIService,
     RetryableUpstreamError,
+    continuation_turns,
     derive_refusal,
     derive_truncated,
 )
 from .deepinfra_service import async_retry_with_exponential_backoff
 from .reasoning import chat_completion_reasoning
+from .request_capture import record_request
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -301,6 +303,7 @@ class OpenAICompatibleService(BaseAIService):
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
+                *continuation_turns(kwargs),
             ],
             "max_tokens": max_tokens,
             "temperature": temperature,
@@ -317,6 +320,9 @@ class OpenAICompatibleService(BaseAIService):
         )
         if reasoning_value is not None:
             payload[self.reasoning_param] = reasoning_value
+
+        # The body below is json.dumps(payload): record exactly that.
+        record_request("Custom", "chat.completions", payload)
 
         # URL keeps the hostname (never the pinned IP) so TLS SNI + cert
         # verification stay correct; the connector routes it to the

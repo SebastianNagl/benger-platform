@@ -230,6 +230,18 @@ def build_batch_objs(
         db, batch_ids, list(eval_run_by_id.keys()) if eval_run_by_id else []
     )
     te_by_task_id, te_by_gen_id = build_evaluation_indexes(te_all)
+    # The prompt structure of each generation's job (one batched IN-query),
+    # so the task-level import can regroup the rows by model and structure.
+    parent_ids = {g.generation_id for g in gens_all if g.generation_id}
+    structure_key_by_parent = (
+        dict(
+            db.query(ResponseGeneration.id, ResponseGeneration.structure_key)
+            .filter(ResponseGeneration.id.in_(parent_ids))
+            .all()
+        )
+        if parent_ids
+        else {}
+    )
 
     # Per-task Bewertungsbogen rows (one extra batched IN-query; kept out of
     # fetch_batch_children so its 7-tuple contract stays untouched).
@@ -275,7 +287,12 @@ def build_batch_objs(
                 for te in gen_evals
             ]
             task_data["generations"].append(
-                serialize_generation(gen, mode="data", evaluations=eval_dicts)
+                serialize_generation(
+                    gen,
+                    mode="data",
+                    evaluations=eval_dicts,
+                    structure_key=structure_key_by_parent.get(gen.generation_id),
+                )
             )
 
         task_data["evaluations"] = []

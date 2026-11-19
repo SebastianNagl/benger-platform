@@ -959,9 +959,39 @@ class TestSerializers:
             case_data = '{"text": "input"}'
             created_at = datetime(2024, 1, 1)
             response_metadata = {"temperature": 0.5}
+            generation_id = "rg1"
+            usage_stats = {"tokens": 10}
+            status = "completed"
+            error_message = None
+            parse_status = "success"
+            parse_error = None
+            parsed_annotation = None
+            parse_metadata = None
+            label_config_version = None
+            label_config_snapshot = None
+            run_index = 3
+            seed = 7
+            finish_reason = "stop"
+            truncated = False
+            refusal = False
+            error_type = None
+            latency_ms = 120
+            input_tokens = 10
+            output_tokens = 5
+            request_record = {"version": 1, "requests": []}
+            request_sha256 = "a" * 64
+            first_response_content = None
+            retried = False
 
-        result = serialize_generation(FakeGen(), mode="data", evaluations=[{"id": "e1"}])
+        result = serialize_generation(
+            FakeGen(), mode="data", evaluations=[{"id": "e1"}], structure_key="s1"
+        )
         assert result["evaluations"] == [{"id": "e1"}]
+        # The task-level export carries the research columns the import
+        # restores, and the job's structure, but no internal foreign keys.
+        assert (result["run_index"], result["seed"], result["structure_key"]) == (3, 7, "s1")
+        assert result["request_sha256"] == "a" * 64
+        assert "generation_id" not in result
 
     def test_serialize_generation_full_mode(self):
         from routers.projects.serializers import serialize_generation

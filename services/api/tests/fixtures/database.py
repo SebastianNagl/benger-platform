@@ -480,6 +480,10 @@ def _create_tables():
             # Migration 142: variant designs (table, the derived task columns,
             # their trigger, unique cell index and design key); guarded.
             _run_migration(conn, "142_variant_designs")
+            # Migration 143: the generation request record and format-retry
+            # columns (create_all never adds a column to an existing table);
+            # guarded, so a no-op otherwise.
+            _run_migration(conn, "143_generation_request_record")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

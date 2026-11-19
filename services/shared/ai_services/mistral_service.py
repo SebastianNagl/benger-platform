@@ -16,7 +16,8 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, Optional
 
-from .base_service import BaseAIService, classify_retryable, derive_refusal, derive_truncated
+from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_refusal, derive_truncated
+from .request_capture import record_request
 from .reasoning import mistral_content
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
@@ -221,6 +222,7 @@ class MistralService(BaseAIService):
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
+            messages.extend(continuation_turns(kwargs))
 
             # Build API call parameters. Mistral names the seed param
             # `random_seed`; the caller-facing name stays `seed`.
@@ -242,6 +244,7 @@ class MistralService(BaseAIService):
                 logger.info(f"Using prompt_mode={prompt_mode} for {model_name}")
 
             # Make Mistral API call
+            record_request("Mistral", "mistral.chat", api_params, capture="sdk_kwargs")
             response = self.client.chat.complete(**api_params)
 
             end_time = datetime.now()
@@ -377,8 +380,10 @@ class MistralService(BaseAIService):
             # Map display name to API model name
             api_model_name = self.MODEL_MAPPING.get(model_name, model_name)
 
-            # Add format instructions to system prompt
-            format_instructions = """
+            # Add format instructions to system prompt. An f-string: before
+            # it was a plain string and the schema placeholder went to the
+            # model literally instead of the schema.
+            format_instructions = f"""
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -393,6 +398,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             if enhanced_system_prompt:
                 messages.append({"role": "system", "content": enhanced_system_prompt})
             messages.append({"role": "user", "content": prompt})
+            messages.extend(continuation_turns(kwargs))
 
             # Phase 6.6 (#7): only forward seed when this model accepts it.
             supports_seed_here = model_supports_seed("mistral", model_name)
@@ -405,6 +411,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             }
             if supports_seed_here:
                 chat_kwargs["random_seed"] = requested_seed
+            record_request("Mistral", "mistral.chat", chat_kwargs, capture="sdk_kwargs")
             response = self.client.chat.complete(**chat_kwargs)
 
             end_time = datetime.now()

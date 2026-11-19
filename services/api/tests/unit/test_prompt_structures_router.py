@@ -534,3 +534,132 @@ class TestListShapedPromptStructures:
                 f"{BASE}/{project.id}/generation-config/structures/bad"
             )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+ANSWER_LABEL_CONFIG = (
+    '<View><Text name="akte" value="$akte"/>'
+    '<Number name="anteil" toName="akte"/><TextArea name="begruendung" toName="akte"/></View>'
+)
+
+
+class TestAnswerFormatOptions:
+    """The answer-format options of a structure: validated on write, shown
+    as generation uses them, with the exact text a generation appends."""
+
+    async def _project(self, db, generation_config=None):
+        creator = await _make_user(db, is_superadmin=True)
+        project = await _make_project(db, creator, generation_config=generation_config or {})
+        project.label_config = ANSWER_LABEL_CONFIG
+        await db.commit()
+        return creator, project
+
+    @pytest.mark.asyncio
+    async def test_options_round_trip_and_preview(self, async_test_client, async_test_db):
+        from generation_fidelity import schema_instruction
+
+        creator, project = await self._project(async_test_db)
+        url = f"{BASE}/{project.id}/generation-config/structures"
+        with _as_user(creator):
+            default = await async_test_client.put(
+                f"{url}/default",
+                json={"name": "D", "system_prompt": "Sys", "instruction_prompt": "$akte"},
+            )
+            fixed = await async_test_client.put(
+                f"{url}/fixed",
+                json={
+                    "name": "F",
+                    "system_prompt": "Sys",
+                    "instruction_prompt": "$akte",
+                    "append_schema_instruction": False,
+                    "structured_output": "off",
+                    "format_retry": {"message": "Bitte nur JSON."},
+                    "answer_schema": {"fields": {"anteil": {"key": "anteil_{{name}}"}}},
+                    "refusal_heuristic": {"pattern": "kann nicht"},
+                },
+            )
+            listing = await async_test_client.get(url)
+        assert default.status_code == 200 and fixed.status_code == 200
+        body = listing.json()
+        assert body["default"]["append_schema_instruction"] is True
+        assert body["default"]["structured_output"] == "auto"
+        # The preview is the worker's own text for the label config's fields.
+        assert body["default"]["schema_instruction_preview"] == schema_instruction(
+            ["anteil", "begruendung"]
+        )
+        assert body["fixed"]["schema_instruction_preview"] is None
+        assert body["fixed"]["format_retry"] == {"message": "Bitte nur JSON."}
+        assert body["fixed"]["refusal_heuristic"] == {
+            "pattern": "kann nicht", "flags": "i", "window": 1500,
+        }
+        assert body["fixed"]["answer_schema"] == {
+            "fields": {"anteil": {"key": "anteil_{{name}}"}}
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("options", [
+        {"structured_output": "maybe"},
+        {"format_retry": {"max": 1, "message": "x"}},
+        {"format_retry": {"message": ""}},
+        {"refusal_heuristic": {"pattern": "("}},
+        {"answer_schema": {"fields": {"anteil": {}}}},
+    ])
+    async def test_invalid_options_are_refused(
+        self, async_test_client, async_test_db, options
+    ):
+        creator, project = await self._project(async_test_db)
+        with _as_user(creator):
+            response = await async_test_client.put(
+                f"{BASE}/{project.id}/generation-config/structures/bad",
+                json={"name": "B", "system_prompt": "S", "instruction_prompt": "$akte", **options},
+            )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_a_stored_invalid_option_is_shown_as_generation_uses_it(
+        self, async_test_client, async_test_db
+    ):
+        """An imported structure with an option that does not validate stays
+        listed, with the default the worker falls back to."""
+        creator, project = await self._project(async_test_db, {
+            "prompt_structures": {
+                "imported": {
+                    "name": "I", "system_prompt": "S", "instruction_prompt": "$akte",
+                    "append_schema_instruction": False,
+                    "format_retry": {"message": ""},
+                }
+            }
+        })
+        with _as_user(creator):
+            response = await async_test_client.get(
+                f"{BASE}/{project.id}/generation-config/structures/imported"
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["format_retry"] is None
+        assert data["append_schema_instruction"] is False
+        assert data["schema_instruction_preview"] is None
+
+
+class TestGenerationRunsPerTaskCap:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runs, expected", [(100, 200), (101, 422), (0, 422), (True, 422)])
+    async def test_generation_config_runs_per_task_bound(
+        self, async_test_client, async_test_db, runs, expected
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, creator, generation_config={})
+        await async_test_db.commit()
+        with _as_user(creator):
+            response = await async_test_client.put(
+                f"{BASE}/{project.id}/generation-config", json={"runs_per_task": runs}
+            )
+        assert response.status_code == expected
+
+    def test_trigger_request_bound(self):
+        from pydantic import ValidationError
+
+        from routers.generation_task_list import GenerationRequest
+
+        assert GenerationRequest(mode="all", runs_per_task=100).runs_per_task == 100
+        with pytest.raises(ValidationError):
+            GenerationRequest(mode="all", runs_per_task=101)

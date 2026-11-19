@@ -427,10 +427,23 @@ Every answer stores a `system` block in `response_metadata` (the run's
 ```
 
 - `parameter_profile` holds `temperature`, `max_tokens`, the reasoning knob
-  and `top_p` when it is sent (the worker does not send `top_p` today). Seed
-  and run index are left out. For DeepInfra the reasoning knob is the one
-  sent; for other providers the profile holds the parameters as configured
-  until those providers report what they sent.
+  and `top_p` when it is sent. Seed and run index are left out. The values
+  are read from the first request the provider client sent (the
+  generation's `request_record`), so a value the client filled in or
+  coerced is the one in the profile: GPT-5's temperature forced to 1,
+  Gemini 2.5's default thinking budget, `max_completion_tokens` or
+  `max_output_tokens` as `max_tokens`. Per API: chat completions
+  (`temperature`, `top_p`, `max_tokens` / `max_completion_tokens`,
+  `reasoning_effort`, `chat_template_kwargs.enable_thinking`), OpenAI
+  responses (`temperature`, `top_p`, `max_output_tokens`,
+  `reasoning.effort`), Anthropic messages (`temperature`, `top_p`,
+  `max_tokens`, `thinking.budget_tokens`), Google generate content
+  (`temperature`, `topP`, `maxOutputTokens`, `thinkingConfig` budget),
+  Mistral chat (`temperature`, `top_p`, `max_tokens`, `prompt_mode`) and
+  Cohere chat (`temperature`, `p`, `max_tokens`, `thinking` token budget).
+  When the client reported no request (`capture: "worker_call"`) or the
+  body holds none of these, the profile is the run config, with the
+  reasoning knob DeepInfra reports as sent.
   Float parameters are stored as floats, so `1` and `1.0` give the same
   profile.
 - `parameter_profile_sha256` is the SHA-256 of the profile as JSON with

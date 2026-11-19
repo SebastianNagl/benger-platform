@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db
+from generation_fidelity import answer_format, schema_instruction_preview
 from project_models import Project
 from project_schemas import PromptStructureCreate, PromptStructureResponse
 
@@ -100,6 +101,24 @@ def _normalize_prompt_structures(value) -> Dict[str, dict]:
     return normalized
 
 
+def _structure_response(key: str, structure_data: dict, label_config) -> PromptStructureResponse:
+    """A stored structure as the API shows it.
+
+    The answer-format options are shown as generation uses them: an option
+    that does not validate (an imported structure) is shown at the default
+    the worker falls back to, so the page never shows one thing while the
+    generation runs another. ``schema_instruction_preview`` is the text a
+    generation appends to the user prompt (None when nothing is appended).
+    """
+    effective = {
+        **structure_data,
+        **answer_format(structure_data).as_record(),
+        "key": key,
+        "schema_instruction_preview": schema_instruction_preview(structure_data, label_config),
+    }
+    return PromptStructureResponse(**effective)
+
+
 def ensure_generation_config_structure(project: Project) -> None:
     """Ensure generation_config has the correct structure"""
     if project.generation_config == None:  # noqa: E711
@@ -151,9 +170,7 @@ async def create_or_update_structure(
     )
 
     # Return the structure with key included
-    response_data = structure.model_dump()
-    response_data["key"] = key
-    return PromptStructureResponse(**response_data)
+    return _structure_response(key, structure.model_dump(), project.label_config)
 
 
 @router.delete("/{key}")
@@ -293,7 +310,7 @@ async def list_structures(
             continue
         try:
             # Create a copy to avoid mutating the database object
-            response[key] = PromptStructureResponse(**{**structure_data, "key": key})
+            response[key] = _structure_response(key, structure_data, project.label_config)
         except ValidationError:
             # Legacy/imported entries may predate the schema — a broken entry
             # must not take down the whole listing (issue #292)
@@ -351,7 +368,7 @@ async def get_structure(
 
     try:
         # Create a copy to avoid mutating the database object
-        return PromptStructureResponse(**{**structure_data, "key": key})
+        return _structure_response(key, structure_data, project.label_config)
     except ValidationError:
         # Malformed legacy entry — invisible in the listing, so absent here too
         raise HTTPException(

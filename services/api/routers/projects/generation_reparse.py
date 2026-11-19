@@ -34,6 +34,7 @@ from database import get_async_db
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from project_models import Project, Task
+from generation_fidelity import answer_format, render_answer_schema
 from response_parser import ResponseParser, find_prompt_structure
 
 logger = logging.getLogger(__name__)
@@ -219,6 +220,17 @@ async def reparse_generations(
         data = task_data.get(gen.task_id)
         source_text = data.get("text") if isinstance(data, dict) else None
         try:
+            # A structure whose answer keys depend on the task is read with
+            # the keys rendered for this task, as generation did.
+            answer_schema = answer_format(parser.generation_structure).answer_schema
+            if answer_schema:
+                parser = ResponseParser(
+                    generation_structure=parser.generation_structure,
+                    label_config=project.label_config,
+                    answer_keys=render_answer_schema(
+                        answer_schema, data if isinstance(data, dict) else {}
+                    ),
+                )
             parsed = parser.parse(
                 gen.response_content or "",
                 source_text=source_text,
@@ -227,9 +239,11 @@ async def reparse_generations(
             new_annotation = parsed.parsed_annotation
             new_status, new_error = parsed.status, parsed.error
             new_mapped = dict(parsed.mapped_keys or {})
+            new_mapped_values = dict(getattr(parsed, "mapped_values", None) or {})
         except Exception as e:  # as in generation: a parser crash is a failed parse
             new_annotation, new_status = None, "failed"
             new_error, new_mapped = f"Parser exception: {str(e)}", {}
+            new_mapped_values = {}
 
         after = ParseState(
             parse_status=new_status,
@@ -282,6 +296,10 @@ async def reparse_generations(
             metadata["mapped_keys"] = new_mapped
         else:
             metadata.pop("mapped_keys", None)
+        if new_mapped_values:
+            metadata["mapped_values"] = new_mapped_values
+        else:
+            metadata.pop("mapped_values", None)
 
         gen.parsed_annotation = new_annotation
         gen.parse_status = new_status

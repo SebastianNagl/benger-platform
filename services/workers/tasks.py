@@ -622,30 +622,13 @@ def extract_label_config_fields(label_config: str) -> List[str]:
     These field names should match the output field names from LLM responses.
 
     Controls inside a <Repeater> are left out: they answer as a list of
-    objects under the block's own key (see label_config_repeater).
+    objects under the block's own key (see label_config_repeater). One
+    source with the API's preview of the appended instruction
+    (``generation_fidelity.label_config_answer_fields``).
     """
-    from xml.etree import ElementTree
+    from generation_fidelity import label_config_answer_fields
 
-    fields = []
-    try:
-        root = ElementTree.fromstring(label_config)
-        repeated = {
-            id(child)
-            for repeater in root.iter("Repeater")
-            for child in repeater.iter()
-            if child is not repeater
-        }
-        for elem in root.iter():
-            if id(elem) in repeated:
-                continue
-            # Only include annotation output elements (not data display elements like Header/Text)
-            if elem.tag in ["TextArea", "Choices", "Rating", "Number"]:
-                name = elem.get("name")
-                if name:
-                    fields.append(name)
-    except Exception as e:
-        logger.warning(f"Could not parse label_config for field extraction: {e}")
-    return fields
+    return label_config_answer_fields(label_config)
 
 
 # The Celery app + its config live in worker_celery so task modules can import

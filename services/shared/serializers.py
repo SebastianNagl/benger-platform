@@ -166,8 +166,20 @@ def serialize_annotation(
 
 
 def serialize_generation(
-    gen, *, mode: str = "data", evaluations: Optional[List[dict]] = None
+    gen,
+    *,
+    mode: str = "data",
+    evaluations: Optional[List[dict]] = None,
+    structure_key: Optional[str] = None,
 ) -> dict:
+    """One generation row for an export.
+
+    Both modes carry every research column of the row (run, telemetry,
+    parse, request record), so the task-level import of a "data" export
+    restores the row as it was. ``structure_key`` is the prompt structure of
+    the row's job; the "data" mode names it because the import regroups the
+    rows into jobs by model and structure.
+    """
     d = {
         "id": gen.id,
         "model_id": gen.model_id,
@@ -177,29 +189,39 @@ def serialize_generation(
         "case_data": gen.case_data,
         "created_at": _isoformat(gen.created_at),
         "response_metadata": gen.response_metadata,
+        "usage_stats": gen.usage_stats,
+        "status": gen.status,
+        "error_message": gen.error_message,
+        "parse_status": gen.parse_status,
+        "parse_error": gen.parse_error,
+        "parsed_annotation": gen.parsed_annotation,
+        "parse_metadata": gen.parse_metadata,
+        "label_config_version": gen.label_config_version,
+        "label_config_snapshot": gen.label_config_snapshot,
+        # Trial number within the parent job. Without it every child of a
+        # multi-run job re-imported as run 0 and collided on
+        # uq_generations_parent_run_index, failing the whole import.
+        "run_index": gen.run_index,
+        **_call_telemetry(gen),
+        **_request_fields(gen),
     }
     if mode == "data":
+        d["structure_key"] = structure_key
         d["evaluations"] = evaluations if evaluations is not None else []
     elif mode == "full":
         d.update({
             "generation_id": gen.generation_id,
             "task_id": gen.task_id,
-            "usage_stats": gen.usage_stats,
-            "status": gen.status,
-            "error_message": gen.error_message,
-            "parse_status": gen.parse_status,
-            "parse_error": gen.parse_error,
-            "parsed_annotation": gen.parsed_annotation,
-            "parse_metadata": gen.parse_metadata,
-            "label_config_version": gen.label_config_version,
-            "label_config_snapshot": gen.label_config_snapshot,
-            # Trial number within the parent job. Without it every child of a
-            # multi-run job re-imported as run 0 and collided on
-            # uq_generations_parent_run_index, failing the whole import.
-            "run_index": gen.run_index,
-            **_call_telemetry(gen),
         })
     return d
+
+
+# What the provider client sent and the format-retry trail (migration 143).
+REQUEST_FIELDS = ("request_record", "request_sha256", "first_response_content", "retried")
+
+
+def _request_fields(row) -> dict:
+    return {f: getattr(row, f, None) for f in REQUEST_FIELDS}
 
 
 # Per-LLM-call columns (migration 040) shared by generations and judged

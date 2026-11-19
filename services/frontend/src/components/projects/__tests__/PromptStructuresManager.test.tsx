@@ -1235,4 +1235,158 @@ describe('PromptStructuresManager', () => {
       ).not.toBeInTheDocument()
     })
   })
+
+  describe('Answer format', () => {
+    const preview =
+      '\n\n---\nIMPORTANT: Respond ONLY with valid JSON using these exact field names:'
+    const formatStructures = {
+      appended: {
+        key: 'appended',
+        name: 'Appended',
+        system_prompt: 'Sys',
+        instruction_prompt: '$question',
+        append_schema_instruction: true,
+        structured_output: 'auto',
+        schema_instruction_preview: preview,
+        exclude_from_generation: true,
+      },
+      fixed: {
+        key: 'fixed',
+        name: 'Fixed design',
+        system_prompt: 'Sys',
+        instruction_prompt: '$akte',
+        append_schema_instruction: false,
+        structured_output: 'off',
+        format_retry: { message: 'Bitte nur JSON.' },
+        answer_schema: { fields: { anteil: { key: 'anteil_{{name}}' } } },
+        refusal_heuristic: { pattern: 'kann nicht', flags: 'i', window: 1500 },
+        schema_instruction_preview: null,
+      },
+    }
+
+    const openList = async () => {
+      await waitFor(() => {
+        expect(
+          screen.queryByText('Loading prompt structures...'),
+        ).not.toBeInTheDocument()
+      })
+      await userEvent.click(
+        screen.getByRole('button', { name: /Prompt Structures/i }),
+      )
+    }
+
+    beforeEach(() => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue(formatStructures)
+    })
+
+    it('says per structure what a generation adds to the prompt', async () => {
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+
+      const appended = screen.getByTestId('prompt-structure-format-appended')
+      expect(
+        within(appended).getByText('Appends answer fields to the prompt'),
+      ).toBeInTheDocument()
+      expect(
+        within(appended).getByText('Structured output: auto'),
+      ).toBeInTheDocument()
+
+      const fixed = screen.getByTestId('prompt-structure-format-fixed')
+      expect(
+        within(fixed).getByText('Prompt sent as written'),
+      ).toBeInTheDocument()
+      expect(
+        within(fixed).getByText('Structured output: off'),
+      ).toBeInTheDocument()
+      expect(within(fixed).getByText('Format retry')).toBeInTheDocument()
+      expect(
+        within(fixed).getByText('Answer keys from task data'),
+      ).toBeInTheDocument()
+      expect(within(fixed).getByText('Refusal heuristic')).toBeInTheDocument()
+    })
+
+    it('shows the exact appended text and the retry message', async () => {
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+
+      const appendedCard = screen
+        .getByText('Appended')
+        .closest('[class*="p-4"]') as HTMLElement
+      await userEvent.click(
+        within(appendedCard).getByRole('button', { name: 'Show prompts' }),
+      )
+      const texts = screen.getByTestId('prompt-structure-texts-appended')
+      expect(
+        within(texts).getByText('Appended to the instruction prompt'),
+      ).toBeInTheDocument()
+      expect(
+        within(texts).getByText(/IMPORTANT: Respond ONLY with valid JSON/),
+      ).toBeInTheDocument()
+
+      const fixedCard = screen
+        .getByText('Fixed design')
+        .closest('[class*="p-4"]') as HTMLElement
+      await userEvent.click(
+        within(fixedCard).getByRole('button', { name: 'Show prompts' }),
+      )
+      const fixedTexts = screen.getByTestId('prompt-structure-texts-fixed')
+      expect(
+        within(fixedTexts).queryByText('Appended to the instruction prompt'),
+      ).not.toBeInTheDocument()
+      expect(
+        within(fixedTexts).getByText('Bitte nur JSON.'),
+      ).toBeInTheDocument()
+    })
+
+    it('keeps the options and the exclusion flag when a prompt is edited', async () => {
+      ;(apiClient.put as jest.Mock).mockResolvedValue({})
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+
+      for (const [key, name] of [
+        ['fixed', 'Fixed design'],
+        ['appended', 'Appended'],
+      ]) {
+        const card = screen.getByText(name).closest('[class*="p-4"]')!
+        await userEvent.click(within(card as HTMLElement).getByTitle('Edit'))
+        const config = JSON.parse(
+          (
+            screen.getByTestId(
+              'structure-config-textarea',
+            ) as HTMLTextAreaElement
+          ).value,
+        )
+        const stored = formatStructures[key as keyof typeof formatStructures]
+        expect(config.append_schema_instruction).toBe(
+          stored.append_schema_instruction,
+        )
+        expect(config.structured_output).toBe(stored.structured_output)
+        await userEvent.click(
+          screen.getByRole('button', { name: /Update Structure/i }),
+        )
+        await waitFor(() => {
+          expect(apiClient.put).toHaveBeenLastCalledWith(
+            `/projects/${mockProjectId}/generation-config/structures/${key}`,
+            expect.objectContaining({
+              append_schema_instruction: stored.append_schema_instruction,
+              structured_output: stored.structured_output,
+              exclude_from_generation: key === 'appended',
+            }),
+          )
+        })
+      }
+      const fixedBody = (apiClient.put as jest.Mock).mock.calls[0][1]
+      expect(fixedBody.format_retry).toEqual(
+        formatStructures.fixed.format_retry,
+      )
+      expect(fixedBody.answer_schema).toEqual(
+        formatStructures.fixed.answer_schema,
+      )
+      expect(fixedBody.refusal_heuristic).toEqual(
+        formatStructures.fixed.refusal_heuristic,
+      )
+      const appendedBody = (apiClient.put as jest.Mock).mock.calls[1][1]
+      expect(appendedBody).not.toHaveProperty('format_retry')
+    })
+  })
 })

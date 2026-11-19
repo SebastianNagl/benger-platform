@@ -13,7 +13,8 @@ from typing import Any, Dict, Optional
 from openai import OpenAI
 
 from .attachments import openai_chat_content
-from .base_service import BaseAIService, classify_retryable, derive_truncated
+from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_truncated
+from .request_capture import record_request
 from .reasoning import chat_message_reasoning, responses_api_reasoning
 from .provider_capabilities import (
     is_openai_gpt5_or_later,
@@ -248,6 +249,7 @@ class OpenAIService(BaseAIService):
                         openai_chat_content(prompt, kwargs["attachments"])
                         if kwargs.get("attachments") else prompt
                     )},
+                    *continuation_turns(kwargs),
                 ],
                 "top_p": 1.0,
                 "frequency_penalty": 0.0,
@@ -315,6 +317,7 @@ class OpenAIService(BaseAIService):
                     )
 
             # Make OpenAI API call with deterministic settings
+            record_request("OpenAI", "chat.completions", api_params, capture="sdk_kwargs")
             response = self.client.chat.completions.create(**api_params)
 
             end_time = datetime.now()
@@ -426,9 +429,14 @@ class OpenAIService(BaseAIService):
         try:
             start_time = datetime.now()
 
+            turns = continuation_turns(kwargs)
             api_params: Dict[str, Any] = {
                 "model": model_name,
-                "input": prompt,
+                # A continued conversation goes as a message list; a single
+                # prompt keeps the plain-string input.
+                "input": (
+                    [{"role": "user", "content": prompt}, *turns] if turns else prompt
+                ),
                 # max_output_tokens caps the *visible* answer; reasoning
                 # tokens are billed separately and don't count toward it.
                 "max_output_tokens": max_tokens,
@@ -458,6 +466,7 @@ class OpenAIService(BaseAIService):
             # so the audit trail mirrors the chat-completions path.
             unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty", "seed"]
 
+            record_request("OpenAI", "openai.responses", api_params, capture="sdk_kwargs")
             response = self.client.responses.create(**api_params)
 
             end_time = datetime.now()
@@ -639,8 +648,10 @@ class OpenAIService(BaseAIService):
 
         if not supports_json_schema:
             logger.info(f"⚠️ Model {model_name} doesn't support json_schema, using prompt-based JSON")
-            # Fall back to prompt-based JSON generation
-            format_instructions = """
+            # Fall back to prompt-based JSON generation. An f-string: before
+            # it was a plain string and the schema placeholder went to the
+            # model literally instead of the schema.
+            format_instructions = f"""
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -684,6 +695,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
+                    *continuation_turns(kwargs),
                 ],
                 "temperature": effective_temperature,
                 "response_format": {
@@ -740,6 +752,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                         f"accepted: {sorted(accepted_efforts)}"
                     )
 
+            record_request("OpenAI", "chat.completions", api_params, capture="sdk_kwargs")
             response = self.client.chat.completions.create(**api_params)
 
             end_time = datetime.now()

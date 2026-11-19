@@ -1154,48 +1154,84 @@ def run_nested_import(
             # (migration 140); without a relationship() the flush does not
             # order the two tables by their foreign key.
             db.flush()
-            # Create ResponseGeneration records first, grouped by model
-            # This maintains the job-tracking workflow structure
-            model_response_generations = {}
+            # Create ResponseGeneration records first, one per model and
+            # prompt structure, so each imported row keeps the job (and the
+            # structure_key) it was generated under.
+            model_response_generations: dict = {}
+
+            def _job_key(gen_data: dict) -> tuple:
+                structure_key = gen_data.get("structure_key")
+                return (
+                    gen_data.get("model_id", "unknown"),
+                    structure_key if isinstance(structure_key, str) and structure_key else None,
+                )
+
+            runs_per_job: dict = {}
+            for gen_data in generations_to_import:
+                runs_per_job[_job_key(gen_data)] = runs_per_job.get(_job_key(gen_data), 0) + 1
 
             for gen_data in generations_to_import:
-                model_id = gen_data.get("model_id", "unknown")
-
-                # Create one ResponseGeneration per model per task
-                if model_id not in model_response_generations:
+                job_key = _job_key(gen_data)
+                if job_key not in model_response_generations:
                     response_gen_id = str(uuid.uuid4())
                     response_generation = ResponseGeneration(
                         id=response_gen_id,
                         task_id=task_id,
                         project_id=project_id,
-                        model_id=model_id,
+                        model_id=job_key[0],
                         organization_id=job_organization_id,
                         config_id="import-default",  # Default config for imported data
+                        structure_key=job_key[1],
                         status="completed",  # Imported generations are completed
-                        responses_generated=1,
+                        responses_generated=runs_per_job[job_key],
+                        runs_requested=runs_per_job[job_key],
+                        runs_completed=runs_per_job[job_key],
                         created_by=user_id,
                         completed_at=datetime.utcnow(),
                     )
                     db.add(response_generation)
-                    model_response_generations[model_id] = response_gen_id
+                    model_response_generations[job_key] = response_gen_id
 
-            # Now create Generation records with proper generation_id references.
-            # Migration 041 added a unique constraint on (generation_id, run_index)
-            # — multiple gens sharing a parent (same model_id) must have distinct
-            # run_index values, so count children per parent as we go.
-            run_index_per_parent: dict[str, int] = {}
-            for gen_data in generations_to_import:
+            # Now create Generation records with proper generation_id
+            # references. Migration 041 made (generation_id, run_index)
+            # unique: a row keeps the run_index it carries unless its job
+            # already holds it here (then, and for rows without one, it takes
+            # the lowest free index).
+            run_indexes_per_parent: dict[str, set] = {}
+
+            def _claim(parent_id: str, wanted) -> int:
+                taken = run_indexes_per_parent.setdefault(parent_id, set())
+                valid = isinstance(wanted, int) and not isinstance(wanted, bool) and wanted >= 0
+                if valid and wanted not in taken:
+                    index = wanted
+                else:
+                    index = 0
+                    while index in taken:
+                        index += 1
+                taken.add(index)
+                return index
+
+            # Rows that carry a run_index claim theirs first, so a row
+            # without one cannot take an index a later row names.
+            ordered = sorted(
+                enumerate(generations_to_import),
+                key=lambda item: not isinstance(item[1].get("run_index"), int),
+            )
+            claimed_run_index: dict = {}
+            for position, gen_data in ordered:
+                parent_id = model_response_generations[_job_key(gen_data)]
+                claimed_run_index[position] = _claim(parent_id, gen_data.get("run_index"))
+
+            for position, gen_data in enumerate(generations_to_import):
                 model_id = gen_data.get("model_id", "unknown")
-                response_gen_id = model_response_generations[model_id]
-                run_index = run_index_per_parent.get(response_gen_id, 0)
-                run_index_per_parent[response_gen_id] = run_index + 1
+                response_gen_id = model_response_generations[_job_key(gen_data)]
 
                 new_gen_id = str(uuid.uuid4())
                 original_gen_id = gen_data.get("id")
                 generation = Generation(
                     id=new_gen_id,
                     generation_id=response_gen_id,  # Link to ResponseGeneration
-                    run_index=run_index,
+                    run_index=claimed_run_index[position],
                     task_id=task_id,
                     model_id=model_id,
                     response_content=gen_data.get("response_content", ""),
@@ -1213,6 +1249,12 @@ def run_nested_import(
                     parse_metadata=gen_data.get("parse_metadata"),
                     label_config_version=gen_data.get("label_config_version"),
                     label_config_snapshot=gen_data.get("label_config_snapshot"),
+                    # Per-call telemetry (seed, finish reason, refusal,
+                    # truncation, latency, tokens), the request record and
+                    # the format-retry trail, as exported.
+                    **_call_telemetry_kwargs(gen_data),
+                    **_request_kwargs(gen_data),
+                    **_timestamps(gen_data, "created_at"),
                 )
                 db.add(generation)
                 created_generations += 1
@@ -2107,6 +2149,37 @@ def _call_telemetry_kwargs(data: dict) -> dict:
     return out
 
 
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _request_kwargs(data: dict) -> dict:
+    """The request record and format-retry columns (migration 143) of an
+    exported generation, as constructor kwargs.
+
+    The hash is recomputed from an imported record, so a stored hash always
+    belongs to the stored record; without a record only a well-formed hash
+    is kept. Absent flags keep the column default.
+    """
+    from ai_services.request_capture import request_sha256
+
+    out: dict = {}
+    record = data.get("request_record")
+    if isinstance(record, dict):
+        out["request_record"] = record
+        out["request_sha256"] = request_sha256(record)
+    else:
+        sha = data.get("request_sha256")
+        if isinstance(sha, str) and _SHA256_HEX.match(sha):
+            out["request_sha256"] = sha
+    first = data.get("first_response_content")
+    if isinstance(first, str):
+        out["first_response_content"] = first
+    retried = data.get("retried")
+    if isinstance(retried, bool):
+        out["retried"] = retried
+    return out
+
+
 def _insert_variant_design(ctx: _FullImportContext, doc: dict) -> None:
     doc = {k: v for k, v in doc.items() if k != "_type"}
     ctx.variant_designs.add(doc)
@@ -2455,6 +2528,7 @@ def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
                 ctx, generation_id, generation_data.get("run_index")
             ),
             **_call_telemetry_kwargs(generation_data),
+            **_request_kwargs(generation_data),
             **_timestamps(generation_data, "created_at"),
         )
 

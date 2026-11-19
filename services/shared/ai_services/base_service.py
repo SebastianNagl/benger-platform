@@ -8,7 +8,7 @@ import re
 import socket
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,23 @@ def classify_error_type(exc: BaseException) -> str:
         return "parse_error"
 
     return "api_error"
+
+
+def continuation_turns(kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Conversation turns a caller asks to send after the first user prompt.
+
+    ``generate(..., continuation=[{"role": "assistant", "content": ...},
+    {"role": "user", "content": ...}])`` continues the conversation of the
+    system prompt and the user prompt, which is how a format retry re-asks in
+    the same conversation. Only ``user`` and ``assistant`` turns are kept;
+    each provider maps the roles onto its own message format.
+    """
+    turns = kwargs.get("continuation") or []
+    return [
+        {"role": turn["role"], "content": turn.get("content") or ""}
+        for turn in turns
+        if isinstance(turn, dict) and turn.get("role") in ("user", "assistant")
+    ]
 
 
 class RetryableUpstreamError(Exception):

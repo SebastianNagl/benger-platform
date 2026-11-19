@@ -17,6 +17,7 @@ from .base_service import (
     BaseAIService,
     RetryableUpstreamError,
     classify_retryable,
+    continuation_turns,
     derive_refusal,
     derive_truncated,
     is_transient_upstream_error,
@@ -28,6 +29,7 @@ from .provider_capabilities import (
     model_reasoning_config,
     model_supports_seed,
 )
+from .request_capture import record_request
 from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
@@ -313,6 +315,7 @@ class DeepInfraService(BaseAIService):
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
+                *continuation_turns(kwargs),
             ],
             "max_tokens": max_tokens,
             "temperature": temperature,
@@ -334,6 +337,9 @@ class DeepInfraService(BaseAIService):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+
+        # The body below is json.dumps(payload): record exactly that.
+        record_request("DeepInfra", "chat.completions", payload)
 
         # Make DeepInfra API call
         async with aiohttp.ClientSession() as session:
