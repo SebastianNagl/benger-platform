@@ -47,6 +47,9 @@ jest.mock('@/contexts/HydrationContext', () => ({
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({
+  AdjustmentsHorizontalIcon: (props: any) => (
+    <svg {...props} data-testid="forest-icon" />
+  ),
   ChartBarIcon: (props: any) => <svg {...props} data-testid="bar-icon" />,
   ChartPieIcon: (props: any) => <svg {...props} data-testid="pie-icon" />,
   ChevronDownIcon: (props: any) => (

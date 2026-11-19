@@ -1,0 +1,1654 @@
+'use client'
+
+/**
+ * The Metrics result type of the evaluations page: automated, LLM judge and
+ * human evaluation results of one project, with model, metric-config,
+ * aggregation, statistics and view filters, score cards, the chart card, the
+ * results table, the statistics panel, history, significance and the
+ * per-config results. Moved out of `app/evaluations/page.tsx` unchanged; the
+ * page shell owns the project picker, the result type and the access checks
+ * and hands the picker in as `filterBarLead`.
+ */
+
+import {
+  AggregationLevel,
+  AggregationSelector,
+} from '@/components/evaluation/AggregationSelector'
+import { AnnotatorAgreementCard } from '@/components/evaluation/AnnotatorAgreementCard'
+import {
+  ChartTypeSelector,
+  type ChartType,
+} from '@/components/evaluation/ChartTypeSelector'
+import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
+import {
+  EvaluationControlModal,
+  type EvaluationRunScope,
+} from '@/components/evaluation/EvaluationControlModal'
+import {
+  ChartData,
+  EvaluationResults,
+} from '@/components/evaluation/EvaluationResults'
+import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
+import { ScoreCard } from '@/components/evaluation/ScoreCard'
+import { StatisticalResultsPanel } from '@/components/evaluation/StatisticalResultsPanel'
+import {
+  StatisticalMethod,
+  StatisticsSelector,
+} from '@/components/evaluation/StatisticsSelector'
+import { HistoricalTrendChart } from '@/components/evaluation/charts/HistoricalTrendChart'
+import { SignificanceHeatmap } from '@/components/evaluation/charts/SignificanceHeatmap'
+import { useMultiConfigChartData } from '@/components/evaluation/results/useMultiConfigChartData'
+import { Button } from '@/components/shared/Button'
+import { Card } from '@/components/shared/Card'
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { useToast } from '@/components/shared/Toast'
+import { useAuth } from '@/contexts/AuthContext'
+import { useI18n } from '@/contexts/I18nContext'
+import { useOperationToasts } from '@/hooks/useOperationToasts'
+import { apiClient } from '@/lib/api/client'
+import { METRIC_ORDER } from '@/lib/api/evaluation-types'
+import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
+import { intervalRowsFromStatistics } from '@/lib/results/intervalRows'
+import { Project } from '@/types/labelStudio'
+import {
+  ChartBarIcon,
+  ChevronDownIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
+import { useRouter } from 'next/navigation'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+
+// Evaluation types for filtering
+type EvalType = 'automated' | 'llm-judge' | 'human'
+
+// Interface for items with configuration and result status
+interface ItemWithStatus {
+  id: string
+  label: string
+  isConfigured: boolean
+  hasResults: boolean
+  resultCount?: number
+}
+
+// Model with status flags
+interface ModelWithStatus {
+  model_id: string
+  model_name: string
+  provider: string
+  is_configured: boolean
+  has_generations: boolean
+  has_results: boolean
+  evaluation_count: number
+  total_samples: number
+  last_evaluated: string | null
+  average_score: number | null
+  ci_lower: number | null
+  ci_upper: number | null
+}
+
+/**
+ * Project-scoped evaluation row shown in the evaluations list page. Distinct
+ * from the API `EvaluationResultSummary` (per-task summary) and the sample-level
+ * `SampleEvaluationResult` used by the results drill-down.
+ */
+interface ProjectEvaluationResult {
+  id: string
+  project_id: string
+  project_name: string
+  model_id: string
+  metrics: Record<string, number>
+  samples_evaluated: number
+  created_at: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  evaluation_type: 'automated' | 'human'
+}
+
+/**
+ * Derive evaluation configs from project eval config.
+ * Handles current format (evaluation_configs) and legacy format (selected_methods).
+ */
+function deriveEvaluationConfigs(evalConfig: any): any[] {
+  let configs =
+    evalConfig?.evaluation_configs || evalConfig?.multi_field_evaluations || []
+
+  if (configs.length === 0) {
+    const selectedMethods = evalConfig?.selected_methods || {}
+    const hasSelectedMethods = Object.values(selectedMethods).some(
+      (m: any) => m.automated?.length > 0 || m.human?.length > 0,
+    )
+    if (hasSelectedMethods) {
+      configs = Object.entries(selectedMethods).flatMap(
+        ([fieldName, selections]: [string, any]) =>
+          (selections.automated || []).map((metric: any) => {
+            const metricName = typeof metric === 'string' ? metric : metric.name
+            return {
+              id: `${fieldName}_${metricName}`,
+              metric: metricName,
+              display_name: metricName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              prediction_fields: [
+                selections.field_mapping?.prediction_field || fieldName,
+              ].filter(Boolean),
+              reference_fields: [
+                selections.field_mapping?.reference_field || fieldName,
+              ].filter(Boolean),
+              enabled: true,
+              metric_parameters:
+                typeof metric === 'object' ? metric.parameters : undefined,
+            }
+          }),
+      )
+    }
+  }
+
+  return configs
+}
+
+/** The URL reader the view parses its initial filters from. */
+export interface InitialParams {
+  get(name: string): string | null
+}
+
+export interface MetricResultsViewProps {
+  /** The selected project (the shell renders no view without one). */
+  selectedProject: Project
+  /** Leading filter-bar controls of the shell (project picker, result type). */
+  filterBarLead: ReactNode
+  /** URL parameters to restore the filters from, read once on mount. */
+  initialParams: InitialParams | null
+}
+
+export function MetricResultsView({
+  selectedProject,
+  filterBarLead,
+  initialParams,
+}: MetricResultsViewProps) {
+  const router = useRouter()
+  const { addToast } = useToast()
+  const { startEvaluation, updateEvaluation, renderToasts } =
+    useOperationToasts()
+  const { t } = useI18n()
+  const searchParams = initialParams
+  const { user } = useAuth()
+
+  // Parse URL filters synchronously on first render. Without this, the page
+  // briefly renders with defaults, then `fetchProjectData` populates the
+  // model/metric lists, then a separate effect re-applies the URL — which the
+  // user perceived as three sequential loading states. Initial-state hoist
+  // collapses the chain to one parallel pair (fetchProjectData +
+  // fetchComparisonData fire together once selectedProject is resolved).
+  //
+  // Issue #111: the metric filter moved from `?metrics=<metric_name>` to
+  // `?configs=<evaluation_config_id>`. Bookmarked legacy `?metrics=` URLs
+  // simply don't carry state (no shim) — everything else still works.
+  const initialUrlFilters = useMemo(() => {
+    const models = searchParams?.get('models')?.split(',').filter(Boolean)
+    const configs = searchParams?.get('configs')?.split(',').filter(Boolean)
+    const chart = searchParams?.get('chartType') as ChartType | null
+    const validCharts: ChartType[] = [
+      'data',
+      'forest',
+      'bar',
+      'radar',
+      'box',
+      'heatmap',
+      'table',
+    ]
+    const aggregation = searchParams
+      ?.get('aggregation')
+      ?.split(',')
+      .filter(Boolean) as AggregationLevel[] | undefined
+    const stats = searchParams?.get('stats')?.split(',').filter(Boolean) as
+      StatisticalMethod[] | undefined
+    return {
+      models: models && models.length > 0 ? models : null,
+      configs: configs && configs.length > 0 ? configs : null,
+      chartType: chart && validCharts.includes(chart) ? chart : null,
+      aggregation: aggregation && aggregation.length > 0 ? aggregation : null,
+      stats: stats && stats.length > 0 ? stats : null,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally parse the URL once on mount; navigation replaces the page.
+  }, [])
+
+  // Filter state - all in one compact bar
+  const [selectedModels, setSelectedModels] = useState<string[]>(
+    initialUrlFilters.models ?? [],
+  )
+  // Issue #111: selection state moved from metric_name to
+  // evaluation_config_id. Two configs of the same metric type now have
+  // separate, independently-selectable entries with distinct
+  // `display_name` labels (the metric_name string alone collapsed them).
+  const [selectedConfigIds, setSelectedConfigIds] = useState<string[]>(
+    initialUrlFilters.configs ?? [],
+  )
+  const [availableConfigIds, setAvailableConfigIds] = useState<string[]>([])
+  const [selectedEvalTypes, setSelectedEvalTypes] = useState<EvalType[]>([
+    'automated',
+    'llm-judge',
+    'human',
+  ])
+  const [modelsDropdownOpen, setModelsDropdownOpen] = useState(false)
+  const [aggregationLevels, setAggregationLevels] = useState<
+    AggregationLevel[]
+  >(initialUrlFilters.aggregation ?? ['model'])
+  const [statisticalMethods, setStatisticalMethods] = useState<
+    StatisticalMethod[]
+  >(initialUrlFilters.stats ?? [])
+
+  const [chartType, setChartType] = useState<ChartType>(
+    initialUrlFilters.chartType ?? 'data',
+  )
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false)
+
+  // Project evaluation config - source of truth for available eval types and metrics
+  const [projectEvalConfig, setProjectEvalConfig] = useState<{
+    selected_methods?: Record<
+      string,
+      {
+        automated: Array<
+          string | { name: string; parameters: Record<string, any> }
+        >
+        human: string[]
+        field_mapping?: {
+          prediction_field: string
+          reference_field: string
+        }
+      }
+    >
+    evaluation_configs?: Array<{
+      id: string
+      metric: string
+      display_name?: string
+      metric_parameters?: Record<string, any>
+      prediction_fields: string[]
+      reference_fields: string[]
+      enabled: boolean
+    }>
+  } | null>(null)
+  // Available eval types derived from project config (not hard-coded)
+  const [availableEvalTypes, setAvailableEvalTypes] = useState<EvalType[]>([])
+  // Track if project has any evaluation configuration
+  const [hasAnyConfiguration, setHasAnyConfiguration] = useState(false)
+  // Track which metrics have actual results
+  const [metricsWithStatus, setMetricsWithStatus] = useState<ItemWithStatus[]>(
+    [],
+  )
+  const [metricsDropdownOpen, setMetricsDropdownOpen] = useState(false)
+  const metricsDropdownRef = useRef<HTMLDivElement>(null)
+  // Track if evaluation is currently running
+  const [runningEvaluation, setRunningEvaluation] = useState(false)
+  // Track if evaluation results exist (reported by EvaluationResults)
+  const [hasEvaluationResults, setHasEvaluationResults] = useState(false)
+  // Track if auto-run has been attempted for current project (prevents duplicate runs)
+  // Chart data from evaluation results
+  const [evaluationChartData, setEvaluationChartData] = useState<ChartData[]>(
+    [],
+  )
+  // Key to trigger EvaluationResults refresh when evaluation completes
+  const [resultsRefreshKey, setResultsRefreshKey] = useState(0)
+
+  // Results state - auto-updated when filters change
+  const [loading, setLoading] = useState(false)
+  const [evaluationResults, setEvaluationResults] = useState<
+    ProjectEvaluationResult[]
+  >([])
+  const [evaluatedModels, setEvaluatedModels] = useState<any[]>([])
+  const [historicalData, setHistoricalData] = useState<any>(null)
+  const [significanceData, setSignificanceData] = useState<any[]>([])
+  const [significanceError, setSignificanceError] = useState<string | null>(
+    null,
+  )
+  const [statisticsData, setStatisticsData] = useState<any>(null)
+  const [statisticsLoading, setStatisticsLoading] = useState(false)
+  const [statisticsError, setStatisticsError] = useState<string | null>(null)
+
+  const modelsDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        modelsDropdownRef.current &&
+        !modelsDropdownRef.current.contains(event.target as Node)
+      ) {
+        setModelsDropdownOpen(false)
+      }
+      if (
+        metricsDropdownRef.current &&
+        !metricsDropdownRef.current.contains(event.target as Node)
+      ) {
+        setMetricsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Skip URL sync until initial hydration is complete (prevents flicker)
+  const isHydrated = useRef(false)
+
+  // Fetch data when project changes (instant reactive loading)
+  useEffect(() => {
+    if (selectedProject) {
+      fetchProjectData(selectedProject.id.toString())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProjectData is stable, only re-run when selectedProject changes
+  }, [selectedProject])
+
+  // Sync all filters to URL (skip during initial hydration to avoid flicker)
+  useEffect(() => {
+    if (!selectedProject) return
+    if (!isHydrated.current) {
+      isHydrated.current = true
+      return
+    }
+
+    const params = new URLSearchParams()
+    params.set('projectId', selectedProject.id.toString())
+
+    // Only save models to URL if not all models are selected (avoid long URLs)
+    if (
+      selectedModels.length > 0 &&
+      selectedModels.length < evaluatedModels.length
+    ) {
+      params.set('models', selectedModels.join(','))
+    }
+    // Issue #111: persist selection by evaluation_config_id under
+    // `?configs=`. Old `?metrics=` URLs no longer apply (clean break).
+    if (
+      selectedConfigIds.length > 0 &&
+      selectedConfigIds.length < availableConfigIds.length
+    ) {
+      params.set('configs', selectedConfigIds.join(','))
+    }
+    if (chartType !== 'data') {
+      params.set('chartType', chartType)
+    }
+    if (aggregationLevels.length > 0 && aggregationLevels[0] !== 'model') {
+      params.set('aggregation', aggregationLevels.join(','))
+    }
+    if (
+      statisticalMethods.length > 0 &&
+      !(statisticalMethods.length === 1 && statisticalMethods[0] === 'ci')
+    ) {
+      params.set('stats', statisticalMethods.join(','))
+    }
+
+    router.replace(`/evaluations?${params.toString()}`, { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only sync when filter values change
+  }, [
+    selectedProject,
+    selectedModels,
+    selectedConfigIds,
+    chartType,
+    aggregationLevels,
+    statisticalMethods,
+    evaluatedModels.length,
+    availableConfigIds.length,
+  ])
+
+  // Fetch comparison data when models/configs change (instant reactive)
+  // Debounced comparison data fetch — prevents API bursts when toggling filters
+  useEffect(() => {
+    if (
+      selectedProject &&
+      selectedModels.length > 0 &&
+      selectedConfigIds.length > 0
+    ) {
+      const timer = setTimeout(() => fetchComparisonData(), 300)
+      return () => clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchComparisonData is stable, only re-run when filter selections change
+  }, [selectedModels, selectedConfigIds, selectedProject])
+
+  // Debounced statistics computation — prevents API bursts when toggling filters.
+  // `selectedModels.length > 0` is part of the gate: on initial load configs and
+  // models arrive from two different fetches >300ms apart, so without it the
+  // debounce can't coalesce them and the page fires the expensive /statistics
+  // call twice — the first time unfiltered (all models) while the model list is
+  // still empty.
+  useEffect(() => {
+    if (
+      selectedProject &&
+      selectedConfigIds.length > 0 &&
+      selectedModels.length > 0 &&
+      aggregationLevels.length > 0
+    ) {
+      const timer = setTimeout(() => computeStatistics(), 300)
+      return () => clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeStatistics is stable, only re-run when filter selections change
+  }, [
+    aggregationLevels,
+    statisticalMethods,
+    selectedConfigIds,
+    selectedModels,
+    selectedProject,
+  ])
+
+  const fetchProjectData = async (projectId: string) => {
+    setLoading(true)
+    try {
+      // 1. Fetch project evaluation config - source of truth for available methods
+      // NO FALLBACK - if config fetch fails, show empty state
+      let evalConfig: any = null
+      try {
+        evalConfig =
+          await apiClient.evaluations.getProjectEvaluationConfig(projectId)
+        setProjectEvalConfig(evalConfig)
+      } catch (configError) {
+        console.error('Failed to fetch evaluation config:', configError)
+        setProjectEvalConfig(null)
+      }
+
+      // 2. Fetch configured methods with result status
+      let configuredMethods: any = null
+      try {
+        configuredMethods =
+          await apiClient.evaluations.getConfiguredMethods(projectId)
+      } catch {
+        configuredMethods = { fields: [] }
+      }
+
+      // 3. Check if project has evaluation configuration
+      const evaluationConfigs = deriveEvaluationConfigs(evalConfig)
+      const hasConfig = evaluationConfigs.length > 0
+
+      setHasAnyConfiguration(hasConfig)
+
+      // 4. Derive eval types from config only - do NOT show historical results without config
+      if (!hasConfig) {
+        // No config - show empty state, don't derive from historical results
+        setAvailableEvalTypes([])
+        setSelectedEvalTypes([])
+        setAvailableConfigIds([])
+        setSelectedConfigIds([])
+        setMetricsWithStatus([])
+      } else {
+        const enabledEvalConfigs = evaluationConfigs.filter(
+          (e: any) => e.enabled !== false,
+        )
+        const hasAutomatedConfig = enabledEvalConfigs.some(
+          (e: any) => !e.metric?.startsWith('llm_judge'),
+        )
+        const hasLlmJudgeConfig = enabledEvalConfigs.some((e: any) =>
+          e.metric?.startsWith('llm_judge'),
+        )
+        const hasHumanConfig = Object.values(
+          evalConfig?.selected_methods || {},
+        ).some((m: any) => m.human?.length > 0)
+
+        // Build eval types from config
+        const derivedEvalTypes: EvalType[] = []
+
+        if (hasAutomatedConfig) {
+          derivedEvalTypes.push('automated')
+        }
+        if (hasLlmJudgeConfig) {
+          derivedEvalTypes.push('llm-judge')
+        }
+        if (hasHumanConfig) {
+          derivedEvalTypes.push('human')
+        }
+
+        setAvailableEvalTypes(derivedEvalTypes)
+        setSelectedEvalTypes(derivedEvalTypes)
+
+        // Issue #111: build one entry per evaluation_config, not per
+        // metric name. The dedup-by-metric (the old `[...new Set(...)]`)
+        // collapsed multiple configs of the same metric type into one
+        // entry — the exact bug the issue exists to fix. Two configs
+        // sharing `metric: 'llm_judge_falloesung'` but differing in
+        // `metric_parameters.judges` now render as two distinct
+        // checkboxes labeled by `display_name`.
+        const allMethods = (configuredMethods?.fields || []).flatMap(
+          (f: any) => [
+            ...(f.automated_methods || []),
+            ...(f.human_methods || []),
+          ],
+        )
+
+        const configsStatus: Array<ItemWithStatus & { metric: string }> =
+          enabledEvalConfigs.map((cfg: any) => {
+            const methodInfo = allMethods.find(
+              (m: any) => m.method_name === cfg.metric,
+            )
+            const label =
+              cfg.display_name && String(cfg.display_name).trim().length > 0
+                ? cfg.display_name
+                : String(cfg.metric || '')
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (c: string) => c.toUpperCase())
+            return {
+              id: cfg.id,
+              label,
+              metric: cfg.metric,
+              isConfigured: true,
+              hasResults: methodInfo?.has_results || false,
+              resultCount: methodInfo?.result_count || 0,
+            }
+          })
+
+        // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
+        // since the wizard groups by metric type, not config id.
+        const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
+        configsStatus.sort(
+          (a, b) =>
+            (orderMap.get(a.metric) ?? 999) - (orderMap.get(b.metric) ?? 999),
+        )
+        const sortedConfigIds = configsStatus.map((c) => c.id)
+
+        setAvailableConfigIds(sortedConfigIds)
+        // Keep any URL-provided (initial-state) selection, pruned to
+        // configs that actually exist in the project. Fall back to "all
+        // available" when nothing valid remains.
+        setSelectedConfigIds((prev) => {
+          if (prev.length === 0) return sortedConfigIds
+          const valid = prev.filter((c) => sortedConfigIds.includes(c))
+          return valid.length > 0 ? valid : sortedConfigIds
+        })
+        setMetricsWithStatus(configsStatus)
+      }
+
+      // 5+6. Fetch evaluation results and models in parallel
+      const [resultsResult, modelsResult] = await Promise.allSettled([
+        apiClient.get(`/evaluations/results/${projectId}`),
+        apiClient.evaluations.getEvaluatedModels(projectId, true),
+      ])
+
+      if (resultsResult.status === 'fulfilled') {
+        setEvaluationResults(resultsResult.value.data || [])
+      } else {
+        setEvaluationResults([])
+      }
+
+      if (modelsResult.status === 'fulfilled') {
+        const modelsResponse = modelsResult.value || []
+        setEvaluatedModels(modelsResponse)
+        if (modelsResponse.length > 0) {
+          const allIds = modelsResponse.map((m: any) => m.model_id)
+          setSelectedModels((prev) => {
+            if (prev.length === 0) return allIds
+            const validIds = new Set<string>(allIds)
+            const valid = prev.filter((m) => validIds.has(m))
+            return valid.length > 0 ? valid : allIds
+          })
+        }
+      } else {
+        setEvaluatedModels([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch project data:', error)
+      addToast(t('toasts.evaluation.dataFailed'), 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Issue #111: helper to look up the metric names corresponding to the
+  // currently-selected evaluation_config_ids. Used to wire the per-config
+  // selector through to endpoints that still take metric names alongside
+  // the new `evaluation_config_ids=` filter (history, significance).
+  const selectedMetricNames = useMemo(() => {
+    const cfgs = projectEvalConfig?.evaluation_configs ?? []
+    const byId = new Map<string, string>(cfgs.map((c) => [c.id, c.metric]))
+    const out = new Set<string>()
+    for (const id of selectedConfigIds) {
+      const m = byId.get(id)
+      if (m) out.add(m)
+    }
+    return Array.from(out)
+  }, [projectEvalConfig, selectedConfigIds])
+
+  const fetchComparisonData = async () => {
+    if (!selectedProject) return
+    try {
+      // Historical data
+      if (selectedConfigIds.length > 0 && selectedMetricNames.length > 0) {
+        try {
+          const history = await apiClient.evaluations.getEvaluationHistory({
+            projectId: selectedProject.id.toString(),
+            modelIds: selectedModels,
+            metrics: selectedMetricNames,
+            evaluationConfigIds: selectedConfigIds,
+          })
+          setHistoricalData(history)
+        } catch {
+          setHistoricalData(null)
+        }
+      }
+
+      // Significance data
+      if (selectedModels.length > 1) {
+        try {
+          const significance = await apiClient.evaluations.getSignificanceTests(
+            {
+              projectId: selectedProject.id.toString(),
+              modelIds: selectedModels,
+              metrics: selectedMetricNames,
+              evaluationConfigIds: selectedConfigIds,
+            },
+          )
+          setSignificanceData(significance.comparisons || [])
+          setSignificanceError(null)
+        } catch (err: any) {
+          setSignificanceData([])
+          setSignificanceError(
+            err?.message || t('evaluation.dashboard.significanceLoadFailed'),
+          )
+        }
+      } else {
+        setSignificanceError(null)
+      }
+    } catch (err) {
+      console.error('Failed to fetch comparison data:', err)
+    }
+  }
+
+  const computeStatistics = async () => {
+    if (
+      !selectedProject ||
+      selectedConfigIds.length === 0 ||
+      aggregationLevels.length === 0
+    )
+      return
+
+    setStatisticsLoading(true)
+    setStatisticsError(null)
+    try {
+      // Call API for each selected aggregation level and combine results
+      const results: Record<string, any> = {}
+      const errors: string[] = []
+
+      for (const aggregation of aggregationLevels) {
+        try {
+          const result = await apiClient.evaluations.computeStatistics({
+            projectId: selectedProject.id.toString(),
+            metrics: selectedMetricNames,
+            aggregation: aggregation,
+            methods: statisticalMethods,
+            compareModels:
+              selectedModels.length > 1 ? selectedModels : undefined,
+            evaluationConfigIds: selectedConfigIds,
+          })
+          results[aggregation] = result
+        } catch (err: any) {
+          // Capture error message for this aggregation level
+          const errorMsg =
+            err?.message ||
+            err?.detail ||
+            `Failed to compute ${aggregation} statistics`
+          errors.push(errorMsg)
+          results[aggregation] = null
+        }
+      }
+
+      // If all aggregations failed, show error
+      const successfulResults = Object.values(results).filter((r) => r !== null)
+      if (successfulResults.length === 0 && errors.length > 0) {
+        setStatisticsError(errors[0]) // Show first error
+        setStatisticsData(null)
+        return
+      }
+
+      // If only one aggregation selected, use the legacy format for backward compatibility
+      if (aggregationLevels.length === 1) {
+        setStatisticsData(results[aggregationLevels[0]])
+      } else {
+        // Multiple aggregations: store as object keyed by level
+        // For display, use the first non-null result as the primary
+        const primaryResult = aggregationLevels.find(
+          (level) => results[level] !== null,
+        )
+        setStatisticsData({
+          ...results[primaryResult || aggregationLevels[0]],
+          _multiAggregation: results, // Store all results for multi-view
+        })
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Failed to compute statistics'
+      setStatisticsError(errorMsg)
+      setStatisticsData(null)
+    } finally {
+      setStatisticsLoading(false)
+    }
+  }
+
+  // Subscribe to evaluation status via SSE for real-time updates
+  const subscribeToEvaluationStatus = useCallback(
+    (evaluationId: string, configCount: number) => {
+      // Use same-origin proxy route to avoid CORS issues with EventSource
+      // The proxy forwards cookies to the backend API
+      const eventSource = new EventSource(
+        `/api/evaluations/stream/${evaluationId}`,
+      )
+
+      eventSource.addEventListener('status', (event) => {
+        const data = JSON.parse(event.data)
+        if (data.status === 'running') {
+          updateEvaluation(
+            evaluationId,
+            'running',
+            t('evaluation.viewer.status.processing'),
+            `${data.samples_evaluated || 0} ${t('evaluation.viewer.status.samplesEvaluated')}`,
+          )
+        } else if (data.status === 'pending') {
+          updateEvaluation(
+            evaluationId,
+            'started',
+            t('evaluation.viewer.status.queued'),
+            t('evaluation.viewer.status.waitingWorker'),
+          )
+        }
+      })
+
+      eventSource.addEventListener('done', (event) => {
+        const data = JSON.parse(event.data)
+        if (data.status === 'completed') {
+          updateEvaluation(
+            evaluationId,
+            'completed',
+            t('evaluation.viewer.status.complete'),
+            `${data.samples_evaluated} ${t('evaluation.viewer.status.samplesEvaluated')}`,
+          )
+          // Summary toast for completion
+          addToast(
+            t('toasts.evaluation.complete', {
+              count: data.samples_evaluated || 0,
+            }),
+            'success',
+          )
+          // Refresh data after completion
+          if (selectedProject) {
+            fetchProjectData(selectedProject.id.toString())
+          }
+          // Trigger EvaluationResults refresh
+          setResultsRefreshKey((prev) => prev + 1)
+        } else if (data.status === 'failed') {
+          updateEvaluation(
+            evaluationId,
+            'failed',
+            t('evaluation.viewer.status.failed'),
+            data.error_message || t('evaluation.viewer.status.unknownError'),
+          )
+          // Summary toast for failure
+          addToast(t('toasts.evaluation.failed'), 'error')
+        }
+        setRunningEvaluation(false)
+        eventSource.close()
+      })
+
+      // Retry with exponential backoff on SSE errors
+      let retryCount = 0
+      const maxRetries = 3
+      eventSource.addEventListener('error', () => {
+        retryCount++
+        if (retryCount <= maxRetries) {
+          const delay = Math.pow(2, retryCount - 1) * 1000 // 1s, 2s, 4s
+          updateEvaluation(
+            evaluationId,
+            'running',
+            t('evaluation.viewer.status.reconnecting'),
+            `${t('evaluation.viewer.status.attempt')} ${retryCount}/${maxRetries}`,
+          )
+          eventSource.close()
+          setTimeout(() => {
+            subscribeToEvaluationStatus(evaluationId, configCount)
+          }, delay)
+        } else {
+          updateEvaluation(
+            evaluationId,
+            'failed',
+            t('evaluation.viewer.status.connectionLost'),
+            t('evaluation.viewer.status.unableToTrack'),
+          )
+          setRunningEvaluation(false)
+          eventSource.close()
+        }
+      })
+
+      return eventSource
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProjectData is stable
+    [updateEvaluation, selectedProject],
+  )
+
+  // Handler to run evaluation on the spot. Honours the user-narrowed scope
+  // from the modal: when the modal hands us a filtered metric set, model
+  // ids, or annotator ids, those are forwarded to /evaluations/run so the
+  // actual run matches the cost preview the user just saw. When `scope` is
+  // omitted (legacy/no-modal callers) we fall back to running every enabled
+  // config without scope filters — preserves prior behaviour.
+  const handleRunEvaluation = async (
+    forceRerun: boolean = false,
+    scope?: EvaluationRunScope,
+  ) => {
+    if (!selectedProject) return
+
+    setRunningEvaluation(true)
+    try {
+      const configs =
+        scope?.evaluationConfigs && scope.evaluationConfigs.length > 0
+          ? scope.evaluationConfigs
+          : deriveEvaluationConfigs(projectEvalConfig).filter(
+              (e: any) => e.enabled !== false,
+            )
+
+      if (configs.length === 0) {
+        addToast(t('evaluation.noMethodsConfigured'), 'error')
+        setRunningEvaluation(false)
+        return
+      }
+
+      const response = await apiClient.evaluations.runEvaluation({
+        project_id: selectedProject.id.toString(),
+        evaluation_configs: configs,
+        force_rerun: forceRerun,
+        model_ids: scope?.modelIds,
+        annotator_user_ids: scope?.annotatorUserIds,
+        structure_keys: scope?.structureKeys,
+        billing_organization_id: scope?.billingOrganizationId,
+      })
+
+      // Use operation toast for real-time status updates
+      const evaluationId = response.evaluation_id
+      startEvaluation(evaluationId, configs.length)
+
+      // Subscribe to SSE for real-time status updates
+      subscribeToEvaluationStatus(evaluationId, configs.length)
+    } catch (err: any) {
+      console.error('Failed to start evaluation:', err)
+      addToast(err.message || t('toasts.evaluation.startFailed'), 'error')
+      setRunningEvaluation(false)
+    }
+  }
+
+  // Filter results by selected models
+  const filteredResults = evaluationResults.filter((r) => {
+    // Filter by selected models (if any selected)
+    // Also match llm-judge:model-id patterns (e.g., llm-judge:gpt-4o matches gpt-4o)
+    const modelMatch =
+      selectedModels.length === 0 ||
+      selectedModels.includes(r.model_id) ||
+      selectedModels.some((m) => r.model_id === `llm-judge:${m}`)
+
+    return modelMatch
+  })
+
+  // Starting a run needs an effective project role of CONTRIBUTOR or higher
+  // (the API's rule): annotators see the results but no run controls.
+  const canRunEvaluation =
+    Boolean(user?.is_superadmin) ||
+    selectedProject?.effective_role === 'ORG_ADMIN' ||
+    selectedProject?.effective_role === 'CONTRIBUTOR'
+
+  const toggleModel = (modelId: string) => {
+    if (selectedModels.includes(modelId)) {
+      setSelectedModels(selectedModels.filter((m) => m !== modelId))
+    } else {
+      setSelectedModels([...selectedModels, modelId])
+    }
+  }
+
+  // Compute disabled chart types dynamically based on actual data availability
+  const chartDisabledInfo = useMemo(() => {
+    const modelCount = Math.max(
+      evaluatedModels.length,
+      filteredResults.length > 0
+        ? filteredResults.length
+        : evaluationChartData.length,
+    )
+
+    // Check if we have raw_scores for box plot (requires sample aggregation)
+    const hasRawScores =
+      statisticsData?.raw_scores?.length > 0 ||
+      statisticsData?._multiAggregation?.sample?.raw_scores?.length > 0
+
+    const disabledTypes: ChartType[] = []
+    const disabledReasons: Partial<Record<ChartType, string>> = {}
+
+    // Heatmap requires 2+ models
+    if (modelCount < 2) {
+      disabledTypes.push('heatmap')
+      disabledReasons.heatmap = t(
+        'evaluation.viewer.chart.disabledReasons.heatmapNeedsModels',
+      )
+    }
+
+    // Box plot requires distribution data (raw scores from sample aggregation)
+    if (!hasRawScores) {
+      disabledTypes.push('box')
+      // Provide clear, actionable messaging based on current state
+      if (!aggregationLevels.includes('sample')) {
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxNeedsSampleAggregation',
+        )
+      } else if (statisticsError) {
+        disabledReasons.box = `Error: ${statisticsError}`
+      } else if (statisticsLoading) {
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxComputingScores',
+        )
+      } else {
+        disabledReasons.box = t(
+          'evaluation.viewer.chart.disabledReasons.boxNoSampleData',
+        )
+      }
+    }
+
+    // Forest plot needs per-model statistics (model aggregation)
+    const hasModelStatistics = Boolean(
+      statisticsData?.by_model ||
+      statisticsData?._multiAggregation?.model?.by_model,
+    )
+    if (!hasModelStatistics) {
+      disabledTypes.push('forest')
+      disabledReasons.forest = !aggregationLevels.includes('model')
+        ? t(
+            'evaluation.viewer.chart.disabledReasons.forestNeedsModelAggregation',
+          )
+        : statisticsLoading
+          ? t('evaluation.viewer.chart.disabledReasons.boxComputingScores')
+          : t('evaluation.viewer.chart.disabledReasons.forestNoStatistics')
+    }
+
+    return { disabledTypes, disabledReasons }
+  }, [
+    evaluatedModels,
+    filteredResults,
+    evaluationChartData,
+    statisticsData,
+    aggregationLevels,
+    statisticsError,
+    statisticsLoading,
+    t,
+  ])
+
+  // Prepare model data with scores for box plots
+  const modelsWithScores = useMemo(() => {
+    // Get base model data
+    const baseModels =
+      filteredResults.length > 0
+        ? filteredResults.map((r) => ({
+            model_id: r.model_id,
+            model_name: r.model_id,
+            metrics: r.metrics || {},
+            scores: [] as number[],
+          }))
+        : evaluationChartData.map((r) => ({
+            model_id: r.model_id,
+            model_name: r.model_name || r.model_id,
+            metrics: r.metrics || {},
+            scores: [] as number[],
+          }))
+
+    // If we have raw_scores, add them to the models
+    const rawScores =
+      statisticsData?.raw_scores ||
+      statisticsData?._multiAggregation?.sample?.raw_scores ||
+      []
+
+    if (rawScores.length > 0) {
+      // Issue #111: filter raw scores by the selected
+      // evaluation_config_ids (carried directly on the score row) instead
+      // of the metric name — that way two configs of the same metric type
+      // don't pool their distributions when only one is selected.
+      const scoresByModel = new Map<string, number[]>()
+      for (const score of rawScores) {
+        if (selectedConfigIds.includes(score.evaluation_config_id)) {
+          const existing = scoresByModel.get(score.model_id) || []
+          existing.push(score.value)
+          scoresByModel.set(score.model_id, existing)
+        }
+      }
+
+      // Add scores to matching models
+      for (const model of baseModels) {
+        const modelScores = scoresByModel.get(model.model_id)
+        if (modelScores) {
+          model.scores = modelScores
+        }
+      }
+    }
+
+    // Issue C: order bars lowest -> highest by average across the currently
+    // selected metrics (backend returns them DESCENDING by score). Also keeps
+    // box plots consistent (lowest -> highest).
+    return sortModelsByScoreAsc(baseModels, selectedMetricNames)
+  }, [
+    filteredResults,
+    evaluationChartData,
+    statisticsData,
+    selectedConfigIds,
+    selectedMetricNames,
+  ])
+
+  // One chart series per SELECTED evaluation config (not per metric name), so
+  // two configs of the same metric type (e.g. two llm_judge_falloesung
+  // judges) each get their own bar/radar series labeled by display_name.
+  // Resolve the selected configs (id + display_name + metric) from the
+  // project's evaluation_config metadata, memoized so the hook only refetches
+  // when the selection actually changes.
+  const chartConfigs = useMemo(() => {
+    const cfgs = projectEvalConfig?.evaluation_configs ?? []
+    return cfgs
+      .filter((c) => selectedConfigIds.includes(c.id))
+      .map((c) => ({
+        id: c.id,
+        displayName:
+          c.display_name && String(c.display_name).trim().length > 0
+            ? c.display_name
+            : c.metric,
+        metric: c.metric,
+      }))
+  }, [projectEvalConfig, selectedConfigIds])
+
+  const multiConfigChart = useMultiConfigChartData({
+    projectId: selectedProject?.id ?? '',
+    configs: chartConfigs,
+    enabled: chartType !== 'data' && chartConfigs.length > 0,
+  })
+
+  // Filter the merged per-config models by the model selection (mirrors the
+  // filteredResults predicate, incl. the llm-judge: prefix match) and apply
+  // the same ascending sort so Issue C's low->high ordering holds per config.
+  const multiConfigModels = useMemo(() => {
+    const filtered = multiConfigChart.models.filter(
+      (m) =>
+        selectedModels.length === 0 ||
+        selectedModels.includes(m.model_id) ||
+        selectedModels.some((sm) => m.model_id === `llm-judge:${sm}`),
+    )
+    return sortModelsByScoreAsc(filtered, multiConfigChart.seriesNames)
+  }, [multiConfigChart.models, multiConfigChart.seriesNames, selectedModels])
+
+  // Forest view: mean and 95 % CI per model and metric from the statistics
+  // response (model aggregation), one plot per metric.
+  const forestRows = useMemo(() => {
+    const modelStats = statisticsData?._multiAggregation
+      ? statisticsData._multiAggregation.model
+      : statisticsData
+    const cfgs = projectEvalConfig?.evaluation_configs ?? []
+    const names = new Map<string, string>(
+      evaluatedModels.map((m: any) => [m.model_id, m.model_name || m.model_id]),
+    )
+    return intervalRowsFromStatistics(modelStats, {
+      metrics: selectedMetricNames,
+      metricLabel: (metric) => {
+        const selected = cfgs.filter(
+          (c) => c.metric === metric && selectedConfigIds.includes(c.id),
+        )
+        return selected.length === 1 && selected[0].display_name
+          ? selected[0].display_name
+          : metric
+      },
+      modelLabel: (modelId, modelName) =>
+        names.get(modelId) || modelName || modelId,
+    })
+  }, [
+    statisticsData,
+    projectEvalConfig,
+    evaluatedModels,
+    selectedMetricNames,
+    selectedConfigIds,
+  ])
+
+  // Chart data source by type: bar/radar/heatmap/table read the per-config
+  // merged series (fixes same-metric-config collapse — Issue A). The box plot
+  // needs raw per-sample distributions (`scores[]`) that the by-task-model
+  // summary doesn't carry, so it keeps the raw-scores path (`modelsWithScores`)
+  // — unchanged behavior, no box-plot regression.
+  const chartModels = chartType === 'box' ? modelsWithScores : multiConfigModels
+  const chartMetrics =
+    chartType === 'box' ? selectedMetricNames : multiConfigChart.seriesNames
+
+  return (
+    <>
+      {/* Filter Bar - All dropdowns in one row */}
+      <Card className="mb-2 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          {filterBarLead}
+
+          {/* Models Dropdown */}
+          {selectedProject && evaluatedModels.length > 0 && (
+            <div className="relative" ref={modelsDropdownRef}>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
+                {t('evaluation.viewer.filters.models')}
+              </label>
+              <Button
+                variant="outline"
+                onClick={() => setModelsDropdownOpen(!modelsDropdownOpen)}
+                className="w-32 justify-between"
+              >
+                <span className="truncate">
+                  {selectedModels.length === 0
+                    ? t('evaluation.viewer.filters.allModels')
+                    : selectedModels.length === evaluatedModels.length
+                      ? t('evaluation.viewer.filters.allModels')
+                      : `${selectedModels.length} ${t('evaluation.viewer.filters.selected')}`}
+                </span>
+                <ChevronDownIcon
+                  className={`ml-2 h-4 w-4 opacity-70 transition-transform ${modelsDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </Button>
+              {modelsDropdownOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedModels(
+                        evaluatedModels
+                          .filter((m) => m.has_results !== false)
+                          .map((m) => m.model_id),
+                      )
+                    }
+                    className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                  >
+                    {t('evaluation.viewer.filters.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModels([])}
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
+                  >
+                    {t('evaluation.viewer.filters.clearAll')}
+                  </button>
+                  {evaluatedModels.map((model) => (
+                    <label
+                      key={model.model_id}
+                      className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${
+                        model.has_results !== false
+                          ? 'hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                          : 'opacity-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.includes(model.model_id)}
+                        onChange={() => toggleModel(model.model_id)}
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span
+                        className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}
+                      >
+                        {model.model_id.startsWith('annotator:')
+                          ? model.model_id.replace(/^annotator:/, '')
+                          : model.model_name || model.model_id}
+                      </span>
+                      {model.has_results === false && (
+                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
+                          <ExclamationTriangleIcon className="h-3 w-3" />
+                          {t('evaluation.viewer.filters.noResults')}
+                        </span>
+                      )}
+                      {model.is_configured && !model.has_generations && (
+                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-zinc-400">
+                          <ExclamationTriangleIcon className="h-3 w-3" />
+                          {t('evaluation.viewer.filters.notRun')}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metrics Dropdown - shows one entry per evaluation_config
+                (issue #111). Two configs sharing the same `metric` type
+                but distinct `display_name`s are independently selectable. */}
+          {selectedProject && metricsWithStatus.length > 0 && (
+            <div className="relative" ref={metricsDropdownRef}>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
+                {t('evaluation.viewer.filters.metrics')}
+              </label>
+              <Button
+                variant="outline"
+                onClick={() => setMetricsDropdownOpen(!metricsDropdownOpen)}
+                className="w-36 justify-between"
+              >
+                <span className="truncate">
+                  {selectedConfigIds.length === 0
+                    ? t('evaluation.viewer.filters.selectMetrics')
+                    : selectedConfigIds.length === metricsWithStatus.length
+                      ? t('evaluation.viewer.filters.allMetrics')
+                      : `${selectedConfigIds.length} ${t('evaluation.viewer.filters.selected')}`}
+                </span>
+                <ChevronDownIcon
+                  className={`ml-2 h-4 w-4 opacity-70 transition-transform ${metricsDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </Button>
+              {metricsDropdownOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-56 overflow-auto rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedConfigIds(metricsWithStatus.map((m) => m.id))
+                    }
+                    className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                  >
+                    {t('evaluation.viewer.filters.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConfigIds([])}
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
+                  >
+                    {t('evaluation.viewer.filters.clearAll')}
+                  </button>
+                  {metricsWithStatus.map((metric) => (
+                    <label
+                      key={metric.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedConfigIds.includes(metric.id)}
+                        onChange={() => {
+                          if (selectedConfigIds.includes(metric.id)) {
+                            setSelectedConfigIds(
+                              selectedConfigIds.filter((m) => m !== metric.id),
+                            )
+                          } else {
+                            setSelectedConfigIds([
+                              ...selectedConfigIds,
+                              metric.id,
+                            ])
+                          }
+                        }}
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="flex-1 truncate text-sm">
+                        {metric.label}
+                      </span>
+                      {metric.hasResults && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                          ✓
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aggregation Dropdown */}
+          {selectedProject && (
+            <div className="w-36">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
+                {t('evaluation.viewer.filters.aggregation')}
+              </label>
+              <AggregationSelector
+                levels={aggregationLevels}
+                onChange={setAggregationLevels}
+              />
+            </div>
+          )}
+
+          {/* Statistics Methods */}
+          {selectedProject && (
+            <div className="w-32">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
+                {t('evaluation.viewer.filters.statistics')}
+              </label>
+              <StatisticsSelector
+                selectedMethods={statisticalMethods}
+                onChange={setStatisticalMethods}
+              />
+            </div>
+          )}
+
+          {/* View Type Selector - inline with dropdowns */}
+          {selectedProject && (
+            <div className="flex flex-col">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
+                {t('evaluation.viewer.filters.view')}
+              </label>
+              <ChartTypeSelector
+                selectedType={chartType}
+                onChange={setChartType}
+                disabledTypes={chartDisabledInfo.disabledTypes}
+                disabledReasons={chartDisabledInfo.disabledReasons}
+                size="sm"
+              />
+            </div>
+          )}
+
+          {selectedProject &&
+            (() => {
+              const anyFilterSet =
+                selectedModels.length !== evaluatedModels.length ||
+                selectedConfigIds.length !== availableConfigIds.length ||
+                aggregationLevels.length !== 1 ||
+                aggregationLevels[0] !== 'model' ||
+                statisticalMethods.length > 0 ||
+                chartType !== 'data'
+              return (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setChartType('data')
+                    setAggregationLevels(['model'])
+                    setStatisticalMethods([])
+                    setSelectedModels(evaluatedModels.map((m) => m.model_id))
+                    setSelectedConfigIds(availableConfigIds)
+                    setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
+                  }}
+                  disabled={!anyFilterSet}
+                  aria-label={t('evaluation.viewer.filters.clearAllFilters')}
+                  title={t('evaluation.viewer.filters.clearAllFilters')}
+                  className={
+                    anyFilterSet
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700'
+                      : ''
+                  }
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </Button>
+              )
+            })()}
+        </div>
+      </Card>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <LoadingSpinner />
+        </div>
+      )}
+
+      {/* Results Section - Only show when project selected and not loading */}
+      {selectedProject && !loading && (
+        <div className="space-y-6">
+          {/* Score Cards — issue #111: render one card per selected
+           * (config × metric) pair so multiple configs of the same metric
+           * type stay distinct. The card's value comes from the per-
+           * (model, config, metric) aggregate in `runs_by_model_metric`
+           * (3-part key) when available; otherwise we fall back to the
+           * legacy per-result metric value (which collapses configs of
+           * the same type — acceptable when statistics haven't loaded
+           * yet). Card label uses the config's display_name. */}
+          {filteredResults.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {(() => {
+                const result = filteredResults[0]
+                const block = (statisticsData as any)?.runs_by_model_metric as
+                  | Record<
+                      string,
+                      {
+                        n_runs: number
+                        mean_of_means?: number
+                        std_of_means?: number
+                      }
+                    >
+                  | undefined
+                const configs =
+                  projectEvalConfig?.evaluation_configs?.filter((c) =>
+                    selectedConfigIds.includes(c.id),
+                  ) ?? []
+                // Stable ordering: same as the metric selector dropdown.
+                // Cap at 4 cards to keep the grid tidy.
+                const pairs = configs.slice(0, 4).map((cfg) => {
+                  const exactKey = `${result.model_id}|${cfg.id}|${cfg.metric}`
+                  const agg = block?.[exactKey]
+                  // Prefer the multi-run mean (config-scoped) when present;
+                  // fall back to the legacy per-result metric value.
+                  const value =
+                    typeof agg?.mean_of_means === 'number'
+                      ? agg.mean_of_means
+                      : (result.metrics?.[cfg.metric] ?? null)
+                  const runsAggregate =
+                    agg && agg.n_runs > 1
+                      ? {
+                          runs: agg.n_runs,
+                          stdAcrossRuns: agg.std_of_means ?? 0,
+                        }
+                      : undefined
+                  return { cfg, value, runsAggregate }
+                })
+                return pairs.map(({ cfg, value, runsAggregate }) =>
+                  value === null ? null : (
+                    <ScoreCard
+                      key={`${cfg.id}|${cfg.metric}`}
+                      metric={cfg.display_name || cfg.metric}
+                      value={value}
+                      description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
+                      higherIsBetter={true}
+                      formatAs="decimal"
+                      sampleSize={result.samples_evaluated}
+                      runsAggregate={runsAggregate}
+                    />
+                  ),
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Dynamic Chart Rendering - use evaluationChartData when filteredResults is empty */}
+          {/* For 'data' view, only show the view selector and table - no charts */}
+          {(filteredResults.length > 0 || evaluationChartData.length > 0) &&
+            selectedConfigIds.length > 0 &&
+            chartType !== 'data' && (
+              <Card className="p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold dark:text-white">
+                    {t('evaluation.viewer.chart.title')}
+                  </h3>
+                  <ChartTypeSelector
+                    selectedType={chartType}
+                    onChange={setChartType}
+                    disabledTypes={chartDisabledInfo.disabledTypes}
+                    disabledReasons={chartDisabledInfo.disabledReasons}
+                    size="sm"
+                  />
+                </div>
+                <DynamicChartRenderer
+                  chartType={chartType}
+                  models={chartModels}
+                  metrics={chartMetrics}
+                  significanceData={significanceData}
+                  height={400}
+                  showErrorBars={true}
+                  emptyMessage={t('evaluation.viewer.chart.noData')}
+                  intervalRows={chartType === 'forest' ? forestRows : undefined}
+                />
+              </Card>
+            )}
+
+          {/* Results Table */}
+          {filteredResults.length > 0 && (
+            <Card className="p-6">
+              <h3 className="mb-4 text-lg font-semibold dark:text-white">
+                {t('evaluation.viewer.results.title')}
+              </h3>
+              <EvaluationResultsTable
+                results={filteredResults.map((r, idx) => ({
+                  modelId: r.model_id,
+                  metrics: r.metrics || {},
+                  rank: idx + 1,
+                }))}
+              />
+            </Card>
+          )}
+
+          {/* Statistical Results Panel - hidden in data view (stats shown inline there) */}
+          {chartType !== 'data' &&
+            (statisticsData || statisticsLoading || statisticsError) && (
+              <StatisticalResultsPanel
+                data={statisticsData}
+                loading={statisticsLoading}
+                error={statisticsError}
+                showBonferroniInfo={true}
+                selectedStatistics={statisticalMethods}
+              />
+            )}
+
+          {/* Historical Trend Chart - hidden in data view.
+                Issue #111: the endpoint now returns `{ series: [...] }`
+                with one entry per (metric, evaluation_config_id) pair.
+                Render one chart per series so two configs of the same
+                metric type don't collapse into a single misleading line. */}
+          {historicalData?.series?.length > 0 &&
+            selectedConfigIds.length > 0 &&
+            chartType !== 'data' && (
+              <Card className="p-6">
+                <h3 className="mb-4 text-lg font-semibold dark:text-white">
+                  {t('evaluation.viewer.results.historicalTrends')}
+                </h3>
+                <div className="space-y-6">
+                  {historicalData.series.map((s: any) => (
+                    <div
+                      key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
+                    >
+                      <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {s.display_name}
+                      </h4>
+                      <HistoricalTrendChart
+                        data={s.data || []}
+                        modelIds={selectedModels}
+                        metric={s.display_name || s.metric}
+                        height={400}
+                        showConfidenceIntervals={true}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+          {/* Significance Heatmap - hidden in data view */}
+          {selectedModels.length > 1 && chartType !== 'data' && (
+            <Card className="p-6">
+              <h3 className="mb-4 text-lg font-semibold dark:text-white">
+                {t('evaluation.viewer.results.statisticalSignificance')}
+              </h3>
+              {significanceError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                  <strong>
+                    {t('evaluation.viewer.results.significanceError')}
+                  </strong>{' '}
+                  {significanceError}
+                </div>
+              )}
+              {significanceData.length > 0 ? (
+                <SignificanceHeatmap
+                  modelIds={selectedModels}
+                  metric={
+                    selectedMetricNames[0] ||
+                    t('evaluation.viewer.results.score')
+                  }
+                  significanceData={significanceData}
+                  height={500}
+                />
+              ) : !significanceError ? (
+                <div className="py-8 text-center text-zinc-500 dark:text-zinc-400">
+                  {t('evaluation.viewer.results.noSignificanceData')}
+                </div>
+              ) : null}
+            </Card>
+          )}
+
+          {/* Evaluation Results - only show Card when configured or has results */}
+          {(hasAnyConfiguration || hasEvaluationResults) && (
+            <Card className="p-6">
+              <EvaluationResults
+                projectId={selectedProject.id}
+                selectedModels={selectedModels}
+                selectedConfigIds={selectedConfigIds}
+                selectedEvalTypes={selectedEvalTypes}
+                onRefresh={() =>
+                  fetchProjectData(selectedProject.id.toString())
+                }
+                hasConfiguration={hasAnyConfiguration}
+                onRunEvaluation={
+                  canRunEvaluation
+                    ? () => setShowEvaluationModal(true)
+                    : undefined
+                }
+                isRunningEvaluation={runningEvaluation}
+                onResultsLoaded={setHasEvaluationResults}
+                onDataLoaded={setEvaluationChartData}
+                viewType={chartType === 'data' ? 'data' : 'chart'}
+                statisticsData={statisticsData}
+                selectedStatistics={statisticalMethods}
+                refreshKey={resultsRefreshKey}
+                modelNames={Object.fromEntries(
+                  evaluatedModels.map((m: any) => [
+                    m.model_id,
+                    m.model_name || m.model_id,
+                  ]),
+                )}
+                evaluationConfigs={projectEvalConfig?.evaluation_configs || []}
+              />
+            </Card>
+          )}
+
+          {/* Empty State - only show when no config exists (EvaluationResults handles its own empty state when configured) */}
+          {filteredResults.length === 0 &&
+            !hasEvaluationResults &&
+            !hasAnyConfiguration && (
+              <Card className="p-12 text-center">
+                <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
+                <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-white">
+                  {t('evaluation.viewer.emptyStates.notConfigured.title')}
+                </h3>
+                <p className="mt-2 text-zinc-500 dark:text-zinc-400">
+                  {t('evaluation.viewer.emptyStates.notConfigured.description')}
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(`/projects/${selectedProject?.id}`)
+                  }
+                  className="mt-4"
+                >
+                  {t('evaluation.viewer.emptyStates.notConfigured.action')}
+                </Button>
+              </Card>
+            )}
+
+          {/* Annotator agreement - hidden unless a task has two annotators */}
+          <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
+        </div>
+      )}
+
+      {/* Operation Toasts for evaluation status */}
+      {renderToasts()}
+
+      {/* Evaluation Control Modal — passes the same projectId +
+            evaluationConfigs as `/projects/[id]` so the metric / model /
+            annotator scope and the inline cost-estimate panel render
+            identically across both entry points. The HEAD version
+            replaces main's untyped pass-through filter — strict
+            field projection matches the modal's typed prop interface
+            introduced by the targeted-reevaluate-scope feature. */}
+      <EvaluationControlModal
+        isOpen={showEvaluationModal}
+        projectId={selectedProject?.id?.toString()}
+        evaluationConfigs={(projectEvalConfig?.evaluation_configs ?? [])
+          .filter((e) => e.enabled)
+          .map((e) => ({
+            id: e.id,
+            metric: e.metric,
+            display_name: e.display_name,
+            prediction_fields: e.prediction_fields,
+            reference_fields: e.reference_fields,
+            metric_parameters: e.metric_parameters,
+          }))}
+        onClose={() => setShowEvaluationModal(false)}
+        onRunWithMode={handleRunEvaluation}
+        onSuccess={() => setShowEvaluationModal(false)}
+      />
+    </>
+  )
+}

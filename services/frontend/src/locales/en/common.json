@@ -1530,8 +1530,7 @@
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
       "korrektur": "Correction",
-      "members": "Members",
-      "analysis": "Analysis"
+      "members": "Members"
     },
     "billing": {
       "title": "Billing",
@@ -5495,7 +5494,16 @@
         "selected": "selected",
         "noResults": "(no results)",
         "notRun": "(not run)",
-        "tasks": "tasks"
+        "tasks": "tasks",
+        "searchProjects": "Search projects",
+        "noProjectsFound": "No projects found.",
+        "moreProjects": "Show more ({shown} of {total})",
+        "run": "Run",
+        "runOption": "{name} ({status})",
+        "systems": "Systems",
+        "estimands": "Estimands",
+        "family": "Family",
+        "allFamilies": "All families"
       },
       "params": {
         "configure": "Configure",
@@ -5540,7 +5548,9 @@
           "heatmapNeedsModels": "Requires 2+ models",
           "boxNeedsSampleAggregation": "Select \"Per Sample\" analysis level for box plots",
           "boxComputingScores": "Computing sample scores...",
-          "boxNoSampleData": "No sample data available for this project"
+          "boxNoSampleData": "No sample data available for this project",
+          "forestNeedsModelAggregation": "The forest plot needs the Model analysis level",
+          "forestNoStatistics": "No per-model statistics available yet"
         }
       },
       "results": {
@@ -5587,6 +5597,16 @@
         "mode": "Evaluation Mode",
         "evaluateMissingOnly": "Evaluate Missing/Failed Only",
         "evaluateMissingDescription": "Only evaluates generations that haven't been evaluated yet or had evaluation errors"
+      },
+      "resultType": {
+        "label": "Result",
+        "metrics": "Metrics",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Start analysis",
+        "runDetails": "Run details",
+        "engine": "Engine"
       }
     },
     "export": {
@@ -6084,7 +6104,21 @@
       "strongNegative": "Strong negative",
       "weakNone": "Weak/none",
       "comparisonsAlpha": "{count} comparisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inference",
+        "inferenceDescription": "Multiplicity families with their adjusted p-values, equivalence tests, minimum detectable effects and joint tests, as the spec declares them.",
+        "noInference": "This run declares no families, equivalence bounds, power settings or joint tests.",
+        "familyTitle": "Family {family}: {method}, {size} tests",
+        "contrast": "Contrast",
+        "familyMde": "Minimum detectable effect of the family: {value} (power {power}, α {alpha})",
+        "mdeTitle": "Minimum detectable effects",
+        "mde": "MDE",
+        "power": "Power",
+        "jointTitle": "Joint tests (Wald)",
+        "test": "Test",
+        "fitTitle": "Fit"
+      }
     },
     "scoreDistribution": {
       "title": "Score Distribution",
@@ -6231,7 +6265,10 @@
       "tableChart": "Table + Chart",
       "tableChartDescription": "Data table with chart visualization",
       "tableChartBestFor": "Combined data and visualization view",
-      "selectView": "Select View"
+      "selectView": "Select View",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimates with confidence intervals",
+      "forestPlotBestFor": "Comparing estimates and their uncertainty"
     },
     "statistics": {
       "ci": "95% Confidence Intervals",
@@ -6331,7 +6368,11 @@
         "range90d": "90D",
         "rangeAll": "All",
         "noDataForRange": "No data available for selected date range"
-      }
+      },
+      "intervalAriaLabel": "Estimates with confidence intervals: {series}",
+      "intervalLegend": "Estimate with {level} confidence interval",
+      "pAdjustedShort": "p adj. {p}",
+      "series": "Series"
     },
     "fieldPair": {
       "label": "Field Pairs",
@@ -11906,7 +11947,6 @@
     }
   },
   "analysis": {
-    "title": "Analysis",
     "project": "Project",
     "scope": {
       "pooled": "Pooled"
@@ -11934,8 +11974,6 @@
       "more": "Showing the newest {shown} of {total} runs.",
       "col": {
         "name": "Name",
-        "status": "Status",
-        "created": "Started",
         "rows": "Frame rows",
         "estimates": "Estimates",
         "specHash": "Spec hash"
