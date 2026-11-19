@@ -77,16 +77,22 @@ describe('ForestPlot', () => {
         ariaLabel="plot"
       />,
     )
-    // Axis -10..10; the band covers the middle half of the plot width.
-    const band = screen.getByTestId('forest-plot-band')
     const svg = screen.getByRole('img')
-    const width = Number(svg.getAttribute('width'))
+    const tickX = (value: number) => {
+      const label = Array.from(svg.querySelectorAll('text')).find(
+        (node) =>
+          node.textContent?.replace('\u2212', '-') === String(value) &&
+          node.getAttribute('text-anchor') === 'middle',
+      )
+      if (!label) throw new Error(`no axis tick labelled ${value}`)
+      return Number(label.getAttribute('x'))
+    }
+    const band = screen.getByTestId('forest-plot-band')
     const x = Number(band.getAttribute('x'))
     const w = Number(band.getAttribute('width'))
-    const plotLeft = Math.min(240, Math.max(96, Math.round(width * 0.28))) + 8
-    const plotWidth = width - 180 - 12 - plotLeft
-    expect(x).toBeCloseTo(plotLeft + plotWidth / 4, 6)
-    expect(w).toBeCloseTo(plotWidth / 2, 6)
+    expect(x).toBeCloseTo(tickX(-5), 6)
+    expect(x + w).toBeCloseTo(tickX(5), 6)
+    expect(w).toBeCloseTo((tickX(10) - tickX(-10)) / 2, 6)
   })
 
   it('shortens long labels and keeps the full one as a tooltip', () => {
