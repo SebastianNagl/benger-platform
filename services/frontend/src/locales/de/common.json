@@ -9529,6 +9529,7 @@
         "title": "An das Modell gesendete Anfrage",
         "help": "Genau das, was der Provider-Client gesendet hat, einschließlich aller Blöcke, die die Plattform an die Prompts angehängt hat.",
         "none": "Keine Anfrage gespeichert (erzeugt, bevor sie gespeichert wurde).",
+        "hashOnly": "Von dieser Anfrage ist nur der Hash erhalten; die Aufzeichnung selbst ist nicht verfügbar, daher lässt sich die Anfrage nicht zeigen.",
         "model": "Modell-ID",
         "workerCall": "Der Provider-Client hat keine Anfrage gemeldet; das ist der Aufruf des Generierungs-Workers.",
         "roleSystem": "System",

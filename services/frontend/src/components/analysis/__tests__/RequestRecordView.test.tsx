@@ -126,6 +126,12 @@ describe('RequestRecordView', () => {
     )
     expect(screen.queryByTestId('request-hash-mismatch')).toBeNull()
     expect(screen.queryByTestId('request-hash-ok')).toBeNull()
+    // The kept hash shows the record existed: it was not "generated before
+    // it was recorded".
+    expect(
+      screen.getByText(/Only the hash of this request was kept/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/generated before it was recorded/)).toBeNull()
   })
 
   it('shows an older answer without a hash check, roles, a retry and a worker call', () => {

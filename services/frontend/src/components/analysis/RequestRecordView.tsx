@@ -179,7 +179,11 @@ export function RequestRecordView({ view }: { view: TrialRequestView }) {
         </dl>
       )}
       {!record ? (
-        <Notice>{t('generations.detail.request.none')}</Notice>
+        <Notice>
+          {view.request_sha256
+            ? t('generations.detail.request.hashOnly')
+            : t('generations.detail.request.none')}
+        </Notice>
       ) : (
         <>
           {record.capture === 'worker_call' && (
