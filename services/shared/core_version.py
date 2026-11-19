@@ -1497,10 +1497,10 @@ API change).
     (additive).
   - Frontend: ``@/components/analysis/ProjectAnalysesSection`` (the Analyses
     part of the project page's Evaluation card, CONTRIBUTOR and ORG_ADMIN
-    only) with ``VariantDesignsTable`` (status, units, cells, hash, check, freeze,
-    import)
-    and ``AnalysisPlansPanel``; ``StartAnalysisDialog`` takes ``planId`` and
-    offers a plan picker (saved plans, the ``fromRunId`` run, a blank spec);
+    only) with ``VariantDesignsTable`` (status, units, cells, hash, check,
+    freeze, import) and ``AnalysisPlansPanel``; ``StartAnalysisDialog``
+    takes ``planId`` and offers a plan picker (saved plans, the
+    ``fromRunId`` run, a blank spec);
     ``NewAnalysisRunForm`` is built on ``AnalysisSpecForm`` (name, spec,
     validate, submit) and takes ``planHash``. ``analysisAPI.listPlans`` and
     ``savePlans``; ``specErrorsOf`` also reads ``invalid_analysis_plan``.

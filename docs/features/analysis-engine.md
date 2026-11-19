@@ -367,8 +367,8 @@ and freeze designs). It holds:
 - **Variant designs**: every design of the project with its status (draft or
   frozen), version, units, cells and tasks (the distinct units, distinct
   design cells and tasks that name the design, as `unit_count`, `cell_count`
-  and `task_count` of `GET .../variant-designs`) and frozen content hash. **Check** runs the
-  assignment, balance and invariance checks
+  and `task_count` of `GET .../variant-designs`) and frozen content hash.
+  **Check** runs the assignment, balance and invariance checks
   (`POST .../variant-designs/{key}/check`) and shows the report as the route
   answered it: units, cells per unit, checked pairs, the problems of each
   check and the content hash a freeze would record. **Freeze** (after a
