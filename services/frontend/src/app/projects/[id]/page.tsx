@@ -68,6 +68,7 @@ import {
   hasRecommendations,
 } from '@/lib/modelConstraints'
 import { projectIcon } from '@/lib/projectKind'
+import { evaluationsPath } from '@/lib/results/paths'
 import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
@@ -890,7 +891,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       case 'feedback':
       case 'generation':
       case 'evaluations':
-      case 'analysis':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
       case 'editorActions':
         // Extended editor actions; their endpoints check edit rights too.
@@ -902,33 +902,37 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   }
 
-  // Analysis runs of variant experiments: the quick action shows once the
-  // project declares a variant design (a run needs one). Only fetched for
-  // the viewers who may see the action.
-  const mayOpenAnalysis = accessTierKnown && canSeeQuickAction('analysis')
-  const [variantDesigns, setVariantDesigns] = useState<{
+  // Analysis runs of variant experiments open in the evaluations page's
+  // Analyses view. The Evaluations quick action goes there directly when the
+  // project has analysis runs or variant designs but no metric configs.
+  // Only fetched for the viewers who may see the action.
+  const mayOpenEvaluations = accessTierKnown && canSeeQuickAction('evaluations')
+  const [analysisPresence, setAnalysisPresence] = useState<{
     projectId: string
     any: boolean
   } | null>(null)
   useEffect(() => {
-    if (!projectId || !mayOpenAnalysis) return
+    if (!projectId || !mayOpenEvaluations) return
     let cancelled = false
-    analysisAPI
-      .listDesignKeys(projectId)
-      .then((keys) => {
-        if (!cancelled) setVariantDesigns({ projectId, any: keys.length > 0 })
-      })
-      .catch(() => {
-        // No designs readable: the action stays hidden.
-      })
+    Promise.allSettled([
+      analysisAPI.listRuns(projectId, 1),
+      analysisAPI.listDesignKeys(projectId),
+    ]).then(([runs, designs]) => {
+      if (cancelled) return
+      const hasRuns =
+        runs.status === 'fulfilled' && (runs.value?.total ?? 0) > 0
+      const hasDesigns =
+        designs.status === 'fulfilled' && (designs.value?.length ?? 0) > 0
+      setAnalysisPresence({ projectId, any: hasRuns || hasDesigns })
+    })
     return () => {
       cancelled = true
     }
-  }, [projectId, mayOpenAnalysis])
-  const hasVariantDesigns =
-    mayOpenAnalysis &&
-    variantDesigns?.projectId === projectId &&
-    variantDesigns.any
+  }, [projectId, mayOpenEvaluations])
+  const opensAnalyses =
+    analysisPresence?.projectId === projectId &&
+    analysisPresence.any &&
+    evaluationConfigs.length === 0
 
   const handleStartLabeling = () => {
     if (projectId) {
@@ -3119,23 +3123,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               {canSeeQuickAction('evaluations') && (
                 <Button
                   onClick={() =>
-                    router.push(`/evaluations?projectId=${projectId}`)
+                    router.push(
+                      evaluationsPath({
+                        projectId,
+                        type: opensAnalyses ? 'analysis' : 'metrics',
+                      }),
+                    )
                   }
                   variant="outline"
                   className="w-full"
+                  data-testid="project-evaluations"
                 >
                   {t('project.quickActions.evaluations')}
-                </Button>
-              )}
-
-              {hasVariantDesigns && (
-                <Button
-                  href={`/projects/${projectId}/analysis`}
-                  variant="outline"
-                  className="w-full"
-                  data-testid="project-analysis"
-                >
-                  {t('project.quickActions.analysis')}
                 </Button>
               )}
 

@@ -5,8 +5,8 @@ they agree, separately for every control of the labeling interface. The
 numbers appear in two places:
 
 - on the evaluations page (`/evaluations`), in the "Annotator agreement"
-  block below the evaluation results of the selected project, computed from
-  the live annotations;
+  block below the evaluation results of the selected project in the
+  Metrics view, computed from the live annotations;
 - in the project report, at the end of the Annotation section, frozen into
   the report snapshot when the report is published or refreshed. The report
   editor's Annotation card has a switch to hide the block; with it off,

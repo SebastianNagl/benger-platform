@@ -1465,7 +1465,39 @@ frame format 2).
     lists of the snapshot and the Annotation section, keeping the aggregates
     and ``participant_count``. The stored snapshot is not changed.
 
-2.69 (2026-11-19): the project report covers the whole project (no
+2.69 (2026-11-19): analysis runs on the evaluations page (no migration, no
+API change).
+  - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
+    (``?type=analysis``) with the URL state ``run``, ``chartType``,
+    ``systems``, ``estimands``, ``family`` and ``newRunFrom`` (opens the
+    start dialog prefilled with that run's spec). The run page moved to
+    ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
+    ``/projects/[id]/analysis?from=<runId>`` and
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308, in the
+    frontend proxy).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)``,
+    ``evaluationsPath({ projectId, type, run, newRunFrom })`` and
+    ``legacyAnalysisPath(pathname, search)``. Overlays link to result pages
+    through them.
+  - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
+    ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
+    ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):
+    one shape for metric statistics and analysis estimates.
+  - ``ChartType`` gains ``forest`` (both result types);
+    ``DynamicChartRenderer`` takes ``intervalRows`` (forest, and bar and
+    table without models); ``ForestPlot`` takes ``mode`` (``point`` or
+    ``bar``); ``EstimatesTable`` takes ``showFilters``;
+    ``StatisticalResultsPanel`` takes ``analysis`` (``{ run, estimates }``)
+    and shows its Inference and Fit blocks
+    (``@/components/evaluation/statistics/AnalysisStatistics``);
+    ``@/components/analysis/StartAnalysisDialog`` wraps the spec form.
+  - The compliance slot ``AnalysisRunFindings`` keeps its name and props
+    (``{ projectId, run, estimates }``) and renders in two hosts: the run
+    page and, for the selected run, inline in the Analyses view of
+    ``/evaluations``. The component must render compact content without a
+    page heading, breadcrumb or full-width layout.
+
+2.70 (2026-11-19): the project report covers the whole project (no
   migration, additive API changes only).
   - ``report_snapshot.build_report_snapshot`` adds the ``data``,
     ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
@@ -1489,7 +1521,7 @@ frame format 2).
 
 import os
 
-CORE_API_VERSION = "2.69"
+CORE_API_VERSION = "2.70"
 
 
 def extended_required() -> bool:

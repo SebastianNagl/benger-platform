@@ -192,10 +192,13 @@ class TestExtensionLoader:
         # 2.68 adds inter-annotator agreement per control (the
         # annotator-agreement route, the snapshot's annotator_agreement and
         # show_agreement, section visibility applied on read).
-        # 2.69 adds the report's data, generation, human evaluation and
+        # 2.69 moves analysis runs onto the evaluations page (result type,
+        # /evaluations/analysis/[runId], path helpers, interval rows) and
+        # renders AnalysisRunFindings in two hosts.
+        # 2.70 adds the report's data, generation, human evaluation and
         # reproducibility sections, snapshot_sha256 and report authorship
         # for project owners and org admins.
-        assert CORE_API_VERSION == "2.69"
+        assert CORE_API_VERSION == "2.70"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
