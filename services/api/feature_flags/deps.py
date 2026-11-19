@@ -150,3 +150,63 @@ def require_extension_active_v1(package: str):
 
     _require_extension_active_v1.__name__ = f"require_extension_active_v1_{package}"
     return _require_extension_active_v1
+
+
+# ---------------------------------------------------------------------------
+# Platform flags of the experiment features (core 2.69)
+# ---------------------------------------------------------------------------
+
+
+def key_organization_of(request: Optional[Request]) -> Optional[str]:
+    """The organization of the request's organization access key, else None."""
+    if request is None:
+        return None
+    from auth_module.principal import get_principal
+
+    try:
+        principal = get_principal(request)
+    except Exception:
+        return None
+    if principal is not None and principal.is_api_key:
+        return principal.organization_id
+    return None
+
+
+async def flag_on(db: AsyncSession, user, name: str, request: Optional[Request] = None) -> bool:
+    """Whether ``name`` is on for this caller (an organization key's
+    organization counts), for handlers whose behaviour changes with a flag."""
+    return await service.is_enabled_for_caller(
+        db, user, name, organization_id=key_organization_of(request)
+    )
+
+
+def flag_on_sync(db, user, name: str, request: Optional[Request] = None) -> bool:
+    """Sync twin of :func:`flag_on`."""
+    return service.is_enabled_for_caller_sync(
+        db, user, name, organization_id=key_organization_of(request)
+    )
+
+
+#: Router gate of everything ``variant_experiments`` covers. One callable, so
+#: FastAPI resolves it once per request however many routers carry it.
+require_variant_experiments = require_feature_flag(
+    registry.VARIANT_EXPERIMENTS, key_organization=True
+)
+
+#: Router gate of the compliance records and their routes.
+require_compliance_records = require_feature_flag(registry.COMPLIANCE_RECORDS)
+
+
+async def context_flag_on(db: AsyncSession, name: str) -> bool:
+    """``name`` for the current request's caller when the handler code at
+    hand has no user of its own (shared helpers called from several routes):
+    an answer a ``feature_flags.scope`` holds, else the request context's
+    user (``extension_activation``; the API middleware sets it from the
+    session)."""
+    from feature_flags.scope import scoped_answer
+
+    answer = scoped_answer(name)
+    if answer is not None:
+        return answer
+    user_id = activation.current_context().user_id
+    return await service.is_enabled_for(db, user_id, name)

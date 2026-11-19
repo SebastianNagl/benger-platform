@@ -334,7 +334,13 @@ def calculate_project_stats(
             project_id
         ]
     response.evaluations_completed_count = response.evaluation_count
-    response.analysis_count = count_analysis_runs_by_project(db, [project_id])[project_id]
+    # Analysis runs belong to variant_experiments (core 2.69): off, the
+    # count is not taken and stays at 0 (the page hides the row).
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    if scoped_flag(VARIANT_EXPERIMENTS):
+        response.analysis_count = count_analysis_runs_by_project(db, [project_id])[project_id]
 
     # Mirror to the legacy aliases so frontends reading either name see the
     # same value (the labeling page reads num_tasks for the "Task X of Y"
@@ -439,9 +445,15 @@ async def calculate_project_stats_async(
             await count_eval_pairs_by_project_async(db, [project_id])
         )[project_id]
     response.evaluations_completed_count = response.evaluation_count
-    response.analysis_count = (
-        await count_analysis_runs_by_project_async(db, [project_id])
-    )[project_id]
+    # Analysis runs belong to variant_experiments (core 2.69): off, the
+    # count is not taken and stays at 0 (the page hides the row).
+    from feature_flags.deps import context_flag_on
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+
+    if await context_flag_on(db, VARIANT_EXPERIMENTS):
+        response.analysis_count = (
+            await count_analysis_runs_by_project_async(db, [project_id])
+        )[project_id]
 
     response.num_tasks = response.task_count
     response.num_annotations = response.annotation_count

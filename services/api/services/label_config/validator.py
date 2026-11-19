@@ -267,7 +267,8 @@ class LabelConfigValidator:
         cls._validate_element(root, errors, field_names)
 
         # Repeater blocks: binding, index flag and answer-key rules
-        errors.extend(repeater_errors(root))
+        if cls._repeater_enabled():
+            errors.extend(repeater_errors(root))
 
         # Check for duplicate field names
         seen_names = set()
@@ -277,6 +278,17 @@ class LabelConfigValidator:
             seen_names.add(name)
 
         return errors
+
+    @staticmethod
+    def _repeater_enabled() -> bool:
+        """Whether ``<Repeater>`` configs are accepted: per-item answers
+        belong to the variant_experiments flag (core 2.69), decided for the
+        current request's caller. Off, a Repeater is an unsupported field
+        type as before."""
+        from feature_flags.registry import VARIANT_EXPERIMENTS
+        from feature_flags.scope import scoped_flag
+
+        return scoped_flag(VARIANT_EXPERIMENTS)
 
     @classmethod
     def _validate_element(
@@ -297,11 +309,12 @@ class LabelConfigValidator:
                 a name inside one is checked as its first expansion
                 (``risk_{{idx}}`` as ``risk_0``)
         """
-        # Check if field type is supported (built-in or extension-registered)
+        # Check if field type is supported (built-in or extension-registered).
+        # <Repeater> (per-item answers) only with variant_experiments.
         if (
             element.tag not in cls.SUPPORTED_FIELD_TYPES
             and element.tag not in cls._EXTENSION_FIELD_TYPES
-        ):
+        ) or (element.tag == REPEATER_TAG and not cls._repeater_enabled()):
             errors.append(f"Unsupported field type: '{element.tag}'")
 
         # Check required 'name' attribute
@@ -325,7 +338,7 @@ class LabelConfigValidator:
                     )
                 field_names.append(name)
 
-        if element.tag == REPEATER_TAG:
+        if element.tag == REPEATER_TAG and cls._repeater_enabled():
             index_flag = index_flag_of(element)
 
         # Recursively validate children

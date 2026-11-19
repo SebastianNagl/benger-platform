@@ -40,6 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import compliance_records as records
 from auth_module.dependencies import require_user
 from database import get_async_db
+from feature_flags.deps import require_compliance_records
 from models import (
     ComplianceAssessment,
     ComplianceFinding,
@@ -52,7 +53,12 @@ from models import (
 )
 from project_models import Project
 
-router = APIRouter(prefix="/api/compliance", tags=["compliance-records"])
+# Behind the compliance_records flag (core 2.69): 404 feature_disabled while off.
+router = APIRouter(
+    prefix="/api/compliance",
+    tags=["compliance-records"],
+    dependencies=[Depends(require_compliance_records)],
+)
 
 EDITOR_ROLES = (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
 

@@ -12,7 +12,9 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import ResponseGeneration as DBResponseGeneration
-from generation_fidelity import MAX_GENERATION_RUNS_PER_TASK
+from feature_flags.deps import flag_on
+from feature_flags.registry import VARIANT_EXPERIMENTS
+from generation_fidelity import max_runs_per_task
 from project_models import Project
 from routers.projects.helpers import check_project_accessible_async
 
@@ -97,19 +99,18 @@ async def update_generation_config(
     # Validate runs_per_task — bounded so a fat-finger entry can't queue
     # thousands of trial jobs by accident.
     if "runs_per_task" in config:
+        # Above 25 only with variant_experiments (core 2.69).
+        runs_cap = max_runs_per_task(await flag_on(db, current_user, VARIANT_EXPERIMENTS))
         runs_per_task = config["runs_per_task"]
         if (
             not isinstance(runs_per_task, int)
             or isinstance(runs_per_task, bool)
             or runs_per_task < 1
-            or runs_per_task > MAX_GENERATION_RUNS_PER_TASK
+            or runs_per_task > runs_cap
         ):
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    "runs_per_task must be an integer between 1 and "
-                    f"{MAX_GENERATION_RUNS_PER_TASK}"
-                ),
+                detail=f"runs_per_task must be an integer between 1 and {runs_cap}",
             )
 
     from utils.json_merge import deep_merge_dicts

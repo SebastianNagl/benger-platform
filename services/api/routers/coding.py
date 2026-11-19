@@ -44,6 +44,7 @@ import seb
 from auth_module import require_user
 from celery_client import send_task_safe
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from models import CodeValidation, CodingProject, Generation, ResponseGeneration
 from project_models import Project, Task
 from routers.projects.deps import ProjectAccess, require_project_access
@@ -55,7 +56,8 @@ from variant_designs import META_KEY as VARIANT_META_KEY
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["coding"])
+# Behind the variant_experiments flag (core 2.69): 404 feature_disabled while off.
+router = APIRouter(tags=["coding"], dependencies=[Depends(require_variant_experiments)])
 
 MAX_CODING_TASKS = 20000
 CANDIDATE_BATCH = 1000

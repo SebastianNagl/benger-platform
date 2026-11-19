@@ -16,6 +16,7 @@ from app.core.authorization import Permission, auth_service
 from auth_module import require_user
 from auth_module.models import User
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from label_config_repeater import derive_slot_map, has_repeater
 from services.label_config.project_expansion import expanded_project_label_config_async
 from services.label_config.version_service import LabelConfigVersionService
@@ -43,7 +44,11 @@ async def _viewable_project(project_id: str, db: AsyncSession, current_user: Use
     return project
 
 
-@router.get("/{project_id}/label-config/label-studio")
+# Per-item answers (variant_experiments, core 2.69): 404 feature_disabled while off.
+@router.get(
+    "/{project_id}/label-config/label-studio",
+    dependencies=[Depends(require_variant_experiments)],
+)
 async def get_label_config_for_label_studio(
     project_id: str,
     db: AsyncSession = Depends(get_async_db),
@@ -70,7 +75,10 @@ async def get_label_config_for_label_studio(
     }
 
 
-@router.get("/{project_id}/label-config/slots")
+@router.get(
+    "/{project_id}/label-config/slots",
+    dependencies=[Depends(require_variant_experiments)],
+)
 async def get_label_config_slot_map(
     project_id: str,
     task_id: str = Query(..., description="The task whose item counts expand the config"),

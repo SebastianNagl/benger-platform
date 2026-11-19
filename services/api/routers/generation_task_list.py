@@ -23,7 +23,9 @@ from models import LLMModel as DBLLMModel
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
-from generation_fidelity import MAX_GENERATION_RUNS_PER_TASK
+from generation_fidelity import MAX_GENERATION_RUNS_PER_TASK, max_runs_per_task
+from feature_flags.deps import flag_on
+from feature_flags.registry import VARIANT_EXPERIMENTS
 from utils.json_merge import deep_merge_dicts
 from services.usage_limits import check_active_runs
 from services.generation_planning import (
@@ -654,6 +656,25 @@ async def start_generation(
     so workers can always find the rows they are sent.
     """
 
+    # The runs cap above 25 belongs to variant_experiments (core 2.69): with
+    # the flag off an override above 25 is refused exactly as the request
+    # schema refused it before (422 less_than_equal).
+    runs_cap = max_runs_per_task(await flag_on(db, current_user, VARIANT_EXPERIMENTS))
+    if request.runs_per_task is not None and request.runs_per_task > runs_cap:
+        from fastapi.exceptions import RequestValidationError
+
+        raise RequestValidationError(
+            [
+                {
+                    "type": "less_than_equal",
+                    "loc": ("body", "runs_per_task"),
+                    "msg": f"Input should be less than or equal to {runs_cap}",
+                    "input": request.runs_per_task,
+                    "ctx": {"le": runs_cap},
+                }
+            ]
+        )
+
     # Get project and verify permissions
     project = await get_project_with_permissions(
         project_id, current_user, db
@@ -781,6 +802,29 @@ async def start_generation(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="model_ids must not contain empty ids",
         )
+
+    # Catalog models that belong to a feature flag (catalog_flags, core 2.69)
+    # do not exist for a caller who has it off: refused like an unknown model.
+    from catalog_flags import model_flag
+
+    flagged_rows = (
+        await db.execute(
+            select(DBLLMModel.id, DBLLMModel.default_config).where(
+                DBLLMModel.id.in_([m for m in model_ids if isinstance(m, str)])
+            )
+        )
+    ).all()
+    flagged = {row_id: model_flag(dc) for row_id, dc in flagged_rows if model_flag(dc)}
+    if flagged:
+        from feature_flags import service as flag_service
+
+        caller_flags = await flag_service.evaluate_all_for(db, current_user)
+        hidden = sorted(m for m, name in flagged.items() if not caller_flags.get(name, False))
+        if hidden:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown or inactive model(s): {', '.join(hidden)}",
+            )
 
     # BYOM guard: custom ("custom-...") model ids must exist, be active, and
     # be visible to the TRIGGERING user (creator / public / org-shared /
@@ -1037,7 +1081,7 @@ async def start_generation(
         runs_per_task = request.runs_per_task
     else:
         runs_per_task = int(generation_config.get("runs_per_task", 1) or 1)
-        runs_per_task = max(1, min(MAX_GENERATION_RUNS_PER_TASK, runs_per_task))
+        runs_per_task = max(1, min(runs_cap, runs_per_task))
 
     # Always use parallel processing for better performance
     # Queue generation jobs

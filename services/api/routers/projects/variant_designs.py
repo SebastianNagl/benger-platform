@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import variant_designs as vd
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from project_models import Task, VariantDesign
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.tasks.blinding import annotator_bound_fields_or_none_async
@@ -35,7 +36,8 @@ from variant_design_guard import (
     update_design_spec,
 )
 
-router = APIRouter()
+# Behind the variant_experiments flag (core 2.69): 404 feature_disabled while off.
+router = APIRouter(dependencies=[Depends(require_variant_experiments)])
 
 _BASE = "/{project_id}/variant-designs"
 

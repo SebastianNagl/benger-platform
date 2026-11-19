@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth_module import require_user
 from auth_module.principal import get_principal
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from models import AnalysisRun
 from project_models import Project
 from routers.analysis import (
@@ -45,7 +46,9 @@ from routers.v1._schemas import (
     Page,
 )
 
-router = APIRouter(tags=["analysis"])
+# Behind the variant_experiments flag (core 2.69); an organization key counts
+# for its organization.
+router = APIRouter(tags=["analysis"], dependencies=[Depends(require_variant_experiments)])
 
 _RUNS_KIND = "analysis_runs"
 _ESTIMATES_KIND = "analysis_estimates"

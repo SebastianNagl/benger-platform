@@ -19,6 +19,8 @@ from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
 from celery_client import send_task_safe
 from database import SessionLocal, get_async_db
+from feature_flags.deps import flag_on
+from feature_flags.registry import VARIANT_EXPERIMENTS
 from grade_scale_history import (
     GRADE_SCALE_KEY,
     apply_grade_scale_write,
@@ -421,7 +423,12 @@ async def list_projects(
         stats_map = await run_in_threadpool(_calculate_project_stats_batch_sync, project_ids)
         # Completed analysis runs, one grouped count on this session (the
         # same statement as the detail's count).
-        analysis_counts = await count_analysis_runs_by_project_async(db, project_ids)
+        # Analysis runs belong to variant_experiments (core 2.69).
+        analysis_counts = (
+            await count_analysis_runs_by_project_async(db, project_ids)
+            if await flag_on(db, current_user, VARIANT_EXPERIMENTS)
+            else {}
+        )
         gen_stats_map = await run_in_threadpool(
             _calculate_generation_stats_batch_sync, projects
         )

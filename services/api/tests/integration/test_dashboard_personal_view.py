@@ -456,8 +456,8 @@ async def test_the_cache_key_carries_the_view(async_test_client, async_test_db):
 
     keys = [c.args[0] for c in cache.get.call_args_list]
     assert keys == [
-        f"dashboard_stats:v6:{w['student'].id}:personal",
-        f"dashboard_stats:v6:{w['student'].id}:overview",
+        f"dashboard_stats:v6:{w['student'].id}:personal:0",
+        f"dashboard_stats:v6:{w['student'].id}:overview:0",
     ]
     assert promoted["scope"] == "overview"
     # The personal view is cached for a minute, the overview for five.

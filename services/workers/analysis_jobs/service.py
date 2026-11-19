@@ -159,6 +159,15 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
         if run is None:
             logger.info("run_analysis: run %s is missing or finished; nothing to do", run_id)
             return {"run_id": run_id, "status": "skipped"}
+        # Analyses belong to variant_experiments (core 2.69): a run whose
+        # owner has the flag off is not computed; it ends failed with the
+        # platform's feature-disabled message, its spec stays stored.
+        from feature_flags import FEATURE_DISABLED_MESSAGE, VARIANT_EXPERIMENTS
+        from feature_flags.worker import feature_disabled_result, flag_enabled_sync
+
+        if not flag_enabled_sync(db, run.created_by, VARIANT_EXPERIMENTS):
+            _fail(db, run_id, FEATURE_DISABLED_MESSAGE)
+            return {"run_id": run_id, **feature_disabled_result(VARIANT_EXPERIMENTS)}
         try:
             with extension_activation.use_context(
                 user_id=run.created_by, project_id=run.project_id, kind=extension_activation.KIND_TASK

@@ -404,7 +404,9 @@ def model_reasoning_config(model_name: str) -> Optional[Dict[str, Any]]:
 
     Provider services that send a reasoning knob only for models declaring
     it (DeepInfra) read the declaration here; it is the same one the model
-    picker renders its control from.
+    picker renders its control from. A declaration that belongs to a
+    feature flag (``catalog_flags``) counts only while the flag is on for
+    the job or caller (``feature_flags.scope.scoped_flag``).
     """
     global _REASONING_CONFIG_CACHE
     if _REASONING_CONFIG_CACHE is None:
@@ -413,7 +415,14 @@ def model_reasoning_config(model_name: str) -> Optional[Dict[str, Any]]:
         except Exception:
             _REASONING_CONFIG_CACHE = {}
     rc = _REASONING_CONFIG_CACHE.get(model_name)
-    return dict(rc) if rc is not None else None
+    if rc is None:
+        return None
+    from catalog_flags import reasoning_config_for
+    from feature_flags.scope import scoped_flag
+
+    if reasoning_config_for(rc, scoped_flag) is None:
+        return None
+    return dict(rc)
 
 
 def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:

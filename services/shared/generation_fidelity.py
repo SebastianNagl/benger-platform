@@ -49,11 +49,32 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 #: task stay one task with many runs; variant designs need dozens of them.
 MAX_GENERATION_RUNS_PER_TASK = 100
 
+#: The cap before generation fidelity raised it; it stays the cap while the
+#: ``variant_experiments`` flag is off (core 2.69).
+CLASSIC_MAX_GENERATION_RUNS_PER_TASK = 25
+
+
+def max_runs_per_task(experiments: bool) -> int:
+    """The runs-per-task cap for a caller with ``variant_experiments`` on or off."""
+    return MAX_GENERATION_RUNS_PER_TASK if experiments else CLASSIC_MAX_GENERATION_RUNS_PER_TASK
+
 #: Default and upper bound of ``refusal_heuristic.window`` (characters).
 DEFAULT_REFUSAL_WINDOW = 1500
 MAX_REFUSAL_WINDOW = 100_000
 
 STRUCTURED_OUTPUT_MODES = ("auto", "off")
+
+#: The answer-format option keys of a prompt structure. They belong to the
+#: ``variant_experiments`` flag (core 2.69): with it off, generation runs
+#: every structure at the defaults (``AnswerFormat()``) and the
+#: API neither shows nor writes them.
+ANSWER_FORMAT_KEYS = (
+    "append_schema_instruction",
+    "structured_output",
+    "format_retry",
+    "answer_schema",
+    "refusal_heuristic",
+)
 _REGEX_FLAGS = {"i": re.IGNORECASE, "m": re.MULTILINE, "s": re.DOTALL}
 
 # {{path}} or {{path|filter}}; the path is the dot notation of task data.

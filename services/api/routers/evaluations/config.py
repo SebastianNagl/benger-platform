@@ -21,6 +21,7 @@ from grade_scale_history import (
     grade_scale_changed,
 )
 from services.eval_subject_pools import count_eval_subject_pools
+from services.evaluation.config import metric_flag_on
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from services.label_config.project_expansion import (
     expanded_project_label_config_async,
@@ -394,7 +395,10 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
         if not isinstance(cfg, dict) or cfg.get("enabled") is False:
             continue
         metric = cfg.get("metric") or ""
-        if isinstance(metric, str) and (metric.startswith("korrektur_") or is_reference_free(metric)):
+        if isinstance(metric, str) and (
+            metric.startswith("korrektur_")
+            or (is_reference_free(metric) and metric_flag_on(metric))
+        ):
             continue
         ref = cfg.get("reference_fields")
         if isinstance(ref, list) and ref:
@@ -566,7 +570,9 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
         # A text pattern code needs a valid pattern set and one of its codes
         # (services/shared/analysis/text_patterns.py); without them every
         # cell would record an error instead of a code.
-        if cfg.get("metric") == "text_pattern":
+        # Only while variant_experiments is on for the caller (core 2.69):
+        # off, the config is stored as before and never runs.
+        if cfg.get("metric") == "text_pattern" and metric_flag_on("text_pattern"):
             _validate_text_pattern_parameters(mp)
 
         # Phase 7 consolidation guard: Falllösung's prompt template

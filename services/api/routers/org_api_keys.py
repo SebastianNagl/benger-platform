@@ -430,8 +430,20 @@ async def get_org_available_models(
     result = await db.execute(select(DBLLMModel).where(DBLLMModel.is_active == True))  # noqa: E712
     models = result.scalars().all()
 
+    # Catalog entries that belong to a feature flag (catalog_flags): offered
+    # only while it is on for the caller.
+    from catalog_flags import model_offered, served_default_config
+    from feature_flags import service as flag_service
+
+    caller_flags = await flag_service.evaluate_all_for(db, current_user)
+
+    def flag_is_on(name: str) -> bool:
+        return caller_flags.get(name, False)
+
     available_models = []
     for model in models:
+        if not model_offered(model.default_config, flag_is_on):
+            continue
         if model.provider in available_providers:
             available_models.append(
                 {
@@ -442,7 +454,7 @@ async def get_org_available_models(
                     "model_type": model.model_type,
                     "capabilities": model.capabilities,
                     "config_schema": model.config_schema,
-                    "default_config": model.default_config,
+                    "default_config": served_default_config(model.default_config, flag_is_on),
                     "input_cost_per_million": model.input_cost_per_million,
                     "output_cost_per_million": model.output_cost_per_million,
                     "parameter_constraints": model.parameter_constraints,

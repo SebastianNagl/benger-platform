@@ -154,7 +154,13 @@ class ParseResult:
 class ResponseParser:
     """Parser for LLM generation responses with Label Studio transformation."""
 
-    def __init__(self, generation_structure: Dict, label_config: str, answer_keys=None):
+    def __init__(
+        self,
+        generation_structure: Dict,
+        label_config: str,
+        answer_keys=None,
+        variant_experiments: bool = True,
+    ):
         """Initialize parser with generation structure and label config.
 
         Args:
@@ -164,7 +170,15 @@ class ResponseParser:
                 task (``generation_fidelity.AnswerKeys``): answer keys and
                 values the prompt asked for, read as control names and
                 stored values.
+            variant_experiments: Whether the ``variant_experiments`` flag
+                is on for the generation (core 2.69). Off, the parser reads
+                answers as before per-item answers existed: a multi-choice
+                field takes one choice value, a JSON boolean is no choice,
+                and JSON after prose is not looked for. ``<Repeater>``
+                configs (only written while the flag was on) parse either
+                way.
         """
+        self.variant_experiments = variant_experiments
         self.generation_structure = generation_structure
         self.answer_keys = answer_keys
         self.label_config = label_config
@@ -189,7 +203,9 @@ class ResponseParser:
             for name in multi_choice_names(label_config)
             if name in self.label_config_map
         }
-        self._validation_schema = self._with_choice_lists(self.json_schema)
+        self._validation_schema = (
+            self._with_choice_lists(self.json_schema) if variant_experiments else self.json_schema
+        )
         # The answer fields a response key may name.
         self._answer_fields = list(self.label_config_map) + [
             name
@@ -265,6 +281,7 @@ class ResponseParser:
                 self.generation_structure,
                 expand_repeaters(self.label_config, task_data),
                 answer_keys=self.answer_keys,
+                variant_experiments=self.variant_experiments,
             )
             parser._array_blocks = [b for b in self._repeater_blocks if b.controls]
             self._task_parsers[shape] = parser
@@ -294,6 +311,8 @@ class ResponseParser:
             try:
                 parsed_data = json.loads(json_text)
             except json.JSONDecodeError as decode_error:
+                if not self.variant_experiments:
+                    raise
                 fallback = last_json_value(response_text)
                 if fallback is not None:
                     result = self._parse_decoded(fallback)
@@ -392,7 +411,7 @@ class ResponseParser:
     def _coerce_boolean_choices(self, parsed_data: Any) -> Any:
         """A JSON ``true``/``false`` answering a Choices field whose choice
         values are ``"true"``/``"false"`` (any case), read as that choice."""
-        if not isinstance(parsed_data, dict):
+        if not self.variant_experiments or not isinstance(parsed_data, dict):
             return parsed_data
 
         def coerce(value: Any, choices: List[str]) -> Any:

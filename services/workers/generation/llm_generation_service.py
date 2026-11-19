@@ -24,6 +24,7 @@ import tasks
 from typing import Any, Dict, Optional
 from ai_services.request_capture import build_request_record, request_sha256
 from generation_fidelity import (
+    AnswerFormat,
     answer_format,
     answer_skeleton,
     refusal_matches,
@@ -94,29 +95,46 @@ def _reasoning_only_note(response_data: Dict[str, Any]) -> str:
     return ""
 
 
-def _call_provider(ai_service: Any, structured: bool, call_kwargs: Dict[str, Any]):
+def _call_provider(
+    ai_service: Any,
+    structured: bool,
+    call_kwargs: Dict[str, Any],
+    experiments: bool = True,
+):
     """One provider call; returns ``(response_data, captured_requests)``.
 
-    The call runs inside a request-capture scope, so ``captured_requests``
-    holds exactly what the provider client sent (see
+    With ``experiments`` (the ``variant_experiments`` flag of the job, core
+    2.69) the call runs inside a request-capture scope, so
+    ``captured_requests`` holds exactly what the provider client sent (see
     ``ai_services.request_capture``); empty for a client that reports
-    nothing, such as a test double.
+    nothing, such as a test double. Without it nothing is captured, as
+    before the request record existed. Either way the call runs in a
+    ``feature_flags.scope`` holding the job's answer, so the provider client
+    sends only the catalog knobs the flag allows.
     """
     import asyncio
 
     from ai_services.request_capture import capture_requests
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import flag_scope
 
     fn = ai_service.generate_structured if structured else ai_service.generate
-    with capture_requests() as captured:
+
+    def _run():
         if asyncio.iscoroutinefunction(fn):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                response_data = loop.run_until_complete(fn(**call_kwargs))
+                return loop.run_until_complete(fn(**call_kwargs))
             finally:
                 loop.close()
-        else:
-            response_data = fn(**call_kwargs)
+        return fn(**call_kwargs)
+
+    with flag_scope({VARIANT_EXPERIMENTS: experiments}):
+        if not experiments:
+            return _run(), []
+        with capture_requests() as captured:
+            response_data = _run()
     return response_data, list(captured)
 
 
@@ -682,6 +700,21 @@ def generate_llm_responses_impl(
             if not model:
                 raise Exception(f"Model {model_id} not found")
 
+            # The experiment features (variant_experiments, core 2.69) for
+            # the user the generation belongs to, decided once for the job:
+            # off, it generates as the platform did before them (no request
+            # record, no system key, no answer-format options, the previous
+            # answer schema and parsing). A catalog model that belongs to a
+            # flag that is off does not exist for the job (catalog_flags).
+            from catalog_flags import model_flag
+            from feature_flags.registry import VARIANT_EXPERIMENTS
+            from feature_flags.worker import flag_enabled_sync
+
+            experiments = flag_enabled_sync(db, user_id, VARIANT_EXPERIMENTS)
+            _model_flag = model_flag(getattr(model, "default_config", None))
+            if _model_flag and not flag_enabled_sync(db, user_id, _model_flag):
+                raise Exception(f"Model {model_id} not found")
+
             # BYOM: re-check access + liveness for custom models (mid-run
             # revocation guard — see _check_custom_model_access).
             if not getattr(model, "is_official", True):
@@ -1095,7 +1128,7 @@ def generate_llm_responses_impl(
                                 ]
                             # Qwen / Gemma / Nemotron chat templates on
                             # DeepInfra: enable_thinking ("on" / "off")
-                            if "enable_thinking" in model_config:
+                            if experiments and "enable_thinking" in model_config:
                                 reasoning_kwargs["enable_thinking"] = model_config[
                                     "enable_thinking"
                                 ]
@@ -1226,7 +1259,11 @@ def generate_llm_responses_impl(
                         # retry, task-dependent answer keys, and a refusal
                         # heuristic. A structure without these options keeps
                         # the defaults (append, structured output on).
-                        fmt = answer_format(generation_structure)
+                        fmt = (
+                            answer_format(generation_structure)
+                            if experiments
+                            else AnswerFormat()
+                        )
                         answer_keys = render_answer_schema(
                             fmt.answer_schema,
                             task_content,
@@ -1243,7 +1280,9 @@ def generate_llm_responses_impl(
                                 # task_data: a <Repeater> block asks for one
                                 # object per item of this task's array.
                                 json_schema = generate_json_schema_from_label_config(
-                                    project.label_config, task_data=task_content
+                                    project.label_config,
+                                    task_data=task_content,
+                                    variant_experiments=experiments,
                                 )
                                 if answer_keys is not None:
                                     json_schema = answer_keys.rename_schema(json_schema)
@@ -1295,7 +1334,7 @@ def generate_llm_responses_impl(
                             f"generation for {model.provider}"
                         )
                         response_data, captured = _call_provider(
-                            ai_service, use_structured_output, call_kwargs
+                            ai_service, use_structured_output, call_kwargs, experiments
                         )
                         sent_requests = captured or [
                             _worker_call_entry(
@@ -1344,38 +1383,41 @@ def generate_llm_responses_impl(
                                     _seed_prov["value"] = None
                                     _seed_prov["not_sent"] = not_sent
 
-                        # System identity: model id plus a hash of the
-                        # parameter profile that was sent. A reasoning arm of
-                        # the same model is a system of its own; seeds and run
-                        # indexes are not part of the profile. The profile is
-                        # read from the first request the client sent; for a
-                        # worker call or an unrecognised body it comes from
-                        # the run config (and the reasoning knobs DeepInfra
-                        # reports as sent).
-                        _profile_params: Dict[str, Any] = {
-                            "temperature": temperature,
-                            "max_tokens": max_tokens,
-                        }
-                        _sent_reasoning = metadata.get("reasoning_params_sent")
-                        if isinstance(_sent_reasoning, dict):
-                            _profile_params.update(_sent_reasoning)
-                            if _captured_parameters is not None:
-                                _captured_parameters.update(_sent_reasoning)
-                        else:
-                            _profile_params.update(
-                                {k: v for k, v in reasoning_kwargs.items() if k != "seed"}
+                        # The system key belongs to variant_experiments (core
+                        # 2.69): off, no system block, as before.
+                        if experiments:
+                            # System identity: model id plus a hash of the
+                            # parameter profile that was sent. A reasoning arm of
+                            # the same model is a system of its own; seeds and run
+                            # indexes are not part of the profile. The profile is
+                            # read from the first request the client sent; for a
+                            # worker call or an unrecognised body it comes from
+                            # the run config (and the reasoning knobs DeepInfra
+                            # reports as sent).
+                            _profile_params: Dict[str, Any] = {
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                            }
+                            _sent_reasoning = metadata.get("reasoning_params_sent")
+                            if isinstance(_sent_reasoning, dict):
+                                _profile_params.update(_sent_reasoning)
+                                if _captured_parameters is not None:
+                                    _captured_parameters.update(_sent_reasoning)
+                            else:
+                                _profile_params.update(
+                                    {k: v for k, v in reasoning_kwargs.items() if k != "seed"}
+                                )
+                            _profile_params = parameters_sent(sent_requests[0]) or _profile_params
+                            _system = system_record(
+                                model_id,
+                                _profile_params,
+                                provider=getattr(model, "provider", None),
+                                provider_model_id=metadata.get("provider_model_id") or api_model_name,
+                                response_model=metadata.get("response_model"),
                             )
-                        _profile_params = parameters_sent(sent_requests[0]) or _profile_params
-                        _system = system_record(
-                            model_id,
-                            _profile_params,
-                            provider=getattr(model, "provider", None),
-                            provider_model_id=metadata.get("provider_model_id") or api_model_name,
-                            response_model=metadata.get("response_model"),
-                        )
-                        metadata["system"] = _system
-                        if _captured_parameters is not None and "system" not in _captured_parameters:
-                            _captured_parameters["system"] = _system
+                            metadata["system"] = _system
+                            if _captured_parameters is not None and "system" not in _captured_parameters:
+                                _captured_parameters["system"] = _system
 
                         tasks.logger.info(
                             f"📝 Final response_text length: {len(response_text)}"
@@ -1415,6 +1457,7 @@ def generate_llm_responses_impl(
                                 generation_structure=generation_structure or {},
                                 label_config=project.label_config,
                                 answer_keys=answer_keys,
+                                variant_experiments=experiments,
                             )
 
                         def _parse(text: str):
@@ -1463,7 +1506,7 @@ def generate_llm_responses_impl(
                                 }
                                 tasks.logger.info(f"🔁 Format retry for task {task_data['id']}")
                                 retry_data, retry_captured = _call_provider(
-                                    ai_service, use_structured_output, retry_kwargs
+                                    ai_service, use_structured_output, retry_kwargs, experiments
                                 )
                                 sent_requests.extend(
                                     retry_captured
@@ -1545,16 +1588,18 @@ def generate_llm_responses_impl(
                                 "provider": provider_refusal,
                                 "heuristic": heuristic_refusal,
                             }
-                        metadata["refusal"] = provider_refusal or heuristic_refusal
-                        metadata["answer_format"] = {
-                            **fmt.as_record(),
-                            "schema_instruction_appended": schema_instruction_appended,
-                            "structured_output_requested": use_structured_output,
-                        }
+                        request_record = None
+                        if experiments:
+                            metadata["refusal"] = provider_refusal or heuristic_refusal
+                            metadata["answer_format"] = {
+                                **fmt.as_record(),
+                                "schema_instruction_appended": schema_instruction_appended,
+                                "structured_output_requested": use_structured_output,
+                            }
 
-                        # What the provider clients sent for this generation
-                        # (the first request, then any format retry).
-                        request_record = build_request_record(sent_requests)
+                            # What the provider clients sent for this generation
+                            # (the first request, then any format retry).
+                            request_record = build_request_record(sent_requests)
 
                         # Determine final status based on parse result and retry count
                         if parse_status != "success" and existing_attempts >= MAX_PARSE_RETRIES:
@@ -1627,7 +1672,9 @@ def generate_llm_responses_impl(
                             # Migration 143: what the provider clients sent
                             # and the first answer of a format retry.
                             request_record=request_record,
-                            request_sha256=request_sha256(request_record),
+                            request_sha256=(
+                                request_sha256(request_record) if request_record else None
+                            ),
                             first_response_content=first_response_content,
                             retried=first_response_content is not None,
                             # Phase 6.6 columns.

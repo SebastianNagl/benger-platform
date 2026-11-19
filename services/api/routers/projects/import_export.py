@@ -31,6 +31,8 @@ from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
 from celery_client import send_task_safe  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
+from feature_flags.deps import flag_on  # noqa: E402
+from feature_flags.registry import VARIANT_EXPERIMENTS  # noqa: E402
 from object_storage import is_import_key_of, object_storage  # noqa: E402
 from routers.projects._export_stream import (  # noqa: E402,F401
     EXPORT_FORMAT_MEDIA_TYPES,
@@ -695,7 +697,10 @@ async def create_import_job(
         )
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
-    source_manifest = _declared_manifest(data.source_manifest)
+    # Import provenance belongs to variant_experiments (core 2.69): off, the
+    # manifest and reimport are ignored as before and every import imports.
+    provenance = await flag_on(db, current_user, VARIANT_EXPERIMENTS, request)
+    source_manifest = _declared_manifest(data.source_manifest) if provenance else None
     task_kwargs = {}
     if mode == "merge":
         task_kwargs["mode"] = "merge"
@@ -703,7 +708,7 @@ async def create_import_job(
             task_kwargs["model_id_map"] = model_id_map
         if data.dry_run:
             task_kwargs["dry_run"] = True
-    if data.reimport:
+    if data.reimport and provenance:
         task_kwargs["reimport"] = True
 
     job = ImportJob(
@@ -892,9 +897,12 @@ async def create_cloud_import_jobs(
             detail=f"At most {_CLOUD_IMPORT_MAX_KEYS} files per cloud import",
         )
 
-    reimport = data.get("reimport", False)
-    if not isinstance(reimport, bool):
-        raise HTTPException(status_code=400, detail="reimport must be a boolean")
+    # reimport belongs to import provenance (variant_experiments, core 2.69).
+    reimport = False
+    if await flag_on(db, current_user, VARIANT_EXPERIMENTS, request):
+        reimport = data.get("reimport", False)
+        if not isinstance(reimport, bool):
+            raise HTTPException(status_code=400, detail="reimport must be a boolean")
 
     jail = conn.prefix or ""
     formats: Dict[str, str] = {}
@@ -1210,7 +1218,9 @@ async def create_full_import_job(
 
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
-    source_manifest = _declared_manifest(data.source_manifest)
+    # Import provenance belongs to variant_experiments (core 2.69).
+    provenance = await flag_on(db, current_user, VARIANT_EXPERIMENTS, request)
+    source_manifest = _declared_manifest(data.source_manifest) if provenance else None
 
     require_org_key_own_organization(request, data.organization_id)
     organization_id, organization_group_id = await _resolve_import_target_org(
@@ -1238,7 +1248,7 @@ async def create_full_import_job(
     task_kwargs = {}
     if model_id_map:
         task_kwargs["model_id_map"] = model_id_map
-    if data.reimport:
+    if data.reimport and provenance:
         task_kwargs["reimport"] = True
     try:
         # The options travel with the task message (a redelivery keeps them),
