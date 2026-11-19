@@ -63,6 +63,8 @@ from project_models import (
     TaskRubric,
     TaskRubricReviewEvent,
 )
+from label_config_repeater import control_targets, expand_repeaters, repeater_blocks
+
 # serializers relocated to /shared alongside this module (issue #158) so the
 # worker can import it; /shared is first on sys.path in both containers.
 from serializers import (
@@ -513,10 +515,19 @@ def stream_export_flat_csv(
 # Issue #964: span annotation format conversion for the Label Studio export.
 # Lives here (not in the API router) because the export worker runs
 # stream_export_label_studio and has no routers package.
-def convert_to_label_studio_format(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def convert_to_label_studio_format(
+    results: list[dict[str, Any]],
+    targets: Optional[tuple] = None,
+) -> list[dict[str, Any]]:
     """
     Convert BenGER annotation format to Label Studio format for export.
     Flattens span annotations: one result with spans array -> multiple results.
+
+    ``targets`` is ``label_config_repeater.control_targets`` of the task's
+    (expanded) label config. With it, a result whose ``to_name`` is missing
+    or names no object of the config gets its control's ``toName``: Label
+    Studio attaches a result to its object through ``to_name`` and does not
+    render one without a valid target. The stored results are not changed.
 
     BenGER format:
     {"from_name": "label", "type": "labels", "value": {"spans": [...]}}
@@ -556,6 +567,16 @@ def convert_to_label_studio_format(results: list[dict[str, Any]]) -> list[dict[s
             # Non-span annotations pass through unchanged
             output.append(result)
 
+    if targets:
+        control_to, object_names = targets
+        fixed = []
+        for item in output:
+            target = control_to.get(item.get("from_name")) if isinstance(item, dict) else None
+            if target and item.get("to_name") not in object_names:
+                item = {**item, "to_name": target}  # a copy: never touch the stored row
+            fixed.append(item)
+        output = fixed
+
     return output
 
 
@@ -581,6 +602,26 @@ def stream_export_label_studio(
     the container limit.
     """
     LS_BATCH_SIZE = 5
+
+    # Result targets of the project's config. A <Repeater> config has its own
+    # indexed control names per task, so its targets are computed per task
+    # (cached per item-count shape, the only thing its expansion depends on).
+    label_config = (
+        db.query(Project.label_config).filter(Project.id == project_id).scalar()
+    )
+    blocks = repeater_blocks(label_config)
+    static_targets = None if blocks else control_targets(label_config)
+    targets_by_shape: dict = {}
+
+    def _targets_for(task_data):
+        if not blocks:
+            return static_targets
+        shape = tuple(block.item_count(task_data) for block in blocks)
+        if shape not in targets_by_shape:
+            targets_by_shape[shape] = control_targets(
+                expand_repeaters(label_config, task_data)
+            )
+        return targets_by_shape[shape]
 
     eval_runs = db.query(EvaluationRun).filter(
         EvaluationRun.project_id == project_id
@@ -623,7 +664,9 @@ def stream_export_label_studio(
                 "project": project_id,
             }
             for ann in anns_by_task.get(task.id, []):
-                converted_result = convert_to_label_studio_format(ann.result)
+                converted_result = convert_to_label_studio_format(
+                    ann.result, _targets_for(task.data)
+                )
                 ls_ann = {
                     "id": ann.id,
                     "completed_by": ann.completed_by,

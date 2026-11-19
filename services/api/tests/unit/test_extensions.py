@@ -173,7 +173,9 @@ class TestExtensionLoader:
         # (base_service.classify_retryable).
         # 2.59 adds variant designs (variant_designs, the derived task
         # columns and their guards, meta.variant as a reserved key).
-        assert CORE_API_VERSION == "2.59"
+        # 2.60 adds per-slot label configs (<Repeater>, label_config_repeater,
+        # task_data on the response parser and the schema generator).
+        assert CORE_API_VERSION == "2.60"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

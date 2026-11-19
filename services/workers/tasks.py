@@ -620,13 +620,24 @@ def extract_label_config_fields(label_config: str) -> List[str]:
     """
     Extract annotation field names from Label Studio XML config.
     These field names should match the output field names from LLM responses.
+
+    Controls inside a <Repeater> are left out: they answer as a list of
+    objects under the block's own key (see label_config_repeater).
     """
     from xml.etree import ElementTree
 
     fields = []
     try:
         root = ElementTree.fromstring(label_config)
+        repeated = {
+            id(child)
+            for repeater in root.iter("Repeater")
+            for child in repeater.iter()
+            if child is not repeater
+        }
         for elem in root.iter():
+            if id(elem) in repeated:
+                continue
             # Only include annotation output elements (not data display elements like Header/Text)
             if elem.tag in ["TextArea", "Choices", "Rating", "Number"]:
                 name = elem.get("name")

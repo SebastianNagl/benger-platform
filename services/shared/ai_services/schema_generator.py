@@ -12,11 +12,19 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 
+from label_config_repeater import (
+    is_multi_choice,
+    REPEATER_TAG,
+    repeater_answer_schema,
+    repeater_blocks,
+)
+
 
 def generate_json_schema_from_label_config(
     label_config: str,
     include_descriptions: bool = True,
-    strict_mode: bool = True
+    strict_mode: bool = True,
+    task_data: Any = None,
 ) -> Dict[str, Any]:
     """
     Convert Label Studio label_config XML to JSON Schema.
@@ -25,6 +33,11 @@ def generate_json_schema_from_label_config(
         label_config: XML string defining the annotation interface
         include_descriptions: Whether to add field descriptions from placeholders
         strict_mode: If True, generates schema compatible with OpenAI strict mode
+        task_data: The task's data. A <Repeater> block becomes one array
+            property (named after the last segment of its ``on`` binding)
+            holding one object per item, keyed by each control's answer key;
+            with ``task_data`` its length is pinned to the task's item count.
+            Configs without a Repeater ignore it.
 
     Returns:
         JSON Schema dict compatible with OpenAI/Anthropic structured output
@@ -61,8 +74,31 @@ def generate_json_schema_from_label_config(
     properties = {}
     required = []
 
+    blocks = iter(repeater_blocks(label_config))
+    inside_repeater = {
+        id(child)
+        for repeater in root.iter(REPEATER_TAG)
+        for child in repeater.iter()
+        if child is not repeater
+    }
+
+    def _control_schema(element: ET.Element):
+        info = _parse_element(element, include_descriptions)
+        return None if info is None else (info[1], info[2])
+
     # Find all annotation control elements
     for elem in root.iter():
+        if elem.tag == REPEATER_TAG:
+            block = next(blocks)
+            if not block.controls:
+                continue
+            properties[block.answer_property] = repeater_answer_schema(
+                block, _control_schema, task_data=task_data, strict_mode=strict_mode
+            )
+            required.append(block.answer_property)
+            continue
+        if id(elem) in inside_repeater:
+            continue
         field_info = _parse_element(elem, include_descriptions)
         if field_info:
             name, prop_schema, is_required = field_info
@@ -117,6 +153,8 @@ def _parse_element(elem: ET.Element, include_descriptions: bool) -> Optional[Tup
             schema = {"type": "string", "enum": choices}
         else:
             schema = {"type": "string"}
+        if is_multi_choice(elem):
+            schema = {"type": "array", "items": schema}
         is_required = elem.get("required", "").lower() == "true"
         return (name, schema, is_required)
 
@@ -155,7 +193,8 @@ def _empty_schema() -> Dict[str, Any]:
 
 def generate_format_instructions(
     label_config: str,
-    include_example: bool = True
+    include_example: bool = True,
+    task_data: Any = None,
 ) -> str:
     """
     Generate human-readable format instructions for prompt injection.
@@ -169,7 +208,9 @@ def generate_format_instructions(
     Returns:
         Markdown-formatted instructions string
     """
-    schema = generate_json_schema_from_label_config(label_config, include_descriptions=True)
+    schema = generate_json_schema_from_label_config(
+        label_config, include_descriptions=True, task_data=task_data
+    )
 
     if not schema.get("properties"):
         return ""
@@ -181,8 +222,16 @@ def generate_format_instructions(
         description = field_schema.get("description", "")
         enum_values = field_schema.get("enum")
 
+        item_enum = (field_schema.get("items") or {}).get("enum") if field_type == "array" else None
         if enum_values:
             type_hint = f"one of: {', '.join(enum_values)}"
+        elif item_enum:
+            type_hint = f"list of one or more of: {', '.join(item_enum)}"
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "string":
+            type_hint = "list of strings"
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "object":
+            keys = ", ".join(field_schema["items"].get("properties", {}))
+            type_hint = f"list with one object per item (keys: {keys})"
         elif field_type == "integer":
             min_val = field_schema.get("minimum", 1)
             max_val = field_schema.get("maximum", 5)
@@ -220,8 +269,25 @@ def _generate_example(schema: Dict[str, Any]) -> Dict[str, Any]:
         field_type = field_schema.get("type", "string")
         enum_values = field_schema.get("enum")
 
+        item_enum = (field_schema.get("items") or {}).get("enum") if field_type == "array" else None
         if enum_values:
             example[field_name] = enum_values[0]
+        elif item_enum:
+            example[field_name] = [item_enum[0]]
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "string":
+            example[field_name] = ["..."]
+        elif field_type == "array" and (field_schema.get("items") or {}).get("type") == "object":
+            # One example object per item (one when the count is open).
+            count = field_schema.get("minItems", 1)
+            items = [_generate_example(field_schema["items"]) for _ in range(count)]
+            # An item-number key spanning exactly the items counts up.
+            for key, prop in field_schema["items"].get("properties", {}).items():
+                low, high = prop.get("minimum"), prop.get("maximum")
+                if prop.get("type") == "integer" and low is not None and high is not None:
+                    if high - low + 1 == count:
+                        for position, item in enumerate(items):
+                            item[key] = int(low) + position
+            example[field_name] = items
         elif field_type == "integer":
             example[field_name] = field_schema.get("minimum", 1)
         elif field_type == "number":
