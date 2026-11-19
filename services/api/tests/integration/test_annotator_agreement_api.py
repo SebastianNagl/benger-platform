@@ -347,3 +347,54 @@ async def test_participant_switch_hides_and_restores_frozen_per_person_data(
         assert _pair_names(snap["annotator_agreement"]) == all_names
         assert snap["participants"] == frozen["participants"]
         assert annotations["participants"] == section_participants
+
+
+@pytest.mark.asyncio
+async def test_agreement_switch_withholds_and_restores_frozen_agreement(
+    async_test_client, async_test_db, publishable
+):
+    admin, project = await _seed_overlap(async_test_db)
+    report = await _report(async_test_db, project, admin, show_participants=True)
+
+    async def save(show_agreement):
+        with _as_user(admin):
+            editor = await async_test_client.get(f"/api/projects/{project.id}/report")
+            content = editor.json()["content"]
+            content["sections"]["annotations"]["show_agreement"] = show_agreement
+            return await async_test_client.post(f"/api/projects/{project.id}/report", json={"content": content})
+
+    async def served(saved):
+        with _as_user(admin):
+            editor = await async_test_client.get(f"/api/projects/{project.id}/report")
+            draft = await async_test_client.get(f"/api/reports/{report.id}/data")
+        with _as_user(None):
+            public = await async_test_client.get(f"/api/reports/{report.id}/data")
+        for r in (saved, editor, draft, public):
+            assert r.status_code == 200, r.text
+        return [
+            saved.json()["content"]["snapshot"],
+            editor.json()["content"]["snapshot"],
+            draft.json()["snapshot"],
+            draft.json()["report"]["content"]["snapshot"],
+            public.json()["snapshot"],
+            public.json()["report"]["content"]["snapshot"],
+        ], public.text
+
+    with _as_user(admin):
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
+    frozen = published.json()["content"]["snapshot"]
+    assert frozen["annotator_agreement"]["controls"][0]["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
+
+    snaps, public_text = await served(await save(False))
+    for snap in snaps:
+        assert snap["annotator_agreement"] is None
+        assert {p["label"] for p in snap["participants"]} == {"Ash", "Birch", "Cedar"}
+    assert "fleiss_kappa" not in public_text
+    assert "cohens_kappa" not in public_text
+    await async_test_db.refresh(report)
+    assert report.content["snapshot"]["annotator_agreement"] == frozen["annotator_agreement"]
+
+    snaps, _ = await served(await save(True))
+    for snap in snaps:
+        assert snap["generated_at"] == frozen["generated_at"]
+        assert snap["annotator_agreement"] == frozen["annotator_agreement"]

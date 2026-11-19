@@ -9,7 +9,10 @@ numbers appear in two places:
   the live annotations;
 - in the project report, at the end of the Annotation section, frozen into
   the report snapshot when the report is published or refreshed. The report
-  editor's Annotation card has a switch to hide the block. When the card's
+  editor's Annotation card has a switch to hide the block; with it off,
+  every API response that carries the report or its snapshot leaves out the
+  agreement data entirely, and switching it back on shows the frozen block
+  again without a refresh. When the card's
   participant switch is off, the report keeps the summary numbers and the
   participant count, but every API response that carries the report or its
   snapshot leaves out the annotator pairs and both participant lists (the

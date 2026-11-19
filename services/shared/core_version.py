@@ -1459,10 +1459,11 @@ frame format 2).
     without ``available``, or ``None``), and the Annotation section the
     flag ``show_agreement``.
   - ``report_snapshot.apply_section_visibility`` applies the section flags
-    when a report is served: with ``show_participants`` off, every read
-    path leaves out the agreement pairs and the participant lists of the
-    snapshot and the Annotation section, keeping the aggregates and
-    ``participant_count``. The stored snapshot is not changed.
+    when a report is served: with ``show_agreement`` off, every read path
+    serves ``annotator_agreement`` as ``None``; with ``show_participants``
+    off, every read path leaves out the agreement pairs and the participant
+    lists of the snapshot and the Annotation section, keeping the aggregates
+    and ``participant_count``. The stored snapshot is not changed.
 """
 
 import os

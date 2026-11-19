@@ -290,20 +290,23 @@ def apply_section_visibility(
 ) -> Optional[Dict[str, Any]]:
     """The snapshot as a report with these sections may serve it.
 
-    With ``sections.annotations.show_participants`` off, the participant
-    list is empty and the annotator agreement keeps its aggregate numbers but
-    drops the per-pair rows, which name and score individual annotators;
-    ``statistics.participant_count`` stays."""
+    With ``sections.annotations.show_agreement`` off, the annotator agreement
+    is ``None``. With ``sections.annotations.show_participants`` off, the
+    participant list is empty and the annotator agreement keeps its aggregate
+    numbers but drops the per-pair rows, which name and score individual
+    annotators; ``statistics.participant_count`` stays."""
     if not isinstance(snapshot, dict):
         return snapshot
     annotations = (sections or {}).get("annotations") or {}
-    if annotations.get("show_participants") is not False:
-        return snapshot
-    served = {**snapshot, "participants": []}
-    agreement = snapshot.get("annotator_agreement")
-    if agreement:
-        controls = [{**c, "pairs": []} for c in agreement.get("controls") or []]
-        served["annotator_agreement"] = {**agreement, "controls": controls}
+    served = dict(snapshot)
+    if annotations.get("show_agreement") is False:
+        served["annotator_agreement"] = None
+    if annotations.get("show_participants") is False:
+        served["participants"] = []
+        agreement = served.get("annotator_agreement")
+        if agreement:
+            controls = [{**c, "pairs": []} for c in agreement.get("controls") or []]
+            served["annotator_agreement"] = {**agreement, "controls": controls}
     return served
 
 
