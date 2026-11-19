@@ -542,6 +542,46 @@ describe('GenerationRunDetailPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('flags a stored hash whose request record was removed', async () => {
+    routeGet(
+      {
+        ...baseDetail,
+        children: [
+          {
+            id: 'child-1',
+            run_index: 0,
+            status: 'completed',
+            has_response: true,
+            has_request_record: false,
+            request_sha256: 'ab'.repeat(32),
+          },
+        ],
+      },
+      {
+        'child-1': {
+          id: 'child-1',
+          run_index: 0,
+          request_record: null,
+          request_sha256: 'ab'.repeat(32),
+          computed_sha256: null,
+          hash_matches: false,
+        },
+      },
+    )
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    const sent = await screen.findByTestId('sent-request')
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/runs/generations/gen-run-123/trials/child-1/request',
+    )
+    expect(
+      within(sent).getByTestId('request-hash-mismatch'),
+    ).toBeInTheDocument()
+  })
+
   it('fetches the selected trial only and marks worker calls', async () => {
     const user = userEvent.setup()
     routeGet(

@@ -79,9 +79,10 @@ function SentRequest({
   const { t } = useI18n()
   const [trial, setTrial] = useState<TrialRequestView | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const recorded = Boolean(child.has_request_record || child.request_sha256)
 
   useEffect(() => {
-    if (!child.has_request_record) return
+    if (!recorded) return
     let cancelled = false
     ;(async () => {
       try {
@@ -97,9 +98,9 @@ function SentRequest({
     return () => {
       cancelled = true
     }
-  }, [generationId, child.id, child.has_request_record])
+  }, [generationId, child.id, recorded])
 
-  if (child.has_request_record && !trial && !error) {
+  if (recorded && !trial && !error) {
     return (
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {t('generations.detail.request.loading')}
@@ -113,7 +114,7 @@ function SentRequest({
       </p>
     )
   }
-  if (!trial?.request_record) {
+  if (!trial || (!trial.request_record && !trial.request_sha256)) {
     return (
       <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
         {t('generations.detail.request.none')}

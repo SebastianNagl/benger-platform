@@ -17,6 +17,7 @@ import {
   makeTrialRequest,
   makeUnitView,
 } from '@/test-utils/variantViewFixtures'
+import { RequestRecordView } from '../RequestRecordView'
 import { VariantUnitLoader, VariantUnitViewer } from '../VariantUnitViewer'
 
 jest.mock('@/contexts/I18nContext', () =>
@@ -174,6 +175,38 @@ describe('VariantUnitViewer', () => {
     expect(within(reference).getByText('request of g1')).toBeInTheDocument()
     await user.click(within(reference).getByText('Hide the request'))
     expect(within(reference).queryByText('request of g1')).toBeNull()
+  })
+
+  it('opens the hash check of an answer whose record was removed', async () => {
+    const user = userEvent.setup()
+    const view = makeUnitView()
+    view.tasks[0].generations = [
+      makeGeneration({ id: 'g1', has_request_record: false }),
+    ]
+    render(
+      <VariantUnitViewer
+        view={view}
+        requestView={(g) => (
+          <RequestRecordView
+            view={{
+              id: g.id,
+              run_index: g.run_index,
+              request_record: null,
+              request_sha256: g.request_sha256,
+              computed_sha256: null,
+              hash_matches: false,
+            }}
+          />
+        )}
+      />,
+    )
+    const reference = screen.getByTestId('unit-reference')
+    const button = within(reference).getByTestId('unit-answer-request')
+    expect(button).toBeEnabled()
+    await user.click(button)
+    expect(
+      within(reference).getByTestId('request-hash-mismatch'),
+    ).toBeInTheDocument()
   })
 
   it('disables the request of an answer without a record and shows no values', () => {

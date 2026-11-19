@@ -139,9 +139,9 @@ function Answer({
             className="font-medium text-emerald-700 hover:underline disabled:cursor-not-allowed disabled:text-zinc-400 disabled:no-underline dark:text-emerald-400 dark:disabled:text-zinc-500"
             onClick={() => setShowRequest((v) => !v)}
             aria-expanded={showRequest}
-            disabled={!g.has_request_record}
+            disabled={!g.has_request_record && !g.request_sha256}
             title={
-              g.has_request_record
+              g.has_request_record || g.request_sha256
                 ? undefined
                 : t('analysis.views.unit.noRequest')
             }
