@@ -78,6 +78,12 @@ class ScopedFit:
                 fe_iterations=self.iterations,
                 warnings=list(self.fit.warnings),
             )
+            if self.fit.converged is not None:
+                out.update(converged=self.fit.converged, iterations=self.fit.iterations)
+            if self.fit.separated:
+                out["separated"] = list(self.fit.separated)
+            if self.fit.extra:
+                out.update({k: v for k, v in self.fit.extra.items() if k not in out})
         return out
 
 
@@ -189,9 +195,13 @@ def _match(values: np.ndarray, level: Any) -> np.ndarray:
     return values.astype(float) == target
 
 
-def expand_term(columns, term: Any, where: str) -> Tuple[List[str], List[np.ndarray], Set[str], List[str]]:
+def expand_term(
+    columns, term: Any, where: str, keep_absent: bool = False
+) -> Tuple[List[str], List[np.ndarray], Set[str], List[str]]:
     """(names, columns, implied-zero names, absent names) of one term on the
-    sample. Absent names are dummy combinations with no row in the sample."""
+    sample. Absent names are dummy combinations with no row in the sample;
+    with ``keep_absent`` they are expanded like the others (all-zero
+    columns), which the counterfactual designs of marginal effects need."""
     if isinstance(term, str):
         return [term], [_numeric(columns, term, where)], set(), []
     if "dummies" in term:
@@ -208,7 +218,7 @@ def expand_term(columns, term: Any, where: str) -> Tuple[List[str], List[np.ndar
         absent: List[str] = []
         if term.get("by"):
             by_values = _column(columns, term["by"], where)
-            by_levels = _levels(by_values, None)
+            by_levels = _levels(by_values, term.get("_by_levels"))
             for lv in levels:
                 for g in by_levels:
                     name = f"{factor}[{_label(lv)}]:{term['by']}[{_label(g)}]"
@@ -216,7 +226,7 @@ def expand_term(columns, term: Any, where: str) -> Tuple[List[str], List[np.ndar
                         implied.add(name)
                         continue
                     col = (_match(values, lv) & _match(by_values, g)).astype(float)
-                    if col.sum() > 0:
+                    if keep_absent or col.sum() > 0:
                         names.append(name)
                         cols.append(col)
                     else:
@@ -234,7 +244,7 @@ def expand_term(columns, term: Any, where: str) -> Tuple[List[str], List[np.ndar
     implied: Set[str] = set()
     absent: List[str] = []
     for sub in term["interact"]:
-        sub_names, sub_cols, sub_implied, sub_absent = expand_term(columns, sub, where)
+        sub_names, sub_cols, sub_implied, sub_absent = expand_term(columns, sub, where, keep_absent)
         new_names, new_cols = [], []
         for n0 in names:
             for n1 in sub_absent:
@@ -458,7 +468,439 @@ def fit_paired(
     return fit, set(), len(idx), int((treated & mask).sum()) - len(idx), 0
 
 
-ESTIMATORS = {"fe_ols": fit_fe_ols, "mean_rate": fit_mean, "paired_within": fit_paired}
+# --------------------------------------------------------------------------
+# Shared design building for the likelihood estimators
+# --------------------------------------------------------------------------
+
+
+def _freeze_term(sub, term: Any) -> Any:
+    """``term`` with the levels of every dummy coding fixed to the ones of
+    the estimation sample, so a counterfactual design (one column set to a
+    single value) expands to the same parameter names."""
+    if isinstance(term, str):
+        return term
+    if "dummies" in term:
+        out = dict(term)
+        out["levels"] = _levels(sub[term["dummies"]], term.get("levels"))
+        if term.get("by"):
+            out["_by_levels"] = _levels(sub[term["by"]], None)
+        return out
+    return {"interact": [_freeze_term(sub, t) for t in term["interact"]]}
+
+
+def _expand_terms(sub, terms: Sequence[Any], where: str, keep_absent: bool = False):
+    names: List[str] = []
+    cols: List[np.ndarray] = []
+    implied: Set[str] = set()
+    absent: List[str] = []
+    for term in terms:
+        t_names, t_cols, t_implied, t_absent = expand_term(sub, term, where, keep_absent)
+        names += t_names
+        cols += t_cols
+        implied |= t_implied
+        absent += t_absent
+    if len(set(names)) != len(names):
+        dup = sorted({x for x in names if names.count(x) > 1})
+        raise EngineError(f"{where}: terms repeat the regressor(s) {', '.join(dup)}")
+    return names, cols, implied, absent
+
+
+def _fe_dummies(sub, fes, m: int):
+    """Intercept and one dummy per non-first level of every fixed-effect set
+    (the ``dummies`` method of fe_ols)."""
+    cols = [np.ones(m)]
+    for fe in fes:
+        codes, g = group_codes([sub[c] for c in fe])
+        for level in range(1, g):
+            cols.append((codes == level).astype(float))
+    names = ["(intercept)"] + [f"(fe{i})" for i in range(len(cols) - 1)]
+    return names, cols
+
+
+def _drop_zero(X: np.ndarray, names: List[str], conv) -> Tuple[np.ndarray, List[str], List[str]]:
+    if not conv.get("drop_zero_columns", True) or not X.size:
+        return X, names, []
+    keep = [j for j in range(X.shape[1]) if np.abs(X[:, j]).sum() > 0]
+    dropped = [names[j] for j in range(X.shape[1]) if j not in keep]
+    return X[:, keep], [names[j] for j in keep], dropped
+
+
+def _informative(y: np.ndarray, sub, fes, use: np.ndarray) -> np.ndarray:
+    """Rows of fixed-effect groups whose outcome varies (repeated over the
+    sets until nothing changes): a group with a constant binary outcome has
+    an infinite effect and carries no information on the other parameters."""
+    keep = use.copy()
+    changed = True
+    while changed and keep.any():
+        changed = False
+        for fe in fes:
+            idx = np.flatnonzero(keep)
+            codes, g = group_codes([sub[c][idx] for c in fe])
+            lo = np.full(g, np.inf)
+            hi = np.full(g, -np.inf)
+            np.minimum.at(lo, codes, y[idx])
+            np.maximum.at(hi, codes, y[idx])
+            flat = (hi - lo)[codes] <= 0
+            if flat.any():
+                keep[idx[flat]] = False
+                changed = True
+    return keep
+
+
+class LogitDesign:
+    """The design of a logit's estimation sample, rebuilt with one column set
+    to a value for average marginal effects."""
+
+    def __init__(self, sub, terms, names: List[str], fixed: Mapping[str, np.ndarray], term_inputs, fe_inputs, where):
+        self.sub = sub
+        self.terms = terms
+        self.names = names
+        self.fixed = fixed
+        self.term_inputs = set(term_inputs)
+        self.fe_inputs = set(fe_inputs)
+        self.where = where
+
+    def counterfactual(self, column: str, value: Any) -> np.ndarray:
+        if column in self.fe_inputs:
+            raise EngineError(f"{self.where}: {column!r} is a fixed-effect column; a margin cannot set it")
+        if column not in self.term_inputs:
+            raise EngineError(f"{self.where}: no term reads {column!r}")
+        m = len(next(iter(self.sub.values())))
+        cols = dict(self.sub)
+        if cols[column].dtype == object:
+            cols[column] = np.array([value if isinstance(value, str) else as_text(value)] * m, dtype=object)
+        else:
+            try:
+                cols[column] = np.full(m, float(value))
+            except (TypeError, ValueError):
+                raise EngineError(f"{self.where}: {column!r} is numeric; {value!r} is not a number") from None
+        t_names, t_cols, _, _ = _expand_terms(cols, self.terms, self.where, keep_absent=True)
+        by_name = dict(zip(t_names, t_cols))
+        out = np.zeros((m, len(self.names)))
+        for j, name in enumerate(self.names):
+            if name in self.fixed:
+                out[:, j] = self.fixed[name]
+            elif name in by_name:
+                out[:, j] = by_name[name]
+        return out
+
+
+def _ml_inputs(est, terms) -> Tuple[List[str], List[str]]:
+    numeric: List[str] = []
+    factors: List[str] = []
+    for term in terms:
+        a, b = _term_inputs(term)
+        numeric += a
+        factors += b
+    return numeric, factors
+
+
+def _logit_fit(y, X, names, sub, est, conv, where, clusters):
+    from analysis.ml import fit_logit, sandwich
+
+    result = fit_logit(y, X, tolerance=float(conv["ml_tolerance"]), max_iter=int(conv["ml_max_iter"]))
+    fit = sandwich(
+        result, names, vcov_type=est["vcov"]["type"], clusters=clusters, ssc=conv["ssc"], estimator=est["estimator"]
+    )
+    bound = float(conv["separation_bound"])
+    se = np.sqrt(np.clip(np.diag(fit.vcov), 0, None)) if fit.vcov.size else np.zeros(0)
+    fit.separated = [
+        name
+        for j, name in enumerate(names)
+        if not name.startswith("(fe")
+        and (abs(fit.beta[j]) > bound or not np.isfinite(se[j]) or se[j] < 1e-8)
+    ]
+    if fit.separated:
+        fit.warnings.append("separation (no p-values): " + ", ".join(fit.separated))
+    return fit
+
+
+def _rows_used(columns, n, est, mask, numeric, keys, where):
+    miss = _required_missing(columns, n, numeric, keys, where)
+    use = mask & ~miss
+    return use, int((mask & miss).sum())
+
+
+def fit_logit_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+    conv = est["conventions"]
+    terms = est["terms"]
+    numeric, factors = _ml_inputs(est, terms)
+    fes = [list(fe) for fe in est.get("fixed_effects") or []]
+    fe_cols = [c for fe in fes for c in fe]
+    use, dropped_rows = _rows_used(columns, n, est, mask, [est["outcome"]] + numeric, factors + fe_cols + _vcov_keys(est["vcov"]), where)
+    y_all = _numeric(columns, est["outcome"], where)
+    uninformative = 0
+    if fes and conv.get("informative_only", True):
+        keep = _informative(y_all, columns, fes, use)
+        uninformative = int((use & ~keep).sum())
+        use = keep
+    idx = np.flatnonzero(use)
+    sub = {name: arr[idx] for name, arr in columns.items()}
+    frozen = [_freeze_term(sub, t) for t in terms]
+    names, cols, implied, absent = _expand_terms(sub, frozen, where)
+    m = len(idx)
+    fixed: Dict[str, np.ndarray] = {}
+    if fes or est.get("intercept", True):
+        fe_names, fe_cols_arr = _fe_dummies(sub, fes, m) if fes else (["(intercept)"], [np.ones(m)])
+        if fes:
+            names, cols = names + fe_names, cols + fe_cols_arr
+        else:
+            names, cols = fe_names + names, fe_cols_arr + cols
+        fixed = dict(zip(fe_names, fe_cols_arr))
+    X = np.column_stack(cols) if cols else np.empty((m, 0))
+    X, names, zero = _drop_zero(X, names, conv)
+    clusters = _cluster_codes(sub, est["vcov"], np.arange(m), where)
+    fit = _logit_fit(sub[est["outcome"]].astype(float), X, names, sub, est, conv, where, clusters)
+    fit.dropped = list(absent) + zero
+    if zero:
+        fit.warnings.append("dropped identically-zero regressor(s): " + ", ".join(zero))
+    if absent:
+        fit.warnings.append("dummy combination(s) without rows: " + ", ".join(absent))
+    if uninformative:
+        fit.warnings.append(f"{uninformative} row(s) of fixed-effect groups without outcome variation left out")
+    fit.extra["rows_uninformative"] = uninformative
+    fit.design = LogitDesign(sub, frozen, names, fixed, numeric + factors, fe_cols, where)
+    return fit, implied, m, dropped_rows + uninformative, 0
+
+
+def fit_bradley_terry(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+    conv = est["conventions"]
+    first, second = est["players"]
+    terms = est.get("terms") or []
+    numeric, factors = _ml_inputs(est, terms)
+    fes = [list(fe) for fe in est.get("fixed_effects") or []]
+    fe_cols = [c for fe in fes for c in fe]
+    logit = est.get("link", "logit") == "logit"
+    use, dropped_rows = _rows_used(
+        columns, n, est, mask, [est["outcome"]] + numeric,
+        [first, second] + factors + fe_cols + _vcov_keys(est["vcov"]), where,
+    )
+    y_all = _numeric(columns, est["outcome"], where)
+    uninformative = 0
+    if logit and fes and conv.get("informative_only", True):
+        keep = _informative(y_all, columns, fes, use)
+        uninformative = int((use & ~keep).sum())
+        use = keep
+    idx = np.flatnonzero(use)
+    sub = {name: arr[idx] for name, arr in columns.items()}
+    m = len(idx)
+    a, b = sub[first], sub[second]
+    if est.get("levels") is not None:
+        levels = [_label(v) for v in est["levels"]]
+    else:
+        levels = _levels(np.concatenate([a, b]) if m else np.array([], dtype=object), None)
+        levels = [_label(v) for v in levels]
+    ref = _label(est["reference"])
+    if ref not in levels:
+        raise EngineError(f"{where}: the reference player {ref!r} is not among the players", n_obs=m)
+    names: List[str] = []
+    cols: List[np.ndarray] = []
+    for lv in levels:
+        if lv == ref:
+            continue
+        names.append(f"strength[{lv}]")
+        cols.append(_match(a, lv).astype(float) - _match(b, lv).astype(float))
+    t_names, t_cols, implied, absent = _expand_terms(sub, terms, where)
+    names, cols = names + t_names, cols + t_cols
+    implied = set(implied) | {f"strength[{ref}]"}
+    if fes:
+        fe_names, fe_arr = _fe_dummies(sub, fes, m)
+        names, cols = names + fe_names, cols + fe_arr
+    else:
+        names, cols = ["(intercept)"] + names, [np.ones(m)] + cols
+    X = np.column_stack(cols) if cols else np.empty((m, 0))
+    X, names, zero = _drop_zero(X, names, conv)
+    clusters = _cluster_codes(sub, est["vcov"], np.arange(m), where)
+    y = sub[est["outcome"]].astype(float)
+    if logit:
+        fit = _logit_fit(y, X, names, sub, est, conv, where, clusters)
+    else:
+        fit = ols(y, X, names, vcov_type=est["vcov"]["type"], clusters=clusters, ssc=conv["ssc"])
+    fit.dropped = list(absent) + zero
+    if zero:
+        fit.warnings.append("dropped identically-zero regressor(s): " + ", ".join(zero))
+    if uninformative:
+        fit.warnings.append(f"{uninformative} row(s) of fixed-effect groups without outcome variation left out")
+        fit.extra["rows_uninformative"] = uninformative
+    fit.extra["players"] = levels
+    return fit, implied, m, dropped_rows + uninformative, 0
+
+
+def fit_mixedlm_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+    from analysis.mixed import fit_mixedlm
+
+    terms = est["terms"]
+    numeric, factors = _ml_inputs(est, terms)
+    groups = list(est["groups"])
+    use, dropped_rows = _rows_used(columns, n, est, mask, [est["outcome"]] + numeric, factors + groups, where)
+    idx = np.flatnonzero(use)
+    sub = {name: arr[idx] for name, arr in columns.items()}
+    m = len(idx)
+    names, cols, implied, absent = _expand_terms(sub, terms, where)
+    if est.get("intercept", True):
+        names, cols = ["(intercept)"] + names, [np.ones(m)] + cols
+    X = np.column_stack(cols) if cols else np.empty((m, 0))
+    X, names, zero = _drop_zero(X, names, est["conventions"])
+    if len(groups) == 1:
+        g = sub[groups[0]]
+        g = g if g.dtype == object else np.array([_label(v.item() if hasattr(v, "item") else v) for v in g], dtype=object)
+    else:
+        g = np.array(
+            ["|".join(_label(sub[c][i]) for c in groups) for i in range(m)], dtype=object
+        )
+    fit = fit_mixedlm(sub[est["outcome"]].astype(float), X, names, g, est["conventions"])
+    fit.dropped = list(absent) + zero
+    if zero:
+        fit.warnings.append("dropped identically-zero regressor(s): " + ", ".join(zero))
+    return fit, implied, m, dropped_rows, 0
+
+
+def _choice_sets(columns, n, est, mask, where):
+    """Rows of the valid choice sets, grouped and ordered by choice."""
+    keys = list(est["choice_set"])
+    numeric, factors = _ml_inputs(est, est["terms"])
+    miss_keys = np.zeros(n, dtype=bool)
+    for c in keys:
+        miss_keys |= _is_missing(_column(columns, c, where))
+    cand = mask & ~miss_keys
+    reg_miss = _required_missing(columns, n, numeric, factors + _vcov_keys(est["vcov"]), where)
+    y = _numeric(columns, est["outcome"], where)
+    idx = np.flatnonzero(cand)
+    codes, g = group_codes([columns[c][idx] for c in keys]) if len(idx) else (np.zeros(0, dtype=np.int64), 0)
+    members: List[List[int]] = [[] for _ in range(g)]
+    for pos, code in enumerate(codes):
+        members[code].append(int(idx[pos]))
+    rank1 = est["estimator"] == "clogit_rank1"
+    sets: List[List[int]] = []
+    invalid = 0
+    for rows in members:
+        if len(rows) < 2 or reg_miss[rows].any():
+            invalid += 1
+            continue
+        r = y[rows]
+        if rank1:
+            chosen = [i for i, v in zip(rows, r) if v == 1]
+            if len(chosen) != 1:
+                invalid += 1
+                continue
+            sets.append(chosen + [i for i in rows if i != chosen[0]])
+        else:
+            if np.isnan(r).any() or sorted(r.tolist()) != [float(i) for i in range(1, len(rows) + 1)]:
+                invalid += 1
+                continue
+            sets.append([rows[j] for j in np.argsort(r, kind="stable")])
+    return sets, invalid, int(mask.sum())
+
+
+def fit_ranked_logit(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+    from analysis.ml import ChoiceSets, fit_plackett_luce, sandwich
+
+    conv = est["conventions"]
+    sets, invalid, in_mask = _choice_sets(columns, n, est, mask, where)
+    flat = [i for rows in sets for i in rows]
+    idx = np.array(flat, dtype=np.int64)
+    sub = {name: arr[idx] for name, arr in columns.items()}
+    names, cols, implied, absent = _expand_terms(sub, est["terms"], where)
+    m = len(idx)
+    X = np.column_stack(cols) if cols else np.empty((m, 0))
+    set_of = np.repeat(np.arange(len(sets)), [len(r) for r in sets]) if sets else np.zeros(0, dtype=np.int64)
+    # a regressor constant within every choice set cancels out of the likelihood
+    if X.size:
+        sums = np.zeros((len(sets), X.shape[1]))
+        np.add.at(sums, set_of, X)
+        sizes = np.bincount(set_of, minlength=len(sets)).astype(float)
+        within = X - (sums / sizes[:, None])[set_of]
+        scale = np.maximum(np.max(np.abs(X), axis=0), 1.0)
+        constant = np.max(np.abs(within), axis=0) <= ZERO_TOLERANCE * scale
+    else:
+        constant = np.zeros(0, dtype=bool)
+    keep = [j for j in range(len(names)) if not constant[j]]
+    zero = [names[j] for j in range(len(names)) if constant[j]]
+    if zero and not conv.get("drop_zero_columns", True):
+        raise EngineError(f"{where}: regressor(s) constant within every choice set: {', '.join(zero)}")
+    X = X[:, keep] if X.size else X
+    names = [names[j] for j in keep]
+    S = len(sets)
+    M = max((len(r) for r in sets), default=0)
+    k = len(names)
+    Xo = np.zeros((S, M, k))
+    valid = np.zeros((S, M), dtype=bool)
+    stages = np.zeros(S, dtype=np.int64)
+    max_stages = 1 if est["estimator"] == "clogit_rank1" else est.get("stages")
+    pos = 0
+    for s_i, rows in enumerate(sets):
+        size = len(rows)
+        Xo[s_i, :size, :] = X[pos : pos + size]
+        valid[s_i, :size] = True
+        stages[s_i] = size - 1 if max_stages is None else min(int(max_stages), size - 1)
+        pos += size
+    clusters = None
+    if est["vcov"]["type"] == "cluster":
+        clusters = []
+        first_rows = np.array([rows[0] for rows in sets], dtype=np.int64)
+        for dim in est["vcov"]["by"]:
+            dim_cols = [dim] if isinstance(dim, str) else list(dim)
+            for c in dim_cols:
+                values = columns[c]
+                for rows in sets:
+                    if len({_label(values[i]) for i in rows}) > 1:
+                        raise EngineError(f"{where}: the cluster column {c!r} varies within a choice set")
+            codes, _ = group_codes([columns[c][first_rows] for c in dim_cols])
+            clusters.append(codes)
+    result = fit_plackett_luce(
+        ChoiceSets(X=Xo, valid=valid, stages=stages),
+        tolerance=float(conv["ml_tolerance"]),
+        max_iter=int(conv["ml_max_iter"]),
+    )
+    fit = sandwich(
+        result, names, vcov_type=est["vcov"]["type"], clusters=clusters, ssc=conv["ssc"], estimator=est["estimator"]
+    )
+    fit.dropped = list(absent) + zero
+    if zero:
+        fit.warnings.append("dropped regressor(s) constant within every choice set: " + ", ".join(zero))
+    if invalid:
+        fit.warnings.append(f"{invalid} choice set(s) without a valid ranking, a usable size or complete regressors left out")
+    fit.extra.update(choice_sets=S, alternatives=m, choice_sets_invalid=invalid)
+    return fit, implied, m, in_mask - m, 0
+
+
+def fit_spearman(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
+    from scipy import stats
+
+    y = _numeric(columns, est["outcome"], where)
+    x = _numeric(columns, est["x"], where)
+    use = mask & ~np.isnan(y) & ~np.isnan(x)
+    m = int(use.sum())
+    if m < 3:
+        raise EngineError(f"{where}: {m} complete pairs, a rank correlation needs at least 3", n_obs=m)
+    xs, ys = x[use], y[use]
+    fit = Fit(
+        names=["(rho)"], beta=np.array([math.nan]), vcov=np.full((1, 1), math.nan), n=m, k=1,
+        df_resid=m - 2, rank=1, vcov_type="none", ssc="none", df_t=m - 2,
+    )
+    if np.all(xs == xs[0]) or np.all(ys == ys[0]):
+        fit.extra = {"rho": None, "p_value": None, "constant_input": True}
+        return fit, set(), m, int((mask & ~use).sum()), 0
+    res = stats.spearmanr(xs, ys)
+    rho = float(res.statistic)
+    p = float(res.pvalue)
+    t = rho * math.sqrt((m - 2) / (1.0 - rho * rho)) if abs(rho) < 1 else None
+    fit.beta = np.array([rho])
+    fit.extra = {"rho": rho, "p_value": p if math.isfinite(p) else None, "t": t}
+    return fit, set(), m, int((mask & ~use).sum()), 0
+
+
+ESTIMATORS = {
+    "fe_ols": fit_fe_ols,
+    "mean_rate": fit_mean,
+    "paired_within": fit_paired,
+    "logit": fit_logit_estimand,
+    "bradley_terry": fit_bradley_terry,
+    "mixedlm": fit_mixedlm_estimand,
+    "plackett_luce": fit_ranked_logit,
+    "clogit_rank1": fit_ranked_logit,
+    "spearman": fit_spearman,
+}
 
 
 def fit_estimand(

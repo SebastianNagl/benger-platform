@@ -4340,6 +4340,10 @@ class AnalysisRun(Base):
     lockfile_sha256 = Column(String(64), nullable=True)
     # Reserved for resampling estimators; None for the closed-form ones.
     seed = Column(BigInteger, nullable=True)
+    # What the run read besides its own project (migration 148), resolved by
+    # the worker: {"projects": [ids of a cross-project frame], "lookups":
+    # [{"id", "project_id", "name", "version", "content_hash", "row_count"}]}
+    resolved_inputs = Column(JSONB, nullable=True)
     fits = Column(JSONB, nullable=True)
     warnings = Column(JSONB, nullable=True)
     timings = Column(JSONB, nullable=True)
@@ -4424,4 +4428,53 @@ class AnalysisEstimate(Base):
         return (
             f"<AnalysisEstimate(run={self.run_id}, estimand={self.estimand_id}, "
             f"scope={self.scope}, status={self.status})>"
+        )
+
+
+class AnalysisLookupTable(Base):
+    """One version of a named lookup table of a project (migration 148).
+
+    Analysis specs join lookup tables onto their frames by key columns
+    (``lookups`` with ``table: {name, version}``), for example a coding per
+    system, offence and group derived from another project. Every upload of
+    a name is its next version and a version never changes, so a spec that
+    names a version (and optionally its ``content_hash``) always reads the
+    same rows. ``columns`` lists the column names, ``rows`` the rows as lists
+    in that order; ``content_hash`` is
+    :func:`analysis.lookups.lookup_hash` of both. Rows cascade with the
+    project.
+    """
+
+    __tablename__ = "analysis_lookup_tables"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name = Column(String(100), nullable=False)
+    version = Column(Integer, nullable=False)
+    description = Column(Text, nullable=True)
+    columns = Column(JSONB, nullable=False)
+    rows = Column(JSONB, nullable=False)
+    row_count = Column(Integer, nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_analysis_lookup_tables_version"),
+        UniqueConstraint(
+            "project_id", "name", "version", name="uq_analysis_lookup_tables_version"
+        ),
+        Index("ix_analysis_lookup_tables_project_name", "project_id", "name"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisLookupTable(project={self.project_id}, name={self.name}, "
+            f"version={self.version})>"
         )

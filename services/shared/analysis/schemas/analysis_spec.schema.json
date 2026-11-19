@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://benger.dev/schemas/analysis_spec.schema.json",
   "title": "BenGER analysis spec",
-  "description": "Declares the inputs, measures, estimands, contrasts, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax) are checked by analysis.spec.validate_spec.",
+  "description": "Declares the inputs, frame unit, lookup tables, measures, estimands, contrasts, joint tests, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax, which keys each estimator takes) are checked by analysis.spec.validate_spec.",
   "type": "object",
   "additionalProperties": false,
   "required": ["spec_version", "name", "inputs", "estimands"],
@@ -11,6 +11,12 @@
     "name": {"type": "string", "minLength": 1, "maxLength": 200},
     "description": {"type": "string", "maxLength": 5000},
     "inputs": {"$ref": "#/$defs/inputs"},
+    "frame": {"$ref": "#/$defs/frame"},
+    "lookups": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/lookup"}
+    },
     "measures": {
       "type": "object",
       "maxProperties": 500,
@@ -71,14 +77,110 @@
           "type": "object",
           "propertyNames": {"$ref": "#/$defs/identifier"},
           "additionalProperties": {"enum": ["number", "text"]}
+        },
+        "projects": {
+          "description": "Further projects whose generations join the frame (a cross-project frame); the run's own project contributes inputs.designs.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["project_id", "designs"],
+            "properties": {
+              "project_id": {"type": "string", "minLength": 1, "maxLength": 100},
+              "designs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50,
+                "uniqueItems": true,
+                "items": {"type": "string", "minLength": 1, "maxLength": 200}
+              }
+            }
+          }
         }
       }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit"],
+      "properties": {
+        "unit": {
+          "description": "generation: one row per generation (the default). slot: one row per generation and slot of the task's meta.variant.slots, with the slot index and the slot factors as columns.",
+          "enum": ["generation", "slot"]
+        }
+      }
+    },
+    "scalar": {
+      "anyOf": [
+        {"type": "string", "maxLength": 1000},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "lookup": {
+      "description": "A table joined onto the frame by key columns before the measures are computed: a stored, versioned lookup table of a project (table) or rows given inline.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "keys", "columns"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": {"$ref": "#/$defs/identifier"},
+            "version": {"type": "integer", "minimum": 1},
+            "project_id": {"type": "string", "minLength": 1, "maxLength": 100},
+            "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 50,
+            "propertyNames": {"$ref": "#/$defs/identifier"},
+            "additionalProperties": {"$ref": "#/$defs/scalar"}
+          }
+        },
+        "keys": {
+          "description": "Frame column -> lookup column; every frame row matches at most one lookup row.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 10,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/identifier"}
+        },
+        "columns": {
+          "description": "New frame column -> lookup column.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 50,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/identifier"}
+        },
+        "fill": {
+          "description": "Value of a new column on frame rows without a matching lookup row (missing when not given).",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/scalar"}
+        },
+        "description": {"type": "string", "maxLength": 1000}
+      },
+      "oneOf": [{"required": ["table"]}, {"required": ["rows"]}]
     },
     "value_type": {"enum": ["number", "text", "bool"]},
     "measure": {
       "type": "object",
       "required": ["kind"],
-      "properties": {"kind": {"enum": ["field", "expression", "gold"]}},
+      "properties": {"kind": {"enum": ["field", "expression", "gold", "slot_factor", "slot_aggregate"]}},
       "oneOf": [
         {
           "additionalProperties": false,
@@ -86,6 +188,7 @@
           "properties": {
             "kind": {"const": "field"},
             "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "slot": {"$ref": "#/$defs/slot_ref"},
             "type": {"$ref": "#/$defs/value_type"},
             "description": {"type": "string", "maxLength": 1000}
           }
@@ -102,6 +205,7 @@
               "maxProperties": 100,
               "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 200}
             },
+            "slot": {"$ref": "#/$defs/slot_ref"},
             "type": {"$ref": "#/$defs/value_type"},
             "description": {"type": "string", "maxLength": 1000}
           }
@@ -124,8 +228,33 @@
             "type": {"$ref": "#/$defs/value_type"},
             "description": {"type": "string", "maxLength": 1000}
           }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "factor", "slot"],
+          "properties": {
+            "kind": {"const": "slot_factor"},
+            "factor": {"$ref": "#/$defs/identifier"},
+            "slot": {"$ref": "#/$defs/slot_ref"},
+            "type": {"enum": ["number", "text"]},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "field", "function"],
+          "properties": {
+            "kind": {"const": "slot_aggregate"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\{idx\\}"},
+            "function": {"enum": ["mean", "sum", "min", "max", "sd", "count", "is_ranking"]},
+            "description": {"type": "string", "maxLength": 1000}
+          }
         }
       ]
+    },
+    "slot_ref": {
+      "description": "Which slot a per-slot value comes from: own (the row's slot, slot frames only), other (the generation's other slot when it has exactly two) or a slot index.",
+      "oneOf": [{"enum": ["own", "other"]}, {"type": "integer", "minimum": 0, "maximum": 100000}]
     },
     "conventions": {
       "type": "object",
@@ -144,7 +273,19 @@
         "drop_zero_columns": {"type": "boolean"},
         "degenerate_p": {"enum": ["nan", "null_match"]},
         "fe_tolerance": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.001},
-        "fe_max_iter": {"type": "integer", "minimum": 1, "maximum": 100000}
+        "fe_max_iter": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "ml_tolerance": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.001},
+        "ml_max_iter": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "informative_only": {"type": "boolean"},
+        "separation_bound": {"type": "number", "exclusiveMinimum": 0},
+        "reml": {"type": "boolean"},
+        "mixedlm_optimizers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {"enum": ["lbfgs", "powell", "bfgs", "cg", "nm", "newton"]}
+        },
+        "mixedlm_max_se_ratio": {"type": "number", "exclusiveMinimum": 0}
       }
     },
     "vcov": {
@@ -280,6 +421,28 @@
           }
         },
         {
+          "description": "Average marginal effect of a logit: the mean over the estimation sample of the predicted probability with column set to level minus the same with column set to reference, times scale.",
+          "additionalProperties": false,
+          "required": ["id", "kind", "column", "level", "reference"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "ame"},
+            "column": {"$ref": "#/$defs/identifier"},
+            "level": {"type": ["string", "number"]},
+            "reference": {"type": ["string", "number"]},
+            "scale": {"type": "number"},
+            "null": {"type": "number"},
+            "tost": {
+              "oneOf": [
+                {"$ref": "#/$defs/tost"},
+                {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/tost"}}
+              ]
+            },
+            "mde": {"$ref": "#/$defs/mde"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
           "additionalProperties": false,
           "required": ["id", "kind", "numerator", "denominator"],
           "properties": {
@@ -302,7 +465,12 @@
       "properties": {
         "id": {"$ref": "#/$defs/label"},
         "description": {"type": "string", "maxLength": 2000},
-        "estimator": {"enum": ["fe_ols", "mean_rate", "paired_within"]},
+        "estimator": {
+          "enum": [
+            "fe_ols", "mean_rate", "paired_within", "logit", "mixedlm", "bradley_terry",
+            "plackett_luce", "clogit_rank1", "spearman"
+          ]
+        },
         "outcome": {"$ref": "#/$defs/identifier"},
         "subset": {"$ref": "#/$defs/expression"},
         "scopes": {
@@ -337,6 +505,31 @@
           }
         },
         "min_n": {"type": "integer", "minimum": 1},
+        "players": {
+          "description": "bradley_terry: the columns naming the first and the second player of each comparison.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "reference": {"type": ["string", "number"]},
+        "levels": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 500,
+          "items": {"type": ["string", "number"]}
+        },
+        "link": {"enum": ["logit", "linear"]},
+        "groups": {"$ref": "#/$defs/column_list"},
+        "choice_set": {"$ref": "#/$defs/column_list"},
+        "stages": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "x": {"$ref": "#/$defs/identifier"},
+        "joint_tests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {"$ref": "#/$defs/joint_test"}
+        },
         "vcov": {"$ref": "#/$defs/vcov"},
         "conventions": {"$ref": "#/$defs/conventions"},
         "contrasts": {
@@ -351,6 +544,50 @@
           ]
         }
       }
+    },
+    "joint_test": {
+      "description": "A Wald test that the listed contrasts (or parameters, or weight rows) are jointly equal to their nulls: chi2 = r' pinv(R V R') r with rank-many degrees of freedom.",
+      "type": "object",
+      "required": ["id"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["id", "contrasts"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "contrasts": {"type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/label"}},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "parameters"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "parameters": {
+              "description": "Parameter names; * matches any text (group[*] is every level of a dummy coding).",
+              "type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1, "maxLength": 300}
+            },
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "rows"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "rows": {
+              "type": "array", "minItems": 1, "maxItems": 500,
+              "items": {
+                "type": "object", "minProperties": 1, "maxProperties": 1000,
+                "additionalProperties": {"type": "number"}
+              }
+            },
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
     },
     "member": {
       "type": "object",
