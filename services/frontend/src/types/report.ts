@@ -8,6 +8,8 @@
  * published benchmark report is stable and cheap to serve.
  */
 
+import type { AnalysisEstimate } from '@/lib/api/analysis'
+
 /** Metric scale families the viewer knows how to format. */
 export type ReportMetricScale = '0-1' | '0-100' | '0-18' | 'raw'
 
@@ -243,6 +245,70 @@ export interface ReportAnalysisRunRecord {
   completed_at: string | null
 }
 
+/** One estimate as a report copies it: the engine's fields, no row id. */
+export type ReportAnalysisEstimate = Omit<AnalysisEstimate, 'id'>
+
+/** How an Analyses exhibit draws its estimates. */
+export type ReportExhibitType = 'forest' | 'table'
+
+/** Which estimates an exhibit shows; an absent or empty list does not
+ *  restrict. Systems keep the listed systems and every estimate not scoped
+ *  to a system (`exhibitSelects` in lib/reports/analyses.ts). */
+export interface ReportExhibitFilters {
+  estimands?: string[]
+  contrasts?: string[]
+  families?: string[]
+  systems?: string[]
+}
+
+export interface ReportAnalysisExhibit {
+  /** The exhibit's id in content.sections.analyses (its title and caption). */
+  id: string
+  type: ReportExhibitType
+  filters: ReportExhibitFilters
+  /** Equivalence bound set a forest draws (index into `tost`), or none. */
+  band: number | null
+  /** Estimates the filters matched (before a run's truncation). */
+  row_count: number
+  /** Positions of its estimates in the run's `estimates`. */
+  positions: number[]
+}
+
+export interface ReportAnalysisRun {
+  id: string
+  name: string
+  spec_hash: string
+  spec_version: number
+  engine_version: string
+  frame_hash: string | null
+  frame_sha256: string | null
+  frame_rows: number | null
+  estimates_count: number
+  completed_at: string | null
+  warnings: string[]
+  /** Multiplicity families of the shown estimates. */
+  families: Array<{
+    family: string
+    method: string | null
+    size: number | null
+  }>
+  /** More estimates were selected than a report keeps per run. */
+  truncated: boolean
+  /** The union of its exhibits' estimates, in engine order. */
+  estimates: ReportAnalysisEstimate[]
+  exhibits: ReportAnalysisExhibit[]
+}
+
+export type ReportAnalysisOmission =
+  'not_found' | 'not_completed' | 'reads_other_projects'
+
+export interface ReportAnalysesSnapshot {
+  runs: ReportAnalysisRun[]
+  /** Runs the section names but the report cannot show (authors and
+   *  project members only). */
+  omitted?: Array<{ run_id: string; reason: ReportAnalysisOmission | string }>
+}
+
 export interface ReportReproducibility {
   /** Build the snapshot was computed on (not part of snapshot_sha256). */
   platform: { app_version: string | null; core_api_version: string }
@@ -308,6 +374,8 @@ export interface ReportSnapshot {
   data?: ReportDataSection
   generation?: ReportGenerationSection
   human_evaluations?: ReportHumanEvaluations
+  /** The runs and exhibits of the Analyses section; absent in older snapshots. */
+  analyses?: ReportAnalysesSnapshot
   reproducibility?: ReportReproducibility
 }
 

@@ -42,9 +42,12 @@ does not exist yet is created on an author's first view.
 has tasks, and it has at least one result of any kind: annotations that were
 not cancelled, generations, completed evaluation runs or completed analysis
 runs. So an annotation study, a human evaluation without generations and an
-analysis-only project can publish as well as a benchmark. The refusal reasons
-are `Project must have tasks` and `Project must have annotations,
-generations, evaluations or analyses`.
+analysis-only project can publish as well as a benchmark. Every run the
+Analyses section names must also be one the report can show (see
+[Analyses](#analyses)). The refusal reasons are `Project must have tasks`,
+`Project must have annotations, generations, evaluations or analyses` and
+`Every run in the Analyses section must be a completed analysis run of this
+project that reads no other project`.
 
 ## The snapshot
 
@@ -53,7 +56,7 @@ Publishing and "Refresh data" compute the snapshot and store it in
 first view of a draft. Nothing else writes it: saving the editor's content
 keeps the stored snapshot and ignores one a client sends. Every number is aggregated in Postgres. Besides the
 metric evaluation (`statistics`, `methods`, `configs`, `series`,
-`distributions`, `participants`, `models`) it holds four sections. Each is
+`distributions`, `participants`, `models`) it holds five sections. Each is
 present for every project and empty when the project has nothing of its
 kind, and the viewer hides a section without data, so an annotation-only
 project gets a report with Data, Annotations and Reproducibility only.
@@ -63,6 +66,7 @@ project gets a report with Data, Annotations and Reproducibility only.
 | `data` | task count; per [variant design](../user-guides/variant-designs.md) its key, title, status, version, unit, factors (type, role, source, levels), task, unit and cell counts, content hash, spec hash and provenance; completed imports with payload hash and size, mode, task count, the declared manifest and whether the import was a no-op repeat (at most 200, with the total) |
 | `generation` | per model the generations, completed and failed ones, tasks, runs per task, prompt structures, and the refusal, truncation and retry rates (shares of completed generations), the parse-failure rate (share of parsed generations) and the share with a stored request record; the same totals over all visible models |
 | `human_evaluations` | Likert ratings per dimension (n, mean, standard deviation, counts per scale point, per model) and preference comparisons (per model wins, losses, ties and win rate, per pair of models), with the number of evaluators |
+| `analyses` | the runs of the [Analyses section](#analyses) with their metadata, the estimates their exhibits select and the exhibits, plus `omitted`, the runs it names but cannot show |
 | `reproducibility` | platform versions (app and CORE), label config version and SHA-256, model and provider ids, prompt structure keys with the SHA-256 of their stored definition, each evaluation config with the parameter snapshots its judge runs used (judge model, sample count, SHA-256 and the parameters), variant design and import hashes, the completed analysis runs that read this project only (spec hash and version, engine version, frame hash and SHA-256, rows, estimates, library versions, lockfile SHA-256, seed), and `snapshot_sha256` |
 
 A declared manifest or design provenance larger than 16 KB is stored as its
@@ -80,7 +84,7 @@ anonymous or signed-in reader of a public report, gets the public view
 each judge run's parameters, each declared import manifest and each design
 provenance keep their SHA-256 but lose their content, so custom judge
 prompts, rubric and Bewertungsbogen criteria and author manifests stay
-inside the project.
+inside the project, and the Analyses section's `omitted` list is left out.
 
 ### Hidden models
 
@@ -114,7 +118,94 @@ existing keys, `data.show_provenance`, `generation.show_details` and
 `evaluation.show_human_evaluation` (all default true) switch the new record
 parts on and off, and `sections.reproducibility` (`visible`, default true,
 and `custom_text` for the author's notes on reproduction) controls the
-appendix. Older reports without these keys show everything.
+appendix, and `sections.analyses` holds the [Analyses section](#analyses).
+Older reports without these keys show everything.
+
+## Analyses
+
+The Analyses section shows analysis runs of the project the way a paper
+shows its results: per run the author's title and text, the run's metadata,
+its multiplicity families and warnings, and the exhibits the author defined,
+numbered across the report as figures (forest plots) and tables. With an
+Analyses section, the conclusions follow it.
+
+The editor's Analyses card offers the runs of `GET
+/api/projects/{project_id}/report/analysis-runs` (report authors): the
+project's completed runs that read no further project, neither through
+`inputs.projects` nor through a stored lookup table of another project
+(`report_analysis_runs` in `report_snapshot.py`), because a report must not
+publish another project's numbers. The reproducibility appendix lists the
+same runs. Per exhibit the author picks the type (forest plot or table) and
+the filters, and the card previews the run's live estimates with the
+components the report draws (`ContrastForest` and the compact
+`EstimatesTable` of `components/analysis`).
+
+`content.sections.analyses` has this shape, normalized and checked on save
+(`parse_analyses_section`; a problem answers 422 `invalid_report_analyses`
+listing every problem):
+
+```json
+{
+  "visible": true,
+  "custom_text": "What the analyses examine",
+  "runs": [
+    {
+      "run_id": "<analysis run id>",
+      "title": "Framing effect",
+      "text": "What this run shows",
+      "exhibits": [
+        {
+          "id": "exhibit-1",
+          "type": "forest",
+          "title": "Effect per system",
+          "caption": "Points are estimates, lines 95 % intervals.",
+          "filters": {"estimands": ["framing_effect"], "systems": ["sys_a"]},
+          "band": 0
+        }
+      ]
+    }
+  ]
+}
+```
+
+A section takes at most 10 runs and a run at most 12 exhibits. An exhibit
+`id` is 1 to 64 letters, digits, `-` or `_`, unique within its run; `type`
+is `forest` or `table`; `band` is the equivalence bound set a forest draws
+(the index into an estimate's `tost`, default the first, `null` for none).
+Each filter is a list of values, and an absent or empty one does not
+restrict. An estimate is shown when every given filter holds
+(`exhibit_selects`, mirrored for the preview by `exhibitSelects` in
+`services/frontend/src/lib/reports/analyses.ts`):
+
+- `estimands`: its `estimand_id` is listed;
+- `contrasts`: its `contrast_id` is listed;
+- `families`: a family it belongs to (`family` or an `adjustments` entry) is
+  listed;
+- `systems`: its `system` (or `model_id`) scope value is listed; an
+  estimate not scoped to a system, a pooled one for instance, is kept.
+
+Publishing and "Refresh data" copy into `snapshot.analyses.runs`, per run:
+id, name, spec hash and version, engine version, frame hash and SHA-256,
+frame rows, estimate count, completion time, warnings, the families of the
+shown estimates (method and size), `truncated`, `estimates` (the union of
+its exhibits' estimates in engine order, every engine field without the
+database row id, non-finite numbers as null) and `exhibits` (id, type,
+filters, band, `row_count` and the `positions` of its estimates). A run
+keeps at most 1000 estimates; beyond that the first ones in engine order
+stay and the run is `truncated`, which the editor warns about. The viewer
+draws numbers only from this copy, so a published report keeps them
+whatever happens to the run's project afterwards; titles, texts and
+captions are the author's prose and are read live from `content.sections`,
+matched by run and exhibit id. A run the section names but the report
+cannot show (not a run of this project, not completed, or reading another
+project) is listed in `omitted` with the reason and blocks publishing.
+
+The hidden-model rule holds here too: an estimate scoped to a system of a
+hidden model (the model id is the part of the system key before `@`), an
+estimate whose contrast names a hidden model, and an engine message or run
+warning naming one are left out, unless the builder is called with
+`include_private_models`. The frame is never linked, and only a report
+author gets a link to the run page.
 
 ## Reading and citing a report
 

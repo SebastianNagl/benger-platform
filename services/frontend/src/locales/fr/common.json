@@ -1582,7 +1582,8 @@
         "reportNotFound": "Rapport introuvable",
         "mustHaveTasks": "Le projet doit contenir des tâches",
         "notCreatedYet": "Rapport pas encore créé",
-        "mustHaveResults": "Le projet doit contenir des annotations, des générations, des évaluations ou des analyses"
+        "mustHaveResults": "Le projet doit contenir des annotations, des générations, des évaluations ou des analyses",
+        "analysisRuns": "Chaque exécution de la section Analyses doit être une exécution d'analyse terminée de ce projet qui ne lit aucun autre projet"
       },
       "editor": {
         "title": "Modifier le rapport",
@@ -7491,7 +7492,56 @@
         "customText": "Notes sur la reproduction",
         "customTextPlaceholder": "Facultatif : tout ce dont un lecteur a besoin pour reproduire les résultats"
       },
-      "notAuthorHint": "Vous trouverez les rapports publiés sous « Rapports »."
+      "notAuthorHint": "Vous trouverez les rapports publiés sous « Rapports ».",
+      "analyses": {
+        "title": "Analyses",
+        "hint": "Choisissez des exécutions d'analyse terminées de ce projet et définissez les illustrations de chacune. Les aperçus tracent les estimations actuelles de l'exécution ; le rapport montre les estimations copiées dans son instantané lorsque vous publiez ou actualisez les données. Les estimations des modèles privés restent hors du rapport.",
+        "customText": "Introduction",
+        "customTextPlaceholder": "Ce que les analyses examinent et comment les lire",
+        "filterAll": "Toutes",
+        "filter": {
+          "estimands": "Estimandes",
+          "contrasts": "Contrastes",
+          "families": "Familles",
+          "systems": "Systèmes"
+        },
+        "inSnapshot": "Dans l'instantané actuel",
+        "notInSnapshot": "Entre dans le rapport à la prochaine publication ou actualisation",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "removeExhibit": "Retirer l'illustration",
+        "removeRun": "Retirer l'exécution",
+        "exhibitType": "Illustration",
+        "typeForest": "Forest plot",
+        "typeTable": "Tableau",
+        "exhibitTitle": "Titre",
+        "band": "Bande d'équivalence",
+        "bandOption": "Bornes {n} : {bounds}",
+        "caption": "Légende",
+        "captionPlaceholder": "Ce que le lecteur voit dans cette illustration",
+        "previewCount": "Aperçu des estimations actuelles : {shown} sur {total}",
+        "loadingEstimates": "Chargement des estimations de l'exécution…",
+        "estimatesFailed": "Les estimations de l'exécution ne sont pas disponibles.",
+        "preview": "Aperçu",
+        "runSummary": "Terminée le {date} · {estimates} estimations · spec {hash}",
+        "runUnavailable": "Cette exécution ne peut pas figurer dans le rapport : ce n'est pas une exécution d'analyse terminée de ce projet qui ne lit aucun autre projet. Retirez-la pour publier.",
+        "runTitle": "Titre",
+        "runText": "Texte",
+        "runTextPlaceholder": "Ce que montre cette exécution",
+        "tooManyEstimates": "Les illustrations de cette exécution sélectionnent {count} estimations ; un rapport garde les {max} premières dans l'ordre du moteur.",
+        "addForest": "Ajouter un forest plot",
+        "addTable": "Ajouter un tableau",
+        "runsFailed": "Les exécutions d'analyse n'ont pas pu être chargées.",
+        "loadingRuns": "Chargement des exécutions d'analyse…",
+        "noRuns": "Ce projet n'a aucune exécution d'analyse terminée qui ne lit que ce projet.",
+        "allRunsAdded": "Toutes les exécutions disponibles sont dans le rapport.",
+        "addRunLabel": "Ajouter une exécution d'analyse",
+        "pickRun": "Choisir une exécution",
+        "runOption": "{name} ({date})",
+        "addRun": "Ajouter l'exécution",
+        "singleProjectOnly": "Seules les exécutions terminées qui ne lisent aucun autre projet sont proposées, car un rapport ne doit pas publier les chiffres d'un autre projet.",
+        "invalid": "La section Analyses n'a pas pu être enregistrée : {errors}"
+      }
     },
     "publication": {
       "copied": "Copié",
@@ -7680,6 +7730,19 @@
         "copied": "Copié",
         "dataJson": "Données (JSON)",
         "print": "Imprimer ou enregistrer en PDF"
+      },
+      "analyses": {
+        "title": "Analyses",
+        "noEstimates": "Aucune estimation ne correspond à cette illustration.",
+        "runMeta": "Exécution {name} · terminée le {date} · {rows} lignes de frame · {estimates} estimations · moteur {engine}",
+        "specHash": "Hash de la spec",
+        "families": "Familles :",
+        "family": "{family} ({method}, {size} tests)",
+        "warnings": "Avertissements de l'exécution",
+        "truncated": "Les illustrations de cette exécution sélectionnent plus d'estimations qu'un rapport n'en garde par exécution ; elles montrent donc les premières dans l'ordre du moteur.",
+        "figure": "Figure {n}",
+        "table": "Tableau {n}",
+        "openRun": "Ouvrir l'exécution"
       }
     },
     "title": "Rapports",

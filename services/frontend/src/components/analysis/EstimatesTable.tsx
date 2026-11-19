@@ -6,6 +6,8 @@
  * the first family with its adjusted p-value, the first equivalence test and
  * the sample. A row expands to every equivalence test, every family
  * membership (with MDE), the test statistic and the inference conventions.
+ * The `compact` variant (the report's table exhibits) shows the given
+ * estimates without the filters and the count line.
  */
 
 import { Badge } from '@/components/shared/Badge'
@@ -254,9 +256,14 @@ function EstimateDetails({ estimate }: { estimate: AnalysisEstimate }) {
 
 export interface EstimatesTableProps {
   estimates: readonly AnalysisEstimate[]
+  /** No filters and no count line: the caller already chose the rows. */
+  compact?: boolean
 }
 
-export function EstimatesTable({ estimates }: EstimatesTableProps) {
+export function EstimatesTable({
+  estimates,
+  compact = false,
+}: EstimatesTableProps) {
   const { t, locale } = useI18n()
   const [estimandFilter, setEstimandFilter] = useState<string>(ALL)
   const [familyFilter, setFamilyFilter] = useState<string>(ALL)
@@ -292,63 +299,68 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500" id="estimates-estimand-label">
-          {t('analysis.estimates.filterEstimand')}
-        </label>
-        <Select value={estimandFilter} onValueChange={setEstimandFilter}>
-          <SelectTrigger
-            className="w-48"
-            aria-labelledby="estimates-estimand-label"
-            data-testid="estimates-estimand-filter"
+      {!compact && (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <label
+            className="text-xs text-zinc-500"
+            id="estimates-estimand-label"
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t('analysis.estimates.all')}</SelectItem>
-            {estimandIds.map((id) => (
-              <SelectItem key={id} value={id}>
-                {id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {families.length > 0 && (
-          <>
-            <label
-              className="text-xs text-zinc-500"
-              id="estimates-family-label"
+            {t('analysis.estimates.filterEstimand')}
+          </label>
+          <Select value={estimandFilter} onValueChange={setEstimandFilter}>
+            <SelectTrigger
+              className="w-48"
+              aria-labelledby="estimates-estimand-label"
+              data-testid="estimates-estimand-filter"
             >
-              {t('analysis.estimates.filterFamily')}
-            </label>
-            <Select value={familyFilter} onValueChange={setFamilyFilter}>
-              <SelectTrigger
-                className="w-48"
-                aria-labelledby="estimates-family-label"
-                data-testid="estimates-family-filter"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>
-                  {t('analysis.estimates.all')}
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{t('analysis.estimates.all')}</SelectItem>
+              {estimandIds.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {id}
                 </SelectItem>
-                {families.map((id) => (
-                  <SelectItem key={id} value={id}>
-                    {id}
+              ))}
+            </SelectContent>
+          </Select>
+          {families.length > 0 && (
+            <>
+              <label
+                className="text-xs text-zinc-500"
+                id="estimates-family-label"
+              >
+                {t('analysis.estimates.filterFamily')}
+              </label>
+              <Select value={familyFilter} onValueChange={setFamilyFilter}>
+                <SelectTrigger
+                  className="w-48"
+                  aria-labelledby="estimates-family-label"
+                  data-testid="estimates-family-filter"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>
+                    {t('analysis.estimates.all')}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
-        )}
-        <span className="ml-auto text-xs text-zinc-500">
-          {t('analysis.estimates.count', {
-            shown: visible.length,
-            total: estimates.length,
-          })}
-        </span>
-      </div>
+                  {families.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          <span className="ml-auto text-xs text-zinc-500">
+            {t('analysis.estimates.count', {
+              shown: visible.length,
+              total: estimates.length,
+            })}
+          </span>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
         <table

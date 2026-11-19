@@ -57,6 +57,8 @@ const getReasonTranslationKey = (reason: string): string => {
     'Project must have tasks': 'project.report.reasons.mustHaveTasks',
     'Project must have annotations, generations, evaluations or analyses':
       'project.report.reasons.mustHaveResults',
+    'Every run in the Analyses section must be a completed analysis run of this project that reads no other project':
+      'project.report.reasons.analysisRuns',
     'Report not created yet': 'project.report.reasons.notCreatedYet',
   }
   return reasonMap[reason] || ''

@@ -92,6 +92,7 @@ jest.mock('react', () => ({
 import { getReportData } from '@/lib/api/reports'
 import {
   ANNOTATION_ONLY_SNAPSHOT,
+  REPORT_ANALYSES_FIXTURE,
   REPORT_RECORDS_FIXTURE,
   REPORT_SNAPSHOT_FIXTURE,
 } from '@/lib/reports/fixture'
@@ -648,6 +649,119 @@ describe('ReportViewerPage: the report as the project paper', () => {
         'Seed 7 throughout.',
       ),
     ).toBeInTheDocument()
+  })
+
+  describe('Analyses', () => {
+    const withAnalyses = (
+      analyses: Record<string, unknown>,
+      extra: any = {},
+    ) => {
+      const report = makeReport(extra)
+      report.content = {
+        ...report.content,
+        sections: { ...report.content.sections, analyses } as any,
+      }
+      return report
+    }
+    const analysesSnapshot = {
+      ...fullSnapshot,
+      analyses: REPORT_ANALYSES_FIXTURE,
+    }
+
+    it('shows the Analyses section after the human evaluation and the conclusions after it', async () => {
+      mockData(
+        withAnalyses({
+          visible: true,
+          runs: [{ run_id: 'run-1', title: 'Framing-Effekt', exhibits: [] }],
+        }),
+        analysesSnapshot,
+      )
+      await renderPage()
+      expect(sectionIds()).toEqual([
+        'section-data',
+        'section-annotations',
+        'section-generation',
+        'section-evaluation',
+        'section-human-evaluation',
+        'section-analyses',
+        'section-conclusions',
+        'section-reproducibility',
+        'section-cite',
+      ])
+      expect(
+        within(screen.getByTestId('section-analyses')).getByRole('heading', {
+          name: 'Framing-Effekt',
+        }),
+      ).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('section-conclusions')).getByText(
+          'Fazit hier.',
+        ),
+      ).toBeInTheDocument()
+      // The conclusions are no longer inside the evaluation section.
+      expect(
+        within(screen.getByTestId('section-evaluation')).queryByText(
+          'Fazit hier.',
+        ),
+      ).not.toBeInTheDocument()
+      expect(screen.getAllByTestId('report-analysis-exhibit')).toHaveLength(2)
+      // A reader gets no link to the run.
+      expect(screen.queryByText('Lauf öffnen')).not.toBeInTheDocument()
+    })
+
+    it('links a report author to the run page', async () => {
+      mockData(withAnalyses({}, { can_edit: true }), analysesSnapshot)
+      await renderPage()
+      expect(screen.getByText('Lauf öffnen')).toHaveAttribute(
+        'href',
+        '/projects/project-1/analysis/run-1',
+      )
+    })
+
+    it('hides the section when switched off or empty, keeping the conclusions in the evaluation', async () => {
+      mockData(withAnalyses({ visible: false }), analysesSnapshot)
+      const { unmount } = await renderPage()
+      expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('section-conclusions'),
+      ).not.toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('section-evaluation')).getByText(
+          'Fazit hier.',
+        ),
+      ).toBeInTheDocument()
+      unmount()
+
+      mockData(withAnalyses({}), {
+        ...fullSnapshot,
+        analyses: { runs: [], omitted: [] },
+      })
+      await renderPage()
+      expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
+    })
+
+    it('shows an analysis-only project with its Analyses and conclusions', async () => {
+      mockData(
+        withAnalyses(
+          {},
+          {
+            sections: {
+              evaluation: { custom_interpretation: null },
+            },
+          },
+        ),
+        { ...ANNOTATION_ONLY_SNAPSHOT, analyses: REPORT_ANALYSES_FIXTURE },
+      )
+      await renderPage()
+      expect(sectionIds()).toEqual([
+        'section-data',
+        'section-annotations',
+        'section-analyses',
+        'section-conclusions',
+        'section-reproducibility',
+        'section-cite',
+      ])
+    })
   })
 
   it('offers no citation for a draft and no edit link to a reader', async () => {

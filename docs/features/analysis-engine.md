@@ -368,7 +368,10 @@ the stored estimate.
 
 The forest plot (`@/components/analysis/ForestPlot`) takes plain rows, a null
 value and an optional band, so overlay views can reuse it with their own
-bounds.
+bounds. `ContrastForest` draws one contrast with a given band and no
+pickers, and `EstimatesTable` takes `compact` to drop its filters; the
+project report's Analyses section draws its exhibits with both (see
+[Project reports](project-reports.md#analyses)).
 
 ## Compliance overlay slots
 

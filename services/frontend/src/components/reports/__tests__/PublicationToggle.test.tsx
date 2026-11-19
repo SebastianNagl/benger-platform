@@ -142,6 +142,7 @@ describe('PublicationToggle', () => {
         'Report not found',
         'Project must have tasks',
         'Project must have annotations, generations, evaluations or analyses',
+        'Every run in the Analyses section must be a completed analysis run of this project that reads no other project',
         'Report not created yet',
       ]
       for (const reason of reasons) {
