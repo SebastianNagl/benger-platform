@@ -758,7 +758,10 @@ export function AnalysesEditor({
           </p>
         ) : addable.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {t('reports.editor.analyses.allRunsAdded')}
+            {isPublic &&
+            (options ?? []).some((o) => !used.has(o.id) && o.member_only)
+              ? t('reports.editor.analyses.onlyMemberOnlyLeft')
+              : t('reports.editor.analyses.allRunsAdded')}
           </p>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">

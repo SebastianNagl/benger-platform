@@ -237,7 +237,9 @@ as public, or switching a published report to public, is refused while
 the snapshot holds a member-only run ("A public report cannot show an
 analysis run in which a private model may appear"). A report that was
 already public when such a run was added keeps it out of its public view,
-and the editor says so. The frame is never linked, and only a report
+and the editor says so. Readers outside the project also get the author's
+title, text, captions and filters of the Analyses section only for the
+runs the public view shows. The frame is never linked, and only a report
 author gets a link to the run page.
 
 ## Reading and citing a report

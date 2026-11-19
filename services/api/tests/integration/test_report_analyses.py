@@ -422,8 +422,10 @@ async def test_member_only_runs_are_left_out_of_public_payloads(async_test_clien
     project, _, report = await _project(async_test_db, admin)
     main = (await _seed_runs(async_test_db, project, admin))["main"]
     public = await _public_run(async_test_db, project, admin)
-    analyses = {"runs": [{"run_id": main.id, "exhibits": [{"id": "all", "type": "table"}]},
-                         {"run_id": public.id, "exhibits": [{"id": "all", "type": "table"}]}]}
+    analyses = {"runs": [{"run_id": main.id, "title": f"How {SECRET} did", "text": f"{SECRET} leads.",
+                          "exhibits": [{"id": "all", "type": "table", "caption": f"Rows of {SECRET}",
+                                        "filters": {"systems": [SECRET]}}]},
+                         {"run_id": public.id, "title": "Open models", "exhibits": [{"id": "all", "type": "table"}]}]}
     await _set_analyses(async_test_db, report, analyses)
 
     with _as_user(admin):
@@ -453,12 +455,17 @@ async def test_member_only_runs_are_left_out_of_public_payloads(async_test_clien
     public_runs = anonymous["snapshot"]["analyses"]["runs"]
     assert [r["id"] for r in public_runs] == [public.id]
     assert "custom-secret-model" not in str(anonymous["snapshot"]["analyses"])
-    assert "custom-secret-model" not in str(anonymous["report"]["content"]["snapshot"]["analyses"])
+    # Nothing of the member-only run reaches the public reader: neither its
+    # numbers nor the author's title, text, captions and filters naming the
+    # private model.
+    assert "custom-secret-model" not in str(anonymous)
+    assert [r["run_id"] for r in anonymous["report"]["content"]["sections"]["analyses"]["runs"]] == [public.id]
+    assert [r["run_id"] for r in author["report"]["content"]["sections"]["analyses"]["runs"]] == [main.id, public.id]
     # The public run is served unchanged.
     stored = {r["id"]: r for r in author["snapshot"]["analyses"]["runs"]}
     assert public_runs[0] == stored[public.id] and stored[public.id]["member_only"] is False
     assert stored[main.id]["member_only"] is True
-    assert [e["position"] for e in stored[main.id]["estimates"]] == list(range(11))
+    assert [e["position"] for e in stored[main.id]["estimates"]] == [2]
 
 
 @pytest.mark.asyncio

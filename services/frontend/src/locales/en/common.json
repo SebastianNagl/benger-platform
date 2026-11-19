@@ -7544,7 +7544,8 @@
         "invalid": "The Analyses section could not be saved: {errors}",
         "memberOnly": "Members only",
         "memberOnlyHint": "A private model may appear in this run, so only members of the project see it. The report cannot be made public while it holds this run.",
-        "memberOnlyPublic": "A private model may appear in this run. The report is public, so readers outside the project do not see this run; members still do."
+        "memberOnlyPublic": "A private model may appear in this run. The report is public, so readers outside the project do not see this run; members still do.",
+        "onlyMemberOnlyLeft": "The remaining runs are members only: a private model may appear in them, so a public report cannot hold them."
       }
     },
     "publication": {

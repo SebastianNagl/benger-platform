@@ -7544,7 +7544,8 @@
         "invalid": "Der Abschnitt Analysen konnte nicht gespeichert werden: {errors}",
         "memberOnly": "Nur Mitglieder",
         "memberOnlyHint": "In diesem Lauf kann ein privates Modell vorkommen, deshalb sehen ihn nur Mitglieder des Projekts. Solange der Bericht diesen Lauf enthält, kann er nicht öffentlich gemacht werden.",
-        "memberOnlyPublic": "In diesem Lauf kann ein privates Modell vorkommen. Der Bericht ist öffentlich, deshalb sehen Leser außerhalb des Projekts diesen Lauf nicht; Mitglieder sehen ihn weiterhin."
+        "memberOnlyPublic": "In diesem Lauf kann ein privates Modell vorkommen. Der Bericht ist öffentlich, deshalb sehen Leser außerhalb des Projekts diesen Lauf nicht; Mitglieder sehen ihn weiterhin.",
+        "onlyMemberOnlyLeft": "Die übrigen Läufe sind nur für Mitglieder: In ihnen kann ein privates Modell vorkommen, deshalb kann ein öffentlicher Bericht sie nicht enthalten."
       }
     },
     "publication": {

@@ -252,8 +252,10 @@ export type ReportAnalysisEstimate = Omit<AnalysisEstimate, 'id'>
 export type ReportExhibitType = 'forest' | 'table'
 
 /** Which estimates an exhibit shows; an absent or empty list does not
- *  restrict. Systems keep the listed systems and every estimate not scoped
- *  to a system (`exhibitSelects` in lib/reports/analyses.ts). */
+ *  restrict. Systems keep an estimate only when it involves at least one
+ *  system and every system it involves is listed, so a pooled estimate
+ *  that involves no system is dropped (`exhibitSelects` in
+ *  lib/reports/analyses.ts). */
 export interface ReportExhibitFilters {
   estimands?: string[]
   contrasts?: string[]

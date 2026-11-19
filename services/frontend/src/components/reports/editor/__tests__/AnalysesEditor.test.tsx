@@ -140,6 +140,17 @@ describe('AnalysesEditor', () => {
     ).not.toContain('run-2')
   })
 
+  it('says why no run can be added when only member-only runs are left for a public report', async () => {
+    mockRuns.mockResolvedValue([{ ...RUN_OPTION, member_only: true }])
+    render(<Harness isPublic />)
+    expect(
+      await screen.findByText(/The remaining runs are members only/),
+    ).toBeVisible()
+    expect(
+      screen.queryByText('Every available run is in the report.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('says a member-only run of a public report is withheld from readers outside the project', async () => {
     mockRuns.mockResolvedValue([{ ...RUN_OPTION, member_only: true }])
     render(<Harness initial={[forestRun()]} isPublic />)

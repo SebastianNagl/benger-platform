@@ -183,13 +183,24 @@ _LEGACY_MODEL_FIELDS = (("evaluation", "metrics"), ("generation", "models"))
 def _reader_content(content: Dict[str, Any], member: bool) -> Dict[str, Any]:
     """The content as a reader who does not author the report gets it; a
     reader outside the project (``member`` false) also gets the public view
-    of the snapshot (see ``report_snapshot.public_snapshot``)."""
+    of the snapshot (see ``report_snapshot.public_snapshot``) and the
+    Analyses section's prose and exhibits only for the runs that view
+    shows."""
     if not member and content.get("snapshot") is not None:
         content = {**content, "snapshot": public_snapshot(content["snapshot"])}
     sections = content.get("sections") if isinstance(content.get("sections"), dict) else None
     if not sections:
         return content
     trimmed = dict(sections)
+    analyses = trimmed.get("analyses")
+    if not member and isinstance(analyses, dict) and isinstance(analyses.get("runs"), list):
+        snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else {}
+        shown_section = snapshot.get("analyses") if isinstance(snapshot.get("analyses"), dict) else {}
+        shown = {r.get("id") for r in shown_section.get("runs") or [] if isinstance(r, dict)}
+        trimmed["analyses"] = {
+            **analyses,
+            "runs": [r for r in analyses["runs"] if isinstance(r, dict) and r.get("run_id") in shown],
+        }
     for section, field in _LEGACY_MODEL_FIELDS:
         if isinstance(trimmed.get(section), dict) and field in trimmed[section]:
             trimmed[section] = {k: v for k, v in trimmed[section].items() if k != field}

@@ -7544,7 +7544,8 @@
         "invalid": "La section Analyses n'a pas pu être enregistrée : {errors}",
         "memberOnly": "Membres uniquement",
         "memberOnlyHint": "Un modèle privé peut apparaître dans cette exécution, seuls les membres du projet la voient donc. Le rapport ne peut pas devenir public tant qu'il contient cette exécution.",
-        "memberOnlyPublic": "Un modèle privé peut apparaître dans cette exécution. Le rapport est public, les lecteurs extérieurs au projet ne voient donc pas cette exécution ; les membres la voient toujours."
+        "memberOnlyPublic": "Un modèle privé peut apparaître dans cette exécution. Le rapport est public, les lecteurs extérieurs au projet ne voient donc pas cette exécution ; les membres la voient toujours.",
+        "onlyMemberOnlyLeft": "Les exécutions restantes sont réservées aux membres : un modèle privé peut y apparaître, un rapport public ne peut donc pas les contenir."
       }
     },
     "publication": {
