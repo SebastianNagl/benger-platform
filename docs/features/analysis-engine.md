@@ -90,8 +90,11 @@ and estimates, also through `/api/v1`) needs read access to every input
 project as well, as for the run's own project; a viewer without it gets 404
 and does not see the run in the run lists. The input projects of a run are
 those of `inputs.projects` and the projects that own a stored lookup table
-it joins. Purging an input project deletes the frames of the runs that read
-it; the runs and their estimates stay.
+it joins. A soft-deleted input project still counts (only a superadmin
+reads past it). Purging an input project deletes the frames of the runs that
+read it; the runs and their estimates stay, and since the purged project no
+longer counts for reads, the readers of the run's own project see them with
+the warning `frame deleted: input project <id> was purged`.
 
 ### Lookup tables
 

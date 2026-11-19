@@ -524,3 +524,46 @@ async def test_a_cross_project_run_is_read_only_with_access_to_every_input_proje
     assert v1_ok.status_code == 200 and len(v1_ok.json()["items"]) == 3
     assert everything["total"] == 4
     assert [r.status_code for r in super_reads] == [200, 200]
+
+
+async def test_a_run_stays_readable_after_its_input_project_is_purged(async_test_client, async_test_db, world):
+    from datetime import datetime, timezone
+
+    from project_purge import purge_project_data
+
+    db = async_test_db
+    pid = world["project"].id
+    foreign = world["other"]["project"]
+    sibling = await make_project(db, world["admin"].id, org_id=world["org"].id, title="sibling")
+    orphaned = await _completed_run(db, world["project"], world["admin"], frame_key="analysis/2026/11/p.parquet")
+    _reading(orphaned, inputs=[foreign.id], lookup_owner=foreign.id)
+    behind_deleted = await _completed_run(db, world["project"], world["admin"])
+    _reading(behind_deleted, inputs=[sibling.id])
+    now = datetime.now(timezone.utc)
+    foreign.deleted_at = now
+    sibling.deleted_at = now
+    await db.commit()
+    await db.run_sync(lambda s: purge_project_data(s, foreign.id))
+    await db.commit()
+    key = await _key(db, world, ["results:read"])
+    with v1_auth(db, session_user=world["member"]):
+        listed = (await async_test_client.get(f"/api/projects/{pid}/analysis-runs")).json()
+        detail = await async_test_client.get(f"/api/analysis-runs/{orphaned.id}")
+        estimates = await async_test_client.get(f"/api/analysis-runs/{orphaned.id}/estimates")
+        hidden = await async_test_client.get(f"/api/analysis-runs/{behind_deleted.id}")
+    with v1_auth(db):
+        v1_list = (await async_test_client.get(f"/api/v1/projects/{pid}/analysis-runs", headers=bearer(key))).json()
+        v1_detail = await async_test_client.get(f"/api/v1/analysis-runs/{orphaned.id}", headers=bearer(key))
+        v1_hidden = await async_test_client.get(f"/api/v1/analysis-runs/{behind_deleted.id}", headers=bearer(key))
+    with v1_auth(db, session_user=world["superadmin"]):
+        super_hidden = await async_test_client.get(f"/api/analysis-runs/{behind_deleted.id}")
+    warning = f"frame deleted: input project {foreign.id} was purged"
+    assert [i["id"] for i in listed["items"]] == [orphaned.id] and listed["total"] == 1
+    assert detail.status_code == 200 and warning in detail.json()["warnings"]
+    assert detail.json()["frame_available"] is False
+    assert estimates.status_code == 200 and len(estimates.json()["items"]) == 3
+    assert hidden.status_code == 404
+    assert [i["id"] for i in v1_list["items"]] == [orphaned.id]
+    assert v1_detail.status_code == 200 and warning in v1_detail.json()["warnings"]
+    assert v1_hidden.status_code == 404
+    assert super_hidden.status_code == 200

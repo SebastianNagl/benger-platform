@@ -196,7 +196,9 @@ def purge_project_data(
     ]
     # A cross-project run of another project read this project's answers
     # or one of its lookup tables into its frame: the frame goes, the run
-    # and its aggregate estimates stay and say why the frame is gone.
+    # and its aggregate estimates stay readable to the readers of its own
+    # project (a purged input project no longer counts for reads) and say
+    # why the frame is gone.
     readers = db.execute(
         select(AnalysisRun).where(
             AnalysisRun.project_id != project_id,

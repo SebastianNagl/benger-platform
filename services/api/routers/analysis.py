@@ -37,7 +37,8 @@ needs, at start, the ORG_ADMIN or CONTRIBUTOR role on each of those projects
 (their task content enters the frame); its frame download needs the same.
 Reading such a run (detail, estimates, the run lists) needs read access to
 each of those projects as well; without it the run is 404 and left out of
-the lists.
+the lists. A purged input project no longer counts for reads, so the run
+stays readable with the warning that its frame was deleted.
 """
 
 from __future__ import annotations
@@ -332,13 +333,16 @@ async def start_analysis_run(
 
 
 async def may_read_project(db: AsyncSession, user, project_id: str, principal=None) -> bool:
-    """Read access to a project: it exists (a deleted one only for a
-    superadmin), the user may access it and an access key limited to some
+    """Read access to a further project of a run: a purged project (no row
+    any more) no longer counts; otherwise a deleted one only for a
+    superadmin, the user may access it and an access key limited to some
     projects may see it."""
     from routers.v1._deps import key_may_see_project
 
     project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
-    if project is None or (project.deleted_at is not None and not user.is_superadmin):
+    if project is None:
+        return True
+    if project.deleted_at is not None and not user.is_superadmin:
         return False
     if not await check_project_accessible_async(db, user, project.id, project=project):
         return False
