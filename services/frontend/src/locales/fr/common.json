@@ -6510,7 +6510,12 @@
       "judges": "Juges",
       "items": "Éléments",
       "allAgree": "Tous les juges d'accord",
-      "judgePairs": "Paires de juges"
+      "judgePairs": "Paires de juges",
+      "tiesOne": "1 élément dont les codes humains sont à égalité n'a pas de référence et est écarté.",
+      "missingCategoryOne": "1 élément sans code automatique compte comme la catégorie (missing).",
+      "missingExcludedOne": "1 élément sans code automatique est écarté.",
+      "betweenCodersOne": "Entre les {coders} codeurs humains sur le seul élément codé plusieurs fois : kappa de Fleiss {kappa}, tous les codeurs s'accordent sur {agreement}.",
+      "version": "version {version}"
     }
   },
   "about": {

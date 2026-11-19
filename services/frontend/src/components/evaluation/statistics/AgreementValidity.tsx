@@ -21,6 +21,7 @@ import { CopyValueButton } from '@/components/analysis/RunProvenance'
 import {
   CodeValidationAgreement,
   codeKindKey,
+  codeLabel,
   shortHash,
   validationAgreementFromMetrics,
 } from '@/components/evaluation/CodeValidationAgreement'
@@ -130,8 +131,7 @@ function RunCode({
           {t('evaluation.agreementValidity.code')}
         </dt>
         <dd className="font-mono [overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200">
-          {record.ref ?? DASH}
-          {record.version ? ` (${record.version})` : ''}
+          {codeLabel(record.ref, record.version, t)}
         </dd>
         <dt className="text-zinc-500 dark:text-zinc-400">
           {t('evaluation.agreementValidity.hash')}
@@ -210,6 +210,26 @@ function RunCode({
   )
 }
 
+// Columns of the project's validations from `sm` up; below it each
+// validation stacks and its numbers carry their own labels.
+const VALIDATION_COLUMNS =
+  'sm:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_6.5rem_3.5rem_5.5rem_5rem]'
+const headCell =
+  'text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400'
+
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
+      <span className="text-xs text-zinc-500 sm:hidden dark:text-zinc-400">
+        {label}
+      </span>
+      <span className="font-mono text-xs whitespace-nowrap text-zinc-800 dark:text-zinc-200">
+        {value}
+      </span>
+    </div>
+  )
+}
+
 function ProjectValidations({
   validations,
   total,
@@ -221,68 +241,82 @@ function ProjectValidations({
 }) {
   const { t } = useI18n()
   const { dec, pct, count } = useFormat()
+  const observed = t('evaluation.agreementValidity.observed')
+  const compared = t('evaluation.agreementValidity.compared')
   return (
-    <SubBlock
-      title={t('evaluation.agreementValidity.projectValidations', {
-        count: count(total),
-      })}
-      description={t('evaluation.agreementValidity.projectValidationsHint')}
-      testId="project-code-validations"
-    >
-      <Table
-        head={
-          <>
-            <th className={th}>{t('evaluation.agreementValidity.name')}</th>
-            <th className={th}>{t('evaluation.agreementValidity.code')}</th>
-            <th className={th}>{t('evaluation.agreementValidity.status')}</th>
-            <th className={`${th} text-right`}>κ</th>
-            <th className={`${th} text-right`}>
-              {t('evaluation.agreementValidity.observed')}
-            </th>
-            <th className={`${th} text-right`}>
-              {t('evaluation.agreementValidity.compared')}
-            </th>
-          </>
-        }
-      >
-        {validations.map((v) => (
-          <tr key={v.id} data-testid="project-code-validation">
-            <td className={`${td} max-w-[16rem] min-w-[10rem]`}>
-              <div className="font-medium [overflow-wrap:anywhere]">
-                {v.name}
+    <div data-testid="project-code-validations">
+      <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        {t('evaluation.agreementValidity.projectValidations', {
+          count: count(total),
+        })}
+      </h4>
+      <p className="-mt-1 mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+        {t('evaluation.agreementValidity.projectValidationsHint')}
+      </p>
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div
+          className={`hidden gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 sm:grid dark:border-zinc-800 dark:bg-zinc-900/40 ${VALIDATION_COLUMNS}`}
+          aria-hidden="true"
+        >
+          <span className={headCell}>
+            {t('evaluation.agreementValidity.name')}
+          </span>
+          <span className={headCell}>
+            {t('evaluation.agreementValidity.code')}
+          </span>
+          <span className={headCell}>
+            {t('evaluation.agreementValidity.status')}
+          </span>
+          <span className={`${headCell} text-right normal-case`}>κ</span>
+          <span className={`${headCell} text-right`}>{observed}</span>
+          <span className={`${headCell} text-right`}>{compared}</span>
+        </div>
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {validations.map((v) => (
+            <li
+              key={v.id}
+              className={`grid grid-cols-1 gap-1.5 px-3 py-2.5 text-sm sm:items-center sm:gap-3 ${VALIDATION_COLUMNS}`}
+              data-testid="project-code-validation"
+            >
+              <div className="min-w-0">
+                <div className="font-medium [overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200">
+                  {v.name}
+                </div>
+                <div className="text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
+                  <Link
+                    href={`/projects/${encodeURIComponent(v.project_id)}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {v.coding_project_title || v.project_id}
+                  </Link>
+                  {' · '}
+                  {v.control}
+                </div>
                 {usedIds.has(v.id) && (
-                  <Badge variant="outline" className="ml-2 align-middle">
+                  <Badge variant="outline" className="mt-1">
                     {t('evaluation.agreementValidity.usedByRun')}
                   </Badge>
                 )}
               </div>
-              <div className="text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
-                <Link
-                  href={`/projects/${encodeURIComponent(v.project_id)}`}
-                  className="underline-offset-2 hover:underline"
-                >
-                  {v.coding_project_title || v.project_id}
-                </Link>
-                {' · '}
-                {v.control}
+              <div className="min-w-0">
+                <div className="text-xs text-zinc-800 dark:text-zinc-200">
+                  {t(codeKindKey(v.code_kind))}
+                </div>
+                <div className="font-mono text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
+                  {v.code_ref ?? DASH}
+                </div>
               </div>
-            </td>
-            <td className={`${td} max-w-[16rem] min-w-[9rem]`}>
-              <div className="text-xs">{t(codeKindKey(v.code_kind))}</div>
-              <div className="font-mono text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
-                {v.code_ref ?? DASH}
+              <div>
+                <ValidationStatus status={v.status} />
               </div>
-            </td>
-            <td className={td}>
-              <ValidationStatus status={v.status} />
-            </td>
-            <td className={num}>{dec(v.kappa)}</td>
-            <td className={num}>{pct(v.observed_agreement)}</td>
-            <td className={num}>{count(v.n_compared)}</td>
-          </tr>
-        ))}
-      </Table>
-    </SubBlock>
+              <Figure label="κ" value={dec(v.kappa)} />
+              <Figure label={observed} value={pct(v.observed_agreement)} />
+              <Figure label={compared} value={count(v.n_compared)} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   )
 }
 

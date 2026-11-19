@@ -11,6 +11,7 @@
 import {
   CodeValidationAgreement,
   codeKindKey,
+  codeLabel,
   validationAgreementFromReport,
 } from '@/components/evaluation/CodeValidationAgreement'
 import { formatDate } from '@/lib/reports/format'
@@ -75,13 +76,14 @@ export function CodeValidations({
                 </dt>
                 <dd className="[overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200">
                   {t(codeKindKey(v.code_kind))}
-                  {v.code_ref ? (
+                  {v.code_ref || v.code_version ? (
                     <>
                       {' · '}
-                      <span className="font-mono">{v.code_ref}</span>
+                      <span className="font-mono">
+                        {codeLabel(v.code_ref, v.code_version, t)}
+                      </span>
                     </>
                   ) : null}
-                  {v.code_version ? ` (${v.code_version})` : ''}
                 </dd>
                 <dt className="text-zinc-500 dark:text-zinc-400">
                   {t('reports.view.codeValidations.hash')}

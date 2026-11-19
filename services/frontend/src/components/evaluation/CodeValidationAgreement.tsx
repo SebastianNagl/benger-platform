@@ -89,6 +89,18 @@ export function validationAgreementFromReport(
 
 const DASH = '-'
 
+/** How the note on items without an automatic code reads. */
+function missingKey(missing: string | null, one: boolean): string {
+  if (missing === 'exclude') {
+    return one
+      ? 'evaluation.agreementValidity.missingExcludedOne'
+      : 'evaluation.agreementValidity.missingExcluded'
+  }
+  return one
+    ? 'evaluation.agreementValidity.missingCategoryOne'
+    : 'evaluation.agreementValidity.missingCategory'
+}
+
 function Stat({
   label,
   value,
@@ -223,29 +235,33 @@ export function CodeValidationAgreement({
       <ul className="space-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
         {(data.ties ?? 0) > 0 && (
           <li>
-            {t('evaluation.agreementValidity.ties', {
-              count: count(data.ties),
-            })}
+            {data.ties === 1
+              ? t('evaluation.agreementValidity.tiesOne')
+              : t('evaluation.agreementValidity.ties', {
+                  count: count(data.ties),
+                })}
           </li>
         )}
         {(data.missingAutomatic ?? 0) > 0 && (
           <li>
-            {t(
-              data.missing === 'exclude'
-                ? 'evaluation.agreementValidity.missingExcluded'
-                : 'evaluation.agreementValidity.missingCategory',
-              { count: count(data.missingAutomatic) },
-            )}
+            {t(missingKey(data.missing, data.missingAutomatic === 1), {
+              count: count(data.missingAutomatic),
+            })}
           </li>
         )}
         {between && (between.coders ?? 0) >= 2 && (
           <li data-testid="validation-between-coders">
-            {t('evaluation.agreementValidity.betweenCoders', {
-              coders: count(between.coders),
-              items: count(between.items),
-              kappa: dec(between.fleiss_kappa),
-              agreement: pct(between.percent_agreement),
-            })}
+            {t(
+              between.items === 1
+                ? 'evaluation.agreementValidity.betweenCodersOne'
+                : 'evaluation.agreementValidity.betweenCoders',
+              {
+                coders: count(between.coders),
+                items: count(between.items),
+                kappa: dec(between.fleiss_kappa),
+                agreement: pct(between.percent_agreement),
+              },
+            )}
           </li>
         )}
       </ul>
@@ -256,6 +272,20 @@ export function CodeValidationAgreement({
 /** A short form of a 64-character hash. */
 export function shortHash(hash: string | null | undefined): string {
   return hash ? hash.slice(0, 12) : DASH
+}
+
+/** A code's ref with its version, unless the ref already names it. */
+export function codeLabel(
+  ref: string | null | undefined,
+  version: string | null | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  if (!ref)
+    return version
+      ? t('evaluation.agreementValidity.version', { version })
+      : DASH
+  if (!version || ref.includes(`@${version}`)) return ref
+  return `${ref} (${t('evaluation.agreementValidity.version', { version })})`
 }
 
 /** The translation key of a code kind (text pattern, coder, judge code). */

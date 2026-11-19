@@ -6510,7 +6510,12 @@
       "judges": "Judges",
       "items": "Items",
       "allAgree": "All judges agree",
-      "judgePairs": "Judge pairs"
+      "judgePairs": "Judge pairs",
+      "tiesOne": "1 item whose human codes tie has no reference and is left out.",
+      "missingCategoryOne": "1 item without an automatic code counts as the category (missing).",
+      "missingExcludedOne": "1 item without an automatic code is left out.",
+      "betweenCodersOne": "Between the {coders} human coders on the 1 item coded by two or more: Fleiss' kappa {kappa}, all coders agree on {agreement}.",
+      "version": "version {version}"
     }
   },
   "about": {

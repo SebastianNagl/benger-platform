@@ -6510,7 +6510,12 @@
       "judges": "Bewerter",
       "items": "Einträge",
       "allAgree": "Alle Bewerter einig",
-      "judgePairs": "Bewerterpaare"
+      "judgePairs": "Bewerterpaare",
+      "tiesOne": "1 Eintrag mit gleich vielen Stimmen der menschlichen Codes hat keine Referenz und bleibt außen vor.",
+      "missingCategoryOne": "1 Eintrag ohne automatischen Code zählt als Kategorie (missing).",
+      "missingExcludedOne": "1 Eintrag ohne automatischen Code bleibt außen vor.",
+      "betweenCodersOne": "Zwischen den {coders} menschlichen Kodierenden auf dem 1 mehrfach kodierten Eintrag: Fleiss' Kappa {kappa}, alle Kodierenden stimmen bei {agreement} überein.",
+      "version": "Version {version}"
     }
   },
   "about": {

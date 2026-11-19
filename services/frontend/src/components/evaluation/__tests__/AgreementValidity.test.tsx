@@ -101,9 +101,7 @@ describe('RunAgreementBlock', () => {
     expect(within(validated).getByText('blames_claimant')).toBeInTheDocument()
     expect(within(validated).getByText('Text pattern')).toBeInTheDocument()
     expect(within(validated).getByText('Validated')).toBeInTheDocument()
-    expect(
-      within(validated).getByText('blame@1:claimant (1)'),
-    ).toBeInTheDocument()
+    expect(within(validated).getByText('blame@1:claimant')).toBeInTheDocument()
     expect(within(validated).getByTitle(PATTERN_HASH)).toHaveTextContent(
       PATTERN_HASH.slice(0, 12),
     )
@@ -139,15 +137,15 @@ describe('RunAgreementBlock', () => {
     const per = VALIDATION_METRICS.automatic_vs_reference.per_category!
     expect(per.D.f1).toBeCloseTo(0.857, 3)
     expect(validated).toHaveTextContent(
-      '1 items whose human codes tie have no reference and are left out.',
+      '1 item whose human codes tie has no reference and is left out.',
     )
     expect(validated).toHaveTextContent(
-      '1 items without an automatic code count as the category (missing).',
+      '1 item without an automatic code counts as the category (missing).',
     )
     expect(
       within(validated).getByTestId('validation-between-coders'),
     ).toHaveTextContent(
-      "Between the 2 human coders on 1 items coded by two or more: Fleiss' kappa -1.00",
+      "Between the 2 human coders on the 1 item coded by two or more: Fleiss' kappa -1.00",
     )
 
     expect(within(notValidated).getByText('Not validated')).toBeInTheDocument()
@@ -306,5 +304,24 @@ describe('JudgeAgreementBlock', () => {
     expect(row).toHaveTextContent('passed')
     expect(row).toHaveTextContent('j1 / j2: κ = 0.40')
     expect(row).toHaveTextContent('0.42')
+  })
+})
+
+describe('codeLabel', () => {
+  const { codeLabel } = jest.requireActual(
+    '@/components/evaluation/CodeValidationAgreement',
+  )
+  const t = (key: string, vars?: Record<string, string | number>) =>
+    `${key}:${vars?.version}`
+  it('adds the version only when the ref does not name it', () => {
+    expect(codeLabel('set@2:code', '2', t)).toBe('set@2:code')
+    expect(codeLabel('coder:out', '0.3', t)).toBe(
+      'coder:out (evaluation.agreementValidity.version:0.3)',
+    )
+    expect(codeLabel('judge:side', null, t)).toBe('judge:side')
+    expect(codeLabel(null, null, t)).toBe('-')
+    expect(codeLabel(null, '1', t)).toBe(
+      'evaluation.agreementValidity.version:1',
+    )
   })
 })
