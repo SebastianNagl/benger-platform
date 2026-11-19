@@ -127,16 +127,20 @@ export interface ReportVariantDesign {
   provenance: ReportFreeJson | null
 }
 
+/**
+ * The provenance fields (mode to declared_manifest) belong to
+ * variant_experiments; a snapshot without that flag has none of them.
+ */
 export interface ReportImport {
   format: string | null
-  mode: string | null
+  mode?: string | null
   completed_at: string | null
-  payload_sha256: string | null
-  byte_size: number | null
-  task_count: number
+  payload_sha256?: string | null
+  byte_size?: number | null
+  task_count?: number
   /** A repeat of an identical earlier import that wrote nothing. */
-  no_op: boolean
-  declared_manifest: ReportFreeJson | null
+  no_op?: boolean
+  declared_manifest?: ReportFreeJson | null
 }
 
 export interface ReportDataSection {
@@ -151,14 +155,18 @@ export interface ReportGenerationRates {
   generations: number
   completed: number
   failed: number
-  /** Share of completed generations; null without any. */
-  refusal_rate: number | null
+  /**
+   * Share of completed generations; null without any. Refusal, retry and
+   * request record shares belong to variant_experiments; a snapshot without
+   * that flag has none of them.
+   */
+  refusal_rate?: number | null
   truncation_rate: number | null
-  retry_rate: number | null
+  retry_rate?: number | null
   /** Share of parsed generations whose parse failed; null when none was parsed. */
   parse_failure_rate: number | null
   /** Share of generations with a stored request record. */
-  request_record_share: number | null
+  request_record_share?: number | null
 }
 
 export interface ReportStructureCount {
@@ -396,9 +404,9 @@ export interface ReportReproducibility {
     spec_sha256: string
   }>
   imports: Array<{
-    payload_sha256: string | null
+    payload_sha256?: string | null
     completed_at: string | null
-    no_op: boolean
+    no_op?: boolean
   }>
   analysis_runs: ReportAnalysisRunRecord[]
   /** SHA-256 over the canonical snapshot without generated_at and platform. */

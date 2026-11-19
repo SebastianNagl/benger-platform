@@ -35,7 +35,7 @@ from report_snapshot import (
 from tests.integration.test_report_snapshot_public import _as_user, _user
 
 # The feature is behind a platform flag (off by default in the suite).
-pytestmark = pytest.mark.flags_on("variant_experiments")
+pytestmark = pytest.mark.flags_on("variant_experiments", "report_paper")
 
 OPEN = "open-model@p1"
 SECRET = "custom-secret-model@p2"
@@ -720,7 +720,7 @@ async def test_off_the_run_list_is_not_found_and_snapshots_have_no_analyses(asyn
 
     snap = await _snapshot(async_test_db, project.id, _section(runs["main"].id, [{"id": "t", "type": "table"}]))
     assert "analyses" not in snap
-    # The reproducibility appendix is general, but lists no analysis run.
+    # The paper's reproducibility appendix lists no analysis run.
     assert snap["reproducibility"]["analysis_runs"] == []
 
     # A stored section naming runs the report could not show does not block

@@ -59,6 +59,11 @@ const getReasonTranslationKey = (reason: string): string => {
       'project.report.reasons.mustHaveResults',
     'Project must have annotations, generations or evaluations':
       'project.report.reasons.mustHaveResultsWithoutAnalyses',
+    // The rule while report_paper is off (report_service).
+    'Project must have LLM generations':
+      'project.report.reasons.mustHaveGenerations',
+    'Project must have completed evaluations':
+      'project.report.reasons.mustHaveEvaluations',
     'Every run in the Analyses section must be a completed analysis run of this project that reads no other project':
       'project.report.reasons.analysisRuns',
     'Report not created yet': 'project.report.reasons.notCreatedYet',

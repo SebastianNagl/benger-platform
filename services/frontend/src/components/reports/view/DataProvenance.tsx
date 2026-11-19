@@ -137,6 +137,9 @@ export function DataProvenance({
   if (!data) return null
   const { variant_designs: designs, imports } = data
   if (designs.length === 0 && imports.length === 0) return null
+  // Task counts, sizes and hashes are import provenance, present only in a
+  // snapshot built with variant_experiments.
+  const withProvenance = imports.some((imp) => imp.task_count !== undefined)
   return (
     <div className="mt-6 space-y-6" data-testid="data-provenance">
       {designs.length > 0 && (
@@ -184,15 +187,19 @@ export function DataProvenance({
                 <th scope="col" className={TH}>
                   {t('reports.view.records.importMode')}
                 </th>
-                <th scope="col" className={clsx(TH, NUM)}>
-                  {t('reports.view.tasks')}
-                </th>
-                <th scope="col" className={clsx(TH, NUM)}>
-                  {t('reports.view.records.size')}
-                </th>
-                <th scope="col" className={TH}>
-                  {t('reports.view.records.payloadHash')}
-                </th>
+                {withProvenance && (
+                  <>
+                    <th scope="col" className={clsx(TH, NUM)}>
+                      {t('reports.view.tasks')}
+                    </th>
+                    <th scope="col" className={clsx(TH, NUM)}>
+                      {t('reports.view.records.size')}
+                    </th>
+                    <th scope="col" className={TH}>
+                      {t('reports.view.records.payloadHash')}
+                    </th>
+                  </>
+                )}
               </>
             }
           >
@@ -209,37 +216,45 @@ export function DataProvenance({
                 <td className={clsx(TD, 'align-top')}>
                   {imp.mode || imp.format || MISSING}
                 </td>
-                <td className={clsx(TD, NUM, 'align-top')}>
-                  {formatCount(imp.task_count, locale)}
-                </td>
-                <td className={clsx(TD, NUM, 'align-top whitespace-nowrap')}>
-                  {formatBytes(imp.byte_size, locale)}
-                </td>
-                <td className={clsx(TD, 'min-w-48 align-top')}>
-                  <HashValue
-                    value={imp.payload_sha256}
-                    label={t('reports.view.records.copyHash')}
-                  />
-                  {imp.declared_manifest &&
-                    (imp.declared_manifest.truncated ? (
-                      <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        {t('reports.view.records.manifestTooLarge')}
-                      </div>
-                    ) : imp.declared_manifest.content === undefined ? (
-                      <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        <div>{t('reports.view.records.declaredManifest')}</div>
-                        <HashValue
-                          value={imp.declared_manifest.sha256}
-                          label={t('reports.view.records.copyHash')}
-                        />
-                      </div>
-                    ) : (
-                      <JsonDetails
-                        summary={t('reports.view.records.declaredManifest')}
-                        value={imp.declared_manifest.content}
+                {withProvenance && (
+                  <>
+                    <td className={clsx(TD, NUM, 'align-top')}>
+                      {formatCount(imp.task_count ?? 0, locale)}
+                    </td>
+                    <td
+                      className={clsx(TD, NUM, 'align-top whitespace-nowrap')}
+                    >
+                      {formatBytes(imp.byte_size ?? null, locale)}
+                    </td>
+                    <td className={clsx(TD, 'min-w-48 align-top')}>
+                      <HashValue
+                        value={imp.payload_sha256 ?? null}
+                        label={t('reports.view.records.copyHash')}
                       />
-                    ))}
-                </td>
+                      {imp.declared_manifest &&
+                        (imp.declared_manifest.truncated ? (
+                          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t('reports.view.records.manifestTooLarge')}
+                          </div>
+                        ) : imp.declared_manifest.content === undefined ? (
+                          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <div>
+                              {t('reports.view.records.declaredManifest')}
+                            </div>
+                            <HashValue
+                              value={imp.declared_manifest.sha256}
+                              label={t('reports.view.records.copyHash')}
+                            />
+                          </div>
+                        ) : (
+                          <JsonDetails
+                            summary={t('reports.view.records.declaredManifest')}
+                            value={imp.declared_manifest.content}
+                          />
+                        ))}
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </RecordTable>

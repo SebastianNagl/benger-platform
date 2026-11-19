@@ -705,6 +705,7 @@ class TestEvaluationSectionWrite:
 # ===========================================================================
 
 
+@pytest.mark.flags_on("report_paper")
 class TestCanPublishGate:
     def test_no_report_blocks_with_report_not_found(self, test_db: Session, test_user):
         from report_service import can_publish_report
@@ -805,11 +806,11 @@ class TestCanPublishGate:
         create_initial_report_draft(test_db, project.id, test_user.id)
         assert can_publish_report(test_db, project.id)[0] is expected
 
-    def test_completed_analysis_run_does_not_count_while_variant_experiments_is_off(
+    def test_completed_analysis_run_does_not_count_without_variant_experiments(
         self, test_db: Session, test_user
     ):
-        """Analyses belong to the flag: off, a completed run is no result and
-        the reason does not name analyses."""
+        """Analyses belong to variant_experiments: without it a completed run
+        is no result and the reason does not name analyses."""
         from models import AnalysisRun
         from report_service import can_publish_report, create_initial_report_draft
 

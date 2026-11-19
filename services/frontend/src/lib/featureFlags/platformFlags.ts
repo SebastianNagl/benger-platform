@@ -10,9 +10,16 @@
  * Variant experiments and their analyses: variant designs, per-item
  * answers, generation fidelity (request record, answer-format options,
  * format retry, runs cap 100), panel models, analysis runs, codes and
- * coding validation, annotator agreement and the report as project paper.
+ * coding validation, annotator agreement and the report's Analyses section.
  */
 export const VARIANT_EXPERIMENTS = 'variant_experiments'
 
 /** The compliance records and the /compliance route shells. */
 export const COMPLIANCE_RECORDS = 'compliance_records'
+
+/**
+ * The report as the project's paper: authorship of project owners and
+ * organization admins, the publish rule for every project type and the
+ * data, generation, human evaluation and reproducibility parts.
+ */
+export const REPORT_PAPER = 'report_paper'

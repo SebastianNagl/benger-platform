@@ -72,7 +72,7 @@ PUBLIC_API = "public_api"
 #: Controlled variant experiments and their analyses (core 2.75): variant
 #: designs, per-item answers, generation fidelity, panel models and the
 #: system key, analysis runs, codes and coding validation, the results
-#: views, annotator agreement and the project report as paper. Off: the
+#: views, annotator agreement and the report's Analyses section. Off: the
 #: routes answer 404 ``feature_disabled``, the jobs do not run, the views
 #: and counts are gone, and every changed behaviour follows the platform
 #: as it was before (docs/features/feature-flags.md).
@@ -81,6 +81,14 @@ VARIANT_EXPERIMENTS = "variant_experiments"
 #: The generic compliance records (assessments, suite runs, findings under
 #: ``/api/compliance``) and the ``/compliance`` route shells (core 2.75).
 COMPLIANCE_RECORDS = "compliance_records"
+
+#: The project report as the project's paper (core 2.75): authorship of
+#: project owners and organization admins, the publish rule covering every
+#: project type and the data, generation, human evaluation and
+#: reproducibility parts. Off: only superadmins author reports, a report
+#: needs tasks, LLM generations and completed evaluations, and snapshots
+#: have none of those parts.
+REPORT_PAPER = "report_paper"
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +312,17 @@ def platform_flags() -> Tuple[FlagDefinition, ...]:
             "/api/compliance sowie die Seiten unter /compliance. Aus: Routen "
             "antworten mit 404, Navigation und Seiten fehlen. Die Oberfläche "
             "des Compliance-Pakets braucht zusätzlich extension.compliance.",
+            STATE_OFF,
+        ),
+        FlagDefinition(
+            REPORT_PAPER,
+            "Projektbericht als Paper: Projektinhaber und Organisations-Admins "
+            "schreiben und veröffentlichen den Bericht, jedes Projekt mit "
+            "Aufgaben und einem Ergebnis kann veröffentlichen, und der Bericht "
+            "hat die Teile Daten, Generierung, menschliche Bewertung und "
+            "Reproduzierbarkeit. Aus: nur Superadmins schreiben Berichte, ein "
+            "Bericht braucht Aufgaben, LLM-Generierungen und abgeschlossene "
+            "Evaluationen, und neue Snapshots haben diese Teile nicht.",
             STATE_OFF,
         ),
     )

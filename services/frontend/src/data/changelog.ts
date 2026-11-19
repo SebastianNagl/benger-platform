@@ -1,5 +1,8 @@
 import type { ChangelogEntry } from '@/lib/extensions/changelog'
-import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
+import {
+  REPORT_PAPER,
+  VARIANT_EXPERIMENTS,
+} from '@/lib/featureFlags/platformFlags'
 
 /**
  * Platform changelog entries, newest first. One short user-facing bullet
@@ -38,6 +41,7 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     id: '2026-11-19-report-as-project-paper',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: REPORT_PAPER,
   },
   {
     id: '2026-11-19-analyses-on-evaluations-page',

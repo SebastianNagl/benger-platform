@@ -31,7 +31,7 @@ from report_service import (
     get_report_statistics_batch,
 )
 from feature_flags.deps import flag_on, require_variant_experiments
-from feature_flags.registry import VARIANT_EXPERIMENTS
+from feature_flags.registry import REPORT_PAPER, VARIANT_EXPERIMENTS
 from report_snapshot import (
     AnalysesSectionError,
     analysis_runs_member_only,
@@ -41,7 +41,7 @@ from report_snapshot import (
     parse_analyses_section,
     public_snapshot,
     report_analysis_runs,
-    without_experiment_parts,
+    gated_snapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -224,12 +224,18 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     annotations = sections.get("annotations") or {}
     if annotations.get("show_participants") is False and "participants" in annotations:
         sections = {**sections, "annotations": {**annotations, "participants": []}}
-    snapshot = apply_section_visibility(content.get("snapshot"), sections)
-    # The parts of the variant_experiments flag (core 2.75) are served while
-    # it is on for anybody; off for everybody, the report has none of them.
-    if not _experiment_parts_served():
-        snapshot = without_experiment_parts(snapshot)
-        # The Analyses section's settings belong to the flag as well.
+    # The parts of the variant_experiments and report_paper flags (core 2.75)
+    # are served while their flag is on for anybody; off for everybody, the
+    # report has none of them.
+    experiments = _served_for_anybody(VARIANT_EXPERIMENTS)
+    snapshot = gated_snapshot(
+        content.get("snapshot"),
+        variant_experiments=experiments,
+        report_paper=_served_for_anybody(REPORT_PAPER),
+    )
+    snapshot = apply_section_visibility(snapshot, sections)
+    if not experiments:
+        # The Analyses section's settings belong to variant_experiments too.
         sections = {k: v for k, v in sections.items() if k != "analyses"}
     return {
         **content,
@@ -238,11 +244,10 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     }
 
 
-def _experiment_parts_served() -> bool:
-    from feature_flags.registry import VARIANT_EXPERIMENTS
+def _served_for_anybody(name: str) -> bool:
     from feature_flags.scope import flag_on_for_anybody
 
-    return flag_on_for_anybody(VARIANT_EXPERIMENTS)
+    return flag_on_for_anybody(name)
 
 
 def _report_response(
@@ -376,6 +381,10 @@ async def can_edit_report(db: AsyncSession, user: Optional[User], project_id: st
         return False
     if user.is_superadmin:
         return True
+    # Authors besides superadmins belong to the report as project paper
+    # (report_paper, core 2.75): off, only superadmins author, as before.
+    if not await flag_on(db, user, REPORT_PAPER):
+        return False
     from routers.projects.helpers import check_user_can_edit_project_async
 
     return await check_user_can_edit_project_async(
@@ -383,13 +392,23 @@ async def can_edit_report(db: AsyncSession, user: Optional[User], project_id: st
     )
 
 
-async def require_report_author(db: AsyncSession, user: User, project_id: str) -> None:
-    """403 unless :func:`can_edit_report` holds."""
+async def require_report_author(
+    db: AsyncSession,
+    user: User,
+    project_id: str,
+    classic_detail: str = REPORT_AUTHOR_REQUIRED_DETAIL,
+) -> None:
+    """403 unless :func:`can_edit_report` holds. ``classic_detail`` is the
+    route's message from before report authors existed, answered while
+    report_paper is off for the caller (a route that exists only with a
+    flag needs none)."""
     if not await can_edit_report(db, user, project_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=REPORT_AUTHOR_REQUIRED_DETAIL
+        detail = (
+            REPORT_AUTHOR_REQUIRED_DETAIL
+            if await flag_on(db, user, REPORT_PAPER)
+            else classic_detail
         )
-
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
 async def check_report_access(
@@ -545,7 +564,7 @@ async def update_project_report(
 
     Allows editing report sections while preserving auto-populated data
     """
-    await require_report_author(db, current_user, project_id)
+    await require_report_author(db, current_user, project_id, "Only superadmins can edit reports")
 
     # Check if project exists
     project = (
@@ -632,7 +651,7 @@ async def publish_report(
     (the numbers a published report shows, frozen at this point) and sets
     the visibility: organizations only (default) or public.
     """
-    await require_report_author(db, current_user, project_id)
+    await require_report_author(db, current_user, project_id, "Only superadmins can publish reports")
 
     # Check if project exists
     project = (
@@ -689,7 +708,7 @@ async def unpublish_report(
     """
     Unpublish a report (report authors, see ``can_edit_report``)
     """
-    await require_report_author(db, current_user, project_id)
+    await require_report_author(db, current_user, project_id, "Only superadmins can unpublish reports")
 
     # Check if project exists
     project = (
@@ -756,7 +775,7 @@ async def set_report_visibility(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Switch a published report between organizations-only and public (report authors)."""
-    await require_report_author(db, current_user, project_id)
+    await require_report_author(db, current_user, project_id, "Only superadmins can change report visibility")
     project, report = await _load_project_and_report(db, project_id)
     if not report.is_published:
         raise HTTPException(
@@ -784,7 +803,7 @@ async def refresh_report_snapshot(
     Published reports keep their numbers until this is called explicitly, so
     a benchmark report never changes underneath its readers.
     """
-    await require_report_author(db, current_user, project_id)
+    await require_report_author(db, current_user, project_id, "Only superadmins can refresh reports")
     project, report = await _load_project_and_report(db, project_id)
     snapshot = await db.run_sync(
         _build_snapshot_sync, project_id, _analyses_of(report), current_user
@@ -906,7 +925,7 @@ async def list_published_reports(
                 {"id": po.organization.id, "name": po.organization.name}
             )
 
-    analyses_served = _experiment_parts_served()
+    analyses_served = _served_for_anybody(VARIANT_EXPERIMENTS)
     result = []
     for report in reports:
         stats = dict(stats_map.get(

@@ -306,9 +306,9 @@ async function renderLoaded(report: any = baseReport) {
 describe('ReportEditorPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // The Analyses section and the agreement switches belong to
-    // variant_experiments.
-    setMockFeatureFlags({ variant_experiments: true })
+    // Report authors and the paper's parts belong to report_paper, the
+    // Analyses section and the agreement switches to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true, report_paper: true })
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({
       user: mockSuperadmin,
@@ -406,8 +406,8 @@ describe('ReportEditorPage', () => {
       expect(mockRouter.push).not.toHaveBeenCalled()
     })
 
-    it('names the same authors while variant_experiments is off', async () => {
-      setMockFeatureFlags({})
+    it('names superadmins as the only authors while report_paper is off', async () => {
+      setMockFeatureFlags({ variant_experiments: true })
       ;(useAuth as jest.Mock).mockReturnValue({
         user: mockContributor,
         isLoading: false,
@@ -420,7 +420,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent(
-          'reports.editor.notAuthor',
+          'reports.editor.notSuperadmin',
         )
       })
     })
@@ -689,8 +689,14 @@ describe('ReportEditorPage', () => {
     })
 
     it('shows no card and sends no section while variant_experiments is off', async () => {
-      setMockFeatureFlags({})
+      setMockFeatureFlags({ report_paper: true })
       const user = await renderLoaded()
+      // The paper's parts stay, without the wording of variant designs.
+      expect(screen.getByTestId('section-reproducibility')).toBeInTheDocument()
+      expect(screen.getByText('reports.editor.showImports')).toBeInTheDocument()
+      expect(
+        screen.queryByText('reports.editor.showProvenance'),
+      ).not.toBeInTheDocument()
       expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('analyses-editor-stub'),
@@ -707,17 +713,23 @@ describe('ReportEditorPage', () => {
       const annotations = mockUpdate.mock.calls[0][1].sections.annotations
       expect(annotations).not.toHaveProperty('show_agreement')
       expect(annotations).not.toHaveProperty('show_code_validations')
-      // The paper's general parts stay.
-      expect(screen.getByTestId('section-reproducibility')).toBeInTheDocument()
+    })
+
+    it('shows none of the paper parts while report_paper is off', async () => {
+      setMockFeatureFlags({ variant_experiments: true })
+      await renderLoaded()
+      expect(screen.getByTestId('section-analyses')).toBeInTheDocument()
       expect(
-        screen.getByText('reports.editor.showHumanEvaluation'),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('reports.editor.showProvenance'),
-      ).toBeInTheDocument()
-      expect(mockUpdate.mock.calls[0][1].sections).toHaveProperty(
-        'reproducibility',
-      )
+        screen.queryByTestId('section-reproducibility'),
+      ).not.toBeInTheDocument()
+      for (const label of [
+        'reports.editor.showProvenance',
+        'reports.editor.showImports',
+        'reports.editor.showGenerationDetails',
+        'reports.editor.showHumanEvaluation',
+      ]) {
+        expect(screen.queryByText(label)).not.toBeInTheDocument()
+      }
     })
 
     it('starts an older report without the section empty and visible', async () => {

@@ -61,7 +61,10 @@ import type {
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
 import { useFeatureFlag } from '@/lib/featureFlags'
-import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
+import {
+  REPORT_PAPER,
+  VARIANT_EXPERIMENTS,
+} from '@/lib/featureFlags/platformFlags'
 import { useMaxGenerationRunsPerTask } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
@@ -147,6 +150,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // The experiment features (variant_experiments): the Analysis action and
   // count, and a runs cap of 100 instead of 25.
   const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const reportPaper = useFeatureFlag(REPORT_PAPER)
   const maxRunsPerTask = useMaxGenerationRunsPerTask()
 
   const {
@@ -487,7 +491,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // report (can_edit) and creates it on an author's first view; readers get
   // a 403 for a draft, or can_edit false, and no card.
   const fetchReportStatus = async () => {
-    if (!projectId || !user) return
+    // Report authors besides superadmins belong to the report as project
+    // paper (report_paper); off, only superadmins get the card.
+    if (!projectId || !user || !(user.is_superadmin || reportPaper)) return
 
     setLoadingReport(true)
     try {
@@ -551,7 +557,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       fetchReportStatus()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
-  }, [projectId, user, accessTierKnown, isParticipant])
+  }, [projectId, user, accessTierKnown, isParticipant, reportPaper])
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {

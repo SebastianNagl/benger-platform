@@ -7,12 +7,16 @@ author writes the prose and chooses what to show; the numbers come from a
 snapshot computed on the server, so a published report stays stable and an
 anonymous reader of a public report never touches live data.
 
-The annotator agreement, the Analyses section, the analysis count and the
-lists of variant designs and analysis runs in the data and reproducibility
-parts need the platform flag `variant_experiments`. While it is off, those
-parts are neither built nor served and a completed analysis run does not
-count as a result for publishing; the authorship, the rest of the publish
-rule and the other parts below hold for every project
+The authorship of project owners and organization admins, the publish rule
+below and the data, generation, human evaluation and reproducibility parts
+need the platform flag `report_paper`. While it is off, superadmins author
+reports, a report needs tasks, LLM generations and completed evaluations to
+be published, and those parts are neither built nor served. The annotator
+agreement, the Analyses section, the analysis count, and inside the paper's
+parts the variant designs, the import provenance, the refusal, retry and
+request record shares and the analysis runs of the reproducibility appendix
+need `variant_experiments`; without it they are neither built nor served
+and a completed analysis run does not count as a result for publishing
 ([feature flags](feature-flags.md)).
 
 The code lives in `services/shared/report_snapshot.py` (the snapshot),

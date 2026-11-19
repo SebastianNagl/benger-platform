@@ -22,6 +22,7 @@ from .registry import (  # noqa: E402,F401
     MASTER_PREFIX,
     PLATFORM_OWNER,
     PUBLIC_API,
+    REPORT_PAPER,
     STATE_ALLOWLIST,
     STATE_EVERYONE,
     STATE_OFF,

@@ -30,7 +30,7 @@ from tests.integration.test_report_analyses import _estimate, _project, _run, _s
 from tests.integration.test_report_snapshot_public import _as_user, _user
 
 # The feature is behind a platform flag (off by default in the suite).
-pytestmark = pytest.mark.flags_on("variant_experiments")
+pytestmark = pytest.mark.flags_on("variant_experiments", "report_paper")
 
 # Ten coded items: the automatic code agrees with the single human coder on
 # seven, one item has no automatic code (counted as the "(missing)"

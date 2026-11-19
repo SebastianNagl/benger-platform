@@ -770,6 +770,27 @@ describe('ProjectDetailPage: report card', () => {
       json: jest.fn().mockResolvedValue(body),
     }) as any
 
+  beforeEach(() => {
+    // Report authors besides superadmins belong to report_paper.
+    setMockFeatureFlags({ report_paper: true })
+  })
+
+  it('asks for no report and shows no card to a non-superadmin while report_paper is off', async () => {
+    setMockFeatureFlags({ variant_experiments: true })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { ...superadmin, is_superadmin: false },
+      currentOrganization: null,
+    })
+    global.fetch = reportResponse({ is_published: true, can_edit: true })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/projects/proj-1/report'),
+      expect.anything(),
+    )
+    expect(screen.queryByTestId('publication-toggle')).not.toBeInTheDocument()
+  })
+
   it('shows no card when the API refuses the report (403) or has none (404)', async () => {
     for (const status of [403, 404]) {
       global.fetch = reportResponse({}, status)

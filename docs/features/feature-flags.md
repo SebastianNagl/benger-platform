@@ -12,6 +12,7 @@ by the platform and coupled to no overlay's master flag.
 | `public_api` | off (`PUBLIC_API_ENABLED` sets it) | access keys and `/api/v1` ([public-api.md](../public-api.md)) |
 | `variant_experiments` | off | controlled variant experiments and their analyses, see below |
 | `compliance_records` | off | the compliance records API and the `/compliance` pages |
+| `report_paper` | off | the project report as the project's paper, see below |
 
 ## `variant_experiments`
 
@@ -23,18 +24,24 @@ estimators, frames, lookup tables), codes, text patterns and coding
 validation, analysis plans and the Analyses part of the project's
 Evaluation card, the analysis results views and counts (profiles,
 strengths, examples, the unit and request views), import provenance,
-annotator agreement (computed from annotations alone, on the evaluations
-page and in the report's Annotation section), the Agreement and validity
-block (judge agreement on the evaluations page, code validations of the
-analysis runs' codes in runs and reports) and, inside reports, the Analyses
-section and every place a report lists or counts analysis runs or variant
-designs.
+annotator agreement, the Agreement and validity block (judge agreement on
+the evaluations page, code validations of the analysis runs' codes in runs
+and reports) and, inside reports, the Analyses section, the analysis count
+and the values the paper's parts take from these features.
 
-The report as the project's paper is not behind the flag: project owners and
-organization admins author and publish it, a project publishes with tasks
-and at least one annotation, generation or evaluation, and a snapshot has
-its data, generation, human evaluation and reproducibility parts for every
-project type.
+Annotator agreement stays behind this flag although it is computed from
+annotations alone: the agreement on the evaluations page, the snapshot's
+`annotator_agreement`, the report's agreement block in its Annotation
+section and the editor's `show_agreement` switch are all off without it.
+
+Inside the parts of the report as paper (`report_paper`), this flag covers
+the variant designs of the data part, the provenance of imports (mode,
+size, task count, payload hash, no-op repeats, declared manifest), the
+refusal, retry and request record shares of the generation part, and the
+variant design, import hash and analysis run lists of the reproducibility
+appendix. With `report_paper` on and this flag off a report shows the paper
+without those values: their columns and lines are not shown, and the
+editor's data switch reads "Show imports".
 
 With the flag off:
 
@@ -59,14 +66,33 @@ With the flag off:
   `enable_thinking` switch of Qwen 3.8 27B, Nemotron 3.5 Lightning and
   Gemma 4 26B is neither shown nor sent; a completed analysis run does not
   count as a result for publishing a report, new snapshots have no
-  annotator agreement, Analyses section or analysis count and list no
-  variant designs or analysis runs in their data and reproducibility parts,
-  saving a report neither adds nor changes its Analyses settings nor adds
-  the agreement and code validation switches, and an evaluation config
-  write ignores `analysis_plans`;
+  annotator agreement, Analyses section or analysis count nor the values
+  listed above in the paper's parts, none of these is served while the
+  flag is off for everybody, saving a report neither adds nor changes its
+  Analyses settings nor adds the agreement and code validation switches,
+  and an evaluation config write ignores `analysis_plans`;
 - stored data stays as it is: designs, runs, codes, records, options and
   report snapshots are neither deleted nor rewritten, and a project built
   while the flag was on still opens without errors.
+
+## `report_paper`
+
+Covers the project report as the project's paper: authorship of the
+project owner and the admins of the project's organizations besides
+superadmins (the project page's report card for them too), the publish rule
+for every project type (tasks plus at least one annotation, generation,
+evaluation or, with `variant_experiments`, analysis run), the snapshot's
+data, generation, human evaluation and reproducibility parts with
+`snapshot_sha256`, the editor's switches and cards for them, the viewer's
+hiding of empty tiles and sections and its citation block, and the
+changelog entry of the report as paper.
+
+With the flag off, reports behave as before this work: only superadmins
+author them (each route answers its previous 403 message, for example "Only
+superadmins can publish reports"), a report is published once the project
+has tasks, LLM generations and completed evaluations, new snapshots have
+none of the paper's parts, and stored ones are served without them while
+the flag is off for everybody.
 
 ## `compliance_records`
 
@@ -84,9 +110,13 @@ needs the overlay's master flag `extension.compliance`.
   import or export requester), decided once per job; the job carries the
   answer into shared code through `feature_flags.scope`.
 - Report content read by others (published reports, anonymous readers): a
-  snapshot holds the flag's parts only when it was built with the flag on,
-  and they are served while the flag is on for anybody, so switching the
-  flag off for everybody hides them everywhere without rewriting a report.
+  snapshot holds a flag's parts only when it was built with the flag on for
+  its author, and they are served while the flag is on for anybody, so
+  switching a flag off for everybody hides them everywhere without
+  rewriting a report. When serving leaves parts out,
+  `reproducibility.snapshot_sha256` is computed over what is served, so
+  the hash a reader gets verifies against the data the reader gets
+  (`report_snapshot.gated_snapshot`).
 
 ## Left on with the flag off
 
@@ -105,26 +135,24 @@ rows, the `analysis` queue, and the import and export of variant designs
 
 ## Rollout on production
 
-Both flags start `off` in code, and the registry sync creates a missing row
-at that default without ever overwriting a row's state. On production they
-start off for everyone except an allowlist, for the pilot the TUM
-organization. After the deploy that brings the flags, a superadmin sets this
-once per flag (`variant_experiments`, `compliance_records`), either in the
-admin console at `/admin/feature-flags` (state `allowlist`, then add the
-organization as a target) or through the API:
+All three flags (`variant_experiments`, `compliance_records`,
+`report_paper`) are registered `off` in code. The rollout happens by itself
+on deploy: migration `152_platform_flags_tum_rollout`, which the deploy's
+migration job runs before the new API starts, creates each flag's row in
+state `allowlist` with the TUM organization as its only target, when that
+organization exists (the production organization by its id, else an
+organization named `TUM`, as development and test seeds create) and the
+flag has no row yet, that is, nobody has set it. A row that exists is left
+exactly as it is, without a TUM organization nothing is written, and a
+second run changes nothing. The registry sync after the migrations only
+creates missing rows at `off` and fills in descriptions; it never changes a
+row's state or targets.
 
-```
-PUT  /api/feature-flags/variant_experiments           {"state": "allowlist"}
-POST /api/feature-flags/variant_experiments/targets   {"organization_id": "<TUM organization id>"}
-PUT  /api/feature-flags/compliance_records            {"state": "allowlist"}
-POST /api/feature-flags/compliance_records/targets    {"organization_id": "<TUM organization id>"}
-```
-
-The steps are idempotent: setting the same state again changes nothing, and
-adding a target that is already listed answers `409 target_exists`. Members
-of the TUM organization then get the features, everybody else keeps the
-flag-off behaviour above; the compliance overlay's own UI also needs
-`extension.compliance` for them.
+Members of the TUM organization then get the features, everybody else keeps
+the flag-off behaviour above; the compliance overlay's own UI also needs
+`extension.compliance` for them. Afterwards an admin changes a flag in the
+admin console at `/admin/feature-flags`, for example `report_paper` to
+`everyone` on its own.
 
 ## Variant assignments: `meta.benger_variant`
 

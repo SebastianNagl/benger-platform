@@ -1659,17 +1659,22 @@ API change).
 
 
 2.75 (2026-11-19): the experiment features behind platform feature flags
-  (migration 151; docs/features/feature-flags.md; 2.71 is taken by the
+  (migrations 151 and 152; docs/features/feature-flags.md; 2.71 is taken by the
   Evaluation card's analysis start, 2.72 by the report's Analyses section,
   2.73 by the shared variant and analysis views, 2.74 by the agreement and
   validity views).
-  - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
-    ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
-    owner ``platform``, default ``off``, coupled to no master flag. An
-    overlay that uses these features (the compliance overlay) needs them on
-    for its users: ``compliance_records`` for ``/api/compliance`` and the
-    ``/compliance`` shells (besides ``extension.compliance``),
-    ``variant_experiments`` for everything else listed below.
+  - Three platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
+    ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``,
+    ``REPORT_PAPER`` = ``report_paper``), owner ``platform``, default
+    ``off``, coupled to no master flag. An overlay that uses these features
+    (the compliance overlay) needs them on for its users:
+    ``compliance_records`` for ``/api/compliance`` and the ``/compliance``
+    shells (besides ``extension.compliance``), ``report_paper`` for the
+    report as project paper of 2.70, ``variant_experiments`` for everything
+    else listed below. Migration 152 rolls all three out on deploy: a flag
+    nobody has set (no row) becomes ``allowlist`` with the TUM organization
+    as its only target when that organization exists; an existing row is
+    left as it is.
   - Off, the routes of 2.56-2.74 answer 404 ``feature_disabled``
     (``feature_flags.deps.require_variant_experiments`` /
     ``require_compliance_records``; an organization key's organization
@@ -1685,22 +1690,32 @@ API change).
     ``text_pattern`` neither offered nor run
     (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
     ``<Repeater>`` an unsupported field type, no import provenance, the
-    previous generation export and nested import, no analysis counts, a
-    completed analysis run is no result for publishing
+    previous generation export and nested import, no analysis counts, no
+    annotator agreement (also computed from annotations alone, it stays
+    behind the flag), a completed analysis run is no result for publishing
     (``report_service.REASON_NO_RESULTS_WITHOUT_ANALYSES``), and new
-    snapshots carry no agreement, analyses section or analysis count and
-    list no variant designs or analysis runs, none of which is served while
-    the flag is off for everybody (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
+    snapshots carry no agreement, analyses section or analysis count and,
+    inside the paper's parts, no variant designs, import provenance,
+    refusal, retry or request record shares or analysis runs
+    (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
     ``EXPERIMENT_STATISTICS_KEYS``, ``EXPERIMENT_LIST_KEYS``,
-    ``without_experiment_parts``). The report as project paper (owner and
-    organization admin authors, the publish rule of 2.70, the data,
-    generation, human evaluation and reproducibility parts) is not behind
-    the flag. A report save neither adds nor changes
+    ``EXPERIMENT_IMPORT_FIELDS``, ``EXPERIMENT_GENERATION_FIELDS``); none of
+    these is served while the flag is off for everybody. A report save
+    neither adds nor changes
     ``sections.analyses`` nor adds ``show_agreement`` or
     ``show_code_validations``, the statistics panel shows no judge
     agreement, and an evaluation config write drops
     ``analysis_plans`` (``services.analysis_plans.without_analysis_plans``),
     so stored sections and plans stay as they are.
+  - ``report_paper`` off: only superadmins author reports (each route's
+    previous 403), the previous publish rule (tasks, LLM generations,
+    completed evaluations; ``report_service.REASON_NO_GENERATIONS``,
+    ``REASON_NO_EVALUATIONS``), and new snapshots have no data, generation,
+    human evaluation or reproducibility part
+    (``report_snapshot.PAPER_SNAPSHOT_KEYS``), none of which is served while
+    the flag is off for everybody. ``report_snapshot.gated_snapshot``
+    leaves out the parts of the flags that are off and then computes
+    ``reproducibility.snapshot_sha256`` over what is served.
   - Catalog entries can belong to a flag: ``default_config.feature_flag``
     (the model) and ``default_config.reasoning_config.feature_flag`` (its
     reasoning knob); ``catalog_flags`` (``model_offered``,
