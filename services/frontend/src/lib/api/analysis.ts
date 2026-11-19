@@ -146,6 +146,28 @@ export interface AnalysisFrameDownload {
   frame_sha256: string | null
 }
 
+/**
+ * A named analysis spec saved with the project's evaluation configuration
+ * (`evaluation_config.analysis_plans`). `spec_hash` is the hash of the
+ * normalized spec, the same hash a run started from it records;
+ * `spec_hash`, `saved_at` and `saved_by` are set by the API.
+ */
+export interface AnalysisPlan {
+  id: string
+  name: string
+  spec: Record<string, unknown>
+  spec_hash: string
+  saved_at: string | null
+  saved_by: string | null
+}
+
+/** A plan as sent to the API: new plans have no id yet. */
+export interface AnalysisPlanDraft {
+  id?: string
+  name: string
+  spec: unknown
+}
+
 /** Largest estimates page the API serves (MAX_ESTIMATES_PAGE). */
 export const ESTIMATES_PAGE_SIZE = 5000
 
@@ -158,9 +180,31 @@ export function isRunActive(status: AnalysisRunStatus | string): boolean {
   return status === 'pending' || status === 'running'
 }
 
+const SPEC_ERROR_CODES = new Set([
+  'invalid_analysis_spec',
+  'invalid_analysis_plan',
+])
+
+const evaluationConfigPath = (projectId: string) =>
+  `/evaluations/projects/${encodeURIComponent(projectId)}/evaluation-config`
+
+function plansOf(config: unknown): AnalysisPlan[] {
+  const plans = (config as { analysis_plans?: unknown } | null)?.analysis_plans
+  return Array.isArray(plans)
+    ? plans.filter(
+        (p): p is AnalysisPlan =>
+          !!p &&
+          typeof p === 'object' &&
+          typeof (p as AnalysisPlan).id === 'string' &&
+          typeof (p as AnalysisPlan).name === 'string',
+      )
+    : []
+}
+
 /**
- * The validation problems of a rejected spec (422 `invalid_analysis_spec`),
- * or null when the error is something else.
+ * The validation problems of a rejected spec or plan (422
+ * `invalid_analysis_spec` or `invalid_analysis_plan`), or null when the
+ * error is something else.
  */
 export function specErrorsOf(error: unknown): string[] | null {
   const response = (
@@ -171,7 +215,7 @@ export function specErrorsOf(error: unknown): string[] | null {
   if (
     detail &&
     typeof detail === 'object' &&
-    (detail as { code?: unknown }).code === 'invalid_analysis_spec' &&
+    SPEC_ERROR_CODES.has(String((detail as { code?: unknown }).code)) &&
     Array.isArray((detail as { errors?: unknown }).errors)
   ) {
     return ((detail as { errors: unknown[] }).errors ?? []).map(String)
@@ -236,6 +280,29 @@ export const analysisAPI = {
     return (page?.items ?? [])
       .map((d) => d?.key)
       .filter((k): k is string => typeof k === 'string')
+  },
+
+  /** The project's saved analysis plans (from its evaluation config). */
+  listPlans: async (projectId: string): Promise<AnalysisPlan[]> =>
+    plansOf(await apiClient.get(evaluationConfigPath(projectId), NO_STORE)),
+
+  /**
+   * Replace the project's analysis plans with `plans` (the API validates
+   * each spec and stamps hash and save time); resolves with the stored
+   * plans. Only the `analysis_plans` key is sent, so the other keys of the
+   * evaluation config stay as they are.
+   */
+  savePlans: async (
+    projectId: string,
+    plans: readonly AnalysisPlanDraft[],
+  ): Promise<AnalysisPlan[]> => {
+    const body = plans.map(({ id, name, spec }) =>
+      id ? { id, name, spec } : { name, spec },
+    )
+    const response = (await apiClient.put(evaluationConfigPath(projectId), {
+      analysis_plans: body,
+    })) as { config?: unknown }
+    return plansOf(response?.config)
   },
 
   /** Validate a spec without starting a run. */

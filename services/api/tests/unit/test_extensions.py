@@ -192,7 +192,9 @@ class TestExtensionLoader:
         # 2.68 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        assert CORE_API_VERSION == "2.68"
+        # 2.69 adds analysis plans (evaluation_config.analysis_plans, checked
+        # and hashed on save) and the Analyses part of the Evaluation card.
+        assert CORE_API_VERSION == "2.69"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

@@ -1,10 +1,11 @@
 'use client'
 
 /**
- * Start an analysis run from a spec (JSON): validate it against the engine
- * (normalized form and hash, or every problem the engine names) and start
- * the run. The spec format is documented in docs/features/analysis-engine.md
- * and returned by GET /api/analysis/engine.
+ * An analysis spec (JSON) with a name: validate it against the engine
+ * (normalized form and hash, or every problem the engine names) and submit
+ * it. `NewAnalysisRunForm` starts a run with it; the analysis plans editor
+ * saves it as a plan. The spec format is documented in
+ * docs/features/analysis-engine.md and returned by GET /api/analysis/engine.
  */
 
 import { Button } from '@/components/shared/Button'
@@ -13,7 +14,7 @@ import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { shortHash } from '@/lib/analysis/results'
 import { analysisAPI, specErrorsOf, type AnalysisRun } from '@/lib/api/analysis'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 type Feedback =
   | { kind: 'none' }
@@ -37,24 +38,47 @@ export function starterSpec(designs: readonly string[], name: string): string {
   )
 }
 
-export function NewAnalysisRunForm({
-  projectId,
-  initialSpec,
-  initialName,
-  designKeys,
-  onStarted,
-}: {
-  projectId: string
+export interface AnalysisSpecFormProps {
   initialSpec?: string
   initialName?: string
   designKeys: readonly string[]
-  onStarted: (run: AnalysisRun) => void
-}) {
+  nameLabel: string
+  namePlaceholder?: string
+  /** The name must not be empty (a plan's name). */
+  nameRequired?: boolean
+  submitLabel: string
+  submittingLabel: string
+  submitTestId?: string
+  /** Shown when `onSubmit` fails with no message of its own. */
+  failedMessage: string
+  /** The saved plan's hash: a valid spec says whether it still matches. */
+  planHash?: string | null
+  onSubmit: (spec: unknown, name: string) => Promise<void>
+}
+
+export function AnalysisSpecForm({
+  initialSpec,
+  initialName,
+  designKeys,
+  nameLabel,
+  namePlaceholder,
+  nameRequired = false,
+  submitLabel,
+  submittingLabel,
+  submitTestId,
+  failedMessage,
+  planHash = null,
+  onSubmit,
+}: AnalysisSpecFormProps) {
   const { t } = useI18n()
+  const ids = useId()
+  const nameId = `${ids}-name`
+  const specId = `${ids}-spec`
+  const hintId = `${ids}-hint`
   const [name, setName] = useState(initialName ?? '')
   const [text, setText] = useState(initialSpec ?? '')
   const [feedback, setFeedback] = useState<Feedback>({ kind: 'none' })
-  const [busy, setBusy] = useState<'validate' | 'start' | null>(null)
+  const [busy, setBusy] = useState<'validate' | 'submit' | null>(null)
 
   const parse = (): unknown | undefined => {
     try {
@@ -78,7 +102,7 @@ export function NewAnalysisRunForm({
     else
       setFeedback({
         kind: 'error',
-        message: (error as Error)?.message || t('analysis.newRun.failed'),
+        message: (error as Error)?.message || failedMessage,
       })
   }
 
@@ -96,40 +120,43 @@ export function NewAnalysisRunForm({
     }
   }
 
-  const start = async () => {
+  const submit = async () => {
     const spec = parse()
     if (spec === undefined) return
-    setBusy('start')
+    setBusy('submit')
     try {
-      const run = await analysisAPI.startRun(projectId, spec, name)
-      onStarted(run)
+      await onSubmit(spec, name.trim())
+      setBusy(null)
     } catch (error) {
       report(error)
       setBusy(null)
     }
   }
 
+  const missingName = nameRequired && !name.trim()
+
   return (
-    <div className="space-y-3" data-testid="new-analysis-run-form">
+    <div className="space-y-3" data-testid="analysis-spec-form">
       <div>
         <label
-          htmlFor="analysis-run-name"
+          htmlFor={nameId}
           className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
         >
-          {t('analysis.newRun.name')}
+          {nameLabel}
         </label>
         <Input
-          id="analysis-run-name"
+          id={nameId}
           value={name}
           maxLength={200}
+          required={nameRequired}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t('analysis.newRun.namePlaceholder')}
+          placeholder={namePlaceholder}
         />
       </div>
       <div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <label
-            htmlFor="analysis-run-spec"
+            htmlFor={specId}
             className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
           >
             {t('analysis.newRun.spec')}
@@ -151,7 +178,7 @@ export function NewAnalysisRunForm({
           </button>
         </div>
         <Textarea
-          id="analysis-run-spec"
+          id={specId}
           value={text}
           onChange={(e) => {
             setText(e.target.value)
@@ -161,10 +188,10 @@ export function NewAnalysisRunForm({
           spellCheck={false}
           className="font-mono text-xs"
           placeholder={t('analysis.newRun.specPlaceholder')}
-          aria-describedby="analysis-run-spec-hint"
+          aria-describedby={hintId}
         />
         <p
-          id="analysis-run-spec-hint"
+          id={hintId}
           className="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
         >
           {t('analysis.newRun.specHint')}
@@ -177,6 +204,12 @@ export function NewAnalysisRunForm({
           role="status"
         >
           {t('analysis.newRun.valid', { hash: shortHash(feedback.hash) })}
+          {planHash &&
+            ` ${
+              planHash === feedback.hash
+                ? t('analysis.plans.matchesPlan')
+                : t('analysis.plans.differsFromPlan')
+            }`}
         </p>
       )}
       {feedback.kind === 'invalid' && (
@@ -214,15 +247,53 @@ export function NewAnalysisRunForm({
         </Button>
         <Button
           variant="primary"
-          onClick={start}
-          disabled={busy !== null || !text.trim()}
-          data-testid="new-analysis-run-start"
+          onClick={submit}
+          disabled={busy !== null || !text.trim() || missingName}
+          data-testid={submitTestId}
         >
-          {busy === 'start'
-            ? t('analysis.newRun.starting')
-            : t('analysis.newRun.start')}
+          {busy === 'submit' ? submittingLabel : submitLabel}
         </Button>
       </div>
+    </div>
+  )
+}
+
+/** The spec form that starts a run of the project. */
+export function NewAnalysisRunForm({
+  projectId,
+  initialSpec,
+  initialName,
+  designKeys,
+  planHash,
+  onStarted,
+}: {
+  projectId: string
+  initialSpec?: string
+  initialName?: string
+  designKeys: readonly string[]
+  /** The hash of the plan the spec was loaded from. */
+  planHash?: string | null
+  onStarted: (run: AnalysisRun) => void
+}) {
+  const { t } = useI18n()
+  return (
+    <div data-testid="new-analysis-run-form">
+      <AnalysisSpecForm
+        initialSpec={initialSpec}
+        initialName={initialName}
+        designKeys={designKeys}
+        nameLabel={t('analysis.newRun.name')}
+        namePlaceholder={t('analysis.newRun.namePlaceholder')}
+        submitLabel={t('analysis.newRun.start')}
+        submittingLabel={t('analysis.newRun.starting')}
+        submitTestId="new-analysis-run-start"
+        failedMessage={t('analysis.newRun.failed')}
+        planHash={planHash}
+        onSubmit={async (spec, name) => {
+          const run = await analysisAPI.startRun(projectId, spec, name)
+          onStarted(run)
+        }}
+      />
     </div>
   )
 }

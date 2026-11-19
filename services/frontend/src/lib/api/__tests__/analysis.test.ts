@@ -1,7 +1,7 @@
 /**
  * Tests for the analysis-run API client (lib/api/analysis): the request
- * paths and bodies, estimate paging, the design-key list and the error
- * helpers the run pages use.
+ * paths and bodies, estimate paging, the design-key list, the analysis
+ * plans and the error helpers the run pages use.
  */
 
 import {
@@ -14,12 +14,14 @@ import {
 
 const mockGet = jest.fn()
 const mockPost = jest.fn()
+const mockPut = jest.fn()
 
 jest.mock('@/lib/api', () => ({
   __esModule: true,
   default: {
     get: (...args: unknown[]) => mockGet(...args),
     post: (...args: unknown[]) => mockPost(...args),
+    put: (...args: unknown[]) => mockPut(...args),
   },
 }))
 
@@ -28,6 +30,7 @@ const NO_STORE = { cache: 'no-store' }
 beforeEach(() => {
   mockGet.mockReset()
   mockPost.mockReset()
+  mockPut.mockReset()
 })
 
 describe('analysisAPI', () => {
@@ -136,9 +139,81 @@ describe('helpers', () => {
     expect(specErrorsOf(null)).toBeNull()
   })
 
+  it('reads the problems of a rejected analysis plan', () => {
+    expect(
+      specErrorsOf({
+        response: {
+          status: 422,
+          data: {
+            detail: {
+              code: 'invalid_analysis_plan',
+              errors: ['/analysis_plans/0/name: must be a non-empty string'],
+            },
+          },
+        },
+      }),
+    ).toEqual(['/analysis_plans/0/name: must be a non-empty string'])
+  })
+
   it('statusOf reads the HTTP status when there is one', () => {
     expect(statusOf({ response: { status: 403 } })).toBe(403)
     expect(statusOf(new Error('x'))).toBeUndefined()
     expect(statusOf(null)).toBeUndefined()
+  })
+})
+
+describe('analysis plans', () => {
+  it('reads the saved plans from the evaluation config, uncached', async () => {
+    const plan = {
+      id: 'p1',
+      name: 'Plan',
+      spec: {},
+      spec_hash: 'h',
+      saved_at: null,
+      saved_by: null,
+    }
+    mockGet.mockResolvedValue({
+      evaluation_configs: [],
+      analysis_plans: [plan, { name: 'no id' }, null, { id: 2, name: 'x' }],
+    })
+    expect(await analysisAPI.listPlans('p/1')).toEqual([plan])
+    expect(mockGet).toHaveBeenCalledWith(
+      '/evaluations/projects/p%2F1/evaluation-config',
+      NO_STORE,
+    )
+    mockGet.mockResolvedValue({ evaluation_configs: [] })
+    expect(await analysisAPI.listPlans('p1')).toEqual([])
+    mockGet.mockResolvedValue({ analysis_plans: 'broken' })
+    expect(await analysisAPI.listPlans('p1')).toEqual([])
+  })
+
+  it('saves the plans as the only key of the evaluation config', async () => {
+    const stored = [
+      {
+        id: 'a',
+        name: 'A',
+        spec: { s: 1 },
+        spec_hash: 'h',
+        saved_at: 't',
+        saved_by: 'u',
+      },
+    ]
+    mockPut.mockResolvedValue({ config: { analysis_plans: stored } })
+    const result = await analysisAPI.savePlans('p1', [
+      { id: 'a', name: 'A', spec: { s: 1 } },
+      { name: 'B', spec: { s: 2 } },
+    ])
+    expect(mockPut).toHaveBeenCalledWith(
+      '/evaluations/projects/p1/evaluation-config',
+      {
+        analysis_plans: [
+          { id: 'a', name: 'A', spec: { s: 1 } },
+          { name: 'B', spec: { s: 2 } },
+        ],
+      },
+    )
+    expect(result).toEqual(stored)
+    mockPut.mockResolvedValue(undefined)
+    expect(await analysisAPI.savePlans('p1', [])).toEqual([])
   })
 })
