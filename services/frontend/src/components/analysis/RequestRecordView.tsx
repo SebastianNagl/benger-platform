@@ -157,7 +157,14 @@ export function RequestRecordView({ view }: { view: TrialRequestView }) {
               {t('generations.detail.request.workerCall')}
             </Notice>
           )}
-          {(record.messages ?? []).map((message, i) => (
+          {(Array.isArray(record.messages) ? record.messages : [])
+            .filter(
+              (message) =>
+                !!message &&
+                typeof message === 'object' &&
+                !Array.isArray(message),
+            )
+            .map((message, i) => (
             <div key={i} className="min-w-0">
               <p className={LABEL}>
                 {message.role === 'system'

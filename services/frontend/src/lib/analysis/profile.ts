@@ -334,6 +334,14 @@ function slopeInteraction(
   }
 }
 
+/**
+ * Estimators the engine fits as a linear model on the outcome itself, so a
+ * contrast on a term is a slope on the scale of a profile of means; the
+ * coefficients of logit, Bradley-Terry, Plackett-Luce or the conditional
+ * logit are on a link scale and are never drawn as one.
+ */
+const LINEAR_ESTIMATORS = new Set(['fe_ols', 'mixedlm'])
+
 /** A fitted slope of a profile: for every line (`line` null) or for one. */
 export interface ProfileSlopeEstimate {
   line: string | null
@@ -344,8 +352,8 @@ export interface ProfileSlopeEstimate {
  * The fitted slopes that belong to a profile, so a line is only ever drawn
  * for a slope the run estimated of exactly what is plotted. Only a profile
  * of levels (the means of `mean_rate`) has one: the pooled estimate of a
- * linear contrast on the x column in an estimand of the same outcome that
- * has `columns.x` as a term. Without an interaction of x the contrast
+ * linear contrast on the x column in a linear-model estimand (`fe_ols`,
+ * `mixedlm`) of the same outcome that has `columns.x` as a term. Without an interaction of x the contrast
  * `{x: 1}` is the slope of every line. With one interaction of x and a
  * factor that is the series, each level gets its own slope: `{x: 1}` for
  * the declared reference level and `{x: 1, "factor[level]:x": 1}` for the
@@ -362,6 +370,7 @@ export function profileSlopes(
   if (!first || first.estimator !== 'mean_rate' || !first.outcome) return []
   const x = columns.x
   for (const estimand of specEstimands(run)) {
+    if (!LINEAR_ESTIMATORS.has(estimand.estimator)) continue
     if (estimand.outcome !== first.outcome) continue
     const terms = Array.isArray(estimand.terms) ? estimand.terms : []
     if (!terms.includes(x)) continue

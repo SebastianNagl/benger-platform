@@ -1490,7 +1490,8 @@ API change).
     ``@/lib/analysis/profile``: ``profileFromEstimates``, ``scopeColumns``,
     ``defaultProfileColumns``, ``profileSlopes`` (only slopes the run
     estimated of exactly what is plotted: levels of ``mean_rate`` with the
-    ``{x: 1}`` contrast, per series level under an interaction of x and the
+    ``{x: 1}`` contrast of a linear model on the outcome, ``fe_ols`` or
+    ``mixedlm``, never a link-scale coefficient, per series level under an interaction of x and the
     series factor; none for differences),
     ``specEstimands``, ``specDesigns``), ``EstimateProfiles`` (the profile
     view of a run), ``ValueDistributionChart`` (exact values or bins, a

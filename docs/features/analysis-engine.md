@@ -366,8 +366,10 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   per facet column, with their intervals. A fitted slope is drawn only
   where the run estimated the slope of exactly what is plotted, with its
   estimate and interval in the legend: for a profile of means
-  (`mean_rate`), the pooled linear contrast `{x: 1}` of an estimand of the
-  same outcome with x as a term is the slope of every line; with an
+  (`mean_rate`), the pooled linear contrast `{x: 1}` of a linear-model
+  estimand (`fe_ols` or `mixedlm`, never a link-scale coefficient such as
+  a `logit` one) of the same outcome with x as a term is the slope of
+  every line; with an
   interaction of x and the series factor, each level gets its own slope
   (`{x: 1}` for the declared reference level, `{x: 1, "x:factor[level]":
   1}` for the others). A difference or coefficient profile, or any other

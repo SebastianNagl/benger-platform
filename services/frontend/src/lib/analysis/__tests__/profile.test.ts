@@ -149,6 +149,28 @@ describe('the run spec', () => {
     expect(profileSlopes(run, all, other, cols)).toEqual([])
   })
 
+  it('takes no slope from a link-scale model of the same outcome', () => {
+    // A logit coefficient on the log-odds scale is not a slope of means.
+    const run = makePositionRun()
+    const spec = run.normalized_spec as { estimands: { estimator: string }[] }
+    const logit = {
+      ...run,
+      normalized_spec: {
+        ...spec,
+        estimands: spec.estimands.map((e) =>
+          e.estimator === 'fe_ols' ? { ...e, estimator: 'logit' } : e,
+        ),
+      },
+    }
+    expect(
+      profileSlopes(logit, makePositionEstimates(), curve(), {
+        x: 'pos',
+        series: 'system',
+        facet: null,
+      }),
+    ).toEqual([])
+  })
+
   it('gives a difference profile no slope of the outcome level', () => {
     // Flat gaps next to a level slope of 0.5: that slope is not the gap's.
     const gaps = makeGapEstimates()

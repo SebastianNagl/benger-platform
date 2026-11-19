@@ -63,6 +63,26 @@ describe('RequestRecordView', () => {
     expect(screen.getByText('cd'.repeat(32))).toBeInTheDocument()
   })
 
+  it('flags a record with malformed messages without breaking', () => {
+    render(
+      <RequestRecordView
+        view={makeTrialRequest({
+          request_record: {
+            messages: 'x',
+            parameters: 'y',
+            requests: 'z',
+          } as unknown as NonNullable<
+            ReturnType<typeof makeTrialRequest>['request_record']
+          >,
+          computed_sha256: null,
+          hash_matches: false,
+          hash_check: 'mismatch',
+        })}
+      />,
+    )
+    expect(screen.getByTestId('request-hash-mismatch')).toBeInTheDocument()
+  })
+
   it('says when no hash was stored', () => {
     render(
       <RequestRecordView
