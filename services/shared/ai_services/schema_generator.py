@@ -40,7 +40,7 @@ def generate_json_schema_from_label_config(
             with ``task_data`` its length is pinned to the task's item count.
             Configs without a Repeater ignore it.
         variant_experiments: Whether the ``variant_experiments`` flag is on
-            for the generation (core 2.71). Off, a multi-choice ``<Choices>``
+            for the generation (core 2.73). Off, a multi-choice ``<Choices>``
             outside a Repeater keeps the single-value enum it had before
             per-item answers existed; on, it takes a list of choice values.
 

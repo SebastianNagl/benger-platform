@@ -251,7 +251,7 @@ def run_evaluation(
             )
 
         # A metric of a feature flag that is off for the caller (text_pattern,
-        # variant_experiments, core 2.71) does not run; its stored config stays.
+        # variant_experiments, core 2.73) does not run; its stored config stays.
         from services.evaluation.config import metric_flag_on
 
         enabled_configs = [

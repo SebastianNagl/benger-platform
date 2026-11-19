@@ -159,7 +159,7 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
         if run is None:
             logger.info("run_analysis: run %s is missing or finished; nothing to do", run_id)
             return {"run_id": run_id, "status": "skipped"}
-        # Analyses belong to variant_experiments (core 2.71): a run whose
+        # Analyses belong to variant_experiments (core 2.73): a run whose
         # owner has the flag off is not computed; it ends failed with the
         # platform's feature-disabled message, its spec stays stored.
         from feature_flags import FEATURE_DISABLED_MESSAGE, VARIANT_EXPERIMENTS
@@ -191,7 +191,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
         load_judge_values,
         load_lookup_tables,
     )
-    from analysis.frame import build_frame, frame_sha256, to_parquet
+    from analysis.frame import build_frame, frame_models, frame_sha256, to_parquet
     from analysis.runner import run_spec
     from analysis.version import ENGINE_VERSION
     from analysis_jobs.coding import check_code_validations
@@ -261,6 +261,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
         run.resolved_inputs = {
             "projects": [p["project_id"] for p in spec["inputs"].get("projects") or []],
             "lookups": resolved_lookups,
+            "models": frame_models(frame),
         }
         run.fits = result.fits
         run.codes = codes or None

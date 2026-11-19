@@ -423,7 +423,7 @@ async def list_projects(
         stats_map = await run_in_threadpool(_calculate_project_stats_batch_sync, project_ids)
         # Completed analysis runs, one grouped count on this session (the
         # same statement as the detail's count).
-        # Analysis runs belong to variant_experiments (core 2.71).
+        # Analysis runs belong to variant_experiments (core 2.73).
         analysis_counts = (
             await count_analysis_runs_by_project_async(db, project_ids)
             if await flag_on(db, current_user, VARIANT_EXPERIMENTS)

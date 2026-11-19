@@ -7,6 +7,9 @@ one result per control under an indexed name (`risk_0`, `risk_1`, ... or
 hand-written names such as `months_1`, `months_2`), so analyses, exports and
 Label Studio all read the same results.
 
+This feature needs the platform flag `variant_experiments`, which an
+administrator switches on under Admin, Feature Flags ([feature flags](../features/feature-flags.md)).
+
 ## Writing the config
 
 Label Studio's `<Repeater>` writes the per-item block once:

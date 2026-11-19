@@ -282,7 +282,7 @@ class LabelConfigValidator:
     @staticmethod
     def _repeater_enabled() -> bool:
         """Whether ``<Repeater>`` configs are accepted: per-item answers
-        belong to the variant_experiments flag (core 2.71), decided for the
+        belong to the variant_experiments flag (core 2.73), decided for the
         current request's caller. Off, a Repeater is an unsupported field
         type as before."""
         from feature_flags.registry import VARIANT_EXPERIMENTS

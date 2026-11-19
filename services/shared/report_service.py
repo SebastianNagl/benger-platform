@@ -221,7 +221,7 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
 def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
     """The ``show_agreement`` key of the annotations section: kept or
     defaulted while the variant_experiments flag is on in this context
-    (core 2.71), absent otherwise, as before annotator agreement existed."""
+    (core 2.73), absent otherwise, as before annotator agreement existed."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
 
@@ -440,6 +440,10 @@ def _update_metadata(report: ProjectReport, section_name: str):
 REASON_NO_REPORT = "Report not found"
 REASON_NO_TASKS = "Project must have tasks"
 REASON_NO_RESULTS = "Project must have annotations, generations, evaluations or analyses"
+REASON_ANALYSIS_RUNS = (
+    "Every run in the Analyses section must be a completed analysis run of this project "
+    "that reads no other project"
+)
 REASON_OK = "All requirements met"
 
 
@@ -474,7 +478,8 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     completed evaluation runs or completed analysis runs. So an annotation
     study, a human evaluation without generations and an analysis-only
     project can publish too; the report's sections without data hide
-    themselves.
+    themselves. Every run the Analyses section names must be one the report
+    can show (``report_snapshot.analysis_run_problems``).
 
     Args:
         db: Database session
@@ -483,14 +488,26 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     Returns:
         Tuple of (can_publish: bool, reason: str)
     """
+    from report_snapshot import analysis_run_problems, parse_analyses_section
+
     report = db.query(ProjectReport).filter(ProjectReport.project_id == project_id).first()
     if not report:
         return False, REASON_NO_REPORT
-    return can_publish_project(db, project_id)
+    ok, reason = can_publish_project(db, project_id)
+    if not ok or not _paper_rules():
+        # Without variant_experiments a snapshot has no Analyses section, so
+        # its runs do not count.
+        return ok, reason
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") if isinstance(content.get("sections"), dict) else {}
+    analyses = parse_analyses_section(sections.get("analyses"))
+    if analysis_run_problems(db, project_id, [r["run_id"] for r in analyses["runs"]]):
+        return False, REASON_ANALYSIS_RUNS
+    return True, REASON_OK
 
 
 # The rule before reports covered the whole project (variant_experiments
-# off, core 2.71): tasks, LLM generations and completed evaluations.
+# off, core 2.73): tasks, LLM generations and completed evaluations.
 REASON_NO_GENERATIONS = "Project must have LLM generations"
 REASON_NO_EVALUATIONS = "Project must have completed evaluations"
 
@@ -518,7 +535,7 @@ def _can_publish_project_classic(db: Session, project_id: str) -> Tuple[bool, st
 
 
 def _paper_rules() -> bool:
-    """Whether the report as project paper (variant_experiments, core 2.71)
+    """Whether the report as project paper (variant_experiments, core 2.73)
     applies in this request or job context."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag

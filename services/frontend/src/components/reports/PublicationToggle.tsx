@@ -62,7 +62,11 @@ const getReasonTranslationKey = (reason: string): string => {
       'project.report.reasons.mustHaveGenerations',
     'Project must have completed evaluations':
       'project.report.reasons.mustHaveEvaluations',
+    'Every run in the Analyses section must be a completed analysis run of this project that reads no other project':
+      'project.report.reasons.analysisRuns',
     'Report not created yet': 'project.report.reasons.notCreatedYet',
+    'A public report cannot show an analysis run in which a private model may appear':
+      'project.report.reasons.publicMemberOnlyAnalyses',
   }
   return reasonMap[reason] || ''
 }
@@ -131,7 +135,8 @@ export function PublicationToggle({
       applyResult(data)
     } catch (err: any) {
       console.error('Failed to change publication state:', err)
-      setError(err?.message || t(fallbackMessageKey))
+      const reasonKey = getReasonTranslationKey(err?.message ?? '')
+      setError(reasonKey ? t(reasonKey) : err?.message || t(fallbackMessageKey))
     } finally {
       setLoading(false)
     }

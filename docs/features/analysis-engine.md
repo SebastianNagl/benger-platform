@@ -10,6 +10,10 @@ equivalence tests and multiplicity-adjusted p-values, and records everything
 it needs to reproduce the numbers: the spec, the frame snapshot and its hash,
 the engine version and the numeric library versions.
 
+Everything described here needs the platform flag `variant_experiments`;
+while it is off the routes answer 404 `feature_disabled` and runs are not
+computed ([feature flags](feature-flags.md)).
+
 The code lives in `services/shared/analysis/` (pure functions and the spec
 schema) and runs in the workers on the `analysis` queue (`tasks.run_analysis`).
 The API validates specs and starts and reads runs; it does not load the
@@ -121,7 +125,10 @@ of a name (rows as lists in column order or objects), and versions never
 change. `table` takes `name`, `version`, optionally `project_id` (a table of
 another project, which needs the same access as an input project) and
 `content_hash`, which the run checks. The run records every table it read
-with its content hash in `resolved_inputs`.
+with its content hash in `resolved_inputs`, together with `models`: the
+models whose answers are in the frame (every `model_id` and the model part
+of every system key), so a report can tell whether a private model may
+appear in the run.
 
 ## The spec
 
@@ -228,6 +235,15 @@ dropped and named; a contrast on it is `not_estimable`.
 
 `scopes` repeats an estimand per level of the `by` columns, next to the
 pooled fit.
+
+The summary of every fit with `terms` (`fe_ols`, `logit`, `bradley_terry`,
+`mixedlm`, `plackett_luce`, `clogit_rank1`) records `references`: the
+reference level each dummy coding was measured against (factor -> level),
+the declared `reference` or else the first level of the estimation sample.
+A Bradley-Terry fit records its `reference` under `strength` and
+`players_are_systems`, true when every player level is a value of the
+frame's `system` (or `model_id`) column. Both keys are provenance only and
+move no estimate; fits of runs made before they existed lack them.
 
 ### Variances and inference conventions
 
@@ -430,7 +446,10 @@ Metric statistics and analysis estimates both map into interval rows
 interval rows whatever produced them. The forest plot
 (`@/components/analysis/ForestPlot`) takes plain rows, a null value, an
 optional band and a `mode` (`point` or `bar`), so overlay views can reuse it
-with their own bounds. Links to result pages use the path helpers in
+with their own bounds. `ContrastForest` draws one contrast with a given band
+and no pickers, and `EstimatesTable` takes `compact` to drop its filters and
+its count; the project report's Analyses section draws its exhibits with
+both (see [Project reports](project-reports.md#analyses)). Links to result pages use the path helpers in
 `@/lib/results/paths` (`analysisRunPath(runId)`,
 `evaluationsPath({ projectId, type, run, newRunFrom })`).
 

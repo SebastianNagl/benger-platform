@@ -179,7 +179,7 @@ def _instant_ai_backoff_sleep(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _platform_flags_on(request, monkeypatch):
-    """Platform feature flags (core 2.71) are off by default, as in a fresh
+    """Platform feature flags (core 2.73) are off by default, as in a fresh
     deployment; tests of a flagged feature opt in with
     ``@pytest.mark.flags_on("variant_experiments", ...)`` (or a module-level
     ``pytestmark``), and the named flags then evaluate as ``everyone`` for

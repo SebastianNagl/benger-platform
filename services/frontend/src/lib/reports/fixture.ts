@@ -4,7 +4,11 @@
  * submissions graded by the same judge, a human Korrektur config). Used by
  * viewer/editor tests and as the reference for the API contract.
  */
-import type { ReportSnapshot } from '@/types/report'
+import type {
+  ReportAnalysesSnapshot,
+  ReportAnalysisEstimate,
+  ReportSnapshot,
+} from '@/types/report'
 
 const bins18 = Array.from({ length: 19 }, (_, i) => i)
 const bins01 = Array.from({ length: 10 }, (_, i) => i / 10)
@@ -701,4 +705,132 @@ export const ANNOTATION_ONLY_SNAPSHOT: ReportSnapshot = {
     analysis_runs: [],
     snapshot_sha256: h('7'),
   },
+}
+
+const analysisEstimate = (
+  position: number,
+  overrides: Partial<ReportAnalysisEstimate> = {},
+): ReportAnalysisEstimate => ({
+  position,
+  estimand_id: 'framing_effect',
+  contrast_id: 'loaded_vs_neutral',
+  estimator: 'fe_ols',
+  kind: 'linear',
+  outcome: 'score',
+  scope: 'pooled',
+  scope_values: null,
+  status: 'ok',
+  message: null,
+  estimate: 0.12,
+  std_error: 0.04,
+  statistic: 3,
+  df: 40,
+  p_value: 0.004,
+  null_value: 0,
+  ci_level: 0.95,
+  ci_lower: 0.04,
+  ci_upper: 0.2,
+  equivalent: false,
+  tost: [
+    {
+      lower: -0.1,
+      upper: 0.1,
+      level: 0.9,
+      ci_lower: 0.05,
+      ci_upper: 0.19,
+      p_lower: 0.001,
+      p_upper: 0.8,
+      p_tost: 0.8,
+      equivalent: false,
+    },
+  ],
+  mde: null,
+  ratio: null,
+  family: 'primary',
+  p_adjusted: 0.008,
+  adjustments: [
+    {
+      family: 'primary',
+      method: 'holm',
+      group: [],
+      size: 2,
+      p_adjusted: 0.008,
+    },
+  ],
+  n_obs: 48,
+  n_clusters: [12],
+  k_params: 3,
+  conventions: null,
+  ...overrides,
+})
+
+/** An Analyses section (synthetic values): one run with a forest plot of
+ *  one contrast across two systems and a table of a second estimand. */
+export const REPORT_ANALYSES_FIXTURE: ReportAnalysesSnapshot = {
+  runs: [
+    {
+      id: 'run-1',
+      name: 'framing main',
+      spec_hash: 'a'.repeat(64),
+      spec_version: 1,
+      engine_version: '1.1.0',
+      frame_hash: 'b'.repeat(64),
+      frame_sha256: 'c'.repeat(64),
+      frame_rows: 48,
+      estimates_count: 6,
+      completed_at: '2026-11-01T10:00:00Z',
+      member_only: false,
+      warnings: ['one cluster has a single unit'],
+      families: [{ family: 'primary', method: 'holm', size: 2 }],
+      truncated: false,
+      estimates: [
+        analysisEstimate(0),
+        analysisEstimate(1, {
+          scope: 'system=sys_a',
+          scope_values: { system: 'sys_a' },
+          estimate: 0.2,
+          ci_lower: 0.08,
+          ci_upper: 0.32,
+        }),
+        analysisEstimate(2, {
+          scope: 'system=sys_b',
+          scope_values: { system: 'sys_b' },
+          estimate: 0.03,
+          ci_lower: -0.06,
+          ci_upper: 0.12,
+        }),
+        analysisEstimate(4, {
+          estimand_id: 'length_effect',
+          contrast_id: 'long_vs_short',
+          estimate: -0.05,
+          ci_lower: -0.1,
+          ci_upper: 0,
+          p_value: 0.051,
+          tost: null,
+          family: null,
+          p_adjusted: null,
+          adjustments: null,
+        }),
+      ],
+      exhibits: [
+        {
+          id: 'exhibit-1',
+          type: 'forest',
+          filters: { estimands: ['framing_effect'] },
+          band: 0,
+          row_count: 3,
+          positions: [0, 1, 2],
+        },
+        {
+          id: 'exhibit-2',
+          type: 'table',
+          filters: { estimands: ['length_effect'] },
+          band: null,
+          row_count: 1,
+          positions: [4],
+        },
+      ],
+    },
+  ],
+  omitted: [],
 }

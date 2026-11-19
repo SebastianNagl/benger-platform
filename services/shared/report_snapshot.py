@@ -29,7 +29,9 @@ public are excluded unless ``include_private_models`` is set — same rule as
 the LLM leaderboard, so a published report cannot leak a private endpoint.
 The same rule drops a hidden model from every other section: its generation
 counts, the human ratings of its answers and every preference comparison it
-took part in.
+took part in. The Analyses section applies it per run instead: a run in
+which a hidden model may appear is copied whole but marked member-only, and
+the public view leaves it out.
 
 Beyond the metric evaluation, the snapshot holds what a paper about the
 project reports (each section is present for every project and stays empty
@@ -43,6 +45,11 @@ when the project has nothing of its kind, so the viewer hides it):
     share with a stored request record.
   * ``human_evaluations``: Likert ratings per dimension (overall and per
     model) and preference comparisons (per model and per pair).
+  * ``analyses``: the completed single-project analysis runs the author
+    put in the report's Analyses section, each with its metadata, the
+    estimates its exhibits select (copied, so a published report keeps its
+    numbers), whether it is member-only, and the exhibits (forest or table)
+    with their filters.
   * ``reproducibility``: platform versions, label config version and hash,
     prompt structure hashes, models, evaluation configs with the parameter
     snapshots their judge runs used, variant design and import hashes, the
@@ -56,6 +63,7 @@ import hashlib
 import json
 import logging
 import math
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -828,19 +836,6 @@ WHERE r.project_id = :project_id AND r.status = 'completed'
 GROUP BY 1, 2, 3, 4
 """
 
-# Completed analysis runs that read this project only: a cross-project run
-# (``inputs.projects``) would publish numbers of another project.
-_ANALYSIS_RUNS_SQL = """
-SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
-       frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at
-FROM analysis_runs
-WHERE project_id = :project_id AND status = 'completed'
-  AND COALESCE(jsonb_array_length(
-        CASE WHEN jsonb_typeof(normalized_spec->'inputs'->'projects') = 'array'
-             THEN normalized_spec->'inputs'->'projects' END), 0) = 0
-ORDER BY completed_at, id
-"""
-
 
 def _parameter_model_ids(parameters: Any) -> set:
     """The judge model ids a judge run's parameter snapshot names: its
@@ -941,7 +936,9 @@ def _build_reproducibility_section(
     evaluation_configs.sort(key=lambda c: c["id"])
 
     analysis_runs = []
-    for r in db.execute(text(_ANALYSIS_RUNS_SQL), params).mappings().all():
+    eligible_runs = report_analysis_runs(db, params["project_id"])
+    member_only = analysis_runs_member_only(db, eligible_runs)
+    for r in eligible_runs:
         analysis_runs.append({
             "id": r["id"],
             "name": r["name"],
@@ -956,6 +953,7 @@ def _build_reproducibility_section(
             "lockfile_sha256": r["lockfile_sha256"],
             "seed": int(r["seed"]) if r["seed"] is not None else None,
             "completed_at": _iso(r["completed_at"]),
+            "member_only": member_only[r["id"]],
         })
 
     return {
@@ -984,6 +982,534 @@ def _build_reproducibility_section(
 
 
 # ---------------------------------------------------------------------------
+# Analyses: the runs and exhibits the author chose
+# ---------------------------------------------------------------------------
+
+# Completed analysis runs of the project, oldest first. A report takes only
+# runs that read no further project (``report_analysis_runs``).
+_ANALYSIS_RUNS_SQL = """
+SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
+       frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at,
+       warnings, normalized_spec, fits, resolved_inputs
+FROM analysis_runs
+WHERE project_id = :project_id AND status = 'completed'
+ORDER BY completed_at, id
+"""
+
+_RUN_STATES_SQL = """
+SELECT id, project_id, status, normalized_spec FROM analysis_runs WHERE id = ANY(:ids)
+"""
+
+ANALYSIS_EXHIBIT_TYPES = ("forest", "table")
+EXHIBIT_FILTER_KEYS = ("estimands", "contrasts", "families", "systems")
+# The frame columns holding a system key (or the bare model id).
+SYSTEM_COLUMNS = ("system", "model_id")
+_PARAMETER = re.compile(r"(?:^|:)([^\[\]:]+)\[([^\[\]]*)\]")
+MAX_REPORT_ANALYSIS_RUNS = 10
+MAX_RUN_EXHIBITS = 12
+MAX_FILTER_VALUES = 500
+MAX_FILTER_VALUE_LENGTH = 1000
+MAX_ANALYSIS_TITLE_LENGTH = 300
+MAX_ANALYSIS_TEXT_LENGTH = 20000
+# Estimates one run contributes to a report (the union of its exhibits);
+# beyond it the run keeps the first ones in engine order and is ``truncated``.
+MAX_REPORT_ESTIMATES_PER_RUN = 1000
+_EXHIBIT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+# Why a run an Analyses entry names is not in the snapshot.
+RUN_NOT_FOUND = "not_found"            # no run of this project with that id
+RUN_NOT_COMPLETED = "not_completed"
+RUN_READS_OTHER_PROJECTS = "reads_other_projects"
+
+
+def report_analysis_runs(db: Session, project_id: str) -> List[Dict[str, Any]]:
+    """The completed analysis runs of a project a report may show, oldest
+    first: those that read no further project, neither through
+    ``inputs.projects`` nor through a stored lookup table of another project
+    (``AnalysisRun.input_projects``), because a report must not publish
+    another project's numbers."""
+    from models import AnalysisRun
+
+    rows = db.execute(text(_ANALYSIS_RUNS_SQL), {"project_id": project_id}).mappings().all()
+    return [dict(r) for r in rows if not AnalysisRun.input_projects(r["normalized_spec"], project_id)]
+
+
+def analysis_run_problems(db: Session, project_id: str, run_ids: Iterable[str]) -> Dict[str, str]:
+    """For each of ``run_ids`` that a report of ``project_id`` cannot show,
+    the reason (``RUN_NOT_FOUND``, ``RUN_NOT_COMPLETED`` or
+    ``RUN_READS_OTHER_PROJECTS``); runs it can show are left out. A run of
+    another project counts as not found, so ids cannot be probed."""
+    from models import AnalysisRun
+
+    ids = sorted({str(r) for r in run_ids if r})
+    if not ids:
+        return {}
+    found = {r["id"]: r for r in db.execute(text(_RUN_STATES_SQL), {"ids": ids}).mappings().all()}
+    problems: Dict[str, str] = {}
+    for run_id in ids:
+        row = found.get(run_id)
+        if row is None or row["project_id"] != project_id:
+            problems[run_id] = RUN_NOT_FOUND
+        elif row["status"] != "completed":
+            problems[run_id] = RUN_NOT_COMPLETED
+        elif AnalysisRun.input_projects(row["normalized_spec"], project_id):
+            problems[run_id] = RUN_READS_OTHER_PROJECTS
+    return problems
+
+
+class AnalysesSectionError(ValueError):
+    """``content.sections.analyses`` does not have the expected shape."""
+
+    def __init__(self, errors: List[str]):
+        super().__init__("; ".join(errors))
+        self.errors = errors
+
+
+def _text_field(value: Any, where: str, limit: int, errors: List[str]) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        errors.append(f"{where}: must be a string")
+        return None
+    if len(value) > limit:
+        errors.append(f"{where}: at most {limit} characters")
+        return None
+    return value or None
+
+
+def _filters(raw: Any, where: str, errors: List[str]) -> Dict[str, List[str]]:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        errors.append(f"{where}: must be an object")
+        return {}
+    out: Dict[str, List[str]] = {}
+    for key, values in raw.items():
+        if key not in EXHIBIT_FILTER_KEYS:
+            errors.append(f"{where}.{key}: unknown filter (known: {', '.join(EXHIBIT_FILTER_KEYS)})")
+            continue
+        if values is None:
+            continue
+        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+            errors.append(f"{where}.{key}: must be a list of strings")
+            continue
+        if len(values) > MAX_FILTER_VALUES:
+            errors.append(f"{where}.{key}: at most {MAX_FILTER_VALUES} values")
+            continue
+        if any(len(v) > MAX_FILTER_VALUE_LENGTH for v in values):
+            errors.append(f"{where}.{key}: values of at most {MAX_FILTER_VALUE_LENGTH} characters")
+            continue
+        if values:
+            out[key] = sorted(set(values))
+    return out
+
+
+def _exhibit(raw: Any, where: str, errors: List[str]) -> Optional[Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        errors.append(f"{where}: must be an object")
+        return None
+    before = len(errors)
+    exhibit_id = raw.get("id")
+    if not isinstance(exhibit_id, str) or not _EXHIBIT_ID.match(exhibit_id):
+        errors.append(f"{where}.id: 1 to 64 letters, digits, '-' or '_'")
+    kind = raw.get("type")
+    if kind not in ANALYSIS_EXHIBIT_TYPES:
+        errors.append(f"{where}.type: one of {', '.join(ANALYSIS_EXHIBIT_TYPES)}")
+    band = raw.get("band", 0)
+    if band is not None and (isinstance(band, bool) or not isinstance(band, int) or band < 0):
+        errors.append(f"{where}.band: a bound set index (0 or more) or null")
+    title = _text_field(raw.get("title"), f"{where}.title", MAX_ANALYSIS_TITLE_LENGTH, errors)
+    caption = _text_field(raw.get("caption"), f"{where}.caption", MAX_ANALYSIS_TEXT_LENGTH, errors)
+    filters = _filters(raw.get("filters"), f"{where}.filters", errors)
+    if len(errors) > before:
+        return None
+    return {
+        "id": exhibit_id,
+        "type": kind,
+        "title": title,
+        "caption": caption,
+        "filters": filters,
+        # The equivalence bound set a forest draws (``tost`` index); null
+        # draws none. A table ignores it.
+        "band": band if kind == "forest" else None,
+    }
+
+
+def parse_analyses_section(raw: Any, *, strict: bool = False) -> Dict[str, Any]:
+    """``content.sections.analyses`` in its normalized form::
+
+        {"visible": bool, "custom_text": str | None,
+         "runs": [{"run_id", "title", "text",
+                   "exhibits": [{"id", "type": "forest" | "table", "title",
+                                 "caption", "filters": {"estimands",
+                                 "contrasts", "families", "systems": [str]},
+                                 "band": int | None}]}]}
+
+    Each filter is a list of values (sorted, without repeats); an absent or
+    empty one does not restrict. ``strict`` raises
+    :class:`AnalysesSectionError` listing every problem (the editor's save);
+    otherwise entries with problems are left out (reading stored content)."""
+    errors: List[str] = []
+    out: Dict[str, Any] = {"visible": True, "custom_text": None, "runs": []}
+    if raw is None:
+        return out
+    if not isinstance(raw, dict):
+        if strict:
+            raise AnalysesSectionError(["analyses: must be an object"])
+        return out
+    visible = raw.get("visible", True)
+    if not isinstance(visible, bool):
+        errors.append("analyses.visible: must be true or false")
+        visible = True
+    out["visible"] = visible
+    out["custom_text"] = _text_field(raw.get("custom_text"), "analyses.custom_text", MAX_ANALYSIS_TEXT_LENGTH, errors)
+    runs = raw.get("runs") or []
+    if not isinstance(runs, list):
+        errors.append("analyses.runs: must be a list")
+        runs = []
+    if len(runs) > MAX_REPORT_ANALYSIS_RUNS:
+        errors.append(f"analyses.runs: at most {MAX_REPORT_ANALYSIS_RUNS} runs")
+        runs = runs[:MAX_REPORT_ANALYSIS_RUNS]
+    seen_runs: set = set()
+    for i, run in enumerate(runs):
+        where = f"analyses.runs[{i}]"
+        before = len(errors)
+        if not isinstance(run, dict):
+            errors.append(f"{where}: must be an object")
+            continue
+        run_id = run.get("run_id")
+        if not isinstance(run_id, str) or not run_id or len(run_id) > 64:
+            errors.append(f"{where}.run_id: an analysis run id")
+            continue
+        if run_id in seen_runs:
+            errors.append(f"{where}.run_id: run {run_id} is listed twice")
+            continue
+        seen_runs.add(run_id)
+        title = _text_field(run.get("title"), f"{where}.title", MAX_ANALYSIS_TITLE_LENGTH, errors)
+        body = _text_field(run.get("text"), f"{where}.text", MAX_ANALYSIS_TEXT_LENGTH, errors)
+        raw_exhibits = run.get("exhibits") or []
+        if not isinstance(raw_exhibits, list):
+            errors.append(f"{where}.exhibits: must be a list")
+            raw_exhibits = []
+        if len(raw_exhibits) > MAX_RUN_EXHIBITS:
+            errors.append(f"{where}.exhibits: at most {MAX_RUN_EXHIBITS} exhibits")
+            raw_exhibits = raw_exhibits[:MAX_RUN_EXHIBITS]
+        exhibits: List[Dict[str, Any]] = []
+        seen_exhibits: set = set()
+        for j, raw_exhibit in enumerate(raw_exhibits):
+            exhibit = _exhibit(raw_exhibit, f"{where}.exhibits[{j}]", errors)
+            if exhibit is None:
+                continue
+            if exhibit["id"] in seen_exhibits:
+                errors.append(f"{where}.exhibits[{j}].id: {exhibit['id']} is used twice")
+                continue
+            seen_exhibits.add(exhibit["id"])
+            exhibits.append(exhibit)
+        if strict and len(errors) > before:
+            continue
+        out["runs"].append({"run_id": run_id, "title": title, "text": body, "exhibits": exhibits})
+    if strict and errors:
+        raise AnalysesSectionError(errors)
+    return out
+
+
+def estimate_system(estimate: Dict[str, Any]) -> Optional[str]:
+    """The system an estimate is scoped to: its ``system`` (or ``model_id``)
+    scope value, or None for a pooled estimate or another scope."""
+    values = estimate.get("scope_values")
+    if isinstance(values, dict):
+        for column in SYSTEM_COLUMNS:
+            value = values.get(column)
+            if value is not None:
+                return str(value)
+    return None
+
+
+def _parameter_levels(names: Iterable[Any]) -> set:
+    """The (prefix, level) pairs the parameter names ``<prefix>[<level>]``
+    name, also inside an interaction ``a[x]:b[y]``."""
+    return {(m.group(1), m.group(2)) for n in names if isinstance(n, str) for m in _PARAMETER.finditer(n)}
+
+
+def _declared_references(terms: Any) -> Dict[str, str]:
+    """The references the ``terms`` of a spec declare (factor -> level)."""
+    out: Dict[str, str] = {}
+    for term in terms if isinstance(terms, list) else []:
+        if isinstance(term, dict) and term.get("dummies") and term.get("reference") is not None:
+            out[str(term["dummies"])] = str(term["reference"])
+        elif isinstance(term, dict):
+            out.update(_declared_references(term.get("interact")))
+    return out
+
+
+def _weight_keys(contrast: Dict[str, Any]) -> Tuple[List[str], set]:
+    """(parameter names, system levels) a spec contrast refers to: the keys
+    of its weights (of numerator and denominator for a ratio), and for an
+    average marginal effect over a system column its level and reference."""
+    if contrast.get("kind") == "ame":
+        if contrast.get("column") in SYSTEM_COLUMNS:
+            return [], {str(contrast[k]) for k in ("level", "reference") if contrast.get(k) is not None}
+        return [], set()
+    parts = [contrast.get("numerator"), contrast.get("denominator")] if contrast.get("kind") == "ratio" else [contrast]
+    return [k for part in parts if isinstance(part, dict) and isinstance(part.get("weights"), dict)
+            for k in part["weights"]], set()
+
+
+def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> set:
+    """The systems an estimate involves: the one it is scoped to plus every
+    system level its contrast or joint test names in the run's normalized
+    ``spec``: the weight keys of a listed contrast (the contrast id itself
+    when the spec lists none, as for ``terms``), the rows, parameters (as
+    matched against its fit's parameters in ``fits``) or contrasts of a
+    joint test, and the level and reference of a paired treatment over a
+    system column. A ``system`` or ``model_id`` parameter is measured
+    against the reference level of its dummy coding, which is involved too:
+    the one its fit recorded (``references``), or for a run whose fits
+    record none the one the spec declares. Bradley-Terry strengths
+    (``strength[<level>]`` and its reference) count as systems when the fit
+    recorded ``players_are_systems``. The editor's preview applies the same
+    rule (``estimateSystems`` in
+    ``services/frontend/src/lib/reports/analyses.ts``)."""
+    systems: set = set()
+    scoped = estimate_system(estimate)
+    if scoped is not None:
+        systems.add(scoped)
+    estimands = spec.get("estimands") if isinstance(spec, dict) else None
+    est = next((e for e in estimands or [] if isinstance(e, dict) and e.get("id") == estimate.get("estimand_id")), {})
+    treat = est.get("treatment")
+    if isinstance(treat, dict) and treat.get("factor") in SYSTEM_COLUMNS:
+        systems |= {str(treat[k]) for k in ("level", "reference") if treat.get(k) is not None}
+    listed = est.get("contrasts") if isinstance(est.get("contrasts"), list) else []
+    by_id = {c.get("id"): c for c in listed if isinstance(c, dict)}
+    cid = estimate.get("contrast_id")
+    fit = next((f for f in (fits if isinstance(fits, list) else []) if isinstance(f, dict)
+                and f.get("estimand") == estimate.get("estimand_id") and f.get("scope") == estimate.get("scope")), None)
+    if fit is not None and isinstance(fit.get("references"), dict):
+        references = {str(k): str(v) for k, v in fit["references"].items() if v is not None}
+    else:
+        references = _declared_references(est.get("terms"))
+    prefixes = set(SYSTEM_COLUMNS) | ({"strength"} if fit is not None and fit.get("players_are_systems") is True else set())
+    names: List[Any] = []
+    contrasts: List[Dict[str, Any]] = []
+    test = None
+    if estimate.get("kind") == "wald":
+        test = next((t for t in est.get("joint_tests") or [] if isinstance(t, dict) and t.get("id") == cid), None)
+    if test is None:
+        if cid in by_id:
+            contrasts.append(by_id[cid])
+        else:
+            names.append(cid)
+    elif isinstance(test.get("rows"), list):
+        names += [k for row in test["rows"] if isinstance(row, dict) for k in row]
+    elif isinstance(test.get("parameters"), list):
+        patterns = [p for p in test["parameters"] if isinstance(p, str)]
+        names += [p for p in patterns if "*" not in p]
+        compiled = [re.compile(".*".join(re.escape(part) for part in p.split("*")) + r"\Z") for p in patterns]
+        if fit is not None:
+            names += [n for n in fit.get("parameters") or [] if isinstance(n, str) and any(c.match(n) for c in compiled)]
+    else:
+        for ref in test.get("contrasts") or []:
+            if ref in by_id:
+                contrasts.append(by_id[ref])
+            else:
+                names.append(ref)
+    for contrast in contrasts:
+        keys, levels = _weight_keys(contrast)
+        names += keys
+        systems |= levels
+    named = {(prefix, level) for prefix, level in _parameter_levels(names) if prefix in prefixes}
+    return systems | {level for _, level in named} | {references[p] for p, _ in named if p in references}
+
+
+def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]], systems: Iterable[str]) -> bool:
+    """Whether an exhibit with ``filters`` shows ``estimate``, whose involved
+    systems (:func:`estimate_systems`) are ``systems``: every given filter
+    holds. Estimands and contrasts match ``estimand_id`` and
+    ``contrast_id``; families match any family the estimate belongs to; a
+    systems filter keeps an estimate exactly when it involves at least one
+    system and all of them are listed, so a pooled estimate involving no
+    system shows only without a systems filter. The editor's preview
+    applies the same rule (``exhibitSelects`` in
+    ``services/frontend/src/lib/reports/analyses.ts``)."""
+    estimands = filters.get("estimands")
+    if estimands and estimate.get("estimand_id") not in estimands:
+        return False
+    contrasts = filters.get("contrasts")
+    if contrasts and estimate.get("contrast_id") not in contrasts:
+        return False
+    families = filters.get("families")
+    if families:
+        member = {estimate.get("family")} | {
+            a.get("family") for a in estimate.get("adjustments") or [] if isinstance(a, dict)
+        }
+        if not member & set(families):
+            return False
+    allowed = filters.get("systems")
+    if allowed:
+        involved = set(systems)
+        if not involved or not involved <= set(allowed):
+            return False
+    return True
+
+
+_RUN_SCOPE_VALUES_SQL = """
+SELECT DISTINCT run_id, scope_values FROM analysis_estimates
+WHERE run_id = ANY(:ids) AND scope_values IS NOT NULL
+"""
+
+
+def _run_model_ids(run: Dict[str, Any], scope_values: Iterable[Any]) -> Optional[set]:
+    """Every model id that may appear in a run: the models of its frame
+    (``resolved_inputs.models``, the ``model_id`` values and the model part
+    of every system key), every level its fits name (parameters,
+    ``references``, Bradley-Terry ``players``) and every scope value of its
+    estimates, each as the part before ``@``. None when the run does not
+    record its frame's models (runs made before it did)."""
+    resolved = run.get("resolved_inputs")
+    models = resolved.get("models") if isinstance(resolved, dict) else None
+    if not isinstance(models, list):
+        return None
+    values: set = {str(m) for m in models if m is not None}
+    for fit in run.get("fits") if isinstance(run.get("fits"), list) else []:
+        if not isinstance(fit, dict):
+            continue
+        values |= {level for _, level in _parameter_levels(fit.get("parameters") or [])}
+        if isinstance(fit.get("references"), dict):
+            values |= {str(v) for v in fit["references"].values() if v is not None}
+        values |= {str(p) for p in fit.get("players") or [] if p is not None}
+    for scope in scope_values:
+        if isinstance(scope, dict):
+            values |= {str(v) for v in scope.values() if v is not None}
+    return {v.split("@", 1)[0] for v in values}
+
+
+def analysis_runs_member_only(db: Session, runs: Iterable[Dict[str, Any]]) -> Dict[str, bool]:
+    """For each run (rows of :func:`report_analysis_runs`), whether it is
+    member-only: a hidden model (:func:`model_is_public`) may appear in it
+    (:func:`_run_model_ids`), or which models do cannot be established. A
+    public report never shows a member-only run."""
+    runs = list(runs)
+    if not runs:
+        return {}
+    scopes: Dict[str, List[Any]] = {}
+    for row in db.execute(text(_RUN_SCOPE_VALUES_SQL), {"ids": [r["id"] for r in runs]}).mappings().all():
+        scopes.setdefault(row["run_id"], []).append(row["scope_values"])
+    ids = {r["id"]: _run_model_ids(r, scopes.get(r["id"], [])) for r in runs}
+    hidden = hidden_model_ids(db, {m for models in ids.values() if models for m in models})
+    return {run_id: models is None or bool(models & hidden) for run_id, models in ids.items()}
+
+
+def has_member_only_analyses(snapshot: Any) -> bool:
+    """Whether a snapshot's Analyses section holds a member-only run, which
+    a public report must not show."""
+    analyses = snapshot.get("analyses") if isinstance(snapshot, dict) else None
+    runs = analyses.get("runs") if isinstance(analyses, dict) else None
+    return any(isinstance(r, dict) and r.get("member_only") is not False for r in runs or [])
+
+
+def _finite(value: Any) -> Any:
+    # Postgres float columns hold NaN and infinities, JSONB does not.
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    return value
+
+
+def _run_estimates(db: Session, run_id: str) -> List[Dict[str, Any]]:
+    from models import AnalysisEstimate
+
+    columns = [c.name for c in AnalysisEstimate.__table__.columns if c.name not in ("id", "run_id")]
+    rows = (
+        db.query(AnalysisEstimate)
+        .filter(AnalysisEstimate.run_id == run_id)
+        .order_by(AnalysisEstimate.position)
+        .all()
+    )
+    return [{name: _finite(getattr(r, name)) for name in columns} for r in rows]
+
+
+def _families(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The multiplicity families of the shown estimates with their method
+    and size (from the estimates' adjustments)."""
+    families: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        for adjustment in row.get("adjustments") or []:
+            if isinstance(adjustment, dict) and adjustment.get("family"):
+                families.setdefault(adjustment["family"], {
+                    "family": adjustment["family"],
+                    "method": adjustment.get("method"),
+                    "size": adjustment.get("size"),
+                })
+    return [families[k] for k in sorted(families)]
+
+
+def _build_analyses_section(
+    db: Session,
+    project_id: str,
+    config: Dict[str, Any],
+) -> Dict[str, Any]:
+    """The runs the Analyses section names, in the author's order, each with
+    its metadata, whether it is member-only
+    (:func:`analysis_runs_member_only`), the estimates its exhibits select
+    and every exhibit with the positions of its estimates. Estimates are
+    copied whole, so the published report keeps its numbers whatever
+    happens to the live tables; the public view leaves member-only runs out
+    (:func:`public_snapshot`). A run the report cannot show is listed in
+    ``omitted`` with the reason."""
+    if not config["runs"]:
+        return {"runs": [], "omitted": []}
+    eligible = {r["id"]: r for r in report_analysis_runs(db, project_id)}
+    problems = analysis_run_problems(db, project_id, [rc["run_id"] for rc in config["runs"] if rc["run_id"] not in eligible])
+
+    member_only = analysis_runs_member_only(db, [eligible[rc["run_id"]] for rc in config["runs"] if rc["run_id"] in eligible])
+
+    runs: List[Dict[str, Any]] = []
+    omitted: List[Dict[str, Any]] = []
+    for rc in config["runs"]:
+        run = eligible.get(rc["run_id"])
+        if run is None:
+            omitted.append({"run_id": rc["run_id"], "reason": problems.get(rc["run_id"], RUN_NOT_FOUND)})
+            continue
+        shown = [(e, estimate_systems(e, run["normalized_spec"], run["fits"])) for e in _run_estimates(db, run["id"])]
+        exhibits = []
+        selected: set = set()
+        for ex in rc["exhibits"]:
+            positions = [e["position"] for e, systems in shown if exhibit_selects(e, ex["filters"], systems)]
+            selected.update(positions)
+            exhibits.append({
+                "id": ex["id"],
+                "type": ex["type"],
+                "filters": ex["filters"],
+                "band": ex["band"],
+                "row_count": len(positions),
+                "positions": positions,
+            })
+        kept = set(sorted(selected)[:MAX_REPORT_ESTIMATES_PER_RUN])
+        for ex in exhibits:
+            ex["positions"] = [p for p in ex["positions"] if p in kept]
+        rows = [e for e, _ in shown if e["position"] in kept]
+        warnings = run.get("warnings") if isinstance(run.get("warnings"), list) else []
+        runs.append({
+            "id": run["id"],
+            "name": run["name"],
+            "spec_hash": run["spec_hash"],
+            "spec_version": run["spec_version"],
+            "engine_version": run["engine_version"],
+            "frame_hash": run["frame_hash"],
+            "frame_sha256": run["frame_sha256"],
+            "frame_rows": run["frame_rows"],
+            "estimates_count": int(run["estimates_count"] or 0),
+            "completed_at": _iso(run["completed_at"]),
+            "member_only": member_only[run["id"]],
+            "warnings": [str(w) for w in warnings],
+            "families": _families(rows),
+            "truncated": len(selected) > MAX_REPORT_ESTIMATES_PER_RUN,
+            "estimates": rows,
+            "exhibits": exhibits,
+        })
+    return {"runs": runs, "omitted": omitted}
+
+
+# ---------------------------------------------------------------------------
 # Reader view
 # ---------------------------------------------------------------------------
 
@@ -1002,8 +1528,12 @@ def public_snapshot(snapshot: Any) -> Any:
     """The snapshot as served to a reader outside the project (a public
     report read anonymously or by a non-member): judge run parameters,
     declared import manifests and design provenance keep their SHA-256 but
-    lose their content (custom judge prompts, rubrics, author manifests).
-    The stored snapshot and its ``snapshot_sha256`` stay whole."""
+    lose their content (custom judge prompts, rubrics, author manifests),
+    the reproducibility list and the Analyses section leave out every
+    member-only run (:func:`analysis_runs_member_only`; a run not marked
+    public counts as one), and the Analyses section its list of runs it
+    could not show (the author's note to fix). The stored snapshot and its
+    ``snapshot_sha256`` stay whole."""
     if not isinstance(snapshot, dict):
         return snapshot
     out = dict(snapshot)
@@ -1013,10 +1543,22 @@ def public_snapshot(snapshot: Any) -> Any:
         out["data"] = _map_list(data, "imports",
                                 lambda i: {**i, "declared_manifest": _without(i.get("declared_manifest"), "content")})
     if isinstance(out.get("reproducibility"), dict):
-        out["reproducibility"] = _map_list(
+        reproducibility = _map_list(
             out["reproducibility"], "evaluation_configs",
             lambda c: _map_list(c, "judge_runs", lambda r: _without(r, "parameters")),
         )
+        if isinstance(reproducibility.get("analysis_runs"), list):
+            reproducibility = {
+                **reproducibility,
+                "analysis_runs": [r for r in reproducibility["analysis_runs"]
+                                  if isinstance(r, dict) and r.get("member_only") is False],
+            }
+        out["reproducibility"] = reproducibility
+    if isinstance(out.get("analyses"), dict):
+        analyses = _without(out["analyses"], "omitted")
+        if isinstance(analyses.get("runs"), list):
+            analyses["runs"] = [r for r in analyses["runs"] if isinstance(r, dict) and r.get("member_only") is False]
+        out["analyses"] = analyses
     return out
 
 
@@ -1049,11 +1591,12 @@ def apply_section_visibility(
 # Builder
 # ---------------------------------------------------------------------------
 
-#: Snapshot parts that belong to the variant_experiments flag (core 2.71):
+#: Snapshot parts that belong to the variant_experiments flag (core 2.73):
 #: top-level keys and ``statistics`` keys. They are built only while the
 #: flag is on for whoever builds the snapshot, and served only while it is
 #: on for anybody (:func:`without_experiment_parts`).
 EXPERIMENT_SNAPSHOT_KEYS: Tuple[str, ...] = (
+    "analyses",
     "annotator_agreement",
     "data",
     "generation",
@@ -1092,8 +1635,13 @@ def build_report_snapshot(
     include_private_models: bool = False,
     now: Optional[datetime] = None,
     variant_experiments: Optional[bool] = None,
+    analyses: Any = None,
 ) -> Dict[str, Any]:
     """Compute the full report snapshot for a project (see module docstring).
+
+    ``analyses`` is the report's ``content.sections.analyses`` (see
+    :func:`parse_analyses_section`): the runs and exhibits whose estimates
+    the snapshot copies.
 
     ``variant_experiments`` (None: the request or job context decides,
     ``feature_flags.scope``) adds the parts of that flag
@@ -1328,10 +1876,14 @@ def build_report_snapshot(
             model_visible=lambda model_id: _model_subject(model_id) is not None,
             hidden_judges=_hidden_judges,
         )
+        analyses_section = _build_analyses_section(
+            db, project_id, parse_analyses_section(analyses)
+        )
         snapshot.update(
             data=data,
             generation=generation,
             human_evaluations=human_evaluations,
+            analyses=analyses_section,
             reproducibility=reproducibility,
         )
         reproducibility["snapshot_sha256"] = snapshot_sha256(snapshot)

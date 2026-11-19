@@ -8,7 +8,7 @@ import random
 import numpy as np
 import pytest
 
-from analysis.frame import FrameError, build_frame, frame_hash, from_parquet, to_parquet
+from analysis.frame import FrameError, build_frame, frame_hash, frame_models, from_parquet, to_parquet
 from analysis.measures import coerce, lookup_path
 from analysis.observations import (
     ObservationError,
@@ -272,3 +272,12 @@ def test_lookup_path():
     assert lookup_path(data, "gold.range.5") is None
     assert lookup_path(data, "gold.range.a") is None
     assert lookup_path(data, "x.y") is None
+
+
+def test_frame_models_lists_every_model_once():
+    import pandas as pd
+
+    # The model part of a system key is the text before "@" (profile hash).
+    frame = pd.DataFrame({"model_id": ["m2", "m1", None, "m1"], "system": ["m2@p1", "m3@p9", None, "m1"]})
+    assert frame_models(frame) == ["m1", "m2", "m3"]
+    assert frame_models(pd.DataFrame({"x": [1]})) == []

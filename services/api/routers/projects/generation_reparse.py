@@ -182,7 +182,7 @@ async def reparse_generations(
     parsers: Dict[Optional[str], ResponseParser] = {}
     now = datetime.now(timezone.utc).isoformat()
     # Parse as generation does for this caller: with variant_experiments off
-    # (core 2.71) without the answer-format options and the per-item parsing.
+    # (core 2.73) without the answer-format options and the per-item parsing.
     experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
     results: List[ReparseItem] = []
 

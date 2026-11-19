@@ -1,5 +1,8 @@
 # Variant designs
 
+This feature needs the platform flag `variant_experiments`, which an
+administrator switches on under Admin, Feature Flags ([feature flags](../features/feature-flags.md)).
+
 A variant experiment runs the same item in several controlled variants and compares the answers: a counterfactual test swaps the parties of a case, a robustness test reorders the case file or removes a piece of evidence. BenGER stores such an experiment in two places, each the single source of one fact:
 
 - The design is a project-level object (`variant_designs`): the unit that ties the variants of one item together, the factors with their levels, optional per-answer slots, and which controls, gold values and text fields the analysis uses. A design can be checked and frozen.

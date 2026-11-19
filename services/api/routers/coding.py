@@ -56,7 +56,7 @@ from variant_designs import META_KEY as VARIANT_META_KEY
 
 logger = logging.getLogger(__name__)
 
-# Behind the variant_experiments flag (core 2.71): 404 feature_disabled while off.
+# Behind the variant_experiments flag (core 2.73): 404 feature_disabled while off.
 router = APIRouter(tags=["coding"], dependencies=[Depends(require_variant_experiments)])
 
 MAX_CODING_TASKS = 20000

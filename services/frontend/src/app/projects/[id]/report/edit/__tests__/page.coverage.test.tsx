@@ -53,6 +53,53 @@ jest.mock('@/lib/api/reports', () => ({
   refreshReport: jest.fn(),
 }))
 
+// The Analyses card loads runs and estimates itself (AnalysesEditor tests);
+// here a stub reports its props and changes the runs.
+jest.mock('@/components/reports/editor/AnalysesEditor', () => ({
+  AnalysesEditor: ({
+    customText,
+    runs,
+    onCustomTextChange,
+    onRunsChange,
+    snapshot,
+  }: any) => (
+    <div
+      data-testid="analyses-editor-stub"
+      data-runs={JSON.stringify(runs)}
+      data-snapshot-runs={snapshot?.runs?.length ?? 0}
+    >
+      <span data-testid="analyses-editor-text">{customText}</span>
+      <button type="button" onClick={() => onCustomTextChange('Einleitung')}>
+        stub-set-text
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onRunsChange([
+            {
+              run_id: 'run-1',
+              title: '',
+              text: 'Was der Lauf zeigt',
+              exhibits: [
+                {
+                  id: 'exhibit-1',
+                  type: 'forest',
+                  title: '',
+                  caption: null,
+                  filters: { systems: ['b', 'a'], families: [] },
+                  band: 0,
+                },
+              ],
+            },
+          ])
+        }
+      >
+        stub-add-run
+      </button>
+    </div>
+  ),
+}))
+
 jest.mock('@/lib/api/evaluation-types', () => ({
   getMetricDefinitions: () => ({}),
 }))

@@ -700,7 +700,7 @@ def generate_llm_responses_impl(
             if not model:
                 raise Exception(f"Model {model_id} not found")
 
-            # The experiment features (variant_experiments, core 2.71) for
+            # The experiment features (variant_experiments, core 2.73) for
             # the user the generation belongs to, decided once for the job:
             # off, it generates as the platform did before them (no request
             # record, no system key, no answer-format options, the previous

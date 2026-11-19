@@ -1518,8 +1518,35 @@ API change).
     who do not author the report get the section visibility of 2.68 and,
     outside the project, the public view on top.
 
-2.71 (2026-11-19): the experiment features behind platform feature flags
-  (migration 151; docs/features/feature-flags.md).
+2.72 (2026-11-19): the project report's Analyses section (no migration,
+  additive API changes only; 2.71 is taken by the Evaluation card's analysis
+  start).
+  - ``report_snapshot.build_report_snapshot`` takes ``analyses`` and copies
+    the selected completed single-project runs (``report_analysis_runs``,
+    ``analysis_run_problems``) with their metadata and the estimates each
+    exhibit selects; ``parse_analyses_section`` validates the stored section
+    (``AnalysesSectionError``, limits ``MAX_REPORT_ANALYSIS_RUNS``,
+    ``MAX_RUN_EXHIBITS``, ``MAX_REPORT_ESTIMATES_PER_RUN``),
+    ``exhibit_selects`` and ``estimate_systems`` are the exhibit filter
+    rule. A run whose frame holds a hidden model is member-only
+    (``analysis_runs_member_only``, ``has_member_only_analyses``):
+    ``public_snapshot`` withholds it and ``report_service.can_publish_report``
+    refuses it with ``REASON_ANALYSIS_RUNS``.
+  - ``GET /api/projects/{project_id}/report/analysis-runs`` lists the runs a
+    report author can pick. Saving report content answers 422
+    ``invalid_report_analyses`` for an invalid section.
+  - ``analysis.frame.frame_models`` names the models of a frame, which an
+    analysis run records as ``resolved_inputs.models``; each fit summary
+    records the reference level of every categorical term
+    (``references``).
+  - Frontend: ``@/components/analysis/ContrastForestPlot`` exports
+    ``ContrastForest`` (one contrast, a given band, no pickers) and
+    ``EstimatesTable`` takes ``compact``; the report's exhibits are
+    ``@/components/reports/view/AnalysesSection`` and ``AnalysisExhibit``.
+
+2.73 (2026-11-19): the experiment features behind platform feature flags
+  (migration 151; docs/features/feature-flags.md; 2.71 is taken by the
+  Evaluation card's analysis start, 2.72 by the report's Analyses section).
   - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
     ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
     owner ``platform``, default ``off``, coupled to no master flag. An
@@ -1527,7 +1554,7 @@ API change).
     for its users: ``compliance_records`` for ``/api/compliance`` and the
     ``/compliance`` shells (besides ``extension.compliance``),
     ``variant_experiments`` for everything else listed below.
-  - Off, the routes of 2.56-2.70 answer 404 ``feature_disabled``
+  - Off, the routes of 2.56-2.72 answer 404 ``feature_disabled``
     (``feature_flags.deps.require_variant_experiments`` /
     ``require_compliance_records``; an organization key's organization
     counts on the v1 analysis routes), the analysis and code-validation
@@ -1542,9 +1569,15 @@ API change).
     ``text_pattern`` neither offered nor run
     (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
     ``<Repeater>`` an unsupported field type, no import provenance, the
-    previous generation export and nested import, no analysis counts, no
-    annotator agreement in new snapshots and none served while the flag is
-    off for everybody (``report_snapshot.without_experiment_parts``).
+    previous generation export and nested import, no analysis counts, only
+    superadmins author reports (each route's previous 403) under the
+    previous publish rule (tasks, LLM generations, completed evaluations;
+    ``report_service.REASON_NO_GENERATIONS``, ``REASON_NO_EVALUATIONS``),
+    and new snapshots carry no agreement, data, generation, human
+    evaluation, reproducibility or analyses section and none is served
+    while the flag is off for everybody
+    (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
+    ``without_experiment_parts``).
   - Catalog entries can belong to a flag: ``default_config.feature_flag``
     (the model) and ``default_config.reasoning_config.feature_flag`` (its
     reasoning knob); ``catalog_flags`` (``model_offered``,
@@ -1567,7 +1600,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.71"
+CORE_API_VERSION = "2.73"
 
 
 def extended_required() -> bool:

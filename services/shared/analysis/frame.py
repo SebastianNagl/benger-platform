@@ -452,5 +452,15 @@ def from_parquet(data: bytes):
     return pd.DataFrame(out, columns=table.column_names)
 
 
+def frame_models(frame) -> List[str]:
+    """The models whose answers are in ``frame``, sorted: every ``model_id``
+    value and the model part (before ``@``) of every ``system`` key."""
+    models = set()
+    for column in ("model_id", "system"):
+        if column in frame.columns:
+            models |= {str(v).split("@", 1)[0] for v in frame[column].tolist() if v is not None and v == v}
+    return sorted(models)
+
+
 def frame_sha256(data: bytes) -> str:
     return sha256_hex(data)

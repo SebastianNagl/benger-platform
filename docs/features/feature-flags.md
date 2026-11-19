@@ -20,15 +20,18 @@ generation fidelity (the request record, answer-format options, format
 retry, lossless generation export and import, up to 100 runs per task), the
 open-weight panel models and the system key, analysis runs (engine,
 estimators, frames, lookup tables), codes, text patterns and coding
-validation, the analysis results views and counts, import provenance and
-annotator agreement.
+validation, the analysis results views and counts, import provenance,
+annotator agreement and the report as the project's paper (authorship of
+project owners and organization admins, the data, generation, human
+evaluation, Analyses and reproducibility parts).
 
 With the flag off:
 
 - the feature's routes answer `404 {"code": "feature_disabled", "flag":
   "variant_experiments"}`: analysis, coding, variant designs, the
   label-config `label-studio` and `slots` routes, the trial request record,
-  annotator agreement, `/api/runs?type=analysis` and the v1 analysis routes;
+  annotator agreement, the report's `analysis-runs` list,
+  `/api/runs?type=analysis` and the v1 analysis routes;
 - analysis runs and code validations of an owner with the flag off are not
   computed and end failed with the feature-disabled message;
 - the pages are not found, and the entry points, panels, counts, chart
@@ -42,7 +45,10 @@ With the flag off:
   repeats); generation exports and task-level imports have their previous
   fields; the panel models are not listed or generated with and the
   `enable_thinking` switch of Qwen 3.8 27B, Nemotron 3.5 Lightning and
-  Gemma 4 26B is neither shown nor sent;
+  Gemma 4 26B is neither shown nor sent; only superadmins author reports,
+  a report is published once the project has tasks, LLM generations and
+  completed evaluations, new snapshots have none of the paper's parts, and
+  saving a report neither adds nor changes its Analyses settings;
 - stored data stays as it is: designs, runs, codes, records, options and
   report snapshots are neither deleted nor rewritten, and a project built
   while the flag was on still opens without errors.
@@ -70,7 +76,9 @@ needs the overlay's master flag `extension.compliance`.
 ## Left on with the flag off
 
 Genuine fixes that shipped together with these features stay on, among them
-the report's participant visibility, the hidden-model filters of reports,
+the report's participant visibility, the hidden-model filters of reports
+(including the refusal to make a report public while its stored snapshot
+holds an analysis run in which a private model may appear),
 the `/api/runs` paging and access count, the provider quota fail-fast, the
 JSON fallback prompt of OpenAI, Cohere and Mistral, the code-fence parse fix,
 the Label Studio `to_name` fill on export and the evaluations page's project

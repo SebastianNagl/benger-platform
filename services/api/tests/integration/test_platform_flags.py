@@ -1,5 +1,5 @@
 """The platform flags ``variant_experiments`` and ``compliance_records``
-(core 2.71): registered by the platform, off by default; while off every
+(core 2.73): registered by the platform, off by default; while off every
 route of their features answers 404 ``feature_disabled`` and every changed
 behaviour is the one the platform had before. Tests without a
 ``flags_on`` marker run with both off, as a fresh deployment does; the

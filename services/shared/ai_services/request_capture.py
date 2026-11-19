@@ -196,7 +196,7 @@ def _install_httpx_hook() -> None:
 
 # Installed on the first capture scope, not at import: a process that never
 # records a request (every generation with the variant_experiments flag off,
-# judges, scripts) keeps httpx exactly as shipped (core 2.71). Idempotent.
+# judges, scripts) keeps httpx exactly as shipped (core 2.73). Idempotent.
 _hook_installed = False
 _hook_lock = threading.Lock()
 

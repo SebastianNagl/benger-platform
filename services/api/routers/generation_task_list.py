@@ -656,7 +656,7 @@ async def start_generation(
     so workers can always find the rows they are sent.
     """
 
-    # The runs cap above 25 belongs to variant_experiments (core 2.71): with
+    # The runs cap above 25 belongs to variant_experiments (core 2.73): with
     # the flag off an override above 25 is refused exactly as the request
     # schema refused it before (422 less_than_equal).
     runs_cap = max_runs_per_task(await flag_on(db, current_user, VARIANT_EXPERIMENTS))
@@ -803,7 +803,7 @@ async def start_generation(
             detail="model_ids must not contain empty ids",
         )
 
-    # Catalog models that belong to a feature flag (catalog_flags, core 2.71)
+    # Catalog models that belong to a feature flag (catalog_flags, core 2.73)
     # do not exist for a caller who has it off: refused like an unknown model.
     from catalog_flags import model_flag
     from models import LLMModel as CatalogModel
