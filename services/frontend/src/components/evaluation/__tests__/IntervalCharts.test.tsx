@@ -182,8 +182,13 @@ describe('ForestPlot bar mode', () => {
     )
     const bars = screen.getAllByTestId('forest-plot-bar')
     expect(bars).toHaveLength(1)
-    expect(Number(bars[0].getAttribute('width'))).toBeGreaterThan(0)
-    expect(screen.getByTestId('forest-plot-null')).toBeInTheDocument()
+    const left = Number(bars[0].getAttribute('x'))
+    const width = Number(bars[0].getAttribute('width'))
+    const nullX = Number(
+      screen.getByTestId('forest-plot-null').getAttribute('x1'),
+    )
+    expect(left).toBeLessThan(nullX)
+    expect(width).toBeCloseTo(3 * (nullX - left), 6)
   })
 
   it('draws bars from zero without a null value', () => {
@@ -195,6 +200,18 @@ describe('ForestPlot bar mode', () => {
         rows={[{ id: 'a', label: 'a', estimate: -2, lower: -3, upper: -1 }]}
       />,
     )
-    expect(screen.getByTestId('forest-plot-bar')).toBeInTheDocument()
+    expect(screen.queryByTestId('forest-plot-null')).toBeNull()
+    const bar = screen.getByTestId('forest-plot-bar')
+    const whisker = screen
+      .getByTestId('forest-plot-row')
+      .querySelector('line') as SVGLineElement
+    const atMinus3 = Number(whisker.getAttribute('x1'))
+    const atMinus1 = Number(whisker.getAttribute('x2'))
+    const unit = (atMinus1 - atMinus3) / 2
+    const left = Number(bar.getAttribute('x'))
+    const right = left + Number(bar.getAttribute('width'))
+    expect(unit).toBeGreaterThan(0)
+    expect(left).toBeCloseTo(atMinus1 - unit, 6)
+    expect(right).toBeCloseTo(atMinus1 + unit, 6)
   })
 })
