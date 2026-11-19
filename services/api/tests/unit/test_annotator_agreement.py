@@ -127,6 +127,7 @@ def test_ratings_are_ordinal_and_scored_with_kappa():
 
     (stars,) = agreement_by_control(rows)["controls"]
     assert stars["score_type"] == "ordinal"
+    assert stars["categories"] == ["1", "2", "3", "4", "5"]
     assert stars["percent_agreement"] == pytest.approx(0.75)
     assert stars["fleiss_kappa"] is not None
     assert stars["cohens_kappa_mean"] is not None
@@ -184,7 +185,8 @@ def test_annotators_are_labelled_by_pseudonym_or_neutral_id():
         _row("t2", "fedcba9876543210", _choice("label", "x"), pseudonym="Owl"),
     ]
     (pair,) = agreement_by_control(rows)["controls"][0]["pairs"]
-    assert {pair["annotator_a"], pair["annotator_b"]} == {"User 01234567", "Owl"}
+    # Pairs read in label order, whatever the account ids.
+    assert (pair["annotator_a"], pair["annotator_b"]) == ("Owl", "User 01234567")
 
 
 def test_pair_list_is_capped_but_counted():

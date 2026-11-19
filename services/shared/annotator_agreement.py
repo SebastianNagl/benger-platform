@@ -105,7 +105,8 @@ def _control_values(result: Any) -> Dict[str, Tuple[str, Any]]:
             elif isinstance(raw, str) and raw:
                 comparable = raw
         elif isinstance(raw, (int, float)) and not isinstance(raw, bool):
-            comparable = float(raw)
+            # Whole numbers stay ints so rating categories read "4", not "4.0".
+            comparable = int(raw) if float(raw).is_integer() else float(raw)
         out[name] = (kind, comparable)
     return out
 
@@ -170,9 +171,11 @@ def agreement_by_control(
 
         pairs: List[Dict[str, Any]] = []
         for (a, b), n in pair_n.items():
+            # Both measures are symmetric, so the pair reads in label order.
+            label_a, label_b = sorted((labels[a], labels[b]), key=str.lower)
             entry: Dict[str, Any] = {
-                "annotator_a": labels[a],
-                "annotator_b": labels[b],
+                "annotator_a": label_a,
+                "annotator_b": label_b,
                 "n_items": n,
             }
             if score_type == "numeric":

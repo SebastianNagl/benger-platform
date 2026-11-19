@@ -155,7 +155,7 @@ function ControlBlock({ control }: { control: ControlAgreement }) {
             })}
           </summary>
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[20rem] text-left text-sm">
+            <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                   <th className="py-1.5 pr-3 font-medium">
