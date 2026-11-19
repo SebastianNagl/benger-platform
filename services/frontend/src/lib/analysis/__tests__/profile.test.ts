@@ -1,12 +1,15 @@
 /**
  * Profiles of estimates (`@/lib/analysis/profile`): the scope columns a
  * contrast varies over, the default columns, the points, lines and panels
- * built from synthetic estimates, ordinal x levels, the fitted slope and
- * the run spec readers.
+ * built from synthetic estimates, ordinal x levels, the fitted slopes that
+ * belong to exactly what is plotted and the run spec readers.
  */
 
 import { makeEstimate } from '@/test-utils/analysisFixtures'
 import {
+  makeGapEstimates,
+  makeInteractionEstimates,
+  makeInteractionRun,
   makePositionEstimates,
   makePositionRun,
   SYSTEM_A,
@@ -16,7 +19,7 @@ import {
   defaultProfileColumns,
   profileFromEstimates,
   scopeColumns,
-  slopeEstimate,
+  profileSlopes,
   specDesigns,
   specEstimands,
 } from '../profile'
@@ -131,17 +134,51 @@ describe('profileFromEstimates', () => {
 })
 
 describe('the run spec', () => {
-  it('finds the pooled slope of a linear contrast on the x column', () => {
+  it('gives a level profile the pooled slope of its x column', () => {
     const run = makePositionRun()
-    const slope = slopeEstimate(run, makePositionEstimates(), 'risk', 'pos')
-    expect(slope?.estimand_id).toBe('position')
-    expect(slope?.estimate).toBe(0.5)
-    expect(slopeEstimate(run, makePositionEstimates(), 'other', 'pos')).toBe(
-      null,
+    const all = makePositionEstimates()
+    const cols = { x: 'pos', series: 'system', facet: null }
+    const slopes = profileSlopes(run, all, curve(), cols)
+    expect(slopes.map((s) => [s.line, s.estimate.estimate])).toEqual([
+      [null, 0.5],
+    ])
+    expect(profileSlopes(run, all, curve(), { ...cols, x: 'group' })).toEqual(
+      [],
     )
-    expect(slopeEstimate(run, makePositionEstimates(), 'risk', 'group')).toBe(
-      null,
-    )
+    const other = curve().map((e) => ({ ...e, outcome: 'other' }))
+    expect(profileSlopes(run, all, other, cols)).toEqual([])
+  })
+
+  it('gives a difference profile no slope of the outcome level', () => {
+    // Flat gaps next to a level slope of 0.5: that slope is not the gap's.
+    const gaps = makeGapEstimates()
+    const all = [...makePositionEstimates(), ...gaps]
+    expect(
+      profileSlopes(makePositionRun(), all, gaps, {
+        x: 'pos',
+        series: null,
+        facet: null,
+      }),
+    ).toEqual([])
+  })
+
+  it('gives each level its own slope in an interaction model', () => {
+    const run = makeInteractionRun()
+    const all = makeInteractionEstimates()
+    const levels = all.filter((e) => e.estimand_id === 'mean_by_party')
+    const slopes = profileSlopes(run, all, levels, {
+      x: 'pos',
+      series: 'party',
+      facet: null,
+    })
+    expect(slopes.map((s) => [s.line, s.estimate.estimate])).toEqual([
+      ['a', 0.2],
+      ['b', 0.9],
+    ])
+    // Without the interacted factor as the series no line has one slope.
+    expect(
+      profileSlopes(run, all, levels, { x: 'pos', series: null, facet: 'party' }),
+    ).toEqual([])
   })
 
   it('reads the estimands and designs of a run', () => {

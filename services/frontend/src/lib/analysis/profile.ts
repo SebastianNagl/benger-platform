@@ -52,10 +52,17 @@ export interface ProfileData {
   yMean: number
 }
 
-/** A straight line of the given slope through the points' means. */
+/**
+ * A straight line of the given slope: through the means of one line's
+ * points when `line` names it (its series key), else through the means of
+ * every point.
+ */
 export interface ProfileSlope {
   slope: number
   label: string
+  lower?: number | null
+  upper?: number | null
+  line?: string
 }
 
 export interface ProfileColumns {
@@ -278,32 +285,116 @@ function linearContrasts(
     }))
 }
 
+type SpecTerm = string | { dummies?: unknown; by?: unknown; reference?: unknown; levels?: unknown; interact?: unknown }
+
+function termReads(term: unknown, column: string): boolean {
+  if (typeof term === 'string') return term === column
+  if (!term || typeof term !== 'object') return false
+  const t = term as Exclude<SpecTerm, string>
+  if (Array.isArray(t.interact)) return t.interact.some((s) => termReads(s, column))
+  return t.dummies === column || t.by === column
+}
+
 /**
- * The fitted slope that belongs to a profile over `column`: the pooled
- * estimate of a linear contrast whose only weight is 1 on the term `column`,
- * in an estimand with the same outcome. Null when the run has none.
+ * The factor of a term `{interact: [column, {dummies: factor}]}` (in either
+ * order) with its declared reference level, or null for any other term.
  */
-export function slopeEstimate(
+function slopeInteraction(
+  term: unknown,
+  column: string,
+): { factor: string; reference: string | null } | null {
+  if (!term || typeof term !== 'object') return null
+  const parts = (term as { interact?: unknown }).interact
+  if (!Array.isArray(parts) || parts.length !== 2) return null
+  const dummies = parts.find((p) => p !== column) as
+    | Exclude<SpecTerm, string>
+    | undefined
+  if (
+    !parts.includes(column) ||
+    !dummies ||
+    typeof dummies !== 'object' ||
+    typeof dummies.dummies !== 'string' ||
+    dummies.by
+  )
+    return null
+  const declared =
+    dummies.reference ??
+    (Array.isArray(dummies.levels) ? dummies.levels[0] : undefined)
+  return {
+    factor: dummies.dummies,
+    reference: declared === undefined ? null : levelText(declared),
+  }
+}
+
+/** A fitted slope of a profile: for every line (`line` null) or for one. */
+export interface ProfileSlopeEstimate {
+  line: string | null
+  estimate: AnalysisEstimate
+}
+
+/**
+ * The fitted slopes that belong to a profile, so a line is only ever drawn
+ * for a slope the run estimated of exactly what is plotted. Only a profile
+ * of levels (the means of `mean_rate`) has one: the pooled estimate of a
+ * linear contrast on the x column in an estimand of the same outcome that
+ * has `columns.x` as a term. Without an interaction of x the contrast
+ * `{x: 1}` is the slope of every line. With one interaction of x and a
+ * factor that is the series, each level gets its own slope: `{x: 1}` for
+ * the declared reference level and `{x: 1, "factor[level]:x": 1}` for the
+ * others. Any other profile (a difference, a coefficient) or estimand
+ * shape gives none.
+ */
+export function profileSlopes(
   run: Pick<AnalysisRun, 'normalized_spec'> | null,
   estimates: readonly AnalysisEstimate[],
-  outcome: string | null,
-  column: string,
-): AnalysisEstimate | null {
+  profiled: readonly AnalysisEstimate[],
+  columns: ProfileColumns,
+): ProfileSlopeEstimate[] {
+  const first = profiled[0]
+  if (!first || first.estimator !== 'mean_rate' || !first.outcome) return []
+  const x = columns.x
   for (const estimand of specEstimands(run)) {
-    if (outcome && estimand.outcome !== outcome) continue
-    for (const contrast of linearContrasts(estimand)) {
-      const keys = Object.keys(contrast.weights)
-      if (keys.length !== 1 || keys[0] !== column) continue
-      if (contrast.weights[column] !== 1) continue
-      const found = estimates.find(
+    if (estimand.outcome !== first.outcome) continue
+    const terms = Array.isArray(estimand.terms) ? estimand.terms : []
+    if (!terms.includes(x)) continue
+    const others = terms.filter((t) => t !== x && termReads(t, x))
+    const interaction =
+      others.length === 1 ? slopeInteraction(others[0], x) : null
+    if (others.length > 0 && (!interaction || interaction.factor !== columns.series))
+      continue
+    const pooled = (contrastId: string) =>
+      estimates.find(
         (e) =>
           e.estimand_id === estimand.id &&
-          e.contrast_id === contrast.id &&
+          e.contrast_id === contrastId &&
           e.scope === 'pooled' &&
           isNumber(e.estimate),
       )
-      if (found) return found
+    const found: ProfileSlopeEstimate[] = []
+    for (const contrast of linearContrasts(estimand)) {
+      const keys = Object.keys(contrast.weights)
+      if (contrast.weights[x] !== 1) continue
+      if (!keys.every((k) => contrast.weights[k] === 1)) continue
+      let line: string | null
+      if (keys.length === 1) {
+        if (interaction && interaction.reference === null) continue
+        line = interaction ? interaction.reference : null
+      } else if (interaction && keys.length === 2) {
+        const other = keys.find((k) => k !== x)!
+        const prefix = `${interaction.factor}[`
+        const name = other.startsWith(`${x}:`)
+          ? other.slice(x.length + 1)
+          : other.endsWith(`:${x}`)
+            ? other.slice(0, -(x.length + 1))
+            : ''
+        if (!name.startsWith(prefix) || !name.endsWith(']')) continue
+        line = name.slice(prefix.length, -1)
+      } else continue
+      const estimate = pooled(contrast.id)
+      if (estimate && !found.some((f) => f.line === line))
+        found.push({ line, estimate })
     }
+    if (found.length > 0) return found
   }
-  return null
+  return []
 }

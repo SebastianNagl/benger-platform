@@ -363,9 +363,16 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   chips. `profile` draws the estimates of one contrast along an ordered or
   numeric scope column (a position of a per-slot frame, a numeric factor, a
   level), one line per series column (the system by default) and one panel
-  per facet column, with their intervals; where the run also estimated a
-  linear contrast whose only weight is on that column for the same outcome,
-  its pooled estimate is drawn as the fitted slope. `bar` draws the
+  per facet column, with their intervals. A fitted slope is drawn only
+  where the run estimated the slope of exactly what is plotted, with its
+  estimate and interval in the legend: for a profile of means
+  (`mean_rate`), the pooled linear contrast `{x: 1}` of an estimand of the
+  same outcome with x as a term is the slope of every line; with an
+  interaction of x and the series factor, each level gets its own slope
+  (`{x: 1}` for the declared reference level, `{x: 1, "x:factor[level]":
+  1}` for the others). A difference or coefficient profile, or any other
+  model shape, gets no slope, and the view says that none was estimated.
+  `bar` draws the
   estimates of each contrast as bars from 0, with the null value as a dashed
   line, `table` lists the contrasts against their scopes, `data` shows only
   the estimates table.

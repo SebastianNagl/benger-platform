@@ -12090,6 +12090,8 @@
         "tip": "{x} : {estimate} [{lower}, {upper}], n = {n}",
         "axis": "{y} selon {x}",
         "slope": "Pente estimée {label} : {slope}",
+        "slopeInterval": "Pente estimée {label} : {slope} [{lower}, {upper}]",
+        "noSlope": "Aucune pente n’a été estimée pour cette vue.",
         "band": "Plage idéale",
         "empty": "Il n’y a rien à tracer.",
         "none": "Aucun contraste de cette analyse ne varie le long d’un périmètre ordonné. Donnez à un estimand un périmètre sur une colonne numérique ou ordonnée pour voir son profil.",

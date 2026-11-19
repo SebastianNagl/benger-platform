@@ -286,6 +286,112 @@ export function makePositionRun(): AnalysisRun {
   })
 }
 
+/**
+ * The gap of party b against a per position (an fe_ols coefficient scoped
+ * by position), flat at zero, next to the position run's level slope.
+ */
+export function makeGapEstimates(): AnalysisEstimate[] {
+  return [1, 2, 3, 4].map((pos, i) =>
+    makeEstimate({
+      position: 100 + i,
+      estimand_id: 'party_gap',
+      contrast_id: 'party b',
+      estimator: 'fe_ols',
+      outcome: 'risk',
+      scope: 'by pos',
+      scope_values: { pos },
+      estimate: 0,
+      ci_lower: -0.1,
+      ci_upper: 0.1,
+    }),
+  )
+}
+
+const PARTY = { dummies: 'party', reference: 'a' }
+
+/**
+ * A run with a party by position interaction: the mean per party and
+ * position, and an fe_ols fit whose slope of position is 0.2 for party a
+ * (the reference) and 0.2 + 0.7 for party b. The interaction column is
+ * named as the engine names `{interact: ["pos", party]}`: `pos:party[b]`.
+ */
+export function makeInteractionRun(): AnalysisRun {
+  return makeRun({
+    normalized_spec: {
+      spec_version: 1,
+      estimands: [
+        {
+          id: 'mean_by_party',
+          estimator: 'mean_rate',
+          outcome: 'risk',
+          scopes: [{ by: ['party', 'pos'] }],
+          contrasts: 'terms',
+        },
+        {
+          id: 'slopes',
+          estimator: 'fe_ols',
+          outcome: 'risk',
+          terms: ['pos', PARTY, { interact: ['pos', PARTY] }],
+          scopes: ['pooled'],
+          contrasts: [
+            { id: 'slope a', kind: 'linear', weights: { pos: 1 } },
+            {
+              id: 'slope b',
+              kind: 'linear',
+              weights: { pos: 1, 'pos:party[b]': 1 },
+            },
+            { id: 'gap slope', kind: 'linear', weights: { 'pos:party[b]': 1 } },
+          ],
+        },
+      ],
+    },
+  })
+}
+
+export function makeInteractionEstimates(): AnalysisEstimate[] {
+  const out: AnalysisEstimate[] = []
+  for (const [party, slope] of [
+    ['a', 0.2],
+    ['b', 0.9],
+  ] as const) {
+    for (const pos of [1, 2, 3]) {
+      out.push(
+        makeEstimate({
+          position: out.length,
+          estimand_id: 'mean_by_party',
+          contrast_id: '(mean)',
+          estimator: 'mean_rate',
+          outcome: 'risk',
+          scope: 'by party, pos',
+          scope_values: { party, pos },
+          estimate: 1 + slope * pos,
+          null_value: null,
+        }),
+      )
+    }
+  }
+  for (const [id, estimate] of [
+    ['slope a', 0.2],
+    ['slope b', 0.9],
+    ['gap slope', 0.7],
+  ] as const) {
+    out.push(
+      makeEstimate({
+        position: out.length,
+        estimand_id: 'slopes',
+        contrast_id: id,
+        outcome: 'risk',
+        scope: 'pooled',
+        scope_values: {},
+        estimate,
+        ci_lower: estimate - 0.1,
+        ci_upper: estimate + 0.1,
+      }),
+    )
+  }
+  return out
+}
+
 /** Bradley-Terry strengths of players b and c against a, pooled and per system. */
 export function makeStrengthEstimates(): AnalysisEstimate[] {
   const rows: AnalysisEstimate[] = []

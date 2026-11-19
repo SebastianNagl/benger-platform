@@ -1481,9 +1481,13 @@ API change).
     (moved from ``analysis.db_source``, which still exports the latter).
   - Components for overlays, all fed by plain props with a loader beside
     them: ``@/components/analysis/EstimateProfileChart`` (estimates over an
-    ordered or numeric scope, series, facets, fitted and reference slopes,
-    a band; data from ``@/lib/analysis/profile``: ``profileFromEstimates``,
-    ``scopeColumns``, ``defaultProfileColumns``, ``slopeEstimate``,
+    ordered or numeric scope, series, facets, fitted slopes for every line
+    or per line and a reference slope, a band; data from
+    ``@/lib/analysis/profile``: ``profileFromEstimates``, ``scopeColumns``,
+    ``defaultProfileColumns``, ``profileSlopes`` (only slopes the run
+    estimated of exactly what is plotted: levels of ``mean_rate`` with the
+    ``{x: 1}`` contrast, per series level under an interaction of x and the
+    series factor; none for differences),
     ``specEstimands``, ``specDesigns``), ``EstimateProfiles`` (the profile
     view of a run), ``ValueDistributionChart`` (exact values or bins, a
     reference line, the mean), ``StrengthForestPlot`` (Bradley-Terry

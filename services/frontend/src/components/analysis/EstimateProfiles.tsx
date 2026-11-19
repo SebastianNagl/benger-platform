@@ -6,8 +6,8 @@
  * one at a time, drawn with `EstimateProfileChart`. The reader picks the
  * contrast and the x, series and facet columns; by default x is the first
  * numeric scope column other than the system and the series is the system.
- * Where the run also estimated a linear slope on the x column for the same
- * outcome, its pooled estimate is drawn as the fitted slope.
+ * A fitted slope is drawn only where the run estimated the slope of exactly
+ * what is plotted (`profileSlopes`); otherwise the view says so.
  */
 
 import { useI18n } from '@/contexts/I18nContext'
@@ -15,7 +15,7 @@ import {
   defaultProfileColumns,
   profileFromEstimates,
   scopeColumns,
-  slopeEstimate,
+  profileSlopes,
   type ProfileColumns,
 } from '@/lib/analysis/profile'
 import { groupByContrast } from '@/lib/analysis/results'
@@ -79,13 +79,21 @@ export function EstimateProfiles({
         })
       : null
   const outcome = group?.estimates[0]?.outcome ?? null
-  const fitted = cols
-    ? slopeEstimate(run, allEstimates ?? estimates, outcome, cols.x)
-    : null
-  const slope =
-    fitted && typeof fitted.estimate === 'number'
-      ? { slope: fitted.estimate, label: contrastLabel(fitted) }
-      : null
+  const slopes =
+    group && cols
+      ? profileSlopes(run, allEstimates ?? estimates, group.estimates, cols).map(
+          ({ line, estimate }) => ({
+            slope: estimate.estimate as number,
+            lower: estimate.ci_lower,
+            upper: estimate.ci_upper,
+            label:
+              line === null
+                ? contrastLabel(estimate)
+                : `${cols.series} = ${line} · ${contrastLabel(estimate)}`,
+            ...(line === null ? {} : { line }),
+          }),
+        )
+      : []
 
   if (!group || !cols || !data) {
     return (
@@ -176,8 +184,16 @@ export function EstimateProfiles({
         data={data}
         xLabel={cols.x}
         yLabel={outcome ?? contrastLabel(group.estimates[0])}
-        slope={slope}
+        slopes={slopes}
       />
+      {slopes.length === 0 && (
+        <p
+          className="text-xs text-zinc-500 dark:text-zinc-400"
+          data-testid="profile-no-slope"
+        >
+          {t('analysis.views.profile.noSlope')}
+        </p>
+      )}
     </div>
   )
 }

@@ -12090,6 +12090,8 @@
         "tip": "{x}: {estimate} [{lower}, {upper}], n = {n}",
         "axis": "{y} by {x}",
         "slope": "Fitted slope {label}: {slope}",
+        "slopeInterval": "Fitted slope {label}: {slope} [{lower}, {upper}]",
+        "noSlope": "No slope was estimated for this view.",
         "band": "Ideal range",
         "empty": "There is nothing to draw.",
         "none": "No contrast of this run varies over an ordered scope. Scope an estimand by a numeric or ordered column to see its profile.",

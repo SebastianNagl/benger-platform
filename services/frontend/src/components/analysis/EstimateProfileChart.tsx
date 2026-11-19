@@ -3,8 +3,9 @@
 /**
  * Profile chart: estimates over an ordered or numeric x (a scope column of
  * the estimates, such as a position or a numeric factor), one line per
- * series with its intervals, one panel per facet on a shared scale, an
- * optional fitted slope (dashed), an optional reference slope (dotted) and
+ * series with its intervals, one panel per facet on a shared scale,
+ * optional fitted slopes (dashed; one for every line or one per line), an
+ * optional reference slope (dotted) and
  * an optional shaded band per panel with its midpoint (e.g. the range an
  * ideal answer may take). Lines carry direct labels at their ends, so the
  * colours never carry meaning alone.
@@ -52,17 +53,39 @@ function labelRoom(lines: readonly ProfileLine[], width: number): number {
   return Math.min(cap, Math.max(24, longest * CHAR_WIDTH + 14))
 }
 
-function slopeLine(data: ProfileData, slope: number, xs: Ticks) {
+const mean = (values: number[]) =>
+  values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)
+
+/**
+ * The ends of a slope across the x axis: through the means of its line's
+ * points in the panel, or of every point; null when its line is not here.
+ */
+function slopeLine(
+  data: ProfileData,
+  panel: ProfilePanel,
+  s: ProfileSlope,
+  xs: Ticks,
+) {
+  let x0 = data.xMean
+  let y0 = data.yMean
+  if (s.line !== undefined) {
+    const points = panel.lines.find((l) => l.key === s.line)?.points ?? []
+    if (points.length === 0) return null
+    x0 = mean(points.map((p) => p.x))
+    y0 = mean(points.map((p) => p.estimate))
+  }
   return [xs.min, xs.max].map((gx) => ({
     gx,
-    gy: data.yMean + slope * (gx - data.xMean),
+    gy: y0 + s.slope * (gx - x0),
   }))
 }
+
+const NEUTRAL_SLOPE = 'stroke-zinc-700 dark:stroke-zinc-300'
 
 function Panel({
   panel,
   data,
-  slope,
+  slopes,
   reference,
   xs,
   ys,
@@ -72,7 +95,7 @@ function Panel({
 }: {
   panel: ProfilePanel
   data: ProfileData
-  slope: ProfileSlope | null
+  slopes: readonly ProfileSlope[]
   reference: ProfileSlope | null
   xs: Ticks
   ys: Ticks
@@ -113,9 +136,12 @@ function Panel({
     dash: string,
     testId: string,
   ) => {
-    const [a, b] = slopeLine(data, s.slope, xs)
+    const ends = slopeLine(data, panel, s, xs)
+    if (!ends) return null
+    const [a, b] = ends
     return (
       <line
+        key={s.line ?? ''}
         x1={x(a.gx)}
         y1={y(a.gy)}
         x2={x(b.gx)}
@@ -223,13 +249,16 @@ function Panel({
               '1 4',
               'profile-reference',
             )}
-          {slope &&
+          {slopes.map((s) =>
             straight(
-              slope,
-              'stroke-zinc-700 dark:stroke-zinc-300',
+              s,
+              s.line === undefined
+                ? NEUTRAL_SLOPE
+                : seriesSlot(seriesKeys.indexOf(s.line)).stroke,
               '6 4',
               'profile-slope',
-            )}
+            ),
+          )}
         </g>
         {panel.lines.map((line, li) => {
           const slot = seriesSlot(seriesKeys.indexOf(line.key))
@@ -333,8 +362,11 @@ export interface EstimateProfileChartProps {
   xLabel: string
   /** What the estimates are (the outcome). */
   yLabel: string
-  /** A fitted slope, drawn dashed through the points' means. */
-  slope?: ProfileSlope | null
+  /**
+   * Fitted slopes, drawn dashed: one without `line` through the means of
+   * every point, or one per line through that line's means.
+   */
+  slopes?: readonly ProfileSlope[]
   /** A reference slope (e.g. the smallest response that matters), dotted. */
   reference?: ProfileSlope | null
   /** Legend text of the panels' band, shown when a panel has one. */
@@ -347,7 +379,7 @@ export function EstimateProfileChart({
   data,
   xLabel,
   yLabel,
-  slope = null,
+  slopes = [],
   reference = null,
   bandLabel,
   emptyMessage,
@@ -382,9 +414,10 @@ export function EstimateProfileChart({
   // Both slopes span the x axis inside the y axis, so they are drawn at
   // their true angle; a reference slope also sets the scale a meaningful
   // response needs, so a flat profile does not look steep on a magnified axis.
-  for (const s of [slope, reference]) {
+  for (const s of [...slopes, reference]) {
     if (!s || !Number.isFinite(s.slope) || xValues.length === 0) continue
-    for (const { gy } of slopeLine(data, s.slope, xs)) values.push(gy)
+    for (const p of panels)
+      for (const { gy } of slopeLine(data, p, s, xs) ?? []) values.push(gy)
   }
   const ys = axisTicks(values, 5)
   const seriesKeys = [
@@ -416,7 +449,7 @@ export function EstimateProfileChart({
             key={panel.key}
             panel={panel}
             data={data}
-            slope={slope}
+            slopes={slopes}
             reference={reference}
             xs={xs}
             ys={ys}
@@ -448,8 +481,12 @@ export function EstimateProfileChart({
               </span>
             </span>
           ))}
-        {slope && (
-          <span className="inline-flex items-center gap-2">
+        {slopes.map((s) => (
+          <span
+            key={s.line ?? ''}
+            className="inline-flex min-w-0 items-center gap-2"
+            data-testid="profile-slope-legend"
+          >
             <svg width="20" height="6" aria-hidden="true">
               <line
                 x1="0"
@@ -458,15 +495,28 @@ export function EstimateProfileChart({
                 y2="3"
                 strokeDasharray="6 4"
                 strokeWidth={1.4}
-                className="stroke-zinc-700 dark:stroke-zinc-300"
+                className={
+                  s.line === undefined
+                    ? NEUTRAL_SLOPE
+                    : seriesSlot(seriesKeys.indexOf(s.line)).stroke
+                }
               />
             </svg>
-            {t('analysis.views.profile.slope', {
-              label: slope.label,
-              slope: formatNumber(slope.slope, locale, 3),
-            })}
+            <span className="[overflow-wrap:anywhere]">
+              {typeof s.lower === 'number' && typeof s.upper === 'number'
+                ? t('analysis.views.profile.slopeInterval', {
+                    label: s.label,
+                    slope: formatNumber(s.slope, locale, 3),
+                    lower: formatNumber(s.lower, locale, 3),
+                    upper: formatNumber(s.upper, locale, 3),
+                  })
+                : t('analysis.views.profile.slope', {
+                    label: s.label,
+                    slope: formatNumber(s.slope, locale, 3),
+                  })}
+            </span>
           </span>
-        )}
+        ))}
         {reference && (
           <span className="inline-flex items-center gap-2">
             <svg width="20" height="6" aria-hidden="true">

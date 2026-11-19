@@ -12090,6 +12090,8 @@
         "tip": "{x}: {estimate} [{lower}, {upper}], n = {n}",
         "axis": "{y} nach {x}",
         "slope": "Geschätzte Steigung {label}: {slope}",
+        "slopeInterval": "Geschätzte Steigung {label}: {slope} [{lower}, {upper}]",
+        "noSlope": "Für diese Ansicht wurde keine Steigung geschätzt.",
         "band": "Idealbereich",
         "empty": "Es gibt nichts zu zeichnen.",
         "none": "Kein Kontrast dieses Laufs variiert über einen geordneten Scope. Gib einem Estimand einen Scope über eine numerische oder geordnete Spalte, um sein Profil zu sehen.",

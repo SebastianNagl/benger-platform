@@ -11,6 +11,9 @@ import userEvent from '@testing-library/user-event'
 import { profileFromEstimates } from '@/lib/analysis/profile'
 import { makeEstimate, makeRun } from '@/test-utils/analysisFixtures'
 import {
+  makeGapEstimates,
+  makeInteractionEstimates,
+  makeInteractionRun,
   makePositionEstimates,
   makePositionRun,
   SYSTEM_A,
@@ -37,7 +40,7 @@ describe('EstimateProfileChart', () => {
         data={data}
         xLabel="pos"
         yLabel="risk"
-        slope={{ slope: 0.5, label: 'position · per position' }}
+        slopes={[{ slope: 0.5, label: 'position · per position' }]}
       />,
     )
     const panels = screen.getAllByTestId('profile-panel')
@@ -178,6 +181,47 @@ describe('EstimateProfiles', () => {
     expect(screen.getAllByTestId('profile-panel')).toHaveLength(2)
     // These estimates hold no slope estimate on the x column.
     expect(screen.queryByTestId('profile-slope')).toBeNull()
+    expect(screen.getByTestId('profile-no-slope')).toHaveTextContent(
+      'No slope was estimated for this view.',
+    )
+  })
+
+  it('draws no fitted slope through a flat gap profile', () => {
+    render(
+      <EstimateProfiles
+        run={makePositionRun()}
+        estimates={makeGapEstimates()}
+        allEstimates={[...makePositionEstimates(), ...makeGapEstimates()]}
+      />,
+    )
+    expect(screen.getAllByTestId('profile-line')).toHaveLength(1)
+    expect(screen.queryByTestId('profile-slope')).toBeNull()
+    expect(screen.getByTestId('profile-no-slope')).toBeInTheDocument()
+  })
+
+  it('draws one slope per level of an interaction model, with its interval', async () => {
+    const user = userEvent.setup()
+    const all = makeInteractionEstimates()
+    render(
+      <EstimateProfiles
+        run={makeInteractionRun()}
+        estimates={all.filter((e) => e.estimand_id === 'mean_by_party')}
+        allEstimates={all}
+      />,
+    )
+    expect(screen.getByTestId('profile-x')).toHaveValue('pos')
+    expect(screen.getByTestId('profile-series')).toHaveValue('')
+    expect(screen.queryByTestId('profile-slope')).toBeNull()
+    await user.selectOptions(screen.getByTestId('profile-series'), 'party')
+    expect(screen.getAllByTestId('profile-line')).toHaveLength(2)
+    expect(screen.getAllByTestId('profile-slope')).toHaveLength(2)
+    expect(
+      screen.getAllByTestId('profile-slope-legend').map((n) => n.textContent),
+    ).toEqual([
+      'Fitted slope party = a · slopes · slope a: 0.2 [0.1, 0.3]',
+      'Fitted slope party = b · slopes · slope b: 0.9 [0.8, 1]',
+    ])
+    expect(screen.queryByTestId('profile-no-slope')).toBeNull()
   })
 
   it('explains when no contrast has an ordered scope', () => {
