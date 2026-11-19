@@ -153,7 +153,7 @@ def require_extension_active_v1(package: str):
 
 
 # ---------------------------------------------------------------------------
-# Platform flags of the experiment features (core 2.70)
+# Platform flags of the experiment features (core 2.71)
 # ---------------------------------------------------------------------------
 
 

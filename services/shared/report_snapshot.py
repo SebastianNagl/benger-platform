@@ -314,7 +314,7 @@ def apply_section_visibility(
 # Builder
 # ---------------------------------------------------------------------------
 
-#: Snapshot parts that belong to the variant_experiments flag (core 2.70):
+#: Snapshot parts that belong to the variant_experiments flag (core 2.71):
 #: top-level keys and ``statistics`` keys. They are built only while the
 #: flag is on for whoever builds the snapshot, and served only while it is
 #: on for anybody (:func:`without_experiment_parts`).

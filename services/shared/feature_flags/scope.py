@@ -1,4 +1,4 @@
-"""Flag answers a job carries into code that has no caller (core 2.70).
+"""Flag answers a job carries into code that has no caller (core 2.71).
 
 A worker job (a generation, an evaluation run) decides a platform flag once
 for the user the job belongs to (``worker.flag_enabled_sync``) and opens

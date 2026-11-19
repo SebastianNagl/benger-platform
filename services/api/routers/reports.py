@@ -182,7 +182,7 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     if annotations.get("show_participants") is False and "participants" in annotations:
         sections = {**sections, "annotations": {**annotations, "participants": []}}
     snapshot = apply_section_visibility(content.get("snapshot"), sections)
-    # The parts of the variant_experiments flag (core 2.70) are served while
+    # The parts of the variant_experiments flag (core 2.71) are served while
     # it is on for anybody; off for everybody, the report reads as before.
     if not _experiment_parts_served():
         snapshot = without_experiment_parts(snapshot)
@@ -443,7 +443,7 @@ async def update_project_report(
     new_annotations = (new_content.get("sections") or {}).get("annotations")
     if isinstance(new_annotations, dict) and "participants" in existing_annotations:
         new_annotations["participants"] = existing_annotations["participants"]
-    # show_agreement belongs to variant_experiments (core 2.70): with the
+    # show_agreement belongs to variant_experiments (core 2.71): with the
     # flag off for the caller a setting the report does not hold is not added.
     if (
         isinstance(new_annotations, dict)

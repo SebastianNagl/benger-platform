@@ -66,7 +66,7 @@ _is_retryable_error = is_transient_upstream_error
 def _system_key_fields(sent: Dict[str, Any], provider_model_id: Any, response_model: Any) -> Dict[str, Any]:
     """The response metadata the system key reads (the reasoning knobs as
     sent, the model id sent to and reported by DeepInfra). They belong to
-    the variant_experiments flag (core 2.70): off, none are recorded."""
+    the variant_experiments flag (core 2.71): off, none are recorded."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
 

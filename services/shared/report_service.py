@@ -204,7 +204,7 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
 def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
     """The ``show_agreement`` key of the annotations section: kept or
     defaulted while the variant_experiments flag is on in this context
-    (core 2.70), absent otherwise, as before annotator agreement existed."""
+    (core 2.71), absent otherwise, as before annotator agreement existed."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
 

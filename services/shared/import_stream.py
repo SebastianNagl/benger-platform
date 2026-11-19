@@ -1159,7 +1159,7 @@ def run_nested_import(
             # structure_key) it was generated under.
             model_response_generations: dict = {}
             # Lossless generation import belongs to variant_experiments
-            # (core 2.70): off, the rows import as before (one job per
+            # (core 2.71): off, the rows import as before (one job per
             # model, run indexes renumbered, no telemetry or request record).
             lossless = _experiments_on()
 
@@ -4364,7 +4364,7 @@ def _merge_variant_design(state: "_MergeState", db, project_id: str, doc: dict) 
     key; one the project lacks only matters through its tasks (each must
     carry the target task's assignment, see ``_merge_task``)."""
     if not _experiments_on():
-        # The variant check belongs to variant_experiments (core 2.70).
+        # The variant check belongs to variant_experiments (core 2.71).
         return
     key = doc.get("key")
     if not isinstance(key, str):
@@ -4474,7 +4474,7 @@ def _merge_task(ctx: _FullImportContext, state: _MergeState, task_data: dict) ->
         return
     target = candidates[0]
     state.claimed[target] = label
-    # The variant check belongs to variant_experiments (core 2.70).
+    # The variant check belongs to variant_experiments (core 2.71).
     if _experiments_on() and _merge_variant_key(task_data.get("meta")) != state.variants.get(
         target
     ):

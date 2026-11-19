@@ -195,10 +195,10 @@ class TestExtensionLoader:
         # 2.69 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        # 2.70 adds the platform flags variant_experiments and
+        # 2.71 adds the platform flags variant_experiments and
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).
-        assert CORE_API_VERSION == "2.70"
+        assert CORE_API_VERSION == "2.71"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

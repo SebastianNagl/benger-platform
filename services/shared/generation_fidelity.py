@@ -50,7 +50,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 MAX_GENERATION_RUNS_PER_TASK = 100
 
 #: The cap before generation fidelity raised it; it stays the cap while the
-#: ``variant_experiments`` flag is off (core 2.70).
+#: ``variant_experiments`` flag is off (core 2.71).
 CLASSIC_MAX_GENERATION_RUNS_PER_TASK = 25
 
 
@@ -65,7 +65,7 @@ MAX_REFUSAL_WINDOW = 100_000
 STRUCTURED_OUTPUT_MODES = ("auto", "off")
 
 #: The answer-format option keys of a prompt structure. They belong to the
-#: ``variant_experiments`` flag (core 2.70): with it off, generation runs
+#: ``variant_experiments`` flag (core 2.71): with it off, generation runs
 #: every structure at the defaults (``AnswerFormat()``) and the
 #: API neither shows nor writes them.
 ANSWER_FORMAT_KEYS = (

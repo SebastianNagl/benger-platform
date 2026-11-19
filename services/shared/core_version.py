@@ -1497,7 +1497,7 @@ API change).
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
 
-2.70 (2026-11-19): the experiment features behind platform feature flags
+2.71 (2026-11-19): the experiment features behind platform feature flags
   (migration 151; docs/features/feature-flags.md).
   - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
     ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
@@ -1546,7 +1546,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.70"
+CORE_API_VERSION = "2.71"
 
 
 def extended_required() -> bool:
