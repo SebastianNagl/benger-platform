@@ -824,3 +824,40 @@ async def test_public_readers_get_hashes_members_get_parameters(async_test_clien
     # The stored snapshot stays whole.
     await async_test_db.refresh(report)
     assert report.content["snapshot"] == full
+
+
+@pytest.mark.asyncio
+async def test_tied_judge_ensemble_names_the_lowest_judge_id(async_test_db):
+    """A judge ensemble config (``judges`` list, no ``judge_model``) where every
+    judge grades every sample: the report names one judge by the documented
+    tie-break (lowest id), so rebuilds of unchanged data agree."""
+    from models import EvaluationJudgeRun, TaskEvaluation
+
+    admin = await _user(async_test_db, is_superadmin=True)
+    ann = await _user(async_test_db)
+    project, _ = await _seed_benchmark(async_test_db, admin, ann)
+    evaluation_id = (await async_test_db.execute(
+        select(TaskEvaluation.evaluation_id).where(TaskEvaluation.evaluation_config_id == "cfg-judge"))).scalars().first()
+    gens = (await async_test_db.execute(
+        select(Generation).join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
+        .where(ResponseGeneration.project_id == project.id, Generation.model_id == "official-model")
+        .order_by(Generation.task_id))).scalars().all()
+    ensemble = {"judges": [{"judge_model_id": "zeta-judge", "runs": 1}, {"judge_model_id": "alpha-judge", "runs": 1}]}
+    for index, judge in enumerate(("zeta-judge", "alpha-judge"), start=1):
+        run = EvaluationJudgeRun(id=_uid(), evaluation_id=evaluation_id, judge_model_id=judge, run_index=index,
+                                 status="completed", metric_parameters_snapshot=ensemble)
+        async_test_db.add(run)
+        await async_test_db.flush()
+        for gen in gens:
+            async_test_db.add(TaskEvaluation(
+                id=_uid(), evaluation_id=evaluation_id, judge_run_id=run.id, task_id=gen.task_id,
+                generation_id=gen.id, field_name="loesung", answer_type="long_text",
+                ground_truth={"value": "ref"}, prediction={"value": "pred"}, passed=True,
+                evaluation_config_id="cfg-ensemble", metrics={"llm_judge_falloesung": {"value": 0.5, "details": {}}}))
+    await async_test_db.flush()
+
+    first = await _snapshot(async_test_db, project.id)
+    second = await _snapshot(async_test_db, project.id)
+    [ensemble_cfg] = [c for c in first["configs"] if c["id"] == "cfg-ensemble"]
+    assert ensemble_cfg["judge_model"] == "alpha-judge"
+    assert second["reproducibility"]["snapshot_sha256"] == first["reproducibility"]["snapshot_sha256"]

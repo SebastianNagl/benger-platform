@@ -284,7 +284,7 @@ _JUDGE_NAMES_SQL = "SELECT id, name FROM llm_models WHERE id = ANY(:ids)"
 _CONFIG_JUDGES_SQL = """
 SELECT config_id, judge_model_id FROM (
     SELECT COALESCE(te.evaluation_config_id, '') AS config_id, jr.judge_model_id, COUNT(*) AS n,
-           ROW_NUMBER() OVER (PARTITION BY COALESCE(te.evaluation_config_id, '') ORDER BY COUNT(*) DESC) AS rn
+           ROW_NUMBER() OVER (PARTITION BY COALESCE(te.evaluation_config_id, '') ORDER BY COUNT(*) DESC, jr.judge_model_id) AS rn
     FROM task_evaluations te
     JOIN evaluation_runs r ON r.id = te.evaluation_id
     JOIN evaluation_judge_runs jr ON jr.id = te.judge_run_id
