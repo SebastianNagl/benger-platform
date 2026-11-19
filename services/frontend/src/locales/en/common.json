@@ -6266,7 +6266,10 @@
       "selectView": "Select View",
       "forestPlot": "Forest plot",
       "forestPlotDescription": "Estimates with confidence intervals",
-      "forestPlotBestFor": "Comparing estimates and their uncertainty"
+      "forestPlotBestFor": "Comparing estimates and their uncertainty",
+      "profileChart": "Profile",
+      "profileChartDescription": "Estimates over an ordered scope, one line per series",
+      "profileChartBestFor": "Positions, levels and other ordered scopes"
     },
     "statistics": {
       "ci": "95% Confidence Intervals",
@@ -9526,6 +9529,8 @@
         "title": "Request sent to the model",
         "help": "Exactly what the provider client sent, including every block the platform added to the prompts.",
         "none": "No request record (generated before it was recorded).",
+        "hashOnly": "Only the hash of this request was kept; the record itself is not available, so the request cannot be shown.",
+        "unreadable": "The stored record cannot be shown because it is not a valid request record.",
         "model": "Model id",
         "workerCall": "The provider client reported no request; this is the call the generation worker made.",
         "roleSystem": "System",
@@ -9536,7 +9541,18 @@
         "retried": "Format retry: {count} requests sent",
         "firstAnswer": "First answer",
         "loading": "Loading the request…",
-        "loadFailed": "The request could not be loaded."
+        "loadFailed": "The request could not be loaded.",
+        "noRecord": "No request record",
+        "hashOk": "The stored hash matches the record",
+        "hashMismatch": "The stored hash does not match the record",
+        "hashMissing": "No hash was stored for this record",
+        "hashUnverifiable": "Record not available, the hash cannot be checked",
+        "storedHash": "Stored SHA-256",
+        "computedHash": "SHA-256 of the record",
+        "structure": "Prompt structure",
+        "provider": "Provider",
+        "showRaw": "Show the requests as sent ({count})",
+        "hideRaw": "Hide the requests as sent"
       }
     }
   },
@@ -12284,6 +12300,147 @@
       "notes": "Notes",
       "dropped": "dropped {columns}",
       "missing": "Left out (missing)"
+    },
+    "views": {
+      "profile": {
+        "title": "Profile",
+        "description": "The estimates of one contrast over an ordered scope, one line per series, with their confidence intervals.",
+        "panelAria": "Profile {panel}",
+        "tip": "{x}: {estimate} [{lower}, {upper}], n = {n}",
+        "axis": "{y} by {x}",
+        "slope": "Fitted slope {label}: {slope}",
+        "slopeInterval": "Fitted slope {label}: {slope} [{lower}, {upper}]",
+        "noSlope": "No slope was estimated for this view.",
+        "band": "Ideal range",
+        "empty": "There is nothing to draw.",
+        "none": "No contrast of this run varies over an ordered scope. Scope an estimand by a numeric or ordered column to see its profile.",
+        "allLine": "All",
+        "contrast": "Contrast",
+        "x": "Along",
+        "series": "Lines by",
+        "facet": "Panels by",
+        "noColumn": "None"
+      },
+      "distribution": {
+        "count": "Values",
+        "countGroups": "{n} from {groups} units",
+        "meanMedian": "Mean · median",
+        "atReference": "At {reference}",
+        "direction": "Above · below",
+        "directionValue": "{above} · {below}",
+        "aria": "Distribution of {n} values, mean {mean}",
+        "tipExact": "{value}: {count}",
+        "tipBin": "{low} to {high}: {count}",
+        "meanMarker": "Mean {value}"
+      },
+      "strength": {
+        "title": "Strengths of {estimand}",
+        "description": "Bradley-Terry strength of each level of {players} against the reference level {reference} (fixed at 0), with its confidence interval.",
+        "scopes": "Scope",
+        "aria": "Strengths of {estimand}, {scope}",
+        "axisLogit": "Strength (log odds)",
+        "axisLinear": "Strength (difference in probability)"
+      },
+      "unit": {
+        "unit": "{name}: {unit}",
+        "unitName": "Unit",
+        "design": "Design {design} ({status})",
+        "system": "System",
+        "factor": "Pair along",
+        "reference": "Reference",
+        "treated": "Compared",
+        "choosePair": "Pair",
+        "truncated": "Only the first tasks of this unit are shown.",
+        "answersTruncated": "Only the first answers to this task are shown.",
+        "noTwin": "No twin pair for these levels in this unit. The unit's tasks are listed one by one.",
+        "task": "Task {id}",
+        "free": "may differ",
+        "gold": "Gold",
+        "answers": "Answers ({count})",
+        "noAnswers": "No answer of this system.",
+        "run": "Run {run}",
+        "refusal": "Refusal",
+        "parseStatus": "Parse: {status}",
+        "retried": "Format retry",
+        "noValues": "No parsed values.",
+        "showAnswer": "Show the answer",
+        "hideAnswer": "Hide the answer",
+        "showRequest": "Show the request",
+        "hideRequest": "Hide the request",
+        "noRequest": "No request record for this answer",
+        "checkOk": "Assignments, balance and invariance hold in this unit",
+        "checkProblems": "{count} problems in this unit",
+        "forbidden": "Examples need the org admin or contributor role on the project, because they show task content and answers.",
+        "loading": "Loading the unit…",
+        "loadFailed": "The unit could not be loaded.",
+        "slot": "Slot",
+        "fixedFields": "Fields that are the same across the unit ({count})"
+      },
+      "check": {
+        "assignments": "Assignments",
+        "balance": "Balance",
+        "invariance": "Invariance"
+      },
+      "design": {
+        "title": "Variant designs",
+        "description": "The designs this run read: factors, status, hashes and the design checks.",
+        "unit": "Unit: {name}",
+        "slots": "Per slot ({count} slots)",
+        "outcomes": "Outcomes",
+        "gold": "Gold",
+        "invariance": "May differ only in",
+        "status": "Status",
+        "tasks": "{count} tasks",
+        "recordedHash": "Recorded content hash",
+        "contentHash": "Content hash",
+        "hashMatch": "matches",
+        "hashMismatch": "differs from the recorded hash",
+        "specHash": "Spec hash",
+        "runCheck": "Run the checks",
+        "checking": "Checking…",
+        "checkOk": "passed",
+        "checkProblems": "{count} problems",
+        "checkCounts": "{tasks} tasks in {units} units, {pairs} twin pairs compared",
+        "checkFailed": "The checks could not be run.",
+        "loading": "Loading the designs…",
+        "loadFailed": "The designs could not be loaded.",
+        "none": "The project has none of these designs any more.",
+        "statusValue": {
+          "draft": "draft",
+          "frozen": "frozen"
+        },
+        "role": {
+          "manipulated": "manipulated",
+          "counterbalanced": "counterbalanced",
+          "blocking": "blocking",
+          "nuisance": "nuisance"
+        },
+        "varies": {
+          "within_unit": "within units",
+          "between_units": "between units"
+        },
+        "source": {
+          "task": "from the task",
+          "structure": "from the prompt structure",
+          "system": "from the system",
+          "run": "from the run"
+        }
+      },
+      "examples": {
+        "title": "Examples",
+        "description": "The units behind a contrast: twin tasks side by side with the spans they may differ in highlighted, the answers and the request each answer sent.",
+        "contrast": "Contrast",
+        "system": "System",
+        "allSystems": "All systems",
+        "design": "Design",
+        "units": "Units {from} to {to} of {total}",
+        "unitsAria": "Units",
+        "unitTitle": "{unit}: {count} tasks",
+        "previous": "Previous",
+        "next": "Next",
+        "noUnits": "This design has no units yet.",
+        "loadFailed": "The units could not be loaded."
+      }
     },
     "section": {
       "title": "Analyses",

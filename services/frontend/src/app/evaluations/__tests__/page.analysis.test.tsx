@@ -4,7 +4,8 @@
  * and the estimates table alike, the URL state round trip, the statistics
  * blocks, the compliance findings slot (only with the overlay flag on), the
  * start dialog for editors (and its `newRunFrom` prefill), polling of a
- * running run, and the searchable, paged project picker.
+ * running run, the searchable, paged project picker, and the shared
+ * variant views (the profile view and the examples of a contrast).
  *
  * @jest-environment jsdom
  */
@@ -28,6 +29,11 @@ import {
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
 import { makeEstimates, makePlan, makeRun } from '@/test-utils/analysisFixtures'
+import {
+  makePositionEstimates,
+  makePositionRun,
+  makeUnitView,
+} from '@/test-utils/variantViewFixtures'
 
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('en'),
@@ -78,6 +84,18 @@ const mockDesigns = jest.fn()
 const mockPlans = jest.fn()
 const mockValidate = jest.fn()
 const mockStart = jest.fn()
+const mockListUnits = jest.fn()
+const mockGetUnit = jest.fn()
+jest.mock('@/lib/api/variantViews', () => ({
+  variantViewsAPI: {
+    listDesigns: jest.fn(() => Promise.resolve([])),
+    listUnits: (...a: unknown[]) => mockListUnits(...a),
+    getUnit: (...a: unknown[]) => mockGetUnit(...a),
+    checkDesign: jest.fn(),
+    getTrialRequest: jest.fn(),
+  },
+}))
+
 jest.mock('@/lib/api/analysis', () => ({
   ...jest.requireActual('@/lib/api/analysis'),
   analysisAPI: {
@@ -156,6 +174,8 @@ beforeEach(() => {
     ),
   )
   mockListEstimates.mockResolvedValue(makeEstimates())
+  mockListUnits.mockResolvedValue({ items: [], total: 0, limit: 12, offset: 0 })
+  mockGetUnit.mockResolvedValue(makeUnitView())
 })
 
 afterEach(() => {
@@ -538,6 +558,56 @@ describe('Evaluations page, Analyses result type', () => {
     })
     await renderReady()
     expect(screen.getByTestId('analysis-start')).toBeInTheDocument()
+  })
+})
+
+describe('Evaluations page, shared variant views', () => {
+  beforeEach(() => {
+    mockGetRun.mockImplementation((id: string) =>
+      Promise.resolve({ ...makePositionRun(), id, name: id }),
+    )
+    mockListEstimates.mockResolvedValue(makePositionEstimates())
+  })
+
+  it('draws the profile of a slot-frame run from the URL', async () => {
+    mockSearch = new URLSearchParams(
+      'projectId=project-1&type=analysis&chartType=profile',
+    )
+    render(<EvaluationDashboard />)
+    const profiles = await screen.findByTestId('estimate-profiles')
+    expect(within(profiles).getAllByTestId('profile-panel')).toHaveLength(2)
+    expect(within(profiles).getAllByTestId('profile-slope')).toHaveLength(2)
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('profile'))
+  })
+
+  it('offers the profile in the chart type selector', async () => {
+    const user = userEvent.setup()
+    await renderReady()
+    await user.click(screen.getByText('Forest plot'))
+    await user.click(screen.getByText('Profile'))
+    expect(await screen.findByTestId('estimate-profiles')).toBeInTheDocument()
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('profile'))
+  })
+
+  it('opens a unit of the run design from the examples of a contrast', async () => {
+    mockListUnits.mockResolvedValue({
+      items: [{ unit: 'roster_001', task_count: 1 }],
+      total: 1,
+      limit: 12,
+      offset: 0,
+    })
+    await renderReady()
+    const card = screen.getByTestId('analysis-examples-card')
+    expect(
+      await within(card).findByTestId('variant-unit-viewer'),
+    ).toBeInTheDocument()
+    expect(mockListUnits).toHaveBeenCalledWith('project-1', 'roster', 12, 0)
+    expect(mockGetUnit).toHaveBeenCalledWith(
+      'project-1',
+      'roster',
+      'roster_001',
+      null,
+    )
   })
 })
 

@@ -6266,7 +6266,10 @@
       "selectView": "Choisir la vue",
       "forestPlot": "Forest plot",
       "forestPlotDescription": "Estimations avec intervalles de confiance",
-      "forestPlotBestFor": "Comparer des estimations et leur incertitude"
+      "forestPlotBestFor": "Comparer des estimations et leur incertitude",
+      "profileChart": "Profil",
+      "profileChartDescription": "Estimations le long d’un périmètre ordonné, une ligne par série",
+      "profileChartBestFor": "Positions, niveaux et autres périmètres ordonnés"
     },
     "statistics": {
       "ci": "Intervalles de confiance à 95 %",
@@ -9526,6 +9529,8 @@
         "title": "Requête envoyée au modèle",
         "help": "Exactement ce que le client du fournisseur a envoyé, y compris chaque bloc ajouté aux prompts par la plateforme.",
         "none": "Aucune requête enregistrée (générée avant son enregistrement).",
+        "hashOnly": "Seul le hachage de cette requête a été conservé ; l’enregistrement lui-même n’est pas disponible, la requête ne peut donc pas être affichée.",
+        "unreadable": "L’enregistrement stocké ne peut pas être affiché, car ce n’est pas un enregistrement de requête valide.",
         "model": "Identifiant du modèle",
         "workerCall": "Le client du fournisseur n’a signalé aucune requête ; voici l’appel effectué par le worker de génération.",
         "roleSystem": "Système",
@@ -9536,7 +9541,18 @@
         "retried": "Nouvelle demande de format : {count} requêtes envoyées",
         "firstAnswer": "Première réponse",
         "loading": "Chargement de la requête…",
-        "loadFailed": "La requête n’a pas pu être chargée."
+        "loadFailed": "La requête n’a pas pu être chargée.",
+        "noRecord": "Aucune requête enregistrée",
+        "hashOk": "Le hachage enregistré correspond à la requête",
+        "hashMismatch": "Le hachage enregistré ne correspond pas à la requête",
+        "hashMissing": "Aucun hachage n’a été enregistré pour cette requête",
+        "hashUnverifiable": "Enregistrement indisponible, le hachage ne peut pas être vérifié",
+        "storedHash": "SHA-256 enregistré",
+        "computedHash": "SHA-256 de l’enregistrement",
+        "structure": "Structure de prompt",
+        "provider": "Fournisseur",
+        "showRaw": "Afficher les requêtes telles qu’envoyées ({count})",
+        "hideRaw": "Masquer les requêtes telles qu’envoyées"
       }
     }
   },
@@ -12284,6 +12300,147 @@
       "notes": "Remarques",
       "dropped": "retiré : {columns}",
       "missing": "Exclues (manquantes)"
+    },
+    "views": {
+      "profile": {
+        "title": "Profil",
+        "description": "Les estimations d’un contraste le long d’un périmètre ordonné, une ligne par série, avec leurs intervalles de confiance.",
+        "panelAria": "Profil {panel}",
+        "tip": "{x} : {estimate} [{lower}, {upper}], n = {n}",
+        "axis": "{y} selon {x}",
+        "slope": "Pente estimée {label} : {slope}",
+        "slopeInterval": "Pente estimée {label} : {slope} [{lower}, {upper}]",
+        "noSlope": "Aucune pente n’a été estimée pour cette vue.",
+        "band": "Plage idéale",
+        "empty": "Il n’y a rien à tracer.",
+        "none": "Aucun contraste de cette analyse ne varie le long d’un périmètre ordonné. Donnez à un estimand un périmètre sur une colonne numérique ou ordonnée pour voir son profil.",
+        "allLine": "Tout",
+        "contrast": "Contraste",
+        "x": "Le long de",
+        "series": "Lignes par",
+        "facet": "Panneaux par",
+        "noColumn": "Aucun"
+      },
+      "distribution": {
+        "count": "Valeurs",
+        "countGroups": "{n} issues de {groups} unités",
+        "meanMedian": "Moyenne · médiane",
+        "atReference": "À {reference}",
+        "direction": "Au-dessus · en dessous",
+        "directionValue": "{above} · {below}",
+        "aria": "Distribution de {n} valeurs, moyenne {mean}",
+        "tipExact": "{value} : {count}",
+        "tipBin": "{low} à {high} : {count}",
+        "meanMarker": "Moyenne {value}"
+      },
+      "strength": {
+        "title": "Forces de {estimand}",
+        "description": "Force de Bradley-Terry de chaque niveau de {players} par rapport au niveau de référence {reference} (fixé à 0), avec son intervalle de confiance.",
+        "scopes": "Périmètre",
+        "aria": "Forces de {estimand}, {scope}",
+        "axisLogit": "Force (log-odds)",
+        "axisLinear": "Force (différence de probabilité)"
+      },
+      "unit": {
+        "unit": "{name} : {unit}",
+        "unitName": "Unité",
+        "design": "Design {design} ({status})",
+        "system": "Système",
+        "factor": "Paires selon",
+        "reference": "Référence",
+        "treated": "Comparé",
+        "choosePair": "Paire",
+        "truncated": "Seules les premières tâches de cette unité sont affichées.",
+        "answersTruncated": "Seules les premières réponses à cette tâche sont affichées.",
+        "noTwin": "Aucune paire jumelle pour ces niveaux dans cette unité. Les tâches de l’unité sont listées une par une.",
+        "task": "Tâche {id}",
+        "free": "peut différer",
+        "gold": "Référence attendue",
+        "answers": "Réponses ({count})",
+        "noAnswers": "Aucune réponse de ce système.",
+        "run": "Exécution {run}",
+        "refusal": "Refus",
+        "parseStatus": "Analyse : {status}",
+        "retried": "Nouvelle demande de format",
+        "noValues": "Aucune valeur analysée.",
+        "showAnswer": "Afficher la réponse",
+        "hideAnswer": "Masquer la réponse",
+        "showRequest": "Afficher la requête",
+        "hideRequest": "Masquer la requête",
+        "noRequest": "Aucune requête enregistrée pour cette réponse",
+        "checkOk": "Affectations, équilibre et invariance sont respectés dans cette unité",
+        "checkProblems": "{count} problèmes dans cette unité",
+        "forbidden": "Les exemples nécessitent le rôle administrateur d’organisation ou contributeur sur le projet, car ils montrent le contenu des tâches et les réponses.",
+        "loading": "Chargement de l’unité…",
+        "loadFailed": "L’unité n’a pas pu être chargée.",
+        "slot": "Emplacement",
+        "fixedFields": "Champs identiques dans l’unité ({count})"
+      },
+      "check": {
+        "assignments": "Affectations",
+        "balance": "Équilibre",
+        "invariance": "Invariance"
+      },
+      "design": {
+        "title": "Designs de variantes",
+        "description": "Les designs lus par cette analyse : facteurs, statut, hachages et vérifications du design.",
+        "unit": "Unité : {name}",
+        "slots": "Par emplacement ({count} emplacements)",
+        "outcomes": "Variables de résultat",
+        "gold": "Référence attendue",
+        "invariance": "Ne peut différer que dans",
+        "status": "Statut",
+        "tasks": "{count} tâches",
+        "recordedHash": "Hachage de contenu enregistré",
+        "contentHash": "Hachage de contenu",
+        "hashMatch": "correspond",
+        "hashMismatch": "diffère du hachage enregistré",
+        "specHash": "Hachage de la spécification",
+        "runCheck": "Lancer les vérifications",
+        "checking": "Vérification…",
+        "checkOk": "réussi",
+        "checkProblems": "{count} problèmes",
+        "checkCounts": "{tasks} tâches dans {units} unités, {pairs} paires jumelles comparées",
+        "checkFailed": "Les vérifications n’ont pas pu être lancées.",
+        "loading": "Chargement des designs…",
+        "loadFailed": "Les designs n’ont pas pu être chargés.",
+        "none": "Le projet n’a plus aucun de ces designs.",
+        "statusValue": {
+          "draft": "brouillon",
+          "frozen": "figé"
+        },
+        "role": {
+          "manipulated": "manipulé",
+          "counterbalanced": "contrebalancé",
+          "blocking": "bloc",
+          "nuisance": "facteur de nuisance"
+        },
+        "varies": {
+          "within_unit": "au sein des unités",
+          "between_units": "entre unités"
+        },
+        "source": {
+          "task": "de la tâche",
+          "structure": "de la structure de prompt",
+          "system": "du système",
+          "run": "de l’exécution"
+        }
+      },
+      "examples": {
+        "title": "Exemples",
+        "description": "Les unités derrière un contraste : les tâches jumelles côte à côte avec les passages où elles peuvent différer mis en évidence, les réponses et la requête envoyée par chaque réponse.",
+        "contrast": "Contraste",
+        "system": "Système",
+        "allSystems": "Tous les systèmes",
+        "design": "Design",
+        "units": "Unités {from} à {to} sur {total}",
+        "unitsAria": "Unités",
+        "unitTitle": "{unit} : {count} tâches",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "noUnits": "Ce design n’a encore aucune unité.",
+        "loadFailed": "Les unités n’ont pas pu être chargées."
+      }
     },
     "section": {
       "title": "Analyses",

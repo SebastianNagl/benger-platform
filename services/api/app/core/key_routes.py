@@ -60,6 +60,7 @@ PROJECT_PARAMS: Dict[str, str] = {
     "report_id": "report",
     "analysis_run_id": "analysis_run",
     "code_validation_id": "code_validation",
+    "trial_id": "generation_trial",
 }
 
 
@@ -270,6 +271,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             "runs:read",
             methods="read",
         ),
+        allow("/api/runs/trials/{trial_id}/request", "runs:read", methods="read"),
         allow("/api/generation/parse-metrics", "runs:read", methods="read"),
         allow("/api/generation/status/{generation_id}", "runs:read", methods="read"),
         area("/api/generation/{generation_id}*", ["runs:read"], ["runs:write"]),
@@ -406,6 +408,13 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # A variant design tells which tasks are twins: reading it needs the
         # reference scope, like the full task content. The check only reads.
         allow("/api/projects/{project_id}/variant-designs/{key}/check", REF, methods="POST"),
+        allow(
+            "/api/projects/{project_id}/variant-designs/{key}/units*",
+            REF,
+            "results:read",
+            methods="read",
+            note="a unit view carries task data and the answers",
+        ),
         area("/api/projects/{project_id}/variant-designs*", [REF], ["projects:write"]),
         area("/api/projects/{project_id}/srs/*", ["annotations:read"], ["annotations:write"]),
         allow(

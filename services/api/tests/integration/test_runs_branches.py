@@ -38,12 +38,15 @@ Endpoints / branches exercised:
       ``samples_evaluated`` = count of those child task-evals).
 
 - ``GET /api/runs/generations/{id}/trials/{trial_id}/request``: one trial's
-  request record; 404 for a missing parent or trial or a trial of another
-  run, 403 for an inaccessible project.
+  request record with the hash check (the stored hash recomputed from the
+  record, a tampered record flagged); 404 for a missing parent or trial or a
+  trial of another run, 403 for an inaccessible project. The trial-only
+  alias ``GET /api/runs/trials/{trial_id}/request`` answers the same.
 """
 
 from __future__ import annotations
 
+import json
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -681,15 +684,125 @@ class TestGetGenerationRun:
                 f"{BASE}/generations/{rg.id}/trials/{plain.id}/request"
             )
         assert resp.status_code == 200
-        assert resp.json() == {
+        body = resp.json()
+        assert {k: body[k] for k in ("id", "run_index", "request_record", "request_sha256")} == {
             "id": child.id,
             "run_index": 0,
             "request_record": record,
             "request_sha256": "f" * 64,
         }
+        assert body["parent_id"] == rg.id and body["retried"] is True
+        assert body["first_response"] == "z" * 250 and body["first_response_truncated"] is False
         assert none.status_code == 200
         assert none.json()["request_record"] is None
         assert none.json()["request_sha256"] is None
+        assert none.json()["computed_sha256"] is None
+        assert none.json()["hash_matches"] is None
+        assert none.json()["hash_check"] == "no_hash"
+
+    @pytest.mark.asyncio
+    async def test_trial_request_checks_the_stored_hash_against_the_record(
+        self, async_test_client, async_test_db
+    ):
+        """The stored hash is recomputed from the stored record: equal for an
+        untouched record, flagged once the record or the hash was changed,
+        and not checkable (never flagged) for a hash without its record."""
+        from ai_services.request_capture import request_sha256
+
+        admin, _, task, rg, child, _, record = await self._retried_and_plain_trials(
+            async_test_db
+        )
+        digest = request_sha256(record)
+        child.request_sha256 = digest
+        child.response_metadata = json.dumps({"system": {"key": "acme/model@abc123"}})
+        rg.structure_key = "default"
+        await async_test_db.commit()
+        url = f"{BASE}/generations/{rg.id}/trials/{child.id}/request"
+
+        with _as_user(admin):
+            intact = (await async_test_client.get(url)).json()
+            alias = (await async_test_client.get(f"{BASE}/trials/{child.id}/request")).json()
+        assert intact["computed_sha256"] == digest and intact["hash_matches"] is True
+        assert intact["hash_check"] == "verified"
+        assert intact["system_key"] == "acme/model@abc123"
+        assert (intact["task_id"], intact["structure_key"]) == (task.id, "default")
+        assert alias == intact
+
+        tampered = json.loads(json.dumps(record))
+        tampered["requests"][0]["body"]["model"] = "acme/other-model"
+        child.request_record = tampered
+        await async_test_db.commit()
+        with _as_user(admin):
+            flagged = (await async_test_client.get(url)).json()
+        assert flagged["request_sha256"] == digest
+        assert flagged["computed_sha256"] == request_sha256(tampered) != digest
+        assert flagged["hash_matches"] is False
+        assert flagged["hash_check"] == "mismatch"
+
+        child.request_record = {"version": 1, "requests": []}
+        await async_test_db.commit()
+        with _as_user(admin):
+            emptied = (await async_test_client.get(url)).json()
+        assert emptied["request_sha256"] == digest
+        assert emptied["computed_sha256"] is None
+        assert emptied["hash_matches"] is False
+        assert emptied["hash_check"] == "mismatch"
+
+        for malformed in [
+            {"requests": [1]},
+            {"requests": [None]},
+            {"requests": "x"},
+            {"requests": {"0": {"body": {"model": "acme/model"}}}},
+        ]:
+            child.request_record = malformed
+            await async_test_db.commit()
+            with _as_user(admin):
+                resp = await async_test_client.get(url)
+            assert resp.status_code == 200, (malformed, resp.text)
+            assert (resp.json()["hash_check"], resp.json()["hash_matches"]) == ("mismatch", False)
+
+        child.request_record = ["not", "an", "object"]
+        await async_test_db.commit()
+        with _as_user(admin):
+            shapeless = (await async_test_client.get(url)).json()
+        assert shapeless["request_record"] is None
+        assert shapeless["hash_matches"] is False
+        assert shapeless["hash_check"] == "mismatch"
+
+        child.request_record = None
+        await async_test_db.commit()
+        with _as_user(admin):
+            removed = (await async_test_client.get(url)).json()
+        assert removed["request_record"] is None
+        assert removed["request_sha256"] == digest
+        assert removed["computed_sha256"] is None
+        assert removed["hash_matches"] is None
+        assert removed["hash_check"] == "record_missing"
+
+    @pytest.mark.asyncio
+    async def test_trial_request_alias_404_and_403(self, async_test_client, async_test_db):
+        """The trial-only route answers like the route under the run: 404
+        for an unknown trial, 403 when its project is out of reach."""
+        owner = await _make_user(async_test_db, is_superadmin=True)
+        contributor = await _make_user(async_test_db, is_superadmin=False)
+        member_org = await _make_org(async_test_db, name="Member")
+        await _add_membership(
+            async_test_db, contributor.id, member_org.id, role="CONTRIBUTOR"
+        )
+        hidden = await _make_project(async_test_db, owner, await _make_org(async_test_db, name="Outsider"))
+        task = await _make_task(async_test_db, hidden, owner)
+        rg = await _make_response_generation(async_test_db, hidden, task, owner)
+        child = await _make_child_generation(async_test_db, rg, task, run_index=0)
+        child.request_record = {"version": 1, "requests": [{"body": {}}]}
+        await async_test_db.commit()
+
+        with _as_user(contributor):
+            forbidden = await async_test_client.get(f"{BASE}/trials/{child.id}/request")
+        with _as_user(owner):
+            missing = await async_test_client.get(f"{BASE}/trials/{_uid()}/request")
+        assert forbidden.status_code == 403
+        assert "request_record" not in forbidden.json()
+        assert missing.status_code == 404
 
     @pytest.mark.asyncio
     async def test_trial_request_404_for_a_missing_parent_trial_or_foreign_trial(

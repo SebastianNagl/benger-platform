@@ -3,19 +3,24 @@
 /**
  * The Analyses result type of the evaluations page: the analysis runs of one
  * project (variant experiments) with run, systems, estimands and family
- * filters, a strip of the selected run's facts, the forest, bar or table
- * view of its estimates, the estimates table, the statistics panel
- * (inference and fit blocks) and, while the compliance overlay is active,
- * its findings for the run. Editors start a run from a spec in a dialog.
+ * filters, a strip of the selected run's facts, the forest (Bradley-Terry
+ * estimands as strength forests), profile, bar or table view of its
+ * estimates, the estimates table, the statistics panel (inference and fit
+ * blocks), the examples of a contrast (units of the run's variant design in
+ * the unit viewer) and, while the compliance overlay is active, its
+ * findings for the run. Editors start a run from a spec in a dialog.
  *
  * URL state (`/evaluations?projectId=…&type=analysis`): `run`, `chartType`
- * (default `forest`), `systems`, `estimands` (comma separated), `family`,
- * and `newRunFrom` (opens the start dialog prefilled with that run's spec).
+ * (default `forest`; also `profile`, `bar`, `table` and `data`), `systems`,
+ * `estimands` (comma separated), `family`, and `newRunFrom` (opens the
+ * start dialog prefilled with that run's spec).
  * Every number is a stored estimate of the run; nothing is recomputed.
  */
 
-import { ContrastForestPlot } from '@/components/analysis/ContrastForestPlot'
+import { EstimateProfiles } from '@/components/analysis/EstimateProfiles'
+import { EstimatesForest } from '@/components/analysis/EstimatesForest'
 import { EstimatesTable } from '@/components/analysis/EstimatesTable'
+import { ExamplesPanel } from '@/components/analysis/ExamplesPanel'
 import { StartAnalysisDialog } from '@/components/analysis/StartAnalysisDialog'
 import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
 import {
@@ -35,6 +40,7 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import { specDesigns } from '@/lib/analysis/profile'
 import { familiesOf, MISSING, shortHash } from '@/lib/analysis/results'
 import {
   analysisAPI,
@@ -74,6 +80,7 @@ import type { InitialParams } from './MetricResultsView'
 export const ANALYSIS_CHART_TYPES: ChartType[] = [
   'data',
   'forest',
+  'profile',
   'bar',
   'table',
 ]
@@ -166,9 +173,9 @@ function CheckboxDropdown({
       : `${selected.length} ${t('evaluation.viewer.filters.selected')}`
   return (
     <div className="relative" ref={ref}>
-      <label className="mb-1 block text-xs font-medium text-zinc-500">
+      <span className="mb-1 block text-xs font-medium text-zinc-500">
         {label}
-      </label>
+      </span>
       <Button
         variant="outline"
         onClick={() => setOpen(!open)}
@@ -504,12 +511,12 @@ export function AnalysisResultsView({
 
           {runs && runOptions.length > 0 && (
             <div className="flex w-full flex-col sm:w-auto">
-              <label
+              <span
                 className="mb-1 block text-xs font-medium text-zinc-500"
                 id="analysis-run-filter-label"
               >
                 {t('evaluation.viewer.filters.run')}
-              </label>
+              </span>
               <Select
                 value={selectedRunId ?? ''}
                 onValueChange={(value: string) => setSelectedRunId(value)}
@@ -559,12 +566,12 @@ export function AnalysisResultsView({
 
           {familyOptions.length > 0 && (
             <div className="flex flex-col">
-              <label
+              <span
                 className="mb-1 block text-xs font-medium text-zinc-500"
                 id="analysis-family-filter-label"
               >
                 {t('evaluation.viewer.filters.family')}
-              </label>
+              </span>
               <Select
                 value={family ?? ALL_FAMILIES}
                 onValueChange={(value: string) =>
@@ -594,9 +601,9 @@ export function AnalysisResultsView({
 
           {runs && runs.length > 0 && (
             <div className="flex flex-col">
-              <label className="mb-1 block text-xs font-medium text-zinc-500">
+              <span className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.view')}
-              </label>
+              </span>
               <ChartTypeSelector
                 selectedType={chartType}
                 onChange={setChartType}
@@ -778,7 +785,13 @@ export function AnalysisResultsView({
                   {t('evaluation.viewer.chart.title')}
                 </h3>
                 {chartType === 'forest' ? (
-                  <ContrastForestPlot estimates={plotted} />
+                  <EstimatesForest run={run} estimates={plotted} />
+                ) : chartType === 'profile' ? (
+                  <EstimateProfiles
+                    run={run}
+                    estimates={plotted}
+                    allEstimates={estimates}
+                  />
                 ) : (
                   <DynamicChartRenderer
                     chartType={chartType}
@@ -809,6 +822,22 @@ export function AnalysisResultsView({
               data={null}
               analysis={{ run, estimates: filtered }}
             />
+
+            {specDesigns(run).length > 0 && (
+              <Card className="p-6" data-testid="analysis-examples-card">
+                <h3 className="text-lg font-semibold dark:text-white">
+                  {t('analysis.views.examples.title')}
+                </h3>
+                <p className="mt-1 mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+                  {t('analysis.views.examples.description')}
+                </p>
+                <ExamplesPanel
+                  projectId={projectId}
+                  run={run}
+                  estimates={plotted}
+                />
+              </Card>
+            )}
 
             <div
               className="empty:hidden"

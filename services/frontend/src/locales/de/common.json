@@ -6266,7 +6266,10 @@
       "selectView": "Ansicht wählen",
       "forestPlot": "Forest-Plot",
       "forestPlotDescription": "Schätzungen mit Konfidenzintervallen",
-      "forestPlotBestFor": "Schätzungen und ihre Unsicherheit vergleichen"
+      "forestPlotBestFor": "Schätzungen und ihre Unsicherheit vergleichen",
+      "profileChart": "Profil",
+      "profileChartDescription": "Schätzungen über einen geordneten Scope, eine Linie je Reihe",
+      "profileChartBestFor": "Positionen, Stufen und andere geordnete Scopes"
     },
     "statistics": {
       "ci": "95%-Konfidenzintervalle",
@@ -9526,6 +9529,8 @@
         "title": "An das Modell gesendete Anfrage",
         "help": "Genau das, was der Provider-Client gesendet hat, einschließlich aller Blöcke, die die Plattform an die Prompts angehängt hat.",
         "none": "Keine Anfrage gespeichert (erzeugt, bevor sie gespeichert wurde).",
+        "hashOnly": "Von dieser Anfrage ist nur der Hash erhalten; die Aufzeichnung selbst ist nicht verfügbar, daher lässt sich die Anfrage nicht zeigen.",
+        "unreadable": "Die gespeicherte Aufzeichnung lässt sich nicht zeigen, weil sie keine gültige Anfrageaufzeichnung ist.",
         "model": "Modell-ID",
         "workerCall": "Der Provider-Client hat keine Anfrage gemeldet; das ist der Aufruf des Generierungs-Workers.",
         "roleSystem": "System",
@@ -9536,7 +9541,18 @@
         "retried": "Format-Nachfrage: {count} Anfragen gesendet",
         "firstAnswer": "Erste Antwort",
         "loading": "Lade die Anfrage…",
-        "loadFailed": "Die Anfrage konnte nicht geladen werden."
+        "loadFailed": "Die Anfrage konnte nicht geladen werden.",
+        "noRecord": "Keine Anfrage gespeichert",
+        "hashOk": "Der gespeicherte Hash passt zur Anfrage",
+        "hashMismatch": "Der gespeicherte Hash passt nicht zur Anfrage",
+        "hashMissing": "Zu dieser Anfrage wurde kein Hash gespeichert",
+        "hashUnverifiable": "Aufzeichnung nicht verfügbar, der Hash lässt sich nicht prüfen",
+        "storedHash": "Gespeicherter SHA-256",
+        "computedHash": "SHA-256 der Aufzeichnung",
+        "structure": "Prompt-Struktur",
+        "provider": "Provider",
+        "showRaw": "Anfragen wie gesendet zeigen ({count})",
+        "hideRaw": "Anfragen wie gesendet ausblenden"
       }
     }
   },
@@ -12284,6 +12300,147 @@
       "notes": "Hinweise",
       "dropped": "entfernt: {columns}",
       "missing": "Ausgelassen (fehlend)"
+    },
+    "views": {
+      "profile": {
+        "title": "Profil",
+        "description": "Die Schätzungen eines Kontrasts über einen geordneten Scope, eine Linie je Reihe, mit ihren Konfidenzintervallen.",
+        "panelAria": "Profil {panel}",
+        "tip": "{x}: {estimate} [{lower}, {upper}], n = {n}",
+        "axis": "{y} nach {x}",
+        "slope": "Geschätzte Steigung {label}: {slope}",
+        "slopeInterval": "Geschätzte Steigung {label}: {slope} [{lower}, {upper}]",
+        "noSlope": "Für diese Ansicht wurde keine Steigung geschätzt.",
+        "band": "Idealbereich",
+        "empty": "Es gibt nichts zu zeichnen.",
+        "none": "Kein Kontrast dieses Laufs variiert über einen geordneten Scope. Gib einem Estimand einen Scope über eine numerische oder geordnete Spalte, um sein Profil zu sehen.",
+        "allLine": "Alle",
+        "contrast": "Kontrast",
+        "x": "Entlang",
+        "series": "Linien nach",
+        "facet": "Felder nach",
+        "noColumn": "Keine"
+      },
+      "distribution": {
+        "count": "Werte",
+        "countGroups": "{n} aus {groups} Einheiten",
+        "meanMedian": "Mittelwert · Median",
+        "atReference": "Bei {reference}",
+        "direction": "Darüber · darunter",
+        "directionValue": "{above} · {below}",
+        "aria": "Verteilung von {n} Werten, Mittelwert {mean}",
+        "tipExact": "{value}: {count}",
+        "tipBin": "{low} bis {high}: {count}",
+        "meanMarker": "Mittelwert {value}"
+      },
+      "strength": {
+        "title": "Stärken von {estimand}",
+        "description": "Bradley-Terry-Stärke jeder Stufe von {players} gegenüber der Referenzstufe {reference} (fest bei 0), mit ihrem Konfidenzintervall.",
+        "scopes": "Scope",
+        "aria": "Stärken von {estimand}, {scope}",
+        "axisLogit": "Stärke (Log-Odds)",
+        "axisLinear": "Stärke (Differenz der Wahrscheinlichkeit)"
+      },
+      "unit": {
+        "unit": "{name}: {unit}",
+        "unitName": "Einheit",
+        "design": "Design {design} ({status})",
+        "system": "System",
+        "factor": "Paare entlang",
+        "reference": "Referenz",
+        "treated": "Verglichen",
+        "choosePair": "Paar",
+        "truncated": "Es werden nur die ersten Aufgaben dieser Einheit gezeigt.",
+        "answersTruncated": "Es werden nur die ersten Antworten zu dieser Aufgabe gezeigt.",
+        "noTwin": "Für diese Stufen gibt es in dieser Einheit kein Zwillingspaar. Die Aufgaben der Einheit stehen einzeln darunter.",
+        "task": "Aufgabe {id}",
+        "free": "darf abweichen",
+        "gold": "Gold",
+        "answers": "Antworten ({count})",
+        "noAnswers": "Keine Antwort dieses Systems.",
+        "run": "Lauf {run}",
+        "refusal": "Verweigerung",
+        "parseStatus": "Parsing: {status}",
+        "retried": "Format-Nachfrage",
+        "noValues": "Keine geparsten Werte.",
+        "showAnswer": "Antwort zeigen",
+        "hideAnswer": "Antwort ausblenden",
+        "showRequest": "Anfrage zeigen",
+        "hideRequest": "Anfrage ausblenden",
+        "noRequest": "Zu dieser Antwort ist keine Anfrage gespeichert",
+        "checkOk": "Zuordnung, Balance und Invarianz stimmen in dieser Einheit",
+        "checkProblems": "{count} Probleme in dieser Einheit",
+        "forbidden": "Für Beispiele brauchst du im Projekt die Rolle Org-Admin oder Contributor, weil sie Aufgabeninhalte und Antworten zeigen.",
+        "loading": "Lade die Einheit…",
+        "loadFailed": "Die Einheit konnte nicht geladen werden.",
+        "slot": "Slot",
+        "fixedFields": "Felder, die in der Einheit gleich sind ({count})"
+      },
+      "check": {
+        "assignments": "Zuordnung",
+        "balance": "Balance",
+        "invariance": "Invarianz"
+      },
+      "design": {
+        "title": "Variantendesigns",
+        "description": "Die Designs, die dieser Lauf gelesen hat: Faktoren, Status, Hashes und die Designprüfungen.",
+        "unit": "Einheit: {name}",
+        "slots": "Je Slot ({count} Slots)",
+        "outcomes": "Zielgrößen",
+        "gold": "Gold",
+        "invariance": "Darf nur abweichen in",
+        "status": "Status",
+        "tasks": "{count} Aufgaben",
+        "recordedHash": "Aufgezeichneter Inhalts-Hash",
+        "contentHash": "Inhalts-Hash",
+        "hashMatch": "stimmt überein",
+        "hashMismatch": "weicht vom aufgezeichneten Hash ab",
+        "specHash": "Spezifikations-Hash",
+        "runCheck": "Prüfungen ausführen",
+        "checking": "Wird geprüft…",
+        "checkOk": "bestanden",
+        "checkProblems": "{count} Probleme",
+        "checkCounts": "{tasks} Aufgaben in {units} Einheiten, {pairs} Zwillingspaare verglichen",
+        "checkFailed": "Die Prüfungen konnten nicht ausgeführt werden.",
+        "loading": "Lade die Designs…",
+        "loadFailed": "Die Designs konnten nicht geladen werden.",
+        "none": "Das Projekt hat keines dieser Designs mehr.",
+        "statusValue": {
+          "draft": "Entwurf",
+          "frozen": "eingefroren"
+        },
+        "role": {
+          "manipulated": "manipuliert",
+          "counterbalanced": "ausbalanciert",
+          "blocking": "Block",
+          "nuisance": "Störfaktor"
+        },
+        "varies": {
+          "within_unit": "innerhalb der Einheiten",
+          "between_units": "zwischen Einheiten"
+        },
+        "source": {
+          "task": "aus der Aufgabe",
+          "structure": "aus der Prompt-Struktur",
+          "system": "aus dem System",
+          "run": "aus dem Lauf"
+        }
+      },
+      "examples": {
+        "title": "Beispiele",
+        "description": "Die Einheiten hinter einem Kontrast: Zwillingsaufgaben nebeneinander mit den Stellen markiert, an denen sie abweichen dürfen, die Antworten und die Anfrage, die jede Antwort gesendet hat.",
+        "contrast": "Kontrast",
+        "system": "System",
+        "allSystems": "Alle Systeme",
+        "design": "Design",
+        "units": "Einheiten {from} bis {to} von {total}",
+        "unitsAria": "Einheiten",
+        "unitTitle": "{unit}: {count} Aufgaben",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "noUnits": "Dieses Design hat noch keine Einheiten.",
+        "loadFailed": "Die Einheiten konnten nicht geladen werden."
+      }
     },
     "section": {
       "title": "Analysen",

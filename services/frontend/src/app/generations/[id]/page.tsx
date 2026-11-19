@@ -1,5 +1,6 @@
 'use client'
 
+import { RequestRecordView } from '@/components/analysis/RequestRecordView'
 import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
@@ -7,6 +8,7 @@ import { Card } from '@/components/shared/Card'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import type { TrialRequestView } from '@/lib/api/variantViews'
 import { intlTag } from '@/lib/i18n/locales'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
@@ -34,25 +36,6 @@ interface ChildGeneration {
   request_sha256?: string | null
   retried?: boolean
   first_response_preview?: string | null
-}
-
-interface TrialRequest {
-  id: string
-  run_index: number
-  request_record?: RequestRecord | null
-  request_sha256?: string | null
-}
-
-/** What the provider client sent for one trial (generations.request_record):
- * a provider-neutral view of the first request plus every request as sent. */
-interface RequestRecord {
-  provider?: string | null
-  capture?: string | null
-  model?: string | null
-  messages?: { role?: string; content?: unknown }[]
-  response_format?: unknown
-  parameters?: Record<string, unknown> | null
-  requests?: { body?: Record<string, unknown>; capture?: string }[]
 }
 
 interface LinkedEvaluation {
@@ -85,11 +68,6 @@ interface GenerationRunDetail {
   linked_evaluations?: LinkedEvaluation[]
 }
 
-function contentText(content: unknown): string {
-  if (typeof content === 'string') return content
-  return JSON.stringify(content, null, 2)
-}
-
 /** The request a trial sent, as the provider client recorded it. */
 function SentRequest({
   generationId,
@@ -99,18 +77,19 @@ function SentRequest({
   child: ChildGeneration
 }) {
   const { t } = useI18n()
-  const [trial, setTrial] = useState<TrialRequest | null>(null)
+  const [trial, setTrial] = useState<TrialRequestView | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const recorded = Boolean(child.has_request_record || child.request_sha256)
 
   useEffect(() => {
-    if (!child.has_request_record) return
+    if (!recorded) return
     let cancelled = false
     ;(async () => {
       try {
         const resp = await apiClient.get(
           `/runs/generations/${generationId}/trials/${child.id}/request`,
         )
-        if (!cancelled) setTrial(resp as TrialRequest)
+        if (!cancelled) setTrial(resp as TrialRequestView)
       } catch (err: any) {
         if (!cancelled)
           setError(err?.message || t('generations.detail.request.loadFailed'))
@@ -119,9 +98,9 @@ function SentRequest({
     return () => {
       cancelled = true
     }
-  }, [generationId, child.id, child.has_request_record])
+  }, [generationId, child.id, recorded])
 
-  if (child.has_request_record && !trial && !error) {
+  if (recorded && !trial && !error) {
     return (
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {t('generations.detail.request.loading')}
@@ -135,82 +114,23 @@ function SentRequest({
       </p>
     )
   }
-  const record = trial?.request_record
-  if (!record) {
+  if (!trial || (!trial.request_record && !trial.request_sha256)) {
     return (
       <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
         {t('generations.detail.request.none')}
       </p>
     )
   }
-  const requestCount = record.requests?.length ?? 0
   return (
-    <div className="space-y-3" data-testid="sent-request">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-        {record.model && (
-          <span>
-            {t('generations.detail.request.model')}:{' '}
-            <span className="font-mono">{record.model}</span>
-          </span>
-        )}
-        {child.request_sha256 && (
-          <span className="min-w-0 break-all">
-            SHA-256: <span className="font-mono">{child.request_sha256}</span>
-          </span>
-        )}
-      </div>
-      {record.capture === 'worker_call' && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
-          {t('generations.detail.request.workerCall')}
-        </p>
-      )}
-      {(record.messages || []).map((message, i) => (
-        <div key={i}>
-          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            {message.role === 'system'
-              ? t('generations.detail.request.roleSystem')
-              : message.role === 'assistant'
-                ? t('generations.detail.request.roleAssistant')
-                : t('generations.detail.request.roleUser')}
-          </p>
-          <pre className="max-h-72 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs whitespace-pre-wrap text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">
-            {contentText(message.content)}
-          </pre>
-        </div>
-      ))}
-      {record.response_format != null && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            {t('generations.detail.request.responseFormat')}
-          </p>
-          <pre className="max-h-48 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
-            {JSON.stringify(record.response_format, null, 2)}
-          </pre>
-        </div>
-      )}
-      {record.parameters && Object.keys(record.parameters).length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            {t('generations.detail.request.parameters')}
-          </p>
-          <pre className="max-h-48 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
-            {JSON.stringify(record.parameters, null, 2)}
-          </pre>
-        </div>
-      )}
-      {child.retried && (
-        <div className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-          <p className="font-medium text-zinc-700 dark:text-zinc-300">
-            {t('generations.detail.request.retried', { count: requestCount })}
-          </p>
-          {child.first_response_preview && (
-            <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-              {t('generations.detail.request.firstAnswer')}:{' '}
-              {child.first_response_preview}
-            </p>
-          )}
-        </div>
-      )}
+    <div data-testid="sent-request">
+      <RequestRecordView
+        view={{
+          ...trial,
+          // The detail row knows the retry trail of older API answers.
+          retried: trial.retried ?? child.retried,
+          first_response: trial.first_response ?? child.first_response_preview,
+        }}
+      />
     </div>
   )
 }

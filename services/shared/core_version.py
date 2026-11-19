@@ -1574,11 +1574,69 @@ API change).
     ``ContrastForest`` (one contrast, a given band, no pickers) and
     ``EstimatesTable`` takes ``compact``; the report's exhibits are
     ``@/components/reports/view/AnalysesSection`` and ``AnalysisExhibit``.
+
+2.73 (2026-11-19): shared variant and analysis views (no migration).
+  - Routes ``GET /api/projects/{project_id}/variant-designs/{key}/units``
+    (the design's units in name order with their task counts, ``limit`` up
+    to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
+    of one unit with its factors, the texts the design lets vary with their
+    declared spans, gold values, the answers of one system with parsed
+    values, flags, request hashes and each answer's ``hash_check`` (the
+    state the request route reports, by ``request_capture.hash_check``),
+    ``generations_truncated`` when answers
+    beyond ``MAX_RUNS_PER_TASK`` were left out, and the unit's assignment,
+    balance and invariance check). Both need full read access to the project's task
+    content, like the frame download (403 ``variant_unit_forbidden``), and
+    answer 404 ``variant_design_not_found`` or ``variant_unit_not_found``.
+    Read models in ``variant_unit_views`` (``list_units``, ``unit_view``,
+    ``shape_unit_view``); access keys need ``tasks:read_reference`` and
+    ``results:read``.
+  - The trial request route ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` gains the hash check (``computed_sha256``, the hash
+    of the stored record by ``request_capture.request_sha256``,
+    ``hash_matches`` and ``hash_check``: ``verified``, ``mismatch``,
+    ``record_missing`` for a hash kept without its record, which is shown
+    as not checkable rather than tampered, or ``no_hash``) and ``parent_id``, ``task_id``, ``model_id``,
+    ``system_key``, ``structure_key``, ``retried``, ``first_response`` and
+    ``first_response_truncated``; ``GET /api/runs/trials/{trial_id}/request``
+    answers the same by the trial id alone (``routers.runs.trial_request_view``;
+    path parameter ``trial_id`` binds access keys to the trial's project).
+  - ``analysis.observations.system_key`` and ``response_metadata_object``
+    (moved from ``analysis.db_source``, which still exports the latter).
+  - Components for overlays, all fed by plain props with a loader beside
+    them: ``@/components/analysis/EstimateProfileChart`` (estimates over an
+    ordered or numeric scope, series, facets, fitted slopes for every line
+    or per line and a reference slope, a band; data from
+    ``@/lib/analysis/profile``: ``profileFromEstimates``, ``scopeColumns``,
+    ``defaultProfileColumns``, ``profileSlopes`` (only slopes the run
+    estimated of exactly what is plotted: levels of ``mean_rate`` with the
+    ``{x: 1}`` contrast of a linear model on the outcome, ``fe_ols`` or
+    ``mixedlm``, never a link-scale coefficient, per series level under an interaction of x and the
+    series factor; none for differences),
+    ``specEstimands``, ``specDesigns``), ``EstimateProfiles`` (the profile
+    view of a run), ``ValueDistributionChart`` (exact values or bins, a
+    reference line, the mean), ``StrengthForestPlot`` (Bradley-Terry
+    strengths against the reference per scope) and ``EstimatesForest``,
+    ``VariantUnitViewer`` and ``VariantUnitLoader`` (twin tasks of a unit
+    with their spans highlighted, answers and requests; ``@/lib/analysis/
+    units``: ``segments``, ``twinPairs``, ``resolveFocus``,
+    ``focusForContrast``), ``RequestRecordView`` and ``RequestRecordLoader``
+    (a request record with its hash check), ``VariantDesignPanel`` and
+    ``VariantDesignsLoader`` (factor tree, hashes, checks), ``ExamplesPanel``
+    (the units behind a contrast); ``@/lib/api/variantViews``
+    (``variantViewsAPI`` and the unit, request and design types) and
+    ``@/lib/analysis/labels`` (``systemParts``, ``systemLabels``,
+    ``shortenLabel``, ``levelText``).
+  - ``ChartType`` gains ``profile``, offered only where ``availableTypes``
+    names it (the Analyses view). The Analyses view and the run page draw
+    Bradley-Terry estimands as strength forests and show the profile and
+    the examples of a contrast; the run page lists the variant designs the
+    run read; the generation page's request view is ``RequestRecordView``.
 """
 
 import os
 
-CORE_API_VERSION = "2.72"
+CORE_API_VERSION = "2.73"
 
 
 def extended_required() -> bool:

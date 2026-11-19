@@ -10,20 +10,28 @@ Access: reading a design needs the full-data tier of the project (the roles
 that see ``task.meta`` unblinded; a design tells which tasks are twins, so a
 blinded annotator never reads it). Writing needs project edit rights.
 Refusals carry ``{"detail": {"code", "message", "problems"?}}``.
+
+The unit routes (CORE 2.73, ``variant_unit_views``) page through a design's
+units and show one unit with its tasks, declared spans, gold values and
+answers. They need full read access to the project's task content, like
+the frame download of an analysis run (ORG_ADMIN or CONTRIBUTOR, an
+editor on a SEB exam), because a unit view carries task data and answers.
 """
 
 from typing import Any, Callable, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import variant_designs as vd
+import variant_unit_views as units
 from database import get_async_db
 from project_models import Task, VariantDesign
 from routers.projects.deps import ProjectAccess, require_project_access
+from routers.projects.helpers import can_read_all_task_content_async
 from routers.projects.tasks.blinding import annotator_bound_fields_or_none_async
 from variant_design_guard import (
     VariantDesignError,
@@ -70,6 +78,18 @@ class VariantDesignImport(BaseModel):
 async def _require_read(db: AsyncSession, access: ProjectAccess) -> None:
     if await annotator_bound_fields_or_none_async(db, access.user, access.project) is not None:
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+async def _require_content(db: AsyncSession, access: ProjectAccess) -> None:
+    """Full read access to the project's task content (the frame rule)."""
+    if not await can_read_all_task_content_async(db, access.user, access.project):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "variant_unit_forbidden",
+                "message": "A unit view needs the ORG_ADMIN or CONTRIBUTOR role on the project",
+            },
+        )
 
 
 async def _load(db: AsyncSession, project_id: str, key: str) -> VariantDesign:
@@ -325,3 +345,39 @@ async def freeze_variant_design(
         return {"design": serialize_design(row), "report": report}
 
     return await _run(db, _work)
+
+
+@router.get(f"{_BASE}/{{key}}/units")
+async def list_variant_units(
+    project_id: str,
+    key: str,
+    limit: int = Query(100, ge=1, le=units.MAX_UNIT_PAGE),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(require_project_access()),
+):
+    """The design's units in name order with their task counts, paged."""
+    await _require_content(db, access)
+    try:
+        return await db.run_sync(lambda s: units.list_units(s, project_id, key, limit, offset))
+    except units.ViewNotFound as exc:
+        raise VariantDesignError(404, exc.code, str(exc)) from exc
+
+
+@router.get(f"{_BASE}/{{key}}/units/{{unit:path}}")
+async def get_variant_unit(
+    project_id: str,
+    key: str,
+    unit: str,
+    system: Optional[str] = Query(None, max_length=300),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(require_project_access()),
+):
+    """Every task of one unit with its cell, declared spans and gold values,
+    the answers (of ``system`` when given: a system key or a model id) and
+    the unit's assignment, balance and invariance check."""
+    await _require_content(db, access)
+    try:
+        return await db.run_sync(lambda s: units.unit_view(s, project_id, key, unit, system))
+    except units.ViewNotFound as exc:
+        raise VariantDesignError(404, exc.code, str(exc)) from exc
