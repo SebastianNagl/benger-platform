@@ -9,12 +9,13 @@ an :class:`~analysis.observations.Observation`:
 
 * system: the generation's system key ``response_metadata.system.key``
   (``"<model_id>@<parameter profile hash>"``, recorded since CORE 2.56), or
-  the model id for answers generated before; ``model_id`` stays the model id;
+  the model id for answers generated before; ``model_id`` stays the model id.
+  The generation worker stores the metadata as JSON text in the JSON column,
+  so both a JSON object and its text are read;
 * structure: the prompt structure of its generation job; run index;
 * fields: the typed values of ``generations.parsed_annotation``;
 * quality flags: ``parse_status == "success"``, ``refusal``, ``truncated``,
-  ``finish_reason``, and ``retried`` when the response metadata records a
-  format retry.
+  ``finish_reason`` and ``retried`` (a format retry, CORE 2.61).
 
 Failed generations are not observations; their number is reported. The
 selection filters on ``meta -> variant -> design`` and on ``inputs.structures``
@@ -25,6 +26,7 @@ the system key or the model id. Sync session only: the engine runs in the worker
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from analysis.observations import Observation, typed_field_values, variant_of_task_meta
@@ -62,14 +64,18 @@ def select_variant_tasks(db, project_id: str, designs: Sequence[str]) -> List[Tu
     return out
 
 
-def _retried(metadata: Any) -> Optional[bool]:
-    if isinstance(metadata, Mapping) and "retried" in metadata:
-        value = metadata.get("retried")
-        return None if value is None else bool(value)
-    return None
+def response_metadata_object(raw: Any) -> Optional[Mapping[str, Any]]:
+    """The response metadata as an object: a mapping as it is, JSON text
+    decoded; anything else (no metadata, invalid JSON, a non-object) is None."""
+    if isinstance(raw, (str, bytes, bytearray)):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return None
+    return raw if isinstance(raw, Mapping) else None
 
 
-def _system(model_id: str, metadata: Any) -> str:
+def _system(model_id: str, metadata: Optional[Mapping[str, Any]]) -> str:
     block = metadata.get("system") if isinstance(metadata, Mapping) else None
     key = block.get("key") if isinstance(block, Mapping) else None
     return key if isinstance(key, str) and key else model_id
@@ -112,6 +118,7 @@ def iter_observations(
                 Generation.truncated,
                 Generation.finish_reason,
                 Generation.response_metadata,
+                Generation.retried,
                 ResponseGeneration.structure_key,
             )
             .join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
@@ -121,7 +128,7 @@ def iter_observations(
         if structures:
             stmt = stmt.where(ResponseGeneration.structure_key.in_(structures))
         for row in db.execute(stmt):
-            system = _system(row.model_id, row.response_metadata)
+            system = _system(row.model_id, response_metadata_object(row.response_metadata))
             if systems and system not in systems and row.model_id not in systems:
                 continue
             if row.status != "completed":
@@ -144,6 +151,6 @@ def iter_observations(
                 parse_ok=row.parse_status == "success",
                 refusal=bool(row.refusal),
                 truncated=bool(row.truncated),
-                retried=_retried(row.response_metadata),
+                retried=bool(row.retried),
                 finish_reason=row.finish_reason,
             )

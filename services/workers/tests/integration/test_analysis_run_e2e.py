@@ -4,6 +4,7 @@ test database, ``tasks.run_analysis`` (eager), the stored frame and estimates.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import sys
@@ -71,7 +72,7 @@ def seeded(db_conn, make_project, make_user):
             id=str(uuid.uuid4()), generation_id=rg.id, task_id=rg.task_id, model_id=rec["model_id"],
             case_data="{}", response_content="...", status="completed",
             parsed_annotation=parsed, parse_status="success" if rec["parse_ok"] else "failed",
-            response_metadata={"retried": False}, finish_reason="stop",
+            response_metadata=json.dumps({"provider": "test"}), finish_reason="stop",
         ))
     for task_id, status in ((outside.id, "completed"), (task_ids[records[0]["task_id"]], "failed")):
         rg = ResponseGeneration(id=str(uuid.uuid4()), project_id=project.id, task_id=task_id, model_id="sys_a",
@@ -274,11 +275,12 @@ def test_inputs_filter_systems_and_structures(db_conn, seeded):
     assert list(iter_observations(db_conn, project.id, {"designs": ["no_such_design"]})) == []
 
 
-def _record_system_keys(db_conn, project, keys):
+def _record_system_keys(db_conn, project, keys, as_text=True):
     """Give the completed ``sys_a`` generations of the design a recorded
     system block, alternating over ``keys`` (two parameter profiles of one
     model); the other systems keep answers without one (generated before
-    2.56)."""
+    2.56). ``as_text`` stores the metadata as JSON text, as the generation
+    worker does; otherwise as a JSON object."""
     from models import Generation
     from project_models import Task
 
@@ -288,13 +290,15 @@ def _record_system_keys(db_conn, project, keys):
         .order_by(Generation.id).all()
     )
     for i, gen in enumerate(gens):
-        gen.response_metadata = {"retried": False, "system": {"key": keys[i % len(keys)], "model_id": "sys_a"}}
+        metadata = {"provider": "test", "system": {"key": keys[i % len(keys)], "model_id": "sys_a"}}
+        gen.response_metadata = json.dumps(metadata) if as_text else metadata
     db_conn.commit()
 
 
-def test_the_system_is_the_recorded_system_key_with_the_model_id_as_fallback(db_conn, seeded):
+@pytest.mark.parametrize("as_text", [True, False], ids=["json_text", "json_object"])
+def test_the_system_is_the_recorded_system_key_with_the_model_id_as_fallback(db_conn, seeded, as_text):
     project, user, _ = seeded
-    _record_system_keys(db_conn, project, ["sys_a@aaaaaaaaaaaa"])
+    _record_system_keys(db_conn, project, ["sys_a@aaaaaaaaaaaa"], as_text=as_text)
     run = _new_run(db_conn, project, user)
     assert tasks.run_analysis.apply(args=[run.id]).get()["status"] == "completed"
     run, _ = _reload(db_conn, run.id)
@@ -323,6 +327,45 @@ def test_inputs_systems_select_by_system_key_or_by_model_id(db_conn, seeded):
     assert len(by_model) == sum(o.model_id == "sys_a" for o in everything)
     fallback = list(iter_observations(db_conn, project.id, {**inputs, "systems": ["sys_b"]}))
     assert fallback and {(o.system, o.model_id) for o in fallback} == {("sys_b", "sys_b")}
+
+
+def test_unreadable_metadata_falls_back_to_the_model_id(db_conn, seeded):
+    from analysis.db_source import iter_observations
+    from models import Generation
+    from project_models import Task
+
+    project, _, _ = seeded
+    inputs = {"designs": ["role_swap"], "systems": ["sys_a"]}
+    before = list(iter_observations(db_conn, project.id, inputs))
+    gens = (
+        db_conn.query(Generation).join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project.id, Generation.model_id == "sys_a", Generation.status == "completed")
+        .order_by(Generation.id).all()
+    )
+    shapes = ["not json", json.dumps(["sys_a@aaaaaaaaaaaa"]), json.dumps({"system": "sys_a@aaaaaaaaaaaa"}), None]
+    for i, gen in enumerate(gens):
+        gen.response_metadata = shapes[i % len(shapes)]
+    db_conn.commit()
+    observed = list(iter_observations(db_conn, project.id, inputs))
+    assert before and [o.generation_id for o in observed] == [o.generation_id for o in before]
+    assert {o.system for o in observed} == {"sys_a"}
+
+
+def test_retried_is_the_generations_format_retry_flag(db_conn, seeded):
+    from analysis.db_source import iter_observations
+    from models import Generation
+
+    project, _, _ = seeded
+    inputs = {"designs": ["role_swap"]}
+    before = list(iter_observations(db_conn, project.id, inputs))
+    assert before and all(o.retried is False for o in before)
+    first = db_conn.query(Generation).filter(Generation.id == before[0].generation_id).one()
+    first.retried = True
+    first.first_response_content = "first answer"
+    db_conn.commit()
+    observed = list(iter_observations(db_conn, project.id, inputs))
+    assert {o.generation_id for o in observed if o.retried} == {first.id}
+    assert all(o.retried is False for o in observed if o.generation_id != first.id)
 
 
 def test_missing_run_is_skipped():
