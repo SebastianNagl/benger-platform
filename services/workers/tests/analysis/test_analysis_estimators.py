@@ -246,6 +246,26 @@ def test_ranked_logit_drops_invalid_sets_and_constant_regressors():
     assert any("constant within every choice set" in w for w in result.warnings)
 
 
+@pytest.mark.parametrize("estimator", ["plackett_luce", "clogit_rank1"])
+def test_a_scope_without_a_valid_choice_set_is_an_error_row(estimator):
+    good = _choice_pairs(40)
+    tied = _choice_pairs(10, seed=5)
+    for r in tied:
+        r["model_id"] = "tied"
+        r["generation_id"] = "t" + r["generation_id"]
+        r["task_id"] = "t" + r["task_id"]
+        r["fields"].update(r_0=1, r_1=1)
+    measures = {"rank": {"kind": "field", "field": "r_{idx}"}}
+    spec = {"id": "pl", "estimator": estimator, "outcome": "rank", "terms": ["x1", "x2"]}
+    scoped, _, _ = _estimates(good + tied, [{**spec, "scopes": [{"by": ["system"]}]}], measures=measures, frame="slot")
+    alone, _, _ = _estimates(good, [spec], measures=measures, frame="slot")
+    [error] = [r for (_, _, scope), r in scoped.items() if scope == "system=tied"]
+    assert error["status"] == "error" and "no valid choice set (10 invalid)" in error["message"]
+    for name in ("x1", "x2"):
+        _close(scoped[("pl", name, "system=m")]["estimate"], alone[("pl", name, "pooled")]["estimate"])
+        _close(scoped[("pl", name, "system=m")]["std_error"], alone[("pl", name, "pooled")]["std_error"])
+
+
 def test_joint_test_of_one_contrast_is_its_squared_z():
     rows = [{"g": ["a", "b", "c"][i % 3], "y": float((i * 37) % 11)} for i in range(60)]
     est, _, _ = _estimates(_records(rows), [{

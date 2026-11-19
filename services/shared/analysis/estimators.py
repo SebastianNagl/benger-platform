@@ -813,13 +813,15 @@ def fit_ranked_logit(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, 
 
     conv = est["conventions"]
     sets, invalid, in_mask = _choice_sets(columns, n, est, mask, where)
+    if not sets:
+        raise EngineError(f"{where}: no valid choice set ({invalid} invalid)", n_obs=0)
     flat = [i for rows in sets for i in rows]
     idx = np.array(flat, dtype=np.int64)
     sub = {name: arr[idx] for name, arr in columns.items()}
     names, cols, implied, absent = _expand_terms(sub, est["terms"], where)
     m = len(idx)
     X = np.column_stack(cols) if cols else np.empty((m, 0))
-    set_of = np.repeat(np.arange(len(sets)), [len(r) for r in sets]) if sets else np.zeros(0, dtype=np.int64)
+    set_of = np.repeat(np.arange(len(sets)), [len(r) for r in sets])
     # a regressor constant within every choice set cancels out of the likelihood
     if X.size:
         sums = np.zeros((len(sets), X.shape[1]))
