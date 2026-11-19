@@ -242,11 +242,13 @@ async function renderLoaded(report: any = baseReport) {
   mockGet.mockResolvedValue(report)
   const user = userEvent.setup()
   render(<ReportEditorPage params={createParams('proj-1')} />)
-  await waitFor(() => {
-    expect(
-      screen.getByText('project.report.editor.saveReport'),
-    ).toBeInTheDocument()
-  })
+  // The editor renders once the report request resolves; on a busy full run
+  // that can take longer than findBy's default second.
+  await screen.findByText(
+    'project.report.editor.saveReport',
+    {},
+    { timeout: 5000 },
+  )
   return user
 }
 

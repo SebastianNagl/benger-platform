@@ -570,11 +570,13 @@ describe('LabelConfigEditor', () => {
     .join('\n  ')}
 </View>`
 
-      await user.type(textarea, longConfig)
+      // Pasted rather than typed: typing 2,000 characters reparses the XML
+      // on every keystroke and outran the test timeout on a busy full run.
+      await user.click(textarea)
+      await user.paste(longConfig)
 
-      await waitFor(() => {
-        expect(screen.getByText(/Configuration is valid/i)).toBeInTheDocument()
-      })
+      expect(textarea).toHaveValue(longConfig)
+      expect(screen.getByText(/Configuration is valid/i)).toBeInTheDocument()
     })
 
     it('should handle configs with special characters', async () => {
