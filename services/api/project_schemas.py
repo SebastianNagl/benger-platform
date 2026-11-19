@@ -601,7 +601,7 @@ class ProjectResponse(ProjectBase):
     annotator_step_detail_after_submit: Optional[bool] = None
     allow_external_paste: bool = True
     allow_solution_upload: bool = True
-    handwriting_ocr_enabled: bool = False
+    handwriting_ocr_enabled: bool = True
     handwriting_ocr_model: Optional[str] = None
     enable_annotation: bool = True
     enable_generation: bool = True

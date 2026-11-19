@@ -1280,7 +1280,7 @@ class TestRoundtripExtensions:
         project.enable_prompts = False
         project.allow_external_paste = False
         project.allow_solution_upload = False
-        project.handwriting_ocr_enabled = True
+        project.handwriting_ocr_enabled = False  # non-default: the off switch survives
         project.handwriting_ocr_model = "gemini-3-flash"
         project.exam_tools = {
             "tools": [
@@ -1309,7 +1309,7 @@ class TestRoundtripExtensions:
         assert proj["enable_generation"] is False
         assert proj["allow_external_paste"] is False
         assert proj["allow_solution_upload"] is False
-        assert proj["handwriting_ocr_enabled"] is True
+        assert proj["handwriting_ocr_enabled"] is False
         assert proj["handwriting_ocr_model"] == "gemini-3-flash"
         # Exam tools travel without the deployment-bound connection id.
         assert proj["exam_tools"] == {
@@ -1357,7 +1357,7 @@ class TestRoundtripExtensions:
         assert imported.enable_prompts is False
         assert imported.allow_external_paste is False
         assert imported.allow_solution_upload is False
-        assert imported.handwriting_ocr_enabled is True
+        assert imported.handwriting_ocr_enabled is False
         assert imported.handwriting_ocr_model == "gemini-3-flash"
         assert imported.exam_tools == proj["exam_tools"]
         # Unknown model ids are reconciled away like generation_config models.
@@ -1427,7 +1427,7 @@ class TestRoundtripExtensions:
         assert imported.allow_external_paste is True
         assert imported.exam_tools is None
         assert imported.allow_solution_upload is True
-        assert imported.handwriting_ocr_enabled is False
+        assert imported.handwriting_ocr_enabled is True
         assert imported.handwriting_ocr_model is None
 
 
