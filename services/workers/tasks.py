@@ -620,7 +620,10 @@ def extract_label_config_fields(label_config: str) -> List[str]:
     """
     Extract annotation field names from Label Studio XML config.
     These field names should match the output field names from LLM responses.
-    One source with the API's preview of the appended instruction
+
+    Controls inside a <Repeater> are left out: they answer as a list of
+    objects under the block's own key (see label_config_repeater). One
+    source with the API's preview of the appended instruction
     (``generation_fidelity.label_config_answer_fields``).
     """
     from generation_fidelity import label_config_answer_fields

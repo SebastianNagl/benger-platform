@@ -63,6 +63,8 @@ from project_models import (
     TaskRubric,
     TaskRubricReviewEvent,
 )
+from label_config_repeater import control_targets, expand_repeaters, repeater_blocks
+
 # serializers relocated to /shared alongside this module (issue #158) so the
 # worker can import it; /shared is first on sys.path in both containers.
 from serializers import (
@@ -121,6 +123,27 @@ BATCH_SIZE = 50
 # measured at ~0.5 GB peak; eval-light projects still form full BATCH_SIZE
 # batches, preserving the batched-IN-query round-trip savings.
 MAX_BATCH_TASK_EVALS = 1000
+
+
+def variant_design_docs(db: Session, project_id: str, *, subset: bool = False) -> list:
+    """The project's variant designs as export documents (key order).
+
+    A subset export (``task_ids``) is not the frozen experiment, so its
+    designs travel as drafts: the importer could never freeze them again.
+    """
+    from project_models import VariantDesign
+    from variant_design_guard import export_document
+
+    docs = [
+        export_document(row)
+        for row in db.query(VariantDesign)
+        .filter(VariantDesign.project_id == project_id)
+        .order_by(VariantDesign.key)
+    ]
+    if subset:
+        for doc in docs:
+            doc.update(status="draft", content_hash=None, frozen_at=None)
+    return docs
 
 
 def _tasks_in_order(db: Session, project_id: str):
@@ -350,6 +373,11 @@ def stream_export_json(
     header["evaluation_runs"] = [
         serialize_evaluation_run(er, mode="data") for er in eval_runs
     ]
+    # Variant designs (CORE 2.59): only when the project has any, so other
+    # exports keep their exact shape. The tasks carry their meta.variant.
+    designs = variant_design_docs(db, project_id, subset=task_ids is not None)
+    if designs:
+        header["variant_designs"] = designs
     yield json.dumps(header)[:-1] + ', "tasks": ['
 
     first = True
@@ -504,10 +532,19 @@ def stream_export_flat_csv(
 # Issue #964: span annotation format conversion for the Label Studio export.
 # Lives here (not in the API router) because the export worker runs
 # stream_export_label_studio and has no routers package.
-def convert_to_label_studio_format(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def convert_to_label_studio_format(
+    results: list[dict[str, Any]],
+    targets: Optional[tuple] = None,
+) -> list[dict[str, Any]]:
     """
     Convert BenGER annotation format to Label Studio format for export.
     Flattens span annotations: one result with spans array -> multiple results.
+
+    ``targets`` is ``label_config_repeater.control_targets`` of the task's
+    (expanded) label config. With it, a result whose ``to_name`` is missing
+    or names no object of the config gets its control's ``toName``: Label
+    Studio attaches a result to its object through ``to_name`` and does not
+    render one without a valid target. The stored results are not changed.
 
     BenGER format:
     {"from_name": "label", "type": "labels", "value": {"spans": [...]}}
@@ -547,6 +584,16 @@ def convert_to_label_studio_format(results: list[dict[str, Any]]) -> list[dict[s
             # Non-span annotations pass through unchanged
             output.append(result)
 
+    if targets:
+        control_to, object_names = targets
+        fixed = []
+        for item in output:
+            target = control_to.get(item.get("from_name")) if isinstance(item, dict) else None
+            if target and item.get("to_name") not in object_names:
+                item = {**item, "to_name": target}  # a copy: never touch the stored row
+            fixed.append(item)
+        output = fixed
+
     return output
 
 
@@ -572,6 +619,26 @@ def stream_export_label_studio(
     the container limit.
     """
     LS_BATCH_SIZE = 5
+
+    # Result targets of the project's config. A <Repeater> config has its own
+    # indexed control names per task, so its targets are computed per task
+    # (cached per item-count shape, the only thing its expansion depends on).
+    label_config = (
+        db.query(Project.label_config).filter(Project.id == project_id).scalar()
+    )
+    blocks = repeater_blocks(label_config)
+    static_targets = None if blocks else control_targets(label_config)
+    targets_by_shape: dict = {}
+
+    def _targets_for(task_data):
+        if not blocks:
+            return static_targets
+        shape = tuple(block.item_count(task_data) for block in blocks)
+        if shape not in targets_by_shape:
+            targets_by_shape[shape] = control_targets(
+                expand_repeaters(label_config, task_data)
+            )
+        return targets_by_shape[shape]
 
     eval_runs = db.query(EvaluationRun).filter(
         EvaluationRun.project_id == project_id
@@ -614,7 +681,9 @@ def stream_export_label_studio(
                 "project": project_id,
             }
             for ann in anns_by_task.get(task.id, []):
-                converted_result = convert_to_label_studio_format(ann.result)
+                converted_result = convert_to_label_studio_format(
+                    ann.result, _targets_for(task.data)
+                )
                 ls_ann = {
                     "id": ann.id,
                     "completed_by": ann.completed_by,
@@ -796,6 +865,11 @@ def stream_comprehensive_project_data_json(
     yield '"exported_at": ' + json.dumps(datetime.utcnow().isoformat()) + ','
     yield '"exported_by": ' + json.dumps(project.created_by) + ','
     yield '"project": ' + json.dumps(project_data, ensure_ascii=False) + ','
+
+    # --- variant designs (before their tasks; only when there are any) ---
+    designs = variant_design_docs(db, project_id)
+    if designs:
+        yield '"variant_designs": ' + json.dumps(designs, ensure_ascii=False) + ','
 
     # --- tasks (heavy) ---
     yield '"tasks": ['
@@ -1253,6 +1327,10 @@ def stream_export_ndjson(
             db, users, project_id=project_id, viewer=viewer
         ):
             yield _emit("user", row)
+
+    # --- variant designs (before their tasks) ---
+    for doc in variant_design_docs(db, project_id):
+        yield _emit("variant_design", doc)
 
     # --- tasks (heavy) ---
     for task in _drain(_tasks_in_order(db, project_id)):

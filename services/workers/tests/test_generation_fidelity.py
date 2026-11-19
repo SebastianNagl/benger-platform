@@ -3,14 +3,16 @@
 import json
 
 import pytest
-
 from generation_fidelity import (
     AnswerFormat,
     FormatRetry,
     answer_format,
+    answer_skeleton,
+    label_config_answer_fields,
     refusal_matches,
     render_answer_schema,
     schema_instruction,
+    schema_instruction_preview,
     validate_answer_schema,
     validate_format_retry,
     validate_refusal_heuristic,
@@ -201,3 +203,101 @@ def test_refusal_heuristic_reads_the_opening_only():
     assert refusal_matches(heuristic, '{"anteil": 1}', "Ich kann nicht helfen.")
     assert not refusal_matches(None, "Ich kann nicht.")
     assert not refusal_matches(heuristic, None, "")
+
+
+# --------------------------------------------------------------------------
+# Per-item (<Repeater>) label configs
+# --------------------------------------------------------------------------
+
+# Hand-written per-item config: one shared verdict and a share per flat in
+# the task's list. The expected texts below follow the Repeater contract
+# (controls once per item, item key = name without the index flag).
+REPEATER_CONFIG = """<View>
+  <Text name="akte" value="$akte"/>
+  <Choices name="vorrang" toName="akte">
+    <Choice value="mieter"/><Choice value="vermieter"/>
+  </Choices>
+  <Repeater on="$wohnungen" indexFlag="{{idx}}" answerKey="wohnung">
+    <Text name="lage_{{idx}}" value="$wohnungen[{{idx}}].lage"/>
+    <Number name="anteil_{{idx}}" toName="lage_{{idx}}"/>
+  </Repeater>
+</View>"""
+REPEATER_TASK = {
+    "akte": "...",
+    "wohnungen": [{"lage": "EG links"}, {"lage": "1. OG rechts"}],
+}
+
+
+def test_skeleton_lists_flat_fields_and_one_object_per_item():
+    skeleton = answer_skeleton(REPEATER_CONFIG, REPEATER_TASK)
+    assert skeleton == {
+        "vorrang": "<your response>",
+        "wohnungen": [
+            {"wohnung": 1, "anteil": "<your response>"},
+            {"wohnung": 2, "anteil": "<your response>"},
+        ],
+    }
+    # The per-item controls are not flat answer fields.
+    assert label_config_answer_fields(REPEATER_CONFIG) == ["vorrang"]
+
+
+def test_preview_of_a_repeater_config_shows_one_item():
+    preview = schema_instruction_preview({}, REPEATER_CONFIG)
+    assert preview == schema_instruction(
+        {
+            "vorrang": "<your response>",
+            "wohnungen": [{"wohnung": 1, "anteil": "<your response>"}],
+        }
+    )
+    assert (
+        schema_instruction_preview(
+            {"append_schema_instruction": False}, REPEATER_CONFIG
+        )
+        is None
+    )
+
+
+def test_skeleton_without_repeater_matches_the_field_list_instruction():
+    # Render equivalence: a config without a Repeater appends the same text
+    # as the plain field list.
+    assert schema_instruction(answer_skeleton(LABEL_CONFIG)) == schema_instruction(
+        ["anteil_mieter", "vorrang"]
+    )
+
+
+def test_skeleton_uses_rendered_answer_keys():
+    keys = render_answer_schema(PARTY_SCHEMA, TASK)
+    assert list(answer_skeleton(LABEL_CONFIG, TASK, keys)) == [
+        "anteil_wagner",
+        "vorrang",
+    ]
+
+
+def test_answer_controls_of_a_repeater_config_are_the_indexed_names():
+    parser = ResponseParser(generation_structure={}, label_config=REPEATER_CONFIG)
+    assert sorted(parser.answer_controls(REPEATER_TASK)) == [
+        "anteil_0",
+        "anteil_1",
+        "vorrang",
+    ]
+    assert parser.answer_controls() == ["vorrang"]
+
+
+def test_answer_keys_reach_the_per_item_parser():
+    schema = {"fields": {"vorrang": {"key": "vorrang_{{parteien.mieter|lower}}"}}}
+    task = {**REPEATER_TASK, "parteien": {"mieter": "Wagner"}}
+    parser = ResponseParser(
+        generation_structure={},
+        label_config=REPEATER_CONFIG,
+        answer_keys=render_answer_schema(schema, task),
+    )
+    answer = {
+        "vorrang_wagner": "mieter",
+        "wohnungen": [{"wohnung": 1, "anteil": 40}, {"wohnung": 2, "anteil": 60}],
+    }
+    result = parser.parse(json.dumps(answer), task_data=task)
+    assert result.status == "success", result.error
+    values = {item["from_name"]: item["value"] for item in result.parsed_annotation}
+    assert values["vorrang"] == {"choices": ["mieter"]}
+    assert values["anteil_1"] == {"number": 60}
+    assert result.mapped_keys == {"vorrang_wagner": "vorrang"}

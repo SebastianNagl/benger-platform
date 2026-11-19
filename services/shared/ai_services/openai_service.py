@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 from openai import OpenAI
 
 from .attachments import openai_chat_content
-from .base_service import BaseAIService, continuation_turns, derive_truncated
+from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_truncated
 from .request_capture import record_request
 from .reasoning import chat_message_reasoning, responses_api_reasoning
 from .provider_capabilities import (
@@ -68,16 +68,19 @@ def retry_with_exponential_backoff(
                     except Exception as e:
                         error_str = str(e).lower()
                         is_rate_limit = "429" in error_str or "rate limit" in error_str
+                        # Back off only on what the shared classifier deems retryable:
+                        # an exhausted quota is a 429 that no wait fixes.
+                        backs_off = is_rate_limit and classify_retryable(e)
                         attempt_ms = int((time.time() - attempt_start) * 1000)
                         history.append({
                             "attempt": retries + 1,
                             "error": str(e)[:200],
                             "is_rate_limit": is_rate_limit,
                             "latency_ms": attempt_ms,
-                            "retried": is_rate_limit and retries < max_retries,
+                            "retried": backs_off and retries < max_retries,
                         })
 
-                        if not is_rate_limit or retries >= max_retries:
+                        if not backs_off or retries >= max_retries:
                             raise
 
                         delay = min(base_delay * (exponential_base ** retries), max_delay)

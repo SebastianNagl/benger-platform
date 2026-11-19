@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:benger:schema:task-variant:1",
+  "title": "Task variant assignment (task.meta.variant)",
+  "description": "A task's place in a variant design of its project. Never shown to a system under test or to a blinded annotator. Checked against the design by variant_designs.validate_task_variant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "design",
+    "unit",
+    "factors"
+  ],
+  "properties": {
+    "design": {
+      "description": "The key of a variant design of the task's project.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "factors": {
+      "description": "The level of every task factor of the design.",
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": {
+        "$ref": "#/$defs/level"
+      }
+    },
+    "slots": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "factors": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "$ref": "#/$defs/level"
+            }
+          },
+          "spans": {
+            "$ref": "#/$defs/spans"
+          }
+        }
+      }
+    },
+    "spans": {
+      "$ref": "#/$defs/spans"
+    },
+    "provenance": {
+      "description": "Where the task came from (generator, template, source file and its hash, source record ids). Free-form.",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "level": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "spans": {
+      "description": "Per task.data path, the [start, end) character ranges in which the text may differ from the other tasks of the unit.",
+      "type": "object",
+      "maxProperties": 256,
+      "additionalProperties": {
+        "type": "array",
+        "maxItems": 1000,
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

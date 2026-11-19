@@ -12,6 +12,12 @@ XSS Prevention: All extracted field metadata is sanitized before returning
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
+from label_config_repeater import (
+    REPEATER_TAG,
+    index_flag_of,
+    item_key_for,
+    repeater_attribute,
+)
 from services.label_config.sanitizer import LabelConfigSanitizer
 
 
@@ -63,14 +69,24 @@ class LabelConfigParser:
         """
         bound: set = set()
         try:
+            # A Repeater's ``on`` binding names the array its items render
+            # from, so that array is visible too.
+            if label_config and REPEATER_TAG in label_config:
+                for elem in ET.fromstring(label_config).iter(REPEATER_TAG):
+                    on = repeater_attribute(elem, "on")
+                    if isinstance(on, str) and on.startswith("$") and len(on) > 1:
+                        bound.add(on[1:])
             for field in cls.extract_fields(label_config or "", sanitize=False):
                 # ANY $-prefixed attribute is a data binding, not just
                 # ``value`` — the frontend resolver
                 # (lib/labelConfig/dataBinding.resolvePropsDataBindings)
                 # resolves every prop, e.g. the exam Angabe's
                 # ``bearbeitervermerk="$bearbeitervermerk"`` side sections.
+                index_flag = (field.get("repeater") or {}).get("index_flag")
                 for value in (field.get("attributes") or {}).values():
                     if isinstance(value, str) and value.startswith("$"):
+                        if index_flag and index_flag in value:
+                            continue
                         bound.add(value[1:])
         except Exception:  # pragma: no cover - defensive: never leak on parse error
             return set()
@@ -80,6 +96,10 @@ class LabelConfigParser:
     def extract_fields(label_config: str, sanitize: bool = True) -> List[Dict]:
         """
         Extract all fields with full metadata from label config.
+
+        A field inside a <Repeater> keeps its template name (``risk_{{idx}}``)
+        and carries a ``repeater`` entry (``on``, ``index_flag``,
+        ``item_key``); expand the config first to get indexed names.
 
         Args:
             label_config: Label Studio XML configuration string
@@ -103,10 +123,18 @@ class LabelConfigParser:
         try:
             root = ET.fromstring(label_config)
             fields = []
+            repeated = LabelConfigParser._repeated_elements(root)
 
             for elem in root.iter():
                 if elem.tag in LabelConfigParser._allowed_field_types():
                     field = LabelConfigParser._parse_field_element(elem)
+                    if field and id(elem) in repeated:
+                        on, index_flag = repeated[id(elem)]
+                        field["repeater"] = {
+                            "on": on,
+                            "index_flag": index_flag,
+                            "item_key": item_key_for(field["name"], index_flag),
+                        }
                     if field:
                         # XSS Prevention: Sanitize field metadata before returning
                         if sanitize:
@@ -116,6 +144,19 @@ class LabelConfigParser:
             return fields
         except ET.ParseError:
             return []
+
+    @staticmethod
+    def _repeated_elements(root: ET.Element) -> Dict[int, tuple]:
+        """``{id(element): (on, index_flag)}`` for every element inside a
+        <Repeater> that was not expanded."""
+        repeated: Dict[int, tuple] = {}
+        for repeater in root.iter(REPEATER_TAG):
+            on = repeater_attribute(repeater, "on") or ""
+            index_flag = index_flag_of(repeater)
+            for elem in repeater.iter():
+                if elem is not repeater:
+                    repeated[id(elem)] = (on, index_flag)
+        return repeated
 
     @staticmethod
     def extract_field_names(label_config: str) -> List[str]:

@@ -231,7 +231,11 @@ async def reparse_generations(
                         answer_schema, data if isinstance(data, dict) else {}
                     ),
                 )
-            parsed = parser.parse(gen.response_content or "", source_text=source_text)
+            parsed = parser.parse(
+                gen.response_content or "",
+                source_text=source_text,
+                task_data=data if isinstance(data, dict) else {},
+            )
             new_annotation = parsed.parsed_annotation
             new_status, new_error = parsed.status, parsed.error
             new_mapped = dict(parsed.mapped_keys or {})

@@ -25,6 +25,7 @@ from typing import Any, Dict, Optional
 from ai_services.request_capture import build_request_record, request_sha256
 from generation_fidelity import (
     answer_format,
+    answer_skeleton,
     refusal_matches,
     render_answer_schema,
     schema_instruction,
@@ -1239,8 +1240,10 @@ def generate_llm_responses_impl(
                             try:
                                 from ai_services import generate_json_schema_from_label_config
 
+                                # task_data: a <Repeater> block asks for one
+                                # object per item of this task's array.
                                 json_schema = generate_json_schema_from_label_config(
-                                    project.label_config
+                                    project.label_config, task_data=task_content
                                 )
                                 if answer_keys is not None:
                                     json_schema = answer_keys.rename_schema(json_schema)
@@ -1257,20 +1260,18 @@ def generate_llm_responses_impl(
 
                         # Append the label-config fields as a JSON skeleton to
                         # the user prompt, so the answer uses the annotation
-                        # field names (or the structure's answer keys).
+                        # field names (or the structure's answer keys); a
+                        # <Repeater> block asks for one object per item of
+                        # this task.
                         schema_instruction_appended = False
-                        label_fields = (
-                            tasks.extract_label_config_fields(project.label_config)
+                        output_schema = (
+                            answer_skeleton(project.label_config, task_content, answer_keys)
                             if project.label_config
-                            else []
+                            else {}
                         )
-                        if fmt.append_schema_instruction and label_fields:
-                            output_fields = (
-                                [answer_keys.answer_key(f) for f in label_fields]
-                                if answer_keys is not None
-                                else label_fields
-                            )
-                            user_prompt = user_prompt + schema_instruction(output_fields)
+                        if fmt.append_schema_instruction and output_schema:
+                            output_fields = list(output_schema)
+                            user_prompt = user_prompt + schema_instruction(output_schema)
                             schema_instruction_appended = True
                             tasks.logger.info(
                                 f"📋 Appended output schema instruction with fields: {output_fields}"
@@ -1420,7 +1421,9 @@ def generate_llm_responses_impl(
                             """(parse_result, status, error) of one answer."""
                             try:
                                 tasks.logger.info(f"🔍 Parsing LLM response for task {task_data['id']}")
-                                result = _parser().parse(text, source_text=source_text)
+                                result = _parser().parse(
+                                    text, source_text=source_text, task_data=task_content
+                                )
                                 tasks.logger.info(f"📋 Parse status: {result.status}")
                                 if result.status != "success":
                                     tasks.logger.warning(f"⚠️ Parse failed: {result.error}")
@@ -1435,7 +1438,9 @@ def generate_llm_responses_impl(
                         if project.label_config:
                             parse_result, parse_status, parse_error = _parse(response_text)
                             answer_controls = (
-                                _parser().label_config_map if parse_result is not None else ()
+                                _parser().answer_controls(task_content)
+                                if parse_result is not None
+                                else ()
                             )
 
                             # Format retry: an answer that yields no answer

@@ -14,6 +14,11 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     audience: 'benger',
   },
   {
+    id: '2026-11-18-per-item-answers',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
     id: '2026-11-18-personal-dashboard-for-students',
     date: '2026-11-18',
     audience: 'benger',

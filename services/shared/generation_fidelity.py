@@ -43,7 +43,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 #: Upper bound of ``runs_per_task`` for generation. Repeated runs of one
 #: task stay one task with many runs; variant designs need dozens of them.
@@ -244,8 +244,9 @@ INSTRUCTION_FIELD_TAGS = ("TextArea", "Choices", "Rating", "Number")
 def label_config_answer_fields(label_config: Optional[str]) -> List[str]:
     """The answer field names of a label config, in document order: the
     names :func:`schema_instruction` lists (annotation controls only, not
-    display tags such as Header or Text). Empty for a config that does not
-    parse."""
+    display tags such as Header or Text). Controls inside a ``<Repeater>``
+    are left out: they answer as a list of objects under the block's own
+    key (:func:`answer_skeleton`). Empty for a config that does not parse."""
     if not label_config:
         return []
     from xml.etree import ElementTree
@@ -254,11 +255,44 @@ def label_config_answer_fields(label_config: Optional[str]) -> List[str]:
         root = ElementTree.fromstring(label_config)
     except ElementTree.ParseError:
         return []
+    repeated = {
+        id(child)
+        for repeater in root.iter("Repeater")
+        for child in repeater.iter()
+        if child is not repeater
+    }
     return [
         elem.get("name")
         for elem in root.iter()
-        if elem.tag in INSTRUCTION_FIELD_TAGS and elem.get("name")
+        if id(elem) not in repeated
+        and elem.tag in INSTRUCTION_FIELD_TAGS
+        and elem.get("name")
     ]
+
+
+def answer_skeleton(
+    label_config: Optional[str],
+    task_data: Any = None,
+    answer_keys: Optional[AnswerKeys] = None,
+) -> Dict[str, Any]:
+    """The JSON skeleton :func:`schema_instruction` shows: each answer field
+    of the label config (named by its rendered answer key when the
+    structure has an ``answer_schema``) with ``"<your response>"``, and each
+    ``<Repeater>`` block as one example object per item of ``task_data``
+    (one object when no task is given)."""
+    from label_config_repeater import repeater_answer_example, repeater_blocks
+
+    skeleton: Dict[str, Any] = {}
+    for name in label_config_answer_fields(label_config):
+        key = answer_keys.answer_key(name) if answer_keys is not None else name
+        skeleton[key] = "<your response>"
+    if label_config:
+        for block in repeater_blocks(label_config):
+            if block.controls:
+                skeleton[block.answer_property] = repeater_answer_example(
+                    block, task_data
+                )
+    return skeleton
 
 
 def schema_instruction_preview(
@@ -266,18 +300,23 @@ def schema_instruction_preview(
 ) -> Optional[str]:
     """The text a generation with ``structure`` appends to the user prompt,
     or None when it appends nothing. Answer keys of an ``answer_schema`` are
-    rendered per task; the preview names the label-config fields."""
+    rendered per task and a ``<Repeater>`` block lists one object per item
+    of the task; the preview names the label-config fields and shows one
+    item."""
     if not answer_format(structure).append_schema_instruction:
         return None
-    fields = label_config_answer_fields(label_config)
-    return schema_instruction(fields) if fields else None
+    skeleton = answer_skeleton(label_config)
+    return schema_instruction(skeleton) if skeleton else None
 
 
-def schema_instruction(output_fields: List[str]) -> str:
+def schema_instruction(output_schema: Union[Dict[str, Any], List[str]]) -> str:
     """The block appended to the user prompt when
     ``append_schema_instruction`` is on and the label config has answer
-    fields. The project page previews this exact text."""
-    output_schema = {name: "<your response>" for name in output_fields}
+    fields: ``output_schema`` (:func:`answer_skeleton`, or a list of field
+    names, each shown as ``"<your response>"``) as JSON. The project page
+    previews this exact text."""
+    if not isinstance(output_schema, dict):
+        output_schema = {name: "<your response>" for name in output_schema}
     return (
         "\n\n---\n"
         "IMPORTANT: Respond ONLY with valid JSON using these exact field names:\n"
