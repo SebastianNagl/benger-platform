@@ -41,7 +41,7 @@ import { formatDecimal } from '@/lib/i18n/locales'
 import { formatCount } from '@/lib/reports/format'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Block, SubBlock, Table, num, td, th } from './blocks'
+import { Block } from './blocks'
 
 const DASH = '-'
 
@@ -214,6 +214,8 @@ function RunCode({
 // validation stacks and its numbers carry their own labels.
 const VALIDATION_COLUMNS =
   'sm:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_6.5rem_3.5rem_5.5rem_5rem]'
+const JUDGE_COLUMNS =
+  'sm:grid-cols-[minmax(0,2fr)_3.5rem_3.5rem_4.5rem_5.5rem_5.5rem_minmax(0,2fr)]'
 const headCell =
   'text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400'
 
@@ -503,83 +505,96 @@ export function JudgeAgreementBlock({
     ([, v]) => v && v.n_judges >= 2,
   )
   if (entries.length === 0) return null
+  const labels = {
+    modelMetric: t('evaluation.agreementValidity.modelMetric'),
+    judges: t('evaluation.agreementValidity.judges'),
+    items: t('evaluation.agreementValidity.items'),
+    fleiss: t('evaluation.annotatorAgreement.fleissKappa'),
+    allAgree: t('evaluation.agreementValidity.allAgree'),
+    mad: t('evaluation.annotatorAgreement.meanAbsoluteDeviation'),
+    pairs: t('evaluation.agreementValidity.judgePairs'),
+  }
   return (
     <Block
       title={t('evaluation.agreementValidity.title')}
       description={t('evaluation.agreementValidity.judgeDescription')}
       testId="judge-agreement-block"
     >
-      <SubBlock
-        title={t('evaluation.agreementValidity.judgeTitle')}
-        testId="judge-agreement"
-      >
-        <Table
-          head={
-            <>
-              <th className={th}>
-                {t('evaluation.agreementValidity.modelMetric')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('evaluation.agreementValidity.judges')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('evaluation.agreementValidity.items')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('evaluation.annotatorAgreement.fleissKappa')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('evaluation.agreementValidity.allAgree')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('evaluation.annotatorAgreement.meanAbsoluteDeviation')}
-              </th>
-              <th className={th}>
-                {t('evaluation.agreementValidity.judgePairs')}
-              </th>
-            </>
-          }
-        >
-          {entries.map(([key, entry]) => {
-            const { model, config, metric } = splitKey(key)
-            const numeric =
-              Object.keys(entry.pearson_r_pairwise ?? {}).length > 0
-            return (
-              <tr key={key} data-testid="judge-agreement-row">
-                <td className={`${td} max-w-[16rem] min-w-[10rem]`}>
-                  <div className="font-medium [overflow-wrap:anywhere]">
-                    {model}
+      <div data-testid="judge-agreement">
+        <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          {t('evaluation.agreementValidity.judgeTitle')}
+        </h4>
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div
+            className={`hidden gap-3 border-b border-zinc-200 bg-zinc-50 px-3 py-2 sm:grid dark:border-zinc-800 dark:bg-zinc-900/40 ${JUDGE_COLUMNS}`}
+            aria-hidden="true"
+          >
+            <span className={headCell}>{labels.modelMetric}</span>
+            <span className={`${headCell} text-right`}>{labels.judges}</span>
+            <span className={`${headCell} text-right`}>{labels.items}</span>
+            <span className={`${headCell} text-right`}>{labels.fleiss}</span>
+            <span className={`${headCell} text-right`}>{labels.allAgree}</span>
+            <span className={`${headCell} text-right`}>{labels.mad}</span>
+            <span className={headCell}>{labels.pairs}</span>
+          </div>
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {entries.map(([key, entry]) => {
+              const { model, config, metric } = splitKey(key)
+              const numeric =
+                Object.keys(entry.pearson_r_pairwise ?? {}).length > 0
+              return (
+                <li
+                  key={key}
+                  className={`grid grid-cols-1 gap-1.5 px-3 py-2.5 text-sm sm:items-start sm:gap-3 ${JUDGE_COLUMNS}`}
+                  data-testid="judge-agreement-row"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium [overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200">
+                      {model}
+                    </div>
+                    <div className="font-mono text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
+                      {metric}
+                      {config && config !== 'unknown' ? ` · ${config}` : ''}
+                    </div>
                   </div>
-                  <div className="font-mono text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
-                    {metric}
-                    {config && config !== 'unknown' ? ` · ${config}` : ''}
+                  <Figure label={labels.judges} value={count(entry.n_judges)} />
+                  <Figure label={labels.items} value={count(entry.n_items)} />
+                  <Figure
+                    label={labels.fleiss}
+                    value={dec(entry.fleiss_kappa)}
+                  />
+                  <Figure
+                    label={labels.allAgree}
+                    value={pct(entry.percent_agreement)}
+                  />
+                  <Figure
+                    label={labels.mad}
+                    value={dec(entry.mean_absolute_deviation)}
+                  />
+                  <div className="min-w-0 text-xs text-zinc-800 dark:text-zinc-200">
+                    <span className="text-zinc-500 sm:hidden dark:text-zinc-400">
+                      {labels.pairs}
+                    </span>
+                    <ul className="space-y-0.5">
+                      {pairs(entry).map(([pair, value]) => (
+                        <li key={pair} className="[overflow-wrap:anywhere]">
+                          <span className="font-mono">
+                            {pair.split('__').join(' / ')}
+                          </span>
+                          {': '}
+                          <span className="tabular-nums">
+                            {numeric ? 'r' : 'κ'} = {dec(value)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </td>
-                <td className={num}>{count(entry.n_judges)}</td>
-                <td className={num}>{count(entry.n_items)}</td>
-                <td className={num}>{dec(entry.fleiss_kappa)}</td>
-                <td className={num}>{pct(entry.percent_agreement)}</td>
-                <td className={num}>{dec(entry.mean_absolute_deviation)}</td>
-                <td className={`${td} min-w-[12rem] text-xs`}>
-                  <ul className="space-y-0.5">
-                    {pairs(entry).map(([pair, value]) => (
-                      <li key={pair} className="[overflow-wrap:anywhere]">
-                        <span className="font-mono">
-                          {pair.split('__').join(' / ')}
-                        </span>
-                        {': '}
-                        <span className="tabular-nums">
-                          {numeric ? 'r' : 'κ'} = {dec(value)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            )
-          })}
-        </Table>
-      </SubBlock>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </div>
     </Block>
   )
 }
