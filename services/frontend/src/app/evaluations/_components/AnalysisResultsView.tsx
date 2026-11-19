@@ -601,6 +601,7 @@ export function AnalysisResultsView({
                 selectedType={chartType}
                 onChange={setChartType}
                 availableTypes={ANALYSIS_CHART_TYPES}
+                persistPreference={false}
                 size="sm"
               />
             </div>

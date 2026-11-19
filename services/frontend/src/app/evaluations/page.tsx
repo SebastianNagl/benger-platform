@@ -232,12 +232,10 @@ export default function EvaluationDashboard() {
     </>
   )
 
-  // Starting a run needs an effective project role of CONTRIBUTOR or higher
-  // (the API's rule): annotators see the results but no run controls.
+  // Starting a run follows the backend's edit decision (the API's rule):
+  // viewers without edit rights see the results but no run controls.
   const canRun =
-    Boolean(user?.is_superadmin) ||
-    selectedProject?.effective_role === 'ORG_ADMIN' ||
-    selectedProject?.effective_role === 'CONTRIBUTOR'
+    Boolean(user?.is_superadmin) || selectedProject?.can_edit === true
 
   return (
     <ResponsiveContainer size="full" className="pt-8 pb-10">
