@@ -1424,3 +1424,71 @@ describe('EvaluationBuilder wizard step rendering', () => {
     })
   })
 })
+
+describe('EvaluationBuilder reference-free metric (text_pattern)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('skips the reference step and saves the config without reference fields', async () => {
+    const mockOnChange = jest.fn()
+    const user = userEvent.setup()
+    render(
+      <EvaluationBuilder {...defaultProps} onEvaluationsChange={mockOnChange} />,
+    )
+    await user.click(screen.getByTestId('add-evaluation-button'))
+    await user.click(screen.getByTestId('metric-button-text_pattern'))
+    await user.click(screen.getByTestId('wizard-next-button'))
+    await user.click(screen.getAllByRole('checkbox')[0])
+    await user.click(screen.getByTestId('wizard-next-button'))
+
+    expect(
+      screen.queryByText('evaluationBuilder.steps.referenceFields.title'),
+    ).not.toBeInTheDocument()
+    fireEvent.change(
+      screen.getByLabelText('evaluationBuilder.parameters.textPattern.patternSet'),
+      {
+        target: {
+          value: JSON.stringify({
+            name: 'parties',
+            version: '1',
+            codes: { names_party: { mode: 'any', patterns: ['Meier'] } },
+          }),
+        },
+      },
+    )
+    await user.click(screen.getByTestId('wizard-next-button'))
+    expect(screen.getByTestId('review-no-reference')).toHaveTextContent(
+      'evaluationBuilder.review.noReferenceNeeded',
+    )
+
+    await user.click(screen.getByTestId('wizard-back-button'))
+    await user.click(screen.getByTestId('wizard-back-button'))
+    expect(
+      screen.getByText('evaluationBuilder.steps.predictionFields.title'),
+    ).toBeInTheDocument()
+    await user.click(screen.getByTestId('wizard-next-button'))
+    await user.click(screen.getByTestId('wizard-next-button'))
+
+    const addBtn = screen
+      .getAllByRole('button')
+      .find(
+        (b) =>
+          b.querySelector('[data-testid="check-icon"]') &&
+          b.textContent?.includes('evaluationBuilder.addEvaluation'),
+      )
+    expect(addBtn).toBeTruthy()
+    await user.click(addBtn!)
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'evaluationBuilder.toast.added',
+      'success',
+    )
+    expect(mockOnChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        metric: 'text_pattern',
+        reference_fields: [],
+        metric_parameters: expect.objectContaining({ code: 'names_party' }),
+      }),
+    ])
+  })
+})

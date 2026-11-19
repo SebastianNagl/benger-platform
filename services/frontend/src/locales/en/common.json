@@ -6675,6 +6675,7 @@
       "metric": "Metric",
       "predictionFields": "Prediction Fields",
       "referenceFields": "Reference Fields",
+      "noReferenceNeeded": "None: this metric reads only the prediction",
       "parameters": "Parameters"
     },
     "fields": {

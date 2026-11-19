@@ -1419,7 +1419,8 @@ frame format 2).
     ``code``, checked on save). Metric handlers may set
     ``wants_raw_values`` (values as stored, not lower-cased),
     ``uses_task_data`` (``compute(..., task_data=)``) and ``reference_free``
-    (cells run without a reference value);
+    (cells run once per prediction field, under the field key
+    ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
 """
 

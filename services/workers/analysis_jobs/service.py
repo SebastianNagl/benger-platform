@@ -41,6 +41,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+import extension_activation
+
 logger = logging.getLogger(__name__)
 
 LOCKFILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uv.lock")
@@ -158,7 +160,10 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
             logger.info("run_analysis: run %s is missing or finished; nothing to do", run_id)
             return {"run_id": run_id, "status": "skipped"}
         try:
-            return _execute(db, run, storage)
+            with extension_activation.use_context(
+                user_id=run.created_by, project_id=run.project_id, kind=extension_activation.KIND_TASK
+            ):
+                return _execute(db, run, storage)
         except Exception as exc:  # noqa: BLE001 - every failure ends the run
             logger.error("run_analysis: run %s failed: %s", run_id, exc, exc_info=True)
             _fail(db, run_id, public_error(exc, run_id))

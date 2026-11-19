@@ -17,6 +17,7 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+from metric_filters import graded_reference_fields, is_reference_free
 from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING
 
 
@@ -283,16 +284,6 @@ def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
     return {name: str(value or "") for name, value in pairs if name in params}
 
 
-def _reference_free(metric: str) -> bool:
-    """Whether ``metric``'s handler needs no reference value (a code such
-    as ``text_pattern``): its cells run even when the reference field is
-    missing for the task."""
-    from ml_evaluation import metric_registry
-
-    handler = metric_registry.get(metric)
-    return bool(getattr(handler, "reference_free", False))
-
-
 def _end_read_transaction(db) -> None:
     """End the cell session's open transaction before slow non-DB work.
 
@@ -420,7 +411,7 @@ def evaluate_generation_cell_impl(
                     "evaluation_id": evaluation_id, "task_id": task_id}
 
         uses_annotation_fields = any(
-            any(not ref.startswith("task.") for ref in c.get("reference_fields", []))
+            any(ref and not ref.startswith("task.") for ref in graded_reference_fields(c))
             for c in configs_for_cell
         )
         ground_truth_annotation = None
@@ -473,7 +464,8 @@ def evaluate_generation_cell_impl(
             config_id = config.get("id", "unknown")
             metric = config.get("metric", "")
             prediction_fields = config.get("prediction_fields", [])
-            reference_fields = config.get("reference_fields", [])
+            reference_fields = graded_reference_fields(config)
+            reference_free = is_reference_free(metric)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -495,7 +487,9 @@ def evaluate_generation_cell_impl(
                         continue
 
                     # Ground truth extraction.
-                    if ref_field.startswith("task."):
+                    if not ref_field:
+                        ground_truth = None
+                    elif ref_field.startswith("task."):
                         data_field = ref_field[5:]
                         ground_truth = task.data.get(data_field) if task.data else None
                     elif ground_truth_annotation:
@@ -506,7 +500,7 @@ def evaluate_generation_cell_impl(
                             ground_truth = task.data.get(ref_field)
                     else:
                         ground_truth = task.data.get(ref_field) if task.data else None
-                    if ground_truth is None and not _reference_free(metric):
+                    if ground_truth is None and not reference_free:
                         logger.warning(
                             f"Evaluation skip: reference field '{ref_field}' not found "
                             f"for task {task.id} (config {config_id})"
@@ -1178,7 +1172,8 @@ def evaluate_annotation_cell_impl(
             config_id = config.get("id", "unknown")
             metric = config.get("metric", "")
             prediction_fields = config.get("prediction_fields", [])
-            reference_fields = config.get("reference_fields", [])
+            reference_fields = graded_reference_fields(config)
+            reference_free = is_reference_free(metric)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -1222,13 +1217,15 @@ def evaluate_annotation_cell_impl(
 
                         gt_key = (task.id, ref_field)
                         if gt_key not in gt_cache:
-                            if ref_field.startswith("task."):
+                            if not ref_field:
+                                gt_cache[gt_key] = None
+                            elif ref_field.startswith("task."):
                                 data_field = ref_field[5:]
                                 gt_cache[gt_key] = task.data.get(data_field) if task.data else None
                             else:
                                 gt_cache[gt_key] = task.data.get(ref_field) if task.data else None
                         ground_truth = gt_cache[gt_key]
-                        if ground_truth is None and not _reference_free(metric):
+                        if ground_truth is None and not reference_free:
                             continue
 
                         try:

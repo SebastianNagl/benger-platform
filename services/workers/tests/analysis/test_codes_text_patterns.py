@@ -178,6 +178,24 @@ class TestMatching:
         assert s.code("lit", "7 and 7", {"ref": 7}) == 2.0
         assert s.code("lit", "x", {"ref": ["y", "x"]}) == 1.0
 
+    def test_literals_keep_their_meaning_under_verbose(self):
+        codes = dict(
+            sp={"mode": "any", "patterns": ["{{task.ref|spaces}}"]},
+            lit={"mode": "any", "patterns": ["{{task.ref}}"]},
+            ws={"mode": "any", "patterns": ["{{task.ref|whitespace}}"]},
+        )
+        s = compile_pattern_set({**_set(**codes), "flags": ["VERBOSE"]})
+        data = {"ref": "AZ 12"}
+        assert s.code("sp", "see A Z 1 2 here", data) == 1.0
+        assert s.code("sp", "AZ12", data) == 1.0
+        assert s.code("sp", "Z12", data) == 0.0
+        assert s.code("sp", "page 2", data) == 0.0
+        assert s.code("lit", "AZ 12", data) == 1.0 and s.code("lit", "AZ12", data) == 0.0
+        assert s.code("ws", "AZ\n12", data) == 1.0 and s.code("ws", "Z12", data) == 0.0
+        hashed = compile_pattern_set({**_set(n={"mode": "any", "patterns": ["{{task.ref}}"]}), "flags": ["VERBOSE"]})
+        assert hashed.code("n", "a # b", {"ref": "a # b"}) == 1.0
+        assert hashed.code("n", "a ", {"ref": "a # b"}) == 0.0
+
     def test_unicode_normalization(self):
         decomposed = "Müller"
         plain = compile_pattern_set(_set(n={"mode": "any", "patterns": ["Müller"]}))

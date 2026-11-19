@@ -257,7 +257,7 @@ def _literal_regex(values: Sequence[str], transform: str) -> Optional[str]:
     for v in values:
         if transform == "spaces":
             chars = [c for c in v if c != " "]
-            part = " *".join(re.escape(c) for c in chars)
+            part = "[ ]*".join(re.escape(c) for c in chars)
         elif transform == "whitespace":
             chars = [c for c in v if not c.isspace()]
             part = r"\s*".join(re.escape(c) for c in chars)

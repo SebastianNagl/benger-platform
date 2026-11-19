@@ -87,9 +87,13 @@ of each prediction as a TaskEvaluation row: 1/0 for `any` and `all`, the
 count for `count`, and for a `first` code 1 when a rule matched (the value is
 in `details.label`). `details.codes` holds every code of the set and
 `details.pattern_set` its name, version and hash. The metric needs no
-reference value, the prediction is coded as stored (not lower-cased), and
-task literals read the task's data. The set and the code are checked when
-the configuration is saved.
+reference value: it runs once per prediction field, writes one row per
+prediction under the field key `<config>|<prediction field>|` and ignores
+any `reference_fields`, and the evaluation wizard skips the reference step.
+The prediction is coded as stored (not lower-cased), and task literals read
+the task's data. The set and the code are checked when the configuration is
+saved. A metric handler of an overlay that sets `reference_free = True` runs
+the same way in the workers.
 
 ## Coder plugins
 

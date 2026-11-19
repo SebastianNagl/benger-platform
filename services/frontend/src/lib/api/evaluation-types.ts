@@ -387,6 +387,10 @@ export interface AvailableMetric {
   category: string
   status: 'stable' | 'beta' | 'coming-soon'
   supports_parameters: boolean
+  /** The metric grades the prediction alone (a code such as text_pattern):
+   * the wizard skips the reference step and the config saves no reference
+   * fields. The worker runs it once per prediction field. */
+  reference_free?: boolean
   parameter_schema?: Record<string, any>
   /** Default values seeded into metric_parameters when the user picks this
    * metric in the wizard. Lets extended packages declare their own defaults
@@ -1467,6 +1471,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Codes',
     status: 'stable',
     supports_parameters: true,
+    reference_free: true,
     display_scale: 'raw',
     summable: true,
   },

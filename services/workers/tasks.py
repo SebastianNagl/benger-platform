@@ -3884,6 +3884,7 @@ def _build_sample_evaluator_for_cell(
     `sample_evaluator.py` are module-level, so only the first sub-task
     per worker process actually loads BERTScore/MoverScore/etc. weights.
     """
+    from metric_filters import graded_reference_fields
     from ml_evaluation.sample_evaluator import SampleEvaluator
 
     field_configs: Dict[str, Dict[str, str]] = {}
@@ -3893,7 +3894,7 @@ def _build_sample_evaluator_for_cell(
         metric = config.get("metric", "")
         params = config.get("metric_parameters") or {}
         for pred_field in config.get("prediction_fields", []):
-            for ref_field in config.get("reference_fields", []):
+            for ref_field in graded_reference_fields(config):
                 field_key = f"{config_id}|{pred_field}|{ref_field}"
                 field_configs[field_key] = {"type": "text"}
                 if params:

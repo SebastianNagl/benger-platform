@@ -291,3 +291,27 @@ def test_overlay_coder_measure_records_its_hash_in_the_run(db_conn, coded, overl
     assert record["kind"] == "coder" and record["code_hash"] == coder_registry.get("first_blamed").code_hash
     assert record["owner"] == OVERLAY and record["version"] == "2"
     assert record["missing"] == 0
+
+
+def test_an_overlay_coder_switched_off_for_the_project_does_not_run(db_conn, coded, overlay, monkeypatch):
+    """The workers decide a coder's activation for the row's project and
+    creator, not for a context-free system task."""
+    import extension_activation
+
+    seen = []
+
+    def active_outside_the_source_and_coding_projects(package, gating="gated"):
+        ctx = extension_activation.current_context()
+        seen.append((package, ctx.project_id, ctx.user_id))
+        return ctx.project_id not in (coded["source"].id, coded["coding"].id)
+
+    monkeypatch.setattr(extension_activation, "package_active", active_outside_the_source_and_coding_projects)
+    code = {"kind": "coder", "coder": "first_blamed", "output": "side", "parameters": {"default": "none"}}
+    v = _validation(db_conn, coded, code)
+    assert v.status == "failed" and "switched off" in v.error_message
+    assert (OVERLAY, coded["coding"].id, coded["owner"].id) in seen
+
+    seen.clear()
+    run = _run(db_conn, coded, _spec({"side": code}, family=False))
+    assert run.status == "failed" and "switched off" in run.error_message
+    assert (OVERLAY, coded["source"].id, coded["owner"].id) in seen

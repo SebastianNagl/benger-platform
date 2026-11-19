@@ -33,6 +33,7 @@ from routers.projects.helpers import (
     check_project_accessible_async,
 )
 from label_config_repeater import has_repeater
+from metric_filters import is_reference_free
 from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
@@ -382,8 +383,9 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
     """Problems worth telling the user at save time that must not block it.
 
     Currently one: an enabled, dispatchable config with no reference field.
-    Every grading is a (prediction, reference) pair, so such a config grades
-    nothing; see ``_validate_config_fields`` for why it cannot be a 422.
+    Every grading of a metric that is not reference-free is a (prediction,
+    reference) pair, so such a config grades nothing; see
+    ``_validate_config_fields`` for why it cannot be a 422.
     """
     warnings: list = []
     if not isinstance(eval_configs_list, list):
@@ -392,7 +394,7 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
         if not isinstance(cfg, dict) or cfg.get("enabled") is False:
             continue
         metric = cfg.get("metric") or ""
-        if isinstance(metric, str) and metric.startswith("korrektur_"):
+        if isinstance(metric, str) and (metric.startswith("korrektur_") or is_reference_free(metric)):
             continue
         ref = cfg.get("reference_fields")
         if isinstance(ref, list) and ref:

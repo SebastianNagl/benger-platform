@@ -6675,6 +6675,7 @@
       "metric": "Metrik",
       "predictionFields": "Vorhersagefelder",
       "referenceFields": "Referenzfelder",
+      "noReferenceNeeded": "Keine: diese Metrik liest nur die Vorhersage",
       "parameters": "Parameter"
     },
     "fields": {

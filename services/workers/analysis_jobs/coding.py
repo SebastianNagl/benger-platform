@@ -28,6 +28,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
+import extension_activation
+
 logger = logging.getLogger(__name__)
 
 MAX_STORED_ITEMS = 20000
@@ -343,7 +345,10 @@ def run_code_validation_impl(validation_id: str, *, session_factory=None) -> Dic
             logger.info("run_code_validation: %s is missing or finished; nothing to do", validation_id)
             return {"validation_id": validation_id, "status": "skipped"}
         try:
-            return _execute(db, v)
+            with extension_activation.use_context(
+                user_id=v.created_by, project_id=v.project_id, kind=extension_activation.KIND_TASK
+            ):
+                return _execute(db, v)
         except Exception as exc:  # noqa: BLE001 - every failure ends the validation
             logger.error("run_code_validation: %s failed: %s", validation_id, exc, exc_info=True)
             _fail(db, validation_id, public_error(exc, validation_id))
