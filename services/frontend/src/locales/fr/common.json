@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Afficher/masquer la navigation"
     },
-    "billing": "Abonnement et facturation"
+    "billing": "Abonnement et facturation",
+    "compliance": "Conformité"
   },
   "header": {
     "expandSidebar": "Développer la barre latérale",
@@ -1526,7 +1527,8 @@
       "evaluations": "Évaluations",
       "reviewWorkflow": "Processus de relecture",
       "korrektur": "Correction",
-      "members": "Membres"
+      "members": "Membres",
+      "analysis": "Analyse"
     },
     "billing": {
       "title": "Facturation",
@@ -11839,6 +11841,183 @@
       "reglab": "Le Regulation, Evaluation, and Governance Lab de Stanford dirigé par le Prof. Daniel E. Ho, coauteur de CaseHOLD et de LegalBench.",
       "hazyresearch": "Le groupe du Prof. Christopher Ré à l'université Stanford, d'où est issu LegalBench.",
       "ethLawEcon": "Le Center for Law & Economics de l'ETH Zurich, avec notamment le Prof. Elliott Ash, coauteur de LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Chargement…",
+    "unavailable": {
+      "title": "La conformité n'est pas disponible",
+      "description": "Les fonctions de conformité ne sont pas activées pour votre compte dans cette installation."
+    }
+  },
+  "analysis": {
+    "title": "Analyse",
+    "project": "Projet",
+    "scope": {
+      "pooled": "Global"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Erreur",
+      "degenerate": "Aucune variance d'échantillonnage",
+      "not_estimable": "Non estimable",
+      "negative_variance": "Variance négative"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Les analyses traitent le projet comme une expérience contrôlée à variantes : chaque tâche est une cellule d'un plan de variantes, et une analyse calcule les estimandes de sa spécification sur les réponses, avec intervalles de confiance, tests d'équivalence et p-valeurs ajustées pour les tests multiples.",
+      "newRun": "Nouvelle analyse",
+      "newRunDescription": "Collez une spécification d'analyse (JSON). Validez-la d'abord pour voir chaque problème détecté par le moteur, puis lancez l'analyse.",
+      "empty": "Aucune analyse pour le moment.",
+      "forbidden": "Vous ne pouvez pas voir les analyses de ce projet.",
+      "loadFailed": "Les analyses n'ont pas pu être chargées.",
+      "prefillFailed": "La spécification de cette analyse n'a pas pu être chargée.",
+      "more": "Les {shown} analyses les plus récentes sur {total}.",
+      "col": {
+        "name": "Nom",
+        "status": "Statut",
+        "created": "Lancée",
+        "rows": "Lignes du frame",
+        "estimates": "Estimations",
+        "specHash": "Hash de la spécification"
+      }
+    },
+    "newRun": {
+      "name": "Nom (facultatif)",
+      "namePlaceholder": "Par défaut, le nom de la spécification",
+      "spec": "Spécification d'analyse (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format : spécification version 1 (voir la documentation du moteur d'analyse). Le moteur complète chaque convention d'inférence et calcule le hash du résultat.",
+      "insertStarter": "Insérer une spécification de départ",
+      "defaultName": "Analyse",
+      "validate": "Valider",
+      "validating": "Validation…",
+      "start": "Lancer l'analyse",
+      "starting": "Lancement…",
+      "valid": "La spécification est valide (hash {hash}).",
+      "invalid": "La spécification n'est pas valide :",
+      "invalidJson": "JSON non valide : {error}",
+      "failed": "L'analyse n'a pas pu être lancée."
+    },
+    "run": {
+      "title": "Analyse",
+      "loading": "Chargement…",
+      "loadFailed": "L'analyse n'a pas pu être chargée.",
+      "notFound": "Cette analyse n'existe pas ou vous ne pouvez pas la voir.",
+      "timeline": "Lancée {created}, terminée {completed}",
+      "pending": "L'analyse est en file d'attente. Cette page se met à jour d'elle-même à la fin.",
+      "running": "L'analyse est en cours de calcul. Cette page se met à jour d'elle-même à la fin.",
+      "failed": "L'analyse a échoué.",
+      "warnings": "Avertissements ({count})",
+      "reuseSpec": "Nouvelle analyse avec cette spécification",
+      "frameDownload": "Télécharger le frame (Parquet)",
+      "frameDownloading": "Préparation du téléchargement…",
+      "frameForbidden": "Le téléchargement du frame nécessite le rôle administrateur d'organisation ou contributeur sur le projet.",
+      "frameFailed": "Le frame n'a pas pu être téléchargé."
+    },
+    "forest": {
+      "title": "Forest plot",
+      "description": "Un contraste sur l'ensemble de ses sous-ensembles : l'estimation ponctuelle avec son intervalle de confiance. Avec une bande d'équivalence, le segment épais est l'intervalle utilisé par le test d'équivalence.",
+      "contrast": "Contraste",
+      "band": "Bande d'équivalence",
+      "noBand": "Aucune bande",
+      "bandLabel": "Bornes d'équivalence {bounds}",
+      "empty": "Cette analyse n'a aucune estimation à représenter.",
+      "noEstimate": "aucune estimation",
+      "ariaLabel": "Forest plot de {contrast}",
+      "legendInterval": "Estimation avec intervalle de confiance à {level}",
+      "legendInner": "Intervalle à {level} du test d'équivalence"
+    },
+    "estimates": {
+      "title": "Estimations",
+      "description": "Toutes les estimations dans l'ordre de la spécification. p ajust. est la p-valeur ajustée dans la première famille de l'estimation ; ouvrez une ligne pour voir toutes les familles, les tests d'équivalence et les conventions.",
+      "loading": "Chargement des estimations…",
+      "loadFailed": "Les estimations n'ont pas pu être chargées.",
+      "filterEstimand": "Estimande",
+      "filterFamily": "Famille",
+      "all": "Toutes",
+      "count": "{shown} sur {total}",
+      "empty": "Aucune estimation ne correspond au filtre.",
+      "details": "Détails",
+      "estimand": "Estimande",
+      "scope": "Sous-ensemble",
+      "estimate": "Estimation",
+      "se": "ET",
+      "ci": "IC",
+      "family": "Famille",
+      "pAdjusted": "p ajust.",
+      "equivalence": "Équivalence",
+      "equivalent": "Équivalent",
+      "notEquivalent": "Non démontrée",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "clusters {clusters}",
+      "detail": {
+        "estimator": "Estimateur",
+        "outcome": "Variable de résultat",
+        "kind": "Type de contraste",
+        "statistic": "Statistique de test",
+        "df": "Degrés de liberté",
+        "dfNormal": "normale",
+        "nullValue": "Valeur nulle",
+        "ciLevel": "Niveau de confiance",
+        "kParams": "Paramètres",
+        "mde": "MDE (puissance {power})",
+        "tostTitle": "Tests d'équivalence (TOST)",
+        "bounds": "Bornes",
+        "tostInterval": "Intervalle",
+        "familiesTitle": "Familles",
+        "method": "Méthode",
+        "group": "Groupe",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Conventions"
+      },
+      "clustersHeader": "clusters"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "Ce qu'il faut pour reproduire les chiffres : le même frame, la même spécification normalisée et la même version du moteur donnent les mêmes estimations.",
+      "specHash": "Hash de la spécification",
+      "frameHash": "Hash du frame",
+      "frameSha256": "SHA-256 du fichier frame",
+      "lockfile": "SHA-256 du lockfile",
+      "frameSize": "Frame",
+      "frameRows": "{rows} lignes, {size}",
+      "engine": "Moteur",
+      "engineVersions": "moteur {engine}, format de spécification {spec}",
+      "libraries": "Bibliothèques",
+      "seed": "Graine",
+      "noSeed": "aucune",
+      "counts": "Effectifs",
+      "timings": "Durées",
+      "copy": "Copier {what}",
+      "copied": "Copié"
+    },
+    "spec": {
+      "title": "Spécification",
+      "normalized": "Normalisée",
+      "submitted": "Telle que soumise",
+      "normalizedHint": "Avec toutes les conventions complétées ; le hash de la spécification est calculé sur cette forme.",
+      "submittedHint": "Exactement telle que l'analyse a été lancée.",
+      "copy": "Copier la spécification"
+    },
+    "fits": {
+      "title": "Ajustements",
+      "description": "Un ajustement par estimande et sous-ensemble, tel que le moteur l'a calculé.",
+      "empty": "Aucun ajustement enregistré.",
+      "rows": "Lignes",
+      "parameters": "Paramètres",
+      "clusters": "Clusters",
+      "fixedEffects": "Niveaux des effets fixes",
+      "notes": "Remarques",
+      "dropped": "retiré : {columns}",
+      "missing": "Exclues (manquantes)"
     }
   }
 }

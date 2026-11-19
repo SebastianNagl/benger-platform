@@ -1295,11 +1295,16 @@ describe('ProjectDataTab - interaction coverage', () => {
         target: { value: 'nonexistent-query-xyz' },
       })
 
-      await waitFor(() => {
-        expect(
-          screen.getByText('annotationTab.empty.noMatch'),
-        ).toBeInTheDocument()
-      })
+      // The search is debounced (300 ms) and then refetched: allow more than
+      // waitFor's default 1 s so a loaded test machine does not time out.
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText('annotationTab.empty.noMatch'),
+          ).toBeInTheDocument()
+        },
+        { timeout: 3000 },
+      )
     })
   })
 

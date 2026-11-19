@@ -20,7 +20,8 @@ Routes:
 * ``GET /api/analysis-runs/{analysis_run_id}``: one run with its normalized spec,
   hashes, versions, counts, fits, warnings and timings.
 * ``GET /api/analysis-runs/{analysis_run_id}/estimates``: its estimates in engine
-  order, filterable by estimand, contrast, scope, family and status.
+  order with their row ids, filterable by estimand, contrast, scope, family and
+  status.
 * ``GET /api/analysis-runs/{analysis_run_id}/frame``: the frame snapshot (Parquet) as a
   short-lived download URL; needs full read access to task content, because
   the frame carries task data paths (gold) and parsed answers.
@@ -107,8 +108,13 @@ ESTIMATE_FIELDS = (
 )
 
 
-def serialize_estimate(row: AnalysisEstimate) -> Dict[str, Any]:
-    return {name: getattr(row, name) for name in ESTIMATE_FIELDS}
+def serialize_estimate(row: AnalysisEstimate, *, with_id: bool = True) -> Dict[str, Any]:
+    """An estimate with the engine's fields and, for the full API, its row
+    ``id`` (what a compliance finding's ``analysis_estimate_id`` cites). The
+    v1 schema (``AnalysisEstimateOut``) has no id, so v1 passes
+    ``with_id=False``."""
+    out = {name: getattr(row, name) for name in ESTIMATE_FIELDS}
+    return {"id": row.id, **out} if with_id else out
 
 
 def _spec_error(errors: List[str]) -> HTTPException:

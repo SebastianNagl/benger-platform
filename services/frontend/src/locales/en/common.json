@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Toggle navigation"
     },
-    "billing": "Plan & billing"
+    "billing": "Plan & billing",
+    "compliance": "Compliance"
   },
   "header": {
     "expandSidebar": "Expand sidebar",
@@ -1526,7 +1527,8 @@
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
       "korrektur": "Correction",
-      "members": "Members"
+      "members": "Members",
+      "analysis": "Analysis"
     },
     "billing": {
       "title": "Billing",
@@ -11839,6 +11841,183 @@
       "reglab": "Stanford's Regulation, Evaluation, and Governance Lab led by Prof. Daniel E. Ho, a co-author of CaseHOLD and LegalBench.",
       "hazyresearch": "Prof. Christopher Ré's group at Stanford University, where LegalBench originated.",
       "ethLawEcon": "The Center for Law & Economics at ETH Zurich, with Prof. Elliott Ash among others, a co-author of LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Loading…",
+    "unavailable": {
+      "title": "Compliance is not available",
+      "description": "The compliance features are not switched on for your account in this installation."
+    }
+  },
+  "analysis": {
+    "title": "Analysis",
+    "project": "Project",
+    "scope": {
+      "pooled": "Pooled"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Error",
+      "degenerate": "No sampling variance",
+      "not_estimable": "Not estimable",
+      "negative_variance": "Negative variance"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Analysis runs treat the project as a controlled variant experiment: every task is one cell of a variant design, and a run computes the estimands of its spec on the answers, with confidence intervals, equivalence tests and multiplicity-adjusted p-values.",
+      "newRun": "New analysis run",
+      "newRunDescription": "Paste an analysis spec (JSON). Validate it first to see every problem the engine finds, then start the run.",
+      "empty": "No analysis runs yet.",
+      "forbidden": "You cannot see the analysis runs of this project.",
+      "loadFailed": "The analysis runs could not be loaded.",
+      "prefillFailed": "The spec of that run could not be loaded.",
+      "more": "Showing the newest {shown} of {total} runs.",
+      "col": {
+        "name": "Name",
+        "status": "Status",
+        "created": "Started",
+        "rows": "Frame rows",
+        "estimates": "Estimates",
+        "specHash": "Spec hash"
+      }
+    },
+    "newRun": {
+      "name": "Name (optional)",
+      "namePlaceholder": "Defaults to the name in the spec",
+      "spec": "Analysis spec (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format: spec version 1 (see the analysis engine documentation). The engine fills in every inference convention and hashes the result.",
+      "insertStarter": "Insert a starting spec",
+      "defaultName": "Analysis",
+      "validate": "Validate",
+      "validating": "Validating…",
+      "start": "Start run",
+      "starting": "Starting…",
+      "valid": "The spec is valid (spec hash {hash}).",
+      "invalid": "The spec is invalid:",
+      "invalidJson": "Not valid JSON: {error}",
+      "failed": "The run could not be started."
+    },
+    "run": {
+      "title": "Analysis run",
+      "loading": "Loading…",
+      "loadFailed": "The analysis run could not be loaded.",
+      "notFound": "This analysis run does not exist or you cannot see it.",
+      "timeline": "Started {created}, finished {completed}",
+      "pending": "The run is queued. This page updates by itself when it finishes.",
+      "running": "The run is being computed. This page updates by itself when it finishes.",
+      "failed": "The run failed.",
+      "warnings": "Warnings ({count})",
+      "reuseSpec": "New run from this spec",
+      "frameDownload": "Download frame (Parquet)",
+      "frameDownloading": "Preparing download…",
+      "frameForbidden": "Downloading the frame needs the org admin or contributor role on the project.",
+      "frameFailed": "The frame could not be downloaded."
+    },
+    "forest": {
+      "title": "Forest plot",
+      "description": "One contrast across its scopes: the point estimate with its confidence interval. With an equivalence band, the thick segment is the interval the equivalence test uses.",
+      "contrast": "Contrast",
+      "band": "Equivalence band",
+      "noBand": "No band",
+      "bandLabel": "Equivalence bounds {bounds}",
+      "empty": "This run has no estimate to plot.",
+      "noEstimate": "no estimate",
+      "ariaLabel": "Forest plot of {contrast}",
+      "legendInterval": "Estimate with {level} confidence interval",
+      "legendInner": "{level} interval of the equivalence test"
+    },
+    "estimates": {
+      "title": "Estimates",
+      "description": "Every estimate in the order of the spec. p adj. is the adjusted p-value in the estimate's first family; open a row for all families, equivalence tests and conventions.",
+      "loading": "Loading estimates…",
+      "loadFailed": "The estimates could not be loaded.",
+      "filterEstimand": "Estimand",
+      "filterFamily": "Family",
+      "all": "All",
+      "count": "{shown} of {total}",
+      "empty": "No estimates match the filter.",
+      "details": "Details",
+      "estimand": "Estimand",
+      "scope": "Scope",
+      "estimate": "Estimate",
+      "se": "SE",
+      "ci": "CI",
+      "family": "Family",
+      "pAdjusted": "p adj.",
+      "equivalence": "Equivalence",
+      "equivalent": "Equivalent",
+      "notEquivalent": "Not established",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "clusters {clusters}",
+      "detail": {
+        "estimator": "Estimator",
+        "outcome": "Outcome",
+        "kind": "Contrast kind",
+        "statistic": "Test statistic",
+        "df": "Degrees of freedom",
+        "dfNormal": "normal",
+        "nullValue": "Null value",
+        "ciLevel": "Confidence level",
+        "kParams": "Parameters",
+        "mde": "MDE (power {power})",
+        "tostTitle": "Equivalence tests (TOST)",
+        "bounds": "Bounds",
+        "tostInterval": "Interval",
+        "familiesTitle": "Families",
+        "method": "Method",
+        "group": "Group",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Conventions"
+      },
+      "clustersHeader": "clusters"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "What it takes to reproduce the numbers: the same frame, the same normalized spec and the same engine version give the same estimates.",
+      "specHash": "Spec hash",
+      "frameHash": "Frame hash",
+      "frameSha256": "Frame file SHA-256",
+      "lockfile": "Lockfile SHA-256",
+      "frameSize": "Frame",
+      "frameRows": "{rows} rows, {size}",
+      "engine": "Engine",
+      "engineVersions": "engine {engine}, spec format {spec}",
+      "libraries": "Libraries",
+      "seed": "Seed",
+      "noSeed": "none",
+      "counts": "Counts",
+      "timings": "Timings",
+      "copy": "Copy {what}",
+      "copied": "Copied"
+    },
+    "spec": {
+      "title": "Spec",
+      "normalized": "Normalized",
+      "submitted": "As submitted",
+      "normalizedHint": "With every convention filled in; the spec hash is computed from this form.",
+      "submittedHint": "Exactly as the run was started.",
+      "copy": "Copy spec"
+    },
+    "fits": {
+      "title": "Fits",
+      "description": "One fit per estimand and scope, as the engine ran it.",
+      "empty": "No fits recorded.",
+      "rows": "Rows",
+      "parameters": "Parameters",
+      "clusters": "Clusters",
+      "fixedEffects": "Fixed-effect levels",
+      "notes": "Notes",
+      "dropped": "dropped {columns}",
+      "missing": "Left out (missing)"
     }
   }
 }

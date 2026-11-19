@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Navigation umschalten"
     },
-    "billing": "Abo & Abrechnung"
+    "billing": "Abo & Abrechnung",
+    "compliance": "Compliance"
   },
   "header": {
     "expandSidebar": "Seitenleiste erweitern",
@@ -1526,7 +1527,8 @@
       "evaluations": "Evaluierungen",
       "reviewWorkflow": "Review-Workflow",
       "korrektur": "Korrektur",
-      "members": "Mitglieder"
+      "members": "Mitglieder",
+      "analysis": "Analyse"
     },
     "billing": {
       "title": "Abrechnung",
@@ -11839,6 +11841,183 @@
       "reglab": "Stanfords Lab für Regulierung, Evaluation und Governance unter Prof. Daniel E. Ho, Mitautor von CaseHOLD und LegalBench.",
       "hazyresearch": "Die Gruppe von Prof. Christopher Ré an der Stanford University, aus der LegalBench hervorgegangen ist.",
       "ethLawEcon": "Das Center for Law & Economics der ETH Zürich, unter anderem mit Prof. Elliott Ash, Mitautor von LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Wird geladen…",
+    "unavailable": {
+      "title": "Compliance ist nicht verfügbar",
+      "description": "Die Compliance-Funktionen sind in dieser Installation für dein Konto nicht eingeschaltet."
+    }
+  },
+  "analysis": {
+    "title": "Analyse",
+    "project": "Projekt",
+    "scope": {
+      "pooled": "Gepoolt"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Fehler",
+      "degenerate": "Keine Stichprobenvarianz",
+      "not_estimable": "Nicht schätzbar",
+      "negative_variance": "Negative Varianz"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Analyseläufe behandeln das Projekt als kontrolliertes Variantenexperiment: Jede Aufgabe ist eine Zelle eines Variantendesigns, und ein Lauf berechnet die Schätzgrößen seiner Spezifikation auf den Antworten, mit Konfidenzintervallen, Äquivalenztests und für Mehrfachtests adjustierten p-Werten.",
+      "newRun": "Neuer Analyselauf",
+      "newRunDescription": "Füge eine Analysespezifikation (JSON) ein. Prüfe sie zuerst, um jedes Problem zu sehen, das die Engine findet, und starte dann den Lauf.",
+      "empty": "Noch keine Analyseläufe.",
+      "forbidden": "Du kannst die Analyseläufe dieses Projekts nicht sehen.",
+      "loadFailed": "Die Analyseläufe konnten nicht geladen werden.",
+      "prefillFailed": "Die Spezifikation dieses Laufs konnte nicht geladen werden.",
+      "more": "Die neuesten {shown} von {total} Läufen.",
+      "col": {
+        "name": "Name",
+        "status": "Status",
+        "created": "Gestartet",
+        "rows": "Zeilen im Frame",
+        "estimates": "Schätzungen",
+        "specHash": "Spec-Hash"
+      }
+    },
+    "newRun": {
+      "name": "Name (optional)",
+      "namePlaceholder": "Sonst der Name aus der Spezifikation",
+      "spec": "Analysespezifikation (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format: Spezifikation Version 1 (siehe die Dokumentation der Analyse-Engine). Die Engine ergänzt jede Inferenzkonvention und bildet daraus den Hash.",
+      "insertStarter": "Startspezifikation einfügen",
+      "defaultName": "Analyse",
+      "validate": "Prüfen",
+      "validating": "Wird geprüft…",
+      "start": "Lauf starten",
+      "starting": "Wird gestartet…",
+      "valid": "Die Spezifikation ist gültig (Spec-Hash {hash}).",
+      "invalid": "Die Spezifikation ist ungültig:",
+      "invalidJson": "Kein gültiges JSON: {error}",
+      "failed": "Der Lauf konnte nicht gestartet werden."
+    },
+    "run": {
+      "title": "Analyselauf",
+      "loading": "Wird geladen…",
+      "loadFailed": "Der Analyselauf konnte nicht geladen werden.",
+      "notFound": "Diesen Analyselauf gibt es nicht, oder du kannst ihn nicht sehen.",
+      "timeline": "Gestartet {created}, fertig {completed}",
+      "pending": "Der Lauf wartet in der Warteschlange. Die Seite aktualisiert sich, sobald er fertig ist.",
+      "running": "Der Lauf wird berechnet. Die Seite aktualisiert sich, sobald er fertig ist.",
+      "failed": "Der Lauf ist fehlgeschlagen.",
+      "warnings": "Warnungen ({count})",
+      "reuseSpec": "Neuer Lauf mit dieser Spezifikation",
+      "frameDownload": "Frame herunterladen (Parquet)",
+      "frameDownloading": "Download wird vorbereitet…",
+      "frameForbidden": "Zum Herunterladen des Frames brauchst du im Projekt die Rolle Org-Admin oder Contributor.",
+      "frameFailed": "Der Frame konnte nicht heruntergeladen werden."
+    },
+    "forest": {
+      "title": "Forest-Plot",
+      "description": "Ein Kontrast über seine Teilmengen: die Punktschätzung mit ihrem Konfidenzintervall. Mit Äquivalenzband zeigt der dicke Abschnitt das Intervall, das der Äquivalenztest verwendet.",
+      "contrast": "Kontrast",
+      "band": "Äquivalenzband",
+      "noBand": "Kein Band",
+      "bandLabel": "Äquivalenzgrenzen {bounds}",
+      "empty": "Dieser Lauf hat keine Schätzung zum Darstellen.",
+      "noEstimate": "keine Schätzung",
+      "ariaLabel": "Forest-Plot von {contrast}",
+      "legendInterval": "Schätzung mit {level}-Konfidenzintervall",
+      "legendInner": "{level}-Intervall des Äquivalenztests"
+    },
+    "estimates": {
+      "title": "Schätzungen",
+      "description": "Alle Schätzungen in der Reihenfolge der Spezifikation. p adj. ist der adjustierte p-Wert in der ersten Familie der Schätzung; öffne eine Zeile für alle Familien, Äquivalenztests und Konventionen.",
+      "loading": "Schätzungen werden geladen…",
+      "loadFailed": "Die Schätzungen konnten nicht geladen werden.",
+      "filterEstimand": "Schätzgröße",
+      "filterFamily": "Familie",
+      "all": "Alle",
+      "count": "{shown} von {total}",
+      "empty": "Keine Schätzung passt zum Filter.",
+      "details": "Details",
+      "estimand": "Schätzgröße",
+      "scope": "Teilmenge",
+      "estimate": "Schätzung",
+      "se": "SE",
+      "ci": "KI",
+      "family": "Familie",
+      "pAdjusted": "p adj.",
+      "equivalence": "Äquivalenz",
+      "equivalent": "Äquivalent",
+      "notEquivalent": "Nicht belegt",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "Cluster {clusters}",
+      "detail": {
+        "estimator": "Schätzer",
+        "outcome": "Zielgröße",
+        "kind": "Art des Kontrasts",
+        "statistic": "Teststatistik",
+        "df": "Freiheitsgrade",
+        "dfNormal": "normal",
+        "nullValue": "Nullwert",
+        "ciLevel": "Konfidenzniveau",
+        "kParams": "Parameter",
+        "mde": "MDE (Power {power})",
+        "tostTitle": "Äquivalenztests (TOST)",
+        "bounds": "Grenzen",
+        "tostInterval": "Intervall",
+        "familiesTitle": "Familien",
+        "method": "Verfahren",
+        "group": "Gruppe",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Konventionen"
+      },
+      "clustersHeader": "Cluster"
+    },
+    "provenance": {
+      "title": "Herkunft",
+      "description": "Was es braucht, um die Zahlen zu reproduzieren: derselbe Frame, dieselbe normalisierte Spezifikation und dieselbe Engine-Version ergeben dieselben Schätzungen.",
+      "specHash": "Spec-Hash",
+      "frameHash": "Frame-Hash",
+      "frameSha256": "SHA-256 der Frame-Datei",
+      "lockfile": "SHA-256 der Lockfile",
+      "frameSize": "Frame",
+      "frameRows": "{rows} Zeilen, {size}",
+      "engine": "Engine",
+      "engineVersions": "Engine {engine}, Spec-Format {spec}",
+      "libraries": "Bibliotheken",
+      "seed": "Seed",
+      "noSeed": "keiner",
+      "counts": "Zählungen",
+      "timings": "Laufzeiten",
+      "copy": "{what} kopieren",
+      "copied": "Kopiert"
+    },
+    "spec": {
+      "title": "Spezifikation",
+      "normalized": "Normalisiert",
+      "submitted": "Wie eingereicht",
+      "normalizedHint": "Mit allen ergänzten Konventionen; aus dieser Form wird der Spec-Hash berechnet.",
+      "submittedHint": "Genau so, wie der Lauf gestartet wurde.",
+      "copy": "Spezifikation kopieren"
+    },
+    "fits": {
+      "title": "Modellanpassungen",
+      "description": "Eine Anpassung je Schätzgröße und Teilmenge, so wie die Engine sie gerechnet hat.",
+      "empty": "Keine Anpassungen erfasst.",
+      "rows": "Zeilen",
+      "parameters": "Parameter",
+      "clusters": "Cluster",
+      "fixedEffects": "Stufen der festen Effekte",
+      "notes": "Hinweise",
+      "dropped": "entfernt: {columns}",
+      "missing": "Ausgelassen (fehlend)"
     }
   }
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import {
   Select,
   SelectContent,
@@ -71,19 +71,6 @@ interface PaginatedRunsResponse {
 }
 
 const PAGE_SIZE = 25
-
-function StatusBadge({ status }: { status?: string | null }) {
-  if (!status) return <span className="text-zinc-400">—</span>
-  const tone =
-    status === 'completed'
-      ? 'success'
-      : status === 'failed'
-        ? 'error'
-        : status === 'running' || status === 'pending'
-          ? 'warning'
-          : 'secondary'
-  return <Badge variant={tone as any}>{status}</Badge>
-}
 
 function formatDate(d: string | null | undefined, locale: string) {
   if (!d) return '—'
@@ -380,7 +367,7 @@ export default function RunsPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+          <tbody className="divide-y divide-zinc-100 bg-white text-zinc-900 dark:divide-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
             {loading && (
               <tr>
                 <td
@@ -417,7 +404,7 @@ export default function RunsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={run.status} />
+                    <RunStatusBadge status={run.status} />
                   </td>
                   {tab === 'generation' ? (
                     <>
@@ -431,7 +418,7 @@ export default function RunsPage() {
                         {run.runs_requested && run.runs_requested > 1
                           ? `${run.runs_completed ?? 0}/${run.runs_requested}${
                               run.runs_failed
-                                ? ` (${run.runs_failed} fehlgeschlagen)`
+                                ? ` ${t('generations.detail.runsFailed', { count: run.runs_failed })}`
                                 : ''
                             }`
                           : '1'}

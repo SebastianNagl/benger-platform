@@ -180,7 +180,7 @@ p-value; `family` and `p_adjusted` are its first family.
 | `POST /api/projects/{project_id}/analysis-runs` | edit rights | start a run: `{"spec": {...}, "name": "optional"}` (202) |
 | `GET /api/projects/{project_id}/analysis-runs` | project members | the runs, newest first |
 | `GET /api/analysis-runs/{analysis_run_id}` | project members | the run: normalized spec and hash, frame hash and counts, engine and library versions, lockfile hash, per-fit summaries, warnings, timings |
-| `GET /api/analysis-runs/{analysis_run_id}/estimates` | project members | the estimates in engine order |
+| `GET /api/analysis-runs/{analysis_run_id}/estimates` | project members | the estimates in engine order, each with its row `id` (what a compliance finding's `analysis_estimate_id` cites; the v1 route leaves it out) |
 | `GET /api/analysis-runs/{analysis_run_id}/frame` | ORG_ADMIN, CONTRIBUTOR | the Parquet snapshot (short-lived URL) |
 
 `/api/v1` serves the read routes with the `results:read` scope
@@ -190,6 +190,56 @@ A run is `pending`, `running`, `completed` or `failed`. A spec or data
 problem the engine can name (an unknown column, a text outcome) fails the run
 with that message. Runs and their estimates are deleted with the project,
 and the purge removes their stored frames.
+
+## Results pages
+
+Once a project declares a variant design, its page shows an **Analysis**
+action to org admins and contributors. It opens
+`/projects/{project_id}/analysis`: the project's runs, newest first, and for
+members with edit rights a form that takes a spec as JSON, validates it
+against the engine (every problem it names is listed) and starts the run.
+"New run from this spec" on a run page opens the form prefilled with that
+run's spec (`?from={analysis_run_id}`).
+
+`/projects/{project_id}/analysis/{analysis_run_id}` shows one run. A pending
+or running run is polled until it finishes. A completed run shows:
+
+- a forest plot of one contrast across its scopes (pooled first), with a
+  dashed line at the contrast's null value. When the spec declares
+  equivalence bounds for the contrast, the first bound set is shaded as a
+  band and every row also draws the TOST interval (the `tost_level`, 90 %
+  by default) that the equivalence decision uses; the band can be switched
+  to another bound set or off;
+- every estimate in engine order with its standard error, confidence
+  interval, p-value, first family with its method and adjusted p-value, the
+  first equivalence test and the sample and cluster counts. A row opens to
+  every equivalence test, every family membership (with the family MDE), the
+  test statistic, the engine's message and the conventions;
+- the run's provenance: spec hash, frame hash, the SHA-256 of the stored
+  frame file and its size, the lockfile hash, engine, spec format and library
+  versions, the seed, the frame counts and the timings;
+- the spec (normalized, or as submitted) and the per-fit summaries.
+
+The frame download button (ORG_ADMIN and CONTRIBUTOR) fetches the short-lived
+URL of the Parquet snapshot. The page computes no statistics; every number is
+the stored estimate.
+
+The forest plot (`@/components/analysis/ForestPlot`) takes plain rows, a null
+value and an optional band, so overlay views can reuse it with their own
+bounds.
+
+## Compliance overlay slots
+
+The platform owns the routes the compliance overlay fills; the overlay
+registers the components. They render only while the overlay's master flag
+`extension.compliance` is on for the viewer, and otherwise show a
+not-available notice (route shells) or nothing (inline slot):
+
+| Slot | Where | Props |
+|---|---|---|
+| `ComplianceDashboard` | `/compliance` (and a navigation entry) | none |
+| `AssessmentDetail` | `/compliance/assessments/{assessment_id}` | `{ assessmentId }` |
+| `AnalysisRunFindings` | the analysis run page, below the estimates | `{ projectId, run, estimates }` |
 
 ## Reproducibility
 

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 
+import { useComplianceSlot } from '@/components/compliance/ComplianceSlot'
 import { useIsInsideMobileNavigation } from '@/components/layout/MobileNavigation'
 import { useSectionStore } from '@/components/layout/SectionProvider'
 import { Tag } from '@/components/shared/Tag'
@@ -46,6 +47,23 @@ const DashboardIcon = () => (
       strokeLinejoin="round"
       strokeWidth={2}
       d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+    />
+  </svg>
+)
+
+// Shield with a check mark (heroicons shield-check, outline).
+const ComplianceIcon = () => (
+  <svg
+    className="h-4 w-4"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
     />
   </svg>
 )
@@ -493,6 +511,9 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   // Extended edition: the personal learning-statistics page (slot-backed;
   // community edition registers nothing and the entry stays hidden).
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
+  // Compliance overlay: its dashboard entry shows only while the overlay is
+  // active for the viewer and registers the dashboard.
+  const hasCompliance = useComplianceSlot('ComplianceDashboard').status === 'on'
 
   // Helper function to check if user has access to specific routes. The
   // host (apex or org subdomain) plays no part: the data-management
@@ -562,6 +583,15 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         icon: <EvaluationIcon />,
         disabled: !hasAccessToRoute('/evaluations'),
       },
+      ...(hasCompliance
+        ? [
+            {
+              title: t('navigation.compliance'),
+              href: '/compliance',
+              icon: <ComplianceIcon />,
+            },
+          ]
+        : []),
     ]
 
     const knowledgeLinks = [

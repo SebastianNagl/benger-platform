@@ -1,10 +1,10 @@
 'use client'
 
 import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
-import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { intlTag } from '@/lib/i18n/locales'
@@ -83,19 +83,6 @@ interface GenerationRunDetail {
   prompt_used?: string | null
   children: ChildGeneration[]
   linked_evaluations?: LinkedEvaluation[]
-}
-
-function StatusBadge({ status }: { status?: string | null }) {
-  if (!status) return <span className="text-zinc-400">—</span>
-  const tone =
-    status === 'completed'
-      ? 'success'
-      : status === 'failed'
-        ? 'error'
-        : status === 'running' || status === 'pending'
-          ? 'warning'
-          : 'secondary'
-  return <Badge variant={tone as any}>{status}</Badge>
 }
 
 function contentText(content: unknown): string {
@@ -341,7 +328,7 @@ export default function GenerationRunDetailPage({
             {t('generations.detail.status')}
           </div>
           <div className="mt-1">
-            <StatusBadge status={data.status} />
+            <RunStatusBadge status={data.status} />
           </div>
         </div>
         <div>
@@ -460,7 +447,7 @@ export default function GenerationRunDetailPage({
                       {c.run_index}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={c.status} />
+                      <RunStatusBadge status={c.status} />
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {fmtDate(c.completed_at, locale)}
@@ -538,7 +525,7 @@ export default function GenerationRunDetailPage({
                       {ev.metric || <span className="text-zinc-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={ev.status} />
+                      <RunStatusBadge status={ev.status} />
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {fmtDate(ev.completed_at, locale)}

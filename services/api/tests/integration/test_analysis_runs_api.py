@@ -230,6 +230,13 @@ async def test_estimates_in_engine_order_with_filters(async_test_client, async_t
         page = await async_test_client.get(f"/api/analysis-runs/{run.id}/estimates", params={"limit": 2, "offset": 1})
     items = everything.json()["items"]
     assert [i["position"] for i in items] == [0, 1, 2, 3]
+    # the row id is what a compliance finding's analysis_estimate_id cites
+    rows = (
+        await async_test_db.execute(
+            select(AnalysisEstimate).where(AnalysisEstimate.run_id == run.id).order_by(AnalysisEstimate.position)
+        )
+    ).scalars().all()
+    assert [i["id"] for i in items] == [r.id for r in rows]
     assert items[0]["tost"][0]["equivalent"] is True and items[0]["p_adjusted"] == 0.03
     assert [i["position"] for i in role.json()["items"]] == [0, 1]
     assert [i["position"] for i in pooled.json()["items"]] == [0]
@@ -255,6 +262,8 @@ async def test_long_data_built_labels_are_selectable(async_test_client, async_te
     for response in (full, v1):
         assert response.status_code == 200, response.text
         assert [(e["position"], e["scope"]) for e in response.json()["items"]] == [(1, scope)]
+    # the v1 schema has no row id
+    assert "id" in full.json()["items"][0] and "id" not in v1.json()["items"][0]
 
 
 async def test_frame_download_needs_full_data_access(async_test_client, async_test_db, world):
