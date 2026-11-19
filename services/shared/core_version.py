@@ -1422,11 +1422,32 @@ frame format 2).
     (cells run once per prediction field, under the field key
     ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
+
+2.67 (2026-11-19): counts and listings reflect analysis runs (no
+  migration, additive response fields only).
+  - ``ProjectResponse.analysis_count``: completed analysis runs of the
+    project, on the detail and, batched in one grouped count, on the list
+    (``routers.projects.helpers.count_analysis_runs_by_project`` and
+    ``count_analysis_runs_by_project_async``, ``build_select_analysis_counts``).
+    A run that reads a further project counts for its own project.
+  - ``GET /api/dashboard/stats`` (overview) adds ``generations_count``,
+    ``evaluations_count`` and ``analyses_count``; ``projects_with_generations``
+    and ``projects_with_evaluations`` stay as aliases with the same values
+    (they always carried the counts, not a number of projects).
+  - ``GET /api/runs`` takes ``type=analysis`` (``RunSummary`` gains ``name``,
+    ``frame_rows``, ``estimates_count``, ``spec_hash``, ``engine_version``).
+    Every type filters the accessible projects in the query, so ``total``
+    and the pages count exactly the listed runs; analysis runs that read a
+    further project the user may not read are left out, as in the
+    per-project run list.
+  - Report statistics (``report_service.get_report_statistics`` and
+    ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
+    published list items carry ``analysis_count``.
 """
 
 import os
 
-CORE_API_VERSION = "2.66"
+CORE_API_VERSION = "2.67"
 
 
 def extended_required() -> bool:

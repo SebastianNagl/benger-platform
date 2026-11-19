@@ -1756,8 +1756,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="group flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                <div className="group flex min-w-0 flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 text-3xl font-bold tracking-tight break-words text-zinc-900 dark:text-white">
                     {canEditIcon() ? (
                       <button
                         type="button"
@@ -3247,6 +3247,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dt>
                   <dd className="text-sm font-medium text-zinc-900 dark:text-white">
                     {currentProject.evaluation_count ?? 0}
+                  </dd>
+                </div>
+              )}
+              {(currentProject.analysis_count ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.analyses')}
+                  </dt>
+                  <dd
+                    className="text-sm font-medium text-zinc-900 dark:text-white"
+                    data-testid="project-statistics-analyses"
+                  >
+                    {currentProject.analysis_count}
                   </dd>
                 </div>
               )}

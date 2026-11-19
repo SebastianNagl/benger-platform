@@ -300,6 +300,7 @@ describe('ProjectListTable', () => {
         annotation_count: 0,
         progress_percentage: 0,
         access_tier: 'full',
+        analysis_count: 3,
       },
       {
         id: 'part-1',
@@ -365,6 +366,16 @@ describe('ProjectListTable', () => {
       ).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('projects-table-checkbox-att-1'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('shows an analyses badge on rows with completed analysis runs', () => {
+      render(<ProjectListTable />)
+      expect(
+        screen.getByTestId('project-analyses-badge-full-1'),
+      ).toHaveTextContent('3 analyses')
+      expect(
+        screen.queryByTestId('project-analyses-badge-part-1'),
       ).not.toBeInTheDocument()
     })
 

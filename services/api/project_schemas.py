@@ -523,6 +523,9 @@ class ProjectResponse(ProjectBase):
     # contribute to progress_percentage when enable_evaluation is true.
     evaluation_count: int = 0
     evaluations_completed_count: int = 0
+    # Completed analysis runs of the project (routers.projects.helpers.
+    # count_analysis_runs_by_project) — the Statistiken "Analyses" tile.
+    analysis_count: int = 0
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None
