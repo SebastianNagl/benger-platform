@@ -485,3 +485,25 @@ def test_served_report_drops_the_parts_while_off_for_everybody():
     assert without_experiment_parts(report.content["snapshot"]) == served
     with flag_scope({VARIANT_EXPERIMENTS: True}):
         assert _served_content(report)["snapshot"] == report.content["snapshot"]
+
+
+async def test_only_superadmins_author_reports_while_off(async_test_client, async_test_db, world):
+    pid = world["project"].id
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        publish = await async_test_client.put(f"/api/projects/{pid}/report/publish")
+        refresh = await async_test_client.post(f"/api/projects/{pid}/report/refresh")
+    assert publish.status_code == 403
+    assert publish.json()["detail"] == "Only superadmins can publish reports"
+    assert refresh.status_code == 403
+    assert refresh.json()["detail"] == "Only superadmins can refresh reports"
+
+
+@pytest.mark.flags_on(VARIANT_EXPERIMENTS)
+async def test_the_project_owner_authors_the_report_with_the_flag(
+    async_test_client, async_test_db, world
+):
+    pid = world["project"].id
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        publish = await async_test_client.put(f"/api/projects/{pid}/report/publish")
+    # Past the author check (the project has no report yet).
+    assert publish.status_code != 403, publish.text

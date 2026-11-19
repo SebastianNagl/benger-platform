@@ -705,6 +705,7 @@ class TestEvaluationSectionWrite:
 # ===========================================================================
 
 
+@pytest.mark.flags_on("variant_experiments")
 class TestCanPublishGate:
     def test_no_report_blocks_with_report_not_found(self, test_db: Session, test_user):
         from report_service import can_publish_report

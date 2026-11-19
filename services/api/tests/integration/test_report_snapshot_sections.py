@@ -374,7 +374,7 @@ async def _seed_data(db, project, admin):
                 db.add(Task(id=_uid(), project_id=project.id, created_by=admin.id,
                             inner_id=100 + u * 10 + (framing == "loaded") * 2 + order,
                             data={"text": f"unit {u} {framing} {order}"},
-                            meta={"variant": {"design": "framing", "unit": f"u{u}",
+                            meta={"benger_variant": {"design": "framing", "unit": f"u{u}",
                                               "factors": {"framing": framing, "order": order}}}))
     await db.flush()
 
