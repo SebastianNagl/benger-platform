@@ -7,8 +7,10 @@ validations (a text pattern code and a judge code of a private BYOM model)
 and analysis runs whose ``codes`` accepted them, then checks that the
 snapshot copies exactly the stored kappa and per-category metrics, lists
 each validation once with the runs and measures reading it, leaves out
-codes without a validation, keeps member-only validations out of the
-public view and honours the report's ``show_code_validations`` switch.
+codes without a validation, copies a validation's detail only when the
+author building the snapshot can open its coding project, keeps
+member-only validations out of the public view and honours the report's
+``show_code_validations`` switch.
 """
 
 import copy
@@ -23,6 +25,7 @@ from models import CodeValidation, CodingProject
 from project_models import Project
 from report_models import ProjectReport
 from report_snapshot import apply_section_visibility, build_report_snapshot, public_snapshot
+from routers.projects.helpers import check_project_accessible
 from tests.integration.test_report_analyses import _estimate, _project, _run, _set_analyses
 from tests.integration.test_report_snapshot_public import _as_user, _user
 
@@ -81,10 +84,12 @@ def _record(measure, v, *, kind, ref, code_hash, **extra):
                            "compared": v.n_compared, "completed_at": v.completed_at.isoformat()}}
 
 
-async def _seed(db):
+async def _seed(db, *, owner=None, coder=None):
+    """``owner`` creates the source project (and so authors its report),
+    ``coder`` the private coding project; both default to a superadmin."""
     admin = await _user(db, is_superadmin=True)
-    project, _, report = await _project(db, admin, title="Coded Bench")
-    coding = await _coding(db, project, admin)
+    project, _, report = await _project(db, owner or admin, title="Coded Bench")
+    coding = await _coding(db, project, coder or admin)
     pattern = _validation(coding, project, admin, name="blame pattern", kind="text_pattern",
                           ref="blame@1:claimant", code_hash=PATTERN_HASH,
                           identity={"kind": "text_pattern", "ref": "blame@1:claimant", "hash": PATTERN_HASH})
@@ -122,14 +127,15 @@ def _analyses(*runs):
     return {"visible": True, "runs": [{"run_id": r.id, "exhibits": [{"id": "all", "type": "table"}]} for r in runs]}
 
 
-async def _snapshot(db, project_id, analyses):
-    return await db.run_sync(lambda s: build_report_snapshot(s, project_id, analyses=analyses))
+async def _snapshot(db, project_id, analyses, author):
+    return await db.run_sync(lambda s: build_report_snapshot(
+        s, project_id, analyses=analyses, can_open_project=lambda pid: check_project_accessible(s, author, pid)))
 
 
 @pytest.mark.asyncio
 async def test_snapshot_copies_the_stored_validations_behind_the_runs(async_test_db):
     w = await _seed(async_test_db)
-    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["first"], w["second"], w["plain"]))
+    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["first"], w["second"], w["plain"]), w["admin"])
     validations = snap["analyses"]["code_validations"]
 
     assert [v["id"] for v in validations] == [w["pattern"].id, w["judge"].id]
@@ -167,9 +173,9 @@ async def test_snapshot_copies_the_stored_validations_behind_the_runs(async_test
     assert validations[1]["used_by"] == [{"run_id": w["first"].id, "measure": "judge_side"}]
 
     # Without runs that read codes there is nothing to list.
-    plain = await _snapshot(async_test_db, w["project"].id, _analyses(w["plain"]))
+    plain = await _snapshot(async_test_db, w["project"].id, _analyses(w["plain"]), w["admin"])
     assert plain["analyses"]["code_validations"] == []
-    empty = await _snapshot(async_test_db, w["project"].id, None)
+    empty = await _snapshot(async_test_db, w["project"].id, None, w["admin"])
     assert empty["analyses"]["code_validations"] == []
 
 
@@ -179,7 +185,7 @@ async def test_a_validation_whose_row_is_gone_keeps_what_the_run_accepted(async_
     await async_test_db.delete(w["judge"])
     await async_test_db.delete(w["pattern"])
     await async_test_db.flush()
-    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["second"]))
+    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["second"]), w["admin"])
     (only,) = snap["analyses"]["code_validations"]
     assert only["detail"] is False and only["kappa"] == w["pattern"].kappa and only["compared"] == 9
     assert "per_category" not in only and only["name"] is None
@@ -188,7 +194,7 @@ async def test_a_validation_whose_row_is_gone_keeps_what_the_run_accepted(async_
 @pytest.mark.asyncio
 async def test_public_view_and_the_switch_withhold_validations(async_test_client, async_test_db):
     w = await _seed(async_test_db)
-    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["first"], w["second"]))
+    snap = await _snapshot(async_test_db, w["project"].id, _analyses(w["first"], w["second"]), w["admin"])
     public = public_snapshot(snap)
     assert [v["id"] for v in public["analyses"]["code_validations"]] == [w["pattern"].id]
     assert SECRET_JUDGE not in str(public["analyses"])
@@ -235,3 +241,43 @@ async def test_public_view_and_the_switch_withhold_validations(async_test_client
     with _as_user(None):
         hidden = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
     assert hidden["snapshot"]["analyses"]["code_validations"] == []
+
+
+@pytest.mark.asyncio
+async def test_detail_only_from_a_coding_project_the_author_can_open(async_test_client, async_test_db):
+    author = await _user(async_test_db)
+    coder = await _user(async_test_db)
+    w = await _seed(async_test_db, owner=author, coder=coder)
+    stored = w["pattern"]
+    analyses = _analyses(w["second"])
+
+    # The coder created the private coding project and gets its detail.
+    (opened,) = (await _snapshot(async_test_db, w["project"].id, analyses, coder))["analyses"]["code_validations"]
+    assert opened["detail"] is True and opened["name"] == "blame pattern"
+    assert opened["per_category"] == stored.metrics["automatic_vs_reference"]["per_category"]
+
+    # The report's author cannot open it (GET /api/code-validations/{id}
+    # answers 404) and gets only what the run recorded.
+    with _as_user(author):
+        assert (await async_test_client.get(f"/api/code-validations/{stored.id}")).status_code == 404
+    (closed,) = (await _snapshot(async_test_db, w["project"].id, analyses, author))["analyses"]["code_validations"]
+    assert closed["detail"] is False and closed["name"] is None
+    assert closed["kappa"] == stored.kappa and closed["compared"] == 9 and closed["code_hash"] == PATTERN_HASH
+    assert not {"per_category", "confusion", "categories", "between_coders", "agreement"} & set(closed)
+
+    # Published by that author and read anonymously as a public report.
+    report = w["report"]
+    await _set_analyses(async_test_db, report, analyses)
+    with _as_user(author):
+        published = await async_test_client.put(f"/api/projects/{w['project'].id}/report/publish")
+        assert published.status_code == 200, published.text
+    row = (await async_test_db.execute(select(ProjectReport).where(ProjectReport.id == report.id))).scalar_one()
+    await async_test_db.refresh(row)
+    row.is_public = True
+    await async_test_db.flush()
+    with _as_user(None):
+        anonymous = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
+    (served,) = anonymous["snapshot"]["analyses"]["code_validations"]
+    assert served["detail"] is False and served["kappa"] == stored.kappa
+    assert "blame pattern" not in str(anonymous) and "per_category" not in served
+

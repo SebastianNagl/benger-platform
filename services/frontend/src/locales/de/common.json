@@ -6475,6 +6475,7 @@
       "openCodingProject": "Kodierprojekt öffnen",
       "loadingDetail": "Validierung wird geladen...",
       "detailUnavailable": "Sie können das Kodierprojekt nicht öffnen, daher sind nur die vom Lauf festgehaltenen Werte zu sehen.",
+      "detailFailed": "Die Validierung konnte nicht geladen werden, daher sind nur die vom Lauf festgehaltenen Werte zu sehen.",
       "kappa": "Cohens Kappa",
       "observed": "Übereinstimmung",
       "expected": "Zufallsübereinstimmung",
@@ -7902,7 +7903,7 @@
         "usedBy": "Genutzt von",
         "usedByEntry": "{run} ({measure})",
         "completed": "Abgeschlossen",
-        "recordedOnly": "Die gespeicherte Validierung ist nicht mehr verfügbar; die Werte sind die vom Lauf festgehaltenen."
+        "recordedOnly": "Zu sehen sind nur die vom Lauf festgehaltenen Werte: Die gespeicherte Validierung ist nicht mehr verfügbar, oder die Autorin oder der Autor des Berichts konnte ihr Kodierprojekt nicht öffnen."
       }
     },
     "title": "Berichte",

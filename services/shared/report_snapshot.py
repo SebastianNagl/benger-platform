@@ -67,7 +67,7 @@ import logging
 import math
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -1460,14 +1460,19 @@ def _judge_model(identity: Any) -> Optional[str]:
     return None
 
 
-def _analysis_code_validations(db: Session, runs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _analysis_code_validations(
+    db: Session, runs: List[Dict[str, Any]], can_open_project: Optional[Callable[[str], bool]] = None
+) -> List[Dict[str, Any]]:
     """The validations behind the codes the report's runs read, one entry per
     validation in the order the runs name them.
 
     Each entry is the validation the run accepted (``analysis_runs.codes``:
     the code's kind, ref, version and hash, kappa, observed agreement and the
-    compared items, frozen when the run ran) with the agreement detail of its
-    stored row (``code_validations.metrics``: expected agreement, counts, the
+    compared items, frozen when the run ran) and, when the stored row exists
+    and ``can_open_project`` grants its coding project (the access of
+    ``GET /api/code-validations/{id}`` for the author building the snapshot;
+    without it no detail is copied), its name and the agreement detail
+    (``code_validations.metrics``: expected agreement, counts, the
     categories with precision, recall and F1, the confusion matrix and the
     agreement between the human coders, without the per-coder rows, which
     name coders). ``used_by`` lists the runs and measures that read it. A
@@ -1516,9 +1521,12 @@ def _analysis_code_validations(db: Session, runs: List[Dict[str, Any]]) -> List[
         row = rows.get(vid)
         judge = {entry.pop("_judge")}
         member_runs = entry.pop("_runs")
-        metrics = row.metrics if row is not None and isinstance(row.metrics, dict) else None
         if row is not None:
             judge.add(_judge_model(row.identity))
+        if row is not None and (can_open_project is None or not can_open_project(row.project_id)):
+            row = None
+        metrics = row.metrics if row is not None and isinstance(row.metrics, dict) else None
+        if row is not None:
             entry["name"] = row.name
             entry["coding_version"] = row.coding_version
         if metrics is not None:
@@ -1547,6 +1555,7 @@ def _build_analyses_section(
     db: Session,
     project_id: str,
     config: Dict[str, Any],
+    can_open_project: Optional[Callable[[str], bool]] = None,
 ) -> Dict[str, Any]:
     """The runs the Analyses section names, in the author's order, each with
     its metadata, whether it is member-only
@@ -1608,7 +1617,7 @@ def _build_analyses_section(
             "exhibits": exhibits,
         })
     shown_runs = [{**r, "codes": eligible[r["id"]].get("codes")} for r in runs]
-    return {"runs": runs, "omitted": omitted, "code_validations": _analysis_code_validations(db, shown_runs)}
+    return {"runs": runs, "omitted": omitted, "code_validations": _analysis_code_validations(db, shown_runs, can_open_project)}
 
 
 # ---------------------------------------------------------------------------
@@ -1712,12 +1721,16 @@ def build_report_snapshot(
     include_private_models: bool = False,
     now: Optional[datetime] = None,
     analyses: Any = None,
+    can_open_project: Optional[Callable[[str], bool]] = None,
 ) -> Dict[str, Any]:
     """Compute the full report snapshot for a project (see module docstring).
 
     ``analyses`` is the report's ``content.sections.analyses`` (see
     :func:`parse_analyses_section`): the runs and exhibits whose estimates
-    the snapshot copies."""
+    the snapshot copies. ``can_open_project`` tells whether the author
+    building the snapshot can open a project (by id); a code validation's
+    detail is copied only from a coding project it grants
+    (:func:`_analysis_code_validations`)."""
     from project_models import Project
 
     params = {"project_id": project_id}
@@ -1918,7 +1931,7 @@ def build_report_snapshot(
         hidden_judges=_hidden_judges,
     )
 
-    analyses_section = _build_analyses_section(db, project_id, parse_analyses_section(analyses))
+    analyses_section = _build_analyses_section(db, project_id, parse_analyses_section(analyses), can_open_project)
 
     snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),

@@ -261,14 +261,18 @@ holds the validations behind them, one entry per validation in the order the
 runs name them (`_analysis_code_validations`). Each entry copies what the run
 accepted (`analysis_runs.codes`: the code's kind, ref, version and hash, the
 control, kappa, observed agreement, compared items and completion time) and,
-while the stored validation exists (`detail`), its agreement from
-`code_validations.metrics`: chance agreement, the item counts (items,
+while the stored validation exists and the author building the snapshot (who
+publishes or refreshes it, or whose draft preview computes it) can open its
+coding project with the access of `GET /api/code-validations/{id}`
+(`detail`), its name and its agreement from `code_validations.metrics`:
+chance agreement, the item counts (items,
 compared, ties, items without a human code, missing automatic codes and how
 they count), the categories with precision, recall and F1, the confusion
 matrix, and the agreement between the human coders (their number, items,
 Fleiss' kappa and percent agreement). The per-coder rows are not copied,
 because they name coders. `used_by` lists the runs and measures that read the
-validation. Codes a run read without a validation are not listed.
+validation. Codes a run read without a validation are not listed. Without
+`detail` the entry holds only what the run recorded, and the viewer says so.
 
 A validation is `member_only` when every run reading it is member-only, or
 when it validates a hidden model's judge codes; the public view leaves it out

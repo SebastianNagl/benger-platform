@@ -164,10 +164,53 @@ describe('RunAgreementBlock', () => {
     expect(screen.queryByTestId('validation-kappa')).not.toBeInTheDocument()
   })
 
+  it('says the validation could not be loaded on any other error', async () => {
+    mockGet.mockRejectedValue({ response: { status: 500 } })
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    render(<RunAgreementBlock run={makeRun({ codes: [makeCodeRecord()] })} />)
+    expect(
+      await screen.findByTestId('validation-detail-failed'),
+    ).toHaveTextContent('The validation could not be loaded')
+    expect(
+      screen.queryByTestId('validation-detail-unavailable'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('run-code')).toHaveTextContent('kappa 0.59')
+    warn.mockRestore()
+  })
+
+  it('reads every page of the project validations and counts what it lists', async () => {
+    const page = (n: number, from: number) =>
+      Array.from({ length: n }, (_, i) =>
+        makeValidationSummary({
+          id: `val-${from + i + 1}`,
+          name: `v${from + i}`,
+        }),
+      )
+    mockList.mockImplementation(
+      (_project: string, limit: number, offset: number) =>
+        Promise.resolve({
+          items: offset === 0 ? page(limit, 0) : page(3, offset),
+          total: 203,
+        }),
+    )
+    render(<RunAgreementBlock run={makeRun({ codes: [makeCodeRecord()] })} />)
+    const list = await screen.findByTestId('project-code-validations')
+    expect(mockList.mock.calls).toEqual([
+      ['project-1', 200, 0],
+      ['project-1', 200, 200],
+    ])
+    expect(
+      within(list).getByText("Validations of this project's answers (203)"),
+    ).toBeInTheDocument()
+    expect(
+      within(list).getAllByTestId('project-code-validation'),
+    ).toHaveLength(203)
+  })
+
   it('lists the validations of the project answers and marks the ones the run used', async () => {
     render(<RunAgreementBlock run={makeRun({ codes: [makeCodeRecord()] })} />)
     const list = await screen.findByTestId('project-code-validations')
-    expect(mockList).toHaveBeenCalledWith('project-1')
+    expect(mockList).toHaveBeenCalledWith('project-1', 200, 0)
     expect(
       within(list).getByText("Validations of this project's answers (2)"),
     ).toBeInTheDocument()

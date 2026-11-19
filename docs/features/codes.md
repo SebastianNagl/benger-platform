@@ -286,8 +286,10 @@ and hash, the missing count and, for a validated code, what the run recorded
 agreement: Cohen's kappa with its Landis and Koch band, observed and chance
 agreement, precision, recall and F1 per category and the agreement between
 the human coders. A reader who cannot open the coding project sees only the
-numbers the run recorded. Below the codes the block lists the validations
-of the project's answers (`of=answers`), marking those the run used.
+numbers the run recorded; when the validation cannot be loaded for another
+reason (a server or network error) the block says so and also keeps those
+numbers. Below the codes the block lists every validation of the project's
+answers (`of=answers`, read page by page), marking those the run used.
 
 A project report shows the validations behind the codes of its Analyses
 runs in its Annotation section (see

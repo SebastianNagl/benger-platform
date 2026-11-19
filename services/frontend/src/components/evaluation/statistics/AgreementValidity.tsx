@@ -87,10 +87,14 @@ function HashValue({ hash }: { hash: string | null | undefined }) {
   )
 }
 
+/** Page size of the project's validation list (the endpoint's maximum). */
+const VALIDATION_PAGE = 200
+
 type DetailState =
   | { state: 'loading' }
   | { state: 'ready'; validation: CodeValidationDetail }
   | { state: 'unavailable' }
+  | { state: 'failed' }
 
 /** One code of the run with the validation it accepted. */
 function RunCode({
@@ -195,6 +199,14 @@ function RunCode({
               {t('evaluation.agreementValidity.detailUnavailable')}
             </p>
           )}
+          {detail?.state === 'failed' && (
+            <p
+              className="text-xs text-zinc-500 dark:text-zinc-400"
+              data-testid="validation-detail-failed"
+            >
+              {t('evaluation.agreementValidity.detailFailed')}
+            </p>
+          )}
           {metrics && (
             <CodeValidationAgreement
               data={validationAgreementFromMetrics(metrics)}
@@ -234,11 +246,9 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 function ProjectValidations({
   validations,
-  total,
   usedIds,
 }: {
   validations: CodeValidationSummary[]
-  total: number
   usedIds: Set<string>
 }) {
   const { t } = useI18n()
@@ -249,7 +259,7 @@ function ProjectValidations({
     <div data-testid="project-code-validations">
       <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluation.agreementValidity.projectValidations', {
-          count: count(total),
+          count: count(validations.length),
         })}
       </h4>
       <p className="-mt-1 mb-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -370,7 +380,6 @@ export function RunAgreementBlock({ run }: { run: AnalysisRun }) {
   const [listed, setListed] = useState<{
     projectId: string
     items: CodeValidationSummary[]
-    total: number
   } | null>(null)
   const hasCodes = codes.length > 0
 
@@ -394,10 +403,13 @@ export function RunAgreementBlock({ run }: { run: AnalysisRun }) {
           if (cancelled) return
           // A coding project the reader cannot open hides its detail; the
           // numbers the run recorded stay on screen.
-          if (statusOf(err) !== 404 && statusOf(err) !== 403) {
+          const status = statusOf(err)
+          if (status === 404 || status === 403) {
+            settle(id, { state: 'unavailable' })
+          } else {
             console.warn('Code validation unavailable', err)
+            settle(id, { state: 'failed' })
           }
-          settle(id, { state: 'unavailable' })
         })
     }
     return () => {
@@ -408,16 +420,25 @@ export function RunAgreementBlock({ run }: { run: AnalysisRun }) {
   useEffect(() => {
     if (!hasCodes) return
     let cancelled = false
-    codingAPI
-      .listAnswerValidations(run.project_id)
-      .then((page) => {
-        if (!cancelled) {
-          setListed({
-            projectId: run.project_id,
-            items: page?.items ?? [],
-            total: page?.total ?? 0,
-          })
+    const loadAll = async () => {
+      const items: CodeValidationSummary[] = []
+      for (;;) {
+        const page = await codingAPI.listAnswerValidations(
+          run.project_id,
+          VALIDATION_PAGE,
+          items.length,
+        )
+        const batch = page?.items ?? []
+        items.push(...batch)
+        const total = page?.total ?? 0
+        if (batch.length < VALIDATION_PAGE || items.length >= total) {
+          return items
         }
+      }
+    }
+    loadAll()
+      .then((items) => {
+        if (!cancelled) setListed({ projectId: run.project_id, items })
       })
       .catch((err) => {
         // The list is optional: a failed read hides it.
@@ -458,7 +479,6 @@ export function RunAgreementBlock({ run }: { run: AnalysisRun }) {
       {project && project.items.length > 0 && (
         <ProjectValidations
           validations={project.items}
-          total={project.total}
           usedIds={new Set(validationIds)}
         />
       )}

@@ -6475,6 +6475,7 @@
       "openCodingProject": "Ouvrir le projet de codage",
       "loadingDetail": "Chargement de la validation...",
       "detailUnavailable": "Vous ne pouvez pas ouvrir le projet de codage ; seules les valeurs enregistrées par l'exécution sont affichées.",
+      "detailFailed": "La validation n'a pas pu être chargée ; seules les valeurs enregistrées par l'exécution sont affichées.",
       "kappa": "Kappa de Cohen",
       "observed": "Accord",
       "expected": "Accord dû au hasard",
@@ -7902,7 +7903,7 @@
         "usedBy": "Utilisée par",
         "usedByEntry": "{run} ({measure})",
         "completed": "Terminée",
-        "recordedOnly": "La validation enregistrée n'est plus disponible ; les valeurs sont celles enregistrées par l'exécution."
+        "recordedOnly": "Seules les valeurs enregistrées par l'exécution sont affichées : la validation enregistrée n'est plus disponible, ou l'auteur du rapport ne pouvait pas ouvrir son projet de codage."
       }
     },
     "title": "Rapports",

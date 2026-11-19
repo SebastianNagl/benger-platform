@@ -1642,7 +1642,9 @@ API change).
   - ``report_snapshot.build_report_snapshot`` adds
     ``analyses.code_validations`` (``_analysis_code_validations``): the
     validations the Analyses runs' codes accepted, with the stored
-    agreement, ``used_by`` and ``member_only``; ``public_snapshot`` leaves
+    agreement (only from a coding project ``can_open_project``, the new
+    keyword argument, grants the author building the snapshot), ``used_by``
+    and ``member_only``; ``public_snapshot`` leaves
     member-only ones out and ``apply_section_visibility`` empties the list
     for ``sections.annotations.show_code_validations: false``.
   - Frontend: ``StatisticalResultsPanel`` shows the Agreement and validity

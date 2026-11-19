@@ -6475,6 +6475,7 @@
       "openCodingProject": "Open coding project",
       "loadingDetail": "Loading the validation...",
       "detailUnavailable": "You cannot open the coding project, so only the numbers the run recorded are shown.",
+      "detailFailed": "The validation could not be loaded, so only the numbers the run recorded are shown.",
       "kappa": "Cohen's kappa",
       "observed": "Agreement",
       "expected": "Chance agreement",
@@ -7902,7 +7903,7 @@
         "usedBy": "Used by",
         "usedByEntry": "{run} ({measure})",
         "completed": "Completed",
-        "recordedOnly": "The stored validation is no longer available; the numbers are those the run recorded."
+        "recordedOnly": "Only the numbers the run recorded are shown: the stored validation is no longer available, or the report's author could not open its coding project."
       }
     },
     "title": "Reports",
