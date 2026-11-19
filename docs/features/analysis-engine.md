@@ -396,7 +396,8 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   bounds and decisions, the minimum detectable effects and the joint Wald
   tests) and **Fit** (the run's warnings and the per-fit summaries).
 
-Members with edit rights (CONTRIBUTOR, ORG_ADMIN) get **Start analysis**: a
+Superadmins and members whose project grants edit rights (`can_edit`) get
+**Start analysis**: a
 dialog that takes a spec as JSON, validates it against the engine (every
 problem it names is listed) and starts the run, which the view then selects
 and polls. A pending or running run is polled until it finishes.
