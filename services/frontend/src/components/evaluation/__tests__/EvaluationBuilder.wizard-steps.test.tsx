@@ -1434,7 +1434,10 @@ describe('EvaluationBuilder reference-free metric (text_pattern)', () => {
     const mockOnChange = jest.fn()
     const user = userEvent.setup()
     render(
-      <EvaluationBuilder {...defaultProps} onEvaluationsChange={mockOnChange} />,
+      <EvaluationBuilder
+        {...defaultProps}
+        onEvaluationsChange={mockOnChange}
+      />,
     )
     await user.click(screen.getByTestId('add-evaluation-button'))
     await user.click(screen.getByTestId('metric-button-text_pattern'))
@@ -1446,7 +1449,9 @@ describe('EvaluationBuilder reference-free metric (text_pattern)', () => {
       screen.queryByText('evaluationBuilder.steps.referenceFields.title'),
     ).not.toBeInTheDocument()
     fireEvent.change(
-      screen.getByLabelText('evaluationBuilder.parameters.textPattern.patternSet'),
+      screen.getByLabelText(
+        'evaluationBuilder.parameters.textPattern.patternSet',
+      ),
       {
         target: {
           value: JSON.stringify({
