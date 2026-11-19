@@ -137,6 +137,7 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/evaluations/human/session/{session_id}` | `annotations:write` | bound |
 | GET | `/api/evaluations/human/session/{session_id}/progress` | `annotations:read` | bound |
 | GET | `/api/evaluations/human/sessions/{project_id}` | `annotations:read` | bound |
+| GET | `/api/evaluations/projects/{project_id}/annotator-agreement` | `annotations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/available-fields` | `evaluations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/configured-methods` | `evaluations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/detect-answer-types` | `evaluations:read` | bound |

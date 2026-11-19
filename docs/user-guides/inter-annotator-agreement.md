@@ -1,301 +1,100 @@
-# Inter-Annotator Agreement (IAA) System
+# Inter-annotator agreement
 
-## Overview
+When two or more people annotate the same task, BenGER reports how closely
+they agree, separately for every control of the labeling interface. The
+numbers appear in two places:
 
-The Inter-Annotator Agreement (IAA) system provides comprehensive tools for measuring, tracking, and improving annotation quality through statistical agreement metrics. This system is essential for ensuring data quality in annotation projects and achieving parity with Label Studio Enterprise.
+- on the evaluations page (`/evaluations`), in the "Annotator agreement"
+  block below the evaluation results of the selected project, computed from
+  the live annotations;
+- in the project report, at the end of the Annotation section, frozen into
+  the report snapshot when the report is published or refreshed. The report
+  editor's Annotation card has a switch to hide the block; with it off,
+  every API response that carries the report or its snapshot leaves out the
+  agreement data entirely, and switching it back on shows the frozen block
+  again without a refresh. When the card's participant switch is off, the
+  report keeps the summary numbers and the participant count, but every API
+  response that carries the report or its snapshot leaves out the annotator
+  pairs and both participant lists (the snapshot's and the Annotation
+  section's). The stored report stays complete, so switching participants
+  back on shows the frozen pair table and participant list again without a
+  refresh.
 
-## Features
+Both places hide the block when no task has two annotators, or when none of
+the overlapping controls can be scored.
 
-### Agreement Metrics
-- **Cohen's Kappa (κ)**: Measures agreement between two annotators, accounting for chance agreement
-- **Fleiss' Kappa**: Extension of Cohen's for multiple annotators
-- **Krippendorff's Alpha (α)**: Flexible metric supporting various data types and missing values
-- **Percent Agreement**: Simple percentage of matching annotations
-- **Pearson Correlation**: For continuous/numerical annotations
-- **Spearman Correlation**: For ranked/ordinal annotations
-- **Intraclass Correlation (ICC)**: For interval/ratio scale measurements
+## What is compared
 
-### Key Components
+A task counts for a control when at least two people answered that control
+on it. Only active annotations count (withdrawn ones do not); BenGER keeps
+one active annotation per person and task.
 
-#### 1. Database Models
-- **TaskAgreement**: Stores agreement scores for individual tasks
-- **AnnotatorAgreementMatrix**: Pairwise agreement between annotators
-- **AgreementThreshold**: Configurable thresholds for quality control
+| Control | Compared as | Reported |
+|---|---|---|
+| `Choices` (single selection) | category | Fleiss' kappa, Cohen's kappa per pair, mean of the pairwise kappas, share of tasks where everyone agrees |
+| `Choices` (multiple selection) | one category per set of choices | as above; two annotations agree only when they picked exactly the same set |
+| `Rating` | category (unweighted kappa) | as above |
+| `Number` | number | Pearson's r per pair and its mean, mean absolute deviation from each task's mean |
 
-#### 2. Agreement Engine
-The `AgreementMetricsEngine` provides:
-- Automatic metric calculation
-- Redis caching for performance
-- Support for various data types
-- Confidence intervals and p-values
-- Batch processing capabilities
+Free text, spans and other controls have no comparable value and are listed
+as not scored.
 
-#### 3. Frontend Components
-- **AgreementScore**: Visual display of agreement levels
-- **AgreementMatrix**: Interactive heatmap of annotator pairs
-- **AgreementTimeline**: Track agreement over time
-- **AgreementSettings**: Configure metrics and thresholds
-- **ConsensusView**: Side-by-side comparison for conflict resolution
+The block reads kappa on the Landis and Koch scale: below 0 poor, 0 to
+0.20 slight, up to 0.40 fair, up to 0.60 moderate, up to 0.80 substantial
+and above 0.80 almost perfect, each upper limit included in its band. A pair
+of annotators needs at least two shared tasks for a Cohen's kappa. With many
+annotators the pair table shows the 50 pairs with the most shared tasks and
+says how many there are in total; the summary numbers always cover all
+pairs.
 
-## API Endpoints
+Annotators are shown by pseudonym, or by a neutral label built from the
+account id when they have none, never by real name or login name.
 
-### Get Project Agreement
+## API
+
 ```http
-GET /api/agreement/projects/{project_id}
+GET /api/evaluations/projects/{project_id}/annotator-agreement
 ```
-Returns overall agreement statistics for a project.
 
-**Response:**
+Needs read access to the project (access keys: `annotations:read`). Returns
+`available: false` without overlap, otherwise:
+
 ```json
 {
-  "overall_agreement": {
-    "kappa": 0.75,
-    "alpha": 0.72,
-    "percent_agreement": 0.85
-  },
-  "metrics": [...],
-  "task_count": 100,
-  "annotator_count": 5
+  "available": true,
+  "overlap_task_count": 4,
+  "annotator_count": 3,
+  "controls": [
+    {
+      "control": "label",
+      "type": "choices",
+      "score_type": "categorical",
+      "multi_select": false,
+      "n_items": 4,
+      "n_annotators": 3,
+      "n_annotations": 12,
+      "categories": ["x", "y"],
+      "fleiss_kappa": 0.3333,
+      "cohens_kappa_mean": 0.4,
+      "percent_agreement": 0.5,
+      "pearson_r_mean": null,
+      "mean_absolute_deviation": null,
+      "pairs": [
+        {"annotator_a": "Ash", "annotator_b": "Birch", "n_items": 4, "cohens_kappa": 0.5}
+      ],
+      "pairs_total": 3
+    }
+  ],
+  "unsupported_controls": [{"control": "comment", "type": "textarea"}]
 }
 ```
 
-### Get Task Agreement
-```http
-GET /api/agreement/tasks/{task_id}
-```
-Returns agreement metrics for a specific task.
+The report snapshot stores the same object (without `available`) under
+`annotator_agreement`, or `null` without overlap.
 
-### Calculate Agreement
-```http
-POST /api/agreement/tasks/{task_id}/calculate
-```
-Manually trigger agreement calculation.
+## Implementation
 
-**Request:**
-```json
-{
-  "metrics": ["cohen_kappa", "fleiss_kappa", "percent_agreement"]
-}
-```
-
-### Set Agreement Thresholds
-```http
-POST /api/agreement/projects/{project_id}/thresholds
-```
-Configure automatic quality control thresholds.
-
-**Request:**
-```json
-{
-  "metric_type": "cohen_kappa",
-  "threshold_low": 0.2,
-  "threshold_moderate": 0.4,
-  "threshold_good": 0.6,
-  "action_on_low": "require_review",
-  "action_on_moderate": "flag"
-}
-```
-
-### Get Low Agreement Tasks
-```http
-GET /api/agreement/projects/{project_id}/low-agreement-tasks?threshold=0.5
-```
-Find tasks needing review based on agreement scores.
-
-### Get Annotator Matrix
-```http
-GET /api/agreement/projects/{project_id}/matrix
-```
-Returns pairwise agreement between all annotators.
-
-## Usage Examples
-
-### Python Integration
-```python
-from agreement_metrics import AgreementMetricsEngine
-from models import AgreementMetricType
-
-# Initialize engine
-engine = AgreementMetricsEngine(cache_client=redis_client)
-
-# Calculate Cohen's Kappa
-annotations = [
-    {"annotator_id": "user1", "label": "positive"},
-    {"annotator_id": "user2", "label": "positive"}
-]
-
-result = engine.calculate_metric(
-    AgreementMetricType.COHEN_KAPPA,
-    annotations
-)
-
-print(f"Kappa: {result.score}")
-print(f"Agreement level: {result.interpretation}")
-```
-
-### React Component Usage
-```tsx
-import { AgreementScore, ConsensusView } from '@/components/annotations'
-
-// Display agreement score
-<AgreementScore
-  score={0.75}
-  metric="kappa"
-  showInterpretation={true}
-/>
-
-// Show consensus interface
-<ConsensusView
-  items={conflictItems}
-  onResolve={handleConsensus}
-  onEscalate={handleEscalation}
-/>
-```
-
-## Agreement Interpretation
-
-### Cohen's Kappa & Fleiss' Kappa
-- **< 0**: Poor agreement (worse than chance)
-- **0.01-0.20**: Slight agreement
-- **0.21-0.40**: Fair agreement
-- **0.41-0.60**: Moderate agreement
-- **0.61-0.80**: Substantial agreement
-- **0.81-1.00**: Almost perfect agreement
-
-### Krippendorff's Alpha
-- **< 0.667**: Insufficient agreement
-- **0.667-0.800**: Tentative conclusions
-- **≥ 0.800**: Good reliability
-
-### Percent Agreement
-- **< 50%**: Poor
-- **50-65%**: Fair
-- **65-75%**: Moderate
-- **75-85%**: Good
-- **> 85%**: Excellent
-
-## Quality Control Actions
-
-When agreement falls below thresholds, the system can automatically:
-
-1. **FLAG**: Mark task for attention
-2. **REQUIRE_REVIEW**: Send to senior annotator
-3. **REQUIRE_CONSENSUS**: Require annotators to discuss
-4. **ADD_ANNOTATOR**: Assign additional annotator
-5. **ESCALATE**: Send to project manager
-6. **RETRAIN**: Flag annotator for additional training
-
-## Performance Optimization
-
-### Caching Strategy
-- Agreement scores cached for 5 minutes
-- Matrix calculations cached for 10 minutes
-- Invalidated on new annotations
-
-### Database Indexes
-```sql
--- Optimized queries
-CREATE INDEX ix_task_agreements_project_id ON task_agreements(project_id);
-CREATE INDEX ix_task_agreements_agreement_score ON task_agreements(agreement_score);
-CREATE INDEX ix_annotator_matrix_project_id ON annotator_agreement_matrix(project_id);
-```
-
-### Batch Processing
-For large projects, use batch calculation:
-```python
-engine.calculate_project_agreement(
-    project_id,
-    batch_size=100,
-    use_parallel=True
-)
-```
-
-## Configuration
-
-### Environment Variables
-```bash
-# Redis for caching
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Agreement calculation settings
-IAA_CACHE_TTL=300
-IAA_BATCH_SIZE=100
-IAA_PARALLEL_WORKERS=4
-```
-
-### Project Settings
-```json
-{
-  "agreement_settings": {
-    "primary_metric": "fleiss_kappa",
-    "min_annotators": 2,
-    "confidence_level": 0.95,
-    "auto_calculate": true,
-    "calculation_schedule": "*/30 * * * *"
-  }
-}
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Low Agreement Scores**
-   - Check annotation guidelines clarity
-   - Verify training consistency
-   - Look for ambiguous items
-
-2. **Calculation Errors**
-   - Ensure sufficient overlapping annotations
-   - Check for missing data handling
-   - Verify metric appropriateness for data type
-
-3. **Performance Issues**
-   - Enable Redis caching
-   - Use batch processing for large datasets
-   - Optimize database queries with indexes
-
-## Migration Guide
-
-If upgrading from a system without IAA:
-
-1. Run database migration:
-```bash
-alembic upgrade 266_add_inter_annotator_agreement
-```
-
-2. Calculate historical agreement:
-```python
-from scripts import backfill_agreement
-backfill_agreement.run(start_date="2024-01-01")
-```
-
-3. Configure thresholds based on baseline:
-```python
-baseline = analyze_historical_agreement()
-set_thresholds(baseline.percentile(25), baseline.median(), baseline.percentile(75))
-```
-
-## Best Practices
-
-1. **Regular Monitoring**: Review agreement weekly
-2. **Continuous Improvement**: Adjust guidelines based on disagreements
-3. **Annotator Feedback**: Share agreement scores with team
-4. **Consensus Building**: Use ConsensusView for conflicts
-5. **Documentation**: Document resolution decisions
-
-## Integration with Label Studio
-
-For projects migrating from Label Studio:
-- IAA metrics are compatible with Label Studio export format
-- Can import Label Studio agreement history
-- Supports Label Studio annotation format
-
-## Future Enhancements
-
-- Real-time agreement calculation
-- Machine learning for disagreement prediction
-- Advanced visualization options
-- Integration with active learning pipelines
-- Automated annotator assignment based on expertise
+`services/shared/annotator_agreement.py` loads the active annotations of
+tasks with two or more annotators and passes (annotator, task, value)
+triples per control to `bg_statistics.compute_agreement`, the helper the
+statistics endpoint also uses for agreement between LLM judges.
