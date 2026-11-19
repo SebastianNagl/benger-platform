@@ -5799,7 +5799,8 @@
         "spanSequence": "Étiquetage de segments/séquences",
         "hierarchical": "Métriques hiérarchiques",
         "llmJudge": "LLM comme juge",
-        "humanEvaluation": "Correction humaine"
+        "humanEvaluation": "Correction humaine",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "Correspondance de chaînes et de surface",
@@ -5815,7 +5816,8 @@
         "hierarchical": "Pour les classifications hiérarchiques",
         "llmJudge": "Évaluation par modèle d'IA (clé API requise)",
         "llmJudgeModel": "Évaluation par modèle d'IA avec un modèle juge",
-        "humanEvaluation": "Correction par des correcteurs humains"
+        "humanEvaluation": "Correction par des correcteurs humains",
+        "codes": "Codes lus dans la réponse par un ensemble de règles versionné"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5834,7 +5836,8 @@
         "recall": "Rappel",
         "f1": "Score F1",
         "llmJudgeClassic": "Juge LLM classique",
-        "llmJudgeCustom": "Juge LLM personnalisé"
+        "llmJudgeCustom": "Juge LLM personnalisé",
+        "text_pattern": "Code par motif de texte"
       },
       "metricDesc": {
         "exactMatch": "Correspondance exacte des chaînes",
@@ -5881,7 +5884,8 @@
         "llmJudgeLexam": "Juge d'exactitude issu du benchmark LEXam (0,0 à 1,0 par rapport à la réponse de référence), transposé du droit suisse au droit allemand.",
         "korrekturClassic": "Commentaires libres, surlignages et étiquettes sur les annotations, générations et évaluations.",
         "korrekturFalloesung": "Notation manuelle selon le schéma à 10 dimensions de la résolution de cas standard (Falllösung), identique au juge LLM.",
-        "korrekturCustom": "Notation manuelle : remplit la grille d'évaluation de la tâche (ou les dimensions propres au projet issues du juge LLM personnalisé)."
+        "korrekturCustom": "Notation manuelle : remplit la grille d'évaluation de la tâche (ou les dimensions propres au projet issues du juge LLM personnalisé).",
+        "text_pattern": "Code la réponse avec un ensemble versionné d'expressions régulières"
       }
     },
     "sampleResults": {
@@ -6675,6 +6679,7 @@
       "metric": "Métrique",
       "predictionFields": "Champs de prédiction",
       "referenceFields": "Champs de référence",
+      "noReferenceNeeded": "Aucun : cette métrique ne lit que la prédiction",
       "parameters": "Paramètres"
     },
     "fields": {
@@ -6791,7 +6796,15 @@
       "temperatureRange": "Caractère aléatoire de la réponse ({min} à {max} pour ce fournisseur)",
       "maxTokensRange": "Nombre maximal de tokens pour la réponse du juge ({min}-{max})",
       "promptTemplatePlaceholder": "Vous êtes correcteur juridique.\n\nCas : {{fall}}\nQuestion : {{task}}\nRéférence : {{binary_solution}} / {{reasoning}}\n\nÀ évaluer : {{answer}}\n\nRépondez en JSON avec les champs scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Exactitude du résultat"
+      "dimensionNamePlaceholder": "Exactitude du résultat",
+      "textPattern": {
+        "patternSet": "Ensemble de motifs (JSON)",
+        "patternSetHelp": "Un ensemble de motifs avec un nom, une version et ses codes. Dans un motif, {{task.<path>}} insère une valeur de la tâche. Le champ de référence n'est pas lu.",
+        "invalidJson": "L'ensemble de motifs n'est pas un JSON valide.",
+        "notASet": "L'ensemble de motifs nécessite un nom, une version et au moins un code.",
+        "code": "Code",
+        "selectCode": "Choisissez le code à rapporter"
+      }
     },
     "placeholders": {
       "answerType": "Choisir le type de réponse...",

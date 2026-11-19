@@ -167,6 +167,7 @@ def _run_immediate_config_job_impl(
                 prediction=prediction_value,
                 answer_type="text",
                 parameters=metric_params or None,
+                task_data=task_data,
             )
             score_value = extract_value(metric_result) or 0.0
 

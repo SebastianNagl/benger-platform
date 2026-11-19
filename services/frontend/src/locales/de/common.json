@@ -5799,7 +5799,8 @@
         "spanSequence": "Span-/Sequenz-Labeling",
         "hierarchical": "Hierarchische Metriken",
         "llmJudge": "LLM-als-Richter",
-        "humanEvaluation": "Menschliche Korrektur"
+        "humanEvaluation": "Menschliche Korrektur",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "Zeichenketten- und Oberflächenabgleich",
@@ -5815,7 +5816,8 @@
         "hierarchical": "Für hierarchische Klassifikationen",
         "llmJudge": "KI-modellbasierte Evaluierung (API-Schlüssel erforderlich)",
         "llmJudgeModel": "KI-modellbasierte Evaluierung mit einem Richtermodell",
-        "humanEvaluation": "Korrektur durch menschliche Bewerterinnen und Bewerter"
+        "humanEvaluation": "Korrektur durch menschliche Bewerterinnen und Bewerter",
+        "codes": "Codes, die ein versionierter Regelsatz aus der Antwort liest"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5834,7 +5836,8 @@
         "recall": "Recall",
         "f1": "F1-Score",
         "llmJudgeClassic": "Klassischer LLM-Richter",
-        "llmJudgeCustom": "Benutzerdefinierter LLM-Richter"
+        "llmJudgeCustom": "Benutzerdefinierter LLM-Richter",
+        "text_pattern": "Text-Muster-Code"
       },
       "metricDesc": {
         "exactMatch": "Exakter Zeichenkettenabgleich",
@@ -5881,7 +5884,8 @@
         "llmJudgeLexam": "Korrektheits-Judge aus dem LEXam-Benchmark (0,0–1,0 gegenüber der Referenzantwort), vom Schweizer auf deutsches Recht übertragen.",
         "korrekturClassic": "Freie Kommentare, Highlights und Labels auf Annotationen, Generierungen und Evaluationen.",
         "korrekturFalloesung": "Manuelle Bewertung nach dem 10-Dimensionen-Schema der Standard Falllösung (identisch zum LLM Judge).",
-        "korrekturCustom": "Manuelle Bewertung: füllt den Bewertungsbogen der Aufgabe aus (oder die projektspezifischen Dimensionen aus dem Custom LLM Judge)."
+        "korrekturCustom": "Manuelle Bewertung: füllt den Bewertungsbogen der Aufgabe aus (oder die projektspezifischen Dimensionen aus dem Custom LLM Judge).",
+        "text_pattern": "Codiert die Antwort mit einem versionierten Satz regulärer Ausdrücke"
       }
     },
     "sampleResults": {
@@ -6675,6 +6679,7 @@
       "metric": "Metrik",
       "predictionFields": "Vorhersagefelder",
       "referenceFields": "Referenzfelder",
+      "noReferenceNeeded": "Keine: diese Metrik liest nur die Vorhersage",
       "parameters": "Parameter"
     },
     "fields": {
@@ -6791,7 +6796,15 @@
       "temperatureRange": "Antwort-Zufälligkeit ({min} bis {max} bei diesem Anbieter)",
       "maxTokensRange": "Maximale Tokens für die Judge-Antwort ({min}-{max})",
       "promptTemplatePlaceholder": "Du bist ein juristischer Korrektor.\n\nFall: {{fall}}\nFrage: {{task}}\nReferenz: {{binary_solution}} / {{reasoning}}\n\nZu bewerten: {{answer}}\n\nAntworte als JSON mit den Feldern scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Ergebnisrichtigkeit"
+      "dimensionNamePlaceholder": "Ergebnisrichtigkeit",
+      "textPattern": {
+        "patternSet": "Muster-Set (JSON)",
+        "patternSetHelp": "Ein Muster-Set mit Name, Version und seinen Codes. In einem Muster fügt {{task.<path>}} einen Wert der Aufgabe ein. Das Referenzfeld wird nicht gelesen.",
+        "invalidJson": "Das Muster-Set ist kein gültiges JSON.",
+        "notASet": "Das Muster-Set braucht einen Namen, eine Version und mindestens einen Code.",
+        "code": "Code",
+        "selectCode": "Wähle den Code, der berichtet wird"
+      }
     },
     "placeholders": {
       "answerType": "Antworttyp auswählen...",

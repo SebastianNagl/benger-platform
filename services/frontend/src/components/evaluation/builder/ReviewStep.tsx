@@ -57,13 +57,19 @@ export function ReviewStep({
           <span className="text-xs text-zinc-500">
             {t('evaluationBuilder.review.referenceFields')}:
           </span>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {referenceFields.map((field) => (
-              <Badge key={field} variant="default" className="text-xs">
-                {field}
-              </Badge>
-            ))}
-          </div>
+          {reviewMetricDef?.reference_free ? (
+            <p className="mt-1 text-sm" data-testid="review-no-reference">
+              {t('evaluationBuilder.review.noReferenceNeeded')}
+            </p>
+          ) : (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {referenceFields.map((field) => (
+                <Badge key={field} variant="default" className="text-xs">
+                  {field}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
         {Object.keys(metricParameters).length > 0 && (
           <div>

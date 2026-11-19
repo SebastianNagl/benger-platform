@@ -140,3 +140,31 @@ def is_immediate_eligible(metric_name: Optional[str]) -> bool:
     if not metric_name or metric_name.startswith("korrektur_"):
         return False
     return not is_heavy_metric(metric_name)
+
+
+# Metrics that grade the prediction alone (codes such as ``text_pattern``).
+# A config of one runs once per prediction field, under the reference part
+# ``""`` of its ``{config_id}|{pred}|{ref}`` key, whatever reference fields
+# it lists. The worker also honours a metric handler's ``reference_free``
+# attribute, so an overlay's handler can declare it.
+REFERENCE_FREE_METRICS = frozenset({"text_pattern"})
+
+
+def is_reference_free(metric_name: Optional[str]) -> bool:
+    if not metric_name:
+        return False
+    if metric_name in REFERENCE_FREE_METRICS:
+        return True
+    try:
+        from ml_evaluation import metric_registry
+    except ImportError:
+        return False
+    return bool(getattr(metric_registry.get(metric_name), "reference_free", False))
+
+
+def graded_reference_fields(config: Any) -> list:
+    """The reference parts of the field keys a config grades: ``[""]`` for a
+    reference-free metric, else its ``reference_fields``."""
+    if is_reference_free(config.get("metric")):
+        return [""]
+    return list(config.get("reference_fields") or [])

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://benger.dev/schemas/analysis_spec.schema.json",
   "title": "BenGER analysis spec",
-  "description": "Declares the inputs, frame unit, lookup tables, measures, estimands, contrasts, joint tests, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax, which keys each estimator takes) are checked by analysis.spec.validate_spec.",
+  "description": "Declares the inputs, frame unit, lookup tables, measures, estimands, contrasts, joint tests, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax, which keys each estimator takes, pattern sets) are checked by analysis.spec.validate_spec.",
   "type": "object",
   "additionalProperties": false,
   "required": ["spec_version", "name", "inputs", "estimands"],
@@ -22,6 +22,13 @@
       "maxProperties": 500,
       "propertyNames": {"$ref": "#/$defs/identifier"},
       "additionalProperties": {"$ref": "#/$defs/measure"}
+    },
+    "pattern_sets": {
+      "description": "Text pattern sets (schemas/text_pattern_set.schema.json, checked by analysis.text_patterns) that text_pattern measures name by id.",
+      "type": "object",
+      "maxProperties": 50,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"type": "object"}
     },
     "filter": {"$ref": "#/$defs/expression"},
     "conventions": {"$ref": "#/$defs/conventions"},
@@ -180,7 +187,7 @@
     "measure": {
       "type": "object",
       "required": ["kind"],
-      "properties": {"kind": {"enum": ["field", "expression", "gold", "slot_factor", "slot_aggregate"]}},
+      "properties": {"kind": {"enum": ["field", "expression", "gold", "slot_factor", "slot_aggregate", "list", "text_pattern", "coder", "judge_code"]}},
       "oneOf": [
         {
           "additionalProperties": false,
@@ -247,6 +254,101 @@
             "kind": {"const": "slot_aggregate"},
             "field": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\{idx\\}"},
             "function": {"enum": ["mean", "sum", "min", "max", "sd", "count", "is_ranking"]},
+              "description": {"type": "string", "maxLength": 1000}
+            }
+          },
+          {
+            "additionalProperties": false,
+          "required": ["kind", "field", "statistic"],
+          "properties": {
+            "kind": {"const": "list"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "gold": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path"],
+                  "properties": {"path": {"type": "string", "pattern": "^[^.\\s]+(\\.[^.\\s]+)*$", "maxLength": 300}}
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["values"],
+                  "properties": {
+                    "values": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {"type": ["string", "number", "boolean"]}
+                    }
+                  }
+                }
+              ]
+            },
+            "statistic": {
+              "enum": ["n_answer", "n_gold", "hits", "misses", "extras", "precision", "recall", "f1", "jaccard", "exact", "any", "all"]
+            },
+            "split": {"type": "string", "minLength": 1, "maxLength": 500},
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pattern"],
+              "properties": {
+                "pattern": {"type": "string", "minLength": 1, "maxLength": 2000},
+                "template": {"type": "string", "minLength": 1, "maxLength": 200},
+                "flags": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {"enum": ["IGNORECASE", "MULTILINE", "DOTALL", "ASCII"]}
+                }
+              }
+            },
+            "normalize": {
+              "type": "array",
+              "maxItems": 5,
+              "items": {"enum": ["strip", "collapse_whitespace", "casefold", "nfc", "nfkc"]}
+            },
+              "description": {"type": "string", "maxLength": 1000}
+            }
+          },
+          {
+            "additionalProperties": false,
+          "required": ["kind", "set", "code"],
+          "properties": {
+            "kind": {"const": "text_pattern"},
+            "set": {"oneOf": [{"$ref": "#/$defs/identifier"}, {"type": "object"}]},
+            "code": {"$ref": "#/$defs/identifier"},
+            "input": {"$ref": "#/$defs/code_input"},
+            "validation": {"$ref": "#/$defs/validation_ref"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "coder", "output"],
+          "properties": {
+            "kind": {"const": "coder"},
+            "coder": {"$ref": "#/$defs/identifier"},
+            "version": {"type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.:-]*$", "maxLength": 100},
+            "output": {"$ref": "#/$defs/identifier"},
+            "input": {"$ref": "#/$defs/code_input"},
+            "parameters": {"type": "object", "maxProperties": 100},
+            "validation": {"$ref": "#/$defs/validation_ref"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "coding_project", "field", "system"],
+          "properties": {
+            "kind": {"const": "judge_code"},
+            "coding_project": {"type": "string", "minLength": 1, "maxLength": 100},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "system": {"type": "string", "minLength": 1, "maxLength": 300},
+            "structure": {"type": "string", "minLength": 1, "maxLength": 300},
+            "run_index": {"type": "integer", "minimum": 0, "maximum": 1000},
+            "type": {"$ref": "#/$defs/value_type"},
+            "validation": {"$ref": "#/$defs/validation_ref"},
             "description": {"type": "string", "maxLength": 1000}
           }
         }
@@ -256,6 +358,18 @@
       "description": "Which slot a per-slot value comes from: own (the row's slot, slot frames only), other (the generation's other slot when it has exactly two) or a slot index.",
       "oneOf": [{"enum": ["own", "other"]}, {"type": "integer", "minimum": 0, "maximum": 100000}]
     },
+    "code_input": {
+      "oneOf": [
+        {"const": "answer"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field"],
+          "properties": {"field": {"type": "string", "minLength": 1, "maxLength": 200}}
+        }
+      ]
+    },
+    "validation_ref": {"type": "string", "minLength": 1, "maxLength": 100},
     "conventions": {
       "type": "object",
       "additionalProperties": false,

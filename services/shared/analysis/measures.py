@@ -1,6 +1,6 @@
 """Measures: declarative outcome columns of an analysis frame.
 
-Three kinds (spec ``measures``):
+Kinds (spec ``measures``):
 
 ``field``
     A parsed answer value by control name, ``{"kind": "field", "field":
@@ -27,6 +27,12 @@ Three kinds (spec ``measures``):
     "is_ranking"}``: ``mean``, ``sum``, ``min``, ``max``, ``sd`` (n-1) and
     ``count`` over the values present, ``is_ranking`` 1 when the values are
     exactly 1..n for the n slots (no value missing, no tie), else 0.
+``list``
+    An answer's list of items against a gold list (hits, recall, F1,
+    Jaccard, ...), :mod:`analysis.list_measures`.
+``text_pattern``, ``coder``, ``judge_code``
+    Codes read off the answer by a versioned regex set, a coder plugin or
+    another system's coding in a coding project, :mod:`analysis.codes`.
 
 Per-slot fields: a field name with ``{idx}`` (``"risk_{idx}"``) reads the
 control of one slot, ``{idx}`` replaced by the slot index as the task's
@@ -224,17 +230,41 @@ def evaluate_measures(
     task_data: Sequence[Mapping[str, Any]],
     n: int,
     row_slots: Optional[Sequence[RowSlots]] = None,
+    codes=None,
 ) -> Tuple[Dict[str, np.ndarray], List[str]]:
     """Compute every measure in ``order`` into ``columns`` (updated in place
     and returned) and return warnings. ``row_slots`` gives every row's
-    slots (per-slot fields, slot factors and aggregates need it)."""
+    slots (per-slot fields, slot factors and aggregates need it). ``codes``
+    (an :class:`analysis.codes.CodeInputs`) carries what code and list
+    measures read besides fields and task data."""
+    from analysis.codes import CODE_KINDS, CodeError, CodeInputs, evaluate_code_measure
+
     warnings: List[str] = []
     slots = row_slots if row_slots is not None else [NO_SLOTS] * n
+    if codes is None:
+        codes = CodeInputs()
     for mid in order:
         m = measures[mid]
         kind = m["kind"]
         ambiguous: List[str] = []
-        if kind == "field" and "field" in m and IDX in m["field"]:
+        if kind in CODE_KINDS:
+            try:
+                values, vtype = evaluate_code_measure(mid, m, fields, task_data, n, codes)
+            except CodeError as exc:
+                raise MeasureError(str(exc)) from None
+            arr = _array(values, vtype)
+            missing = codes.report[-1]["missing"] if codes.report else 0
+            if n and missing == n:
+                warnings.append(f"measure {mid!r}: the code is missing for every row")
+        elif kind == "list":
+            from analysis.list_measures import list_measure_value
+
+            name = m["field"]
+            values = [list_measure_value(m, f.get(name), d) for f, d in zip(fields, task_data)]
+            if n and all(name not in f for f in fields):
+                warnings.append(f"measure {mid!r}: no answer has the field {name!r}")
+            arr = _array(values, "number")
+        elif kind == "field" and "field" in m and IDX in m["field"]:
             vtype = m.get("type", "number")
             ref = m.get("slot", "own")
             values = []

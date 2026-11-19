@@ -1374,11 +1374,59 @@ frame format 2).
     ``create_run`` takes the request's access-key principal; runs serialize
     ``resolved_inputs`` (also in the v1 run detail). ``library_versions``
     record statsmodels.
+
+2.66 (2026-11-19): codes for variant experiments (migration 149).
+  - Coder plugins: an overlay's workers module may export
+    ``register_coders(registry)``; the workers call it through
+    ``analysis.coders.load_overlay_coders`` (each package as owner) before an
+    analysis run or a code validation reads a coder. A coder subclasses
+    ``analysis.coders.Coder`` (``name``, ``version``, ``outputs`` typed
+    ``number`` | ``text`` | ``bool``, optional ``source_modules``,
+    ``code(text, context: CoderContext)``; ``FunctionCoder`` wraps a plain
+    function). The registry hashes the name, version, outputs and the
+    source of every counted module (``coder_code_hash``); runs and
+    validations record the hash and the owner, and a coder of a package
+    switched off for the run's context does not run (gated).
+  - Text pattern sets (``analysis.text_patterns``: ``validate_pattern_set``,
+    ``normalize_pattern_set``, ``pattern_set_hash``, ``compile_pattern_set``,
+    ``CompiledPatternSet``, schema ``schemas/text_pattern_set.schema.json``,
+    format 1) with task literals ``{{task.<path>}}``; list measures
+    (``analysis.list_measures``); code identity and the confirmatory rule
+    (``analysis.codes``: ``code_identity``, ``confirmatory_code_measures``,
+    ``CodeInputs``); coding samples and agreement (``analysis.coding``:
+    ``draw_sample``, ``normalize_validation_code``, ``validation_metrics``).
+  - Spec measures ``list``, ``text_pattern``, ``coder``, ``judge_code`` and
+    the spec key ``pattern_sets`` (spec format 1 stays; a spec without them
+    hashes as before). ``Observation.answer_text``;
+    ``iter_observations(..., with_text=)``, ``code_needs``,
+    ``load_judge_values``, ``coding_task_sources``,
+    ``coding_generation_values`` in ``analysis.db_source``;
+    ``build_frame(..., codes=CodeInputs)`` and ``FrameResult.codes``.
+    ``ENGINE_VERSION`` stays 1.1.0: no existing number moves.
+  - Tables ``coding_projects`` (``models.CodingProject``) and
+    ``code_validations`` (``models.CodeValidation``), column
+    ``analysis_runs.codes``; coding tasks carry ``tasks.meta.coding``.
+    Worker task ``tasks.run_code_validation`` on the ``analysis`` queue
+    (``analysis_jobs.coding``). A confirmatory family's code measures need
+    a completed validation with the same identity hash, or the run fails.
+  - Routes ``POST|GET /api/projects/{project_id}/coding-projects``,
+    ``GET /api/projects/{project_id}/coding``,
+    ``POST|GET /api/projects/{project_id}/code-validations`` and
+    ``GET /api/code-validations/{code_validation_id}`` (``routers.coding``;
+    key-gate kind ``code_validation``). ``GET /api/analysis-runs/{id}``
+    returns ``codes``.
+  - Evaluation metric ``text_pattern`` (``metric_parameters.pattern_set`` and
+    ``code``, checked on save). Metric handlers may set
+    ``wants_raw_values`` (values as stored, not lower-cased),
+    ``uses_task_data`` (``compute(..., task_data=)``) and ``reference_free``
+    (cells run once per prediction field, under the field key
+    ``<config>|<pred>|``, without a reference value);
+    ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
 """
 
 import os
 
-CORE_API_VERSION = "2.65"
+CORE_API_VERSION = "2.66"
 
 
 def extended_required() -> bool:

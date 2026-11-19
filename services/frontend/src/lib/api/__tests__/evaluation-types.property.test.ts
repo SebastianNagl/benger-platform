@@ -368,12 +368,15 @@ describe('display-scale resolution — properties', () => {
       )
     })
 
-    it('exactly two core metrics are summable', () => {
+    // 1/0 per answer (or a count), so a sum is a number of answers
+    it('exactly the counting core metrics are summable', () => {
       const summable = Object.entries(METRIC_DEFINITIONS)
         .filter(([, d]) => d.summable === true)
         .map(([k]) => k)
         .sort()
-      expect(summable).toEqual(['accuracy', 'exact_match'].sort())
+      expect(summable).toEqual(
+        ['accuracy', 'exact_match', 'text_pattern'].sort(),
+      )
     })
   })
 })

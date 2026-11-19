@@ -9,6 +9,7 @@ import pytest
 from fastapi import HTTPException
 
 from routers.evaluations.config import (
+    collect_evaluation_config_warnings,
     merge_evaluation_config,
     validate_evaluation_config_write,
 )
@@ -139,3 +140,19 @@ class TestValidateEvaluationConfigWrite:
             self._check(stored, body)
         assert exc.value.status_code == 400
         assert "bleu" in exc.value.detail
+
+
+class TestReferenceFieldWarning:
+    """A config without a reference field grades nothing, unless its metric
+    reads only the prediction (``text_pattern``, docs/features/codes.md)."""
+
+    def _cfg(self, metric, refs):
+        return {"id": metric, "metric": metric, "prediction_fields": ["__all_model__"],
+                "reference_fields": refs, "enabled": True}
+
+    def test_a_metric_needing_a_reference_is_warned_about(self):
+        warnings = collect_evaluation_config_warnings([self._cfg("bleu", [])])
+        assert [(w["config_id"], w["code"]) for w in warnings] == [("bleu", "no_reference_fields")]
+
+    def test_a_reference_free_metric_is_not(self):
+        assert collect_evaluation_config_warnings([self._cfg("text_pattern", [])]) == []

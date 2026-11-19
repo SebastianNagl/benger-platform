@@ -5799,7 +5799,8 @@
         "spanSequence": "Span/Sequence Labeling",
         "hierarchical": "Hierarchical Metrics",
         "llmJudge": "LLM-as-Judge",
-        "humanEvaluation": "Human grading"
+        "humanEvaluation": "Human grading",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "String and surface-level matching",
@@ -5815,7 +5816,8 @@
         "hierarchical": "For hierarchical classifications",
         "llmJudge": "AI model-based evaluation (requires API key)",
         "llmJudgeModel": "AI model-based evaluation with a judge model",
-        "humanEvaluation": "Grading by human graders"
+        "humanEvaluation": "Grading by human graders",
+        "codes": "Codes read off the answer by a versioned rule set"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5834,7 +5836,8 @@
         "recall": "Recall",
         "f1": "F1 Score",
         "llmJudgeClassic": "Classic LLM Judge",
-        "llmJudgeCustom": "Custom LLM Judge"
+        "llmJudgeCustom": "Custom LLM Judge",
+        "text_pattern": "Text pattern code"
       },
       "metricDesc": {
         "exactMatch": "Exact string matching",
@@ -5881,7 +5884,8 @@
         "llmJudgeLexam": "LEXam benchmark correctness judge (0.0–1.0 against the reference answer), adapted from Swiss to German law.",
         "korrekturClassic": "Free comments, highlights and labels on annotations, generations and evaluations.",
         "korrekturFalloesung": "Manual grading with the 10-dimension scheme of the standard Falllösung (identical to the LLM judge).",
-        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge)."
+        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge).",
+        "text_pattern": "Codes the answer with a versioned set of regular expressions"
       }
     },
     "sampleResults": {
@@ -6675,6 +6679,7 @@
       "metric": "Metric",
       "predictionFields": "Prediction Fields",
       "referenceFields": "Reference Fields",
+      "noReferenceNeeded": "None: this metric reads only the prediction",
       "parameters": "Parameters"
     },
     "fields": {
@@ -6791,7 +6796,15 @@
       "temperatureRange": "Response randomness ({min} - {max} for this provider)",
       "maxTokensRange": "Maximum tokens for judge response ({min}-{max})",
       "promptTemplatePlaceholder": "You are a legal grader.\n\nCase: {{fall}}\nQuestion: {{task}}\nReference: {{binary_solution}} / {{reasoning}}\n\nTo grade: {{answer}}\n\nAnswer as JSON with the fields scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Result correctness"
+      "dimensionNamePlaceholder": "Result correctness",
+      "textPattern": {
+        "patternSet": "Pattern set (JSON)",
+        "patternSetHelp": "A pattern set with a name, a version and its codes. In a pattern, {{task.<path>}} inserts a value of the task. The reference field is not read.",
+        "invalidJson": "The pattern set is not valid JSON.",
+        "notASet": "The pattern set needs a name, a version and at least one code.",
+        "code": "Code",
+        "selectCode": "Choose the code to report"
+      }
     },
     "placeholders": {
       "answerType": "Select answer type...",

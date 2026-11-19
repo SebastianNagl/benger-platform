@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
+from metric_filters import graded_reference_fields
+
 
 def _row_has_score(metrics: dict | None) -> bool:
     """A TaskEvaluation row counts as 'already evaluated' if any non-error
@@ -185,7 +187,7 @@ def _reconstruct_expected_keys(row, configs_by_id: dict) -> set:
         if pf in ("__all_human__", "__all_model__"):
             continue
         if _pred_field_matches(row.field_name, pf):
-            for rf in cfg.get("reference_fields", []):
+            for rf in graded_reference_fields(cfg):
                 keys.add(f"{cfg.get('id', 'unknown')}|{pf}|{rf}")
     return keys
 
@@ -405,7 +407,7 @@ def plan_evaluation(
             f"{c.get('id', 'unknown')}|{pf}|{rf}"
             for c in enabled_configs
             for pf in c.get("prediction_fields", [])
-            for rf in c.get("reference_fields", [])
+            for rf in graded_reference_fields(c)
         },
     )
     if not run_task_ids:
@@ -514,7 +516,7 @@ def _side_field_keys(config: dict) -> Tuple[List[str], List[str]]:
     from eval_field_classification import classify_pred_fields
 
     cid = config.get("id", "unknown")
-    refs = config.get("reference_fields", []) or []
+    refs = graded_reference_fields(config)
     preds = config.get("prediction_fields", []) or []
     gen_keys = [
         f"{cid}|{pf}|{rf}"
