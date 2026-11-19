@@ -22,11 +22,15 @@ import {
   updateProjectReport,
 } from '@/lib/api/reports'
 import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import ReportEditorPage from '../../edit/page'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
@@ -47,6 +51,53 @@ jest.mock('@/lib/api/reports', () => ({
   getProjectReport: jest.fn(),
   updateProjectReport: jest.fn(),
   refreshReport: jest.fn(),
+}))
+
+// The Analyses card loads runs and estimates itself (AnalysesEditor tests);
+// here a stub reports its props and changes the runs.
+jest.mock('@/components/reports/editor/AnalysesEditor', () => ({
+  AnalysesEditor: ({
+    customText,
+    runs,
+    onCustomTextChange,
+    onRunsChange,
+    snapshot,
+  }: any) => (
+    <div
+      data-testid="analyses-editor-stub"
+      data-runs={JSON.stringify(runs)}
+      data-snapshot-runs={snapshot?.runs?.length ?? 0}
+    >
+      <span data-testid="analyses-editor-text">{customText}</span>
+      <button type="button" onClick={() => onCustomTextChange('Einleitung')}>
+        stub-set-text
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onRunsChange([
+            {
+              run_id: 'run-1',
+              title: '',
+              text: 'Was der Lauf zeigt',
+              exhibits: [
+                {
+                  id: 'exhibit-1',
+                  type: 'forest',
+                  title: '',
+                  caption: null,
+                  filters: { systems: ['b', 'a'], families: [] },
+                  band: 0,
+                },
+              ],
+            },
+          ])
+        }
+      >
+        stub-add-run
+      </button>
+    </div>
+  ),
 }))
 
 jest.mock('@/lib/api/evaluation-types', () => ({
@@ -190,6 +241,9 @@ const mockReportFullSections = {
 
 describe('ReportEditorPage - branch coverage', () => {
   beforeEach(() => {
+    // Report authors and the paper's parts belong to report_paper, the
+    // Analyses section and the agreement switches to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true, report_paper: true })
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
@@ -215,25 +269,67 @@ describe('ReportEditorPage - branch coverage', () => {
       ['CONTRIBUTOR', mockContributor],
       ['ORG_ADMIN', mockOrgAdmin],
     ])(
-      '%s gets the superadmin-only notice and no fetch',
+      '%s the API refuses (403) gets the not-author notice',
       async (_role, user) => {
         ;(useAuth as jest.Mock).mockReturnValue({ user, isLoading: false })
+        mockGet.mockRejectedValueOnce(
+          Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+        )
 
         render(<ReportEditorPage params={createParams('proj-1')} />)
 
         await waitFor(() => {
           expect(
-            screen.getByText('reports.editor.notSuperadmin'),
+            screen.getByText('reports.editor.notAuthor'),
           ).toBeInTheDocument()
         })
         expect(
-          screen.getByText('reports.editor.notSuperadminHint'),
+          screen.getByText('reports.editor.notAuthorHint'),
         ).toBeInTheDocument()
-        expect(mockGet).not.toHaveBeenCalled()
+        expect(mockGet).toHaveBeenCalledWith('proj-1')
         expect(mockRouter.push).not.toHaveBeenCalled()
+        expect(mockAddToast).not.toHaveBeenCalled()
         expect(document.querySelector('h1')).not.toBeNull()
       },
     )
+
+    it('a published report the caller may only read (can_edit false) gets the notice', async () => {
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: mockContributor,
+        isLoading: false,
+      })
+      mockGet.mockResolvedValueOnce({
+        ...mockReportFullSections,
+        can_edit: false,
+      })
+
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('reports.editor.notAuthor')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('section-project_info')).toBeNull()
+    })
+
+    it('an org admin the API lets author the report gets the editor', async () => {
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: mockOrgAdmin,
+        isLoading: false,
+      })
+      mockGet.mockResolvedValueOnce({
+        ...mockReportFullSections,
+        can_edit: true,
+      })
+
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('section-reproducibility'),
+        ).toBeInTheDocument()
+      })
+      expect(screen.queryByText('reports.editor.notAuthor')).toBeNull()
+    })
 
     it('shows the notice for an anonymous (null) user once auth settled', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({ user: null, isLoading: false })
@@ -241,9 +337,7 @@ describe('ReportEditorPage - branch coverage', () => {
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       await waitFor(() => {
-        expect(
-          screen.getByText('reports.editor.notSuperadmin'),
-        ).toBeInTheDocument()
+        expect(screen.getByText('reports.editor.notAuthor')).toBeInTheDocument()
       })
       expect(mockGet).not.toHaveBeenCalled()
     })

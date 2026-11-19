@@ -21,6 +21,9 @@ from project_models import Annotation, Project, Task
 from report_models import ProjectReport
 from report_snapshot import build_report_snapshot
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 LABELS = {
     0: ("x", "x", "x"),
     1: ("x", "x", "y"),

@@ -10,12 +10,16 @@ import {
   updateProjectReport,
 } from '@/lib/api/reports'
 import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import type { ReportSnapshot } from '@/types/report'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import ReportEditorPage from '../../edit/page'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
@@ -36,6 +40,53 @@ jest.mock('@/lib/api/reports', () => ({
   getProjectReport: jest.fn(),
   updateProjectReport: jest.fn(),
   refreshReport: jest.fn(),
+}))
+
+// The Analyses card loads runs and estimates itself (AnalysesEditor tests);
+// here a stub reports its props and changes the runs.
+jest.mock('@/components/reports/editor/AnalysesEditor', () => ({
+  AnalysesEditor: ({
+    customText,
+    runs,
+    onCustomTextChange,
+    onRunsChange,
+    snapshot,
+  }: any) => (
+    <div
+      data-testid="analyses-editor-stub"
+      data-runs={JSON.stringify(runs)}
+      data-snapshot-runs={snapshot?.runs?.length ?? 0}
+    >
+      <span data-testid="analyses-editor-text">{customText}</span>
+      <button type="button" onClick={() => onCustomTextChange('Einleitung')}>
+        stub-set-text
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onRunsChange([
+            {
+              run_id: 'run-1',
+              title: '',
+              text: 'Was der Lauf zeigt',
+              exhibits: [
+                {
+                  id: 'exhibit-1',
+                  type: 'forest',
+                  title: '',
+                  caption: null,
+                  filters: { systems: ['b', 'a'], families: [] },
+                  band: 0,
+                },
+              ],
+            },
+          ])
+        }
+      >
+        stub-add-run
+      </button>
+    </div>
+  ),
 }))
 
 jest.mock('@/lib/api/evaluation-types', () => ({
@@ -242,17 +293,22 @@ async function renderLoaded(report: any = baseReport) {
   mockGet.mockResolvedValue(report)
   const user = userEvent.setup()
   render(<ReportEditorPage params={createParams('proj-1')} />)
-  await waitFor(() => {
-    expect(
-      screen.getByText('project.report.editor.saveReport'),
-    ).toBeInTheDocument()
-  })
+  // The editor renders once the report request resolves; on a busy full run
+  // that can take longer than findBy's default second.
+  await screen.findByText(
+    'project.report.editor.saveReport',
+    {},
+    { timeout: 5000 },
+  )
   return user
 }
 
 describe('ReportEditorPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Report authors and the paper's parts belong to report_paper, the
+    // Analyses section and the agreement switches to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true, report_paper: true })
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({
       user: mockSuperadmin,
@@ -331,11 +387,34 @@ describe('ReportEditorPage', () => {
   })
 
   describe('permissions', () => {
-    it('shows a clear message (no blank page, no redirect) for non-superadmins', async () => {
+    it('shows a clear message (no blank page, no redirect) for non-authors', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         user: mockContributor,
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
+
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'reports.editor.notAuthor',
+        )
+      })
+      expect(mockRouter.push).not.toHaveBeenCalled()
+    })
+
+    it('names superadmins as the only authors while report_paper is off', async () => {
+      setMockFeatureFlags({ variant_experiments: true })
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: mockContributor,
+        isLoading: false,
+      })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
 
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
@@ -344,8 +423,6 @@ describe('ReportEditorPage', () => {
           'reports.editor.notSuperadmin',
         )
       })
-      expect(mockGet).not.toHaveBeenCalled()
-      expect(mockRouter.push).not.toHaveBeenCalled()
     })
 
     it('offers the back-to-project button in the message', async () => {
@@ -353,6 +430,9 @@ describe('ReportEditorPage', () => {
         user: { ...mockContributor, role: 'ORG_ADMIN' },
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
       const user = userEvent.setup()
 
       render(<ReportEditorPage params={createParams('proj-1')} />)
@@ -542,8 +622,162 @@ describe('ReportEditorPage', () => {
     })
   })
 
+  describe('analyses section', () => {
+    it('hands the stored section to the card and saves its runs with clean filters', async () => {
+      const stored = {
+        visible: false,
+        custom_text: 'Stored intro',
+        runs: [{ run_id: 'run-0', title: 'Old', text: null, exhibits: [] }],
+      }
+      const user = await renderLoaded({
+        ...baseReport,
+        content: {
+          ...baseReport.content,
+          sections: { ...baseReport.content.sections, analyses: stored },
+          snapshot: {
+            ...snapshot,
+            analyses: { runs: [], omitted: [] },
+          },
+        },
+      })
+      const card = screen.getByTestId('section-analyses')
+      expect(
+        within(card).getByText('reports.editor.analyses.title'),
+      ).toBeVisible()
+      const stub = screen.getByTestId('analyses-editor-stub')
+      expect(JSON.parse(stub.getAttribute('data-runs')!)).toEqual(stored.runs)
+      expect(screen.getByTestId('analyses-editor-text')).toHaveTextContent(
+        'Stored intro',
+      )
+      expect(
+        within(card).getByRole('switch', {
+          name: 'reports.editor.showSection',
+        }),
+      ).toHaveAttribute('aria-checked', 'false')
+
+      await user.click(
+        within(card).getByRole('switch', {
+          name: 'reports.editor.showSection',
+        }),
+      )
+      await user.click(screen.getByText('stub-set-text'))
+      await user.click(screen.getByText('stub-add-run'))
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+      expect(mockUpdate.mock.calls[0][1].sections.analyses).toEqual({
+        visible: true,
+        custom_text: 'Einleitung',
+        runs: [
+          {
+            run_id: 'run-1',
+            title: null,
+            text: 'Was der Lauf zeigt',
+            exhibits: [
+              {
+                id: 'exhibit-1',
+                type: 'forest',
+                title: null,
+                caption: null,
+                filters: { systems: ['a', 'b'] },
+                band: 0,
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it('shows no card and sends no section while variant_experiments is off', async () => {
+      setMockFeatureFlags({ report_paper: true })
+      const user = await renderLoaded()
+      // The paper's parts stay, without the wording of variant designs.
+      expect(screen.getByTestId('section-reproducibility')).toBeInTheDocument()
+      expect(screen.getByText('reports.editor.showImports')).toBeInTheDocument()
+      expect(
+        screen.queryByText('reports.editor.showProvenance'),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('analyses-editor-stub'),
+      ).not.toBeInTheDocument()
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+      expect(mockUpdate.mock.calls[0][1].sections).not.toHaveProperty(
+        'analyses',
+      )
+      // Nor the agreement and code validation switches of the Annotation card.
+      expect(
+        screen.queryByText('reports.editor.showCodeValidations'),
+      ).not.toBeInTheDocument()
+      const annotations = mockUpdate.mock.calls[0][1].sections.annotations
+      expect(annotations).not.toHaveProperty('show_agreement')
+      expect(annotations).not.toHaveProperty('show_code_validations')
+    })
+
+    it('shows none of the paper parts while report_paper is off', async () => {
+      setMockFeatureFlags({ variant_experiments: true })
+      await renderLoaded()
+      expect(screen.getByTestId('section-analyses')).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('section-reproducibility'),
+      ).not.toBeInTheDocument()
+      for (const label of [
+        'reports.editor.showProvenance',
+        'reports.editor.showImports',
+        'reports.editor.showGenerationDetails',
+        'reports.editor.showHumanEvaluation',
+      ]) {
+        expect(screen.queryByText(label)).not.toBeInTheDocument()
+      }
+    })
+
+    it('starts an older report without the section empty and visible', async () => {
+      const user = await renderLoaded()
+      expect(
+        JSON.parse(
+          screen.getByTestId('analyses-editor-stub').getAttribute('data-runs')!,
+        ),
+      ).toEqual([])
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+      expect(mockUpdate.mock.calls[0][1].sections.analyses).toEqual({
+        visible: true,
+        custom_text: null,
+        runs: [],
+      })
+    })
+
+    it('shows the validation errors the API returns for the section', async () => {
+      mockUpdate.mockRejectedValueOnce({
+        response: {
+          status: 422,
+          data: {
+            detail: {
+              code: 'invalid_report_analyses',
+              errors: ['analyses.runs[0].run_id: an analysis run id', 'x'],
+            },
+          },
+        },
+      })
+      jest.spyOn(console, 'error').mockImplementation(() => {})
+      const t = jest.fn((key: string, vars?: any) =>
+        vars?.errors ? `${key}:${vars.errors}` : key,
+      )
+      ;(useI18n as jest.Mock).mockReturnValue({ t })
+      const user = await renderLoaded()
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+      await waitFor(() =>
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'reports.editor.analyses.invalid:analyses.runs[0].run_id: an analysis run id; x',
+          'error',
+        ),
+      )
+    })
+  })
+
   describe('save', () => {
-    it('round-trips the whole content and overlays edited fields', async () => {
+    it('round-trips the content without the snapshot and overlays edited fields', async () => {
       const user = await renderLoaded()
 
       // Edit a text, hide a section, flip flags, adjust presentation.
@@ -559,6 +793,11 @@ describe('ReportEditorPage', () => {
       )
       await user.click(
         screen.getByRole('switch', { name: 'reports.editor.showParticipants' }),
+      )
+      await user.click(
+        screen.getByRole('switch', {
+          name: 'reports.editor.showCodeValidations',
+        }),
       )
       await user.click(
         screen.getByRole('switch', { name: 'reports.editor.showDistribution' }),
@@ -591,8 +830,9 @@ describe('ReportEditorPage', () => {
       const [projectId, content] = mockUpdate.mock.calls[0]
       expect(projectId).toBe('proj-1')
 
-      // Snapshot + metadata + auto-populated fields survive.
-      expect(content.snapshot).toEqual(snapshot)
+      // The snapshot is server-owned and not sent; metadata and
+      // auto-populated fields survive.
+      expect(content).not.toHaveProperty('snapshot')
       expect(content.metadata).toEqual(baseReport.content.metadata)
       expect(content.sections.project_info.title).toBe('Test Project')
       expect(content.sections.project_info.status).toBe('completed')
@@ -609,6 +849,8 @@ describe('ReportEditorPage', () => {
       expect(content.sections.data.visible).toBe(false)
       expect(content.sections.project_info.visible).toBe(true)
       expect(content.sections.annotations.show_participants).toBe(false)
+      expect(content.sections.annotations.show_code_validations).toBe(false)
+      expect(content.sections.annotations.show_agreement).toBe(true)
       expect(content.sections.data.show_count).toBe(true)
       expect(content.sections.generation.show_models).toBe(true)
 
@@ -695,7 +937,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => expect(mockUpdate).toHaveBeenCalled())
       const content = mockUpdate.mock.calls[0][1]
-      expect(content.snapshot).toBeNull()
+      expect(content).not.toHaveProperty('snapshot')
       const cfg = content.sections.evaluation.charts_config
       expect(cfg.visible_metrics).toEqual(['bleu'])
       expect(cfg.visible_configs).toEqual(['cfg-bleu'])

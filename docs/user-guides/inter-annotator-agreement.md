@@ -1,5 +1,8 @@
 # Inter-annotator agreement
 
+This feature needs the platform flag `variant_experiments`, which an
+administrator switches on under Admin, Feature Flags ([feature flags](../features/feature-flags.md)).
+
 When two or more people annotate the same task, BenGER reports how closely
 they agree, separately for every control of the labeling interface. The
 numbers appear in two places:

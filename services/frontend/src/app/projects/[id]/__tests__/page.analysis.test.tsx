@@ -3,7 +3,9 @@
  * in the evaluations page's Analyses view, so the action opens that view
  * when the project has analysis runs or variant designs but no metric
  * configs, and the metrics view otherwise. The analysis reads are never
- * made for annotators or participants.
+ * made for annotators or participants. The Evaluation card's Analyses part
+ * (variant designs, plans, start dialog) shows for the CONTRIBUTOR and
+ * ORG_ADMIN roles only.
  *
  * @jest-environment jsdom
  */
@@ -14,6 +16,7 @@ import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
@@ -23,6 +26,9 @@ import {
   useSearchParams,
 } from 'next/navigation'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(() => ({ id: 'test-project-123' })),
@@ -134,6 +140,16 @@ jest.mock('@/components/projects/ParticipantCard', () => ({
     </div>
   ),
 }))
+jest.mock('@/components/analysis/ProjectAnalysesSection', () => ({
+  ProjectAnalysesSection: ({ projectId, onSummaryChange }: any) => (
+    <div data-testid="project-analyses-stub">
+      {projectId}
+      <button onClick={() => onSummaryChange({ designs: 3, plans: 2 })}>
+        report counts
+      </button>
+    </div>
+  ),
+}))
 jest.mock('@/components/reports/PublicationToggle', () => ({
   PublicationToggle: () => <div data-testid="publication-toggle" />,
 }))
@@ -242,6 +258,7 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    setMockFeatureFlags({ variant_experiments: true })
     mockListDesignKeys.mockResolvedValue([])
     mockListRuns.mockResolvedValue({ items: [], total: 0 })
   })
@@ -268,6 +285,19 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
     expect(
       screen.queryByText('project.quickActions.analysis'),
     ).not.toBeInTheDocument()
+  })
+
+  it('keeps the classic Evaluations target and asks for nothing while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 1 })
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
+    renderPage()
+    await clickEvaluations()
+    expect(mockRouter.push).not.toHaveBeenCalledWith(
+      '/evaluations?projectId=test-project-123&type=analysis',
+    )
+    expect(mockListRuns).not.toHaveBeenCalled()
+    expect(mockListDesignKeys).not.toHaveBeenCalled()
   })
 
   it('opens the Analyses view for a project with runs and no metric configs', async () => {
@@ -363,5 +393,154 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
     await screen.findByText('project.quickActions.title')
     expect(mockListDesignKeys).not.toHaveBeenCalled()
     expect(mockListRuns).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProjectDetailPage — Analyses on the Evaluation card', () => {
+  const member = (role: string) => ({
+    ...mockUser,
+    id: `member-${role}`,
+    role,
+    is_superadmin: false,
+  })
+
+  const t = (key: string, vars?: Record<string, unknown>) =>
+    vars ? `${key} ${JSON.stringify(vars)}` : key
+
+  const setup = (projectOverrides: any, user: any, evaluationConfig: any) => {
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+    ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
+    ;(useI18n as jest.Mock).mockReturnValue({ t })
+    ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
+    ;(useModels as jest.Mock).mockReturnValue({
+      models: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      hasApiKeys: true,
+      apiKeyStatus: {},
+    })
+    ;(useProjectStore as jest.Mock).mockReturnValue({
+      currentProject: { ...mockProject, ...projectOverrides },
+      loading: false,
+      fetchProject: jest.fn(),
+      updateProject: jest.fn().mockResolvedValue({}),
+      deleteProject: jest.fn().mockResolvedValue({}),
+    })
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes('/evaluation-config') ? evaluationConfig : {},
+      ),
+    )
+    jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
+    jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    // The Analyses part belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
+    mockListDesignKeys.mockResolvedValue(['role_swap'])
+    mockListRuns.mockResolvedValue({ items: [], total: 0 })
+  })
+
+  const openEvaluationCard = async () => {
+    fireEvent.click(await screen.findByText('project.evaluation.title'))
+  }
+
+  const renderFor = async (
+    projectOverrides: any,
+    user: any,
+    evaluationConfig: any = { analysis_plans: [{ id: 'p1' }] },
+  ) => {
+    setup(projectOverrides, user, evaluationConfig)
+    const view = render(
+      <ProjectDetailPage
+        params={Promise.resolve({ id: 'test-project-123' })}
+      />,
+    )
+    await openEvaluationCard()
+    return view
+  }
+
+  it.each([
+    ['CONTRIBUTOR', 'CONTRIBUTOR'],
+    ['ORG_ADMIN', 'ORG_ADMIN'],
+  ])('shows the Analyses part to the %s role', async (_label, role) => {
+    await renderFor({ effective_role: role, can_edit: true }, member(role))
+    const title = await screen.findByText('analysis.section.title')
+    // The badge counts the designs and the saved plans.
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'analysis.section.designsOne, analysis.section.plansOne',
+        ),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(title)
+    expect(
+      await screen.findByTestId('project-analyses-stub'),
+    ).toHaveTextContent('test-project-123')
+    // The section reports changed counts; the badge follows.
+    fireEvent.click(screen.getByText('report counts'))
+    expect(
+      await screen.findByText(
+        'analysis.section.designsMany {"count":3}, analysis.section.plansMany {"count":2}',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says not configured when there are no designs and no plans', async () => {
+    mockListDesignKeys.mockResolvedValue([])
+    await renderFor(
+      { effective_role: 'CONTRIBUTOR', can_edit: true },
+      member('CONTRIBUTOR'),
+      { evaluation_configs: [] },
+    )
+    await screen.findByText('analysis.section.title')
+    await waitFor(() => expect(mockListDesignKeys).toHaveBeenCalled())
+    expect(
+      screen.queryByText(/analysis\.section\.(designs|plans)/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows no Analyses part and asks for no designs while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    await renderFor(
+      { effective_role: 'CONTRIBUTOR', can_edit: true },
+      member('CONTRIBUTOR'),
+    )
+    await screen.findByText('project.quickActions.title')
+    expect(screen.queryByText('analysis.section.title')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-analyses-stub')).toBeNull()
+    expect(mockListDesignKeys).not.toHaveBeenCalled()
+  })
+
+  it('hides it from annotators', async () => {
+    await renderFor(
+      { effective_role: 'ANNOTATOR', can_edit: false },
+      member('ANNOTATOR'),
+    )
+    await screen.findByText('project.quickActions.title')
+    expect(screen.queryByText('analysis.section.title')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-analyses-stub')).toBeNull()
+  })
+
+  it('hides it from a signed-in visitor of a public project without edit rights', async () => {
+    await renderFor(
+      { effective_role: 'CONTRIBUTOR', can_edit: false, is_public: true },
+      member('CONTRIBUTOR'),
+    )
+    await screen.findByText('project.quickActions.title')
+    expect(screen.queryByText('analysis.section.title')).not.toBeInTheDocument()
+  })
+
+  it('hides it from an editor whose role is not CONTRIBUTOR or ORG_ADMIN', async () => {
+    await renderFor(
+      { effective_role: 'ANNOTATOR', can_edit: true },
+      member('ANNOTATOR'),
+    )
+    await screen.findByText('project.evaluation.title')
+    expect(screen.queryByText('analysis.section.title')).not.toBeInTheDocument()
   })
 })

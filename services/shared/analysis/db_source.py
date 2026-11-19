@@ -1,7 +1,7 @@
 """Observations from the database: the frame builder's data source.
 
 The seam between the platform's tables and the engine. A task belongs to a
-variant design through ``tasks.meta.variant`` (``{"design", "unit",
+variant design through ``tasks.meta.benger_variant`` (``{"design", "unit",
 "factors", ...}``; :func:`analysis.observations.variant_of_task_meta`); this
 module selects the project's tasks whose design is one of the spec's
 ``inputs.designs`` and turns every completed generation of those tasks into
@@ -14,7 +14,7 @@ an :class:`~analysis.observations.Observation`:
   so both a JSON object and its text are read;
 * structure: the prompt structure of its generation job; run index;
 * fields: the typed values of ``generations.parsed_annotation``;
-* slots: ``meta.variant.slots`` (index and factors per slot), which slot
+* slots: ``meta.benger_variant.slots`` (index and factors per slot), which slot
   frames unpivot;
 * quality flags: ``parse_status == "success"``, ``refusal``, ``truncated``,
   ``finish_reason`` and ``retried`` (a format retry, CORE 2.61);
@@ -38,11 +38,16 @@ the workers.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from analysis.ols import EngineError
-from analysis.observations import Observation, typed_field_values, variant_of_task_meta
+from analysis.observations import (  # noqa: F401  (response_metadata_object: re-exported)
+    Observation,
+    response_metadata_object,
+    system_key as _system,
+    typed_field_values,
+    variant_of_task_meta,
+)
 
 TASK_BATCH = 500
 
@@ -53,7 +58,9 @@ def _variant_design_expr():
 
     from project_models import Task
 
-    return cast(Task.meta, JSONB)["variant"]["design"].astext
+    from variant_designs import META_KEY
+
+    return cast(Task.meta, JSONB)[META_KEY]["design"].astext
 
 
 def select_variant_tasks(db, project_id: str, designs: Sequence[str]) -> List[Tuple[str, Any, Any]]:
@@ -75,23 +82,6 @@ def select_variant_tasks(db, project_id: str, designs: Sequence[str]) -> List[Tu
             continue
         out.append((task_id, data or {}, variant))
     return out
-
-
-def response_metadata_object(raw: Any) -> Optional[Mapping[str, Any]]:
-    """The response metadata as an object: a mapping as it is, JSON text
-    decoded; anything else (no metadata, invalid JSON, a non-object) is None."""
-    if isinstance(raw, (str, bytes, bytearray)):
-        try:
-            raw = json.loads(raw)
-        except ValueError:
-            return None
-    return raw if isinstance(raw, Mapping) else None
-
-
-def _system(model_id: str, metadata: Optional[Mapping[str, Any]]) -> str:
-    block = metadata.get("system") if isinstance(metadata, Mapping) else None
-    key = block.get("key") if isinstance(block, Mapping) else None
-    return key if isinstance(key, str) and key else model_id
 
 
 def iter_observations(

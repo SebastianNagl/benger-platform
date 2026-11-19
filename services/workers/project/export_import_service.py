@@ -229,22 +229,32 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
             viewer=requester,
         )
 
-        for chunk in generator:
-            if not chunk:
-                continue
-            raw = chunk.encode("utf-8") if isinstance(chunk, str) else chunk
-            _consume(raw)
-            if len(buffer) >= _EXPORT_PART_SIZE:
-                _flush_part()
-                tasks._publish_progress(
-                    channel,
-                    {
-                        "job_id": job_id,
-                        "status": "running",
-                        "progress": progress_state["last"],
-                        "bytes": total_bytes,
-                    },
-                )
+        # Lossless export (variant_experiments, core 2.75) is decided for the
+        # requester; the generator reads the answer from this scope while it
+        # is drained (serializers.serialize_generation).
+        from feature_flags import VARIANT_EXPERIMENTS
+        from feature_flags.scope import flag_scope
+        from feature_flags.worker import flag_enabled_or_default
+
+        with flag_scope(
+            {VARIANT_EXPERIMENTS: flag_enabled_or_default(db, job.requested_by, VARIANT_EXPERIMENTS)}
+        ):
+            for chunk in generator:
+                if not chunk:
+                    continue
+                raw = chunk.encode("utf-8") if isinstance(chunk, str) else chunk
+                _consume(raw)
+                if len(buffer) >= _EXPORT_PART_SIZE:
+                    _flush_part()
+                    tasks._publish_progress(
+                        channel,
+                        {
+                            "job_id": job_id,
+                            "status": "running",
+                            "progress": progress_state["last"],
+                            "bytes": total_bytes,
+                        },
+                    )
 
         # Drain the compressor's internal buffer into the final part(s).
         if compressor is not None:
@@ -462,7 +472,19 @@ def import_project_impl(
                 )
             else:
                 object_storage.download_to_fileobj(object_key, spooled)
-            payload_sha256, byte_size = provenance.hash_fileobj(spooled)
+            # Import provenance belongs to variant_experiments (core 2.75):
+            # off for the requester, nothing is recorded and every import
+            # imports, as before.
+            from feature_flags import VARIANT_EXPERIMENTS
+            from feature_flags.worker import flag_enabled_or_default
+
+            provenance_on = flag_enabled_or_default(db, requested_by, VARIANT_EXPERIMENTS)
+            if provenance_on:
+                payload_sha256, byte_size = provenance.hash_fileobj(spooled)
+            else:
+                payload_sha256 = None
+                byte_size = spooled.tell()
+                spooled.seek(0)
 
             lowered_key = object_key.lower()
             tabular_fmt = next(
@@ -482,7 +504,7 @@ def import_project_impl(
             else:
                 detected_format = "comprehensive"
 
-            manifest = provenance.build_manifest(
+            manifest = None if not provenance_on else provenance.build_manifest(
                 payload_sha256=payload_sha256,
                 byte_size=byte_size,
                 object_key=object_key,
@@ -499,13 +521,14 @@ def import_project_impl(
                 reimport=reimport,
                 declared=declared_manifest,
             )
-            import_key = provenance.idempotency_key(manifest)
-            # Committed on its own, so a failed import keeps its provenance too.
-            recorded = db.query(ImportJob).filter(ImportJob.id == job_id).one()
-            recorded.payload_sha256 = payload_sha256
-            recorded.source_manifest = manifest
-            recorded.idempotency_key = import_key
-            db.commit()
+            import_key = provenance.idempotency_key(manifest) if provenance_on else None
+            if provenance_on:
+                # Committed on its own, so a failed import keeps its provenance too.
+                recorded = db.query(ImportJob).filter(ImportJob.id == job_id).one()
+                recorded.payload_sha256 = payload_sha256
+                recorded.source_manifest = manifest
+                recorded.idempotency_key = import_key
+                db.commit()
 
             if import_key is not None:
                 # Held until the import commits: an identical import running
@@ -583,39 +606,44 @@ def import_project_impl(
                 completed["project_id"] = done.project_id
                 completed["byte_size"] = byte_size
 
-            if detected_format in _TABULAR_EXTENSIONS.values():
-                run_tabular_import(
-                    db, project_id, spooled, requested_by, tabular_fmt,
-                    before_commit=_mark_completed,
-                )
-            elif detected_format == "merge_preview":
-                _mark_completed(
+            # The drivers read the requester's variant_experiments answer
+            # (import_stream._experiments_on) from this scope.
+            from feature_flags.scope import flag_scope
+
+            with flag_scope({VARIANT_EXPERIMENTS: provenance_on}):
+                if detected_format in _TABULAR_EXTENSIONS.values():
+                    run_tabular_import(
+                        db, project_id, spooled, requested_by, tabular_fmt,
+                        before_commit=_mark_completed,
+                    )
+                elif detected_format == "merge_preview":
+                    _mark_completed(
+                        run_merge_import(
+                            db, project_id, spooled, requested_by,
+                            model_id_map=model_id_map, dry_run=True,
+                        )
+                    )
+                    db.commit()
+                elif detected_format == "merge":
                     run_merge_import(
                         db, project_id, spooled, requested_by,
-                        model_id_map=model_id_map, dry_run=True,
+                        model_id_map=model_id_map, before_commit=_mark_completed,
                     )
-                )
-                db.commit()
-            elif detected_format == "merge":
-                run_merge_import(
-                    db, project_id, spooled, requested_by,
-                    model_id_map=model_id_map, before_commit=_mark_completed,
-                )
-            elif detected_format == "nested":
-                run_nested_import(
-                    db, project_id, spooled, requested_by,
-                    before_commit=_mark_completed,
-                )
-            else:
-                import_kwargs = {"organization_id": organization_id}
-                if organization_group_id:
-                    import_kwargs["organization_group_id"] = organization_group_id
-                if model_id_map:
-                    import_kwargs["model_id_map"] = model_id_map
-                run_full_project_import(
-                    db, spooled, requested_by,
-                    before_commit=_mark_completed, **import_kwargs,
-                )
+                elif detected_format == "nested":
+                    run_nested_import(
+                        db, project_id, spooled, requested_by,
+                        before_commit=_mark_completed,
+                    )
+                else:
+                    import_kwargs = {"organization_id": organization_id}
+                    if organization_group_id:
+                        import_kwargs["organization_group_id"] = organization_group_id
+                    if model_id_map:
+                        import_kwargs["model_id_map"] = model_id_map
+                    run_full_project_import(
+                        db, spooled, requested_by,
+                        before_commit=_mark_completed, **import_kwargs,
+                    )
         finally:
             spooled.close()
 

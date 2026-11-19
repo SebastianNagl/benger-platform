@@ -48,6 +48,8 @@ import { useOperationToasts } from '@/hooks/useOperationToasts'
 import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
+import { useFeatureFlagStatus } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intervalRowsFromStatistics } from '@/lib/results/intervalRows'
 import { Project } from '@/types/labelStudio'
 import {
@@ -167,6 +169,16 @@ export interface MetricResultsViewProps {
   initialParams: InitialParams | null
 }
 
+/** The metric chart types before the forest chart (variant_experiments off). */
+const CLASSIC_METRIC_CHART_TYPES: ChartType[] = [
+  'data',
+  'bar',
+  'radar',
+  'box',
+  'heatmap',
+  'table',
+]
+
 export function MetricResultsView({
   selectedProject,
   filterBarLead,
@@ -177,6 +189,13 @@ export function MetricResultsView({
   const { startEvaluation, updateEvaluation, renderToasts } =
     useOperationToasts()
   const { t } = useI18n()
+  // The forest chart and the annotator agreement card belong to the
+  // variant_experiments flag.
+  const variantExperimentsStatus = useFeatureFlagStatus(VARIANT_EXPERIMENTS)
+  const variantExperiments = variantExperimentsStatus === 'on'
+  const metricChartTypes: ChartType[] | undefined = variantExperiments
+    ? undefined
+    : CLASSIC_METRIC_CHART_TYPES
   const searchParams = initialParams
   const { user } = useAuth()
 
@@ -247,6 +266,13 @@ export function MetricResultsView({
   const [chartType, setChartType] = useState<ChartType>(
     initialUrlFilters.chartType ?? 'data',
   )
+  // A forest chart from the URL or a saved choice falls back to the data
+  // view once the flag is known to be off.
+  useEffect(() => {
+    if (variantExperimentsStatus === 'off' && chartType === 'forest') {
+      setChartType('data')
+    }
+  }, [variantExperimentsStatus, chartType])
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
 
   // Project evaluation config - source of truth for available eval types and metrics
@@ -1319,6 +1345,7 @@ export function MetricResultsView({
                 onChange={setChartType}
                 disabledTypes={chartDisabledInfo.disabledTypes}
                 disabledReasons={chartDisabledInfo.disabledReasons}
+                availableTypes={metricChartTypes}
                 size="sm"
               />
             </div>
@@ -1449,6 +1476,7 @@ export function MetricResultsView({
                     onChange={setChartType}
                     disabledTypes={chartDisabledInfo.disabledTypes}
                     disabledReasons={chartDisabledInfo.disabledReasons}
+                    availableTypes={metricChartTypes}
                     size="sm"
                   />
                 </div>
@@ -1618,7 +1646,9 @@ export function MetricResultsView({
             )}
 
           {/* Annotator agreement - hidden unless a task has two annotators */}
-          <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
+          {variantExperiments && (
+            <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
+          )}
         </div>
       )}
 

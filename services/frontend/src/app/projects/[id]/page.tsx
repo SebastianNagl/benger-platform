@@ -14,6 +14,7 @@
 
 'use client'
 
+import { ProjectAnalysesSection } from '@/components/analysis/ProjectAnalysesSection'
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
@@ -59,7 +60,12 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
-import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import {
+  REPORT_PAPER,
+  VARIANT_EXPERIMENTS,
+} from '@/lib/featureFlags/platformFlags'
+import { useMaxGenerationRunsPerTask } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
@@ -82,7 +88,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // providerColors is shared with ModelSelectionSection — imported above.
 
@@ -141,6 +147,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { addToast } = useToast()
   const { isSidebarHidden } = useUIStore()
   const { t, locale } = useI18n()
+  // The experiment features (variant_experiments): the Analysis action and
+  // count, and a runs cap of 100 instead of 25.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const reportPaper = useFeatureFlag(REPORT_PAPER)
+  const maxRunsPerTask = useMaxGenerationRunsPerTask()
 
   const {
     currentProject,
@@ -203,6 +214,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [showEvaluationStartModal, setShowEvaluationStartModal] =
     useState(false)
 
+  // Saved analysis plans (evaluation_config.analysis_plans), for the badge
+  // of the Evaluation card's Analyses part.
+  const [analysisPlanCount, setAnalysisPlanCount] = useState(0)
   // Evaluation configs (Phase 8: N:M Field Mapping)
   const [evaluationConfigs, setEvaluationConfigs] = useState<
     EvaluationConfig[]
@@ -454,12 +468,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Report state (Issue #770)
   const [reportStatus, setReportStatus] = useState<{
-    exists: boolean
     reportId: string | null
     isPublished: boolean
     isPublic: boolean
     canPublish: boolean
     canPublishReason: string
+    /** The viewer authors the report (owner, org admin or superadmin). */
+    canEdit: boolean
   } | null>(null)
   const [loadingReport, setLoadingReport] = useState(false)
 
@@ -472,9 +487,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     resolveParams()
   }, [params])
 
-  // Fetch report status (Issue #770)
+  // Fetch report status (Issue #770). The API decides who authors the
+  // report (can_edit) and creates it on an author's first view; readers get
+  // a 403 for a draft, or can_edit false, and no card.
   const fetchReportStatus = async () => {
-    if (!projectId || !user?.is_superadmin) return
+    // Report authors besides superadmins belong to the report as project
+    // paper (report_paper); off, only superadmins get the card.
+    if (!projectId || !user || !(user.is_superadmin || reportPaper)) return
 
     setLoadingReport(true)
     try {
@@ -485,22 +504,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       if (response.ok) {
         const data = await response.json()
         setReportStatus({
-          exists: true,
           reportId: data.id ?? null,
           isPublished: data.is_published,
           isPublic: Boolean(data.is_public),
           canPublish: data.can_publish,
           canPublishReason: data.can_publish_reason,
+          canEdit: data.can_edit === true,
         })
-      } else if (response.status === 404) {
-        setReportStatus({
-          exists: false,
-          reportId: null,
-          isPublished: false,
-          isPublic: false,
-          canPublish: false,
-          canPublishReason: t('project.settings.review.reportNotCreated'),
-        })
+      } else {
+        setReportStatus(null)
       }
     } catch (error) {
       console.error('Failed to fetch report status:', error)
@@ -545,7 +557,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       fetchReportStatus()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
-  }, [projectId, user, accessTierKnown, isParticipant])
+  }, [projectId, user, accessTierKnown, isParticipant, reportPaper])
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {
@@ -567,6 +579,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         if (existingConfigs.length > 0) {
           setEvaluationConfigs(existingConfigs)
         }
+        setAnalysisPlanCount(
+          Array.isArray(configResponse?.analysis_plans)
+            ? configResponse.analysis_plans.length
+            : 0,
+        )
         // Hydrate the project-level blind toggles from the korrektur_falloesung
         // metric's parameters. Missing keys default to true (matches the
         // extended POLICY_DEFAULTS for least-biased grading).
@@ -909,14 +926,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Analysis runs of variant experiments open in the evaluations page's
   // Analyses view. The Evaluations quick action goes there directly when the
   // project has analysis runs or variant designs but no metric configs.
-  // Only fetched for the viewers who may see the action.
+  // Only fetched for the viewers who may see the action, and only with the
+  // variant_experiments flag (off, the action keeps its classic target).
   const mayOpenEvaluations = accessTierKnown && canSeeQuickAction('evaluations')
+  const mayLookForAnalyses = variantExperiments && mayOpenEvaluations
   const [analysisPresence, setAnalysisPresence] = useState<{
     projectId: string
     any: boolean
+    designs: number
   } | null>(null)
   useEffect(() => {
-    if (!projectId || !mayOpenEvaluations) return
+    if (!projectId || !mayLookForAnalyses) return
     let cancelled = false
     Promise.allSettled([
       analysisAPI.listRuns(projectId, 1),
@@ -927,16 +947,47 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         runs.status === 'fulfilled' && (runs.value?.total ?? 0) > 0
       const hasDesigns =
         designs.status === 'fulfilled' && (designs.value?.length ?? 0) > 0
-      setAnalysisPresence({ projectId, any: hasRuns || hasDesigns })
+      setAnalysisPresence({
+        projectId,
+        any: hasRuns || hasDesigns,
+        designs: hasDesigns ? designs.value.length : 0,
+      })
     })
     return () => {
       cancelled = true
     }
-  }, [projectId, mayOpenEvaluations])
+  }, [projectId, mayLookForAnalyses])
   const opensAnalyses =
     analysisPresence?.projectId === projectId &&
     analysisPresence.any &&
     evaluationConfigs.length === 0
+
+  // Variant designs, analysis plans and starting analysis runs (the
+  // Analyses part of the Evaluation card): variant_experiments, edit rights
+  // and the CONTRIBUTOR or ORG_ADMIN role, like starting a run in the API.
+  const canManageAnalyses =
+    variantExperiments &&
+    canEditProject() &&
+    (Boolean(user?.is_superadmin) ||
+      currentProject?.effective_role === 'ORG_ADMIN' ||
+      currentProject?.effective_role === 'CONTRIBUTOR')
+  const analysisDesignCount =
+    analysisPresence?.projectId === projectId ? analysisPresence.designs : 0
+  const onAnalysesSummary = useCallback(
+    (summary: { designs: number; plans: number }) => {
+      setAnalysisPlanCount(summary.plans)
+      setAnalysisPresence((prev) =>
+        prev && prev.projectId === projectId
+          ? {
+              ...prev,
+              designs: summary.designs,
+              any: prev.any || summary.designs > 0,
+            }
+          : prev,
+      )
+    },
+    [projectId],
+  )
 
   const handleStartLabeling = () => {
     if (projectId) {
@@ -2465,7 +2516,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <Input
                             type="number"
                             min={1}
-                            max={MAX_GENERATION_RUNS_PER_TASK}
+                            max={maxRunsPerTask}
                             step={1}
                             value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"
@@ -2480,7 +2531,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             className="mt-1 h-8"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.runsPerTaskHelp')}
+                            {t('project.generationDefaults.runsPerTaskHelp', {
+                              max: maxRunsPerTask,
+                            })}
                           </p>
                         </div>
                       </SubSection>
@@ -2834,6 +2887,36 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           />
                         </div>
                       </SubSection>
+
+                      {/* Analyses of variant experiments: designs, saved
+                      plans and the start dialog the evaluations page
+                      shares. Saves itself. */}
+                      {canManageAnalyses && projectId && (
+                        <SubSection
+                          title={t('analysis.section.title')}
+                          badge={
+                            analysisDesignCount > 0 || analysisPlanCount > 0
+                              ? [
+                                  analysisDesignCount === 1
+                                    ? t('analysis.section.designsOne')
+                                    : t('analysis.section.designsMany', {
+                                        count: analysisDesignCount,
+                                      }),
+                                  analysisPlanCount === 1
+                                    ? t('analysis.section.plansOne')
+                                    : t('analysis.section.plansMany', {
+                                        count: analysisPlanCount,
+                                      }),
+                                ].join(', ')
+                              : t('project.evaluation.notConfigured')
+                          }
+                        >
+                          <ProjectAnalysesSection
+                            projectId={projectId}
+                            onSummaryChange={onAnalysesSummary}
+                          />
+                        </SubSection>
+                      )}
                     </>
                   ) : (
                     <div className="py-6 text-center">
@@ -3249,19 +3332,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dd>
                 </div>
               )}
-              {(currentProject.analysis_count ?? 0) > 0 && (
-                <div className="flex justify-between">
-                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {t('project.statistics.analyses')}
-                  </dt>
-                  <dd
-                    className="text-sm font-medium text-zinc-900 dark:text-white"
-                    data-testid="project-statistics-analyses"
-                  >
-                    {currentProject.analysis_count}
-                  </dd>
-                </div>
-              )}
+              {variantExperiments &&
+                (currentProject.analysis_count ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('project.statistics.analyses')}
+                    </dt>
+                    <dd
+                      className="text-sm font-medium text-zinc-900 dark:text-white"
+                      data-testid="project-statistics-analyses"
+                    >
+                      {currentProject.analysis_count}
+                    </dd>
+                  </div>
+                )}
               {ProjectStatisticsExtended && (
                 <ProjectStatisticsExtended project={currentProject} />
               )}
@@ -3351,74 +3435,60 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Project Report - Issue #770 */}
-          {!isDeletedView &&
-            (user?.is_superadmin ||
-              currentProject?.effective_role === 'ORG_ADMIN' ||
-              currentProject?.effective_role === 'CONTRIBUTOR') &&
-            reportStatus && (
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                    {t('project.report.title')}
-                  </h2>
-                  <DocumentChartBarIcon className="h-5 w-5 text-zinc-400" />
-                </div>
-
-                {reportStatus.exists ? (
-                  <div className="space-y-4">
-                    <PublicationToggle
-                      projectId={projectId || ''}
-                      reportId={reportStatus.reportId}
-                      isPublished={reportStatus.isPublished}
-                      isPublic={reportStatus.isPublic}
-                      canPublish={reportStatus.canPublish}
-                      canPublishReason={reportStatus.canPublishReason}
-                      onToggle={(published) => {
-                        setReportStatus((prev) =>
-                          prev ? { ...prev, isPublished: published } : null,
-                        )
-                        addToast(
-                          published
-                            ? t('project.report.publishedSuccessfully')
-                            : t('project.report.unpublishedSuccessfully'),
-                          'success',
-                        )
-                      }}
-                      onChange={(next) => {
-                        setReportStatus((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                isPublished: next.is_published,
-                                isPublic: next.is_public,
-                              }
-                            : null,
-                        )
-                      }}
-                    />
-                    <Button
-                      onClick={() =>
-                        router.push(`/projects/${projectId}/report/edit`)
-                      }
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <PencilIcon className="mr-2 h-4 w-4" />
-                      {t('project.report.editReport')}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="py-4 text-center">
-                    <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.report.autoGenerated')}
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      {t('project.report.autoGeneratedHint')}
-                    </p>
-                  </div>
-                )}
+          {!isDeletedView && reportStatus?.canEdit && (
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                  {t('project.report.title')}
+                </h2>
+                <DocumentChartBarIcon className="h-5 w-5 text-zinc-400" />
               </div>
-            )}
+
+              <div className="space-y-4">
+                <PublicationToggle
+                  projectId={projectId || ''}
+                  reportId={reportStatus.reportId}
+                  isPublished={reportStatus.isPublished}
+                  isPublic={reportStatus.isPublic}
+                  canPublish={reportStatus.canPublish}
+                  canPublishReason={reportStatus.canPublishReason}
+                  canEdit={reportStatus.canEdit}
+                  onToggle={(published) => {
+                    setReportStatus((prev) =>
+                      prev ? { ...prev, isPublished: published } : null,
+                    )
+                    addToast(
+                      published
+                        ? t('project.report.publishedSuccessfully')
+                        : t('project.report.unpublishedSuccessfully'),
+                      'success',
+                    )
+                  }}
+                  onChange={(next) => {
+                    setReportStatus((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            isPublished: next.is_published,
+                            isPublic: next.is_public,
+                          }
+                        : null,
+                    )
+                  }}
+                />
+                <Button
+                  onClick={() =>
+                    router.push(`/projects/${projectId}/report/edit`)
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  <PencilIcon className="mr-2 h-4 w-4" />
+                  {t('project.report.editReport')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

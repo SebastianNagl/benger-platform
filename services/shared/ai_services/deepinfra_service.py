@@ -63,6 +63,22 @@ DEEPINFRA_REQUEST_TIMEOUT_S = int(os.getenv("DEEPINFRA_REQUEST_TIMEOUT_S", "900"
 _is_retryable_error = is_transient_upstream_error
 
 
+def _system_key_fields(sent: Dict[str, Any], provider_model_id: Any, response_model: Any) -> Dict[str, Any]:
+    """The response metadata the system key reads (the reasoning knobs as
+    sent, the model id sent to and reported by DeepInfra). They belong to
+    the variant_experiments flag (core 2.75): off, none are recorded."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    if not scoped_flag(VARIANT_EXPERIMENTS):
+        return {}
+    return {
+        "reasoning_params_sent": sent,
+        "provider_model_id": provider_model_id,
+        "response_model": response_model,
+    }
+
+
 def async_retry_with_exponential_backoff(
     max_retries: int = 5,
     base_delay: float = 2.0,
@@ -247,13 +263,15 @@ class DeepInfraService(BaseAIService):
                     # Most DeepInfra-hosted models do not support a seed
                     # parameter; we don't send one.
                     "seed": None,
-                    "reasoning_params_sent": reasoning_params_sent(
-                        openai_compatible_reasoning_payload(
-                            model_reasoning_config(model_name), kwargs
-                        )
+                    **_system_key_fields(
+                        reasoning_params_sent(
+                            openai_compatible_reasoning_payload(
+                                model_reasoning_config(model_name), kwargs
+                            )
+                        ),
+                        self.model_mapping.get(model_name, model_name),
+                        None,
                     ),
-                    "provider_model_id": self.model_mapping.get(model_name, model_name),
-                    "response_model": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -416,9 +434,9 @@ class DeepInfraService(BaseAIService):
                 "seed": requested_seed if supports_seed_here else None,
                 # Reasoning knobs as sent, and the model id sent to and
                 # reported by DeepInfra (the system key's provider side).
-                "reasoning_params_sent": reasoning_params_sent(payload),
-                "provider_model_id": api_model_name,
-                "response_model": result.get("model"),
+                **_system_key_fields(
+                    reasoning_params_sent(payload), api_model_name, result.get("model")
+                ),
                 "created_at": end_time.isoformat(),
                 **self.get_invocation_provenance(),
             },

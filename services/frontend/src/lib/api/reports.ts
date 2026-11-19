@@ -3,14 +3,19 @@
  *
  * Provides functions to interact with the report publishing system:
  * - Get project reports (draft or published)
- * - Update report content (superadmin only)
+ * - Update report content (report authors only)
  * - Publish/unpublish reports and switch their visibility
  * - Recompute the report snapshot
  * - List published reports (public + org-filtered; works anonymously)
  * - Get complete report data (report + snapshot)
  */
 
-import type { ReportChartsConfig, ReportSnapshot } from '@/types/report'
+import type {
+  ReportChartsConfig,
+  ReportExhibitFilters,
+  ReportExhibitType,
+  ReportSnapshot,
+} from '@/types/report'
 import { apiClient } from './client'
 
 // Types matching backend schema
@@ -31,6 +36,8 @@ export interface DataSection extends ReportSection {
   task_count?: number
   custom_text?: string | null
   show_count: boolean
+  /** Show variant designs and import provenance (default true). */
+  show_provenance?: boolean
 }
 
 export interface AnnotationsSection extends ReportSection {
@@ -45,6 +52,9 @@ export interface AnnotationsSection extends ReportSection {
   show_participants: boolean
   /** Show inter-annotator agreement from the snapshot (default true). */
   show_agreement?: boolean
+  /** Show the validations of the codes the Analyses section's runs read
+   *  (default true). */
+  show_code_validations?: boolean
   acknowledgment_text?: string | null
 }
 
@@ -53,6 +63,8 @@ export interface GenerationSection extends ReportSection {
   custom_text?: string | null
   show_models: boolean
   show_config: boolean
+  /** Show the per-model generation table (default true). */
+  show_details?: boolean
 }
 
 export interface EvaluationSection extends ReportSection {
@@ -61,6 +73,56 @@ export interface EvaluationSection extends ReportSection {
   charts_config?: ReportChartsConfig
   custom_interpretation?: string | null
   conclusions?: string | null
+  /** Show the human evaluation results (default true). */
+  show_human_evaluation?: boolean
+}
+
+/** One exhibit of an Analyses run: how it draws which estimates. */
+export interface AnalysisExhibitContent {
+  /** 1 to 64 letters, digits, '-' or '_', unique within the run. */
+  id: string
+  type: ReportExhibitType
+  title?: string | null
+  caption?: string | null
+  filters?: ReportExhibitFilters
+  /** Equivalence bound set a forest draws (default the first), null none. */
+  band?: number | null
+}
+
+/** One run of the Analyses section with the author's text and exhibits. */
+export interface AnalysisRunContent {
+  run_id: string
+  title?: string | null
+  text?: string | null
+  exhibits: AnalysisExhibitContent[]
+}
+
+/** The Analyses section: completed single-project runs the author picked;
+ *  the snapshot copies the estimates their exhibits select. */
+export interface AnalysesSection {
+  visible?: boolean
+  custom_text?: string | null
+  runs?: AnalysisRunContent[]
+}
+
+/** An analysis run the Analyses section can show. */
+export interface ReportAnalysisRunOption {
+  id: string
+  name: string
+  spec_hash: string
+  engine_version: string
+  frame_rows: number | null
+  estimates_count: number | null
+  completed_at: string | null
+  /** A private model may appear in it: only members see it, and a public
+   *  report cannot show it. */
+  member_only: boolean
+}
+
+/** Reproducibility appendix; visible unless the author switched it off. */
+export interface ReproducibilitySection {
+  visible?: boolean
+  custom_text?: string | null
 }
 
 export interface ReportContent {
@@ -70,6 +132,8 @@ export interface ReportContent {
     annotations: AnnotationsSection
     generation: GenerationSection
     evaluation: EvaluationSection
+    analyses?: AnalysesSection
+    reproducibility?: ReproducibilitySection
   }
   metadata: {
     last_auto_update: string
@@ -95,6 +159,9 @@ export interface ReportResponse {
   updated_at?: string | null
   can_publish: boolean
   can_publish_reason: string
+  /** The caller authors this report: the project owner, an admin of one of
+   *  the project's organizations or a superadmin. */
+  can_edit?: boolean
 }
 
 export type ReportVisibility = 'public' | 'organizations'
@@ -167,7 +234,8 @@ function invalidateReportLists() {
 
 /**
  * Get report for a project
- * - Superadmins can view draft or published reports (incl. content.snapshot)
+ * - Report authors (project owner, org admins of the project, superadmins)
+ *   can view draft or published reports (incl. content.snapshot)
  * - Org members can view only published reports
  */
 export async function getProjectReport(
@@ -177,7 +245,7 @@ export async function getProjectReport(
 }
 
 /**
- * Update report content (superadmin only)
+ * Update report content (report authors only)
  * Allows editing report sections while preserving auto-populated data
  */
 export async function updateProjectReport(
@@ -188,7 +256,7 @@ export async function updateProjectReport(
 }
 
 /**
- * Publish a report (superadmin only)
+ * Publish a report (report authors only)
  * Validates that all requirements are met before publishing.
  * Pass `{ is_public: true }` to make it readable without a session.
  */
@@ -207,7 +275,7 @@ export async function publishReport(
 }
 
 /**
- * Unpublish a report (superadmin only)
+ * Unpublish a report (report authors only)
  */
 export async function unpublishReport(
   projectId: string,
@@ -219,7 +287,7 @@ export async function unpublishReport(
 
 /**
  * Switch a published report between "project organizations only" and
- * "public" (superadmin only; the API rejects it for drafts).
+ * "public" (report authors only; the API rejects it for drafts).
  */
 export async function setReportVisibility(
   projectId: string,
@@ -234,13 +302,28 @@ export async function setReportVisibility(
 }
 
 /**
- * Recompute the report snapshot from live project data (superadmin only).
+ * Recompute the report snapshot from live project data (report authors only).
  * Returns the report with the fresh `content.snapshot`.
  */
 export async function refreshReport(
   projectId: string,
 ): Promise<ReportResponse> {
   return await apiClient.post(`/projects/${projectId}/report/refresh`)
+}
+
+/**
+ * The analysis runs the report's Analyses section can show (report authors
+ * only): completed runs of the project that read no other project, newest
+ * first.
+ */
+export async function listReportAnalysisRuns(
+  projectId: string,
+): Promise<ReportAnalysisRunOption[]> {
+  const page = (await apiClient.get(
+    `/projects/${projectId}/report/analysis-runs`,
+    { cache: 'no-store' },
+  )) as { items?: ReportAnalysisRunOption[] }
+  return page?.items ?? []
 }
 
 /**
@@ -258,7 +341,7 @@ export async function listPublishedReports(): Promise<
 /**
  * Get complete report data (report + snapshot)
  * Public reports work anonymously; org reports need membership; drafts are
- * readable by superadmins.
+ * readable by report authors.
  */
 export async function getReportData(
   reportId: string,

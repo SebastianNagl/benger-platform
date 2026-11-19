@@ -1,5 +1,6 @@
 """Inter-annotator agreement over a project's overlapping annotations."""
 from ._common import *  # noqa: F401,F403  (binds _common.__all__, the shared surface)
+from feature_flags.deps import require_variant_experiments
 
 
 class AnnotatorPairAgreement(BaseModel):
@@ -57,6 +58,8 @@ class AnnotatorAgreementResponse(BaseModel):
 @router.get(
     "/projects/{project_id}/annotator-agreement",
     response_model=AnnotatorAgreementResponse,
+    # Annotator agreement belongs to variant_experiments (core 2.75).
+    dependencies=[Depends(require_variant_experiments)],
 )
 async def get_annotator_agreement(
     project_id: str,

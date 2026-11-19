@@ -3,27 +3,36 @@ export and import.
 
 A design declares a variant experiment (factors, unit, slots, outcome, gold
 and invariance bindings; ``schemas/variant_design.schema.json``); each task's
-place in it is ``task.meta.variant``. The rules live in ``variant_designs``
+place in it is ``task.meta.benger_variant``. The rules live in ``variant_designs``
 (pure) and ``variant_design_guard`` (database); this module only routes.
 
 Access: reading a design needs the full-data tier of the project (the roles
 that see ``task.meta`` unblinded; a design tells which tasks are twins, so a
 blinded annotator never reads it). Writing needs project edit rights.
 Refusals carry ``{"detail": {"code", "message", "problems"?}}``.
+
+The unit routes (CORE 2.73, ``variant_unit_views``) page through a design's
+units and show one unit with its tasks, declared spans, gold values and
+answers. They need full read access to the project's task content, like
+the frame download of an analysis run (ORG_ADMIN or CONTRIBUTOR, an
+editor on a SEB exam), because a unit view carries task data and answers.
 """
 
 from typing import Any, Callable, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import variant_designs as vd
+import variant_unit_views as units
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from project_models import Task, VariantDesign
 from routers.projects.deps import ProjectAccess, require_project_access
+from routers.projects.helpers import can_read_all_task_content_async
 from routers.projects.tasks.blinding import annotator_bound_fields_or_none_async
 from variant_design_guard import (
     VariantDesignError,
@@ -35,13 +44,14 @@ from variant_design_guard import (
     update_design_spec,
 )
 
-router = APIRouter()
+# Behind the variant_experiments flag (core 2.75): 404 feature_disabled while off.
+router = APIRouter(dependencies=[Depends(require_variant_experiments)])
 
 _BASE = "/{project_id}/variant-designs"
 
 
 class VariantDesignCreate(BaseModel):
-    key: str = Field(..., description="Key of the design in the project (meta.variant.design)")
+    key: str = Field(..., description="Key of the design in the project (meta.benger_variant.design)")
     spec: Dict[str, Any] = Field(..., description="schemas/variant_design.schema.json")
     provenance: Optional[Dict[str, Any]] = None
 
@@ -72,6 +82,18 @@ async def _require_read(db: AsyncSession, access: ProjectAccess) -> None:
         raise HTTPException(status_code=403, detail="Access denied")
 
 
+async def _require_content(db: AsyncSession, access: ProjectAccess) -> None:
+    """Full read access to the project's task content (the frame rule)."""
+    if not await can_read_all_task_content_async(db, access.user, access.project):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "variant_unit_forbidden",
+                "message": "A unit view needs the ORG_ADMIN or CONTRIBUTOR role on the project",
+            },
+        )
+
+
 async def _load(db: AsyncSession, project_id: str, key: str) -> VariantDesign:
     row = (
         await db.execute(
@@ -85,13 +107,25 @@ async def _load(db: AsyncSession, project_id: str, key: str) -> VariantDesign:
     return row
 
 
-async def _task_counts(db: AsyncSession, project_id: str) -> Dict[str, int]:
+_NO_TASKS = {"task_count": 0, "unit_count": 0, "cell_count": 0}
+
+
+async def _task_counts(db: AsyncSession, project_id: str) -> Dict[str, Dict[str, int]]:
+    """Per design key: its tasks, its distinct units and its distinct cells."""
     rows = await db.execute(
-        select(Task.variant_design, func.count(Task.id))
+        select(
+            Task.variant_design,
+            func.count(Task.id),
+            func.count(Task.variant_unit.distinct()),
+            func.count(Task.variant_cell.distinct()),
+        )
         .where(Task.project_id == project_id, Task.variant_design.isnot(None))
         .group_by(Task.variant_design)
     )
-    return {key: count for key, count in rows.all()}
+    return {
+        key: {"task_count": tasks, "unit_count": units, "cell_count": cells}
+        for key, tasks, units, cells in rows.all()
+    }
 
 
 async def _run(db: AsyncSession, work: Callable[[Any], Any]) -> Any:
@@ -133,7 +167,7 @@ async def _create(
             409, "variant_design_exists", f"The project already has a variant design {key!r}."
         )
     await db.refresh(row)
-    return serialize_design(row, task_count=0)
+    return serialize_design(row, **_NO_TASKS)
 
 
 @router.get(_BASE)
@@ -142,7 +176,7 @@ async def list_variant_designs(
     db: AsyncSession = Depends(get_async_db),
     access: ProjectAccess = Depends(require_project_access()),
 ):
-    """The project's variant designs with their task counts."""
+    """The project's variant designs with their task, unit and cell counts."""
     await _require_read(db, access)
     rows = (
         await db.execute(
@@ -152,7 +186,7 @@ async def list_variant_designs(
         )
     ).scalars().all()
     counts = await _task_counts(db, project_id)
-    return {"items": [serialize_design(r, task_count=counts.get(r.key, 0)) for r in rows]}
+    return {"items": [serialize_design(r, **counts.get(r.key, _NO_TASKS)) for r in rows]}
 
 
 @router.post(_BASE, status_code=201)
@@ -203,7 +237,7 @@ async def get_variant_design(
     await _require_read(db, access)
     row = await _load(db, project_id, key)
     counts = await _task_counts(db, project_id)
-    return serialize_design(row, task_count=counts.get(key, 0))
+    return serialize_design(row, **counts.get(key, _NO_TASKS))
 
 
 @router.get(f"{_BASE}/{{key}}/export")
@@ -214,7 +248,7 @@ async def export_variant_design(
     access: ProjectAccess = Depends(require_project_access()),
 ):
     """The design as a portable document (the assignments travel with the
-    tasks in ``meta.variant``)."""
+    tasks in ``meta.benger_variant``)."""
     await _require_read(db, access)
     return export_document(await _load(db, project_id, key))
 
@@ -261,13 +295,13 @@ async def delete_variant_design(
         raise VariantDesignError(
             409, "variant_design_frozen", f"The variant design {key!r} is frozen."
         )
-    count = (await _task_counts(db, project_id)).get(key, 0)
+    count = (await _task_counts(db, project_id)).get(key, _NO_TASKS)["task_count"]
     if count:
         raise VariantDesignError(
             409,
             "variant_design_in_use",
             f"{count} task(s) name the variant design {key!r}; remove their "
-            "meta.variant or delete them first.",
+            "meta.benger_variant or delete them first.",
             task_count=count,
         )
     await db.delete(row)
@@ -303,7 +337,7 @@ async def freeze_variant_design(
     access: ProjectAccess = Depends(require_project_access(min_role="edit")),
 ):
     """Freeze the design when every check passes: records the content hash
-    and makes the tasks' ``data`` and ``meta.variant`` read-only (409 on any
+    and makes the tasks' ``data`` and ``meta.benger_variant`` read-only (409 on any
     later edit). 409 with the report when a check fails."""
     await _load(db, project_id, key)
     user_id = str(access.user.id)
@@ -313,3 +347,39 @@ async def freeze_variant_design(
         return {"design": serialize_design(row), "report": report}
 
     return await _run(db, _work)
+
+
+@router.get(f"{_BASE}/{{key}}/units")
+async def list_variant_units(
+    project_id: str,
+    key: str,
+    limit: int = Query(100, ge=1, le=units.MAX_UNIT_PAGE),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(require_project_access()),
+):
+    """The design's units in name order with their task counts, paged."""
+    await _require_content(db, access)
+    try:
+        return await db.run_sync(lambda s: units.list_units(s, project_id, key, limit, offset))
+    except units.ViewNotFound as exc:
+        raise VariantDesignError(404, exc.code, str(exc)) from exc
+
+
+@router.get(f"{_BASE}/{{key}}/units/{{unit:path}}")
+async def get_variant_unit(
+    project_id: str,
+    key: str,
+    unit: str,
+    system: Optional[str] = Query(None, max_length=300),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(require_project_access()),
+):
+    """Every task of one unit with its cell, declared spans and gold values,
+    the answers (of ``system`` when given: a system key or a model id) and
+    the unit's assignment, balance and invariance check."""
+    await _require_content(db, access)
+    try:
+        return await db.run_sync(lambda s: units.unit_view(s, project_id, key, unit, system))
+    except units.ViewNotFound as exc:
+        raise VariantDesignError(404, exc.code, str(exc)) from exc

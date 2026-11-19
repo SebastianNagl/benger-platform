@@ -90,7 +90,12 @@ jest.mock('react', () => ({
 }))
 
 import { getReportData } from '@/lib/api/reports'
-import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import {
+  ANNOTATION_ONLY_SNAPSHOT,
+  REPORT_ANALYSES_FIXTURE,
+  REPORT_RECORDS_FIXTURE,
+  REPORT_SNAPSHOT_FIXTURE,
+} from '@/lib/reports/fixture'
 import ReportViewerPage, { classifyLoadError } from '../page'
 
 const mockGetReportData = getReportData as jest.Mock
@@ -375,9 +380,10 @@ describe('ReportViewerPage', () => {
     expect(screen.queryByTestId('data-as-of')).not.toBeInTheDocument()
   })
 
-  it('shows the draft badge and edit link for a superadmin on an unpublished report', async () => {
-    mockAuth = { user: { is_superadmin: true } }
-    mockData(makeReport({ is_published: false, published_at: null }))
+  it('shows the draft badge and edit link for a report author on an unpublished report', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: true }),
+    )
     await renderPage()
     expect(screen.getByTestId('draft-badge')).toHaveTextContent('Entwurf')
     expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
@@ -552,6 +558,319 @@ describe('classifyLoadError', () => {
       forbidden: false,
       message: null,
     })
+  })
+})
+
+describe('ReportViewerPage: the report as the project paper', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth = null
+    mockUseResult = { id: 'report-1' }
+  })
+
+  const fullSnapshot = { ...REPORT_SNAPSHOT_FIXTURE, ...REPORT_RECORDS_FIXTURE }
+  const sectionIds = () =>
+    Array.from(document.querySelectorAll('[data-testid^="section-"]')).map(
+      (el) => el.getAttribute('data-testid'),
+    )
+
+  it('shows an annotation-only project with Data, Annotations, Reproducibility and the citation only', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          evaluation: { custom_interpretation: null, conclusions: null },
+        },
+      }),
+      ANNOTATION_ONLY_SNAPSHOT,
+    )
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    // Zero tiles stay out.
+    expect(screen.queryByTestId('stat-models')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('stat-evaluations')).not.toBeInTheDocument()
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+    expect(screen.getByTestId('citation-text')).toHaveTextContent(
+      '7'.repeat(64),
+    )
+  })
+
+  it('renders a stored report whose content holds only project_info', async () => {
+    // Older stored reports and minimal content can lack every section but
+    // project_info; absent sections take their defaults (visible) and the
+    // sections without data hide themselves, as in the editor.
+    const report = makeReport()
+    report.content = {
+      ...report.content,
+      sections: { project_info: report.content.sections.project_info } as any,
+    }
+    mockData(report, ANNOTATION_ONLY_SNAPSHOT)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+  })
+
+  it('renders every record section of a full project', async () => {
+    mockData(makeReport(), fullSnapshot)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-generation',
+      'section-evaluation',
+      'section-human-evaluation',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('data-provenance')).toBeInTheDocument()
+    expect(screen.getByTestId('generation-details')).toBeInTheDocument()
+    expect(screen.getByTestId('likert')).toBeInTheDocument()
+    expect(screen.getByTestId('preference')).toBeInTheDocument()
+  })
+
+  it('honours the record toggles and the reproducibility visibility', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          data: { show_provenance: false },
+          generation: { show_details: false },
+          evaluation: { show_human_evaluation: false },
+        },
+        content: undefined,
+      }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('data-provenance')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('generation-details')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('section-human-evaluation'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the appendix when the author switched it off and shows the author note otherwise', async () => {
+    const withRepro = (repro: Record<string, unknown>) => {
+      const report = makeReport()
+      report.content = {
+        ...report.content,
+        sections: { ...report.content.sections, reproducibility: repro } as any,
+      }
+      return report
+    }
+    mockData(withRepro({ visible: false }), fullSnapshot)
+    const { unmount } = await renderPage()
+    expect(
+      screen.queryByTestId('section-reproducibility'),
+    ).not.toBeInTheDocument()
+    unmount()
+
+    mockData(
+      withRepro({ visible: true, custom_text: 'Seed 7 throughout.' }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(
+      within(screen.getByTestId('section-reproducibility')).getByText(
+        'Seed 7 throughout.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  describe('Analyses', () => {
+    const withAnalyses = (
+      analyses: Record<string, unknown>,
+      extra: any = {},
+    ) => {
+      const report = makeReport(extra)
+      report.content = {
+        ...report.content,
+        sections: { ...report.content.sections, analyses } as any,
+      }
+      return report
+    }
+    const analysesSnapshot = {
+      ...fullSnapshot,
+      analyses: REPORT_ANALYSES_FIXTURE,
+    }
+
+    it('shows the Analyses section after the human evaluation and the conclusions after it', async () => {
+      mockData(
+        withAnalyses({
+          visible: true,
+          runs: [{ run_id: 'run-1', title: 'Framing-Effekt', exhibits: [] }],
+        }),
+        analysesSnapshot,
+      )
+      await renderPage()
+      expect(sectionIds()).toEqual([
+        'section-data',
+        'section-annotations',
+        'section-generation',
+        'section-evaluation',
+        'section-human-evaluation',
+        'section-analyses',
+        'section-conclusions',
+        'section-reproducibility',
+        'section-cite',
+      ])
+      expect(
+        within(screen.getByTestId('section-analyses')).getByRole('heading', {
+          name: 'Framing-Effekt',
+        }),
+      ).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('section-conclusions')).getByText(
+          'Fazit hier.',
+        ),
+      ).toBeInTheDocument()
+      // The conclusions are no longer inside the evaluation section.
+      expect(
+        within(screen.getByTestId('section-evaluation')).queryByText(
+          'Fazit hier.',
+        ),
+      ).not.toBeInTheDocument()
+      expect(screen.getAllByTestId('report-analysis-exhibit')).toHaveLength(2)
+      // A reader gets no link to the run.
+      expect(screen.queryByText('Lauf öffnen')).not.toBeInTheDocument()
+    })
+
+    it('links a report author to the run page', async () => {
+      mockData(withAnalyses({}, { can_edit: true }), analysesSnapshot)
+      await renderPage()
+      expect(screen.getByText('Lauf öffnen')).toHaveAttribute(
+        'href',
+        '/evaluations/analysis/run-1',
+      )
+    })
+
+    it('hides the section when switched off or empty, keeping the conclusions in the evaluation', async () => {
+      mockData(withAnalyses({ visible: false }), analysesSnapshot)
+      const { unmount } = await renderPage()
+      expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('section-conclusions'),
+      ).not.toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('section-evaluation')).getByText(
+          'Fazit hier.',
+        ),
+      ).toBeInTheDocument()
+      unmount()
+
+      mockData(withAnalyses({}), {
+        ...fullSnapshot,
+        analyses: { runs: [], omitted: [] },
+      })
+      await renderPage()
+      expect(screen.queryByTestId('section-analyses')).not.toBeInTheDocument()
+    })
+
+    it('shows an analysis-only project with its Analyses and conclusions', async () => {
+      mockData(
+        withAnalyses(
+          {},
+          {
+            sections: {
+              evaluation: { custom_interpretation: null },
+            },
+          },
+        ),
+        { ...ANNOTATION_ONLY_SNAPSHOT, analyses: REPORT_ANALYSES_FIXTURE },
+      )
+      await renderPage()
+      expect(sectionIds()).toEqual([
+        'section-data',
+        'section-annotations',
+        'section-analyses',
+        'section-conclusions',
+        'section-reproducibility',
+        'section-cite',
+      ])
+    })
+
+    describe('validations of the codes', () => {
+      const { makeReportValidation } = require('@/test-utils/codingFixtures')
+      // An analysis-only project: no annotations of its own, its codes were
+      // validated on coding projects.
+      const codedSnapshot = {
+        ...ANNOTATION_ONLY_SNAPSHOT,
+        statistics: {
+          ...ANNOTATION_ONLY_SNAPSHOT.statistics,
+          annotation_count: 0,
+          participant_count: 0,
+        },
+        participants: [],
+        annotator_agreement: null,
+        analyses: {
+          ...REPORT_ANALYSES_FIXTURE,
+          code_validations: [makeReportValidation()],
+        },
+      }
+
+      it('shows them in the Annotation section of an analysis-only project', async () => {
+        mockData(withAnalyses({}), codedSnapshot)
+        await renderPage()
+        expect(sectionIds()).toContain('section-annotations')
+        const section = screen.getByTestId('section-annotations')
+        // No annotation count sentence without annotations.
+        expect(section).not.toHaveTextContent('Abgaben von')
+        const block = within(section).getByTestId('report-code-validations')
+        expect(
+          within(block).getByText('Validierungen der Codes'),
+        ).toBeInTheDocument()
+        const entry = within(block).getByTestId('report-code-validation')
+        expect(within(entry).getByText('blame pattern')).toBeInTheDocument()
+        expect(entry).toHaveTextContent('framing main (blames_claimant)')
+        expect(within(entry).getByTestId('validation-kappa')).toHaveTextContent(
+          '0,59',
+        )
+        expect(
+          within(entry).getAllByTestId('validation-category-row'),
+        ).toHaveLength(3)
+      })
+
+      it('hides them with the switch off or without a shown Analyses section', async () => {
+        const report = withAnalyses({})
+        report.content.sections.annotations = {
+          ...report.content.sections.annotations,
+          show_code_validations: false,
+        } as any
+        mockData(report, codedSnapshot)
+        const { unmount } = await renderPage()
+        expect(
+          screen.queryByTestId('report-code-validations'),
+        ).not.toBeInTheDocument()
+        expect(sectionIds()).not.toContain('section-annotations')
+        unmount()
+
+        mockData(withAnalyses({ visible: false }), codedSnapshot)
+        await renderPage()
+        expect(
+          screen.queryByTestId('report-code-validations'),
+        ).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  it('offers no citation for a draft and no edit link to a reader', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: false }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('section-cite')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Bearbeiten' }),
+    ).not.toBeInTheDocument()
   })
 })
 

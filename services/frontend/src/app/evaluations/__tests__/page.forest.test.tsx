@@ -6,12 +6,16 @@
  * @jest-environment jsdom
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 
 import { MetricResultsView } from '@/app/evaluations/_components/MetricResultsView'
 import { apiClient } from '@/lib/api/client'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }))
@@ -100,6 +104,8 @@ const evaluations = apiClient.evaluations as unknown as Record<
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // The forest chart of the metrics belongs to variant_experiments.
+  setMockFeatureFlags({ variant_experiments: true })
   evaluations.getProjectEvaluationConfig.mockResolvedValue({
     evaluation_configs: [
       {
@@ -160,6 +166,37 @@ it('feeds the forest view with interval rows from the statistics', async () => {
   ])
   const selector = mockSelector.mock.calls.at(-1)![0]
   expect(selector.disabledTypes).not.toContain('forest')
+})
+
+it('offers no forest view and shows the data view while variant_experiments is off', async () => {
+  setMockFeatureFlags({})
+  evaluations.computeStatistics.mockResolvedValue({
+    aggregation: 'model',
+    metrics: {},
+    by_model: {
+      m1: {
+        metrics: { bleu: { mean: 0.4, ci_lower: 0.3, ci_upper: 0.5, n: 9 } },
+      },
+    },
+  })
+  render(
+    <MetricResultsView
+      selectedProject={project}
+      filterBarLead={<span>lead</span>}
+      initialParams={params('projectId=p1&chartType=forest')}
+    />,
+  )
+  await waitFor(() => expect(mockSelector).toHaveBeenCalled())
+  // The forest from the URL falls back to the data view.
+  await waitFor(() =>
+    expect(mockSelector.mock.calls.at(-1)![0].selectedType).toBe('data'),
+  )
+  expect(mockRenderer.mock.calls.some(([p]) => p.chartType === 'forest')).toBe(
+    false,
+  )
+  const selector = mockSelector.mock.calls.at(-1)![0]
+  expect(selector.availableTypes).not.toContain('forest')
+  expect(selector.availableTypes).toContain('bar')
 })
 
 it('disables the forest view without model-level statistics', async () => {

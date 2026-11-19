@@ -249,10 +249,25 @@ def _owner_active(owner: Optional[str]) -> bool:
     return extension_activation.package_active(owner)
 
 
+def metric_flag_on(metric: str) -> bool:
+    """Whether a platform metric is available in the current context (its
+    flag, ``metric_filters.FLAGGED_METRICS``, is on; unflagged metrics
+    always are)."""
+    from metric_filters import FLAGGED_METRICS
+
+    flag = FLAGGED_METRICS.get(metric)
+    if flag is None:
+        return True
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(flag)
+
+
 def get_metrics_for_answer_type(answer_type: AnswerType) -> list[str]:
     """Get all metrics for an answer type, including the extended metrics of
-    packages active in the current request context."""
-    base = ANSWER_TYPE_TO_METRICS.get(answer_type, [])
+    packages active in the current request context. A platform metric of a
+    feature flag that is off (``metric_filters.FLAGGED_METRICS``) is left out."""
+    base = [m for m in ANSWER_TYPE_TO_METRICS.get(answer_type, []) if metric_flag_on(m)]
     extended = [
         metric
         for metric in _extended_metrics.get(answer_type.value, [])

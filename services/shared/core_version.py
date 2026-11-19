@@ -1496,11 +1496,254 @@ API change).
     page and, for the selected run, inline in the Analyses view of
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
+
+2.70 (2026-11-19): the project report covers the whole project (no
+  migration, additive API changes only).
+  - ``report_snapshot.build_report_snapshot`` adds the ``data``,
+    ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
+    ``reproducibility.snapshot_sha256`` is the SHA-256 of
+    ``report_snapshot.canonical_snapshot_json`` (``snapshot_sha256``).
+    ``report_snapshot.public_snapshot`` is the view served to readers
+    outside the project (judge parameters, import manifests and design
+    provenance as hashes only); ``model_is_public`` and ``hidden_model_ids``
+    hold the hidden-model rule the report applies in every section.
+  - ``report_service.can_publish_report`` and ``can_publish_project`` allow
+    any project with tasks and at least one result (annotations,
+    generations, evaluation or analysis runs); the refusal reasons are
+    ``REASON_NO_TASKS`` and ``REASON_NO_RESULTS``.
+  - ``routers.reports.can_edit_report`` and ``require_report_author``: a
+    superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
+    organization authors the report; ``ReportResponse.can_edit`` carries
+    the answer. Saving report content keeps the server's snapshot. Readers
+    who do not author the report get the section visibility of 2.68 and,
+    outside the project, the public view on top.
+
+2.71 (2026-11-19): analyses are configured and started on the project page
+(no migration).
+  - ``evaluation_config.analysis_plans``: named analysis specs
+    ``[{id, name, spec, spec_hash, saved_at, saved_by}]``. Both writers of
+    the document (``PUT /api/evaluations/projects/{id}/evaluation-config``
+    and ``PATCH /api/projects/{id}``) validate every spec with the engine
+    (``analysis.spec.normalize_spec``) in ``validate_evaluation_config_write``
+    and answer 422 ``invalid_analysis_plan`` with ``errors`` (the engine's
+    messages under ``/analysis_plans/<i>/spec``), then stamp with
+    ``services.analysis_plans.apply_analysis_plans_write``: ``spec_hash`` is
+    ``analysis.spec.spec_hash`` of the normalized spec (what a run started
+    from it records), ``saved_at`` and ``saved_by`` change with the hash; all
+    three are server-owned. The list replaces the stored one, null deletes
+    it; at most 50 plans with unique ids and a name of at most 200
+    characters.
+  - ``GET /api/projects/{id}/variant-designs`` and ``GET .../{key}`` add
+    ``unit_count`` (distinct ``variant_unit``) and ``cell_count`` (distinct
+    ``variant_cell``) of the design's tasks next to ``task_count``
+    (additive).
+  - Frontend: ``@/components/analysis/ProjectAnalysesSection`` (the Analyses
+    part of the project page's Evaluation card, CONTRIBUTOR and ORG_ADMIN
+    only) with ``VariantDesignsTable`` (status, units, cells, hash, check,
+    freeze, import) and ``AnalysisPlansPanel``; ``StartAnalysisDialog``
+    takes ``planId`` and offers a plan picker (saved plans, the
+    ``fromRunId`` run, a blank spec);
+    ``NewAnalysisRunForm`` is built on ``AnalysisSpecForm`` (name, spec,
+    validate, submit) and takes ``planHash``. ``analysisAPI.listPlans`` and
+    ``savePlans``; ``specErrorsOf`` also reads ``invalid_analysis_plan``.
+    ``@/lib/api/variantDesigns``: ``variantDesignsAPI`` (``list``, ``check``,
+    ``freeze``, ``importDocument``) and ``variantDesignRefusalOf``.
+
+2.72 (2026-11-19): the project report's Analyses section (no migration,
+  additive API changes only; 2.71 is taken by the Evaluation card's analysis
+  start).
+  - ``report_snapshot.build_report_snapshot`` takes ``analyses`` and copies
+    the selected completed single-project runs (``report_analysis_runs``,
+    ``analysis_run_problems``) with their metadata and the estimates each
+    exhibit selects; ``parse_analyses_section`` validates the stored section
+    (``AnalysesSectionError``, limits ``MAX_REPORT_ANALYSIS_RUNS``,
+    ``MAX_RUN_EXHIBITS``, ``MAX_REPORT_ESTIMATES_PER_RUN``),
+    ``exhibit_selects`` and ``estimate_systems`` are the exhibit filter
+    rule. A run whose frame holds a hidden model is member-only
+    (``analysis_runs_member_only``, ``has_member_only_analyses``):
+    ``public_snapshot`` withholds it and ``report_service.can_publish_report``
+    refuses it with ``REASON_ANALYSIS_RUNS``.
+  - ``GET /api/projects/{project_id}/report/analysis-runs`` lists the runs a
+    report author can pick. Saving report content answers 422
+    ``invalid_report_analyses`` for an invalid section.
+  - ``analysis.frame.frame_models`` names the models of a frame, which an
+    analysis run records as ``resolved_inputs.models``; each fit summary
+    records the reference level of every categorical term
+    (``references``).
+  - Frontend: ``@/components/analysis/ContrastForestPlot`` exports
+    ``ContrastForest`` (one contrast, a given band, no pickers) and
+    ``EstimatesTable`` takes ``compact``; the report's exhibits are
+    ``@/components/reports/view/AnalysesSection`` and ``AnalysisExhibit``.
+
+2.73 (2026-11-19): shared variant and analysis views (no migration).
+  - Routes ``GET /api/projects/{project_id}/variant-designs/{key}/units``
+    (the design's units in name order with their task counts, ``limit`` up
+    to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
+    of one unit with its factors, the texts the design lets vary with their
+    declared spans, gold values, the answers of one system with parsed
+    values, flags, request hashes and each answer's ``hash_check`` (the
+    state the request route reports, by ``request_capture.hash_check``),
+    ``generations_truncated`` when answers
+    beyond ``MAX_RUNS_PER_TASK`` were left out, and the unit's assignment,
+    balance and invariance check). Both need full read access to the project's task
+    content, like the frame download (403 ``variant_unit_forbidden``), and
+    answer 404 ``variant_design_not_found`` or ``variant_unit_not_found``.
+    Read models in ``variant_unit_views`` (``list_units``, ``unit_view``,
+    ``shape_unit_view``); access keys need ``tasks:read_reference`` and
+    ``results:read``.
+  - The trial request route ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` gains the hash check (``computed_sha256``, the hash
+    of the stored record by ``request_capture.request_sha256``,
+    ``hash_matches`` and ``hash_check``: ``verified``, ``mismatch``,
+    ``record_missing`` for a hash kept without its record, which is shown
+    as not checkable rather than tampered, or ``no_hash``) and ``parent_id``, ``task_id``, ``model_id``,
+    ``system_key``, ``structure_key``, ``retried``, ``first_response`` and
+    ``first_response_truncated``; ``GET /api/runs/trials/{trial_id}/request``
+    answers the same by the trial id alone (``routers.runs.trial_request_view``;
+    path parameter ``trial_id`` binds access keys to the trial's project).
+  - ``analysis.observations.system_key`` and ``response_metadata_object``
+    (moved from ``analysis.db_source``, which still exports the latter).
+  - Components for overlays, all fed by plain props with a loader beside
+    them: ``@/components/analysis/EstimateProfileChart`` (estimates over an
+    ordered or numeric scope, series, facets, fitted slopes for every line
+    or per line and a reference slope, a band; data from
+    ``@/lib/analysis/profile``: ``profileFromEstimates``, ``scopeColumns``,
+    ``defaultProfileColumns``, ``profileSlopes`` (only slopes the run
+    estimated of exactly what is plotted: levels of ``mean_rate`` with the
+    ``{x: 1}`` contrast of a linear model on the outcome, ``fe_ols`` or
+    ``mixedlm``, never a link-scale coefficient, per series level under an interaction of x and the
+    series factor; none for differences),
+    ``specEstimands``, ``specDesigns``), ``EstimateProfiles`` (the profile
+    view of a run), ``ValueDistributionChart`` (exact values or bins, a
+    reference line, the mean), ``StrengthForestPlot`` (Bradley-Terry
+    strengths against the reference per scope) and ``EstimatesForest``,
+    ``VariantUnitViewer`` and ``VariantUnitLoader`` (twin tasks of a unit
+    with their spans highlighted, answers and requests; ``@/lib/analysis/
+    units``: ``segments``, ``twinPairs``, ``resolveFocus``,
+    ``focusForContrast``), ``RequestRecordView`` and ``RequestRecordLoader``
+    (a request record with its hash check), ``VariantDesignPanel`` and
+    ``VariantDesignsLoader`` (factor tree, hashes, checks), ``ExamplesPanel``
+    (the units behind a contrast); ``@/lib/api/variantViews``
+    (``variantViewsAPI`` and the unit, request and design types) and
+    ``@/lib/analysis/labels`` (``systemParts``, ``systemLabels``,
+    ``shortenLabel``, ``levelText``).
+  - ``ChartType`` gains ``profile``, offered only where ``availableTypes``
+    names it (the Analyses view). The Analyses view and the run page draw
+    Bradley-Terry estimands as strength forests and show the profile and
+    the examples of a contrast; the run page lists the variant designs the
+    run read; the generation page's request view is ``RequestRecordView``.
+2.74 (2026-11-19): agreement and validity views (no migration, additive API
+  changes only).
+  - ``GET /api/projects/{project_id}/code-validations`` takes ``of``:
+    ``coding`` (the default, the coding project's own validations) or
+    ``answers`` (the validations of the project's answers, on every coding
+    project drawn from it the caller can open, each with
+    ``coding_project_title``).
+  - ``report_snapshot.build_report_snapshot`` adds
+    ``analyses.code_validations`` (``_analysis_code_validations``): the
+    validations the Analyses runs' codes accepted, with the stored
+    agreement (only from a coding project ``can_open_project``, the new
+    keyword argument, grants the author building the snapshot), ``used_by``
+    and ``member_only``; ``public_snapshot`` leaves
+    member-only ones out and ``apply_section_visibility`` empties the list
+    for ``sections.annotations.show_code_validations: false``.
+  - Frontend: ``StatisticalResultsPanel`` shows the Agreement and validity
+    block (``@/components/evaluation/statistics/AgreementValidity``:
+    ``RunAgreementBlock`` for a run with codes, ``JudgeAgreementBlock`` for
+    the metrics' ``judge_agreement_by_model_metric``), also on the run
+    page; ``@/components/evaluation/CodeValidationAgreement`` draws one
+    validation's agreement from plain props; ``@/lib/api/coding``
+    (``codingAPI``) reads validations; ``AnalysisRun.codes`` is typed
+    (``AnalysisCodeRecord``); the statistics blocks' layout primitives are
+    ``@/components/evaluation/statistics/blocks``.
+
+
+2.75 (2026-11-19): the experiment features behind platform feature flags
+  (migrations 151 and 152; docs/features/feature-flags.md; 2.71 is taken by the
+  Evaluation card's analysis start, 2.72 by the report's Analyses section,
+  2.73 by the shared variant and analysis views, 2.74 by the agreement and
+  validity views).
+  - Three platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
+    ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``,
+    ``REPORT_PAPER`` = ``report_paper``), owner ``platform``, default
+    ``off``, coupled to no master flag. An overlay that uses these features
+    (the compliance overlay) needs them on for its users:
+    ``compliance_records`` for ``/api/compliance`` and the ``/compliance``
+    shells (besides ``extension.compliance``), ``report_paper`` for the
+    report as project paper of 2.70, ``variant_experiments`` for everything
+    else listed below. Migration 152 rolls all three out on deploy: a flag
+    nobody has set (no row) becomes ``allowlist`` with the TUM organization
+    as its only target when that organization exists; an existing row is
+    left as it is.
+  - Off, the routes of 2.56-2.74 answer 404 ``feature_disabled``
+    (``feature_flags.deps.require_variant_experiments`` /
+    ``require_compliance_records``; an organization key's organization
+    counts on the v1 analysis routes), the analysis and code-validation
+    jobs end failed with ``FEATURE_DISABLED_MESSAGE``, and every changed
+    behaviour takes its previous branch: no request record (the httpx hook
+    is installed on the first capture scope, no longer at import), no
+    system key, prompt structures at the default answer format, the
+    single-value multi-choice schema and the previous parsing
+    (``ResponseParser(..., variant_experiments=)``,
+    ``generate_json_schema_from_label_config(..., variant_experiments=)``),
+    runs per task at most 25 (``generation_fidelity.max_runs_per_task``),
+    ``text_pattern`` neither offered nor run
+    (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
+    ``<Repeater>`` an unsupported field type, no import provenance, the
+    previous generation export and nested import, no analysis counts, no
+    annotator agreement (also computed from annotations alone, it stays
+    behind the flag), a completed analysis run is no result for publishing
+    (``report_service.REASON_NO_RESULTS_WITHOUT_ANALYSES``), and new
+    snapshots carry no agreement, analyses section or analysis count and,
+    inside the paper's parts, no variant designs, import provenance,
+    refusal, retry or request record shares or analysis runs
+    (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
+    ``EXPERIMENT_STATISTICS_KEYS``, ``EXPERIMENT_LIST_KEYS``,
+    ``EXPERIMENT_IMPORT_FIELDS``, ``EXPERIMENT_GENERATION_FIELDS``); none of
+    these is served while the flag is off for everybody. A report save
+    neither adds nor changes
+    ``sections.analyses`` nor adds ``show_agreement`` or
+    ``show_code_validations``, the statistics panel shows no judge
+    agreement, and an evaluation config write drops
+    ``analysis_plans`` (``services.analysis_plans.without_analysis_plans``),
+    so stored sections and plans stay as they are.
+  - ``report_paper`` off: only superadmins author reports (each route's
+    previous 403), the previous publish rule (tasks, LLM generations,
+    completed evaluations; ``report_service.REASON_NO_GENERATIONS``,
+    ``REASON_NO_EVALUATIONS``), and new snapshots have no data, generation,
+    human evaluation or reproducibility part
+    (``report_snapshot.PAPER_SNAPSHOT_KEYS``), none of which is served while
+    the flag is off for everybody. ``report_snapshot.gated_snapshot``
+    leaves out the parts of the flags that are off; after every part left
+    out for a reader (flags, visibility switches, the public view),
+    ``report_snapshot.with_served_hash`` computes
+    ``reproducibility.snapshot_sha256`` over what that reader gets, and an
+    unchanged read keeps the stored hash.
+  - Catalog entries can belong to a flag: ``default_config.feature_flag``
+    (the model) and ``default_config.reasoning_config.feature_flag`` (its
+    reasoning knob); ``catalog_flags`` (``model_offered``,
+    ``served_default_config``, ``reasoning_config_for``) applies them and
+    ``provider_capabilities.model_reasoning_config`` returns no knob while
+    its flag is off.
+  - ``feature_flags.scope`` (``flag_scope``, ``scoped_flag``,
+    ``scoped_answer``, ``flag_on_for_anybody``) carries a job's answer into
+    shared code; ``feature_flags.worker.flag_enabled_or_default``;
+    ``service.is_enabled_for_caller(_sync)``, ``on_for_anybody``,
+    ``is_on_for_anybody(_sync)``; ``extension_activation.flag_snapshot``;
+    ``require_feature_flag(name, key_organization=False)``.
+  - The reserved task key of variant assignments is ``meta.benger_variant``
+    (``variant_designs.META_KEY``; the CSV column ``meta.benger_variant``);
+    ``meta.variant`` is plain data again. Migration 142 no longer rewrites
+    stored rows; migration 151 moves the assignments of a database that ran
+    its first version and returns ``meta.variant_legacy`` to
+    ``meta.variant``. Design files, imports and specs name the new key, and
+    a refused assignment's problem paths start at
+    ``variant_designs.META_PATH`` (``/meta/benger_variant``).
 """
 
 import os
 
-CORE_API_VERSION = "2.69"
+CORE_API_VERSION = "2.75"
 
 
 def extended_required() -> bool:

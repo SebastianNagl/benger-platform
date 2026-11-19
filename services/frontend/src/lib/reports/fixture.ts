@@ -4,7 +4,11 @@
  * submissions graded by the same judge, a human Korrektur config). Used by
  * viewer/editor tests and as the reference for the API contract.
  */
-import type { ReportSnapshot } from '@/types/report'
+import type {
+  ReportAnalysesSnapshot,
+  ReportAnalysisEstimate,
+  ReportSnapshot,
+} from '@/types/report'
 
 const bins18 = Array.from({ length: 19 }, (_, i) => i)
 const bins01 = Array.from({ length: 10 }, (_, i) => i / 10)
@@ -394,4 +398,439 @@ export const REPORT_SNAPSHOT_FIXTURE: ReportSnapshot = {
       by_subject: {},
     },
   ],
+}
+
+const h = (c: string) => c.repeat(64)
+
+/** The sections beyond the metric evaluation (synthetic values): a variant
+ *  design with two imports, per-model generation outcomes, Likert ratings
+ *  and preference comparisons, and the reproducibility appendix. */
+export const REPORT_RECORDS_FIXTURE: Required<
+  Pick<
+    ReportSnapshot,
+    'data' | 'generation' | 'human_evaluations' | 'reproducibility'
+  >
+> = {
+  data: {
+    task_count: 15,
+    variant_designs: [
+      {
+        key: 'framing',
+        version: 2,
+        status: 'frozen',
+        content_hash: h('c'),
+        spec_sha256: h('s'),
+        frozen_at: '2026-08-20T09:00:00Z',
+        task_count: 8,
+        unit_count: 2,
+        cell_count: 4,
+        title: 'Synthetic framing design',
+        unit: 'case',
+        factors: [
+          {
+            name: 'framing',
+            type: 'nominal',
+            role: 'manipulated',
+            source: 'task',
+            varies: 'within_unit',
+            levels: ['neutral', 'loaded'],
+            level_count: 2,
+          },
+          {
+            name: 'order',
+            type: 'ordinal',
+            role: 'counterbalanced',
+            source: 'task',
+            varies: 'within_unit',
+            levels: [1, 2],
+            level_count: 60,
+          },
+        ],
+        outcomes: ['correct'],
+        declared_cells: null,
+        provenance: { sha256: h('p'), content: { generator: 'synthetic' } },
+      },
+    ],
+    imports: [
+      {
+        format: 'nested',
+        mode: 'nested',
+        completed_at: '2026-08-01T10:00:00Z',
+        payload_sha256: h('b'),
+        byte_size: 2048,
+        task_count: 15,
+        no_op: false,
+        declared_manifest: {
+          sha256: h('d'),
+          content: { files: [{ name: 'cases.csv' }] },
+        },
+      },
+      {
+        format: 'nested',
+        mode: 'nested',
+        completed_at: '2026-08-02T10:00:00Z',
+        payload_sha256: h('b'),
+        byte_size: 2048,
+        task_count: 0,
+        no_op: true,
+        declared_manifest: { sha256: h('e'), truncated: true },
+      },
+    ],
+    import_count: 3,
+    imports_truncated: true,
+  },
+  generation: {
+    models: [
+      {
+        model_id: 'gpt-5.4',
+        label: 'GPT-5.4',
+        provider: 'openai',
+        generations: 30,
+        completed: 28,
+        failed: 2,
+        tasks: 15,
+        runs_per_task: 2,
+        max_runs_per_task: 2,
+        refusal_rate: 0.25,
+        truncation_rate: 0,
+        retry_rate: 0.1,
+        parse_attempted: 28,
+        parse_failure_rate: 0.5,
+        request_record_share: 1,
+        structures: [{ key: 'plain', generations: 30 }],
+      },
+    ],
+    structures: [{ key: 'plain', generations: 30 }],
+    totals: {
+      generations: 30,
+      completed: 28,
+      failed: 2,
+      refusal_rate: 0.25,
+      truncation_rate: 0,
+      retry_rate: 0.1,
+      parse_failure_rate: 0.5,
+      request_record_share: 1,
+    },
+  },
+  human_evaluations: {
+    likert: {
+      evaluator_count: 2,
+      rating_count: 4,
+      scale: [1, 2, 3, 4, 5],
+      dimensions: [
+        {
+          dimension: 'accuracy',
+          description: 'How accurate the answer is',
+          n: 3,
+          mean: 4,
+          std: 1,
+          distribution: [0, 0, 1, 1, 1],
+          by_model: [
+            { model_id: 'gpt-5.4', label: 'GPT-5.4', n: 3, mean: 4, std: 1 },
+          ],
+        },
+        {
+          dimension: 'clarity',
+          description: null,
+          n: 1,
+          mean: 2,
+          std: null,
+          distribution: [0, 1, 0, 0, 0],
+          by_model: [],
+        },
+      ],
+    },
+    preference: {
+      evaluator_count: 1,
+      comparisons: 3,
+      ties: 1,
+      models: [
+        {
+          model_id: 'gpt-5.4',
+          label: 'GPT-5.4',
+          comparisons: 3,
+          wins: 2,
+          losses: 0,
+          ties: 1,
+          win_rate: 2 / 3,
+        },
+        {
+          model_id: 'claude-opus-4-7',
+          label: 'Claude Opus 4.7',
+          comparisons: 3,
+          wins: 0,
+          losses: 2,
+          ties: 1,
+          win_rate: 0,
+        },
+      ],
+      pairs: [
+        {
+          model_a: 'claude-opus-4-7',
+          label_a: 'Claude Opus 4.7',
+          model_b: 'gpt-5.4',
+          label_b: 'GPT-5.4',
+          a_wins: 0,
+          b_wins: 2,
+          ties: 1,
+        },
+      ],
+    },
+  },
+  reproducibility: {
+    platform: { app_version: 'v20260901-aaaa-bbbb', core_api_version: '2.66' },
+    label_config: { version: 'v3', sha256: h('l') },
+    models: [{ id: 'gpt-5.4', provider: 'openai', label: 'GPT-5.4' }],
+    prompt_structures: [
+      { key: 'plain', generations: 30, definition_sha256: h('f') },
+    ],
+    evaluation_configs: [
+      {
+        id: 'cfg-judge',
+        metric: 'llm_judge_falloesung',
+        name: 'Judge config',
+        judge_runs: [
+          {
+            judge_model: 'judge-model',
+            samples: 30,
+            parameters_sha256: h('a'),
+            parameters: { temperature: 0 },
+          },
+        ],
+      },
+    ],
+    variant_designs: [
+      {
+        key: 'framing',
+        version: 2,
+        status: 'frozen',
+        content_hash: h('c'),
+        spec_sha256: h('s'),
+      },
+    ],
+    imports: [
+      {
+        payload_sha256: h('b'),
+        completed_at: '2026-08-01T10:00:00Z',
+        no_op: false,
+      },
+    ],
+    analysis_runs: [
+      {
+        id: 'run-1',
+        name: 'Framing effect',
+        spec_hash: h('1'),
+        spec_version: 1,
+        engine_version: '1.1.0',
+        frame_hash: h('2'),
+        frame_sha256: h('3'),
+        frame_rows: 16,
+        estimates_count: 4,
+        library_versions: { numpy: '2.0.0', scipy: '1.14.0' },
+        lockfile_sha256: h('4'),
+        seed: 7,
+        completed_at: '2026-08-25T10:00:00Z',
+      },
+    ],
+    snapshot_sha256: h('9'),
+  },
+}
+
+/** An annotation-only project's snapshot: tasks and submissions, nothing else. */
+export const ANNOTATION_ONLY_SNAPSHOT: ReportSnapshot = {
+  generated_at: '2026-09-02T12:00:00Z',
+  statistics: {
+    task_count: 4,
+    annotation_count: 6,
+    participant_count: 2,
+    model_count: 0,
+    evaluation_count: 0,
+  },
+  methods: [],
+  configs: [],
+  primary_metric: null,
+  primary_config_id: null,
+  grade_metric: null,
+  series: [],
+  distributions: [],
+  participants: [
+    { id: 'u1', label: 'Heron', annotation_count: 4 },
+    { id: 'u2', label: 'Wren', annotation_count: 2 },
+  ],
+  models: [],
+  data: {
+    task_count: 4,
+    variant_designs: [],
+    imports: [],
+    import_count: 0,
+    imports_truncated: false,
+  },
+  generation: {
+    models: [],
+    structures: [],
+    totals: {
+      generations: 0,
+      completed: 0,
+      failed: 0,
+      refusal_rate: null,
+      truncation_rate: null,
+      retry_rate: null,
+      parse_failure_rate: null,
+      request_record_share: null,
+    },
+  },
+  human_evaluations: {
+    likert: {
+      evaluator_count: 0,
+      rating_count: 0,
+      scale: [1, 2, 3, 4, 5],
+      dimensions: [],
+    },
+    preference: {
+      evaluator_count: 0,
+      comparisons: 0,
+      ties: 0,
+      models: [],
+      pairs: [],
+    },
+  },
+  reproducibility: {
+    platform: { app_version: null, core_api_version: '2.66' },
+    label_config: { version: 'v1', sha256: h('l') },
+    models: [],
+    prompt_structures: [],
+    evaluation_configs: [],
+    variant_designs: [],
+    imports: [],
+    analysis_runs: [],
+    snapshot_sha256: h('7'),
+  },
+}
+
+const analysisEstimate = (
+  position: number,
+  overrides: Partial<ReportAnalysisEstimate> = {},
+): ReportAnalysisEstimate => ({
+  position,
+  estimand_id: 'framing_effect',
+  contrast_id: 'loaded_vs_neutral',
+  estimator: 'fe_ols',
+  kind: 'linear',
+  outcome: 'score',
+  scope: 'pooled',
+  scope_values: null,
+  status: 'ok',
+  message: null,
+  estimate: 0.12,
+  std_error: 0.04,
+  statistic: 3,
+  df: 40,
+  p_value: 0.004,
+  null_value: 0,
+  ci_level: 0.95,
+  ci_lower: 0.04,
+  ci_upper: 0.2,
+  equivalent: false,
+  tost: [
+    {
+      lower: -0.1,
+      upper: 0.1,
+      level: 0.9,
+      ci_lower: 0.05,
+      ci_upper: 0.19,
+      p_lower: 0.001,
+      p_upper: 0.8,
+      p_tost: 0.8,
+      equivalent: false,
+    },
+  ],
+  mde: null,
+  ratio: null,
+  family: 'primary',
+  p_adjusted: 0.008,
+  adjustments: [
+    {
+      family: 'primary',
+      method: 'holm',
+      group: [],
+      size: 2,
+      p_adjusted: 0.008,
+    },
+  ],
+  n_obs: 48,
+  n_clusters: [12],
+  k_params: 3,
+  conventions: null,
+  ...overrides,
+})
+
+/** An Analyses section (synthetic values): one run with a forest plot of
+ *  one contrast across two systems and a table of a second estimand. */
+export const REPORT_ANALYSES_FIXTURE: ReportAnalysesSnapshot = {
+  runs: [
+    {
+      id: 'run-1',
+      name: 'framing main',
+      spec_hash: 'a'.repeat(64),
+      spec_version: 1,
+      engine_version: '1.1.0',
+      frame_hash: 'b'.repeat(64),
+      frame_sha256: 'c'.repeat(64),
+      frame_rows: 48,
+      estimates_count: 6,
+      completed_at: '2026-11-01T10:00:00Z',
+      member_only: false,
+      warnings: ['one cluster has a single unit'],
+      families: [{ family: 'primary', method: 'holm', size: 2 }],
+      truncated: false,
+      estimates: [
+        analysisEstimate(0),
+        analysisEstimate(1, {
+          scope: 'system=sys_a',
+          scope_values: { system: 'sys_a' },
+          estimate: 0.2,
+          ci_lower: 0.08,
+          ci_upper: 0.32,
+        }),
+        analysisEstimate(2, {
+          scope: 'system=sys_b',
+          scope_values: { system: 'sys_b' },
+          estimate: 0.03,
+          ci_lower: -0.06,
+          ci_upper: 0.12,
+        }),
+        analysisEstimate(4, {
+          estimand_id: 'length_effect',
+          contrast_id: 'long_vs_short',
+          estimate: -0.05,
+          ci_lower: -0.1,
+          ci_upper: 0,
+          p_value: 0.051,
+          tost: null,
+          family: null,
+          p_adjusted: null,
+          adjustments: null,
+        }),
+      ],
+      exhibits: [
+        {
+          id: 'exhibit-1',
+          type: 'forest',
+          filters: { estimands: ['framing_effect'] },
+          band: 0,
+          row_count: 3,
+          positions: [0, 1, 2],
+        },
+        {
+          id: 'exhibit-2',
+          type: 'table',
+          filters: { estimands: ['length_effect'] },
+          band: null,
+          row_count: 1,
+          positions: [4],
+        },
+      ],
+    },
+  ],
+  omitted: [],
 }

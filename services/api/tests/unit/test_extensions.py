@@ -195,7 +195,22 @@ class TestExtensionLoader:
         # 2.69 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        assert CORE_API_VERSION == "2.69"
+        # 2.70 adds the report's data, generation, human evaluation and
+        # reproducibility sections, snapshot_sha256 and report authorship
+        # for project owners and org admins.
+        # 2.71 adds analysis plans (evaluation_config.analysis_plans, checked
+        # and hashed on save) and the Analyses part of the Evaluation card.
+        # 2.72 adds the report's Analyses section (member-only runs, the
+        # report analysis-runs route, frame models and fit references).
+        # 2.73 adds the shared variant and analysis views (variant unit
+        # routes, the request hash check, profile, distribution, strength,
+        # unit, request and design components).
+        # 2.74 adds the agreement and validity views (code validations of a
+        # project's answers, the snapshot's analyses.code_validations).
+        # 2.75 adds the platform flags variant_experiments and
+        # compliance_records and moves the reserved key to meta.benger_variant
+        # (migration 151).
+        assert CORE_API_VERSION == "2.75"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

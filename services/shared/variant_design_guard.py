@@ -1,7 +1,7 @@
 """Variant designs: the database side (CORE 2.59).
 
 - :func:`check_session_tasks` runs before every ORM flush (registered in
-  ``project_models``) and validates ``meta.variant`` of each task the flush
+  ``project_models``) and validates ``meta.benger_variant`` of each task the flush
   writes against its design, so every write path (JSON and CSV import, the
   meta PATCH routes, project import and clone, wizard drafts) is covered by
   one rule. Writes outside the ORM are covered by the database itself: the
@@ -34,8 +34,8 @@ CELL_INDEX = "uq_tasks_variant_cell"
 DESIGN_FK = "fk_tasks_variant_design"
 
 #: A flat import row (a CSV column, or a key of a row without ``data``)
-#: holding ``meta.variant`` as JSON text or an object.
-FLAT_META_COLUMN = "meta.variant"
+#: holding ``meta.benger_variant`` as JSON text or an object.
+FLAT_META_COLUMN = f"meta.{vd.META_KEY}"
 
 _STREAM_BATCH = 500
 
@@ -115,7 +115,7 @@ def _models():
 
 def lift_flat_meta(row: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
     """Split a flat import row into ``(data, meta)``: the reserved
-    :data:`FLAT_META_COLUMN` becomes ``meta.variant`` (JSON text is parsed;
+    :data:`FLAT_META_COLUMN` becomes ``meta.benger_variant`` (JSON text is parsed;
     an empty cell means no assignment). Rows without it pass unchanged."""
     if FLAT_META_COLUMN not in row:
         return row, None
@@ -157,7 +157,7 @@ def _changed(task, names: Iterable[str]) -> bool:
 def check_session_tasks(session) -> None:
     """Validate the assignment of every task ``session`` is about to write.
 
-    New tasks with a ``meta.variant`` and changed tasks whose ``meta``,
+    New tasks with a ``meta.benger_variant`` and changed tasks whose ``meta``,
     ``data`` or project changed are checked against their design: it must
     exist in the task's project, the assignment must fit it, and a frozen
     design takes no new tasks. Frozen edits are refused by the trigger
@@ -233,12 +233,12 @@ def check_session_tasks(session) -> None:
             # with 409, while other meta edits (tags) pass.
             continue
         variant = _variant_of(task)
-        problems = vd._schema_problems("task_variant", variant, "/meta/variant")
+        problems = vd._schema_problems("task_variant", variant, vd.META_PATH)
         if problems:
             raise VariantDesignError(
                 422,
                 "variant_invalid",
-                f"meta.variant of {_task_label(task)} is invalid.",
+                f"meta.benger_variant of {_task_label(task)} is invalid.",
                 problems,
             )
         found = stored.get((task.project_id, variant["design"]))
@@ -274,7 +274,7 @@ def check_session_tasks(session) -> None:
             raise VariantDesignError(
                 422,
                 "variant_invalid",
-                f"meta.variant of {_task_label(task)} does not fit the variant "
+                f"meta.benger_variant of {_task_label(task)} does not fit the variant "
                 f"design {key!r}.",
                 problems,
             )
@@ -299,7 +299,7 @@ def _iso(value) -> Optional[str]:
     return value.isoformat() if value is not None else None
 
 
-def serialize_design(row, task_count: Optional[int] = None) -> Dict[str, Any]:
+def serialize_design(row, **counts: int) -> Dict[str, Any]:
     out = {
         "id": row.id,
         "project_id": row.project_id,
@@ -316,8 +316,7 @@ def serialize_design(row, task_count: Optional[int] = None) -> Dict[str, Any]:
         "created_at": _iso(row.created_at),
         "updated_at": _iso(row.updated_at),
     }
-    if task_count is not None:
-        out["task_count"] = task_count
+    out.update(counts)
     return out
 
 

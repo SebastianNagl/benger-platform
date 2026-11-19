@@ -8,6 +8,7 @@
  * `StatusBadge` / `fmtDate` helpers exercised through the rendered DOM.
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -21,6 +22,9 @@ jest.mock('react', () => {
   }
 })
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
@@ -132,6 +136,50 @@ describe('GenerationRunDetailPage', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
     ;(apiClient.get as jest.Mock).mockResolvedValue(baseDetail)
+    // The request record belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
+  })
+
+  it('shows the classic prompt block and no request section with variant_experiments off', async () => {
+    setMockFeatureFlags({})
+    ;(apiClient.get as jest.Mock).mockResolvedValue({
+      ...baseDetail,
+      prompt_used: 'You are a helpful legal assistant.',
+      children: [
+        {
+          id: 'trial-1',
+          run_index: 0,
+          status: 'completed',
+          has_response: true,
+          has_request_record: true,
+        },
+        {
+          id: 'trial-2',
+          run_index: 1,
+          status: 'completed',
+          has_response: true,
+        },
+      ],
+    })
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    await waitFor(() => {
+      expect(screen.getByText('Verwendeter Prompt')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Prompt-Vorlagen')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('An das Modell gesendete Anfrage'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-run-select')).not.toBeInTheDocument()
+    // Only the run itself is fetched, never a trial's request record.
+    expect(
+      (apiClient.get as jest.Mock).mock.calls.some(([url]) =>
+        String(url).includes('/request'),
+      ),
+    ).toBe(false)
   })
 
   it('shows loading state before data resolves', () => {
@@ -541,6 +589,64 @@ describe('GenerationRunDetailPage', () => {
       within(sent).getByText(/Erste Antwort ohne JSON/),
     ).toBeInTheDocument()
   })
+
+  it.each([
+    ['verified', true, true, 'request-hash-ok'],
+    ['mismatch', true, false, 'request-hash-mismatch'],
+    ['record_missing', false, null, 'request-hash-unverifiable'],
+  ] as const)(
+    'shows the hash check of a trial (%s)',
+    async (state, hasRecord, matches, testId) => {
+      routeGet(
+        {
+          ...baseDetail,
+          children: [
+            {
+              id: 'child-1',
+              run_index: 0,
+              status: 'completed',
+              has_response: true,
+              has_request_record: hasRecord,
+              request_sha256: 'ab'.repeat(32),
+            },
+          ],
+        },
+        {
+          'child-1': {
+            id: 'child-1',
+            run_index: 0,
+            request_record: hasRecord
+              ? {
+                  capture: 'http_body',
+                  messages: [{ role: 'user', content: 'Akte' }],
+                }
+              : null,
+            request_sha256: 'ab'.repeat(32),
+            computed_sha256:
+              matches === false
+                ? 'cd'.repeat(32)
+                : hasRecord
+                  ? 'ab'.repeat(32)
+                  : null,
+            hash_matches: matches,
+            hash_check: state,
+          },
+        },
+      )
+      render(
+        <GenerationRunDetailPage
+          params={Promise.resolve({ id: 'gen-run-123' })}
+        />,
+      )
+      const sent = await screen.findByTestId('sent-request')
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/runs/generations/gen-run-123/trials/child-1/request',
+      )
+      expect(within(sent).getByTestId(testId)).toBeInTheDocument()
+      if (state !== 'mismatch')
+        expect(within(sent).queryByTestId('request-hash-mismatch')).toBeNull()
+    },
+  )
 
   it('fetches the selected trial only and marks worker calls', async () => {
     const user = userEvent.setup()

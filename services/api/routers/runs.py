@@ -23,6 +23,12 @@ from sqlalchemy.orm import defer, load_only
 
 from auth_module import User, require_user
 from database import get_async_db
+from feature_flags.deps import (
+    feature_disabled_error,
+    flag_on,
+    require_variant_experiments,
+)
+from feature_flags.registry import VARIANT_EXPERIMENTS
 from evaluation_run_models import run_evaluated_model_ids
 from models import AnalysisRun, EvaluationRun, ResponseGeneration
 from project_models import Project
@@ -229,15 +235,40 @@ class ChildGeneration(BaseModel):
     first_response_preview: Optional[str] = None
 
 
+#: Most characters of the first answer of a format retry the request view
+#: returns (the full text stays on the generation).
+MAX_FIRST_RESPONSE = 20_000
+
+
 class TrialRequest(BaseModel):
     """What the provider client sent for one trial: the messages, response
     format, parameters and model id of the first request, and every request
-    verbatim (a format retry included)."""
+    verbatim (a format retry included).
+
+    The hash check (CORE 2.73): ``computed_sha256`` is the hash of the stored
+    record (``request_capture.request_sha256``, over the first request's
+    body) and ``hash_matches`` says whether it equals the stored
+    ``request_sha256``. ``hash_check`` names the state: ``verified`` (true),
+    ``mismatch`` (false: a record is stored and the hash differs, also when
+    the record holds no request to hash or is not an object),
+    ``record_missing`` (null: a hash without its record, e.g. imported
+    without it, so it cannot be checked) and ``no_hash`` (null)."""
 
     id: str
     run_index: int
     request_record: Optional[Dict[str, Any]] = None
     request_sha256: Optional[str] = None
+    computed_sha256: Optional[str] = None
+    hash_matches: Optional[bool] = None
+    hash_check: Literal["verified", "mismatch", "record_missing", "no_hash"] = "no_hash"
+    parent_id: Optional[str] = None
+    task_id: Optional[str] = None
+    model_id: Optional[str] = None
+    system_key: Optional[str] = None
+    structure_key: Optional[str] = None
+    retried: bool = False
+    first_response: Optional[str] = None
+    first_response_truncated: bool = False
 
 
 class LinkedEvaluation(BaseModel):
@@ -301,9 +332,41 @@ async def _accessible_generation(
     return parent
 
 
+def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
+    """The request view of one trial with its hash check."""
+    from ai_services.request_capture import hash_check
+    from analysis.observations import response_metadata_object, system_key
+
+    record = trial.request_record if isinstance(trial.request_record, dict) else None
+    stored = trial.request_sha256
+    check, computed = hash_check(trial.request_record, stored)
+    first = trial.first_response_content
+    if first is not None and not isinstance(first, str):
+        first = str(first)
+    return TrialRequest(
+        id=str(trial.id),
+        run_index=trial.run_index or 0,
+        request_record=record,
+        request_sha256=stored,
+        computed_sha256=computed,
+        hash_matches={"verified": True, "mismatch": False}.get(check),
+        hash_check=check,
+        parent_id=str(parent.id),
+        task_id=trial.task_id,
+        model_id=trial.model_id,
+        system_key=system_key(trial.model_id, response_metadata_object(trial.response_metadata)),
+        structure_key=parent.structure_key,
+        retried=bool(trial.retried),
+        first_response=first[:MAX_FIRST_RESPONSE] if first else first,
+        first_response_truncated=bool(first) and len(first) > MAX_FIRST_RESPONSE,
+    )
+
+
 @router.get(
     "/generations/{generation_id}/trials/{trial_id}/request",
     response_model=TrialRequest,
+    # The request record belongs to variant_experiments (core 2.75).
+    dependencies=[Depends(require_variant_experiments)],
 )
 async def get_generation_trial_request(
     generation_id: str,
@@ -311,10 +374,11 @@ async def get_generation_trial_request(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> TrialRequest:
-    """What the provider client sent for one trial of a generation run."""
+    """What the provider client sent for one trial of a generation run, with
+    the hash check."""
     from models import Generation as DBGeneration
 
-    await _accessible_generation(db, current_user, generation_id)
+    parent = await _accessible_generation(db, current_user, generation_id)
     trial = (
         await db.execute(
             select(DBGeneration).where(
@@ -328,12 +392,34 @@ async def get_generation_trial_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trial '{trial_id}' not found in generation '{generation_id}'",
         )
-    return TrialRequest(
-        id=str(trial.id),
-        run_index=trial.run_index or 0,
-        request_record=trial.request_record if isinstance(trial.request_record, dict) else None,
-        request_sha256=trial.request_sha256,
-    )
+    return trial_request_view(trial, parent)
+
+
+@router.get(
+    "/trials/{trial_id}/request",
+    response_model=TrialRequest,
+    dependencies=[Depends(require_variant_experiments)],
+)
+async def get_trial_request(
+    trial_id: str,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+) -> TrialRequest:
+    """The request view of a trial by its own id (``generations.id``), for
+    views that know the trial but not its generation run (the unit view of a
+    variant design). Same access as the route under the run."""
+    from models import Generation as DBGeneration
+
+    trial = (
+        await db.execute(select(DBGeneration).where(DBGeneration.id == trial_id))
+    ).scalar_one_or_none()
+    if not trial:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trial '{trial_id}' not found",
+        )
+    parent = await _accessible_generation(db, current_user, trial.generation_id)
+    return trial_request_view(trial, parent)
 
 
 @router.get("/generations/{generation_id}", response_model=GenerationRunDetail)
@@ -352,6 +438,9 @@ async def get_generation_run(
     from models import Generation as DBGeneration
 
     parent = await _accessible_generation(db, current_user, generation_id)
+    # The request record fields of the trials (variant_experiments): with the
+    # flag off they keep their neutral defaults, as before the record existed.
+    show_record = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
 
     children_result = await db.execute(
         select(
@@ -381,10 +470,12 @@ async def get_generation_run(
             error_message=getattr(c, "error_message", None),
             has_response=bool(getattr(c, "response_content", None)),
             response_preview=_preview(getattr(c, "response_content", None)),
-            has_request_record=bool(has_record),
-            request_sha256=getattr(c, "request_sha256", None),
-            retried=bool(getattr(c, "retried", False)),
-            first_response_preview=_preview(getattr(c, "first_response_content", None)),
+            has_request_record=show_record and bool(has_record),
+            request_sha256=getattr(c, "request_sha256", None) if show_record else None,
+            retried=show_record and bool(getattr(c, "retried", False)),
+            first_response_preview=(
+                _preview(getattr(c, "first_response_content", None)) if show_record else None
+            ),
         )
         for c, has_record in children_with_flag
     ]
@@ -567,6 +658,9 @@ async def list_runs(
         model = EvaluationRun
         to_summary = _evaluation_to_summary
     else:  # type == "analysis"
+        # Analysis runs belong to variant_experiments (core 2.75).
+        if not await flag_on(db, current_user, VARIANT_EXPERIMENTS, request):
+            raise feature_disabled_error(VARIANT_EXPERIMENTS)
         model = AnalysisRun
         to_summary = _analysis_to_summary
 

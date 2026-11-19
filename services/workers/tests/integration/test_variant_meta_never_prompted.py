@@ -1,6 +1,6 @@
 """A task's variant assignment never reaches the system under test.
 
-``task.meta.variant`` says which tasks are twins of one another (CORE 2.59);
+``task.meta.benger_variant`` says which tasks are twins of one another (CORE 2.59);
 a model that saw it could answer the twins alike on purpose. The generation
 loop builds prompts from ``task.data`` only, so a canary placed in the
 assignment must appear neither in the messages the provider receives nor in
@@ -90,7 +90,7 @@ def test_variant_assignment_is_in_no_prompt_and_no_case_data(
         inner_id=1,
         data={"facts": "Alma Reyes asks for the fence to be moved."},
         meta={
-            "variant": {
+            "benger_variant": {
                 "design": "swap",
                 "unit": "u1",
                 "factors": {"role": "claimant"},
@@ -136,10 +136,10 @@ def test_variant_assignment_is_in_no_prompt_and_no_case_data(
     sent = json.dumps(fake.sent, default=str)
     assert "Alma Reyes" in sent  # the bound task data does go out
     assert CANARY not in sent
-    assert '"variant"' not in sent and "'variant'" not in sent
+    assert "benger_variant" not in sent
 
     child = db_conn.query(Generation).filter(Generation.generation_id == rg.id).one()
     db_conn.expire(rg)
     stored = " ".join(str(v) for v in (child.case_data, rg.prompt_used) if v is not None)
     assert CANARY not in stored
-    assert "variant" not in json.loads(child.case_data)
+    assert "benger_variant" not in json.loads(child.case_data)

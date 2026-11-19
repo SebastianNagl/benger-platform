@@ -4,7 +4,8 @@
  * and the estimates table alike, the URL state round trip, the statistics
  * blocks, the compliance findings slot (only with the overlay flag on), the
  * start dialog for editors (and its `newRunFrom` prefill), polling of a
- * running run, and the searchable, paged project picker.
+ * running run, the searchable, paged project picker, and the shared
+ * variant views (the profile view and the examples of a contrast).
  *
  * @jest-environment jsdom
  */
@@ -27,7 +28,12 @@ import {
 } from '@/lib/extensions/active'
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
-import { makeEstimates, makeRun } from '@/test-utils/analysisFixtures'
+import { makeEstimates, makePlan, makeRun } from '@/test-utils/analysisFixtures'
+import {
+  makePositionEstimates,
+  makePositionRun,
+  makeUnitView,
+} from '@/test-utils/variantViewFixtures'
 
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('en'),
@@ -50,9 +56,14 @@ jest.mock('@/utils/permissions', () => ({
   canAccessProjectData: () => true,
 }))
 
+let mockVariantExperiments = true
 jest.mock('@/lib/featureFlags', () => ({
   ...jest.requireActual('@/lib/featureFlags'),
   useActiveExtensionsReady: () => true,
+  useFeatureFlag: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments,
+  useFeatureFlagStatus: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments ? 'on' : 'off',
 }))
 
 // The Metrics view has its own suites; here it only shows the shell's lead.
@@ -75,8 +86,21 @@ const mockListRuns = jest.fn()
 const mockGetRun = jest.fn()
 const mockListEstimates = jest.fn()
 const mockDesigns = jest.fn()
+const mockPlans = jest.fn()
 const mockValidate = jest.fn()
 const mockStart = jest.fn()
+const mockListUnits = jest.fn()
+const mockGetUnit = jest.fn()
+jest.mock('@/lib/api/variantViews', () => ({
+  variantViewsAPI: {
+    listDesigns: jest.fn(() => Promise.resolve([])),
+    listUnits: (...a: unknown[]) => mockListUnits(...a),
+    getUnit: (...a: unknown[]) => mockGetUnit(...a),
+    checkDesign: jest.fn(),
+    getTrialRequest: jest.fn(),
+  },
+}))
+
 jest.mock('@/lib/api/analysis', () => ({
   ...jest.requireActual('@/lib/api/analysis'),
   analysisAPI: {
@@ -84,6 +108,7 @@ jest.mock('@/lib/api/analysis', () => ({
     getRun: (...a: unknown[]) => mockGetRun(...a),
     listEstimates: (...a: unknown[]) => mockListEstimates(...a),
     listDesignKeys: (...a: unknown[]) => mockDesigns(...a),
+    listPlans: (...a: unknown[]) => mockPlans(...a),
     validateSpec: (...a: unknown[]) => mockValidate(...a),
     startRun: (...a: unknown[]) => mockStart(...a),
   },
@@ -135,6 +160,7 @@ beforeEach(() => {
   mockList.mockResolvedValue({ items: [project()], total: 1 })
   mockGetProject.mockResolvedValue(project())
   mockDesigns.mockResolvedValue(['role_swap'])
+  mockPlans.mockResolvedValue([])
   mockListRuns.mockResolvedValue({
     items: [
       summary({ id: 'run-3', name: 'Pending one', status: 'pending' }),
@@ -153,6 +179,8 @@ beforeEach(() => {
     ),
   )
   mockListEstimates.mockResolvedValue(makeEstimates())
+  mockListUnits.mockResolvedValue({ items: [], total: 0, limit: 12, offset: 0 })
+  mockGetUnit.mockResolvedValue(makeUnitView())
 })
 
 afterEach(() => {
@@ -468,6 +496,25 @@ describe('Evaluations page, Analyses result type', () => {
     await waitFor(() => expect(lastParams().get('run')).toBe('run-9'))
   })
 
+  it('offers the saved plans in the start dialog and starts one', async () => {
+    const user = userEvent.setup()
+    const plan = makePlan()
+    mockPlans.mockResolvedValue([plan])
+    mockStart.mockResolvedValue(makeRun({ id: 'run-7', status: 'pending' }))
+    await renderReady()
+    await user.click(screen.getByTestId('analysis-start'))
+    const dialog = await screen.findByTestId('start-analysis-dialog')
+    const picker = (await within(dialog).findByLabelText(
+      'Source',
+    )) as HTMLSelectElement
+    await user.selectOptions(picker, 'plan:plan-1')
+    await user.click(within(dialog).getByTestId('new-analysis-run-start'))
+    await waitFor(() =>
+      expect(mockStart).toHaveBeenCalledWith('project-1', plan.spec, plan.name),
+    )
+    await waitFor(() => expect(lastParams().get('run')).toBe('run-7'))
+  })
+
   it('opens the start dialog prefilled from newRunFrom', async () => {
     mockSearch = new URLSearchParams(
       'projectId=project-1&type=analysis&newRunFrom=run-1',
@@ -516,6 +563,73 @@ describe('Evaluations page, Analyses result type', () => {
     })
     await renderReady()
     expect(screen.getByTestId('analysis-start')).toBeInTheDocument()
+  })
+})
+
+describe('Evaluations page, shared variant views', () => {
+  beforeEach(() => {
+    mockGetRun.mockImplementation((id: string) =>
+      Promise.resolve({ ...makePositionRun(), id, name: id }),
+    )
+    mockListEstimates.mockResolvedValue(makePositionEstimates())
+  })
+
+  it('draws the profile of a slot-frame run from the URL', async () => {
+    mockSearch = new URLSearchParams(
+      'projectId=project-1&type=analysis&chartType=profile',
+    )
+    render(<EvaluationDashboard />)
+    const profiles = await screen.findByTestId('estimate-profiles')
+    expect(within(profiles).getAllByTestId('profile-panel')).toHaveLength(2)
+    expect(within(profiles).getAllByTestId('profile-slope')).toHaveLength(2)
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('profile'))
+  })
+
+  it('offers the profile in the chart type selector', async () => {
+    const user = userEvent.setup()
+    await renderReady()
+    await user.click(screen.getByText('Forest plot'))
+    await user.click(screen.getByText('Profile'))
+    expect(await screen.findByTestId('estimate-profiles')).toBeInTheDocument()
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('profile'))
+  })
+
+  it('opens a unit of the run design from the examples of a contrast', async () => {
+    mockListUnits.mockResolvedValue({
+      items: [{ unit: 'roster_001', task_count: 1 }],
+      total: 1,
+      limit: 12,
+      offset: 0,
+    })
+    await renderReady()
+    const card = screen.getByTestId('analysis-examples-card')
+    expect(
+      await within(card).findByTestId('variant-unit-viewer'),
+    ).toBeInTheDocument()
+    expect(mockListUnits).toHaveBeenCalledWith('project-1', 'roster', 12, 0)
+    expect(mockGetUnit).toHaveBeenCalledWith(
+      'project-1',
+      'roster',
+      'roster_001',
+      null,
+    )
+  })
+})
+
+describe('Evaluations page with variant_experiments off', () => {
+  afterEach(() => {
+    mockVariantExperiments = true
+  })
+
+  it('offers no Analyses and shows the metrics for ?type=analysis', async () => {
+    mockVariantExperiments = false
+    mockSearch = new URLSearchParams('projectId=project-1&type=analysis')
+    render(<EvaluationDashboard />)
+    expect(await screen.findByTestId('metric-view')).toBeInTheDocument()
+    expect(screen.queryByTestId('result-type-switch')).toBeNull()
+    expect(screen.queryByTestId('estimates-table')).toBeNull()
+    expect(mockListRuns).not.toHaveBeenCalled()
+    expect(mockDesigns).not.toHaveBeenCalled()
   })
 })
 

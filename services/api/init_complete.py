@@ -528,6 +528,9 @@ def setup_e2e_generations(db):
     )
 
 
+E2E_EVAL_CONFIG_ID = "e2e-llm-judge"
+
+
 def _get_e2e_evaluation_config():
     """Return the evaluation config for E2E QA Project"""
     return {
@@ -540,7 +543,7 @@ def _get_e2e_evaluation_config():
         },
         "evaluation_configs": [
             {
-                "id": "e2e-llm-judge",
+                "id": E2E_EVAL_CONFIG_ID,
                 "metric": "llm_judge_custom",
                 "display_name": "LLM Judge Quality",
                 "metric_parameters": {},
@@ -578,10 +581,17 @@ def setup_e2e_evaluations(db):
             "evaluation_configs"
         ):
             qa_project.evaluation_config = _get_e2e_evaluation_config()
-            db.commit()
             print("✅ E2E evaluation data already exists, updated config")
         else:
             print("✅ E2E evaluation data already exists")
+        # Rows seeded before they carried their config id: the evaluations
+        # page asks for the configured ids, so untagged rows never showed.
+        run_ids = db.query(EvaluationRun.id).filter(EvaluationRun.project_id == qa_project.id)
+        db.query(TaskEvaluation).filter(
+            TaskEvaluation.evaluation_id.in_(run_ids),
+            TaskEvaluation.evaluation_config_id.is_(None),
+        ).update({TaskEvaluation.evaluation_config_id: E2E_EVAL_CONFIG_ID}, synchronize_session=False)
+        db.commit()
         return
 
     tasks = db.query(Task).filter(Task.project_id == qa_project.id).order_by(Task.inner_id).all()
@@ -676,6 +686,9 @@ def setup_e2e_evaluations(db):
                 judge_run_id=judge_run_id,
                 task_id=task.id,
                 generation_id=gen.id,
+                # The config the project declares: the evaluations page and
+                # its statistics select rows by config id.
+                evaluation_config_id=E2E_EVAL_CONFIG_ID,
                 field_name="answer",
                 answer_type="textarea",
                 ground_truth={"text": "Reference answer"},

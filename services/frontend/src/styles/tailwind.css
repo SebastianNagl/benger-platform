@@ -262,3 +262,66 @@
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   @apply bg-zinc-400 dark:bg-zinc-600;
 }
+
+/* Printing a project report (/reports/[id], root class .report-print) gives
+   a paper-like document: the app chrome is print:hidden in the layout, tables
+   are not clipped, headings stay with their content, and a report viewed in
+   dark mode prints dark text on white. Elements marked data-print-keep (the
+   rating bars) keep their colours. */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  .report-print .overflow-x-auto,
+  .report-print .overflow-auto {
+    overflow: visible !important;
+  }
+
+  /* Unclipped tables must still fit the page width: drop the screen
+     min-widths and tighten the cells. */
+  .report-print th,
+  .report-print td {
+    min-width: 0 !important;
+    padding-left: 0.375rem !important;
+    padding-right: 0.375rem !important;
+    letter-spacing: normal !important;
+  }
+
+  .report-print th {
+    font-size: 0.625rem !important;
+    text-transform: none !important;
+  }
+
+  .report-print h1,
+  .report-print h2,
+  .report-print h3 {
+    break-after: avoid;
+  }
+
+  .report-print tr,
+  .report-print figure {
+    break-inside: avoid;
+  }
+
+  .report-print [data-print-keep] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html.dark {
+    color-scheme: light;
+  }
+
+  html.dark body {
+    background: #fff !important;
+  }
+
+  html.dark .report-print,
+  html.dark .report-print *:not([data-print-keep]) {
+    color: #18181b !important;
+    background-color: transparent !important;
+    border-color: #d4d4d8 !important;
+    box-shadow: none !important;
+  }
+}

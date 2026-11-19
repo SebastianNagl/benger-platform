@@ -20,6 +20,9 @@ from models import AnalysisRun
 from tests.fixtures.access_keys import seed_world
 from tests.fixtures.v1 import make_project, v1_auth
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 SPEC = {"spec_version": 1, "name": "synthetic", "inputs": {"designs": ["d"]}}
 
 # Rows written in one test transaction share now(); explicit, increasing

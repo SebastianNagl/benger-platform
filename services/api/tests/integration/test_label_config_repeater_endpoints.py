@@ -17,6 +17,9 @@ import pytest
 from models import User
 from project_models import Project, Task
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 DOCKET = """<View>
   <Repeater on="$doc.cases" indexFlag="{{idx}}" mode="pagination" answerKey="case">
     <Text name="case_{{idx}}" value="$doc.cases[{{idx}}].text"/>

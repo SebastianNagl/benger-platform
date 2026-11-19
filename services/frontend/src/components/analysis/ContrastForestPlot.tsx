@@ -6,6 +6,9 @@
  * equivalence band. The band choices are the bound sets the spec declared
  * for the contrast (TOST); with a band shown, every row also draws the
  * interval the equivalence decision uses (the TOST level, 90 % by default).
+ *
+ * `ContrastForest` draws one contrast with a given band and no pickers; the
+ * report's forest exhibits stack one per contrast.
  */
 
 import {
@@ -29,6 +32,7 @@ import {
   scopeDescription,
   tostFor,
   type ContrastGroup,
+  type EquivalenceBand,
 } from '@/lib/analysis/results'
 import type { AnalysisEstimate } from '@/lib/api/analysis'
 import { contrastLabel } from '@/lib/results/intervalRows'
@@ -51,6 +55,83 @@ export function groupLabel(group: ContrastGroup): string {
     estimand_id: group.estimandId,
     contrast_id: group.contrastId,
   })
+}
+
+/** The bound set of a contrast with `index`, or null (also for null). */
+export function bandAt(
+  group: ContrastGroup,
+  index: number | null | undefined,
+): EquivalenceBand | null {
+  if (index === null || index === undefined) return null
+  return (
+    equivalenceBands(group.estimates).find((b) => b.index === index) ?? null
+  )
+}
+
+/** One contrast across its scopes, with an optional equivalence band. */
+export function ContrastForest({
+  group,
+  band,
+  'data-testid': testId,
+}: {
+  group: ContrastGroup
+  band: EquivalenceBand | null
+  'data-testid'?: string
+}) {
+  const { t, locale } = useI18n()
+  const rows: ForestPlotRow[] = group.estimates.map((e) => {
+    const scope = scopeDescription(e)
+    const tost = band ? tostFor(e, band.index) : null
+    return {
+      id: String(e.position),
+      label: scope ?? t('analysis.scope.pooled'),
+      emphasis: scope === null,
+      estimate: hasEstimate(e) ? e.estimate : null,
+      lower: e.ci_lower,
+      upper: e.ci_upper,
+      inner:
+        tost &&
+        typeof tost.ci_lower === 'number' &&
+        typeof tost.ci_upper === 'number'
+          ? { lower: tost.ci_lower, upper: tost.ci_upper }
+          : null,
+      note: hasEstimate(e)
+        ? null
+        : e.message || t(`analysis.forest.noEstimate`),
+    }
+  })
+  const ciLevel = group.estimates.find((e) => e.ci_level)?.ci_level ?? null
+  const outcome = group.estimates.find((e) => e.outcome)?.outcome ?? undefined
+  const bandLabel = band
+    ? t('analysis.forest.bandLabel', {
+        bounds: formatInterval(band.lower, band.upper, locale),
+      })
+    : undefined
+  return (
+    <ForestPlot
+      rows={rows}
+      nullValue={commonNullValue(group.estimates) ?? 0}
+      band={
+        band ? { lower: band.lower, upper: band.upper, label: bandLabel } : null
+      }
+      ariaLabel={t('analysis.forest.ariaLabel', {
+        contrast: groupLabel(group),
+      })}
+      axisLabel={outcome}
+      legend={{
+        interval: t('analysis.forest.legendInterval', {
+          level: formatLevel(ciLevel, locale),
+        }),
+        inner: band
+          ? t('analysis.forest.legendInner', {
+              level: formatLevel(band.level, locale),
+            })
+          : undefined,
+        band: bandLabel,
+      }}
+      data-testid={testId}
+    />
+  )
 }
 
 export function ContrastForestPlot({
@@ -84,41 +165,12 @@ export function ContrastForestPlot({
     )
   }
 
-  const rows: ForestPlotRow[] = group.estimates.map((e) => {
-    const scope = scopeDescription(e)
-    const tost = band ? tostFor(e, band.index) : null
-    return {
-      id: String(e.position),
-      label: scope ?? t('analysis.scope.pooled'),
-      emphasis: scope === null,
-      estimate: hasEstimate(e) ? e.estimate : null,
-      lower: e.ci_lower,
-      upper: e.ci_upper,
-      inner:
-        tost &&
-        typeof tost.ci_lower === 'number' &&
-        typeof tost.ci_upper === 'number'
-          ? { lower: tost.ci_lower, upper: tost.ci_upper }
-          : null,
-      note: hasEstimate(e)
-        ? null
-        : e.message || t(`analysis.forest.noEstimate`),
-    }
-  })
-  const ciLevel = group.estimates.find((e) => e.ci_level)?.ci_level ?? null
-  const outcome = group.estimates.find((e) => e.outcome)?.outcome ?? undefined
-  const bandLabel = band
-    ? t('analysis.forest.bandLabel', {
-        bounds: formatInterval(band.lower, band.upper, locale),
-      })
-    : undefined
-
   return (
     <div data-testid="contrast-forest-plot">
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500" id="forest-contrast-label">
+        <span className="text-xs text-zinc-500" id="forest-contrast-label">
           {t('analysis.forest.contrast')}
-        </label>
+        </span>
         <Select value={group.key} onValueChange={setSelected}>
           <SelectTrigger
             className="w-72 max-w-full"
@@ -137,9 +189,9 @@ export function ContrastForestPlot({
         </Select>
         {bands.length > 0 && (
           <>
-            <label className="text-xs text-zinc-500" id="forest-band-label">
+            <span className="text-xs text-zinc-500" id="forest-band-label">
               {t('analysis.forest.band')}
-            </label>
+            </span>
             <Select
               value={choice}
               onValueChange={(value) =>
@@ -167,30 +219,7 @@ export function ContrastForestPlot({
           </>
         )}
       </div>
-      <ForestPlot
-        rows={rows}
-        nullValue={commonNullValue(group.estimates) ?? 0}
-        band={
-          band
-            ? { lower: band.lower, upper: band.upper, label: bandLabel }
-            : null
-        }
-        ariaLabel={t('analysis.forest.ariaLabel', {
-          contrast: groupLabel(group),
-        })}
-        axisLabel={outcome}
-        legend={{
-          interval: t('analysis.forest.legendInterval', {
-            level: formatLevel(ciLevel, locale),
-          }),
-          inner: band
-            ? t('analysis.forest.legendInner', {
-                level: formatLevel(band.level, locale),
-              })
-            : undefined,
-          band: bandLabel,
-        }}
-      />
+      <ContrastForest group={group} band={band} />
     </div>
   )
 }

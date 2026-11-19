@@ -25,6 +25,7 @@ def generate_json_schema_from_label_config(
     include_descriptions: bool = True,
     strict_mode: bool = True,
     task_data: Any = None,
+    variant_experiments: bool = True,
 ) -> Dict[str, Any]:
     """
     Convert Label Studio label_config XML to JSON Schema.
@@ -38,6 +39,10 @@ def generate_json_schema_from_label_config(
             holding one object per item, keyed by each control's answer key;
             with ``task_data`` its length is pinned to the task's item count.
             Configs without a Repeater ignore it.
+        variant_experiments: Whether the ``variant_experiments`` flag is on
+            for the generation (core 2.75). Off, a multi-choice ``<Choices>``
+            outside a Repeater keeps the single-value enum it had before
+            per-item answers existed; on, it takes a list of choice values.
 
     Returns:
         JSON Schema dict compatible with OpenAI/Anthropic structured output
@@ -99,7 +104,9 @@ def generate_json_schema_from_label_config(
             continue
         if id(elem) in inside_repeater:
             continue
-        field_info = _parse_element(elem, include_descriptions)
+        field_info = _parse_element(
+            elem, include_descriptions, multi_choice_lists=variant_experiments
+        )
         if field_info:
             name, prop_schema, is_required = field_info
             properties[name] = prop_schema
@@ -124,7 +131,9 @@ def generate_json_schema_from_label_config(
     return schema
 
 
-def _parse_element(elem: ET.Element, include_descriptions: bool) -> Optional[Tuple[str, Dict, bool]]:
+def _parse_element(
+    elem: ET.Element, include_descriptions: bool, multi_choice_lists: bool = True
+) -> Optional[Tuple[str, Dict, bool]]:
     """
     Parse a single XML element into JSON Schema property.
 
@@ -153,7 +162,7 @@ def _parse_element(elem: ET.Element, include_descriptions: bool) -> Optional[Tup
             schema = {"type": "string", "enum": choices}
         else:
             schema = {"type": "string"}
-        if is_multi_choice(elem):
+        if multi_choice_lists and is_multi_choice(elem):
             schema = {"type": "array", "items": schema}
         is_required = elem.get("required", "").lower() == "true"
         return (name, schema, is_required)
@@ -195,6 +204,7 @@ def generate_format_instructions(
     label_config: str,
     include_example: bool = True,
     task_data: Any = None,
+    variant_experiments: bool = True,
 ) -> str:
     """
     Generate human-readable format instructions for prompt injection.
@@ -209,7 +219,10 @@ def generate_format_instructions(
         Markdown-formatted instructions string
     """
     schema = generate_json_schema_from_label_config(
-        label_config, include_descriptions=True, task_data=task_data
+        label_config,
+        include_descriptions=True,
+        task_data=task_data,
+        variant_experiments=variant_experiments,
     )
 
     if not schema.get("properties"):

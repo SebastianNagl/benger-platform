@@ -364,6 +364,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/recalculate-stats` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}/report` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/report` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/report/analysis-runs` | `results:read` | bound |
 | PUT | `/api/projects/{project_id}/report/publish` | `projects:write` | bound |
 | POST | `/api/projects/{project_id}/report/refresh` | `projects:write` | bound |
 | PUT | `/api/projects/{project_id}/report/unpublish` | `projects:write` | bound |
@@ -409,6 +410,8 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/variant-designs/{key}/check` | `tasks:read_reference` | bound |
 | GET | `/api/projects/{project_id}/variant-designs/{key}/export` | `tasks:read_reference` | bound |
 | POST | `/api/projects/{project_id}/variant-designs/{key}/freeze` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}/units` | `tasks:read_reference`, `results:read` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}/units/{unit:path}` | `tasks:read_reference`, `results:read` | bound |
 | PATCH | `/api/projects/{project_id}/visibility` | `projects:write` | bound |
 | DELETE | `/api/projects/{project_id}/wizard-draft` | never |  |
 | GET | `/api/projects/{project_id}/wizard-draft` | never |  |
@@ -421,6 +424,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/runs` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}/trials/{trial_id}/request` | `runs:read` | bound |
+| GET | `/api/runs/trials/{trial_id}/request` | `runs:read` | bound |
 | GET | `/api/shares/discover` | `projects:read` | any |
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |

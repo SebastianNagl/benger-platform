@@ -408,10 +408,11 @@ class TestCanPublishReport(TestReportService):
         assert can_publish is False
         assert "tasks" in reason.lower()
 
-    def test_cannot_publish_without_generations(
+    @pytest.mark.flags_on("report_paper", "variant_experiments")
+    def test_cannot_publish_with_tasks_but_no_results(
         self, test_db: Session, setup_project, setup_tasks, test_user
     ):
-        """Test that report cannot be published without generations"""
+        """Tasks alone are not enough: the report needs a result of any kind"""
         from report_service import can_publish_report, create_initial_report_draft
 
         create_initial_report_draft(test_db, setup_project.id, test_user.id)
@@ -419,12 +420,25 @@ class TestCanPublishReport(TestReportService):
         can_publish, reason = can_publish_report(test_db, setup_project.id)
 
         assert can_publish is False
-        assert "generation" in reason.lower()
+        assert "annotations, generations, evaluations or analyses" in reason
 
-    def test_cannot_publish_without_evaluations(
+    @pytest.mark.flags_on("report_paper")
+    def test_can_publish_with_generations_but_no_evaluations(
         self, test_db: Session, setup_project, setup_tasks, setup_generations, test_user
     ):
-        """Test that report cannot be published without evaluations"""
+        """Generations are a result: the evaluation sections just stay hidden"""
+        from report_service import can_publish_report, create_initial_report_draft
+
+        create_initial_report_draft(test_db, setup_project.id, test_user.id)
+
+        can_publish, _ = can_publish_report(test_db, setup_project.id)
+
+        assert can_publish is True
+
+    def test_cannot_publish_without_generations_while_variant_experiments_is_off(
+        self, test_db: Session, setup_project, setup_tasks, test_user
+    ):
+        """Off, the rule is the previous one: tasks, generations, evaluations."""
         from report_service import can_publish_report, create_initial_report_draft
 
         create_initial_report_draft(test_db, setup_project.id, test_user.id)
@@ -432,7 +446,19 @@ class TestCanPublishReport(TestReportService):
         can_publish, reason = can_publish_report(test_db, setup_project.id)
 
         assert can_publish is False
-        assert "evaluation" in reason.lower()
+        assert reason == "Project must have LLM generations"
+
+    def test_cannot_publish_without_evaluations_while_variant_experiments_is_off(
+        self, test_db: Session, setup_project, setup_tasks, setup_generations, test_user
+    ):
+        from report_service import can_publish_report, create_initial_report_draft
+
+        create_initial_report_draft(test_db, setup_project.id, test_user.id)
+
+        can_publish, reason = can_publish_report(test_db, setup_project.id)
+
+        assert can_publish is False
+        assert reason == "Project must have completed evaluations"
 
     def test_can_publish_with_all_requirements(
         self,

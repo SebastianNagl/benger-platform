@@ -858,6 +858,8 @@ class TestResolvePerModelMetrics:
             [],  # no annotation-based rows
         ]
         db.query.return_value = q
+        # The hidden-model lookup: no catalog rows, so both models are shown.
+        db.execute.return_value.mappings.return_value.all.return_value = []
 
         result = _resolve_per_model_metrics(db, ["eval-1"])
         assert "gpt-4" in result
@@ -880,6 +882,7 @@ class TestResolvePerModelMetrics:
             [],
         ]
         db.query.return_value = q
+        db.execute.return_value.mappings.return_value.all.return_value = []
 
         result = _resolve_per_model_metrics(db, ["eval-1"])
         assert "unknown" not in result

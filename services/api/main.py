@@ -700,7 +700,7 @@ from variant_design_guard import VariantDesignError, error_from_db  # noqa: E402
 
 @app.exception_handler(VariantDesignError)
 async def variant_design_error_handler(request, exc: VariantDesignError):
-    """A refused variant-design write (invalid ``meta.variant``, unknown or
+    """A refused variant-design write (invalid ``meta.benger_variant``, unknown or
     frozen design), raised by the flush guard or the design routes."""
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 

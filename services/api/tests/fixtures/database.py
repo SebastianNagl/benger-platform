@@ -488,6 +488,9 @@ def _create_tables():
             # (create_all never adds a column to an existing table);
             # guarded, so a no-op otherwise.
             _run_migration(conn, "147_import_provenance")
+            # Migration 148: analysis lookup tables and
+            # analysis_runs.resolved_inputs; guarded, so a no-op otherwise.
+            _run_migration(conn, "148_analysis_lookup_tables")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

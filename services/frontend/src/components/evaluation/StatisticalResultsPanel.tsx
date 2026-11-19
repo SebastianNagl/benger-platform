@@ -9,7 +9,10 @@
  *
  * For an analysis run (the Analyses result type) it shows the run's
  * Inference block (families with adjusted p-values, equivalence tests,
- * MDEs, joint tests) and its Fit block (warnings, per-fit summaries).
+ * MDEs, joint tests), its Fit block (warnings, per-fit summaries) and, for
+ * a run that read codes, the Agreement and validity block (the codes with
+ * their validations). For metrics, the Agreement and validity block holds
+ * the agreement between LLM judges.
  */
 
 'use client'
@@ -19,12 +22,19 @@ import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import type { AnalysisEstimate, AnalysisRun } from '@/lib/api/analysis'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
   InformationCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
+import {
+  JudgeAgreementBlock,
+  RunAgreementBlock,
+  type JudgeAgreementEntry,
+} from './statistics/AgreementValidity'
 import {
   AnalysisFitBlock,
   AnalysisInferenceBlock,
@@ -96,6 +106,8 @@ interface StatisticsData {
     original_alpha: number
     corrected_alpha: number
   }
+  /** Agreement between LLM judges per `model|config|metric` */
+  judge_agreement_by_model_metric?: Record<string, JudgeAgreementEntry> | null
   /** Warnings about data quality or limitations */
   warnings?: string[]
   /** Multi-aggregation results (when multiple levels selected) */
@@ -182,6 +194,8 @@ export function StatisticalResultsPanel({
   analysis = null,
 }: StatisticalResultsPanelProps) {
   const { t, locale } = useI18n()
+  // The Agreement and validity block belongs to variant_experiments.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
 
   // Helper to check if a statistic should be shown
   // If no statistics selected, show all (default behavior)
@@ -226,6 +240,7 @@ export function StatisticalResultsPanel({
       >
         <AnalysisInferenceBlock estimates={analysis.estimates} />
         <AnalysisFitBlock run={analysis.run} />
+        <RunAgreementBlock run={analysis.run} />
       </div>
     )
   }
@@ -739,6 +754,10 @@ export function StatisticalResultsPanel({
             </div>
           </Card>
         )}
+
+      {variantExperiments && (
+        <JudgeAgreementBlock agreement={data.judge_agreement_by_model_metric} />
+      )}
     </div>
   )
 }

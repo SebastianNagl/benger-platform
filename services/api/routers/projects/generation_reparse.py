@@ -31,6 +31,8 @@ from annotation_utils import extract_all_field_values
 from auth_module import require_superadmin
 from auth_module.models import User as AuthUser
 from database import get_async_db
+from feature_flags.deps import flag_on
+from feature_flags.registry import VARIANT_EXPERIMENTS
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from project_models import Project, Task
@@ -179,6 +181,9 @@ async def reparse_generations(
 
     parsers: Dict[Optional[str], ResponseParser] = {}
     now = datetime.now(timezone.utc).isoformat()
+    # Parse as generation does for this caller: with variant_experiments off
+    # (core 2.75) without the answer-format options and the per-item parsing.
+    experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
     results: List[ReparseItem] = []
 
     for gid in body.generation_ids:
@@ -204,6 +209,7 @@ async def reparse_generations(
                 parsers[structure_key] = ResponseParser(
                     generation_structure=structure or {},
                     label_config=project.label_config,
+                    variant_experiments=experiments,
                 )
         parser = parsers[structure_key]
         if parser is None:
@@ -222,7 +228,9 @@ async def reparse_generations(
         try:
             # A structure whose answer keys depend on the task is read with
             # the keys rendered for this task, as generation did.
-            answer_schema = answer_format(parser.generation_structure).answer_schema
+            answer_schema = (
+                answer_format(parser.generation_structure).answer_schema if experiments else None
+            )
             if answer_schema:
                 parser = ResponseParser(
                     generation_structure=parser.generation_structure,
@@ -230,6 +238,7 @@ async def reparse_generations(
                     answer_keys=render_answer_schema(
                         answer_schema, data if isinstance(data, dict) else {}
                     ),
+                    variant_experiments=experiments,
                 )
             parsed = parser.parse(
                 gen.response_content or "",

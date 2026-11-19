@@ -1,4 +1,4 @@
-"""Analysis runs end to end: tasks with ``meta.variant`` and generations in the
+"""Analysis runs end to end: tasks with ``meta.benger_variant`` and generations in the
 test database, ``tasks.run_analysis`` (eager), the stored frame and estimates.
 """
 
@@ -21,6 +21,9 @@ from analysis.runner import run_spec  # noqa: E402
 from analysis.spec import normalize_spec, spec_hash  # noqa: E402
 from analysis.version import ENGINE_VERSION, SPEC_VERSION  # noqa: E402
 from analysis_synthetic import role_swap_design, role_swap_records, role_swap_spec  # noqa: E402
+
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
 
 UNITS = 12
 
@@ -57,7 +60,7 @@ def seeded(db_conn, make_project, make_user):
             tid = str(uuid.uuid4())
             task_ids[rec["task_id"]] = tid
             rows.append(Task(id=tid, project_id=project.id, data=rec["task_data"],
-                             meta={"variant": rec["variant"], "tags": ["x"]}, inner_id=inner))
+                             meta={"benger_variant": rec["variant"], "tags": ["x"]}, inner_id=inner))
     outside = Task(id=str(uuid.uuid4()), project_id=project.id, data={"text": "x"}, meta={"tags": []}, inner_id=inner + 1)
     rows.append(outside)
     db_conn.add_all(rows)
@@ -111,6 +114,22 @@ def _reload(db_conn, run_id):
     return run, estimates
 
 
+@pytest.mark.flags_off("variant_experiments")
+def test_run_of_an_owner_with_the_flag_off_is_not_computed(db_conn, seeded):
+    from feature_flags import FEATURE_DISABLED, FEATURE_DISABLED_MESSAGE
+
+    project, user, _records = seeded
+    run = _new_run(db_conn, project, user)
+    out = tasks.run_analysis.apply(args=[run.id]).get()
+    assert out["reason"] == FEATURE_DISABLED and out["flag"] == "variant_experiments"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed"
+    assert run.error_message == FEATURE_DISABLED_MESSAGE
+    assert estimates == [] and run.frame_object_key is None
+    # The spec stays stored.
+    assert run.normalized_spec
+
+
 def test_run_reads_the_design_and_stores_frame_and_estimates(db_conn, seeded):
     project, user, records = seeded
     run = _new_run(db_conn, project, user)
@@ -125,7 +144,8 @@ def test_run_reads_the_design_and_stores_frame_and_estimates(db_conn, seeded):
     assert run.estimates_count == len(estimates) > 20
     assert run.engine_version == ENGINE_VERSION
     assert set(run.library_versions) == {"python", "numpy", "pandas", "scipy", "statsmodels", "pyarrow"}
-    assert run.resolved_inputs == {"projects": [], "lookups": []}
+    assert run.resolved_inputs == {"projects": [], "lookups": [],
+                                   "models": sorted({r["model_id"] for r in records})}
     assert run.lockfile_sha256 is None or len(run.lockfile_sha256) == 64
     assert run.started_at is not None and run.completed_at is not None
     assert run.timings["total_s"] >= 0 and run.fits
@@ -394,7 +414,7 @@ def _seed_docket_project(db_conn, make_project, user, records):
         if rec["task_id"] not in task_ids:
             task_ids[rec["task_id"]] = str(uuid.uuid4())
             db_conn.add(Task(id=task_ids[rec["task_id"]], project_id=project.id, data={"cases": [{}] * 6},
-                             meta={"variant": rec["variant"]}, inner_id=len(task_ids)))
+                             meta={"benger_variant": rec["variant"]}, inner_id=len(task_ids)))
     db_conn.commit()
     for rec in records:
         rg = ResponseGeneration(id=str(uuid.uuid4()), project_id=project.id, task_id=task_ids[rec["task_id"]],
@@ -456,6 +476,7 @@ def test_a_slot_frame_with_a_stored_lookup_across_two_projects(db_conn, make_pro
         "projects": [second.id],
         "lookups": [{"id": "cong", "project_id": first.id, "name": "congruence", "version": 1,
                      "content_hash": table["content_hash"], "row_count": len(rows)}],
+        "models": sorted({r["model_id"] for r in first_records + second_records}),
     }
 
     # the same analysis on the records in memory

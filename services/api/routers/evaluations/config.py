@@ -20,7 +20,16 @@ from grade_scale_history import (
     apply_grade_scale_write,
     grade_scale_changed,
 )
+from feature_flags.deps import flag_on_sync
+from feature_flags.registry import VARIANT_EXPERIMENTS
+from services.analysis_plans import (
+    ANALYSIS_PLANS_KEY,
+    apply_analysis_plans_write,
+    validate_analysis_plans,
+    without_analysis_plans,
+)
 from services.eval_subject_pools import count_eval_subject_pools
+from services.evaluation.config import metric_flag_on
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from services.label_config.project_expansion import (
     expanded_project_label_config_async,
@@ -394,7 +403,10 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
         if not isinstance(cfg, dict) or cfg.get("enabled") is False:
             continue
         metric = cfg.get("metric") or ""
-        if isinstance(metric, str) and (metric.startswith("korrektur_") or is_reference_free(metric)):
+        if isinstance(metric, str) and (
+            metric.startswith("korrektur_")
+            or (is_reference_free(metric) and metric_flag_on(metric))
+        ):
             continue
         ref = cfg.get("reference_fields")
         if isinstance(ref, list) and ref:
@@ -566,7 +578,9 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
         # A text pattern code needs a valid pattern set and one of its codes
         # (services/shared/analysis/text_patterns.py); without them every
         # cell would record an error instead of a code.
-        if cfg.get("metric") == "text_pattern":
+        # Only while variant_experiments is on for the caller (core 2.75):
+        # off, the config is stored as before and never runs.
+        if cfg.get("metric") == "text_pattern" and metric_flag_on("text_pattern"):
             _validate_text_pattern_parameters(mp)
 
         # Phase 7 consolidation guard: Falllösung's prompt template
@@ -793,6 +807,11 @@ def validate_evaluation_config_write(body: Any, merged: Any) -> None:
     if GRADE_SCALE_KEY in body:
         validate_eval_config_grade_scale(merged)
 
+    # Analysis plans: every spec through the analysis engine (422 with the
+    # engine's messages). The list replaces the stored one, null deletes it.
+    if ANALYSIS_PLANS_KEY in body:
+        validate_analysis_plans(body[ANALYSIS_PLANS_KEY])
+
 
 @router.put("/projects/{project_id}/evaluation-config")
 def update_project_evaluation_config(
@@ -815,6 +834,11 @@ def update_project_evaluation_config(
     sends ``{"evaluation_configs": [...]}`` — and sibling keys survive
     (issue #289). The Notenschlüssel (``grade_scale``) is the one exception:
     it is replaced as a whole (see :func:`merge_evaluation_config`).
+
+    ``analysis_plans`` (a list, so replaced as a whole) holds named analysis
+    specs: each spec is validated by the analysis engine (422
+    ``invalid_analysis_plan`` with its messages) and stored with the hash of
+    its normalized form (``services/analysis_plans.py``).
     """
     try:
         # Verify project exists. FOR UPDATE: the deep-merge below is a
@@ -849,6 +873,12 @@ def update_project_evaluation_config(
         # bodies (e.g. only evaluation_configs) without clobbering sibling
         # keys a concurrent eval-defaults PATCH wrote (issue #289 lost-update).
         # Nothing is written before the checks pass.
+        # Analysis plans belong to variant_experiments (core 2.75): off for
+        # the caller, the body's plans are ignored and the stored ones stay.
+        if ANALYSIS_PLANS_KEY in config and not flag_on_sync(
+            db, current_user, VARIANT_EXPERIMENTS
+        ):
+            config = without_analysis_plans(config)
         stored_config = project.evaluation_config or {}
         merged = merge_evaluation_config(stored_config, config)
         validate_evaluation_config_write(config, merged)
@@ -862,6 +892,11 @@ def update_project_evaluation_config(
         # endpoint cannot be used to rewrite the audit.
         merged = apply_grade_scale_write(
             stored_config, merged, actor_id=str(current_user.id)
+        )
+        # Analysis plans carry their spec hash and save stamp, both
+        # server-owned (services/analysis_plans.py).
+        merged = apply_analysis_plans_write(
+            stored_config, merged, config, actor_id=str(current_user.id)
         )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET

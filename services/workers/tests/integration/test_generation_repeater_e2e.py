@@ -16,7 +16,7 @@ import pytest
 import tasks
 from models import Generation, ResponseGeneration
 
-pytestmark = [pytest.mark.integration, pytest.mark.database]
+pytestmark = [pytest.mark.integration, pytest.mark.database, pytest.mark.flags_on("variant_experiments")]
 
 STRUCTURE_KEY = "s0"
 

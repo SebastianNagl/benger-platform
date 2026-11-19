@@ -18,6 +18,8 @@ import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferenceP
 import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { logger } from '@/lib/utils/logger'
 import {
   PencilIcon,
@@ -73,6 +75,9 @@ export function PromptStructuresManager({
   readOnly = false,
 }: PromptStructuresManagerProps) {
   const { t } = useI18n()
+  // The answer-format options belong to the variant_experiments flag: off,
+  // the editor neither shows nor sends them (the API ignores them too).
+  const answerFormat = useFeatureFlag(VARIANT_EXPERIMENTS)
   const [structures, setStructures] = useState<Record<string, PromptStructure>>(
     {},
   )
@@ -190,14 +195,24 @@ export function PromptStructuresManager({
           evaluation_prompt: structure.evaluation_prompt,
           // The two switches are always shown so their current value is
           // visible; the optional blocks only when set.
-          append_schema_instruction:
-            structure.append_schema_instruction ?? true,
-          structured_output: structure.structured_output ?? 'auto',
-          ...Object.fromEntries(
-            (['format_retry', 'answer_schema', 'refusal_heuristic'] as const)
-              .filter((k) => structure[k] != null)
-              .map((k) => [k, structure[k]]),
-          ),
+          ...(answerFormat
+            ? {
+                append_schema_instruction:
+                  structure.append_schema_instruction ?? true,
+                structured_output: structure.structured_output ?? 'auto',
+                ...Object.fromEntries(
+                  (
+                    [
+                      'format_retry',
+                      'answer_schema',
+                      'refusal_heuristic',
+                    ] as const
+                  )
+                    .filter((k) => structure[k] != null)
+                    .map((k) => [k, structure[k]]),
+                ),
+              }
+            : {}),
         },
         null,
         2,
@@ -278,12 +293,14 @@ export function PromptStructuresManager({
         exclude_from_generation: editingKey
           ? (structures[editingKey]?.exclude_from_generation ?? false)
           : false,
-        ...Object.fromEntries(
-          ANSWER_FORMAT_KEYS.filter((k) => k in parsedConfig).map((k) => [
-            k,
-            parsedConfig[k],
-          ]),
-        ),
+        ...(answerFormat
+          ? Object.fromEntries(
+              ANSWER_FORMAT_KEYS.filter((k) => k in parsedConfig).map((k) => [
+                k,
+                parsedConfig[k],
+              ]),
+            )
+          : {}),
       }
 
       logger.debug('Calling API with:', key, structureData)
@@ -495,48 +512,50 @@ export function PromptStructuresManager({
                               </div>
                             </div>
                           )}
-                          <div
-                            className="mt-2 flex flex-wrap gap-1"
-                            data-testid={`prompt-structure-format-${key}`}
-                          >
-                            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                              {structure.schema_instruction_preview
-                                ? t(
-                                    'project.promptStructures.format.instructionAppended',
-                                  )
-                                : t(
-                                    'project.promptStructures.format.instructionNotAppended',
+                          {answerFormat && (
+                            <div
+                              className="mt-2 flex flex-wrap gap-1"
+                              data-testid={`prompt-structure-format-${key}`}
+                            >
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                {structure.schema_instruction_preview
+                                  ? t(
+                                      'project.promptStructures.format.instructionAppended',
+                                    )
+                                  : t(
+                                      'project.promptStructures.format.instructionNotAppended',
+                                    )}
+                              </span>
+                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                {structure.structured_output === 'off'
+                                  ? t(
+                                      'project.promptStructures.format.structuredOff',
+                                    )
+                                  : t(
+                                      'project.promptStructures.format.structuredAuto',
+                                    )}
+                              </span>
+                              {structure.format_retry && (
+                                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                  {t('project.promptStructures.format.retry')}
+                                </span>
+                              )}
+                              {structure.answer_schema && (
+                                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                  {t(
+                                    'project.promptStructures.format.answerKeys',
                                   )}
-                            </span>
-                            <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                              {structure.structured_output === 'off'
-                                ? t(
-                                    'project.promptStructures.format.structuredOff',
-                                  )
-                                : t(
-                                    'project.promptStructures.format.structuredAuto',
+                                </span>
+                              )}
+                              {structure.refusal_heuristic && (
+                                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                  {t(
+                                    'project.promptStructures.format.refusalHeuristic',
                                   )}
-                            </span>
-                            {structure.format_retry && (
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                {t('project.promptStructures.format.retry')}
-                              </span>
-                            )}
-                            {structure.answer_schema && (
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                {t(
-                                  'project.promptStructures.format.answerKeys',
-                                )}
-                              </span>
-                            )}
-                            {structure.refusal_heuristic && (
-                              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                {t(
-                                  'project.promptStructures.format.refusalHeuristic',
-                                )}
-                              </span>
-                            )}
-                          </div>
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => togglePrompts(key)}
@@ -581,7 +600,8 @@ export function PromptStructuresManager({
                           label={t('generation.prompts.instruction')}
                           value={structure.instruction_prompt}
                         />
-                        {structure.schema_instruction_preview ? (
+                        {answerFormat &&
+                        structure.schema_instruction_preview ? (
                           <PromptText
                             label={t(
                               'project.promptStructures.format.appendedText',
@@ -589,7 +609,7 @@ export function PromptStructuresManager({
                             value={structure.schema_instruction_preview}
                           />
                         ) : null}
-                        {structure.format_retry ? (
+                        {answerFormat && structure.format_retry ? (
                           <PromptText
                             label={t(
                               'project.promptStructures.format.retryMessage',
@@ -704,7 +724,11 @@ export function PromptStructuresManager({
                   {t('project.promptStructures.structureConfiguration')}
                 </Label>
                 <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  {t('project.promptStructures.structureConfigHelp')}
+                  {t(
+                    answerFormat
+                      ? 'project.promptStructures.structureConfigHelpAnswerFormat'
+                      : 'project.promptStructures.structureConfigHelp',
+                  )}
                 </p>
                 <GenerationStructureEditor
                   initialConfig={modalData.config}

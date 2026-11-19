@@ -8,8 +8,12 @@ registered default, like everywhere else.
 
 from __future__ import annotations
 
-from .registry import FEATURE_DISABLED, FEATURE_DISABLED_MESSAGE, flag
+import logging
+
+from .registry import FEATURE_DISABLED, FEATURE_DISABLED_MESSAGE, STATE_EVERYONE, flag
 from .service import cache_get, evaluate_snapshot_sync, load_snapshot_sync
+
+logger = logging.getLogger(__name__)
 
 
 def worker_snapshot(db):
@@ -28,6 +32,18 @@ def flag_enabled_sync(db, user_id, name: str) -> bool:
     snapshot = worker_snapshot(db)
     uid = str(user_id) if user_id else None
     return evaluate_snapshot_sync(db, snapshot, uid, [name])[name]
+
+
+def flag_enabled_or_default(db, user_id, name: str) -> bool:
+    """:func:`flag_enabled_sync` for a job that must not fail over its flag:
+    when the flags cannot be read, the flag's registered default answers
+    (``everyone`` on, else off) and a warning is logged."""
+    try:
+        return flag_enabled_sync(db, user_id, name)
+    except Exception:
+        logger.warning("feature flags: could not read %s, using its default", name, exc_info=True)
+        definition = flag(name)
+        return definition is not None and definition.default_state == STATE_EVERYONE
 
 
 def feature_disabled_result(name: str) -> dict:

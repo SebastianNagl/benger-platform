@@ -19,7 +19,6 @@
 
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
-import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   publishReport,
@@ -43,6 +42,8 @@ interface PublicationToggleProps {
   isPublic?: boolean
   canPublish: boolean
   canPublishReason: string
+  /** The viewer authors the report (the API's `can_edit`). */
+  canEdit: boolean
   /** Legacy callback: published flag only. */
   onToggle?: (published: boolean) => void
   /** Full publication state after any successful change. */
@@ -54,11 +55,20 @@ const getReasonTranslationKey = (reason: string): string => {
   const reasonMap: Record<string, string> = {
     'Report not found': 'project.report.reasons.reportNotFound',
     'Project must have tasks': 'project.report.reasons.mustHaveTasks',
+    'Project must have annotations, generations, evaluations or analyses':
+      'project.report.reasons.mustHaveResults',
+    'Project must have annotations, generations or evaluations':
+      'project.report.reasons.mustHaveResultsWithoutAnalyses',
+    // The rule while report_paper is off (report_service).
     'Project must have LLM generations':
       'project.report.reasons.mustHaveGenerations',
     'Project must have completed evaluations':
       'project.report.reasons.mustHaveEvaluations',
+    'Every run in the Analyses section must be a completed analysis run of this project that reads no other project':
+      'project.report.reasons.analysisRuns',
     'Report not created yet': 'project.report.reasons.notCreatedYet',
+    'A public report cannot show an analysis run in which a private model may appear':
+      'project.report.reasons.publicMemberOnlyAnalyses',
   }
   return reasonMap[reason] || ''
 }
@@ -72,12 +82,11 @@ export function PublicationToggle({
   isPublic = false,
   canPublish,
   canPublishReason,
+  canEdit,
   onToggle,
   onChange,
 }: PublicationToggleProps) {
   const { t } = useI18n()
-  const { user } = useAuth()
-  const isSuperadmin = Boolean(user?.is_superadmin)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -128,7 +137,8 @@ export function PublicationToggle({
       applyResult(data)
     } catch (err: any) {
       console.error('Failed to change publication state:', err)
-      setError(err?.message || t(fallbackMessageKey))
+      const reasonKey = getReasonTranslationKey(err?.message ?? '')
+      setError(reasonKey ? t(reasonKey) : err?.message || t(fallbackMessageKey))
     } finally {
       setLoading(false)
     }
@@ -241,7 +251,7 @@ export function PublicationToggle({
           </p>
         )}
 
-        {isSuperadmin && !isPublished && (
+        {canEdit && !isPublished && (
           <Button
             onClick={() => {
               setPublishPublic(false)
@@ -257,7 +267,7 @@ export function PublicationToggle({
           </Button>
         )}
 
-        {isSuperadmin && isPublished && (
+        {canEdit && isPublished && (
           <div className="flex flex-col gap-2">
             {effectivePublic ? (
               <Button

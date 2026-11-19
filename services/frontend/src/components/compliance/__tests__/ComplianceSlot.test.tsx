@@ -28,9 +28,13 @@ jest.mock('@/contexts/I18nContext', () =>
 )
 
 let mockReady = true
+// The platform flag of the route shells (compliance_records).
+let mockComplianceRecords = true
 jest.mock('@/lib/featureFlags', () => ({
   ...jest.requireActual('@/lib/featureFlags'),
   useActiveExtensionsReady: () => mockReady,
+  useFeatureFlagStatus: (name: string) =>
+    name === 'compliance_records' && mockComplianceRecords ? 'on' : 'off',
 }))
 
 let mockEnabled = false
@@ -76,12 +80,27 @@ beforeAll(() => {
 
 beforeEach(() => {
   mockReady = true
+  mockComplianceRecords = true
   mockEnabled = false
   mockLoaded = false
   _resetActiveExtensionsForTests()
 })
 
 describe('compliance route shells', () => {
+  it('are not found while compliance_records is off, even with the overlay active', () => {
+    mockComplianceRecords = false
+    setActiveExtensions(['compliance'])
+    const { unmount } = render(<CompliancePage />)
+    expect(screen.getByText('Page not found')).toBeInTheDocument()
+    expect(screen.queryByTestId('overlay-dashboard')).toBeNull()
+    expect(screen.queryByTestId('compliance-unavailable')).toBeNull()
+    unmount()
+
+    render(<ComplianceAssessmentPage />)
+    expect(screen.getByText('Page not found')).toBeInTheDocument()
+    expect(screen.queryByTestId('overlay-detail')).toBeNull()
+  })
+
   it('render the overlay pages only while the compliance flag is on', () => {
     const { unmount } = render(<CompliancePage />)
     expect(screen.getByTestId('compliance-unavailable')).toBeInTheDocument()

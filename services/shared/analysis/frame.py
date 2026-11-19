@@ -8,7 +8,7 @@ in a canonical order.
   quality flags (``parse_ok``, ``refusal``, ``truncated`` as 1/0,
   ``retried`` as 1/0 or missing, ``finish_reason``);
 * in a slot frame (``frame.unit = slot``), the slot index ``slot``: one row
-  per slot of the task's ``meta.variant.slots`` (the unpivot of per-slot
+  per slot of the task's ``meta.benger_variant.slots`` (the unpivot of per-slot
   answers such as Label Studio Repeater results ``risk_0``, ``risk_1``, ...),
   a generation whose task has no slots contributes no row;
 * one column per design factor found in the observations' ``factors``
@@ -450,6 +450,16 @@ def from_parquet(data: bytes):
         else:
             out[name] = pd.Series(column.to_numpy(zero_copy_only=False))
     return pd.DataFrame(out, columns=table.column_names)
+
+
+def frame_models(frame) -> List[str]:
+    """The models whose answers are in ``frame``, sorted: every ``model_id``
+    value and the model part (before ``@``) of every ``system`` key."""
+    models = set()
+    for column in ("model_id", "system"):
+        if column in frame.columns:
+            models |= {str(v).split("@", 1)[0] for v in frame[column].tolist() if v is not None and v == v}
+    return sorted(models)
 
 
 def frame_sha256(data: bytes) -> str:

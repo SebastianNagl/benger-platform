@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:benger:schema:task-variant:1",
-  "title": "Task variant assignment (task.meta.variant)",
+  "title": "Task variant assignment (task.meta.benger_variant)",
   "description": "A task's place in a variant design of its project. Never shown to a system under test or to a blinded annotator. Checked against the design by variant_designs.validate_task_variant.",
   "type": "object",
   "additionalProperties": false,

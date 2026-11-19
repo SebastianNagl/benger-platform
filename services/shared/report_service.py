@@ -10,7 +10,7 @@ This service handles:
 
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -28,6 +28,7 @@ from models import (
 )
 from project_models import Annotation, Project, Task
 from report_models import ProjectReport
+from report_snapshot import hidden_model_ids
 from user_display import masked_name
 
 
@@ -99,10 +100,26 @@ def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[s
     for metrics, annotator_id, pseudonym in ann_rows:
         _add(f"annotator:{masked_name(user_id=annotator_id, pseudonym=pseudonym)}", metrics)
 
+    # The result is stored in the report's content, which a public report
+    # serves whole: hidden (private custom) models stay out, as in the snapshot.
+    hidden = hidden_model_ids(db, (m for m, _ in gen_rows))
     return {
         model_id: {m: sum(vs) / len(vs) for m, vs in metric_lists.items() if vs}
         for model_id, metric_lists in model_values.items()
+        if model_id not in hidden
     }
+
+
+def _run_level_metrics(db: Session, evaluations: List[EvaluationRun]) -> Dict[str, Dict[str, float]]:
+    """Fallback per-model metrics from ``EvaluationRun.model_id`` (direct
+    evaluations without task rows), hidden (private custom) models left out
+    like everywhere else in a report."""
+    hidden = hidden_model_ids(db, (e.model_id for e in evaluations))
+    metrics: Dict[str, Dict[str, float]] = {}
+    for run in evaluations:
+        if run.metrics and run.model_id != "unknown" and run.model_id not in hidden:
+            metrics.setdefault(run.model_id, {}).update(run.metrics)
+    return metrics
 
 
 def create_initial_report_draft(db: Session, project_id: str, user_id: str) -> ProjectReport:
@@ -201,6 +218,19 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
     return report
 
 
+def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
+    """The ``show_agreement`` key of the annotations section: kept or
+    defaulted while the variant_experiments flag is on in this context
+    (core 2.75), absent otherwise, as before annotator agreement existed."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    annotations = annotations if isinstance(annotations, dict) else {}
+    if not scoped_flag(VARIANT_EXPERIMENTS):
+        return {"show_agreement": annotations["show_agreement"]} if "show_agreement" in annotations else {}
+    return {"show_agreement": annotations.get("show_agreement", True)}
+
+
 def update_report_annotations_section(db: Session, project_id: str) -> Optional[ProjectReport]:
     """
     Update annotations section when annotations are completed
@@ -251,7 +281,7 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
         "custom_text": custom_text,
         "show_count": True,
         "show_participants": existing_annotations.get("show_participants", True),
-        "show_agreement": existing_annotations.get("show_agreement", True),
+        **_show_agreement_setting(existing_annotations),
         "acknowledgment_text": acknowledgment_text,
         "status": "completed",
         "editable": True,
@@ -351,11 +381,7 @@ def update_report_evaluation_section(db: Session, project_id: str) -> Optional[P
         metrics = resolved
     else:
         # Fall back to EvaluationRun.model_id for direct evaluations
-        for eval in evaluations:
-            if eval.metrics and eval.model_id != "unknown":
-                if eval.model_id not in metrics:
-                    metrics[eval.model_id] = {}
-                metrics[eval.model_id].update(eval.metrics)
+        metrics = _run_level_metrics(db, evaluations)
 
     methods = list(set(methods))  # Remove duplicates
 
@@ -410,15 +436,55 @@ def _update_metadata(report: ProjectReport, section_name: str):
     flag_modified(report, "content")
 
 
+# Reasons ``can_publish_report`` gives; the frontend maps them to messages.
+REASON_NO_REPORT = "Report not found"
+REASON_NO_TASKS = "Project must have tasks"
+REASON_NO_RESULTS = "Project must have annotations, generations, evaluations or analyses"
+REASON_NO_RESULTS_WITHOUT_ANALYSES = "Project must have annotations, generations or evaluations"
+REASON_ANALYSIS_RUNS = (
+    "Every run in the Analyses section must be a completed analysis run of this project "
+    "that reads no other project"
+)
+REASON_OK = "All requirements met"
+
+
+def _has_results(db: Session, project_id: str) -> bool:
+    """Whether the project has anything a report can be about: annotations,
+    generations, completed evaluation runs or, with analyses on in this
+    context, completed analysis runs."""
+    from models import AnalysisRun
+
+    checks = [
+        db.query(Annotation.id).filter(
+            Annotation.project_id == project_id, Annotation.was_cancelled == False  # noqa: E712
+        ),
+        db.query(Generation.id)
+        .join(ResponseGeneration, Generation.generation_id == ResponseGeneration.id)
+        .filter(ResponseGeneration.project_id == project_id),
+        db.query(EvaluationRun.id).filter(
+            EvaluationRun.project_id == project_id, EvaluationRun.status == "completed"
+        ),
+    ]
+    if _analyses_on():
+        checks.append(
+            db.query(AnalysisRun.id).filter(
+                AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
+            )
+        )
+    return any(db.query(q.exists()).scalar() for q in checks)
+
+
 def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     """
     Check if a project report can be published
 
-    A report can be published if:
-    1. Report exists
-    2. Project has tasks (data section)
-    3. Project has generations
-    4. Project has evaluations
+    A report can be published when it exists, the project has tasks, and the
+    project has at least one result of any kind: annotations, generations,
+    completed evaluation runs or completed analysis runs. So an annotation
+    study, a human evaluation without generations and an analysis-only
+    project can publish too; the report's sections without data hide
+    themselves. Every run the Analyses section names must be one the report
+    can show (``report_snapshot.analysis_run_problems``).
 
     Args:
         db: Database session
@@ -427,36 +493,83 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     Returns:
         Tuple of (can_publish: bool, reason: str)
     """
+    from report_snapshot import analysis_run_problems, parse_analyses_section
+
     report = db.query(ProjectReport).filter(ProjectReport.project_id == project_id).first()
     if not report:
-        return False, "Report not found"
+        return False, REASON_NO_REPORT
+    ok, reason = can_publish_project(db, project_id)
+    if not ok or not _analyses_on():
+        # Without variant_experiments a snapshot has no Analyses section, so
+        # its runs do not count.
+        return ok, reason
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") if isinstance(content.get("sections"), dict) else {}
+    analyses = parse_analyses_section(sections.get("analyses"))
+    if analysis_run_problems(db, project_id, [r["run_id"] for r in analyses["runs"]]):
+        return False, REASON_ANALYSIS_RUNS
+    return True, REASON_OK
 
-    # Check if project has tasks
+
+# The rule before reports covered the whole project (report_paper off,
+# core 2.75): tasks, LLM generations and completed evaluations.
+REASON_NO_GENERATIONS = "Project must have LLM generations"
+REASON_NO_EVALUATIONS = "Project must have completed evaluations"
+
+
+def _can_publish_project_classic(db: Session, project_id: str) -> Tuple[bool, str]:
     task_count = db.query(Task).filter(Task.project_id == project_id).count()
     if task_count == 0:
-        return False, "Project must have tasks"
-
-    # Check if project has generations
+        return False, REASON_NO_TASKS
     generation_count = (
         db.query(Generation)
         .join(Generation.generation)
         .filter(Generation.generation.has(project_id=project_id))
         .count()
     )
-
     if generation_count == 0:
-        return False, "Project must have LLM generations"
-
-    # Check if project has evaluations
+        return False, REASON_NO_GENERATIONS
     evaluation_count = (
         db.query(EvaluationRun)
         .filter(EvaluationRun.project_id == project_id, EvaluationRun.status == "completed")
         .count()
     )
     if evaluation_count == 0:
-        return False, "Project must have completed evaluations"
+        return False, REASON_NO_EVALUATIONS
+    return True, REASON_OK
 
-    return True, "All requirements met"
+
+def _paper_rules() -> bool:
+    """Whether the report as project paper (report_paper, core 2.75)
+    applies in this request or job context."""
+    from feature_flags.registry import REPORT_PAPER
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(REPORT_PAPER)
+
+
+def _analyses_on() -> bool:
+    """Whether analyses (variant_experiments, core 2.75) apply in this
+    request or job context."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(VARIANT_EXPERIMENTS)
+
+
+def can_publish_project(db: Session, project_id: str) -> Tuple[bool, str]:
+    """The data half of :func:`can_publish_report` (no report row needed).
+
+    With report_paper off in this context the rule is the one before
+    (:func:`_can_publish_project_classic`)."""
+    if not _paper_rules():
+        return _can_publish_project_classic(db, project_id)
+    has_tasks = db.query(db.query(Task.id).filter(Task.project_id == project_id).exists()).scalar()
+    if not has_tasks:
+        return False, REASON_NO_TASKS
+    if not _has_results(db, project_id):
+        return False, REASON_NO_RESULTS if _analyses_on() else REASON_NO_RESULTS_WITHOUT_ANALYSES
+    return True, REASON_OK
 
 
 def get_report_statistics(db: Session, project_id: str) -> Dict:
@@ -646,7 +759,11 @@ def get_report_models(db: Session, project_id: str) -> List[str]:
         .all()
     )
 
-    return [m[0] for m in models]
+    # Stored in the report's content (public reports serve it whole): no
+    # hidden (private custom) models, as in the snapshot.
+    ids = [m[0] for m in models]
+    hidden = hidden_model_ids(db, ids)
+    return [m for m in ids if m not in hidden]
 
 
 def get_evaluation_charts_data(db: Session, project_id: str) -> Dict:
@@ -871,9 +988,7 @@ def create_or_update_report_from_existing_data(
             "show_participants": content.get("sections", {})
             .get("annotations", {})
             .get("show_participants", True),
-            "show_agreement": content.get("sections", {})
-            .get("annotations", {})
-            .get("show_agreement", True),
+            **_show_agreement_setting(content.get("sections", {}).get("annotations", {})),
             "status": "completed",
             "editable": True,
             "visible": True,
@@ -927,11 +1042,7 @@ def create_or_update_report_from_existing_data(
         if resolved:
             metrics = resolved
         else:
-            for eval in evaluations:
-                if eval.metrics and eval.model_id != "unknown":
-                    if eval.model_id not in metrics:
-                        metrics[eval.model_id] = {}
-                    metrics[eval.model_id].update(eval.metrics)
+            metrics = _run_level_metrics(db, evaluations)
 
         content["sections"]["evaluation"] = {
             "methods": methods,
@@ -959,7 +1070,11 @@ def create_or_update_report_from_existing_data(
     content["metadata"] = {
         "last_auto_update": datetime.utcnow().isoformat(),
         "sections_completed": sections_completed,
-        "can_publish": all(s in sections_completed for s in ["data", "generation", "evaluation"]),
+        "can_publish": (
+            can_publish_project(db, project_id)[0]
+            if _paper_rules()
+            else all(s in sections_completed for s in ["data", "generation", "evaluation"])
+        ),
     }
 
     report.content = content

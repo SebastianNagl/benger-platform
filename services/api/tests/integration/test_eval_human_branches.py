@@ -395,6 +395,44 @@ class TestNextItem:
         assert body["responses"] == []
         assert body["task_id"] in {t.id for t in tasks}
 
+    @pytest.mark.asyncio
+    async def test_returns_the_generations_of_the_next_task(
+        self, async_test_client, async_test_db
+    ):
+        """The task's generations come back as LLM responses with their text.
+        The route read ``Generation.response_text``, which does not exist, so
+        every task with a generation answered 500."""
+        from models import Generation, ResponseGeneration
+
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        rg = ResponseGeneration(
+            id=str(uuid.uuid4()), project_id=p.id, task_id=tasks[0].id,
+            model_id="model-a", status="completed", created_by=owner.id,
+        )
+        async_test_db.add(rg)
+        await async_test_db.flush()
+        gen = Generation(
+            id=str(uuid.uuid4()), generation_id=rg.id, task_id=tasks[0].id,
+            model_id="model-a", case_data="case", response_content="The answer.",
+        )
+        async_test_db.add(gen)
+        s = await _make_session(
+            async_test_db, p, owner.id, items_evaluated=0, total_items=1
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/next-item?session_id={s.id}"
+            )
+        assert resp.status_code == 200, resp.text
+        [item] = resp.json()["responses"]
+        assert item["id"] == gen.id
+        assert item["type"] == "llm"
+        assert item["content"] == "The answer."
+        assert item["metadata"]["model_id"] == "model-a"
+
 
 # ===========================================================================
 # POST /human/likert  (ASYNC)

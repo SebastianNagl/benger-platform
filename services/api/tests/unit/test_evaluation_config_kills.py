@@ -231,6 +231,7 @@ EXPECTED_METRICS = {
 }
 
 
+@pytest.mark.flags_on("variant_experiments")
 @pytest.mark.parametrize("answer_type", list(AnswerType))
 def test_every_answer_type_resolves_exact_metric_set(answer_type):
     """get_metrics_for_answer_type returns EXACTLY the documented set.
@@ -611,6 +612,7 @@ def test_extended_metrics_accumulate_across_calls(isolated_extended_metrics):
     assert "ext_two" in merged
 
 
+@pytest.mark.flags_on("variant_experiments")
 def test_no_extended_metrics_leak_into_clean_resolution(isolated_extended_metrics):
     """Inside an isolated context with the registry cleared, resolution equals
     the pure base table — confirming the fixture truly isolates and that the

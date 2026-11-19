@@ -1,6 +1,6 @@
 """The analysis engine for variant experiments.
 
-A project whose tasks carry a variant assignment (``tasks.meta.variant``:
+A project whose tasks carry a variant assignment (``tasks.meta.benger_variant``:
 design, unit, factors) can be analysed as a factorial experiment: the frame
 builder turns its generations into one row per answer with the design
 factors and declared measures (:mod:`analysis.frame`, :mod:`analysis.measures`,

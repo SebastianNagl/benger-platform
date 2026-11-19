@@ -1,11 +1,14 @@
 # Variant designs
 
+This feature needs the platform flag `variant_experiments`, which an
+administrator switches on under Admin, Feature Flags ([feature flags](../features/feature-flags.md)).
+
 A variant experiment runs the same item in several controlled variants and compares the answers: a counterfactual test swaps the parties of a case, a robustness test reorders the case file or removes a piece of evidence. BenGER stores such an experiment in two places, each the single source of one fact:
 
 - The design is a project-level object (`variant_designs`): the unit that ties the variants of one item together, the factors with their levels, optional per-answer slots, and which controls, gold values and text fields the analysis uses. A design can be checked and frozen.
-- Each task's place in the design is `task.meta.variant`. Label Studio treats `meta` as opaque task data, so the assignment survives import, export and project cloning unchanged.
+- Each task's place in the design is `task.meta.benger_variant`. Label Studio treats `meta` as opaque task data, so the assignment survives import, export and project cloning unchanged.
 
-The database derives three columns from `meta.variant` (`tasks.variant_design`, `variant_unit`, `variant_cell`) and allows one task per cell and unit. The cell is made of the task's within-unit task factors only, so two tasks of one unit that differ only in a `between_units` factor share a cell and the second is refused. A cell compares regardless of the order of its keys, so `{"role": "claimant", "order": "a"}` and `{"order": "a", "role": "claimant"}` are the same cell.
+The database derives three columns from `meta.benger_variant` (`tasks.variant_design`, `variant_unit`, `variant_cell`) and allows one task per cell and unit. The cell is made of the task's within-unit task factors only, so two tasks of one unit that differ only in a `between_units` factor share a cell and the second is refused. A cell compares regardless of the order of its keys, so `{"role": "claimant", "order": "a"}` and `{"order": "a", "role": "claimant"}` are the same cell.
 
 ## The design
 
@@ -39,7 +42,7 @@ The spec follows `services/shared/schemas/variant_design.schema.json`. A party s
 
 ## The assignment
 
-`meta.variant` follows `services/shared/schemas/task_variant.schema.json`:
+`meta.benger_variant` follows `services/shared/schemas/task_variant.schema.json`:
 
 ```json
 {
@@ -53,7 +56,7 @@ The spec follows `services/shared/schemas/variant_design.schema.json`. A party s
 
 `spans` are `[start, end)` character ranges of a text field in which this task may differ from its twins; slots can carry their own `spans`. Every write of a task checks its assignment against the design: the JSON and CSV imports, the task meta and data edits, the project import and clone, and the merge import. An unknown design, an unknown level, a missing factor, a span outside its text or a missing required gold value is refused with 422, and a second task in the same cell of the same unit with 409.
 
-In a CSV file (and in rows pasted or uploaded on the project data page) a column named `meta.variant` holds the assignment as JSON text; it moves into `meta` and does not become a data field.
+In a CSV file (and in rows pasted or uploaded on the project data page) a column named `meta.benger_variant` holds the assignment as JSON text; it moves into `meta` and does not become a data field.
 
 The assignment is never shown to a system under test or to an annotator who works blind: the v1 task reads leave it out for every caller, the blinded task views keep only the tags and the public benchmark descriptors of `meta`, and prompts are built from `task.data` alone. This is an intended deviation from Label Studio, which passes `meta` to its ML backends.
 
@@ -65,11 +68,19 @@ The assignment is never shown to a system under test or to an annotator who work
 - balance: every unit holds exactly the expected cells, once each, and the `between_units` factors are constant inside a unit;
 - invariance: within each unit, every pair of tasks differs only where the design allows it, and the report quotes the first offending range of both texts.
 
-`POST .../freeze` runs the same checks and, when all pass, records a content hash over the spec and every task's data and assignment. From then on the tasks' `data` and `meta.variant` are read-only (409), the design takes no new tasks, and its tasks cannot be deleted; tags and other meta stay editable. A frozen design is never thawed: a changed experiment is a new design with a new key. A draft's spec can be replaced (`PUT`, the version goes up by one) as long as every task already in it still fits; the tasks' cells are derived again from the new spec, and a spec under which two tasks of one unit would share a cell is refused with 409.
+`POST .../freeze` runs the same checks and, when all pass, records a content hash over the spec and every task's data and assignment. From then on the tasks' `data` and `meta.benger_variant` are read-only (409), the design takes no new tasks, and its tasks cannot be deleted; tags and other meta stay editable. A frozen design is never thawed: a changed experiment is a new design with a new key. A draft's spec can be replaced (`PUT`, the version goes up by one) as long as every task already in it still fits; the tasks' cells are derived again from the new spec, and a spec under which two tasks of one unit would share a cell is refused with 409.
+
+On the project page, the **Analyses** part of the **Evaluation Configuration** card lists the designs with their status, version, units and cells (the distinct units and design cells among the tasks that name the design), tasks and content hash, and offers **Check**, **Freeze** and **Import design** for the CONTRIBUTOR and ORG_ADMIN roles; what it shows after each action is the route's answer ([analysis engine](../features/analysis-engine.md#configuring-and-starting-analyses)).
 
 ## Export and import
 
 The JSON and comprehensive project exports carry a `variant_designs` array when the project has designs, and the NDJSON export carries `variant_design` records before the tasks. Every importer creates the designs before their tasks and freezes a frozen design again before it commits, which re-runs the checks and must reproduce the recorded content hash; an edited export is refused. A task subset export carries its designs as drafts. A single design can also be exported (`GET .../{key}/export`) and imported into another project (`POST .../variant-designs/import`, as a draft); its tasks then follow with a task import.
+
+## Units
+
+A unit ties the variants of one item together. `GET /api/projects/{id}/variant-designs/{key}/units` lists a design's units in name order with their task counts (`limit` up to 500, `offset`). `GET .../units/{unit}` shows one unit: every task with its factors, the texts the design lets vary (`invariance.fields`) with their declared spans, the free texts (`invariance.free`), the gold values and the answers, and the unit's own assignment, balance and invariance check, the check a freeze runs. `?system=` keeps the answers of one system (its system key or its model id); `systems` lists every system that answered the unit. Texts longer than 20,000 characters are cut and marked, and a task with more than 100 answers shows the first 100 with `generations_truncated` set.
+
+The unit view carries task data and answers, so both routes need full read access to the project's task content (ORG_ADMIN or CONTRIBUTOR, an editor on a SEB exam), like the frame download of an analysis run; others get 403 `variant_unit_forbidden`. On the evaluations page, the Examples panel of an analysis run opens these units in the unit viewer: twin tasks side by side along the factor a contrast compares, with the declared spans highlighted, each answer's parsed values and the request it sent.
 
 ## Routes
 
@@ -84,5 +95,7 @@ The JSON and comprehensive project exports carry a `variant_designs` array when 
 | DELETE | `/api/projects/{id}/variant-designs/{key}` | project edit rights (a draft no task names) |
 | POST | `/api/projects/{id}/variant-designs/{key}/check` | full-data access |
 | POST | `/api/projects/{id}/variant-designs/{key}/freeze` | project edit rights |
+| GET | `/api/projects/{id}/variant-designs/{key}/units` | full read access to task content |
+| GET | `/api/projects/{id}/variant-designs/{key}/units/{unit}` | full read access to task content |
 
-Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs and `projects:write` to change them.
+Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/benger_variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs (and also `results:read` for units, which carry answers) and `projects:write` to change them.

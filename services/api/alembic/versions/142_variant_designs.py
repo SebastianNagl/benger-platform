@@ -9,15 +9,15 @@ while each task's place in it stays in ``task.meta.variant`` (CORE 2.59):
   ``version``, ``status`` draft|frozen, ``content_hash``, ``frozen_at/by``,
   ``provenance``. Cascades with the project.
 - ``tasks.variant_design`` / ``variant_unit`` / ``variant_cell``: derived from
-  ``meta.variant`` by the trigger ``trg_tasks_variant_sync`` on every insert
+  ``meta.benger_variant`` by the trigger ``trg_tasks_variant_sync`` on every insert
   and on every update of ``meta``, ``data``, ``project_id`` or the columns
   themselves (plain nullable columns, so adding them does not rewrite the
   table; a stored generated column would). The same trigger refuses edits
-  of ``data`` and ``meta.variant`` of a task whose design is frozen, and new
+  of ``data`` and ``meta.benger_variant`` of a task whose design is frozen, and new
   tasks in a frozen design (SQLSTATE 23001, message ``variant_design_frozen``).
 - ``uq_tasks_variant_cell``: one task per (project, design, unit, cell),
   partial on ``variant_design IS NOT NULL``. The cell is the design cell, the
-  factors of ``meta.variant.factors`` the design declares as within-unit task
+  factors of ``meta.benger_variant.factors`` the design declares as within-unit task
   factors; it is jsonb, so reordered keys compare equal.
 - ``fk_tasks_variant_design``: (project_id, variant_design) references
   ``variant_designs (project_id, key)``, not deferrable (a deferred key would
@@ -25,11 +25,11 @@ while each task's place in it stays in ``task.meta.variant`` (CORE 2.59):
   ALTER TABLE tasks in the same transaction). Added NOT VALID, then
   validated, so the check does not block writes.
 
-``meta.variant`` is a reserved key from now on. Rows that already carry one
-(written before this feature, with no design behind it) get it moved to
-``meta.variant_legacy`` before the trigger exists, so no stored row breaks the
-new key or the foreign key. That rewrite goes through jsonb and therefore
-reorders the keys of those rows' meta.
+``meta.benger_variant`` is the reserved key. No stored row is rewritten: a
+``meta.variant`` that users stored before is plain data and stays where it is.
+(The first version of this migration reserved ``meta.variant`` itself and
+moved existing values to ``meta.variant_legacy``; migration 151 converts a
+database that ran that version.)
 
 Idempotent: every step is guarded, so a database built from the models (the
 test DB) runs it as a no-op.
@@ -68,8 +68,8 @@ DECLARE
     design_factors jsonb;
     cell jsonb;
 BEGIN
-    IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'variant') = 'object' THEN
-        new_variant := new_meta -> 'variant';
+    IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'benger_variant') = 'object' THEN
+        new_variant := new_meta -> 'benger_variant';
         NEW.variant_design := new_variant ->> 'design';
         NEW.variant_unit := new_variant ->> 'unit';
         cell := new_variant -> 'factors';
@@ -100,7 +100,7 @@ BEGIN
            FOR SHARE;
         IF design_status = 'frozen' THEN
             IF jsonb_typeof(OLD.meta::jsonb) = 'object' THEN
-                old_variant := OLD.meta::jsonb -> 'variant';
+                old_variant := OLD.meta::jsonb -> 'benger_variant';
             END IF;
             IF NEW.project_id IS DISTINCT FROM OLD.project_id
                OR NEW.data::jsonb IS DISTINCT FROM OLD.data::jsonb
@@ -108,7 +108,7 @@ BEGIN
                 RAISE EXCEPTION USING ERRCODE = 'restrict_violation',
                     MESSAGE = 'variant_design_frozen: task ' || OLD.id
                         || ' belongs to the frozen variant design ' || OLD.variant_design
-                        || '; its data and meta.variant are read-only';
+                        || '; its data and meta.benger_variant are read-only';
             END IF;
             RETURN NEW;
         END IF;
@@ -134,14 +134,6 @@ CREATE OR REPLACE TRIGGER trg_tasks_variant_sync
 BEFORE INSERT OR UPDATE OF meta, data, project_id, variant_design, variant_unit, variant_cell
 ON tasks
 FOR EACH ROW EXECUTE FUNCTION tasks_variant_sync()
-"""
-
-# Assignments stored before the key was reserved (no design behind them).
-_MOVE_LEGACY_VARIANTS = """
-UPDATE tasks
-   SET meta = ((meta::jsonb - 'variant')
-               || jsonb_build_object('variant_legacy', meta::jsonb -> 'variant'))::json
- WHERE json_typeof(meta) = 'object' AND (meta -> 'variant') IS NOT NULL
 """
 
 
@@ -220,8 +212,6 @@ def upgrade() -> None:
         op.create_index("ix_variant_designs_project_id", _DESIGNS, ["project_id"])
 
     if not _has_column("tasks", "variant_design"):
-        # First run: move assignments written before the key was reserved.
-        op.execute(_MOVE_LEGACY_VARIANTS)
         op.add_column("tasks", sa.Column("variant_design", sa.String(100), nullable=True))
     if not _has_column("tasks", "variant_unit"):
         op.add_column("tasks", sa.Column("variant_unit", sa.Text(), nullable=True))
@@ -249,13 +239,49 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE tasks VALIDATE CONSTRAINT {_FK}")
 
 
+# A database the first version of this migration left (reserved
+# ``meta.variant``, plain values in ``meta.variant_legacy``; migration 151's
+# downgrade restores that shape too): on the way back to main the plain
+# values return to ``meta.variant`` and the assignments stay as data under
+# ``meta.benger_variant``. No stored value is overwritten.
+_RESTORE_PLAIN_VARIANTS = (
+    """
+UPDATE tasks
+   SET meta = ((meta::jsonb - 'variant')
+               || jsonb_build_object('benger_variant', meta::jsonb -> 'variant'))::json
+ WHERE json_typeof(meta) = 'object' AND (meta -> 'variant') IS NOT NULL
+   AND (meta -> 'benger_variant') IS NULL AND variant_design IS NOT NULL
+""",
+    """
+UPDATE tasks
+   SET meta = ((meta::jsonb - 'variant_legacy')
+               || jsonb_build_object('variant', meta::jsonb -> 'variant_legacy'))::json
+ WHERE json_typeof(meta) = 'object' AND (meta -> 'variant_legacy') IS NOT NULL
+   AND (meta -> 'variant') IS NULL
+""",
+)
+
+
+def _function_reads_plain_key() -> bool:
+    source = (
+        op.get_bind()
+        .execute(sa.text("SELECT prosrc FROM pg_proc WHERE proname = :n"), {"n": _FUNCTION})
+        .scalar()
+    )
+    return bool(source) and "'benger_variant'" not in source
+
+
 def downgrade() -> None:
     op.execute("SET LOCAL lock_timeout = '5s'")
+    restore = _function_reads_plain_key()
     if _has_fk("tasks", _FK):
         op.drop_constraint(_FK, "tasks", type_="foreignkey")
     if _has_index("tasks", _INDEX):
         op.drop_index(_INDEX, table_name="tasks")
     op.execute(f"DROP TRIGGER IF EXISTS {_TRIGGER} ON tasks")
+    if restore:
+        for statement in _RESTORE_PLAIN_VARIANTS:
+            op.execute(statement)
     op.execute(f"DROP FUNCTION IF EXISTS {_FUNCTION}()")
     for column in ("variant_cell", "variant_unit", "variant_design"):
         if _has_column("tasks", column):

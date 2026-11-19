@@ -11,7 +11,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth_module.dependencies import optional_user
+from catalog_flags import model_offered, served_default_config
 from database import get_async_db
+from feature_flags import service as flag_service
 from models import LLMModel as DBLLMModel
 
 try:
@@ -62,10 +65,12 @@ class LLMModelResponse(BaseModel):
 @router.get("/public/models", response_model=List[LLMModelResponse])
 async def get_public_llm_models(
     db: AsyncSession = Depends(get_async_db),
+    current_user=Depends(optional_user),
 ):
     """
     Get all active LLM models (public endpoint for Models page).
-    No authentication required.
+    No authentication required. Catalog entries that belong to a feature
+    flag (``catalog_flags``) are listed only while it is on for the caller.
     """
     try:
         # Official catalog rows only — user-registered custom (BYOM) models
@@ -77,9 +82,15 @@ async def get_public_llm_models(
             )
         )
         models = result.scalars().all()
+        flags = await flag_service.evaluate_all_for(db, current_user)
+
+        def is_on(name: str) -> bool:
+            return flags.get(name, False)
 
         result = []
         for model in models:
+            if not model_offered(model.default_config, is_on):
+                continue
             result.append(
                 LLMModelResponse(
                     id=model.id,
@@ -89,7 +100,7 @@ async def get_public_llm_models(
                     model_type=model.model_type,
                     capabilities=model.capabilities,
                     config_schema=model.config_schema,
-                    default_config=model.default_config,
+                    default_config=served_default_config(model.default_config, is_on),
                     input_cost_per_million=model.input_cost_per_million,
                     output_cost_per_million=model.output_cost_per_million,
                     parameter_constraints=model.parameter_constraints,

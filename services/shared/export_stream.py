@@ -374,7 +374,7 @@ def stream_export_json(
         serialize_evaluation_run(er, mode="data") for er in eval_runs
     ]
     # Variant designs (CORE 2.59): only when the project has any, so other
-    # exports keep their exact shape. The tasks carry their meta.variant.
+    # exports keep their exact shape. The tasks carry their meta.benger_variant.
     designs = variant_design_docs(db, project_id, subset=task_ids is not None)
     if designs:
         header["variant_designs"] = designs

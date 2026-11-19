@@ -8,11 +8,15 @@ import {
 } from '@/lib/extensions/active'
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Navigation } from '../Navigation'
 
 // Mock dependencies
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
   useRouter: jest.fn(),
@@ -960,6 +964,7 @@ describe('Navigation', () => {
     })
 
     it('shows /compliance only while the compliance overlay is active', () => {
+      setMockFeatureFlags({ compliance_records: true })
       setRegistrationOwner('compliance')
       registerSlot('ComplianceDashboard', () => null)
       setRegistrationOwner(null)
@@ -973,6 +978,17 @@ describe('Navigation', () => {
       ).toHaveAttribute('href', '/compliance')
 
       act(() => setActiveExtensions([]))
+      expect(screen.queryByText('navigation.compliance')).toBeNull()
+    })
+
+    it('hides /compliance while compliance_records is off, even with the overlay active', () => {
+      setMockFeatureFlags({})
+      setRegistrationOwner('compliance')
+      registerSlot('ComplianceDashboard', () => null)
+      setRegistrationOwner(null)
+      setActiveExtensions(['compliance'])
+
+      render(<Navigation />)
       expect(screen.queryByText('navigation.compliance')).toBeNull()
     })
   })

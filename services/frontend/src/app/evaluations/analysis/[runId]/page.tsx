@@ -3,24 +3,36 @@
 /**
  * Analysis run page (/evaluations/analysis/[runId], next to the evaluation
  * run page /evaluations/[id]): one run of a variant-experiment analysis with its
- * status, the forest plot of a contrast (optional equivalence band), every
- * estimate with its family and adjusted p-value, the compliance findings
- * slot, the provenance (spec and frame hashes, versions), the spec and the
- * fits, and the frame download. A pending or running run is polled until it
+ * status, the forest plot of a contrast (optional equivalence band;
+ * Bradley-Terry estimands as strength forests), the profile of estimates
+ * over an ordered scope, every estimate with its family and adjusted
+ * p-value, the examples of a contrast (units of the run's variant design),
+ * the compliance findings slot, the provenance (spec and frame hashes,
+ * versions), the variant designs the run read, the spec and the fits, and
+ * the frame download. A pending or running run is polled until it
  * finishes. The project is the run's own; the old path
  * /projects/[id]/analysis/[runId] redirects here.
  */
 
-import { ContrastForestPlot } from '@/components/analysis/ContrastForestPlot'
+import {
+  EstimateProfiles,
+  profileGroups,
+} from '@/components/analysis/EstimateProfiles'
+import { EstimatesForest } from '@/components/analysis/EstimatesForest'
 import { EstimatesTable } from '@/components/analysis/EstimatesTable'
+import { ExamplesPanel } from '@/components/analysis/ExamplesPanel'
 import { RunProvenance } from '@/components/analysis/RunProvenance'
 import { RunFits, RunSpec } from '@/components/analysis/RunSpecAndFits'
+import { VariantDesignsLoader } from '@/components/analysis/VariantDesignPanel'
 import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
+import { RunAgreementBlock } from '@/components/evaluation/statistics/AgreementValidity'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { specDesigns } from '@/lib/analysis/profile'
 import {
   analysisAPI,
   isRunActive,
@@ -29,6 +41,7 @@ import {
   type AnalysisRun,
 } from '@/lib/api/analysis'
 import { projectsAPI } from '@/lib/api/projects'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { evaluationsPath } from '@/lib/results/paths'
 import {
@@ -92,7 +105,7 @@ type LoadState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; run: AnalysisRun }
 
-export default function AnalysisRunPage() {
+function AnalysisRunPageContent() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const params = useParams<{ runId: string }>()
@@ -382,8 +395,17 @@ export default function AnalysisRunPage() {
                 description={t('analysis.forest.description')}
                 testId="analysis-forest-section"
               >
-                <ContrastForestPlot estimates={estimates} />
+                <EstimatesForest run={r} estimates={estimates} />
               </Section>
+              {profileGroups(estimates).length > 0 && (
+                <Section
+                  title={t('analysis.views.profile.title')}
+                  description={t('analysis.views.profile.description')}
+                  testId="analysis-profile-section"
+                >
+                  <EstimateProfiles run={r} estimates={estimates} />
+                </Section>
+              )}
               <Section
                 title={t('analysis.estimates.title')}
                 description={t('analysis.estimates.description')}
@@ -391,6 +413,19 @@ export default function AnalysisRunPage() {
               >
                 <EstimatesTable estimates={estimates} />
               </Section>
+              {specDesigns(r).length > 0 && (
+                <Section
+                  title={t('analysis.views.examples.title')}
+                  description={t('analysis.views.examples.description')}
+                  testId="analysis-examples-section"
+                >
+                  <ExamplesPanel
+                    projectId={projectId}
+                    run={r}
+                    estimates={estimates}
+                  />
+                </Section>
+              )}
               <div
                 className="empty:hidden"
                 data-testid="analysis-run-findings-slot"
@@ -413,6 +448,22 @@ export default function AnalysisRunPage() {
         <RunProvenance run={r} />
       </Section>
 
+      {specDesigns(r).length > 0 && (
+        <VariantDesignsLoader
+          projectId={projectId}
+          keys={specDesigns(r)}
+          frame={(content) => (
+            <Section
+              title={t('analysis.views.design.title')}
+              description={t('analysis.views.design.description')}
+              testId="analysis-designs-section"
+            >
+              {content}
+            </Section>
+          )}
+        />
+      )}
+
       <Section title={t('analysis.spec.title')} testId="analysis-spec-section">
         <RunSpec run={r} />
       </Section>
@@ -426,6 +477,17 @@ export default function AnalysisRunPage() {
           <RunFits fits={r.fits} />
         </Section>
       )}
+
+      {r.status === 'completed' && <RunAgreementBlock run={r} />}
     </div>
+  )
+}
+
+/** Behind the variant_experiments flag: not found while it is off. */
+export default function AnalysisRunPage() {
+  return (
+    <FeatureFlagGate flag={VARIANT_EXPERIMENTS}>
+      <AnalysisRunPageContent />
+    </FeatureFlagGate>
   )
 }

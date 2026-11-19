@@ -497,6 +497,77 @@ async def is_enabled_for(db, user, name: str) -> bool:
     return (await evaluate_snapshot(db, snapshot, user, [name]))[name]
 
 
+def _with_key_org(orgs: Set[str], organization_id) -> Set[str]:
+    if organization_id:
+        orgs = set(orgs)
+        orgs.add(str(organization_id))
+    return orgs
+
+
+def is_enabled_for_caller_sync(db, user, name: str, *, organization_id=None) -> bool:
+    """:func:`is_enabled_for_sync` where an organization access key's
+    organization counts like a membership (``organization_id``), the rule
+    ``public_api`` follows for organization keys."""
+    if flag(name) is None:
+        return False
+    if not organization_id:
+        return is_enabled_for_sync(db, user, name)
+    snapshot = load_snapshot_sync(db)
+    uid = user_id_of(user)
+    orgs: Set[str] = set()
+    if uid:
+        orgs = {str(r[0]) for r in db.execute(select_membership_org_ids(uid)).all()}
+    orgs = _with_key_org(orgs, organization_id)
+    return evaluate_names(snapshot, [name], uid, lambda: orgs)[name]
+
+
+async def is_enabled_for_caller(db, user, name: str, *, organization_id=None) -> bool:
+    """Async twin of :func:`is_enabled_for_caller_sync`."""
+    if flag(name) is None:
+        return False
+    if not organization_id:
+        return await is_enabled_for(db, user, name)
+    snapshot = await load_snapshot(db)
+    uid = user_id_of(user)
+    orgs: Set[str] = set()
+    if uid:
+        rows = (await db.execute(select_membership_org_ids(uid))).all()
+        orgs = {str(r[0]) for r in rows}
+    orgs = _with_key_org(orgs, organization_id)
+    return evaluate_names(snapshot, [name], uid, lambda: orgs)[name]
+
+
+def on_for_anybody(snapshot: Dict[str, Dict], name: str) -> bool:
+    """Whether ``name`` is on for at least one possible caller (state
+    ``everyone``, or ``allowlist`` with a target), the POLICY_GLOBAL reading
+    of :func:`entry_on_globally`. Content that was built while the flag was
+    on for its author and is read by others (a published report) is served
+    while this holds, and hidden once the flag is ``off`` for everybody."""
+    entry = entry_of(snapshot, name)
+    if not entry_on_globally(entry):
+        return False
+    if entry.get("state") == STATE_ALLOWLIST and not (entry.get("users") or entry.get("orgs")):
+        return False
+    master = coupled_master(name)
+    if master and not entry_on_globally(entry_of(snapshot, master)):
+        return False
+    return True
+
+
+def is_on_for_anybody_sync(db, name: str) -> bool:
+    """:func:`on_for_anybody` against the current snapshot (sync lane)."""
+    if flag(name) is None:
+        return False
+    return on_for_anybody(load_snapshot_sync(db), name)
+
+
+async def is_on_for_anybody(db, name: str) -> bool:
+    """:func:`on_for_anybody` against the current snapshot (async lane)."""
+    if flag(name) is None:
+        return False
+    return on_for_anybody(await load_snapshot(db), name)
+
+
 def registered_names() -> List[str]:
     return [d.name for d in all_flags()]
 

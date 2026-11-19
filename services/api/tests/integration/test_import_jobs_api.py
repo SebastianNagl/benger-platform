@@ -795,6 +795,7 @@ class TestCreateImportJobMergeMode:
         mock_send.assert_not_called()
 
 
+@pytest.mark.flags_on("variant_experiments")
 @pytest.mark.integration
 class TestImportProvenanceOptions:
     """The provenance options of the import job requests (migration 147):

@@ -16,7 +16,7 @@ Kinds (spec ``measures``):
     (dotted path; a numeric segment indexes a list). Gold lives in the task
     and is never part of what a system answers.
 ``slot_factor``
-    A factor of another slot of the same generation (``meta.variant.slots``):
+    A factor of another slot of the same generation (``meta.benger_variant.slots``):
     ``{"kind": "slot_factor", "factor": "group", "slot": "other"}`` is the
     partner's group in a two-slot design, ``"slot": 1`` the group of slot 1
     (in any frame). Its type is ``number`` when every value is a number,
@@ -36,7 +36,7 @@ Kinds (spec ``measures``):
 
 Per-slot fields: a field name with ``{idx}`` (``"risk_{idx}"``) reads the
 control of one slot, ``{idx}`` replaced by the slot index as the task's
-``meta.variant.slots`` and the label config's indexed names use it. Its
+``meta.benger_variant.slots`` and the label config's indexed names use it. Its
 ``slot`` says which slot: ``own`` (the row's slot in a slot frame, the
 default there), ``other`` (the generation's other slot when it has exactly
 two) or a slot index.
