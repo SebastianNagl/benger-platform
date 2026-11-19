@@ -1034,6 +1034,32 @@ describe('ProjectStore', () => {
       expect(mockProjectsAPI.get).toHaveBeenCalledWith('1')
     })
 
+    it('says nothing was added when the project already imported the data', async () => {
+      mockProjectsAPI.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-3',
+        status: 'completed',
+        duplicate_of_job_id: 'job-1',
+        result: { project_id: '1', no_op: true },
+      } as any)
+      mockProjectsAPI.get.mockResolvedValue(createMockProject({ id: '1' }))
+      act(() => {
+        useProjectStore.setState({
+          currentProject: createMockProject({ id: '1' }),
+        })
+      })
+
+      await act(async () => {
+        await useProjectStore.getState().importData('1', [{ text: 'Task 1' }])
+      })
+
+      expect(mockToastSetup.info).toHaveBeenCalledWith(
+        'store.project.alreadyImported',
+      )
+      expect(mockToast.success).not.toHaveBeenCalledWith(
+        'store.project.imported',
+      )
+    })
+
     it('should refresh projects list if not current project', async () => {
       mockProjectsAPI.runNestedImportJob.mockResolvedValue({
         job_id: 'job-2',

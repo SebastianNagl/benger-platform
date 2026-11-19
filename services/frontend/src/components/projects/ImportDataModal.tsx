@@ -30,11 +30,13 @@ import {
   ImportParseError,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { repeatedImport } from '@/lib/import/repeatedImport'
 import { isExamShapedConfig } from '@/lib/labelConfig/examLayout'
 import {
   extractImportDataFields,
   parseLabelConfig,
 } from '@/lib/labelConfig/parser'
+import { formatDateTime } from '@/lib/reports/format'
 import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import {
@@ -97,7 +99,7 @@ export function ImportDataModal({
   projectKind,
   onImportComplete,
 }: ImportDataModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   const { startProgress, updateProgress, completeProgress } = useProgress()
   const { fetchProject } = useProjectStore()
@@ -324,8 +326,19 @@ export function ImportDataModal({
       updateProgress(progressId, 100, t('projects.import.progress.complete'))
       completeProgress(progressId, 'success')
 
-      // Show toast immediately
-      addToast(t('projects.data.importSuccess'), 'success')
+      // Show toast immediately. A file this project already imported is a
+      // no-op on the server, so say that nothing was added.
+      const repeated = repeatedImport(job)
+      if (repeated) {
+        addToast(
+          t('projects.data.importAlreadyImported', {
+            date: formatDateTime(repeated.completedAt, locale),
+          }),
+          'info',
+        )
+      } else {
+        addToast(t('projects.data.importSuccess'), 'success')
+      }
 
       // Reset state
       setSelectedFile(null)

@@ -35,6 +35,8 @@ import {
   type MergePreview,
   type MergePreviewModel,
 } from '@/lib/api/projects'
+import { repeatedImport } from '@/lib/import/repeatedImport'
+import { formatDateTime } from '@/lib/reports/format'
 import { logger } from '@/lib/utils/logger'
 import React, { useState } from 'react'
 
@@ -50,6 +52,8 @@ interface MergeSummary {
   added: Record<string, number>
   skipped: Record<string, number>
   modelsAdded: string[]
+  /** Set when this file was already merged: the job wrote nothing. */
+  repeated?: { completedAt: string | null }
 }
 
 /** Codes the server gives a refused merge (job error_code or detail.code). */
@@ -80,7 +84,7 @@ export function MergeResultsModal({
   projectId,
   onMergeComplete,
 }: MergeResultsModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   const [file, setFile] = useState<File | null>(null)
   const [objectKey, setObjectKey] = useState<string | null>(null)
@@ -168,13 +172,21 @@ export function MergeResultsModal({
         },
       )
       const stats = status.result?.statistics || {}
+      const repeated = repeatedImport(status)
       setSummary({
         matchedTasks: stats.matched_tasks ?? 0,
         added: stats.added_counts || {},
         skipped: stats.skipped_present_counts || {},
         modelsAdded: stats.models_added_to_project || [],
+        ...(repeated
+          ? { repeated: { completedAt: repeated.completedAt } }
+          : {}),
       })
-      addToast(t('projects.mergeImport.success'), 'success')
+      if (repeated) {
+        addToast(t('projects.mergeImport.alreadyMergedToast'), 'info')
+      } else {
+        addToast(t('projects.mergeImport.success'), 'success')
+      }
       onMergeComplete?.()
     } catch (err: any) {
       logger.error('Merge import failed', err)
@@ -351,7 +363,18 @@ export function MergeResultsModal({
           </div>
         )}
 
-        {summary && (
+        {summary?.repeated && (
+          <div
+            className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            data-testid="merge-results-repeated"
+          >
+            {t('projects.mergeImport.alreadyMerged', {
+              date: formatDateTime(summary.repeated.completedAt, locale),
+            })}
+          </div>
+        )}
+
+        {summary && !summary.repeated && (
           <div
             className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
             data-testid="merge-results-summary"

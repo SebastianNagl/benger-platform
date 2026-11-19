@@ -307,6 +307,12 @@ def _schema(_eager_celery):
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_variant_cell ON tasks "
             "(project_id, variant_design, variant_unit, variant_cell) "
             "WHERE variant_design IS NOT NULL",
+            # Migration 147: import provenance; every ImportJob select names
+            # the columns (the self-referencing key only matters for deletes).
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS payload_sha256 VARCHAR(64)",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS source_manifest JSONB",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64)",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS duplicate_of_job_id VARCHAR",
         ):
             conn.execute(text(_ddl))
         # Migration 142: the trigger that derives the variant columns and

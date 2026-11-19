@@ -1275,7 +1275,26 @@ migration).
     (scope ``results:read``). The key gate binds ``analysis_run_id`` to its
     project.
 
-2.63 (2026-11-19): analysis results page and the /compliance route shells
+2.63 (2026-11-19): import provenance and idempotent re-import (migration 147).
+  - ``import_jobs.payload_sha256``, ``source_manifest`` (JSONB),
+    ``idempotency_key`` and ``duplicate_of_job_id`` (``models.ImportJob``),
+    built by the shared module ``import_provenance`` (``hash_fileobj``,
+    ``build_manifest``, ``idempotency_key``, ``lock_import_key``,
+    ``find_completed_import``, ``no_op_result``,
+    ``validate_declared_manifest``, ``track_written_tasks``,
+    ``record_written_tasks``), and the table ``import_job_tasks``
+    (``models.ImportJobTask``) linking each import to the tasks it wrote.
+  - ``tasks.import_project`` takes ``reimport``. A job whose key (payload
+    hash, target, mode, model map) equals that of a completed import whose
+    written tasks all still exist completes as a no-op: nothing written,
+    ``duplicate_of_job_id`` set, ``result.no_op`` true and
+    ``result.duplicate_of``.
+  - The import job requests take ``source_manifest`` (declared, stored under
+    ``source_manifest.declared``) and ``reimport``; cloud imports take
+    ``reimport``. The job status carries ``payload_sha256``,
+    ``source_manifest`` and ``duplicate_of_job_id``.
+
+2.64 (2026-11-19): analysis results page and the /compliance route shells
   (no migration).
   - ``GET /api/analysis-runs/{analysis_run_id}/estimates`` items carry their
     row ``id`` (``serialize_estimate(row, with_id=True)``), the value a
@@ -1305,7 +1324,7 @@ migration).
 
 import os
 
-CORE_API_VERSION = "2.63"
+CORE_API_VERSION = "2.64"
 
 
 def extended_required() -> bool:

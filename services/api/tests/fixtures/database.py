@@ -484,6 +484,10 @@ def _create_tables():
             # columns (create_all never adds a column to an existing table);
             # guarded, so a no-op otherwise.
             _run_migration(conn, "143_generation_request_record")
+            # Migration 147: import provenance columns on import_jobs
+            # (create_all never adds a column to an existing table);
+            # guarded, so a no-op otherwise.
+            _run_migration(conn, "147_import_provenance")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

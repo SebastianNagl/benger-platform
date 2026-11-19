@@ -27,8 +27,10 @@ import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale, formatDecimal, intlTag } from '@/lib/i18n/locales'
+import { repeatedImport } from '@/lib/import/repeatedImport'
 import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { projectIcon } from '@/lib/projectKind'
+import { formatDateTime } from '@/lib/reports/format'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { canCreateProjects } from '@/utils/permissions'
@@ -555,14 +557,27 @@ export function ProjectListTable({
           })
         : ''
 
-      addToast(
-        t('projects.list.importSuccess', {
-          title: result.project_title || '',
-          stats: statsMessage,
-          time: importTime,
-        }),
-        'success',
-      )
+      // A file this user already imported the same way is a no-op on the
+      // server: no new project, the earlier one is opened below.
+      const repeated = repeatedImport(job)
+      if (repeated) {
+        addToast(
+          t('projects.list.importAlreadyImported', {
+            title: result.project_title || '',
+            date: formatDateTime(repeated.completedAt, locale),
+          }),
+          'info',
+        )
+      } else {
+        addToast(
+          t('projects.list.importSuccess', {
+            title: result.project_title || '',
+            stats: statsMessage,
+            time: importTime,
+          }),
+          'success',
+        )
+      }
 
       // The job completes even when answers could not be stored (authors the
       // deployment does not know collapse onto the importer, who may hold

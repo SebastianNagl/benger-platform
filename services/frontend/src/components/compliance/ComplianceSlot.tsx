@@ -13,7 +13,7 @@
  * registered under the same name by another owner never shows while the
  * compliance overlay is off.
  *
- * Slots (CORE 2.63):
+ * Slots (CORE 2.64):
  *  - `ComplianceDashboard` on /compliance, no props.
  *  - `AssessmentDetail` on /compliance/assessments/[assessmentId], props
  *    `{ assessmentId }`.
