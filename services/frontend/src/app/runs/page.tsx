@@ -295,55 +295,60 @@ export default function RunsPage() {
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500">
-          {t('runs.filterProject')}
-        </label>
-        <Select
-          searchable
-          value={projectFilter || ALL}
-          onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
-        >
-          <SelectTrigger
-            className="w-56"
-            aria-label={t('runs.filterProject')}
-            data-testid="runs-project-filter"
+        {/* Each label stays next to its select when the row wraps. */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-zinc-500">
+            {t('runs.filterProject')}
+          </label>
+          <Select
+            searchable
+            value={projectFilter || ALL}
+            onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem pinned value={ALL}>
-              {t('runs.allProjects')}
-            </SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.title}
+            <SelectTrigger
+              className="w-56"
+              aria-label={t('runs.filterProject')}
+              data-testid="runs-project-filter"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem pinned value={ALL}>
+                {t('runs.allProjects')}
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <label className="text-xs text-zinc-500">
-          {t('runs.filterStatus')}
-        </label>
-        <Select
-          value={statusFilter || ALL}
-          onValueChange={(v) => handleStatusChange(v === ALL ? '' : v)}
-        >
-          <SelectTrigger
-            className="w-40"
-            aria-label={t('runs.filterStatus')}
-            data-testid="runs-status-filter"
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-zinc-500">
+            {t('runs.filterStatus')}
+          </label>
+          <Select
+            value={statusFilter || ALL}
+            onValueChange={(v) => handleStatusChange(v === ALL ? '' : v)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t('runs.allStatuses')}</SelectItem>
-            {STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {t(`evaluations.detail.statusLabels.${s}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="w-40"
+              aria-label={t('runs.filterStatus')}
+              data-testid="runs-status-filter"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{t('runs.allStatuses')}</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {t(`evaluations.detail.statusLabels.${s}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <span className="ml-auto text-xs text-zinc-500">
           {data ? t('runs.totalCount', { count: data.total }) : ''}
         </span>
@@ -445,7 +450,7 @@ export default function RunsPage() {
                   onClick={() => navigateToRun(run)}
                   className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
+                  <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                     {formatDate(run.created_at, locale)}
                   </td>
                   <td className="max-w-xs truncate px-4 py-3">

@@ -1756,8 +1756,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="group flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                <div className="group flex min-w-0 flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 text-3xl font-bold tracking-tight break-words text-zinc-900 dark:text-white">
                     {canEditIcon() ? (
                       <button
                         type="button"
