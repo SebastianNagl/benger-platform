@@ -10,6 +10,11 @@
 
 import type { AnnotatorAgreementSummary } from '@/lib/api/agreement'
 import type { AnalysisEstimate } from '@/lib/api/analysis'
+import type {
+  BetweenCoders,
+  CategoryAgreement,
+  KappaAgreement,
+} from '@/lib/api/coding'
 
 /** Metric scale families the viewer knows how to format. */
 export type ReportMetricScale = '0-1' | '0-100' | '0-18' | 'raw'
@@ -312,11 +317,53 @@ export interface ReportAnalysisRun {
 export type ReportAnalysisOmission =
   'not_found' | 'not_completed' | 'reads_other_projects'
 
+/**
+ * A validation behind a code the report's runs read
+ * (`report_snapshot._analysis_code_validations`): what the run accepted,
+ * with the agreement detail of the stored validation when it still exists
+ * (`detail`). Shown in the Annotation section.
+ */
+export interface ReportCodeValidation {
+  id: string
+  name: string | null
+  control: string | null
+  code_kind: string | null
+  code_ref: string | null
+  code_version: string | null
+  code_hash: string | null
+  kappa: number | null
+  observed_agreement: number | null
+  compared: number | null
+  completed_at: string | null
+  coding_version?: number | null
+  /** The stored validation's detail below is present. */
+  detail: boolean
+  agreement?: KappaAgreement
+  counts?: {
+    items: number | null
+    compared: number | null
+    ties: number | null
+    no_human_code: number | null
+    missing_automatic: number | null
+    missing: string | null
+  }
+  categories?: string[]
+  per_category?: Record<string, CategoryAgreement>
+  confusion?: Record<string, Record<string, number>>
+  between_coders?: BetweenCoders | null
+  /** The runs and measures of this report that read it. */
+  used_by: Array<{ run_id: string; measure: string | null }>
+  /** Only member-only runs read it, or it validates a hidden model's codes. */
+  member_only?: boolean
+}
+
 export interface ReportAnalysesSnapshot {
   runs: ReportAnalysisRun[]
   /** Runs the section names but the report cannot show (authors and
    *  project members only). */
   omitted?: Array<{ run_id: string; reason: ReportAnalysisOmission | string }>
+  /** The validations of the codes the runs read; absent in older snapshots. */
+  code_validations?: ReportCodeValidation[]
 }
 
 export interface ReportReproducibility {

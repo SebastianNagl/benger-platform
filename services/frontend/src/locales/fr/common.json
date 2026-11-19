@@ -6456,6 +6456,67 @@
       "pairsTruncated": "Affichage des {shown} paires ayant le plus de tâches communes sur {total}.",
       "unsupported": "Non évalués (aucune valeur comparable, comme du texte libre ou des segments) : {controls}.",
       "methodNote": "Seules comptent les tâches ayant au moins deux réponses pour un champ. Le kappa se lit sur l'échelle de Landis et Koch ; les notes sont comparées comme des catégories (kappa non pondéré). Le kappa de Cohen d'une paire nécessite au moins deux tâches communes."
+    },
+    "agreementValidity": {
+      "title": "Accord et validité",
+      "runDescription": "Les codes lus par cette exécution, chacun avec la validation qu'elle a acceptée : l'accord enregistré du code avec des codes humains dans un projet de codage.",
+      "judgeDescription": "Dans quelle mesure les juges LLM s'accordent lorsqu'ils ont évalué les mêmes éléments.",
+      "runCodes": "Codes de cette exécution ({count})",
+      "validated": "Validé",
+      "notValidated": "Non validé",
+      "notValidatedHint": "L'exécution a lu ce code sans validation, ce que seule une famille exploratoire permet.",
+      "code": "Code",
+      "hash": "Hash du code",
+      "copyHash": "Copier le hash",
+      "missingRows": "Manquants",
+      "missingOfRows": "{missing} sur {rows} lignes",
+      "confirmatory": "Estimandes confirmatoires",
+      "accepted": "Validé sur le contrôle {control} : kappa {kappa}, accord {agreement}, {compared} éléments comparés, tels qu'enregistrés lors de l'exécution.",
+      "openCodingProject": "Ouvrir le projet de codage",
+      "loadingDetail": "Chargement de la validation...",
+      "detailUnavailable": "Vous ne pouvez pas ouvrir le projet de codage ; seules les valeurs enregistrées par l'exécution sont affichées.",
+      "detailFailed": "La validation n'a pas pu être chargée ; seules les valeurs enregistrées par l'exécution sont affichées.",
+      "kappa": "Kappa de Cohen",
+      "observed": "Accord",
+      "expected": "Accord dû au hasard",
+      "compared": "Comparés",
+      "ofItems": "sur {items} éléments",
+      "category": "Catégorie",
+      "support": "Codes humains",
+      "precision": "Précision",
+      "recall": "Rappel",
+      "ties": "{count} éléments dont les codes humains sont à égalité n'ont pas de référence et sont écartés.",
+      "missingCategory": "{count} éléments sans code automatique comptent comme la catégorie (missing).",
+      "missingExcluded": "{count} éléments sans code automatique sont écartés.",
+      "betweenCoders": "Entre les {coders} codeurs humains sur {items} éléments codés plusieurs fois : kappa de Fleiss {kappa}, tous les codeurs s'accordent sur {agreement}.",
+      "kinds": {
+        "text_pattern": "Motif de texte",
+        "coder": "Plugin de codage",
+        "judge_code": "Code de juge",
+        "other": "Code"
+      },
+      "projectValidations": "Validations des réponses de ce projet ({count})",
+      "projectValidationsHint": "Toutes les validations des projets de codage tirés de ce projet que vous pouvez ouvrir.",
+      "name": "Validation",
+      "status": "Statut",
+      "statuses": {
+        "pending": "En attente",
+        "running": "En cours",
+        "completed": "Terminée",
+        "failed": "Échouée"
+      },
+      "usedByRun": "utilisée par cette exécution",
+      "judgeTitle": "Accord des juges",
+      "modelMetric": "Modèle et métrique",
+      "judges": "Juges",
+      "items": "Éléments",
+      "allAgree": "Tous les juges d'accord",
+      "judgePairs": "Paires de juges",
+      "tiesOne": "1 élément dont les codes humains sont à égalité n'a pas de référence et est écarté.",
+      "missingCategoryOne": "1 élément sans code automatique compte comme la catégorie (missing).",
+      "missingExcludedOne": "1 élément sans code automatique est écarté.",
+      "betweenCodersOne": "Entre les {coders} codeurs humains sur le seul élément codé plusieurs fois : kappa de Fleiss {kappa}, tous les codeurs s'accordent sur {agreement}.",
+      "version": "version {version}"
     }
   },
   "about": {
@@ -7629,7 +7690,8 @@
         "memberOnlyHint": "Un modèle privé peut apparaître dans cette exécution, seuls les membres du projet la voient donc. Le rapport ne peut pas devenir public tant qu'il contient cette exécution.",
         "memberOnlyPublic": "Un modèle privé peut apparaître dans cette exécution. Le rapport est public, les lecteurs extérieurs au projet ne voient donc pas cette exécution ; les membres la voient toujours.",
         "onlyMemberOnlyLeft": "Les exécutions restantes sont réservées aux membres : un modèle privé peut y apparaître, un rapport public ne peut donc pas les contenir."
-      }
+      },
+      "showCodeValidations": "Afficher les validations des codes des analyses"
     },
     "publication": {
       "copied": "Copié",
@@ -7831,6 +7893,17 @@
         "figure": "Figure {n}",
         "table": "Tableau {n}",
         "openRun": "Ouvrir l'exécution"
+      },
+      "codeValidations": {
+        "title": "Validations des codes",
+        "intro": "Les analyses lisent des codes validés par rapport à des codes humains dans des projets de codage. Chaque validation compare le code automatique à la référence humaine (le code humain, ou la majorité de plusieurs).",
+        "code": "Code",
+        "hash": "Hash du code",
+        "control": "Contrôle",
+        "usedBy": "Utilisée par",
+        "usedByEntry": "{run} ({measure})",
+        "completed": "Terminée",
+        "recordedOnly": "Seules les valeurs enregistrées par l'exécution sont affichées : la validation enregistrée n'est plus disponible, ou l'auteur du rapport ne pouvait pas ouvrir son projet de codage."
       }
     },
     "title": "Rapports",

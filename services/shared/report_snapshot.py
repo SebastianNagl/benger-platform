@@ -49,7 +49,9 @@ when the project has nothing of its kind, so the viewer hides it):
     put in the report's Analyses section, each with its metadata, the
     estimates its exhibits select (copied, so a published report keeps its
     numbers), whether it is member-only, and the exhibits (forest or table)
-    with their filters.
+    with their filters; ``analyses.code_validations`` holds the validations
+    of the codes those runs read (see :func:`_analysis_code_validations`),
+    which the viewer shows in the Annotation section.
   * ``reproducibility``: platform versions, label config version and hash,
     prompt structure hashes, models, evaluation configs with the parameter
     snapshots their judge runs used, variant design and import hashes, the
@@ -65,7 +67,7 @@ import logging
 import math
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -990,7 +992,7 @@ def _build_reproducibility_section(
 _ANALYSIS_RUNS_SQL = """
 SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
        frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at,
-       warnings, normalized_spec, fits, resolved_inputs
+       warnings, normalized_spec, fits, resolved_inputs, codes
 FROM analysis_runs
 WHERE project_id = :project_id AND status = 'completed'
 ORDER BY completed_at, id
@@ -1442,10 +1444,118 @@ def _families(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [families[k] for k in sorted(families)]
 
 
+# Fields of a code validation's agreement copied into a report.
+_KAPPA_FIELDS = ("n", "kappa", "observed_agreement", "expected_agreement")
+_COUNT_FIELDS = ("items", "compared", "ties", "no_human_code", "missing_automatic", "missing")
+
+
+def _code_records(run: Dict[str, Any]) -> List[Dict[str, Any]]:
+    codes = run.get("codes")
+    return [c for c in codes if isinstance(c, dict)] if isinstance(codes, list) else []
+
+
+def _judge_model(identity: Any) -> Optional[str]:
+    if isinstance(identity, dict) and identity.get("kind") == "judge_code" and identity.get("system"):
+        return str(identity["system"]).split("@", 1)[0]
+    return None
+
+
+def _analysis_code_validations(
+    db: Session, runs: List[Dict[str, Any]], can_open_project: Optional[Callable[[str], bool]] = None
+) -> List[Dict[str, Any]]:
+    """The validations behind the codes the report's runs read, one entry per
+    validation in the order the runs name them.
+
+    Each entry is the validation the run accepted (``analysis_runs.codes``:
+    the code's kind, ref, version and hash, kappa, observed agreement and the
+    compared items, frozen when the run ran) and, when the stored row exists
+    and ``can_open_project`` grants its coding project (the access of
+    ``GET /api/code-validations/{id}`` for the author building the snapshot;
+    without it no detail is copied), its name and the agreement detail
+    (``code_validations.metrics``: expected agreement, counts, the
+    categories with precision, recall and F1, the confusion matrix and the
+    agreement between the human coders, without the per-coder rows, which
+    name coders). ``used_by`` lists the runs and measures that read it. A
+    validation is member-only when every run reading it is, or when it
+    validates a hidden model's judge codes (:func:`model_is_public`); the
+    public view leaves it out. Codes a run read without a validation
+    (exploratory families) are not listed."""
+    from models import CodeValidation
+
+    entries: Dict[str, Dict[str, Any]] = {}
+    for run in runs:
+        for record in _code_records(run):
+            accepted = record.get("validation")
+            if not isinstance(accepted, dict) or not accepted.get("id"):
+                continue
+            vid = str(accepted["id"])
+            entry = entries.get(vid)
+            if entry is None:
+                entry = entries[vid] = {
+                    "id": vid,
+                    "name": None,
+                    "control": accepted.get("control"),
+                    "code_kind": record.get("kind"),
+                    "code_ref": record.get("ref"),
+                    "code_version": record.get("version"),
+                    "code_hash": record.get("hash"),
+                    "kappa": _finite(accepted.get("kappa")),
+                    "observed_agreement": _finite(accepted.get("observed_agreement")),
+                    "compared": accepted.get("compared"),
+                    "completed_at": accepted.get("completed_at"),
+                    "detail": False,
+                    "used_by": [],
+                    "_runs": [],
+                    "_judge": _judge_model(record),
+                }
+            entry["used_by"].append({"run_id": run["id"], "measure": record.get("measure")})
+            entry["_runs"].append(run.get("member_only") is not False)
+    if not entries:
+        return []
+    rows = {v.id: v for v in db.query(CodeValidation).filter(CodeValidation.id.in_(sorted(entries))).all()}
+    hidden = hidden_model_ids(
+        db, {m for m in [e["_judge"] for e in entries.values()] + [_judge_model(r.identity) for r in rows.values()] if m}
+    )
+    out: List[Dict[str, Any]] = []
+    for vid, entry in entries.items():
+        row = rows.get(vid)
+        judge = {entry.pop("_judge")}
+        member_runs = entry.pop("_runs")
+        if row is not None:
+            judge.add(_judge_model(row.identity))
+        if row is not None and (can_open_project is None or not can_open_project(row.project_id)):
+            row = None
+        metrics = row.metrics if row is not None and isinstance(row.metrics, dict) else None
+        if row is not None:
+            entry["name"] = row.name
+            entry["coding_version"] = row.coding_version
+        if metrics is not None:
+            main = metrics.get("automatic_vs_reference") if isinstance(metrics.get("automatic_vs_reference"), dict) else {}
+            between = metrics.get("between_coders") if isinstance(metrics.get("between_coders"), dict) else None
+            entry.update({
+                "detail": True,
+                "agreement": {k: _finite(main.get(k)) for k in _KAPPA_FIELDS},
+                "counts": {k: metrics.get(k) for k in _COUNT_FIELDS},
+                "categories": [str(c) for c in metrics.get("categories") or []],
+                "per_category": main.get("per_category") if isinstance(main.get("per_category"), dict) else {},
+                "confusion": main.get("confusion") if isinstance(main.get("confusion"), dict) else {},
+                "between_coders": None if between is None else {
+                    "coders": between.get("coders"),
+                    "items": between.get("items"),
+                    "fleiss_kappa": _finite(between.get("fleiss_kappa")),
+                    "percent_agreement": _finite(between.get("percent_agreement")),
+                },
+            })
+        entry["member_only"] = all(member_runs) or bool(judge & hidden)
+        out.append(entry)
+    return out
+
+
 def _build_analyses_section(
     db: Session,
     project_id: str,
     config: Dict[str, Any],
+    can_open_project: Optional[Callable[[str], bool]] = None,
 ) -> Dict[str, Any]:
     """The runs the Analyses section names, in the author's order, each with
     its metadata, whether it is member-only
@@ -1456,7 +1566,7 @@ def _build_analyses_section(
     (:func:`public_snapshot`). A run the report cannot show is listed in
     ``omitted`` with the reason."""
     if not config["runs"]:
-        return {"runs": [], "omitted": []}
+        return {"runs": [], "omitted": [], "code_validations": []}
     eligible = {r["id"]: r for r in report_analysis_runs(db, project_id)}
     problems = analysis_run_problems(db, project_id, [rc["run_id"] for rc in config["runs"] if rc["run_id"] not in eligible])
 
@@ -1506,7 +1616,8 @@ def _build_analyses_section(
             "estimates": rows,
             "exhibits": exhibits,
         })
-    return {"runs": runs, "omitted": omitted}
+    shown_runs = [{**r, "codes": eligible[r["id"]].get("codes")} for r in runs]
+    return {"runs": runs, "omitted": omitted, "code_validations": _analysis_code_validations(db, shown_runs, can_open_project)}
 
 
 # ---------------------------------------------------------------------------
@@ -1558,6 +1669,13 @@ def public_snapshot(snapshot: Any) -> Any:
         analyses = _without(out["analyses"], "omitted")
         if isinstance(analyses.get("runs"), list):
             analyses["runs"] = [r for r in analyses["runs"] if isinstance(r, dict) and r.get("member_only") is False]
+        if isinstance(analyses.get("code_validations"), list):
+            public_runs = {r.get("id") for r in analyses.get("runs") or [] if isinstance(r, dict)}
+            analyses["code_validations"] = [
+                {**v, "used_by": [u for u in v.get("used_by") or [] if isinstance(u, dict) and u.get("run_id") in public_runs]}
+                for v in analyses["code_validations"]
+                if isinstance(v, dict) and v.get("member_only") is False
+            ]
         out["analyses"] = analyses
     return out
 
@@ -1571,13 +1689,18 @@ def apply_section_visibility(
     is ``None``. With ``sections.annotations.show_participants`` off, the
     participant list is empty and the annotator agreement keeps its aggregate
     numbers but drops the per-pair rows, which name and score individual
-    annotators; ``statistics.participant_count`` stays."""
+    annotators; ``statistics.participant_count`` stays. With
+    ``sections.annotations.show_code_validations`` off, the Analyses
+    section's ``code_validations`` list is empty."""
     if not isinstance(snapshot, dict):
         return snapshot
     annotations = (sections or {}).get("annotations") or {}
     served = dict(snapshot)
     if annotations.get("show_agreement") is False:
         served["annotator_agreement"] = None
+    analyses = served.get("analyses")
+    if annotations.get("show_code_validations") is False and isinstance(analyses, dict):
+        served["analyses"] = {**analyses, "code_validations": []}
     if annotations.get("show_participants") is False:
         served["participants"] = []
         agreement = served.get("annotator_agreement")
@@ -1598,12 +1721,16 @@ def build_report_snapshot(
     include_private_models: bool = False,
     now: Optional[datetime] = None,
     analyses: Any = None,
+    can_open_project: Optional[Callable[[str], bool]] = None,
 ) -> Dict[str, Any]:
     """Compute the full report snapshot for a project (see module docstring).
 
     ``analyses`` is the report's ``content.sections.analyses`` (see
     :func:`parse_analyses_section`): the runs and exhibits whose estimates
-    the snapshot copies."""
+    the snapshot copies. ``can_open_project`` tells whether the author
+    building the snapshot can open a project (by id); a code validation's
+    detail is copied only from a coding project it grants
+    (:func:`_analysis_code_validations`)."""
     from project_models import Project
 
     params = {"project_id": project_id}
@@ -1804,7 +1931,7 @@ def build_report_snapshot(
         hidden_judges=_hidden_judges,
     )
 
-    analyses_section = _build_analyses_section(db, project_id, parse_analyses_section(analyses))
+    analyses_section = _build_analyses_section(db, project_id, parse_analyses_section(analyses), can_open_project)
 
     snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),

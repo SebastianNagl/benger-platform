@@ -725,6 +725,11 @@ describe('ReportEditorPage', () => {
         screen.getByRole('switch', { name: 'reports.editor.showParticipants' }),
       )
       await user.click(
+        screen.getByRole('switch', {
+          name: 'reports.editor.showCodeValidations',
+        }),
+      )
+      await user.click(
         screen.getByRole('switch', { name: 'reports.editor.showDistribution' }),
       )
       await user.click(
@@ -774,6 +779,8 @@ describe('ReportEditorPage', () => {
       expect(content.sections.data.visible).toBe(false)
       expect(content.sections.project_info.visible).toBe(true)
       expect(content.sections.annotations.show_participants).toBe(false)
+      expect(content.sections.annotations.show_code_validations).toBe(false)
+      expect(content.sections.annotations.show_agreement).toBe(true)
       expect(content.sections.data.show_count).toBe(true)
       expect(content.sections.generation.show_models).toBe(true)
 

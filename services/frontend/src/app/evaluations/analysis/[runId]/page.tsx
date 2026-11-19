@@ -25,6 +25,7 @@ import { RunProvenance } from '@/components/analysis/RunProvenance'
 import { RunFits, RunSpec } from '@/components/analysis/RunSpecAndFits'
 import { VariantDesignsLoader } from '@/components/analysis/VariantDesignPanel'
 import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
+import { RunAgreementBlock } from '@/components/evaluation/statistics/AgreementValidity'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
@@ -474,6 +475,8 @@ export default function AnalysisRunPage() {
           <RunFits fits={r.fits} />
         </Section>
       )}
+
+      {r.status === 'completed' && <RunAgreementBlock run={r} />}
     </div>
   )
 }

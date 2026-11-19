@@ -115,7 +115,7 @@ describe('AnalysesSection', () => {
         }}
         locale="de"
         t={t}
-        runHref={(id) => `/projects/p/analysis/${id}`}
+        runHref={(id) => `/evaluations/analysis/${id}`}
       />,
     )
     expect(screen.getByRole('heading', { name: 'framing main' })).toBeVisible()
@@ -132,7 +132,7 @@ describe('AnalysesSection', () => {
     ).not.toBeInTheDocument()
     expect(screen.getByText('Lauf öffnen')).toHaveAttribute(
       'href',
-      '/projects/p/analysis/run-1',
+      '/evaluations/analysis/run-1',
     )
   })
 })

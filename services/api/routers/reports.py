@@ -294,10 +294,19 @@ def _analyses_of(report: ProjectReport) -> Any:
     return sections.get("analyses")
 
 
-def _build_snapshot_sync(sync_db, project_id: str, analyses: Any = None):
+def _build_snapshot_sync(sync_db, project_id: str, analyses: Any, author: User):
     """Compute the report snapshot on the bridged sync session (SQL
-    aggregation only — see report_snapshot)."""
-    return build_report_snapshot(sync_db, project_id, analyses=analyses)
+    aggregation only — see report_snapshot). A code validation's detail is
+    copied only from a coding project the author building it can open, the
+    access of ``GET /api/code-validations/{id}``."""
+    from routers.projects.helpers import check_project_accessible
+
+    return build_report_snapshot(
+        sync_db,
+        project_id,
+        analyses=analyses,
+        can_open_project=lambda pid: check_project_accessible(sync_db, author, pid),
+    )
 
 
 def _report_analysis_runs_sync(sync_db, project_id: str):
@@ -620,7 +629,9 @@ async def publish_report(
         )
 
     # Freeze the numbers, then publish
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    snapshot = await db.run_sync(
+        _build_snapshot_sync, project_id, _analyses_of(report), current_user
+    )
     if body and body.is_public:
         _refuse_public_member_only(snapshot)
     report.content = {**(report.content or {}), "snapshot": snapshot}
@@ -741,7 +752,9 @@ async def refresh_report_snapshot(
     """
     await require_report_author(db, current_user, project_id)
     project, report = await _load_project_and_report(db, project_id)
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    snapshot = await db.run_sync(
+        _build_snapshot_sync, project_id, _analyses_of(report), current_user
+    )
     report.content = {**(report.content or {}), "snapshot": snapshot}
     report.updated_at = datetime.utcnow()
     await db.commit()
@@ -954,7 +967,9 @@ async def get_report_data(
     snapshot = content.get("snapshot")
     if snapshot is None and is_author:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
-        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id, _analyses_of(report))
+        snapshot = await db.run_sync(
+            _build_snapshot_sync, report.project_id, _analyses_of(report), current_user
+        )
         report.content = {**content, "snapshot": snapshot}
         await db.commit()
         await db.refresh(report)

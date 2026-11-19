@@ -472,7 +472,15 @@ evaluation configs, so runs stay reachable after their designs are deleted.
 - The statistics panel: **Inference** (each family with its adjustment method
   and the adjusted p-values of its members, the equivalence tests with their
   bounds and decisions, the minimum detectable effects and the joint Wald
-  tests) and **Fit** (the run's warnings and the per-fit summaries).
+  tests), **Fit** (the run's warnings and the per-fit summaries) and, for a
+  run that read codes, **Agreement and validity** (each code with the
+  validation the run accepted and its stored agreement, and the validations
+  of the project's answers; see [Codes](codes.md#where-validations-are-shown)).
+  In the Metrics view the same block name holds the agreement between LLM
+  judges that graded the same items (`judge_agreement_by_model_metric`:
+  Fleiss' kappa, the share where all judges agree, the mean absolute
+  deviation and every judge pair), shown when two or more judges graded a
+  metric.
 
 - **Examples**, for a run that reads variant designs: the units of the
   design, paged, and one unit opened in the unit viewer with the answers of
@@ -498,9 +506,9 @@ the SHA-256 of the stored frame file and its size, the lockfile hash, engine,
 spec format and library versions, the seed, the frame counts and the
 timings), the variant designs the run read (factor tree, status, content
 and spec hashes, and the assignment, balance and invariance checks on
-request), the spec (normalized, or as submitted) and the per-fit summaries.
-It also shows the profile of a contrast that varies over an ordered scope
-and the examples.
+request), the spec (normalized, or as submitted), the per-fit summaries and
+the Agreement and validity block of a run with codes. It also shows the
+profile of a contrast that varies over an ordered scope and the examples.
 "New run from this spec" opens the start dialog prefilled with that run's
 spec (`&newRunFrom={analysis_run_id}`). The frame download button (ORG_ADMIN
 and CONTRIBUTOR) fetches the short-lived URL of the Parquet snapshot.

@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from models import CodeValidation, CodingProject, Generation, OrganizationRole, ResponseGeneration
 from project_models import Project, ProjectOrganization, Task
@@ -321,6 +322,60 @@ async def test_validations_are_queued_listed_and_read(async_test_client, async_t
     assert full.json()["items"] and full.json()["kappa"] == 0.5
     assert blinded.status_code == 200 and "items" not in blinded.json()
     assert hidden.status_code == 404
+
+
+async def test_the_validations_of_a_projects_answers_are_listed(async_test_client, async_test_db, world):
+    """``of=answers`` lists the validations on every coding project drawn from
+    the project that the caller can open, with the coding project's title;
+    the default lists the coding project's own."""
+    project = world["project"]
+    code = {"kind": "text_pattern", "set": PATTERN_SET, "code": "claimant"}
+    with v1_auth(async_test_db, session_user=world["member"]):
+        first = (await _create(async_test_client, project.id, title="Coding: first")).json()["project_id"]
+        second = (await _create(async_test_client, project.id, title="Coding: second")).json()["project_id"]
+        with _queued():
+            for coding_id, name in ((first, "one"), (first, "two"), (second, "three")):
+                r = await async_test_client.post(
+                    f"/api/projects/{coding_id}/code-validations",
+                    json={"code": code, "control": "side", "name": name},
+                )
+                assert r.status_code == 202, r.text
+        # The test shares one transaction, so server_default now() gives all
+        # three the same created_at and the id tie-break would order them at
+        # random; spread the timestamps so "newest first" is defined.
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for minutes, name in ((0, "one"), (1, "two"), (2, "three")):
+            await async_test_db.execute(
+                update(CodeValidation)
+                .where(CodeValidation.name == name, CodeValidation.project_id.in_([first, second]))
+                .values(created_at=base + timedelta(minutes=minutes))
+            )
+        await async_test_db.commit()
+        answers = await async_test_client.get(f"/api/projects/{project.id}/code-validations?of=answers")
+        paged = await async_test_client.get(
+            f"/api/projects/{project.id}/code-validations?of=answers&limit=1&offset=1"
+        )
+        own = await async_test_client.get(f"/api/projects/{project.id}/code-validations")
+        of_coding = await async_test_client.get(f"/api/projects/{first}/code-validations?of=answers")
+        bad = await async_test_client.get(f"/api/projects/{project.id}/code-validations?of=everything")
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        admin = await async_test_client.get(f"/api/projects/{project.id}/code-validations?of=answers")
+    with v1_auth(async_test_db, session_user=world["other"]["admin"]):
+        outsider = await async_test_client.get(f"/api/projects/{project.id}/code-validations?of=answers")
+
+    body = answers.json()
+    assert answers.status_code == 200 and body["total"] == 3
+    assert [i["name"] for i in body["items"]] == ["three", "two", "one"]
+    assert {i["coding_project_title"] for i in body["items"]} == {"Coding: first", "Coding: second"}
+    assert all(i["source_project_id"] == project.id and "metrics" not in i for i in body["items"])
+    assert paged.json()["total"] == 3 and [i["name"] for i in paged.json()["items"]] == ["two"]
+    assert own.json() == {"items": [], "total": 0}
+    assert of_coding.json() == {"items": [], "total": 0}
+    assert bad.status_code == 422
+    # The coding projects are private to their creator, so the source's
+    # org admin sees the source but none of their validations.
+    assert admin.status_code == 200 and admin.json() == {"items": [], "total": 0}
+    assert outsider.status_code in (403, 404)
 
 
 async def test_analysis_specs_may_only_name_this_projects_codes(async_test_client, async_test_db, world):
