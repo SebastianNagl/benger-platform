@@ -3,7 +3,7 @@
  *
  * Provides functions to interact with the report publishing system:
  * - Get project reports (draft or published)
- * - Update report content (superadmin only)
+ * - Update report content (report authors only)
  * - Publish/unpublish reports and switch their visibility
  * - Recompute the report snapshot
  * - List published reports (public + org-filtered; works anonymously)
@@ -31,6 +31,8 @@ export interface DataSection extends ReportSection {
   task_count?: number
   custom_text?: string | null
   show_count: boolean
+  /** Show variant designs and import provenance (default true). */
+  show_provenance?: boolean
 }
 
 export interface AnnotationsSection extends ReportSection {
@@ -53,6 +55,8 @@ export interface GenerationSection extends ReportSection {
   custom_text?: string | null
   show_models: boolean
   show_config: boolean
+  /** Show the per-model generation table (default true). */
+  show_details?: boolean
 }
 
 export interface EvaluationSection extends ReportSection {
@@ -61,6 +65,14 @@ export interface EvaluationSection extends ReportSection {
   charts_config?: ReportChartsConfig
   custom_interpretation?: string | null
   conclusions?: string | null
+  /** Show the human evaluation results (default true). */
+  show_human_evaluation?: boolean
+}
+
+/** Reproducibility appendix; visible unless the author switched it off. */
+export interface ReproducibilitySection {
+  visible?: boolean
+  custom_text?: string | null
 }
 
 export interface ReportContent {
@@ -70,6 +82,7 @@ export interface ReportContent {
     annotations: AnnotationsSection
     generation: GenerationSection
     evaluation: EvaluationSection
+    reproducibility?: ReproducibilitySection
   }
   metadata: {
     last_auto_update: string
@@ -95,6 +108,9 @@ export interface ReportResponse {
   updated_at?: string | null
   can_publish: boolean
   can_publish_reason: string
+  /** The caller authors this report: the project owner, an admin of one of
+   *  the project's organizations or a superadmin. */
+  can_edit?: boolean
 }
 
 export type ReportVisibility = 'public' | 'organizations'
@@ -167,7 +183,8 @@ function invalidateReportLists() {
 
 /**
  * Get report for a project
- * - Superadmins can view draft or published reports (incl. content.snapshot)
+ * - Report authors (project owner, org admins of the project, superadmins)
+ *   can view draft or published reports (incl. content.snapshot)
  * - Org members can view only published reports
  */
 export async function getProjectReport(
@@ -177,7 +194,7 @@ export async function getProjectReport(
 }
 
 /**
- * Update report content (superadmin only)
+ * Update report content (report authors only)
  * Allows editing report sections while preserving auto-populated data
  */
 export async function updateProjectReport(
@@ -188,7 +205,7 @@ export async function updateProjectReport(
 }
 
 /**
- * Publish a report (superadmin only)
+ * Publish a report (report authors only)
  * Validates that all requirements are met before publishing.
  * Pass `{ is_public: true }` to make it readable without a session.
  */
@@ -207,7 +224,7 @@ export async function publishReport(
 }
 
 /**
- * Unpublish a report (superadmin only)
+ * Unpublish a report (report authors only)
  */
 export async function unpublishReport(
   projectId: string,
@@ -219,7 +236,7 @@ export async function unpublishReport(
 
 /**
  * Switch a published report between "project organizations only" and
- * "public" (superadmin only; the API rejects it for drafts).
+ * "public" (report authors only; the API rejects it for drafts).
  */
 export async function setReportVisibility(
   projectId: string,
@@ -234,7 +251,7 @@ export async function setReportVisibility(
 }
 
 /**
- * Recompute the report snapshot from live project data (superadmin only).
+ * Recompute the report snapshot from live project data (report authors only).
  * Returns the report with the fresh `content.snapshot`.
  */
 export async function refreshReport(
@@ -258,7 +275,7 @@ export async function listPublishedReports(): Promise<
 /**
  * Get complete report data (report + snapshot)
  * Public reports work anonymously; org reports need membership; drafts are
- * readable by superadmins.
+ * readable by report authors.
  */
 export async function getReportData(
   reportId: string,

@@ -151,7 +151,7 @@ function ShellLayout({
         {/* Main content area */}
         <div className="min-w-0 flex-1">
           <div
-            className={`relative flex h-full flex-col pt-14 ${showSidebar ? 'lg:ml-64 xl:ml-72 2xl:ml-80' : ''}`}
+            className={`relative flex h-full flex-col pt-14 print:ml-0 print:pt-0 ${showSidebar ? 'lg:ml-64 xl:ml-72 2xl:ml-80' : ''}`}
           >
             <main className={`w-full min-w-0 flex-auto`}>{children}</main>
             <Footer />
@@ -207,7 +207,7 @@ function Sidebar({ isInitialRender }: { isInitialRender: boolean }) {
 
   return (
     <motion.aside
-      className="lg:pointer-events-none lg:fixed lg:inset-0 lg:z-30 lg:flex"
+      className="lg:pointer-events-none lg:fixed lg:inset-0 lg:z-30 lg:flex print:hidden"
       suppressHydrationWarning
     >
       <motion.div

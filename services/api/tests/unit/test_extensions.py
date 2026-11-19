@@ -195,6 +195,9 @@ class TestExtensionLoader:
         # 2.69 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
+        # 2.70 adds the report's data, generation, human evaluation and
+        # reproducibility sections, snapshot_sha256 and report authorship
+        # for project owners and org admins.
         # 2.71 adds the platform flags variant_experiments and
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).

@@ -10,12 +10,16 @@ import {
   updateProjectReport,
 } from '@/lib/api/reports'
 import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import type { ReportSnapshot } from '@/types/report'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import ReportEditorPage from '../../edit/page'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
@@ -242,17 +246,21 @@ async function renderLoaded(report: any = baseReport) {
   mockGet.mockResolvedValue(report)
   const user = userEvent.setup()
   render(<ReportEditorPage params={createParams('proj-1')} />)
-  await waitFor(() => {
-    expect(
-      screen.getByText('project.report.editor.saveReport'),
-    ).toBeInTheDocument()
-  })
+  // The editor renders once the report request resolves; on a busy full run
+  // that can take longer than findBy's default second.
+  await screen.findByText(
+    'project.report.editor.saveReport',
+    {},
+    { timeout: 5000 },
+  )
   return user
 }
 
 describe('ReportEditorPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Report authors and the paper's parts belong to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({
       user: mockSuperadmin,
@@ -331,11 +339,34 @@ describe('ReportEditorPage', () => {
   })
 
   describe('permissions', () => {
-    it('shows a clear message (no blank page, no redirect) for non-superadmins', async () => {
+    it('shows a clear message (no blank page, no redirect) for non-authors', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         user: mockContributor,
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
+
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'reports.editor.notAuthor',
+        )
+      })
+      expect(mockRouter.push).not.toHaveBeenCalled()
+    })
+
+    it('names superadmins as the only authors while variant_experiments is off', async () => {
+      setMockFeatureFlags({})
+      ;(useAuth as jest.Mock).mockReturnValue({
+        user: mockContributor,
+        isLoading: false,
+      })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
 
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
@@ -344,8 +375,6 @@ describe('ReportEditorPage', () => {
           'reports.editor.notSuperadmin',
         )
       })
-      expect(mockGet).not.toHaveBeenCalled()
-      expect(mockRouter.push).not.toHaveBeenCalled()
     })
 
     it('offers the back-to-project button in the message', async () => {
@@ -353,6 +382,9 @@ describe('ReportEditorPage', () => {
         user: { ...mockContributor, role: 'ORG_ADMIN' },
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
       const user = userEvent.setup()
 
       render(<ReportEditorPage params={createParams('proj-1')} />)
@@ -543,7 +575,7 @@ describe('ReportEditorPage', () => {
   })
 
   describe('save', () => {
-    it('round-trips the whole content and overlays edited fields', async () => {
+    it('round-trips the content without the snapshot and overlays edited fields', async () => {
       const user = await renderLoaded()
 
       // Edit a text, hide a section, flip flags, adjust presentation.
@@ -591,8 +623,9 @@ describe('ReportEditorPage', () => {
       const [projectId, content] = mockUpdate.mock.calls[0]
       expect(projectId).toBe('proj-1')
 
-      // Snapshot + metadata + auto-populated fields survive.
-      expect(content.snapshot).toEqual(snapshot)
+      // The snapshot is server-owned and not sent; metadata and
+      // auto-populated fields survive.
+      expect(content).not.toHaveProperty('snapshot')
       expect(content.metadata).toEqual(baseReport.content.metadata)
       expect(content.sections.project_info.title).toBe('Test Project')
       expect(content.sections.project_info.status).toBe('completed')
@@ -695,7 +728,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => expect(mockUpdate).toHaveBeenCalled())
       const content = mockUpdate.mock.calls[0][1]
-      expect(content.snapshot).toBeNull()
+      expect(content).not.toHaveProperty('snapshot')
       const cfg = content.sections.evaluation.charts_config
       expect(cfg.visible_metrics).toEqual(['bleu'])
       expect(cfg.visible_configs).toEqual(['cfg-bleu'])

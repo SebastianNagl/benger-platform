@@ -1,21 +1,26 @@
 /**
  * Report Editor Page
  *
- * Lets superadmins edit a project report: free-text fields per section,
- * section visibility switches, and the presentation of the evaluation
- * (primary metric / judge configuration, visible metrics + configurations,
- * hidden models/participants, distribution + human rows). The editable
- * options come from the server-computed `content.snapshot`; "Daten
- * aktualisieren" recomputes it.
+ * Lets report authors (the project owner, admins of the project's
+ * organizations and superadmins; the API's `can_edit`) edit a project
+ * report: free-text fields per section, section visibility switches, the
+ * presentation of the evaluation (primary metric / judge configuration,
+ * visible metrics + configurations, hidden models/participants,
+ * distribution + human rows), the record parts of the Data, Generation and
+ * Evaluation sections, and the Reproducibility appendix. The editable
+ * options come from the server-computed `content.snapshot`; "Refresh data"
+ * recomputes it.
  *
- * Saving round-trips the whole `content` (spread the loaded content, overlay
- * only the edited fields) so `snapshot` and auto-populated data survive.
+ * Saving round-trips the loaded `content` without `snapshot` (spread it,
+ * overlay only the edited fields) so auto-populated data survives; the
+ * server keeps the stored snapshot and ignores one sent by a client.
  *
  * Issue #770: Project Reports Publishing System
  */
 
 'use client'
 
+import { hasHumanEvaluations } from '@/components/reports/view'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
@@ -43,6 +48,7 @@ import {
 import { useFeatureFlag } from '@/lib/featureFlags'
 import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
+import { formatCount, formatRate } from '@/lib/reports/format'
 import type {
   ReportChartsConfig,
   ReportConfigRef,
@@ -56,7 +62,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 interface ReportEditorPageProps {
   params: Promise<{
@@ -65,7 +71,12 @@ interface ReportEditorPageProps {
 }
 
 type SectionKey =
-  'project_info' | 'data' | 'annotations' | 'generation' | 'evaluation'
+  | 'project_info'
+  | 'data'
+  | 'annotations'
+  | 'generation'
+  | 'evaluation'
+  | 'reproducibility'
 
 const SECTION_KEYS: SectionKey[] = [
   'project_info',
@@ -73,6 +84,7 @@ const SECTION_KEYS: SectionKey[] = [
   'annotations',
   'generation',
   'evaluation',
+  'reproducibility',
 ]
 
 /** Metric keys that carry raw payloads, never shown as report metrics. */
@@ -87,11 +99,15 @@ interface EditorState {
   generationText: string
   interpretation: string
   conclusions: string
+  reproducibilityText: string
   sectionVisible: Record<SectionKey, boolean>
   showDataCount: boolean
+  showProvenance: boolean
   showParticipants: boolean
   showAgreement: boolean
   showModels: boolean
+  showGenerationDetails: boolean
+  showHumanEvaluation: boolean
   primaryMetric: string | null
   primaryConfigId: string | null
   visibleConfigs: Set<string>
@@ -192,11 +208,15 @@ function deriveEditorState(report: ReportResponse): EditorState {
     generationText: sections.generation?.custom_text || '',
     interpretation: sections.evaluation?.custom_interpretation || '',
     conclusions: sections.evaluation?.conclusions || '',
+    reproducibilityText: sections.reproducibility?.custom_text || '',
     sectionVisible,
     showDataCount: sections.data?.show_count !== false,
+    showProvenance: sections.data?.show_provenance !== false,
     showParticipants: sections.annotations?.show_participants !== false,
     showAgreement: sections.annotations?.show_agreement !== false,
     showModels: sections.generation?.show_models !== false,
+    showGenerationDetails: sections.generation?.show_details !== false,
+    showHumanEvaluation: sections.evaluation?.show_human_evaluation !== false,
     primaryMetric,
     primaryConfigId,
     visibleConfigs: new Set(
@@ -277,6 +297,23 @@ const checkboxLabelClass =
 const checkboxClass =
   'h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500'
 const selectClass = 'mt-1 sm:w-96'
+
+/** What the current snapshot holds for a section (read-only); nothing
+ *  before the first snapshot, whose absence the header already states. */
+function SnapshotNote({
+  children,
+  show,
+}: {
+  children: ReactNode
+  show: boolean
+}) {
+  if (!show) return null
+  return (
+    <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300">
+      {children}
+    </p>
+  )
+}
 // Select item standing for "no primary metric" (state value '').
 const NO_PRIMARY_METRIC = '__none__'
 
@@ -285,7 +322,9 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const { user, isLoading: authLoading } = useAuth()
   const { addToast } = useToast()
   const { t, locale } = useI18n()
-  // The agreement toggle belongs to the variant_experiments flag.
+  // The agreement toggle and the paper's parts (provenance, generation
+  // details, human evaluation, reproducibility) belong to the
+  // variant_experiments flag.
   const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
 
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -294,8 +333,8 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [state, setState] = useState<EditorState | null>(null)
-
-  const isSuperadmin = Boolean(user?.is_superadmin)
+  // The API refused (403) or reported can_edit false: not a report author.
+  const [notAuthor, setNotAuthor] = useState(false)
 
   // Resolve params
   useEffect(() => {
@@ -306,18 +345,28 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
     resolveParams()
   }, [params])
 
-  // Fetch report (superadmins only; everyone else gets the notice below)
+  // Fetch report (report authors only; everyone else gets the notice below)
   useEffect(() => {
-    if (!projectId || !user?.is_superadmin) {
+    if (!projectId || !user) {
       return
     }
 
     const load = async () => {
       try {
         const data = await getProjectReport(projectId)
+        if (data.can_edit === false) {
+          setNotAuthor(true)
+          return
+        }
         setReport(data)
         setState(deriveEditorState(data))
       } catch (error) {
+        const status = (error as { response?: { status?: number } } | null)
+          ?.response?.status
+        if (status === 403 || status === 404) {
+          setNotAuthor(true)
+          return
+        }
         console.error('Failed to fetch report:', error)
         setLoadFailed(true)
         addToast(t('project.report.editor.failedToLoad'), 'error')
@@ -340,6 +389,9 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
     [configs, state?.primaryMetric],
   )
   const subjects = useMemo(() => listReportSubjects(snapshot), [snapshot])
+  const dataRecord = snapshot?.data
+  const generationRecord = snapshot?.generation
+  const humanRecord = snapshot?.human_evaluations
   const modelSubjects = subjects.filter((s) => s.kind === 'model')
   const humanSubjects = subjects.filter((s) => s.kind !== 'model')
 
@@ -367,7 +419,8 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
 
   const buildContent = (): ReportContent | null => {
     if (!report || !state) return null
-    const base = (report.content ?? {}) as Partial<ReportContent>
+    const { snapshot: _snapshot, ...base } = (report.content ??
+      {}) as Partial<ReportContent>
     const sections = getSections(report)
     const cfg = getChartsConfig(report)
     const metricIds = metrics.map((m) => m.id)
@@ -405,6 +458,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ...sections.data,
           visible: state.sectionVisible.data,
           show_count: state.showDataCount,
+          show_provenance: state.showProvenance,
           custom_text: state.dataText || null,
         },
         annotations: {
@@ -421,6 +475,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ...sections.generation,
           visible: state.sectionVisible.generation,
           show_models: state.showModels,
+          show_details: state.showGenerationDetails,
           custom_text: state.generationText || null,
         },
         evaluation: {
@@ -428,7 +483,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           visible: state.sectionVisible.evaluation,
           custom_interpretation: state.interpretation || null,
           conclusions: state.conclusions || null,
+          show_human_evaluation: state.showHumanEvaluation,
           charts_config: chartsConfig,
+        },
+        reproducibility: {
+          ...sections.reproducibility,
+          visible: state.sectionVisible.reproducibility,
+          custom_text: state.reproducibilityText || null,
         },
       },
     } as ReportContent
@@ -497,7 +558,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   }
 
   // Clear dead-end instead of a blank page
-  if (!isSuperadmin) {
+  if (notAuthor || !user) {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
         <div
@@ -505,10 +566,18 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           role="alert"
         >
           <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">
-            {t('reports.editor.notSuperadmin')}
+            {t(
+              variantExperiments
+                ? 'reports.editor.notAuthor'
+                : 'reports.editor.notSuperadmin',
+            )}
           </h1>
           <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-            {t('reports.editor.notSuperadminHint')}
+            {t(
+              variantExperiments
+                ? 'reports.editor.notAuthorHint'
+                : 'reports.editor.notSuperadminHint',
+            )}
           </p>
           <div className="mt-4 flex gap-3">
             <Button
@@ -701,6 +770,24 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showDataCount: enabled })}
               label={t('reports.editor.showDataCount')}
             />
+            {variantExperiments && (
+              <>
+                <ToggleSwitch
+                  enabled={state.showProvenance}
+                  onChange={(enabled) => update({ showProvenance: enabled })}
+                  label={t('reports.editor.showProvenance')}
+                />
+                <SnapshotNote show={Boolean(snapshot)}>
+                  {t('reports.editor.dataSummary', {
+                    designs: formatCount(
+                      dataRecord?.variant_designs.length ?? 0,
+                      locale,
+                    ),
+                    imports: formatCount(dataRecord?.import_count ?? 0, locale),
+                  })}
+                </SnapshotNote>
+              </>
+            )}
           </div>
         </div>
 
@@ -780,6 +867,35 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showModels: enabled })}
               label={t('reports.editor.showModels')}
             />
+            {variantExperiments && (
+              <>
+                <ToggleSwitch
+                  enabled={state.showGenerationDetails}
+                  onChange={(enabled) =>
+                    update({ showGenerationDetails: enabled })
+                  }
+                  label={t('reports.editor.showGenerationDetails')}
+                />
+                <SnapshotNote show={Boolean(snapshot)}>
+                  {generationRecord && generationRecord.models.length > 0
+                    ? t('reports.editor.generationSummary', {
+                        models: formatCount(
+                          generationRecord.models.length,
+                          locale,
+                        ),
+                        generations: formatCount(
+                          generationRecord.totals.generations,
+                          locale,
+                        ),
+                        refusals: formatRate(
+                          generationRecord.totals.refusal_rate,
+                          locale,
+                        ),
+                      })
+                    : t('reports.editor.noGenerations')}
+                </SnapshotNote>
+              </>
+            )}
           </div>
         </div>
 
@@ -818,6 +934,38 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 rows={4}
               />
             </div>
+
+            {variantExperiments && (
+              <>
+                <div className="space-y-2">
+                  <ToggleSwitch
+                    enabled={state.showHumanEvaluation}
+                    onChange={(enabled) =>
+                      update({ showHumanEvaluation: enabled })
+                    }
+                    label={t('reports.editor.showHumanEvaluation')}
+                  />
+                  <SnapshotNote show={Boolean(snapshot)}>
+                    {humanRecord && hasHumanEvaluations(humanRecord)
+                      ? t('reports.editor.humanSummary', {
+                          dimensions: formatCount(
+                            humanRecord.likert.dimensions.length,
+                            locale,
+                          ),
+                          ratings: formatCount(
+                            humanRecord.likert.rating_count,
+                            locale,
+                          ),
+                          comparisons: formatCount(
+                            humanRecord.preference.comparisons,
+                            locale,
+                          ),
+                        })
+                      : t('reports.editor.noHumanEvaluation')}
+                  </SnapshotNote>
+                </div>
+              </>
+            )}
 
             <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
               <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
@@ -1072,6 +1220,49 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             </div>
           </div>
         </div>
+
+        {variantExperiments && (
+          <>
+            {/* Reproducibility Section */}
+            <div className={cardClass} data-testid="section-reproducibility">
+              {sectionHeader(
+                'reproducibility',
+                t('reports.editor.reproducibility.title'),
+              )}
+              <div className="space-y-4">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {t('reports.editor.reproducibility.hint')}
+                </p>
+                <div>
+                  <Label htmlFor="reproducibilityText">
+                    {t('reports.editor.reproducibility.customText')}
+                  </Label>
+                  <Textarea
+                    id="reproducibilityText"
+                    value={state.reproducibilityText}
+                    onChange={(e) =>
+                      update({ reproducibilityText: e.target.value })
+                    }
+                    placeholder={t(
+                      'reports.editor.reproducibility.customTextPlaceholder',
+                    )}
+                    rows={3}
+                  />
+                </div>
+                {snapshot?.reproducibility?.snapshot_sha256 && (
+                  <div className="text-sm" data-testid="editor-snapshot-hash">
+                    <div className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                      {t('reports.view.records.snapshotHash')}
+                    </div>
+                    <code className="font-mono text-xs break-all text-zinc-700 dark:text-zinc-300">
+                      {snapshot.reproducibility.snapshot_sha256}
+                    </code>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-6 dark:border-zinc-700">
