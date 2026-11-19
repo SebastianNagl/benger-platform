@@ -227,7 +227,7 @@ describe('Dashboard Annotations Stat Box', () => {
     expect(screen.getByText('Annotations')).toBeInTheDocument()
   })
 
-  it('shows an Analyses tile in a sixth column once there is an analysis run', async () => {
+  it('shows an Analyses tile in a 3 by 2 grid once there is an analysis run', async () => {
     const api = require('@/lib/api').default
     api.getDashboardStats.mockResolvedValueOnce({
       project_count: 5,
@@ -249,7 +249,9 @@ describe('Dashboard Annotations Stat Box', () => {
         'Analyses3',
       )
     })
-    expect(document.querySelector('.lg\\:grid-cols-6')).toBeInTheDocument()
+    const grid = screen.getByTestId('dashboard-stats')
+    expect(grid.className).toContain('md:grid-cols-3')
+    expect(grid.className).not.toContain('lg:grid-cols-')
     expect(screen.queryByText('99')).not.toBeInTheDocument()
   })
 

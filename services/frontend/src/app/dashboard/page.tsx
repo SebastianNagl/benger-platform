@@ -142,7 +142,8 @@ const TILE_GRID_COLUMNS: Record<number, string> = {
   3: 'md:grid-cols-3',
   4: 'md:grid-cols-2 lg:grid-cols-4',
   5: 'md:grid-cols-3 lg:grid-cols-5',
-  6: 'md:grid-cols-3 lg:grid-cols-6',
+  // Six tiles in one row truncate their labels next to the sidebar.
+  6: 'md:grid-cols-3',
 }
 
 export default function DashboardPage() {

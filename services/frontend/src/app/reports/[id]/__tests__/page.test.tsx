@@ -268,7 +268,7 @@ describe('ReportViewerPage', () => {
     await renderPage()
     expect(screen.getByTestId('stat-analyses')).toHaveTextContent('Analysen2')
     expect(screen.getByTestId('stat-tiles').className).toContain(
-      'lg:grid-cols-6',
+      'lg:grid-cols-3',
     )
   })
 

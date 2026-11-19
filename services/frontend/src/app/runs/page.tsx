@@ -383,16 +383,16 @@ export default function RunsPage() {
                 </>
               ) : tab === 'analysis' ? (
                 <>
-                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
                     {t('analysis.list.col.name')}
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
                     {t('analysis.list.col.rows')}
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
                     {t('analysis.list.col.estimates')}
                   </th>
-                  <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
                     {t('analysis.list.col.specHash')}
                   </th>
                 </>

@@ -75,7 +75,7 @@ describe('StatTiles', () => {
     expect(screen.queryByTestId('stat-tiles')).not.toBeInTheDocument()
   })
 
-  it('fills one wide row with six tiles and keeps five columns otherwise', () => {
+  it('lays six tiles out in two rows of three and keeps five columns otherwise', () => {
     const tiles = (n: number) =>
       Array.from({ length: n }, (_, i) => ({
         id: `t${i}`,
@@ -84,7 +84,7 @@ describe('StatTiles', () => {
       }))
     const { rerender } = render(<StatTiles tiles={tiles(6)} />)
     expect(screen.getByTestId('stat-tiles').className).toContain(
-      'lg:grid-cols-6',
+      'lg:grid-cols-3',
     )
     rerender(<StatTiles tiles={tiles(5)} />)
     expect(screen.getByTestId('stat-tiles').className).toContain(
