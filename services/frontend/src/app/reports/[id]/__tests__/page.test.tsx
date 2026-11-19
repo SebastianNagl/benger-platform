@@ -540,3 +540,50 @@ describe('classifyLoadError', () => {
     })
   })
 })
+
+describe('ReportViewerPage annotator agreement', () => {
+  const { AGREEMENT_FIXTURE } = require('@/test-utils/agreementFixture')
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth = null
+    mockUseResult = { id: 'report-1' }
+  })
+
+  it('shows the snapshot agreement in the annotation section', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: AGREEMENT_FIXTURE,
+    })
+    await renderPage()
+    const block = within(screen.getByTestId('section-annotations')).getByTestId(
+      'report-annotator-agreement',
+    )
+    expect(block).toHaveTextContent('Übereinstimmung der Annotierenden')
+    expect(within(block).getByTestId('agreement-fleiss')).toHaveTextContent(
+      '0,33',
+    )
+  })
+
+  it('hides it when the editor switched it off', async () => {
+    mockData(
+      makeReport({ sections: { annotations: { show_agreement: false } } }),
+      {
+        ...REPORT_SNAPSHOT_FIXTURE,
+        annotator_agreement: AGREEMENT_FIXTURE,
+      },
+    )
+    await renderPage()
+    expect(screen.queryByTestId('report-annotator-agreement')).toBeNull()
+  })
+
+  it('hides it without overlap and for snapshots taken before it existed', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: null,
+    })
+    await renderPage()
+    expect(screen.queryByTestId('report-annotator-agreement')).toBeNull()
+    expect(screen.getByTestId('section-annotations')).toBeInTheDocument()
+  })
+})

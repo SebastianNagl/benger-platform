@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from annotator_agreement import project_annotator_agreement
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -476,4 +477,7 @@ def build_report_snapshot(
         "distributions": distributions,
         "participants": participants,
         "models": sorted(model_info.values(), key=lambda m: m["label"].lower()),
+        # Inter-annotator agreement per control over tasks with two or more
+        # annotators (``annotator_agreement``); ``None`` without overlap.
+        "annotator_agreement": project_annotator_agreement(db, project_id),
     }

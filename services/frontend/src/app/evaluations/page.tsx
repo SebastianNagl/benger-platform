@@ -11,6 +11,7 @@ import {
   AggregationLevel,
   AggregationSelector,
 } from '@/components/evaluation/AggregationSelector'
+import { AnnotatorAgreementCard } from '@/components/evaluation/AnnotatorAgreementCard'
 import {
   ChartTypeSelector,
   type ChartType,
@@ -1698,6 +1699,9 @@ export default function EvaluationDashboard() {
                 </Button>
               </Card>
             )}
+
+          {/* Annotator agreement - hidden unless a task has two annotators */}
+          <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
         </div>
       )}
 

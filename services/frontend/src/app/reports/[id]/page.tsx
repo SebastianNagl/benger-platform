@@ -9,6 +9,7 @@
 
 'use client'
 
+import { AnnotatorAgreement } from '@/components/evaluation/AnnotatorAgreement'
 import {
   EvaluationSection,
   ModelChips,
@@ -18,12 +19,14 @@ import {
   ReportSection,
   StatTiles,
   StatusCard,
+  SubHeading,
   type StatTile,
 } from '@/components/reports/view'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { hasAgreement } from '@/lib/api/agreement'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
 import { getReportData, type ReportResponse } from '@/lib/api/reports'
 import { formatCount, type MetricRegistry } from '@/lib/reports/format'
@@ -227,6 +230,9 @@ export default function ReportViewerPage({
     sections.annotations.visible !== false &&
     (annotationCount > 0 || Boolean(sections.annotations.custom_text))
   const models = snapshot?.models ?? []
+  const snapshotAgreement = snapshot?.annotator_agreement
+  const agreement = hasAgreement(snapshotAgreement) ? snapshotAgreement : null
+  const showAgreement = sections.annotations.show_agreement !== false
 
   return frame(
     <>
@@ -271,6 +277,14 @@ export default function ReportViewerPage({
               <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600 italic dark:bg-zinc-800/60 dark:text-zinc-300">
                 {sections.annotations.acknowledgment_text}
               </p>
+            )}
+            {showAgreement && agreement && (
+              <div className="mt-6" data-testid="report-annotator-agreement">
+                <SubHeading>
+                  {t('evaluation.annotatorAgreement.title')}
+                </SubHeading>
+                <AnnotatorAgreement agreement={agreement} />
+              </div>
             )}
           </ReportSection>
         )}

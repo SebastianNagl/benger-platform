@@ -73,6 +73,8 @@ class AnnotationsSection(ReportSection):
     custom_text: Optional[str] = None
     show_count: bool = True
     show_participants: bool = True
+    # Inter-annotator agreement from the snapshot, when tasks overlap.
+    show_agreement: bool = True
     acknowledgment_text: Optional[str] = None
 
 
