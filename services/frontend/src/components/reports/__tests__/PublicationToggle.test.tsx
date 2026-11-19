@@ -147,8 +147,7 @@ describe('PublicationToggle', () => {
       const reasons = [
         'Report not found',
         'Project must have tasks',
-        'Project must have LLM generations',
-        'Project must have completed evaluations',
+        'Project must have annotations, generations, evaluations or analyses',
         'Report not created yet',
       ]
       for (const reason of reasons) {

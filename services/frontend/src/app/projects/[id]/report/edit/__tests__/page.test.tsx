@@ -331,20 +331,22 @@ describe('ReportEditorPage', () => {
   })
 
   describe('permissions', () => {
-    it('shows a clear message (no blank page, no redirect) for non-superadmins', async () => {
+    it('shows a clear message (no blank page, no redirect) for non-authors', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({
         user: mockContributor,
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
 
       render(<ReportEditorPage params={createParams('proj-1')} />)
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent(
-          'reports.editor.notSuperadmin',
+          'reports.editor.notAuthor',
         )
       })
-      expect(mockGet).not.toHaveBeenCalled()
       expect(mockRouter.push).not.toHaveBeenCalled()
     })
 
@@ -353,6 +355,9 @@ describe('ReportEditorPage', () => {
         user: { ...mockContributor, role: 'ORG_ADMIN' },
         isLoading: false,
       })
+      mockGet.mockRejectedValueOnce(
+        Object.assign(new Error('Forbidden'), { response: { status: 403 } }),
+      )
       const user = userEvent.setup()
 
       render(<ReportEditorPage params={createParams('proj-1')} />)

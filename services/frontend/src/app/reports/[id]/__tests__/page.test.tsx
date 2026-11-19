@@ -90,7 +90,11 @@ jest.mock('react', () => ({
 }))
 
 import { getReportData } from '@/lib/api/reports'
-import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import {
+  ANNOTATION_ONLY_SNAPSHOT,
+  REPORT_RECORDS_FIXTURE,
+  REPORT_SNAPSHOT_FIXTURE,
+} from '@/lib/reports/fixture'
 import ReportViewerPage, { classifyLoadError } from '../page'
 
 const mockGetReportData = getReportData as jest.Mock
@@ -361,9 +365,10 @@ describe('ReportViewerPage', () => {
     expect(screen.queryByTestId('data-as-of')).not.toBeInTheDocument()
   })
 
-  it('shows the draft badge and edit link for a superadmin on an unpublished report', async () => {
-    mockAuth = { user: { is_superadmin: true } }
-    mockData(makeReport({ is_published: false, published_at: null }))
+  it('shows the draft badge and edit link for a report author on an unpublished report', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: true }),
+    )
     await renderPage()
     expect(screen.getByTestId('draft-badge')).toHaveTextContent('Entwurf')
     expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
@@ -538,5 +543,122 @@ describe('classifyLoadError', () => {
       forbidden: false,
       message: null,
     })
+  })
+})
+
+describe('ReportViewerPage: the report as the project paper', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth = null
+    mockUseResult = { id: 'report-1' }
+  })
+
+  const fullSnapshot = { ...REPORT_SNAPSHOT_FIXTURE, ...REPORT_RECORDS_FIXTURE }
+  const sectionIds = () =>
+    Array.from(document.querySelectorAll('[data-testid^="section-"]')).map(
+      (el) => el.getAttribute('data-testid'),
+    )
+
+  it('shows an annotation-only project with Data, Annotations, Reproducibility and the citation only', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          evaluation: { custom_interpretation: null, conclusions: null },
+        },
+      }),
+      ANNOTATION_ONLY_SNAPSHOT,
+    )
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    // Zero tiles stay out.
+    expect(screen.queryByTestId('stat-models')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('stat-evaluations')).not.toBeInTheDocument()
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+    expect(screen.getByTestId('citation-text')).toHaveTextContent(
+      '7'.repeat(64),
+    )
+  })
+
+  it('renders every record section of a full project', async () => {
+    mockData(makeReport(), fullSnapshot)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-generation',
+      'section-evaluation',
+      'section-human-evaluation',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('data-provenance')).toBeInTheDocument()
+    expect(screen.getByTestId('generation-details')).toBeInTheDocument()
+    expect(screen.getByTestId('likert')).toBeInTheDocument()
+    expect(screen.getByTestId('preference')).toBeInTheDocument()
+  })
+
+  it('honours the record toggles and the reproducibility visibility', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          data: { show_provenance: false },
+          generation: { show_details: false },
+          evaluation: { show_human_evaluation: false },
+        },
+        content: undefined,
+      }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('data-provenance')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('generation-details')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('section-human-evaluation'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the appendix when the author switched it off and shows the author note otherwise', async () => {
+    const withRepro = (repro: Record<string, unknown>) => {
+      const report = makeReport()
+      report.content = {
+        ...report.content,
+        sections: { ...report.content.sections, reproducibility: repro } as any,
+      }
+      return report
+    }
+    mockData(withRepro({ visible: false }), fullSnapshot)
+    const { unmount } = await renderPage()
+    expect(
+      screen.queryByTestId('section-reproducibility'),
+    ).not.toBeInTheDocument()
+    unmount()
+
+    mockData(
+      withRepro({ visible: true, custom_text: 'Seed 7 throughout.' }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(
+      within(screen.getByTestId('section-reproducibility')).getByText(
+        'Seed 7 throughout.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('offers no citation for a draft and no edit link to a reader', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: false }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('section-cite')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Bearbeiten' }),
+    ).not.toBeInTheDocument()
   })
 })

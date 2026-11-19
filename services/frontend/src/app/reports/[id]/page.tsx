@@ -3,26 +3,39 @@
  *
  * Renders `content` (editor prose + presentation settings) together with the
  * server-computed `snapshot` (ReportSnapshot). Works for anonymous visitors:
- * nothing here is gated on auth; a superadmin merely gets an edit link, and a
- * 401/403 turns into a friendly "not public" card inside the normal layout.
+ * nothing here is gated on auth; a report author merely gets an edit link,
+ * and a 401/403 turns into a friendly "not public" card inside the normal
+ * layout.
+ *
+ * The report reads as the project's paper: Data (with variant designs and
+ * import provenance), Annotation, Generation (with per-model outcome rates),
+ * Evaluation, Human evaluation, the Reproducibility appendix and a citation
+ * block. Sections without data hide themselves, so an annotation-only
+ * project gets a short, complete report. The page prints as a document
+ * (see the print rules in styles/tailwind.css).
  */
 
 'use client'
 
 import {
+  CitationBlock,
+  DataProvenance,
   EvaluationSection,
+  GenerationDetails,
+  hasHumanEvaluations,
+  HumanEvaluationSection,
   ModelChips,
   ParticipantsList,
   Prose,
   ReportHeader,
   ReportSection,
+  ReproducibilitySection,
   StatTiles,
   StatusCard,
   type StatTile,
 } from '@/components/reports/view'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
-import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
 import { getReportData, type ReportResponse } from '@/lib/api/reports'
@@ -76,7 +89,6 @@ export default function ReportViewerPage({
   params: Promise<{ id: string }>
 }) {
   const { t, locale } = useI18n()
-  const auth = useOptionalAuth()
   const { id } = use(params)
   const [data, setData] = useState<ReportViewData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,8 +132,11 @@ export default function ReportViewerPage({
     t('reports.view.reportFallbackTitle')
 
   const frame = (children: ReactNode) => (
-    <ResponsiveContainer size="xl" className="pt-8 pb-16">
-      <div className="mb-6">
+    <ResponsiveContainer
+      size="xl"
+      className="report-print pt-8 pb-16 print:max-w-none print:px-0 print:pt-0"
+    >
+      <div className="mb-6 print:hidden">
         <Breadcrumb
           items={[
             {
@@ -134,7 +149,7 @@ export default function ReportViewerPage({
         />
       </div>
       {children}
-      <footer className="mt-12 border-t border-zinc-200 pt-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+      <footer className="mt-12 border-t border-zinc-200 pt-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400 print:mt-6">
         {t('reports.view.madeWith')}{' '}
         <Link
           href="/"
@@ -185,7 +200,7 @@ export default function ReportViewerPage({
   const description =
     sections.project_info.custom_description ||
     sections.project_info.description
-  const editHref = auth?.user?.is_superadmin
+  const editHref = report.can_edit
     ? `/projects/${report.project_id}/report/edit`
     : null
 
@@ -210,16 +225,20 @@ export default function ReportViewerPage({
         value: formatCount(stats.participant_count, locale),
       })
     }
-    tiles.push({
-      id: 'models',
-      label: t('reports.view.modelsEvaluated'),
-      value: formatCount(stats.model_count, locale),
-    })
-    tiles.push({
-      id: 'evaluations',
-      label: t('reports.view.evaluations'),
-      value: formatCount(stats.evaluation_count, locale),
-    })
+    if (stats.model_count > 0) {
+      tiles.push({
+        id: 'models',
+        label: t('reports.view.modelsEvaluated'),
+        value: formatCount(stats.model_count, locale),
+      })
+    }
+    if (stats.evaluation_count > 0) {
+      tiles.push({
+        id: 'evaluations',
+        label: t('reports.view.evaluations'),
+        value: formatCount(stats.evaluation_count, locale),
+      })
+    }
   }
 
   const annotationCount = stats?.annotation_count ?? 0
@@ -227,6 +246,30 @@ export default function ReportViewerPage({
     sections.annotations.visible !== false &&
     (annotationCount > 0 || Boolean(sections.annotations.custom_text))
   const models = snapshot?.models ?? []
+  // Sections without data hide themselves; a draft without a snapshot keeps
+  // the evaluation card with its "no evaluation yet" note.
+  const generationModels = snapshot?.generation?.models.length ?? models.length
+  const showGeneration =
+    sections.generation.visible !== false &&
+    (generationModels > 0 || Boolean(sections.generation.custom_text))
+  const hasEvaluation =
+    !snapshot ||
+    snapshot.series.length > 0 ||
+    snapshot.methods.length > 0 ||
+    Boolean(sections.evaluation.custom_interpretation) ||
+    Boolean(sections.evaluation.conclusions)
+  const showEvaluation = sections.evaluation.visible !== false && hasEvaluation
+  const showHuman =
+    sections.evaluation.visible !== false &&
+    sections.evaluation.show_human_evaluation !== false &&
+    hasHumanEvaluations(snapshot?.human_evaluations)
+  const reproSection = sections.reproducibility
+  const repro = snapshot?.reproducibility
+  const showRepro = Boolean(repro) && reproSection?.visible !== false
+  const reportUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/reports/${id}`
+      : `/reports/${id}`
 
   return frame(
     <>
@@ -252,6 +295,9 @@ export default function ReportViewerPage({
                   count: formatCount(stats?.task_count ?? 0, locale),
                 })}
             </Prose>
+            {sections.data.show_provenance !== false && (
+              <DataProvenance data={snapshot?.data} locale={locale} t={t} />
+            )}
           </ReportSection>
         )}
 
@@ -275,7 +321,7 @@ export default function ReportViewerPage({
           </ReportSection>
         )}
 
-        {sections.generation.visible !== false && (
+        {showGeneration && (
           <ReportSection title={t('reports.view.generation')} id="generation">
             <Prose>
               {sections.generation.custom_text ||
@@ -291,10 +337,17 @@ export default function ReportViewerPage({
                 <ModelChips models={models} t={t} />
               </div>
             )}
+            {sections.generation.show_details !== false && (
+              <GenerationDetails
+                generation={snapshot?.generation}
+                locale={locale}
+                t={t}
+              />
+            )}
           </ReportSection>
         )}
 
-        {sections.evaluation.visible !== false && (
+        {showEvaluation && (
           <EvaluationSection
             snapshot={snapshot}
             chartsConfig={chartsConfig}
@@ -306,9 +359,39 @@ export default function ReportViewerPage({
           />
         )}
 
+        {showHuman && (
+          <HumanEvaluationSection
+            human={snapshot?.human_evaluations}
+            locale={locale}
+            t={t}
+          />
+        )}
+
         {showParticipants && snapshot && (
           <ParticipantsList
             participants={snapshot.participants}
+            locale={locale}
+            t={t}
+          />
+        )}
+
+        {showRepro && repro && (
+          <ReproducibilitySection
+            repro={repro}
+            generatedAt={snapshot?.generated_at}
+            note={reproSection?.custom_text}
+            locale={locale}
+            t={t}
+          />
+        )}
+
+        {report.is_published && (
+          <CitationBlock
+            reportId={report.id}
+            title={title}
+            url={reportUrl}
+            publishedAt={report.published_at}
+            snapshotSha256={repro?.snapshot_sha256}
             locale={locale}
             t={t}
           />

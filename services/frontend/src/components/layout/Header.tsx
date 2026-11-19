@@ -82,7 +82,7 @@ function HamburgerMenu() {
 
 /** Container shared by both versions of the top bar. */
 const BAR_CLASSES = clsx(
-  'fixed top-0 right-0 left-0 z-50 flex h-14 items-center transition lg:z-40',
+  'fixed top-0 right-0 left-0 z-50 flex h-14 items-center transition lg:z-40 print:hidden',
   // Opaque background (no transparency)
   'bg-white dark:bg-zinc-900',
   // Bottom border matching sidebar style
