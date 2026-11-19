@@ -1496,11 +1496,32 @@ API change).
     page and, for the selected run, inline in the Analyses view of
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
+
+2.70 (2026-11-19): the project report covers the whole project (no
+  migration, additive API changes only).
+  - ``report_snapshot.build_report_snapshot`` adds the ``data``,
+    ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
+    ``reproducibility.snapshot_sha256`` is the SHA-256 of
+    ``report_snapshot.canonical_snapshot_json`` (``snapshot_sha256``).
+    ``report_snapshot.public_snapshot`` is the view served to readers
+    outside the project (judge parameters, import manifests and design
+    provenance as hashes only); ``model_is_public`` and ``hidden_model_ids``
+    hold the hidden-model rule the report applies in every section.
+  - ``report_service.can_publish_report`` and ``can_publish_project`` allow
+    any project with tasks and at least one result (annotations,
+    generations, evaluation or analysis runs); the refusal reasons are
+    ``REASON_NO_TASKS`` and ``REASON_NO_RESULTS``.
+  - ``routers.reports.can_edit_report`` and ``require_report_author``: a
+    superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
+    organization authors the report; ``ReportResponse.can_edit`` carries
+    the answer. Saving report content keeps the server's snapshot. Readers
+    who do not author the report get the section visibility of 2.68 and,
+    outside the project, the public view on top.
 """
 
 import os
 
-CORE_API_VERSION = "2.69"
+CORE_API_VERSION = "2.70"
 
 
 def extended_required() -> bool:

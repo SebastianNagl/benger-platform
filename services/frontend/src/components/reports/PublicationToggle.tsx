@@ -19,7 +19,6 @@
 
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
-import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   publishReport,
@@ -43,6 +42,8 @@ interface PublicationToggleProps {
   isPublic?: boolean
   canPublish: boolean
   canPublishReason: string
+  /** The viewer authors the report (the API's `can_edit`). */
+  canEdit: boolean
   /** Legacy callback: published flag only. */
   onToggle?: (published: boolean) => void
   /** Full publication state after any successful change. */
@@ -54,10 +55,8 @@ const getReasonTranslationKey = (reason: string): string => {
   const reasonMap: Record<string, string> = {
     'Report not found': 'project.report.reasons.reportNotFound',
     'Project must have tasks': 'project.report.reasons.mustHaveTasks',
-    'Project must have LLM generations':
-      'project.report.reasons.mustHaveGenerations',
-    'Project must have completed evaluations':
-      'project.report.reasons.mustHaveEvaluations',
+    'Project must have annotations, generations, evaluations or analyses':
+      'project.report.reasons.mustHaveResults',
     'Report not created yet': 'project.report.reasons.notCreatedYet',
   }
   return reasonMap[reason] || ''
@@ -72,12 +71,11 @@ export function PublicationToggle({
   isPublic = false,
   canPublish,
   canPublishReason,
+  canEdit,
   onToggle,
   onChange,
 }: PublicationToggleProps) {
   const { t } = useI18n()
-  const { user } = useAuth()
-  const isSuperadmin = Boolean(user?.is_superadmin)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -241,7 +239,7 @@ export function PublicationToggle({
           </p>
         )}
 
-        {isSuperadmin && !isPublished && (
+        {canEdit && !isPublished && (
           <Button
             onClick={() => {
               setPublishPublic(false)
@@ -257,7 +255,7 @@ export function PublicationToggle({
           </Button>
         )}
 
-        {isSuperadmin && isPublished && (
+        {canEdit && isPublished && (
           <div className="flex flex-col gap-2">
             {effectivePublic ? (
               <Button
