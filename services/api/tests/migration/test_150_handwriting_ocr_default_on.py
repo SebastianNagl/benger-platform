@@ -1,4 +1,4 @@
-"""Migration 149: handwritten uploads on by default.
+"""Migration 150: handwritten uploads on by default.
 
 ``upgrade()`` gives ``projects.handwriting_ocr_enabled`` the server default
 TRUE and switches on every existing project that is off, whatever its label
@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 MIGRATION_PATH = os.path.normpath(
     os.path.join(
         os.path.dirname(__file__), "..", "..", "alembic", "versions",
-        "149_handwriting_ocr_default_on.py",
+        "150_handwriting_ocr_default_on.py",
     )
 )
 
@@ -31,7 +31,7 @@ TEXTAREA = '<View><Text name="t" value="$text"/><TextArea name="a" toName="t"/><
 
 
 def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_149", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("mig_150", MIGRATION_PATH)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -59,10 +59,10 @@ def _projects(test_db: Session):
 
     owner = User(
         id=str(uuid.uuid4()),
-        username=f"mig149-{uuid.uuid4().hex[:8]}",
-        email=f"mig149-{uuid.uuid4().hex[:8]}@example.com",
+        username=f"mig150-{uuid.uuid4().hex[:8]}",
+        email=f"mig150-{uuid.uuid4().hex[:8]}@example.com",
         hashed_password="x",
-        name="Mig 149",
+        name="Mig 150",
     )
     test_db.add(owner)
     test_db.flush()
@@ -75,7 +75,7 @@ def _projects(test_db: Session):
     ids = {}
     for key, (config, enabled) in specs.items():
         project = Project(
-            id=str(uuid.uuid4()), title=f"mig149 {key}", created_by=owner.id,
+            id=str(uuid.uuid4()), title=f"mig150 {key}", created_by=owner.id,
             label_config=config, handwriting_ocr_enabled=enabled,
         )
         test_db.add(project)
@@ -93,11 +93,11 @@ def _enabled(conn, ids):
     return {key: by_id[pid] for key, pid in ids.items()}
 
 
-class TestMigration149:
-    def test_revision_chains_after_148(self):
+class TestMigration150:
+    def test_revision_chains_after_149(self):
         mig = _load_migration()
-        assert mig.revision == "149_handwriting_ocr_default_on"
-        assert mig.down_revision == "148_analysis_lookup_tables"
+        assert mig.revision == "150_handwriting_ocr_default_on"
+        assert mig.down_revision == "149_coding_projects_and_code_validations"
 
     def test_upgrade_switches_on_every_project_and_downgrade_keeps_values(
         self, test_db: Session

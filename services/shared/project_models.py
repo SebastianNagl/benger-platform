@@ -114,7 +114,7 @@ class Project(Base):
     # project; ``handwriting_ocr_model`` overrides the model, NULL = the
     # organization's default (``organizations.settings.handwriting_ocr_model``,
     # else the platform default, see ``shared/org_ocr.py``). Default True
-    # since mig 149. The OCR flow itself is an extended feature.
+    # since mig 150. The OCR flow itself is an extended feature.
     handwriting_ocr_enabled = Column(
         Boolean, default=True, server_default=sa.true(), nullable=False
     )

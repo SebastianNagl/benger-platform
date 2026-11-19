@@ -17,8 +17,8 @@ projects before this migration, so nothing meaningful is lost.
 Idempotent: the backfill only touches projects still off, so a re-run (or a
 database built from the models) is safe.
 
-Revision ID: 149_handwriting_ocr_default_on
-Revises: 148_analysis_lookup_tables
+Revision ID: 150_handwriting_ocr_default_on
+Revises: 149_coding_projects_and_code_validations
 Create Date: 2026-11-19
 """
 
@@ -27,8 +27,8 @@ from sqlalchemy import inspect
 from alembic import op
 import sqlalchemy as sa
 
-revision = "149_handwriting_ocr_default_on"
-down_revision = "148_analysis_lookup_tables"
+revision = "150_handwriting_ocr_default_on"
+down_revision = "149_coding_projects_and_code_validations"
 branch_labels = None
 depends_on = None
 
