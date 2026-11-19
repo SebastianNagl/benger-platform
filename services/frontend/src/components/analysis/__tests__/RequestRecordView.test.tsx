@@ -87,6 +87,22 @@ describe('RequestRecordView', () => {
     )
   })
 
+  it('flags a stored hash whose record was removed', () => {
+    render(
+      <RequestRecordView
+        view={makeTrialRequest({
+          request_record: null,
+          computed_sha256: null,
+          hash_matches: false,
+        })}
+      />,
+    )
+    expect(screen.getByTestId('request-hash-mismatch')).toHaveTextContent(
+      'The stored hash does not match the record',
+    )
+    expect(screen.queryByText('No request record')).toBeNull()
+  })
+
   it('shows an older answer without a hash check, roles, a retry and a worker call', () => {
     const record = makeTrialRequest().request_record!
     render(

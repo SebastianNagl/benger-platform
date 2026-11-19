@@ -194,9 +194,9 @@ class TrialRequest(BaseModel):
     The hash check (CORE 2.69): ``computed_sha256`` is the hash of the stored
     record (``request_capture.request_sha256``, over the first request's
     body) and ``hash_matches`` says whether it equals the stored
-    ``request_sha256``; null when no record or no hash was stored. A mismatch
-    means the stored hash does not belong to the stored record, also when the
-    record holds no request to hash."""
+    ``request_sha256``; null when no hash was stored. A mismatch means the
+    stored hash does not belong to the stored record, also when the record is
+    missing or holds no request to hash."""
 
     id: str
     run_index: int
@@ -292,7 +292,7 @@ def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
         request_record=record,
         request_sha256=stored,
         computed_sha256=computed,
-        hash_matches=(computed == stored) if (record is not None and stored) else None,
+        hash_matches=(computed == stored) if stored else None,
         parent_id=str(parent.id),
         task_id=trial.task_id,
         model_id=trial.model_id,

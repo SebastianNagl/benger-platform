@@ -12130,7 +12130,7 @@
         "treated": "Comparé",
         "choosePair": "Paire",
         "truncated": "Seules les premières tâches de cette unité sont affichées.",
-        "answersTruncated": "Seules les premières réponses à cette tâche sont affichées. Choisissez un système pour voir ses réponses.",
+        "answersTruncated": "Seules les premières réponses à cette tâche sont affichées.",
         "noTwin": "Aucune paire jumelle pour ces niveaux dans cette unité. Les tâches de l’unité sont listées une par une.",
         "task": "Tâche {id}",
         "free": "peut différer",

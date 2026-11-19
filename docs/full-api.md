@@ -229,9 +229,9 @@ canonical JSON. `GET /api/runs/generations/{id}` names per trial the hash,
 trial's `request_record` and `request_sha256` (404 for a missing run or trial
 or a trial of another run, 403 without access to the project) with the hash
 check: `computed_sha256` is the hash of the stored record and `hash_matches`
-whether it equals the stored hash (null when no record or no hash was stored;
-false means the stored hash does not belong to the stored record, also when
-the record holds no request to hash), plus the trial's
+whether it equals the stored hash (null when no hash was stored; false means
+the stored hash does not belong to the stored record, also when the record is
+missing or holds no request to hash), plus the trial's
 `task_id`, `model_id`, `system_key`, `structure_key`, `retried` and
 `first_response`. `GET /api/runs/trials/{trial_id}/request` answers the same
 by the trial id alone. Project

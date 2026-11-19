@@ -12130,7 +12130,7 @@
         "treated": "Verglichen",
         "choosePair": "Paar",
         "truncated": "Es werden nur die ersten Aufgaben dieser Einheit gezeigt.",
-        "answersTruncated": "Es werden nur die ersten Antworten zu dieser Aufgabe gezeigt. Wähle ein System, um seine Antworten zu sehen.",
+        "answersTruncated": "Es werden nur die ersten Antworten zu dieser Aufgabe gezeigt.",
         "noTwin": "Für diese Stufen gibt es in dieser Einheit kein Zwillingspaar. Die Aufgaben der Einheit stehen einzeln darunter.",
         "task": "Aufgabe {id}",
         "free": "darf abweichen",

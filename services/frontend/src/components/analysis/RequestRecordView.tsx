@@ -35,6 +35,17 @@ const LABEL = 'mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400'
 /** Whether the stored hash belongs to the stored record. */
 export function RequestHashStatus({ view }: { view: TrialRequestView }) {
   const { t } = useI18n()
+  if (view.hash_matches === false && view.request_sha256) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400"
+        data-testid="request-hash-mismatch"
+      >
+        <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />
+        {t('generations.detail.request.hashMismatch')}
+      </span>
+    )
+  }
   if (!view.request_record) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -58,14 +69,10 @@ export function RequestHashStatus({ view }: { view: TrialRequestView }) {
   return (
     <span
       className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400"
-      data-testid={
-        view.request_sha256 ? 'request-hash-mismatch' : 'request-hash-missing'
-      }
+      data-testid="request-hash-missing"
     >
       <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />
-      {view.request_sha256
-        ? t('generations.detail.request.hashMismatch')
-        : t('generations.detail.request.hashMissing')}
+      {t('generations.detail.request.hashMissing')}
     </span>
   )
 }
