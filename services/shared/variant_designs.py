@@ -41,6 +41,7 @@ DESIGN_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 #: feature may store anything else under it. Namespaced (core 2.75; it was
 #: ``variant`` before), so a ``meta.variant`` a user stores is plain data.
 META_KEY = "benger_variant"
+META_PATH = f"/meta/{META_KEY}"
 
 #: Version of the content hash recipe (see :func:`content_hash`).
 HASH_VERSION = 1
@@ -477,7 +478,7 @@ def validate_task_variant(
     view: DesignView, variant: Any, data: Any
 ) -> List[Dict[str, str]]:
     """Every problem of one task's ``meta.benger_variant`` against its design."""
-    base = "/meta/variant"
+    base = META_PATH
     problems = _schema_problems("task_variant", variant, base)
     if problems:
         return problems

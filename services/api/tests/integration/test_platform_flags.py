@@ -459,17 +459,24 @@ async def test_import_provenance_options_are_ignored_while_off(
 
 def test_snapshot_parts_are_built_only_with_the_flag(test_db, test_users):
     from project_models import Project
-    from report_snapshot import EXPERIMENT_SNAPSHOT_KEYS, build_report_snapshot
+    from report_snapshot import build_report_snapshot, snapshot_sha256
 
     project = Project(id=str(uuid.uuid4()), title="snap", created_by=test_users[0].id)
     test_db.add(project)
     test_db.flush()
     off = build_report_snapshot(test_db, project.id, variant_experiments=False)
     on = build_report_snapshot(test_db, project.id, variant_experiments=True)
-    for key in EXPERIMENT_SNAPSHOT_KEYS:
+    for key in ("analyses", "annotator_agreement"):
         assert key not in off and key in on
     assert "analysis_count" not in off["statistics"]
     assert on["statistics"]["analysis_count"] == 0
+    # The paper's parts are general: built with the flag off too.
+    for snapshot in (off, on):
+        for key in ("data", "generation", "human_evaluations", "reproducibility"):
+            assert key in snapshot
+        sha = snapshot["reproducibility"]["snapshot_sha256"]
+        unsigned = {**snapshot, "reproducibility": {**snapshot["reproducibility"], "snapshot_sha256": None}}
+        assert sha == snapshot_sha256(unsigned)
 
 
 def test_served_report_drops_the_parts_while_off_for_everybody():
@@ -478,36 +485,50 @@ def test_served_report_drops_the_parts_while_off_for_everybody():
 
     report = MagicMock()
     report.content = {
-        "sections": {"annotations": {"show_participants": True}},
+        "sections": {"annotations": {"show_participants": True}, "analyses": {"runs": []}},
         "snapshot": {
             "statistics": {"task_count": 2, "analysis_count": 3},
             "annotator_agreement": {"controls": []},
+            "analyses": {"runs": [{"id": "r1"}]},
+            "data": {"task_count": 2, "variant_designs": [{"key": "d"}], "imports": [{"no_op": False}]},
+            "generation": {"models": [{"id": "m"}]},
+            "reproducibility": {
+                "variant_designs": [{"key": "d"}],
+                "analysis_runs": [{"id": "r1"}],
+                "imports": [{"no_op": False}],
+                "snapshot_sha256": "a" * 64,
+            },
         },
     }
-    served = _served_content(report)["snapshot"]
-    assert served == {"statistics": {"task_count": 2}}
-    assert without_experiment_parts(report.content["snapshot"]) == served
+    content = _served_content(report)
+    assert content["snapshot"] == {
+        "statistics": {"task_count": 2},
+        "data": {"task_count": 2, "variant_designs": [], "imports": [{"no_op": False}]},
+        "generation": {"models": [{"id": "m"}]},
+        "reproducibility": {
+            "variant_designs": [],
+            "analysis_runs": [],
+            "imports": [{"no_op": False}],
+            "snapshot_sha256": "a" * 64,
+        },
+    }
+    assert "analyses" not in content["sections"]
+    assert without_experiment_parts(report.content["snapshot"]) == content["snapshot"]
     with flag_scope({VARIANT_EXPERIMENTS: True}):
         assert _served_content(report)["snapshot"] == report.content["snapshot"]
 
 
-async def test_only_superadmins_author_reports_while_off(async_test_client, async_test_db, world):
-    pid = world["project"].id
-    with v1_auth(async_test_db, session_user=world["admin"]):
-        publish = await async_test_client.put(f"/api/projects/{pid}/report/publish")
-        refresh = await async_test_client.post(f"/api/projects/{pid}/report/refresh")
-    assert publish.status_code == 403
-    assert publish.json()["detail"] == "Only superadmins can publish reports"
-    assert refresh.status_code == 403
-    assert refresh.json()["detail"] == "Only superadmins can refresh reports"
-
-
-@pytest.mark.flags_on(VARIANT_EXPERIMENTS)
-async def test_the_project_owner_authors_the_report_with_the_flag(
+async def test_the_project_owner_authors_the_report_while_off(
     async_test_client, async_test_db, world
 ):
+    from routers.reports import REPORT_AUTHOR_REQUIRED_DETAIL
+
     pid = world["project"].id
     with v1_auth(async_test_db, session_user=world["admin"]):
         publish = await async_test_client.put(f"/api/projects/{pid}/report/publish")
     # Past the author check (the project has no report yet).
     assert publish.status_code != 403, publish.text
+    with v1_auth(async_test_db, session_user=world["member"]):
+        refused = await async_test_client.put(f"/api/projects/{pid}/report/publish")
+    assert refused.status_code == 403
+    assert refused.json()["detail"] == REPORT_AUTHOR_REQUIRED_DETAIL

@@ -292,8 +292,8 @@ def platform_flags() -> Tuple[FlagDefinition, ...]:
             "Variantenexperimente und Analysen: Variantendesigns, Antworten pro "
             "Element, Generierungsprotokoll mit Antwortformat-Optionen und "
             "Formatwiederholung, Panel-Modelle, Analyseläufe, Codes und "
-            "Codiervalidierung, Annotator-Übereinstimmung und der Projektbericht "
-            "als Paper. Aus: Routen antworten mit 404, Jobs laufen nicht, "
+            "Codiervalidierung, Annotator-Übereinstimmung und der Analysen-"
+            "Abschnitt der Berichte. Aus: Routen antworten mit 404, Jobs laufen nicht, "
             "Ansichten und Zähler fehlen, alles verhält sich wie zuvor; "
             "gespeicherte Daten bleiben erhalten.",
             STATE_OFF,

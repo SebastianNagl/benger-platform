@@ -1585,10 +1585,9 @@
       "reasons": {
         "reportNotFound": "Report not found",
         "mustHaveTasks": "Project must have tasks",
-        "mustHaveGenerations": "Project must have LLM generations",
-        "mustHaveEvaluations": "Project must have completed evaluations",
         "notCreatedYet": "Report not created yet",
         "mustHaveResults": "Project must have annotations, generations, evaluations or analyses",
+        "mustHaveResultsWithoutAnalyses": "Project must have annotations, generations or evaluations",
         "analysisRuns": "Every run in the Analyses section must be a completed analysis run of this project that reads no other project",
         "publicMemberOnlyAnalyses": "A public report cannot show an analysis run in which a private model may appear. Remove those runs or keep the report visible to the project's organizations."
       },
@@ -7625,8 +7624,6 @@
       "snapshotGeneratedAt": "Data as of {date}",
       "noMetricsVisible": "At least one metric must stay visible.",
       "none": "None",
-      "notSuperadmin": "Only superadmins can edit reports",
-      "notSuperadminHint": "Published reports are listed under 'Reports'.",
       "notAuthor": "Only the project owner, organization admins and superadmins can edit this report",
       "showProvenance": "Show variant designs and import provenance",
       "dataSummary": "Current data. Variant designs: {designs} · Imports: {imports}",

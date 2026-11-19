@@ -422,7 +422,6 @@ class TestCanPublishReport(TestReportService):
         assert can_publish is False
         assert "annotations, generations, evaluations or analyses" in reason
 
-    @pytest.mark.flags_on("variant_experiments")
     def test_can_publish_with_generations_but_no_evaluations(
         self, test_db: Session, setup_project, setup_tasks, setup_generations, test_user
     ):
@@ -435,10 +434,10 @@ class TestCanPublishReport(TestReportService):
 
         assert can_publish is True
 
-    def test_cannot_publish_without_generations_while_variant_experiments_is_off(
+    def test_cannot_publish_with_tasks_but_no_results_while_variant_experiments_is_off(
         self, test_db: Session, setup_project, setup_tasks, test_user
     ):
-        """Off, the rule is the previous one: tasks, generations, evaluations."""
+        """Off, the rule is the same without analyses, and its reason says so."""
         from report_service import can_publish_report, create_initial_report_draft
 
         create_initial_report_draft(test_db, setup_project.id, test_user.id)
@@ -446,19 +445,7 @@ class TestCanPublishReport(TestReportService):
         can_publish, reason = can_publish_report(test_db, setup_project.id)
 
         assert can_publish is False
-        assert reason == "Project must have LLM generations"
-
-    def test_cannot_publish_without_evaluations_while_variant_experiments_is_off(
-        self, test_db: Session, setup_project, setup_tasks, setup_generations, test_user
-    ):
-        from report_service import can_publish_report, create_initial_report_draft
-
-        create_initial_report_draft(test_db, setup_project.id, test_user.id)
-
-        can_publish, reason = can_publish_report(test_db, setup_project.id)
-
-        assert can_publish is False
-        assert reason == "Project must have completed evaluations"
+        assert reason == "Project must have annotations, generations or evaluations"
 
     def test_can_publish_with_all_requirements(
         self,

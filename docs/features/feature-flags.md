@@ -23,11 +23,18 @@ estimators, frames, lookup tables), codes, text patterns and coding
 validation, analysis plans and the Analyses part of the project's
 Evaluation card, the analysis results views and counts (profiles,
 strengths, examples, the unit and request views), import provenance,
-annotator agreement, the Agreement and validity block (judge agreement on
-the evaluations page, code validations in runs and reports) and the report
-as the project's paper (authorship of
-project owners and organization admins, the data, generation, human
-evaluation, Analyses and reproducibility parts).
+annotator agreement (computed from annotations alone, on the evaluations
+page and in the report's Annotation section), the Agreement and validity
+block (judge agreement on the evaluations page, code validations of the
+analysis runs' codes in runs and reports) and, inside reports, the Analyses
+section and every place a report lists or counts analysis runs or variant
+designs.
+
+The report as the project's paper is not behind the flag: project owners and
+organization admins author and publish it, a project publishes with tasks
+and at least one annotation, generation or evaluation, and a snapshot has
+its data, generation, human evaluation and reproducibility parts for every
+project type.
 
 With the flag off:
 
@@ -50,9 +57,10 @@ With the flag off:
   repeats); generation exports and task-level imports have their previous
   fields; the panel models are not listed or generated with and the
   `enable_thinking` switch of Qwen 3.8 27B, Nemotron 3.5 Lightning and
-  Gemma 4 26B is neither shown nor sent; only superadmins author reports,
-  a report is published once the project has tasks, LLM generations and
-  completed evaluations, new snapshots have none of the paper's parts,
+  Gemma 4 26B is neither shown nor sent; a completed analysis run does not
+  count as a result for publishing a report, new snapshots have no
+  annotator agreement, Analyses section or analysis count and list no
+  variant designs or analysis runs in their data and reproducibility parts,
   saving a report neither adds nor changes its Analyses settings nor adds
   the agreement and code validation switches, and an evaluation config
   write ignores `analysis_plans`;
@@ -94,6 +102,29 @@ the Label Studio `to_name` fill on export and the evaluations page's project
 search. Data-layer pieces stay too: the migrations, the purge of analysis
 rows, the `analysis` queue, and the import and export of variant designs
 (only projects that have designs carry them).
+
+## Rollout on production
+
+Both flags start `off` in code, and the registry sync creates a missing row
+at that default without ever overwriting a row's state. On production they
+start off for everyone except an allowlist, for the pilot the TUM
+organization. After the deploy that brings the flags, a superadmin sets this
+once per flag (`variant_experiments`, `compliance_records`), either in the
+admin console at `/admin/feature-flags` (state `allowlist`, then add the
+organization as a target) or through the API:
+
+```
+PUT  /api/feature-flags/variant_experiments           {"state": "allowlist"}
+POST /api/feature-flags/variant_experiments/targets   {"organization_id": "<TUM organization id>"}
+PUT  /api/feature-flags/compliance_records            {"state": "allowlist"}
+POST /api/feature-flags/compliance_records/targets    {"organization_id": "<TUM organization id>"}
+```
+
+The steps are idempotent: setting the same state again changes nothing, and
+adding a target that is already listed answers `409 target_exists`. Members
+of the TUM organization then get the features, everybody else keeps the
+flag-off behaviour above; the compliance overlay's own UI also needs
+`extension.compliance` for them.
 
 ## Variant assignments: `meta.benger_variant`
 

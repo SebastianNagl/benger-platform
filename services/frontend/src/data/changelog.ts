@@ -38,7 +38,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     id: '2026-11-19-report-as-project-paper',
     date: '2026-11-19',
     audience: 'benger',
-    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-analyses-on-evaluations-page',

@@ -1715,24 +1715,23 @@ def apply_section_visibility(
 # ---------------------------------------------------------------------------
 
 #: Snapshot parts that belong to the variant_experiments flag (core 2.75):
-#: top-level keys and ``statistics`` keys. They are built only while the
-#: flag is on for whoever builds the snapshot, and served only while it is
-#: on for anybody (:func:`without_experiment_parts`).
-EXPERIMENT_SNAPSHOT_KEYS: Tuple[str, ...] = (
-    "analyses",
-    "annotator_agreement",
-    "data",
-    "generation",
-    "human_evaluations",
-    "reproducibility",
-)
+#: top-level keys, ``statistics`` keys and the variant design and analysis
+#: run lists of the data and reproducibility parts. They are built only
+#: while the flag is on for whoever builds the snapshot, and served only
+#: while it is on for anybody (:func:`without_experiment_parts`).
+EXPERIMENT_SNAPSHOT_KEYS: Tuple[str, ...] = ("analyses", "annotator_agreement")
 EXPERIMENT_STATISTICS_KEYS: Tuple[str, ...] = ("analysis_count",)
+EXPERIMENT_LIST_KEYS: Dict[str, Tuple[str, ...]] = {
+    "data": ("variant_designs",),
+    "reproducibility": ("variant_designs", "analysis_runs"),
+}
 
 
 def without_experiment_parts(snapshot: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """``snapshot`` without the parts of :data:`EXPERIMENT_SNAPSHOT_KEYS` and
-    :data:`EXPERIMENT_STATISTICS_KEYS`: the snapshot as a report showed it
-    before those features (a copy; the stored snapshot is not changed)."""
+    :data:`EXPERIMENT_STATISTICS_KEYS`, and with the lists of
+    :data:`EXPERIMENT_LIST_KEYS` empty: the snapshot as a report shows it
+    without those features (a copy; the stored snapshot is not changed)."""
     if not isinstance(snapshot, dict):
         return snapshot
     served = {k: v for k, v in snapshot.items() if k not in EXPERIMENT_SNAPSHOT_KEYS}
@@ -1741,6 +1740,9 @@ def without_experiment_parts(snapshot: Optional[Dict[str, Any]]) -> Optional[Dic
         served["statistics"] = {
             k: v for k, v in statistics.items() if k not in EXPERIMENT_STATISTICS_KEYS
         }
+    for part, keys in EXPERIMENT_LIST_KEYS.items():
+        if isinstance(served.get(part), dict):
+            served[part] = {**served[part], **{k: [] for k in keys if k in served[part]}}
     return served
 
 
@@ -1771,9 +1773,8 @@ def build_report_snapshot(
     (:func:`_analysis_code_validations`).
 
     ``variant_experiments`` (None: the request or job context decides,
-    ``feature_flags.scope``) adds the parts of that flag
-    (:data:`EXPERIMENT_SNAPSHOT_KEYS`, :data:`EXPERIMENT_STATISTICS_KEYS`);
-    without it the snapshot has the shape it had before them."""
+    ``feature_flags.scope``) adds the parts of that flag; without it the
+    snapshot is built as :func:`without_experiment_parts` serves it."""
     if variant_experiments is None:
         variant_experiments = _experiments_on()
     from project_models import Project
@@ -1962,20 +1963,30 @@ def build_report_snapshot(
             d["by_subject"].setdefault(subject["id"], _empty_bins(len(bins)))[b] += n
     distributions = sorted(dist_map.values(), key=lambda d: (d["metric"] != grade_metric, d["metric"] != primary_metric, d["metric"], d["config_id"]))
 
-    statistics = {
-        "task_count": int(counts["task_count"]),
-        "annotation_count": int(counts["annotation_count"]),
-        "participant_count": int(counts["participant_count"]),
-        "model_count": len(model_info),
-        "evaluation_count": int(counts["evaluation_count"]),
-    }
-    if variant_experiments:
-        statistics["analysis_count"] = int(counts["analysis_count"])
-
+    # ---- data, generation, human evaluation, reproducibility --------------
     models = sorted(model_info.values(), key=lambda m: (m["label"].lower(), m["id"]))
+    data = _build_data_section(db, params, int(counts["task_count"]))
+    generation = _build_generation_section(db, params, _model_subject)
+    human_evaluations = _build_human_evaluation_section(
+        db, params, _model_subject, lambda model_id: _model_subject(model_id) is not None
+    )
+    reproducibility = _build_reproducibility_section(
+        db, params, project,
+        models=models, configs=configs, cfg_entries=cfg_entries, data=data, generation=generation,
+        model_visible=lambda model_id: _model_subject(model_id) is not None,
+        hidden_judges=_hidden_judges,
+    )
+
     snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),
-        "statistics": statistics,
+        "statistics": {
+            "task_count": int(counts["task_count"]),
+            "annotation_count": int(counts["annotation_count"]),
+            "participant_count": int(counts["participant_count"]),
+            "model_count": len(model_info),
+            "evaluation_count": int(counts["evaluation_count"]),
+            "analysis_count": int(counts["analysis_count"]),
+        },
         "methods": methods,
         "configs": configs,
         "primary_metric": primary_metric,
@@ -1985,33 +1996,19 @@ def build_report_snapshot(
         "distributions": distributions,
         "participants": participants,
         "models": models,
+        "data": data,
+        "generation": generation,
+        "human_evaluations": human_evaluations,
+        "reproducibility": reproducibility,
     }
     if variant_experiments:
         # Inter-annotator agreement per control over tasks with two or more
         # annotators (``annotator_agreement``); ``None`` without overlap.
         snapshot["annotator_agreement"] = project_annotator_agreement(db, project_id)
-        # ---- data, generation, human evaluation, reproducibility ----------
-        data = _build_data_section(db, params, int(counts["task_count"]))
-        generation = _build_generation_section(db, params, _model_subject)
-        human_evaluations = _build_human_evaluation_section(
-            db, params, _model_subject, lambda model_id: _model_subject(model_id) is not None
-        )
-        reproducibility = _build_reproducibility_section(
-            db, params, project,
-            models=models, configs=configs, cfg_entries=cfg_entries, data=data,
-            generation=generation,
-            model_visible=lambda model_id: _model_subject(model_id) is not None,
-            hidden_judges=_hidden_judges,
-        )
-        analyses_section = _build_analyses_section(
+        snapshot["analyses"] = _build_analyses_section(
             db, project_id, parse_analyses_section(analyses), can_open_project
         )
-        snapshot.update(
-            data=data,
-            generation=generation,
-            human_evaluations=human_evaluations,
-            analyses=analyses_section,
-            reproducibility=reproducibility,
-        )
-        reproducibility["snapshot_sha256"] = snapshot_sha256(snapshot)
+    else:
+        snapshot = without_experiment_parts(snapshot)
+    snapshot["reproducibility"]["snapshot_sha256"] = snapshot_sha256(snapshot)
     return snapshot

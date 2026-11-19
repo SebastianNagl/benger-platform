@@ -233,7 +233,7 @@ def check_session_tasks(session) -> None:
             # with 409, while other meta edits (tags) pass.
             continue
         variant = _variant_of(task)
-        problems = vd._schema_problems("task_variant", variant, "/meta/variant")
+        problems = vd._schema_problems("task_variant", variant, vd.META_PATH)
         if problems:
             raise VariantDesignError(
                 422,

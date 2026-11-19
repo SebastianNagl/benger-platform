@@ -487,10 +487,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // report (can_edit) and creates it on an author's first view; readers get
   // a 403 for a draft, or can_edit false, and no card.
   const fetchReportStatus = async () => {
-    // Report authors besides superadmins belong to the report as project
-    // paper (variant_experiments); off, only superadmins get the card.
-    if (!projectId || !user || !(user.is_superadmin || variantExperiments))
-      return
+    if (!projectId || !user) return
 
     setLoadingReport(true)
     try {
@@ -554,7 +551,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       fetchReportStatus()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
-  }, [projectId, user, accessTierKnown, isParticipant, variantExperiments])
+  }, [projectId, user, accessTierKnown, isParticipant])
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {

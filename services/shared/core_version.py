@@ -1685,15 +1685,17 @@ API change).
     ``text_pattern`` neither offered nor run
     (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
     ``<Repeater>`` an unsupported field type, no import provenance, the
-    previous generation export and nested import, no analysis counts, only
-    superadmins author reports (each route's previous 403) under the
-    previous publish rule (tasks, LLM generations, completed evaluations;
-    ``report_service.REASON_NO_GENERATIONS``, ``REASON_NO_EVALUATIONS``),
-    and new snapshots carry no agreement, data, generation, human
-    evaluation, reproducibility or analyses section and none is served
-    while the flag is off for everybody
-    (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
-    ``without_experiment_parts``); a report save neither adds nor changes
+    previous generation export and nested import, no analysis counts, a
+    completed analysis run is no result for publishing
+    (``report_service.REASON_NO_RESULTS_WITHOUT_ANALYSES``), and new
+    snapshots carry no agreement, analyses section or analysis count and
+    list no variant designs or analysis runs, none of which is served while
+    the flag is off for everybody (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
+    ``EXPERIMENT_STATISTICS_KEYS``, ``EXPERIMENT_LIST_KEYS``,
+    ``without_experiment_parts``). The report as project paper (owner and
+    organization admin authors, the publish rule of 2.70, the data,
+    generation, human evaluation and reproducibility parts) is not behind
+    the flag. A report save neither adds nor changes
     ``sections.analyses`` nor adds ``show_agreement`` or
     ``show_code_validations``, the statistics panel shows no judge
     agreement, and an evaluation config write drops
@@ -1716,7 +1718,9 @@ API change).
     ``meta.variant`` is plain data again. Migration 142 no longer rewrites
     stored rows; migration 151 moves the assignments of a database that ran
     its first version and returns ``meta.variant_legacy`` to
-    ``meta.variant``. Design files, imports and specs name the new key.
+    ``meta.variant``. Design files, imports and specs name the new key, and
+    a refused assignment's problem paths start at
+    ``variant_designs.META_PATH`` (``/meta/benger_variant``).
 """
 
 import os

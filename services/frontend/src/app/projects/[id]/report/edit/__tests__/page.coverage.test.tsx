@@ -241,7 +241,8 @@ const mockReportFullSections = {
 
 describe('ReportEditorPage - branch coverage', () => {
   beforeEach(() => {
-    // Report authors and the paper's parts belong to variant_experiments.
+    // The Analyses section and the agreement switches belong to
+    // variant_experiments.
     setMockFeatureFlags({ variant_experiments: true })
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)

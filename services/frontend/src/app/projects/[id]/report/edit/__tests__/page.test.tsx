@@ -306,7 +306,8 @@ async function renderLoaded(report: any = baseReport) {
 describe('ReportEditorPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Report authors and the paper's parts belong to variant_experiments.
+    // The Analyses section and the agreement switches belong to
+    // variant_experiments.
     setMockFeatureFlags({ variant_experiments: true })
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({
@@ -405,7 +406,7 @@ describe('ReportEditorPage', () => {
       expect(mockRouter.push).not.toHaveBeenCalled()
     })
 
-    it('names superadmins as the only authors while variant_experiments is off', async () => {
+    it('names the same authors while variant_experiments is off', async () => {
       setMockFeatureFlags({})
       ;(useAuth as jest.Mock).mockReturnValue({
         user: mockContributor,
@@ -419,7 +420,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toHaveTextContent(
-          'reports.editor.notSuperadmin',
+          'reports.editor.notAuthor',
         )
       })
     })
@@ -706,6 +707,17 @@ describe('ReportEditorPage', () => {
       const annotations = mockUpdate.mock.calls[0][1].sections.annotations
       expect(annotations).not.toHaveProperty('show_agreement')
       expect(annotations).not.toHaveProperty('show_code_validations')
+      // The paper's general parts stay.
+      expect(screen.getByTestId('section-reproducibility')).toBeInTheDocument()
+      expect(
+        screen.getByText('reports.editor.showHumanEvaluation'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('reports.editor.showProvenance'),
+      ).toBeInTheDocument()
+      expect(mockUpdate.mock.calls[0][1].sections).toHaveProperty(
+        'reproducibility',
+      )
     })
 
     it('starts an older report without the section empty and visible', async () => {

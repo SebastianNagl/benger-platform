@@ -1585,10 +1585,9 @@
       "reasons": {
         "reportNotFound": "Bericht nicht gefunden",
         "mustHaveTasks": "Projekt muss Aufgaben enthalten",
-        "mustHaveGenerations": "Projekt muss LLM-Generierungen enthalten",
-        "mustHaveEvaluations": "Projekt muss abgeschlossene Evaluierungen enthalten",
         "notCreatedYet": "Bericht noch nicht erstellt",
         "mustHaveResults": "Projekt muss Annotationen, Generierungen, Evaluierungen oder Analysen enthalten",
+        "mustHaveResultsWithoutAnalyses": "Projekt muss Annotationen, Generierungen oder Evaluierungen enthalten",
         "analysisRuns": "Jeder Lauf im Abschnitt Analysen muss ein abgeschlossener Analyselauf dieses Projekts sein, der kein anderes Projekt liest",
         "publicMemberOnlyAnalyses": "Ein öffentlicher Bericht kann keinen Analyselauf zeigen, in dem ein privates Modell vorkommen kann. Entfernen Sie diese Läufe oder lassen Sie den Bericht nur für die Organisationen des Projekts sichtbar."
       },
@@ -7625,8 +7624,6 @@
       "snapshotGeneratedAt": "Datenstand: {date}",
       "noMetricsVisible": "Mindestens eine Metrik muss sichtbar bleiben.",
       "none": "Keine",
-      "notSuperadmin": "Nur Superadmins können Berichte bearbeiten",
-      "notSuperadminHint": "Veröffentlichte Berichte findest du unter „Berichte“.",
       "notAuthor": "Nur die Projektinhaberin oder der Projektinhaber, Admins der Organisation und Superadmins können diesen Bericht bearbeiten",
       "showProvenance": "Variantendesigns und Importherkunft anzeigen",
       "dataSummary": "Aktueller Datenstand. Variantendesigns: {designs} · Importe: {imports}",

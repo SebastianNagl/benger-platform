@@ -440,6 +440,7 @@ def _update_metadata(report: ProjectReport, section_name: str):
 REASON_NO_REPORT = "Report not found"
 REASON_NO_TASKS = "Project must have tasks"
 REASON_NO_RESULTS = "Project must have annotations, generations, evaluations or analyses"
+REASON_NO_RESULTS_WITHOUT_ANALYSES = "Project must have annotations, generations or evaluations"
 REASON_ANALYSIS_RUNS = (
     "Every run in the Analyses section must be a completed analysis run of this project "
     "that reads no other project"
@@ -449,10 +450,11 @@ REASON_OK = "All requirements met"
 
 def _has_results(db: Session, project_id: str) -> bool:
     """Whether the project has anything a report can be about: annotations,
-    generations, completed evaluation runs or completed analysis runs."""
+    generations, completed evaluation runs or, with analyses on in this
+    context, completed analysis runs."""
     from models import AnalysisRun
 
-    checks = (
+    checks = [
         db.query(Annotation.id).filter(
             Annotation.project_id == project_id, Annotation.was_cancelled == False  # noqa: E712
         ),
@@ -462,10 +464,13 @@ def _has_results(db: Session, project_id: str) -> bool:
         db.query(EvaluationRun.id).filter(
             EvaluationRun.project_id == project_id, EvaluationRun.status == "completed"
         ),
-        db.query(AnalysisRun.id).filter(
-            AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
-        ),
-    )
+    ]
+    if _analyses_on():
+        checks.append(
+            db.query(AnalysisRun.id).filter(
+                AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
+            )
+        )
     return any(db.query(q.exists()).scalar() for q in checks)
 
 
@@ -494,7 +499,7 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     if not report:
         return False, REASON_NO_REPORT
     ok, reason = can_publish_project(db, project_id)
-    if not ok or not _paper_rules():
+    if not ok or not _analyses_on():
         # Without variant_experiments a snapshot has no Analyses section, so
         # its runs do not count.
         return ok, reason
@@ -506,37 +511,9 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     return True, REASON_OK
 
 
-# The rule before reports covered the whole project (variant_experiments
-# off, core 2.75): tasks, LLM generations and completed evaluations.
-REASON_NO_GENERATIONS = "Project must have LLM generations"
-REASON_NO_EVALUATIONS = "Project must have completed evaluations"
-
-
-def _can_publish_project_classic(db: Session, project_id: str) -> Tuple[bool, str]:
-    task_count = db.query(Task).filter(Task.project_id == project_id).count()
-    if task_count == 0:
-        return False, REASON_NO_TASKS
-    generation_count = (
-        db.query(Generation)
-        .join(Generation.generation)
-        .filter(Generation.generation.has(project_id=project_id))
-        .count()
-    )
-    if generation_count == 0:
-        return False, REASON_NO_GENERATIONS
-    evaluation_count = (
-        db.query(EvaluationRun)
-        .filter(EvaluationRun.project_id == project_id, EvaluationRun.status == "completed")
-        .count()
-    )
-    if evaluation_count == 0:
-        return False, REASON_NO_EVALUATIONS
-    return True, REASON_OK
-
-
-def _paper_rules() -> bool:
-    """Whether the report as project paper (variant_experiments, core 2.75)
-    applies in this request or job context."""
+def _analyses_on() -> bool:
+    """Whether analyses (variant_experiments, core 2.75) apply in this
+    request or job context."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
 
@@ -544,17 +521,12 @@ def _paper_rules() -> bool:
 
 
 def can_publish_project(db: Session, project_id: str) -> Tuple[bool, str]:
-    """The data half of :func:`can_publish_report` (no report row needed).
-
-    With variant_experiments off in this context the rule is the one before
-    (:func:`_can_publish_project_classic`)."""
-    if not _paper_rules():
-        return _can_publish_project_classic(db, project_id)
+    """The data half of :func:`can_publish_report` (no report row needed)."""
     has_tasks = db.query(db.query(Task.id).filter(Task.project_id == project_id).exists()).scalar()
     if not has_tasks:
         return False, REASON_NO_TASKS
     if not _has_results(db, project_id):
-        return False, REASON_NO_RESULTS
+        return False, REASON_NO_RESULTS if _analyses_on() else REASON_NO_RESULTS_WITHOUT_ANALYSES
     return True, REASON_OK
 
 
@@ -1056,11 +1028,7 @@ def create_or_update_report_from_existing_data(
     content["metadata"] = {
         "last_auto_update": datetime.utcnow().isoformat(),
         "sections_completed": sections_completed,
-        "can_publish": (
-            can_publish_project(db, project_id)[0]
-            if _paper_rules()
-            else all(s in sections_completed for s in ["data", "generation", "evaluation"])
-        ),
+        "can_publish": can_publish_project(db, project_id)[0],
     }
 
     report.content = content

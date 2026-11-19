@@ -7,12 +7,13 @@ author writes the prose and chooses what to show; the numbers come from a
 snapshot computed on the server, so a published report stays stable and an
 anonymous reader of a public report never touches live data.
 
-The authorship of project owners and organization admins, the publish rule
-below and the data, agreement, generation, human evaluation, Analyses and
-reproducibility parts need the platform flag `variant_experiments`. While it
-is off, superadmins author reports, a report needs tasks, LLM generations
-and completed evaluations to be published, and those parts are neither
-built nor served ([feature flags](feature-flags.md)).
+The annotator agreement, the Analyses section, the analysis count and the
+lists of variant designs and analysis runs in the data and reproducibility
+parts need the platform flag `variant_experiments`. While it is off, those
+parts are neither built nor served and a completed analysis run does not
+count as a result for publishing; the authorship, the rest of the publish
+rule and the other parts below hold for every project
+([feature flags](feature-flags.md)).
 
 The code lives in `services/shared/report_snapshot.py` (the snapshot),
 `services/shared/report_service.py` (the publish rule) and
@@ -52,7 +53,9 @@ runs. So an annotation study, a human evaluation without generations and an
 analysis-only project can publish as well as a benchmark. Every run the
 Analyses section names must also be one the report can show (see
 [Analyses](#analyses)). The refusal reasons are `Project must have tasks`,
-`Project must have annotations, generations, evaluations or analyses` and
+`Project must have annotations, generations, evaluations or analyses`
+(`Project must have annotations, generations or evaluations` while
+`variant_experiments` is off) and
 `Every run in the Analyses section must be a completed analysis run of this
 project that reads no other project`.
 

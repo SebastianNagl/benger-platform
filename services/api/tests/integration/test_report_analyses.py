@@ -719,7 +719,9 @@ async def test_off_the_run_list_is_not_found_and_snapshots_have_no_analyses(asyn
     assert listed.json()["detail"] == {"code": "feature_disabled", "flag": "variant_experiments"}
 
     snap = await _snapshot(async_test_db, project.id, _section(runs["main"].id, [{"id": "t", "type": "table"}]))
-    assert "analyses" not in snap and "reproducibility" not in snap
+    assert "analyses" not in snap
+    # The reproducibility appendix is general, but lists no analysis run.
+    assert snap["reproducibility"]["analysis_runs"] == []
 
     # A stored section naming runs the report could not show does not block
     # publishing while the section is not part of the report.

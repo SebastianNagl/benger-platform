@@ -1585,10 +1585,9 @@
       "reasons": {
         "reportNotFound": "Rapport introuvable",
         "mustHaveTasks": "Le projet doit contenir des tâches",
-        "mustHaveGenerations": "Le projet doit contenir des générations LLM",
-        "mustHaveEvaluations": "Le projet doit contenir des évaluations terminées",
         "notCreatedYet": "Rapport pas encore créé",
         "mustHaveResults": "Le projet doit contenir des annotations, des générations, des évaluations ou des analyses",
+        "mustHaveResultsWithoutAnalyses": "Le projet doit contenir des annotations, des générations ou des évaluations",
         "analysisRuns": "Chaque exécution de la section Analyses doit être une exécution d'analyse terminée de ce projet qui ne lit aucun autre projet",
         "publicMemberOnlyAnalyses": "Un rapport public ne peut pas montrer une exécution d'analyse dans laquelle un modèle privé peut apparaître. Retirez ces exécutions ou gardez le rapport visible pour les organisations du projet."
       },
@@ -7625,8 +7624,6 @@
       "snapshotGeneratedAt": "Données au {date}",
       "noMetricsVisible": "Au moins une métrique doit rester visible.",
       "none": "Aucune",
-      "notSuperadmin": "Seuls les superadministrateurs peuvent modifier les rapports",
-      "notSuperadminHint": "Vous trouverez les rapports publiés sous « Rapports ».",
       "notAuthor": "Seuls le propriétaire du projet, les administrateurs de l'organisation et les superadmins peuvent modifier ce rapport",
       "showProvenance": "Afficher les plans de variantes et la provenance des imports",
       "dataSummary": "Données actuelles. Plans de variantes : {designs} · Imports : {imports}",

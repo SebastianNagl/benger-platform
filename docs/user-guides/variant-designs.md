@@ -98,4 +98,4 @@ The unit view carries task data and answers, so both routes need full read acces
 | GET | `/api/projects/{id}/variant-designs/{key}/units` | full read access to task content |
 | GET | `/api/projects/{id}/variant-designs/{key}/units/{unit}` | full read access to task content |
 
-Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs (and also `results:read` for units, which carry answers) and `projects:write` to change them.
+Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/benger_variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs (and also `results:read` for units, which carry answers) and `projects:write` to change them.
