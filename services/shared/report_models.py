@@ -56,6 +56,7 @@ class ProjectReport(Base):
                 "custom_text": str | null,
                 "show_count": bool,
                 "show_participants": bool,
+                "show_agreement": bool,
                 "acknowledgment_text": str | null,
                 "status": "completed" | "pending",
                 "visible": bool
