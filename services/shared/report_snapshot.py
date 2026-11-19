@@ -840,6 +840,19 @@ ORDER BY completed_at, id
 """
 
 
+def _parameter_model_ids(parameters: Any) -> set:
+    """The judge model ids a judge run's parameter snapshot names: its
+    ``judge_model`` and each ``judges[].judge_model_id`` (the worker stores
+    the config's ``metric_parameters`` as is)."""
+    if not isinstance(parameters, dict):
+        return set()
+    ids = {parameters.get("judge_model")}
+    judges = parameters.get("judges")
+    if isinstance(judges, list):
+        ids |= {j.get("judge_model_id") for j in judges if isinstance(j, dict)}
+    return {str(m) for m in ids if m}
+
+
 def _platform_versions() -> Dict[str, Any]:
     from app_version import app_version
     from core_version import CORE_API_VERSION
@@ -878,7 +891,10 @@ def _build_reproducibility_section(
         })
 
     param_rows = db.execute(text(_CONFIG_PARAMS_SQL), params).mappings().all()
-    hidden = hidden_judges(r["judge_model_id"] for r in param_rows)
+    hidden = hidden_judges(
+        {r["judge_model_id"] for r in param_rows}
+        | {m for r in param_rows for m in _parameter_model_ids(r["parameters"])}
+    )
     runs_by_key: Dict[Tuple[str, Optional[str], Optional[str]], Dict[str, Any]] = {}
     for r in param_rows:
         # Samples of a hidden model's answers are not counted.
@@ -886,8 +902,11 @@ def _build_reproducibility_section(
             continue
         parameters = r["parameters"]
         digest = _sha256_json(parameters) if parameters is not None else None
-        # A hidden judge is not named (the same rule as ``configs``).
+        # A hidden judge is not named (the same rule as ``configs``), and
+        # parameters naming a hidden model keep only their hash.
         judge = None if r["judge_model_id"] in hidden else r["judge_model_id"]
+        if r["judge_model_id"] in hidden or _parameter_model_ids(parameters) & hidden:
+            parameters = None
         key = (r["config_id"], judge, digest)
         run = runs_by_key.setdefault(key, {
             # Judges are named as in ``configs`` (judge_model, judge_label).

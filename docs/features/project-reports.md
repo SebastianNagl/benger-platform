@@ -91,7 +91,9 @@ generation counts and rates, the ratings of its answers, and every
 preference comparison it took part in (dropped whole, since its opponent's
 record would otherwise tell how it did). A hidden judge model is not named
 either: its config's `judge_model` and the judge runs in the reproducibility
-appendix show no id.
+appendix show no id, and a judge run whose parameters name a hidden model
+(its `judge_model` or a `judges[].judge_model_id`) keeps only their SHA-256,
+for every reader.
 
 ### `snapshot_sha256`
 

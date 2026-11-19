@@ -714,31 +714,44 @@ _RUBRIC_TEXT = "SYNTHETIC-RUBRIC-CRITERION: names the legal basis"
 
 
 async def _seed_private_judge_and_parameters(db, project):
-    """Parameters on the benchmark's judge run, plus a second config judged by
-    a hidden (private custom) judge model."""
+    """Parameters on the benchmark's judge run, plus a second, multi-judge
+    config judged by a hidden (private custom) judge model and a visible one.
+    The parameter snapshots have the worker's shape: the config's
+    ``metric_parameters`` as is (``judge_model`` or the ``judges`` list) plus
+    ``_param_provenance`` (workers/tasks.py, _get_or_create_judge_run_for_config)."""
     from models import EvaluationJudgeRun, LLMModel, TaskEvaluation
 
     jr = (await db.execute(select(EvaluationJudgeRun).where(EvaluationJudgeRun.judge_model_id == "judge-model")
                            .join(TaskEvaluation, TaskEvaluation.judge_run_id == EvaluationJudgeRun.id)
                            .where(TaskEvaluation.evaluation_config_id == "cfg-judge"))).scalars().first()
-    jr.metric_parameters_snapshot = {"custom_prompt": _JUDGE_PROMPT, "rubric": [_RUBRIC_TEXT], "temperature": 0}
+    jr.metric_parameters_snapshot = {"judge_model": "judge-model", "custom_prompt": _JUDGE_PROMPT,
+                                     "rubric": [_RUBRIC_TEXT], "temperature": 0,
+                                     "_param_provenance": {"temperature": {"value": 0, "source": "config"}}}
     db.add(LLMModel(id="custom-judge-secret", name="Secret Judge", provider="openai", model_type="chat",
                     capabilities=[], is_active=True, is_official=False, is_public=False, is_private=True,
                     base_url="https://example.invalid/v1", endpoint_model_name="secret-judge"))
     await db.flush()
+    multi_judge = {"judges": [{"judge_model_id": "custom-judge-secret", "runs": 1},
+                              {"judge_model_id": "judge-model", "runs": 1}],
+                   "custom_prompt": _JUDGE_PROMPT,
+                   "_param_provenance": {"temperature": {"value": 0, "source": "config"}}}
     hidden_run = EvaluationJudgeRun(id=_uid(), evaluation_id=jr.evaluation_id, judge_model_id="custom-judge-secret",
-                                    run_index=1, status="completed",
-                                    metric_parameters_snapshot={"custom_prompt": _JUDGE_PROMPT})
-    db.add(hidden_run)
+                                    run_index=1, status="completed", metric_parameters_snapshot=multi_judge)
+    sibling_run = EvaluationJudgeRun(id=_uid(), evaluation_id=jr.evaluation_id, judge_model_id="judge-model",
+                                     run_index=2, status="completed", metric_parameters_snapshot=multi_judge)
+    db.add_all([hidden_run, sibling_run])
     await db.flush()
-    gen = (await db.execute(select(Generation).join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
-                            .where(ResponseGeneration.project_id == project.id,
-                                   Generation.model_id == "official-model"))).scalars().first()
-    db.add(TaskEvaluation(id=_uid(), evaluation_id=jr.evaluation_id, judge_run_id=hidden_run.id, task_id=gen.task_id,
-                          generation_id=gen.id, field_name="loesung", answer_type="long_text",
-                          ground_truth={"value": "ref"}, prediction={"value": "pred"}, passed=True,
-                          evaluation_config_id="cfg-private-judge",
-                          metrics={"llm_judge_falloesung": {"value": 0.8, "details": {}}}))
+    gens = (await db.execute(select(Generation).join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
+                             .where(ResponseGeneration.project_id == project.id,
+                                    Generation.model_id == "official-model")
+                             .order_by(Generation.task_id))).scalars().all()
+    # The hidden judge graded more, so it is the config's dominant judge.
+    for run, gen in ((hidden_run, gens[0]), (hidden_run, gens[1]), (sibling_run, gens[0])):
+        db.add(TaskEvaluation(id=_uid(), evaluation_id=jr.evaluation_id, judge_run_id=run.id, task_id=gen.task_id,
+                              generation_id=gen.id, field_name="loesung", answer_type="long_text",
+                              ground_truth={"value": "ref"}, prediction={"value": "pred"}, passed=True,
+                              evaluation_config_id="cfg-private-judge",
+                              metrics={"llm_judge_falloesung": {"value": 0.8, "details": {}}}))
     await db.flush()
 
 
@@ -774,7 +787,12 @@ async def test_public_readers_get_hashes_members_get_parameters(async_test_clien
     for response in (anon, outside, inside, inside_project, published):
         assert "custom-judge-secret" not in response.text and "Secret Judge" not in response.text
     assert next(c for c in full["configs"] if c["id"] == "cfg-private-judge")["judge_model"] is None
-    assert [r["judge_model"] for r in _judge_runs(full)["cfg-private-judge"]] == [None]
+    private_runs = _judge_runs(full)["cfg-private-judge"]
+    assert [(r["judge_model"], r["samples"]) for r in private_runs] == [(None, 2), ("judge-model", 1)]
+    # Parameters naming the hidden judge keep only their hash, also in the
+    # visible sibling run of the same multi-judge config.
+    assert [r["parameters"] for r in private_runs] == [None, None]
+    assert all(len(r["parameters_sha256"]) == 64 for r in private_runs)
 
     # Members see the full parameters and manifest bodies.
     [visible_run] = _judge_runs(full)["cfg-judge"]
