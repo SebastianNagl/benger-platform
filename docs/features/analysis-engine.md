@@ -94,8 +94,8 @@ it joins. A soft-deleted input project still counts (only a superadmin
 reads past it). Purging an input project deletes the frames of the runs that
 read it; the runs and their estimates stay, and since the purged project no
 longer counts for reads, the readers of the run's own project see them with
-the warning `frame deleted: input project <id> was purged`. A run that has not stored its results when one of its input projects is
-deleted or purged fails with `input project <id> was deleted; the run cannot
+the warning `frame deleted: input project <id> was purged`. A run that has
+not stored its results when one of its input projects is deleted or purged fails with `input project <id> was deleted; the run cannot
 read it` and stores no frame.
 
 ### Lookup tables
