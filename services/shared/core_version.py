@@ -1443,11 +1443,31 @@ frame format 2).
   - Report statistics (``report_service.get_report_statistics`` and
     ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
     published list items carry ``analysis_count``.
+
+2.68 (2026-11-19): inter-annotator agreement per control (no migration,
+  additive only).
+  - ``GET /api/evaluations/projects/{project_id}/annotator-agreement``
+    (access-key scope ``annotations:read``): per control of the labeling
+    interface, Fleiss' kappa, pairwise Cohen's kappa and percent agreement
+    for ``choices`` and ``rating``, Pearson's r and mean absolute deviation
+    for ``number``, over tasks with two or more active annotations;
+    ``available: false`` without overlap. Computed by
+    ``annotator_agreement.project_annotator_agreement`` (shared) with
+    ``bg_statistics.compute_agreement``; annotators are labelled by
+    ``user_display.masked_name``.
+  - The report snapshot gains ``annotator_agreement`` (the same object
+    without ``available``, or ``None``), and the Annotation section the
+    flag ``show_agreement``.
+  - ``report_snapshot.apply_section_visibility`` applies the section flags
+    when a report is served: with ``show_participants`` off, every read
+    path leaves out the agreement pairs and the participant lists of the
+    snapshot and the Annotation section, keeping the aggregates and
+    ``participant_count``. The stored snapshot is not changed.
 """
 
 import os
 
-CORE_API_VERSION = "2.67"
+CORE_API_VERSION = "2.68"
 
 
 def extended_required() -> bool:
