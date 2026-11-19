@@ -1518,6 +1518,37 @@ API change).
     who do not author the report get the section visibility of 2.68 and,
     outside the project, the public view on top.
 
+2.71 (2026-11-19): analyses are configured and started on the project page
+(no migration).
+  - ``evaluation_config.analysis_plans``: named analysis specs
+    ``[{id, name, spec, spec_hash, saved_at, saved_by}]``. Both writers of
+    the document (``PUT /api/evaluations/projects/{id}/evaluation-config``
+    and ``PATCH /api/projects/{id}``) validate every spec with the engine
+    (``analysis.spec.normalize_spec``) in ``validate_evaluation_config_write``
+    and answer 422 ``invalid_analysis_plan`` with ``errors`` (the engine's
+    messages under ``/analysis_plans/<i>/spec``), then stamp with
+    ``services.analysis_plans.apply_analysis_plans_write``: ``spec_hash`` is
+    ``analysis.spec.spec_hash`` of the normalized spec (what a run started
+    from it records), ``saved_at`` and ``saved_by`` change with the hash; all
+    three are server-owned. The list replaces the stored one, null deletes
+    it; at most 50 plans with unique ids and a name of at most 200
+    characters.
+  - ``GET /api/projects/{id}/variant-designs`` and ``GET .../{key}`` add
+    ``unit_count`` (distinct ``variant_unit``) and ``cell_count`` (distinct
+    ``variant_cell``) of the design's tasks next to ``task_count``
+    (additive).
+  - Frontend: ``@/components/analysis/ProjectAnalysesSection`` (the Analyses
+    part of the project page's Evaluation card, CONTRIBUTOR and ORG_ADMIN
+    only) with ``VariantDesignsTable`` (status, units, cells, hash, check,
+    freeze, import) and ``AnalysisPlansPanel``; ``StartAnalysisDialog``
+    takes ``planId`` and offers a plan picker (saved plans, the
+    ``fromRunId`` run, a blank spec);
+    ``NewAnalysisRunForm`` is built on ``AnalysisSpecForm`` (name, spec,
+    validate, submit) and takes ``planHash``. ``analysisAPI.listPlans`` and
+    ``savePlans``; ``specErrorsOf`` also reads ``invalid_analysis_plan``.
+    ``@/lib/api/variantDesigns``: ``variantDesignsAPI`` (``list``, ``check``,
+    ``freeze``, ``importDocument``) and ``variantDesignRefusalOf``.
+
 2.72 (2026-11-19): the project report's Analyses section (no migration,
   additive API changes only; 2.71 is taken by the Evaluation card's analysis
   start).

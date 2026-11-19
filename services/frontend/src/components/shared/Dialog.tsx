@@ -1,5 +1,6 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
@@ -44,6 +45,7 @@ export function Dialog({
   className,
   children,
 }: DialogProps) {
+  const { t } = useI18n()
   // Support both API styles
   const isDialogOpen = open ?? isOpen ?? false
   const handleClose = onOpenChange
@@ -96,7 +98,10 @@ export function Dialog({
                       {title}
                     </HeadlessDialog.Title>
                     <button
+                      type="button"
                       onClick={handleClose}
+                      aria-label={t('common.close')}
+                      title={t('common.close')}
                       className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                     >
                       <XMarkIcon className="h-5 w-5" />

@@ -27,7 +27,7 @@ import {
 } from '@/lib/extensions/active'
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
-import { makeEstimates, makeRun } from '@/test-utils/analysisFixtures'
+import { makeEstimates, makePlan, makeRun } from '@/test-utils/analysisFixtures'
 
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('en'),
@@ -75,6 +75,7 @@ const mockListRuns = jest.fn()
 const mockGetRun = jest.fn()
 const mockListEstimates = jest.fn()
 const mockDesigns = jest.fn()
+const mockPlans = jest.fn()
 const mockValidate = jest.fn()
 const mockStart = jest.fn()
 jest.mock('@/lib/api/analysis', () => ({
@@ -84,6 +85,7 @@ jest.mock('@/lib/api/analysis', () => ({
     getRun: (...a: unknown[]) => mockGetRun(...a),
     listEstimates: (...a: unknown[]) => mockListEstimates(...a),
     listDesignKeys: (...a: unknown[]) => mockDesigns(...a),
+    listPlans: (...a: unknown[]) => mockPlans(...a),
     validateSpec: (...a: unknown[]) => mockValidate(...a),
     startRun: (...a: unknown[]) => mockStart(...a),
   },
@@ -135,6 +137,7 @@ beforeEach(() => {
   mockList.mockResolvedValue({ items: [project()], total: 1 })
   mockGetProject.mockResolvedValue(project())
   mockDesigns.mockResolvedValue(['role_swap'])
+  mockPlans.mockResolvedValue([])
   mockListRuns.mockResolvedValue({
     items: [
       summary({ id: 'run-3', name: 'Pending one', status: 'pending' }),
@@ -466,6 +469,25 @@ describe('Evaluations page, Analyses result type', () => {
     expect(mockStart.mock.calls[0][0]).toBe('project-1')
     await waitFor(() => expect(mockGetRun).toHaveBeenCalledWith('run-9'))
     await waitFor(() => expect(lastParams().get('run')).toBe('run-9'))
+  })
+
+  it('offers the saved plans in the start dialog and starts one', async () => {
+    const user = userEvent.setup()
+    const plan = makePlan()
+    mockPlans.mockResolvedValue([plan])
+    mockStart.mockResolvedValue(makeRun({ id: 'run-7', status: 'pending' }))
+    await renderReady()
+    await user.click(screen.getByTestId('analysis-start'))
+    const dialog = await screen.findByTestId('start-analysis-dialog')
+    const picker = (await within(dialog).findByLabelText(
+      'Source',
+    )) as HTMLSelectElement
+    await user.selectOptions(picker, 'plan:plan-1')
+    await user.click(within(dialog).getByTestId('new-analysis-run-start'))
+    await waitFor(() =>
+      expect(mockStart).toHaveBeenCalledWith('project-1', plan.spec, plan.name),
+    )
+    await waitFor(() => expect(lastParams().get('run')).toBe('run-7'))
   })
 
   it('opens the start dialog prefilled from newRunFrom', async () => {

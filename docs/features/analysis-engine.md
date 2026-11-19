@@ -369,6 +369,55 @@ The dashboard's older keys `projects_with_generations` and
 `projects_with_evaluations` stay as aliases of `generations_count` and
 `evaluations_count`.
 
+## Configuring and starting analyses
+
+Analyses are configured and started where evaluations are: the project
+page's **Evaluation Configuration** card has an **Analyses** part for the
+CONTRIBUTOR and ORG_ADMIN roles (the roles that may start runs, save plans
+and freeze designs). It holds:
+
+- **Variant designs**: every design of the project with its status (draft or
+  frozen), version, units, cells and tasks (the distinct units, distinct
+  design cells and tasks that name the design, as `unit_count`, `cell_count`
+  and `task_count` of `GET .../variant-designs`) and frozen content hash.
+  **Check** runs the assignment, balance and invariance checks
+  (`POST .../variant-designs/{key}/check`) and shows the report as the route
+  answered it: units, cells per unit, checked pairs, the problems of each
+  check and the content hash a freeze would record. **Freeze** (after a
+  confirmation) runs the checks again and records the hash
+  (`POST .../variant-designs/{key}/freeze`); a design whose checks fail
+  stays a draft and its report is shown. **Import design** creates a draft
+  from an exported design document (`POST .../variant-designs/import`).
+- **Analysis plans**: named analysis specs saved with the project's
+  evaluation configuration, under the key `analysis_plans`. A plan can be
+  added, edited, deleted and started.
+- **Start analysis**: the start dialog the evaluations page shares. A started
+  run opens in the Analyses view of `/evaluations`, which follows it until it
+  completes.
+
+A plan is stored as `{id, name, spec, spec_hash, saved_at, saved_by}`.
+Both writers of the evaluation configuration
+(`PUT /api/evaluations/projects/{project_id}/evaluation-config` and
+`PATCH /api/projects/{project_id}`) validate every plan's spec with the
+engine before anything is written and answer 422 `invalid_analysis_plan`
+with the engine's messages, each under the plan's path
+(`/analysis_plans/1/spec/measures/x/expr: ...`). The list replaces the stored
+one as a whole and `null` deletes it; the other keys of the configuration
+stay as they are. `spec` is kept as written; `spec_hash` is the hash of its
+normalized form, the same hash a run started from that spec records, so a
+run names the plan it used by hash without a further column. `spec_hash`,
+`saved_at` and `saved_by` are set by the API: `saved_at` and `saved_by`
+change when the plan is new or its spec hash changes, so a renamed plan
+keeps the time its spec was saved, and a plan edited after a run gets a new
+hash while the run keeps the old one. A plan needs a name (at most 200
+characters); a project holds at most 50 plans, and ids are unique.
+
+The start dialog fills its spec form from one of three sources: a saved plan
+(its spec, its name and its hash, with the time it was saved), the spec of an
+earlier run of the project (`newRunFrom`), or a blank spec to paste.
+Validating a spec loaded from a plan says whether it still matches the plan's
+hash.
+
 ## Results on the evaluations page
 
 Every result of a project is viewed on `/evaluations`. Its filter bar has a
@@ -409,10 +458,10 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   tests) and **Fit** (the run's warnings and the per-fit summaries).
 
 Superadmins and members whose project grants edit rights (`can_edit`) get
-**Start analysis**: a dialog that takes a spec as JSON, validates it against
-the engine (every problem it names is listed) and starts the run, which the
-view then selects and polls. A pending or running run is polled until it
-finishes.
+**Start analysis**: a dialog that takes a spec as JSON, a saved plan or an
+earlier run's spec (see above), validates it against the engine (every
+problem it names is listed) and starts the run, which the view then selects
+and polls. A pending or running run is polled until it finishes.
 
 `/evaluations/analysis/{analysis_run_id}` is the run page, next to the
 evaluation run page `/evaluations/{id}`. It shows the same status, warnings,
