@@ -17,6 +17,7 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+from metric_filters import graded_reference_fields, is_reference_free
 from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING
 
 
@@ -410,7 +411,7 @@ def evaluate_generation_cell_impl(
                     "evaluation_id": evaluation_id, "task_id": task_id}
 
         uses_annotation_fields = any(
-            any(not ref.startswith("task.") for ref in c.get("reference_fields", []))
+            any(ref and not ref.startswith("task.") for ref in graded_reference_fields(c))
             for c in configs_for_cell
         )
         ground_truth_annotation = None
@@ -463,7 +464,8 @@ def evaluate_generation_cell_impl(
             config_id = config.get("id", "unknown")
             metric = config.get("metric", "")
             prediction_fields = config.get("prediction_fields", [])
-            reference_fields = config.get("reference_fields", [])
+            reference_fields = graded_reference_fields(config)
+            reference_free = is_reference_free(metric)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -485,7 +487,9 @@ def evaluate_generation_cell_impl(
                         continue
 
                     # Ground truth extraction.
-                    if ref_field.startswith("task."):
+                    if not ref_field:
+                        ground_truth = None
+                    elif ref_field.startswith("task."):
                         data_field = ref_field[5:]
                         ground_truth = task.data.get(data_field) if task.data else None
                     elif ground_truth_annotation:
@@ -496,7 +500,7 @@ def evaluate_generation_cell_impl(
                             ground_truth = task.data.get(ref_field)
                     else:
                         ground_truth = task.data.get(ref_field) if task.data else None
-                    if ground_truth is None:
+                    if ground_truth is None and not reference_free:
                         logger.warning(
                             f"Evaluation skip: reference field '{ref_field}' not found "
                             f"for task {task.id} (config {config_id})"
@@ -937,6 +941,7 @@ def evaluate_generation_cell_impl(
                             generation_id=gen.id,
                             parse_status=gen.parse_status,
                             allow_unparsed=allow_unparsed,
+                            task_data=task.data,
                         )
                         if isinstance(sample_result, dict):
                             sample_result["judge_run_id"] = default_judge_run_id
@@ -1167,7 +1172,8 @@ def evaluate_annotation_cell_impl(
             config_id = config.get("id", "unknown")
             metric = config.get("metric", "")
             prediction_fields = config.get("prediction_fields", [])
-            reference_fields = config.get("reference_fields", [])
+            reference_fields = graded_reference_fields(config)
+            reference_free = is_reference_free(metric)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -1211,13 +1217,15 @@ def evaluate_annotation_cell_impl(
 
                         gt_key = (task.id, ref_field)
                         if gt_key not in gt_cache:
-                            if ref_field.startswith("task."):
+                            if not ref_field:
+                                gt_cache[gt_key] = None
+                            elif ref_field.startswith("task."):
                                 data_field = ref_field[5:]
                                 gt_cache[gt_key] = task.data.get(data_field) if task.data else None
                             else:
                                 gt_cache[gt_key] = task.data.get(ref_field) if task.data else None
                         ground_truth = gt_cache[gt_key]
-                        if ground_truth is None:
+                        if ground_truth is None and not reference_free:
                             continue
 
                         try:
@@ -1601,6 +1609,7 @@ def evaluate_annotation_cell_impl(
                                 prediction=prediction,
                                 metrics_to_compute=[metric],
                                 annotation_id=annotation.id,
+                                task_data=task.data,
                             )
                             annotation_result["annotation_id"] = annotation.id
                             annotation_result["generation_id"] = None

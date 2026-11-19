@@ -181,6 +181,97 @@ class _SemanticSimilarityHandler(MetricHandler):
         )
 
 
+class TextPatternHandler(MetricHandler):
+    """A text pattern code (``services/shared/analysis/text_patterns.py``)
+    of the prediction as a metric.
+
+    ``metric_parameters``: ``{"pattern_set": {...}, "code": "<code id>"}``.
+    The value is the code of the prediction text: 1/0 for ``any`` and
+    ``all`` codes, the match count for ``count`` codes, and for a ``first``
+    code 1 when a rule matched (its value is in ``details.label``) and 0
+    when the default applied. Task literals (``{{task.<path>}}``) read the
+    task's data. The reference value is not read: a code needs no ground
+    truth. A missing text or an unresolved literal gives no value and says
+    why in ``error``; every code of the set is in ``details.codes``.
+    """
+
+    name = "text_pattern"
+    #: Receive the prediction as stored (no lower-casing or stripping) and
+    #: the task data (``task_data=``), see SampleEvaluator.
+    wants_raw_values = True
+    uses_task_data = True
+    reference_free = True
+
+    def __init__(self) -> None:
+        self._compiled: Dict[str, Any] = {}
+
+    def _compile(self, doc: Any):
+        from analysis.canonical import json_hash
+        from analysis.text_patterns import compile_pattern_set
+
+        key = json_hash(doc)
+        compiled = self._compiled.get(key)
+        if compiled is None:
+            if len(self._compiled) > 256:
+                self._compiled.clear()
+            compiled = compile_pattern_set(doc)
+            self._compiled[key] = compiled
+        return compiled
+
+    def compute(
+        self,
+        ground_truth: Any,
+        prediction: Any,
+        answer_type: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        task_data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        import math
+
+        from analysis.codes import text_of
+        from analysis.text_patterns import PatternSetError
+
+        params = parameters or {}
+        try:
+            compiled = self._compile(params.get("pattern_set"))
+        except PatternSetError as exc:
+            return {"value": None, "method": self.name, "details": {}, "error": f"invalid pattern set: {exc}"}
+        code = params.get("code")
+        codes = compiled.normalized["codes"]
+        if code not in codes:
+            return {
+                "value": None,
+                "method": self.name,
+                "details": {"pattern_set": compiled.describe()},
+                "error": f"the pattern set has no code {code!r}",
+            }
+        text = text_of(prediction)
+        values = compiled.codes(text, task_data or {})
+        clean = {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in values.items()}
+        details: Dict[str, Any] = {
+            "pattern_set": compiled.describe(),
+            "code": code,
+            "mode": codes[code]["mode"],
+            "codes": clean,
+        }
+        raw, status = compiled.evaluate(code, text, task_data or {})
+        if status == "no_text":
+            return {"value": None, "method": self.name, "details": details, "error": "the prediction has no text to code"}
+        if status == "unresolved":
+            return {
+                "value": None,
+                "method": self.name,
+                "details": details,
+                "error": "a task literal of the code does not resolve for this task",
+            }
+        if codes[code]["mode"] == "first":
+            details["label"] = raw
+            value = 1.0 if status == "matched" else 0.0
+        else:
+            value = raw
+        return {"value": float(value), "method": self.name, "details": details, "error": None}
+
+
 # --------------------------------------------------------------------
 # Registration entry point
 # --------------------------------------------------------------------
@@ -251,6 +342,7 @@ def register_builtin_metric_handlers(registry) -> None:
     registry.register(_QAGSHandler())
     registry.register(_BERTScoreHandler())
     registry.register(_SemanticSimilarityHandler())
+    registry.register(TextPatternHandler())
 
     # Generic adapters for every other platform metric.
     for name in PLATFORM_METRIC_NAMES:

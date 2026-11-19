@@ -88,6 +88,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/auth/verify-email` | never |  |
 | POST | `/api/auth/verify-email-enhanced/{token}` | never |  |
 | POST | `/api/auth/verify-email/{token}` | never |  |
+| GET | `/api/code-validations/{code_validation_id}` | `results:read` | bound |
 | GET | `/api/compliance/assessments` | never |  |
 | POST | `/api/compliance/assessments` | never |  |
 | DELETE | `/api/compliance/assessments/{assessment_id}` | never |  |
@@ -320,6 +321,11 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/projects/{project_id}/annotators` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/cloud-imports` | `projects:read` | bound |
 | POST | `/api/projects/{project_id}/cloud-imports` | `projects:write`, `tasks:write` | bound |
+| GET | `/api/projects/{project_id}/code-validations` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/code-validations` | `evaluations:run` | bound |
+| GET | `/api/projects/{project_id}/coding` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/coding-projects` | `projects:read` | bound |
+| POST | `/api/projects/{project_id}/coding-projects` | `projects:write`, `tasks:write`, `tasks:read_reference` | bound |
 | GET | `/api/projects/{project_id}/cohort-leaderboard` | `results:read` | bound |
 | GET | `/api/projects/{project_id}/completion-stats` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/exports` | `exports:read`, `tasks:read_reference` | bound |

@@ -3884,6 +3884,7 @@ def _build_sample_evaluator_for_cell(
     `sample_evaluator.py` are module-level, so only the first sub-task
     per worker process actually loads BERTScore/MoverScore/etc. weights.
     """
+    from metric_filters import graded_reference_fields
     from ml_evaluation.sample_evaluator import SampleEvaluator
 
     field_configs: Dict[str, Dict[str, str]] = {}
@@ -3893,7 +3894,7 @@ def _build_sample_evaluator_for_cell(
         metric = config.get("metric", "")
         params = config.get("metric_parameters") or {}
         for pred_field in config.get("prediction_fields", []):
-            for ref_field in config.get("reference_fields", []):
+            for ref_field in graded_reference_fields(config):
                 field_key = f"{config_id}|{pred_field}|{ref_field}"
                 field_configs[field_key] = {"type": "text"}
                 if params:
@@ -5327,6 +5328,25 @@ def run_analysis(self, run_id: str) -> Dict[str, Any]:
         from analysis_jobs.service import fail_escaped_run
 
         return fail_escaped_run(run_id, exc, session_factory=SessionLocal)
+
+
+# A code validation (analysis_jobs.coding): the automatic codes of a coding
+# project's tasks against its human codes. Idempotent like run_analysis.
+@app.task(
+    name="tasks.run_code_validation",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def run_code_validation(self, validation_id: str) -> Dict[str, Any]:
+    try:
+        from analysis_jobs.coding import run_code_validation_impl
+
+        return run_code_validation_impl(validation_id, session_factory=SessionLocal)
+    except Exception as exc:
+        from analysis_jobs.coding import fail_escaped_validation
+
+        return fail_escaped_validation(validation_id, exc, session_factory=SessionLocal)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

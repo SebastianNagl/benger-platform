@@ -33,6 +33,7 @@ from routers.projects.helpers import (
     check_project_accessible_async,
 )
 from label_config_repeater import has_repeater
+from metric_filters import is_reference_free
 from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
@@ -382,8 +383,9 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
     """Problems worth telling the user at save time that must not block it.
 
     Currently one: an enabled, dispatchable config with no reference field.
-    Every grading is a (prediction, reference) pair, so such a config grades
-    nothing; see ``_validate_config_fields`` for why it cannot be a 422.
+    Every grading of a metric that is not reference-free is a (prediction,
+    reference) pair, so such a config grades nothing; see
+    ``_validate_config_fields`` for why it cannot be a 422.
     """
     warnings: list = []
     if not isinstance(eval_configs_list, list):
@@ -392,7 +394,7 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
         if not isinstance(cfg, dict) or cfg.get("enabled") is False:
             continue
         metric = cfg.get("metric") or ""
-        if isinstance(metric, str) and metric.startswith("korrektur_"):
+        if isinstance(metric, str) and (metric.startswith("korrektur_") or is_reference_free(metric)):
             continue
         ref = cfg.get("reference_fields")
         if isinstance(ref, list) and ref:
@@ -490,6 +492,31 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
     return warnings
 
 
+def _validate_text_pattern_parameters(mp: dict) -> None:
+    from analysis.text_patterns import PatternSetError, normalize_pattern_set
+
+    try:
+        normalized = normalize_pattern_set(mp.get("pattern_set"), "/metric_parameters/pattern_set")
+    except PatternSetError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_pattern_set",
+                "message": "text_pattern needs a valid metric_parameters.pattern_set",
+                "errors": exc.errors,
+            },
+        )
+    code = mp.get("code")
+    if code not in normalized["codes"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "text_pattern needs metric_parameters.code naming a code of the pattern set "
+                f"(one of {', '.join(sorted(normalized['codes']))})"
+            ),
+        )
+
+
 def validate_evaluation_config_entries(eval_configs_list) -> None:
     """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
 
@@ -535,6 +562,12 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         status_code=422,
                         detail="judges[].runs must be an integer between 1 and 25",
                     )
+
+        # A text pattern code needs a valid pattern set and one of its codes
+        # (services/shared/analysis/text_patterns.py); without them every
+        # cell would record an error instead of a code.
+        if cfg.get("metric") == "text_pattern":
+            _validate_text_pattern_parameters(mp)
 
         # Phase 7 consolidation guard: Falllösung's prompt template
         # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).

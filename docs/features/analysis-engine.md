@@ -176,6 +176,14 @@ inferring it.
 | `field` | a parsed answer value by control name, or a control chosen by a factor's value (`"by": "x_role", "fields": {"P": "own_share", "D": "other_share"}`) | `{"kind": "field", "field": "share_p"}` |
 | `expression` | fields, factors, gold and earlier measures | `{"kind": "expression", "expr": "100 * (share_p == 50)"}` |
 | `gold` | a task data path (a numeric segment indexes a list) | `{"kind": "gold", "path": "gold.low"}` |
+| `list` | an answer's list of items against a gold list (hits, recall, F1, Jaccard, ...) | `{"kind": "list", "field": "cited", "gold": {"path": "gold.cited"}, "statistic": "recall"}` |
+| `text_pattern` | a code of a versioned regex set on the answer or a field | `{"kind": "text_pattern", "set": "signals", "code": "canary"}` |
+| `coder` | an output of a coder plugin an overlay registered | `{"kind": "coder", "coder": "blame", "output": "direction"}` |
+| `judge_code` | a judge system's code of the answer in a coding project | `{"kind": "judge_code", "coding_project": "...", "field": "side", "system": "..."}` |
+
+The last four are codes and lists, described in [codes.md](codes.md), with
+the spec key `pattern_sets` for the regex sets; a code read by a
+confirmatory family needs a recorded validation.
 
 Field and gold measures take a `type`: `number` (the default), `text` or
 `bool`. Expressions use a small whitelisted language: literals, column names,
@@ -310,7 +318,7 @@ p-value; `family` and `p_adjusted` are its first family.
 |---|---|---|
 | `POST /api/projects/{project_id}/analysis-runs` | edit rights | start a run: `{"spec": {...}, "name": "optional"}` (202) |
 | `GET /api/projects/{project_id}/analysis-runs` | project members | the runs, newest first (without those reading an input project the viewer may not read) |
-| `GET /api/analysis-runs/{analysis_run_id}` | project members (and of every input project) | the run: normalized spec and hash, frame hash and counts, engine and library versions, lockfile hash, per-fit summaries, warnings, timings |
+| `GET /api/analysis-runs/{analysis_run_id}` | project members (and of every input project) | the run: normalized spec and hash, frame hash and counts, engine and library versions, lockfile hash, the identity and validation of every code measure (`codes`), per-fit summaries, warnings, timings |
 | `GET /api/analysis-runs/{analysis_run_id}/estimates` | project members (and of every input project) | the estimates in engine order, each with its row `id` (what a compliance finding's `analysis_estimate_id` cites; the v1 route leaves it out) |
 | `GET /api/analysis-runs/{analysis_run_id}/frame` | ORG_ADMIN, CONTRIBUTOR (on every input project) | the Parquet snapshot (short-lived URL) |
 | `POST /api/projects/{project_id}/analysis-lookups` | edit rights | store the next version of a lookup table (201) |

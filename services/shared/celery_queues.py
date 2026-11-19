@@ -158,6 +158,7 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.purge_project": BULK,
     # --- analysis: one analysis run of a variant experiment ---
     "tasks.run_analysis": ANALYSIS,
+    "tasks.run_code_validation": ANALYSIS,
 }
 
 # Imports up to this size go to `interactive` instead of `bulk`. That covers

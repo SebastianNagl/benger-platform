@@ -387,6 +387,10 @@ export interface AvailableMetric {
   category: string
   status: 'stable' | 'beta' | 'coming-soon'
   supports_parameters: boolean
+  /** The metric grades the prediction alone (a code such as text_pattern):
+   * the wizard skips the reference step and the config saves no reference
+   * fields. The worker runs it once per prediction field. */
+  reference_free?: boolean
   parameter_schema?: Record<string, any>
   /** Default values seeded into metric_parameters when the user picks this
    * metric in the wizard. Lets extended packages declare their own defaults
@@ -1457,6 +1461,21 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     immediate_eligible: false,
   },
 
+  // Codes
+  text_pattern: {
+    name: 'text_pattern',
+    displayNameKey: 'evaluation.methodSelector.metricName.text_pattern',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.text_pattern',
+    display_name: 'Text pattern code',
+    description: 'Codes the answer with a versioned set of regular expressions',
+    category: 'Codes',
+    status: 'stable',
+    supports_parameters: true,
+    reference_free: true,
+    display_scale: 'raw',
+    summable: true,
+  },
+
   // Classification Metrics
   accuracy: {
     name: 'accuracy',
@@ -1560,6 +1579,13 @@ export const GROUPED_METRICS: MetricCategory[] = [
     nameKey: 'evaluation.methodSelector.category.factualityMetrics',
     descriptionKey: 'evaluation.methodSelector.categoryDesc.factualityMetrics',
     metrics: ['factcc', 'qags', 'coherence'],
+  },
+  {
+    name: 'Codes',
+    description: 'Codes read off the answer by a versioned rule set',
+    nameKey: 'evaluation.methodSelector.category.codes',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.codes',
+    metrics: ['text_pattern'],
   },
   {
     name: 'Classification Metrics',

@@ -2,8 +2,9 @@
 
 A spec (JSON, ``schemas/analysis_spec.schema.json``) declares one analysis
 of a variant experiment: which designs, systems and prompt structures feed
-the frame, which measures derive outcomes from parsed fields, factors and
-gold, which estimands (estimator, terms, fixed effects, variance estimator,
+the frame, which measures derive outcomes from parsed fields, factors,
+gold, lists and codes (text pattern sets, coder plugins, judge codes),
+which estimands (estimator, terms, fixed effects, variance estimator,
 contrasts, equivalence bounds) to compute, and which families of tests to
 adjust for multiplicity.
 
@@ -363,11 +364,47 @@ def _check_estimand(est: Mapping[str, Any], where: str, spec: Mapping[str, Any],
                 errors.append(f"{where}/contrasts/{j}: average marginal effects are for logit only")
 
 
+def _check_codes(spec: Mapping[str, Any], errors: List[str]) -> None:
+    """Pattern sets, text-pattern references and list measures."""
+    from analysis.list_measures import check_list_measure
+    from analysis.text_patterns import PatternSetError, validate_pattern_set
+
+    valid_sets: Dict[str, Mapping[str, Any]] = {}
+    for sid, doc in (spec.get("pattern_sets") or {}).items():
+        try:
+            validate_pattern_set(doc, f"/pattern_sets/{sid}")
+            valid_sets[sid] = doc
+        except PatternSetError as exc:
+            errors.extend(exc.errors)
+    for mid, m in (spec.get("measures") or {}).items():
+        where = f"/measures/{mid}"
+        kind = m.get("kind")
+        if kind == "text_pattern":
+            ref = m["set"]
+            if isinstance(ref, str):
+                if ref not in (spec.get("pattern_sets") or {}):
+                    errors.append(f"{where}/set: unknown pattern set {ref!r}")
+                    continue
+                doc = valid_sets.get(ref)
+            else:
+                try:
+                    validate_pattern_set(ref, f"{where}/set")
+                    doc = ref
+                except PatternSetError as exc:
+                    errors.extend(exc.errors)
+                    continue
+            if doc is not None and m["code"] not in doc["codes"]:
+                errors.append(f"{where}/code: the pattern set has no code {m['code']!r}")
+        elif kind == "list":
+            errors.extend(check_list_measure(m, where))
+
+
 def _check_semantics(spec: Mapping[str, Any]) -> List[str]:
     errors: List[str] = []
     measures = spec.get("measures") or {}
     _check_measures(spec, errors)
     _check_lookups(spec, errors)
+    _check_codes(spec, errors)
     _measure_dependencies(measures, errors)
     try:
         measure_order(measures)
@@ -489,6 +526,12 @@ def normalize_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
     out["inputs"].setdefault("factor_types", {})
     spec_conv = out.pop("conventions", None) or {}
     out["conventions"] = merged_conventions(spec_conv)
+    from analysis.text_patterns import normalize_pattern_set
+
+    if "pattern_sets" in out:
+        # Only when declared, so the hash of a spec without codes is the
+        # same as before pattern sets existed.
+        out["pattern_sets"] = {sid: normalize_pattern_set(doc) for sid, doc in out["pattern_sets"].items()}
     unit = (out.get("frame") or {}).get("unit", "generation")
     for m in out["measures"].values():
         if m["kind"] in ("field", "gold"):
@@ -497,6 +540,18 @@ def normalize_spec(spec: Mapping[str, Any]) -> Dict[str, Any]:
             names = [m["field"]] if "field" in m else list(m["fields"].values())
             if any(IDX in name for name in names):
                 m["slot"] = "own"
+        elif m["kind"] == "text_pattern":
+            m.setdefault("input", "answer")
+            if isinstance(m["set"], dict):
+                m["set"] = normalize_pattern_set(m["set"])
+        elif m["kind"] == "coder":
+            m.setdefault("input", "answer")
+            m.setdefault("parameters", {})
+        elif m["kind"] == "judge_code":
+            m.setdefault("type", "text")
+            m.setdefault("run_index", 0)
+        elif m["kind"] == "list":
+            m.setdefault("normalize", [])
     for lk in out.get("lookups") or []:
         lk.setdefault("fill", {})
     estimands = []
