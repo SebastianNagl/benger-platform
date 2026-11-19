@@ -180,9 +180,11 @@ export function RequestRecordView({ view }: { view: TrialRequestView }) {
       )}
       {!record ? (
         <Notice>
-          {view.request_sha256
-            ? t('generations.detail.request.hashOnly')
-            : t('generations.detail.request.none')}
+          {view.hash_matches === false
+            ? t('generations.detail.request.unreadable')
+            : view.request_sha256
+              ? t('generations.detail.request.hashOnly')
+              : t('generations.detail.request.none')}
         </Notice>
       ) : (
         <>

@@ -110,6 +110,31 @@ describe('RequestRecordView', () => {
     )
   })
 
+  it('flags a stored record that is not an object without calling it a kept hash', () => {
+    render(
+      <RequestRecordView
+        view={makeTrialRequest({
+          request_record: null,
+          computed_sha256: null,
+          hash_matches: false,
+          hash_check: 'mismatch',
+        })}
+      />,
+    )
+    expect(screen.getByTestId('request-hash-mismatch')).toHaveTextContent(
+      'The stored hash does not match the record',
+    )
+    expect(
+      screen.getByText(
+        'The stored record cannot be shown because it is not a valid request record.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/Only the hash of this request was kept/),
+    ).toBeNull()
+    expect(screen.queryByTestId('request-hash-unverifiable')).toBeNull()
+  })
+
   it('says a stored hash without its record cannot be checked, without a tamper warning', () => {
     render(
       <RequestRecordView

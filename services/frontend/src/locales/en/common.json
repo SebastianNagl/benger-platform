@@ -9530,6 +9530,7 @@
         "help": "Exactly what the provider client sent, including every block the platform added to the prompts.",
         "none": "No request record (generated before it was recorded).",
         "hashOnly": "Only the hash of this request was kept; the record itself is not available, so the request cannot be shown.",
+        "unreadable": "The stored record cannot be shown because it is not a valid request record.",
         "model": "Model id",
         "workerCall": "The provider client reported no request; this is the call the generation worker made.",
         "roleSystem": "System",

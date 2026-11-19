@@ -9530,6 +9530,7 @@
         "help": "Exactement ce que le client du fournisseur a envoyé, y compris chaque bloc ajouté aux prompts par la plateforme.",
         "none": "Aucune requête enregistrée (générée avant son enregistrement).",
         "hashOnly": "Seul le hachage de cette requête a été conservé ; l’enregistrement lui-même n’est pas disponible, la requête ne peut donc pas être affichée.",
+        "unreadable": "L’enregistrement stocké ne peut pas être affiché, car ce n’est pas un enregistrement de requête valide.",
         "model": "Identifiant du modèle",
         "workerCall": "Le client du fournisseur n’a signalé aucune requête ; voici l’appel effectué par le worker de génération.",
         "roleSystem": "Système",
