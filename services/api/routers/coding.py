@@ -28,7 +28,6 @@ Routes:
 
 from __future__ import annotations
 
-import copy
 import logging
 import uuid
 import xml.etree.ElementTree as ET
@@ -41,6 +40,7 @@ from sqlalchemy import cast, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import seb
 from auth_module import require_user
 from celery_client import send_task_safe
 from database import get_async_db
@@ -302,7 +302,9 @@ async def create_coding_project(
     project. The new project is private to its creator: it joins none of
     the source's organizations or groups, coders are added through the
     project's members, and a source that requires the Safe Exam Browser
-    gives a coding project that requires it too."""
+    gives a coding project that requires it too, with only the source's
+    portable SEB settings: the gate stays closed to coders until an editor
+    re-enables SEB on the coding project."""
     from analysis.coding import CODING_VERSION, sample_hash
 
     source = access.project
@@ -330,7 +332,7 @@ async def create_coding_project(
         is_private=True,
         is_public=False,
         seb_required=bool(source.seb_required),
-        seb_config=copy.deepcopy(source.seb_config) if source.seb_required else None,
+        seb_config=seb.portable_seb_config(source.seb_config) if source.seb_required else None,
     )
     db.add(project)
     await db.flush()

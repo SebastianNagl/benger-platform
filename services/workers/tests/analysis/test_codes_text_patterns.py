@@ -217,6 +217,20 @@ class TestMatching:
         plain = compile_pattern_set(_set(lit=literal))
         assert plain.code("lit", f"the claimant {nfc}", {"party": nfd}) == 0.0
 
+    def test_nfkc_patterns_are_checked_and_stored_in_the_form_they_run(self):
+        # NFKC maps FULLWIDTH FULL STOP (U+FF0E) to "." and FULLWIDTH LEFT
+        # PARENTHESIS (U+FF08) to "(" (Unicode compatibility decompositions).
+        dot = {**_set(d={"mode": "any", "patterns": ["a\uff0eb"]}), "normalize": "NFKC"}
+        normalized = normalize_pattern_set(dot)
+        assert normalized["codes"]["d"]["patterns"] == ["a.b"]
+        assert compile_pattern_set(dot).code("d", "axb") == 1.0
+        assert compile_pattern_set(_set(d={"mode": "any", "patterns": ["a\uff0eb"]})).code("d", "axb") == 0.0
+        paren = {**_set(p={"mode": "any", "patterns": ["\uff08x"]}), "normalize": "NFKC"}
+        with pytest.raises(PatternSetError) as err:
+            compile_pattern_set(paren)
+        assert any("does not compile" in e for e in err.value.errors)
+        compile_pattern_set(_set(p={"mode": "any", "patterns": ["\uff08x"]}))
+
     def test_missing_text_is_missing_and_empty_text_is_coded(self):
         s = compile_pattern_set(_set(a={"mode": "any", "patterns": ["x"]}))
         assert math.isnan(s.code("a", None)) and s.code("a", "") == 0.0

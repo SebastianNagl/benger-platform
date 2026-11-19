@@ -150,16 +150,45 @@ async def test_a_coding_project_is_private_to_its_creator(async_test_client, asy
 
 
 async def test_a_seb_source_gives_a_seb_coding_project(async_test_client, async_test_db, world):
+    """Only the organizer's portable SEB choices travel; the source's
+    download token, URL, settings and Config Key stay with the source, so
+    the coding project's gate is closed to coders until SEB is rebuilt."""
+    from fastapi import HTTPException
+    from starlette.requests import Request
+
+    from auth_module.service import db_user_to_user
+    from routers.projects.helpers import enforce_seb
+
     project = world["project"]
     project.seb_required = True
-    project.seb_config = {"generated_config_key": "k" * 64}
+    project.seb_config = {
+        "generated_config_key": "k" * 64,
+        "config_token": "source-download-token",
+        "base_url": f"https://benger.example/projects/{project.id}/label",
+        "settings": {"startURL": f"https://benger.example/projects/{project.id}/label"},
+        "config_password_enc": "encrypted",
+        "extra_config_keys": ["e" * 64],
+        "quit_password_hash": "q" * 64,
+    }
     await async_test_db.commit()
     with v1_auth(async_test_db, session_user=world["admin"]):
         r = await _create(async_test_client, project.id)
+        coding_id = r.json()["project_id"]
+        await _share_with_org(async_test_client, coding_id, world["org"].id)
     assert r.status_code == 201, r.text
-    coding = (await async_test_db.execute(select(Project).where(Project.id == r.json()["project_id"]))).scalar_one()
-    assert coding.seb_required is True and coding.seb_config == {"generated_config_key": "k" * 64}
-    assert coding.is_private is True
+    coding = (await async_test_db.execute(select(Project).where(Project.id == coding_id))).scalar_one()
+    assert coding.seb_required is True and coding.is_private is False
+    assert coding.seb_config == {"extra_config_keys": ["e" * 64], "quit_password_hash": "q" * 64}
+
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": [], "query_string": b""})
+
+    def coder_read(session):
+        user = db_user_to_user(session.merge(world["annotator"]))
+        enforce_seb(session, user, session.merge(coding), request)
+
+    with pytest.raises(HTTPException) as refused:
+        await async_test_db.run_sync(coder_read)
+    assert refused.value.status_code == 403
 
 
 async def test_an_added_coder_can_open_and_code(async_test_client, async_test_db, world):

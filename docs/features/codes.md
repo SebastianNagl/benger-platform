@@ -179,8 +179,12 @@ creator, because its tasks show answers and context that the source shows
 in full only to its editors: it joins none of the source's organizations or
 groups, and the creator adds the coders the normal way (attaching it to an
 organization or group under the project's visibility). A source that
-requires the Safe Exam Browser gives a coding project that requires it too,
-with the same SEB settings.
+requires the Safe Exam Browser gives a coding project that requires it too.
+It takes only the organizer's portable SEB choices (extra hosts, pinned
+keys, the quit password), never the source's download token, base URL,
+generated settings, Config Key or config password, which are bound to the
+source project. Until an editor re-enables SEB on the coding project, which
+builds those for it, the gate stays closed to coders.
 
 Human coders annotate the coding project like any project. A judge codes it
 by generating on it: the judge model, its parameters (the system key) and

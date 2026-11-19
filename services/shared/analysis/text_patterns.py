@@ -160,11 +160,17 @@ def _check_pattern(pattern: str, flags: int, where: str, errors: List[str]) -> N
         errors.append(f"{where}: does not compile: {exc}")
 
 
+def _normal(pattern: str, form: Optional[str]) -> str:
+    return unicodedata.normalize(form, pattern) if form and form != "none" else pattern
+
+
 def validate_pattern_set(doc: Any, where: str = "") -> None:
-    """Raise :class:`PatternSetError` listing every problem of ``doc``."""
+    """Raise :class:`PatternSetError` listing every problem of ``doc``. A
+    pattern is checked in the set's normal form, the form it runs in."""
     errors = _schema_errors(doc, where)
     if errors:
         raise PatternSetError(errors)
+    form = doc.get("normalize")
     set_flags = doc.get("flags") or []
     for cid, code in doc["codes"].items():
         flags = _flag_bits(code.get("flags", set_flags))
@@ -175,24 +181,26 @@ def validate_pattern_set(doc: Any, where: str = "") -> None:
                 errors.append(f"{base}/rules: rule values repeat")
             for i, rule in enumerate(code["rules"]):
                 for j, pattern in enumerate(rule["patterns"]):
-                    _check_pattern(pattern, flags, f"{base}/rules/{i}/patterns/{j}", errors)
+                    _check_pattern(_normal(pattern, form), flags, f"{base}/rules/{i}/patterns/{j}", errors)
         else:
             for j, pattern in enumerate(code["patterns"]):
-                _check_pattern(pattern, flags, f"{base}/patterns/{j}", errors)
+                _check_pattern(_normal(pattern, form), flags, f"{base}/patterns/{j}", errors)
     if errors:
         raise PatternSetError(errors)
 
 
 def normalize_pattern_set(doc: Any, where: str = "") -> Dict[str, Any]:
     """Validate ``doc`` and return it with every default filled in: each
-    code carries its resolved, sorted flags and rule-based codes their
-    ``default``. Descriptions are kept but are not part of the hash."""
+    code carries its resolved, sorted flags, rule-based codes their
+    ``default``, and every pattern is in the set's normal form.
+    Descriptions are kept but are not part of the hash."""
     validate_pattern_set(doc, where)
     out = copy.deepcopy(dict(doc))
     set_flags = sorted(set(out.get("flags") or []))
     out["flags"] = set_flags
     out.setdefault("normalize", "none")
     out.setdefault("description", "")
+    form = out["normalize"]
     codes = {}
     for cid, code in out["codes"].items():
         code = dict(code)
@@ -200,9 +208,11 @@ def normalize_pattern_set(doc: Any, where: str = "") -> Dict[str, Any]:
         code.setdefault("description", "")
         if code["mode"] in TEXT_MODES:
             code.setdefault("default", None)
-            code["rules"] = [{"value": r["value"], "patterns": list(r["patterns"])} for r in code["rules"]]
+            code["rules"] = [
+                {"value": r["value"], "patterns": [_normal(p, form) for p in r["patterns"]]} for r in code["rules"]
+            ]
         else:
-            code["patterns"] = list(code["patterns"])
+            code["patterns"] = [_normal(p, form) for p in code["patterns"]]
         codes[cid] = code
     out["codes"] = codes
     return out
@@ -298,8 +308,6 @@ class CompiledPatternSet:
     def _resolve(self, pattern: str, task_data: Optional[Mapping[str, Any]]) -> Optional[str]:
         from analysis.measures import lookup_path
 
-        if self._normal_form:
-            pattern = unicodedata.normalize(self._normal_form, pattern)
         if "{{" not in pattern:
             return pattern
         missing = False
