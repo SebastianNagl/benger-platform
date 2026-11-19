@@ -598,6 +598,26 @@ describe('ReportViewerPage: the report as the project paper', () => {
     )
   })
 
+  it('renders a stored report whose content holds only project_info', async () => {
+    // Older stored reports and minimal content can lack every section but
+    // project_info; absent sections take their defaults (visible) and the
+    // sections without data hide themselves, as in the editor.
+    const report = makeReport()
+    report.content = {
+      ...report.content,
+      sections: { project_info: report.content.sections.project_info } as any,
+    }
+    mockData(report, ANNOTATION_ONLY_SNAPSHOT)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+  })
+
   it('renders every record section of a full project', async () => {
     mockData(makeReport(), fullSnapshot)
     await renderPage()

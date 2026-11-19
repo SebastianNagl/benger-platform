@@ -51,6 +51,31 @@ import {
   type ReactNode,
 } from 'react'
 
+type StoredSections = ReportResponse['content']['sections']
+type ViewSections = {
+  [K in keyof StoredSections]-?: Partial<NonNullable<StoredSections[K]>>
+}
+
+/**
+ * Older stored reports and minimal content can lack any section, so every
+ * absent section reads as empty settings (its defaults apply) instead of
+ * crashing the page.
+ */
+function readSections(report: ReportResponse | null): ViewSections | null {
+  const stored = report?.content?.sections as
+    | Partial<StoredSections>
+    | undefined
+  if (!stored) return null
+  return {
+    project_info: stored.project_info ?? {},
+    data: stored.data ?? {},
+    annotations: stored.annotations ?? {},
+    generation: stored.generation ?? {},
+    evaluation: stored.evaluation ?? {},
+    reproducibility: stored.reproducibility ?? {},
+  }
+}
+
 /** Shape of `GET /api/reports/{id}/data` (snapshot-based contract). */
 export interface ReportViewData {
   report: ReportResponse & { is_public?: boolean }
@@ -125,7 +150,7 @@ export default function ReportViewerPage({
 
   const report = data?.report ?? null
   const snapshot = data?.snapshot ?? null
-  const sections = report?.content.sections
+  const sections = readSections(report)
   const title =
     sections?.project_info.custom_title ||
     report?.project_title ||
@@ -273,7 +298,7 @@ export default function ReportViewerPage({
     hasHumanEvaluations(snapshot?.human_evaluations)
   const reproSection = sections.reproducibility
   const repro = snapshot?.reproducibility
-  const showRepro = Boolean(repro) && reproSection?.visible !== false
+  const showRepro = Boolean(repro) && reproSection.visible !== false
   const reportUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/reports/${id}`
@@ -387,7 +412,7 @@ export default function ReportViewerPage({
           <ReproducibilitySection
             repro={repro}
             generatedAt={snapshot?.generated_at}
-            note={reproSection?.custom_text}
+            note={reproSection.custom_text}
             locale={locale}
             t={t}
           />
