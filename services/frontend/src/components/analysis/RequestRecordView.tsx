@@ -4,7 +4,7 @@
  * Request record view: exactly what the provider client sent for one
  * generation trial (messages, response format, parameters, every request
  * verbatim including a format retry) and its SHA-256, checked against the
- * record on the server (CORE 2.68). A mismatch means the stored hash does
+ * record on the server (CORE 2.69). A mismatch means the stored hash does
  * not belong to the stored record.
  *
  * `RequestRecordView` renders a loaded view from its props;

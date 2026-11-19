@@ -190,10 +190,10 @@ class TestExtensionLoader:
         # 2.67 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        # 2.68 adds the shared variant and analysis views (variant unit
+        # 2.69 adds the shared variant and analysis views (variant unit
         # routes, the request hash check, profile, distribution, strength,
         # unit, request and design components).
-        assert CORE_API_VERSION == "2.68"
+        assert CORE_API_VERSION == "2.69"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

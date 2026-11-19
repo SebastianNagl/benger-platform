@@ -191,7 +191,7 @@ class TrialRequest(BaseModel):
     format, parameters and model id of the first request, and every request
     verbatim (a format retry included).
 
-    The hash check (CORE 2.68): ``computed_sha256`` is the hash of the stored
+    The hash check (CORE 2.69): ``computed_sha256`` is the hash of the stored
     record (``request_capture.request_sha256``, over the first request's
     body) and ``hash_matches`` says whether it equals the stored
     ``request_sha256``; null when either is missing. A mismatch means the

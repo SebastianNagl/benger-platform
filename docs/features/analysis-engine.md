@@ -434,7 +434,7 @@ with their own bounds. Links to result pages use the path helpers in
 
 The generic views take plain props and have a loader beside them, so the
 evaluations page, the run page, the report and overlays render the same
-components (CORE 2.68):
+components (CORE 2.69):
 
 | Component | Draws |
 |---|---|

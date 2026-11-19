@@ -1,4 +1,4 @@
-"""The units of a variant design through the API (CORE 2.68).
+"""The units of a variant design through the API (CORE 2.69).
 
 ``GET /api/projects/{id}/variant-designs/{key}/units`` pages through a
 design's units, ``GET .../units/{unit}`` shows one unit: its tasks with the

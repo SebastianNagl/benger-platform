@@ -1455,7 +1455,7 @@ API change).
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
 
-2.68 (2026-11-19): shared variant and analysis views (no migration).
+2.69 (2026-11-19): shared variant and analysis views (no migration).
   - Routes ``GET /api/projects/{project_id}/variant-designs/{key}/units``
     (the design's units in name order with their task counts, ``limit`` up
     to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
@@ -1506,7 +1506,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.68"
+CORE_API_VERSION = "2.69"
 
 
 def extended_required() -> bool:
