@@ -12,11 +12,13 @@ from datetime import datetime, timezone
 
 import pytest
 
+import routers.reports as reports_router
 from auth_module.dependencies import optional_user, require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import User
 from project_models import Annotation, Project, Task
+from report_models import ProjectReport
 from report_snapshot import build_report_snapshot
 
 LABELS = {
@@ -33,7 +35,8 @@ def _uid() -> str:
 
 @contextmanager
 def _as_user(db_user):
-    auth_user = AuthUser(
+    """Override both auth dependencies; ``None`` = anonymous visitor."""
+    auth_user = None if db_user is None else AuthUser(
         id=db_user.id,
         username=db_user.username,
         email=db_user.email,
@@ -197,3 +200,96 @@ async def test_report_snapshot_carries_agreement(async_test_db):
         "Birch",
         "Cedar",
     }
+
+
+@pytest.fixture
+def publishable(monkeypatch):
+    """The seeded project has no generations or evaluations; publishing's
+    precondition is not what these tests are about."""
+    monkeypatch.setattr(reports_router, "can_publish_report", lambda _db, _pid: (True, "ok"))
+
+
+async def _report(db, project, admin, *, show_participants):
+    report = ProjectReport(
+        id=_uid(),
+        project_id=project.id,
+        content={
+            "sections": {
+                "project_info": {"title": project.title, "visible": True},
+                "data": {"visible": True},
+                "annotations": {"visible": True, "show_participants": show_participants},
+                "generation": {"visible": True},
+                "evaluation": {"visible": True},
+            },
+            "metadata": {},
+        },
+        is_published=False,
+        created_by=admin.id,
+    )
+    db.add(report)
+    await db.flush()
+    return report
+
+
+def _pair_names(agreement):
+    return {n for c in agreement["controls"] for p in c["pairs"] for n in (p["annotator_a"], p["annotator_b"])}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("show_participants", [True, False])
+async def test_report_agreement_pairs_follow_show_participants(
+    async_test_client, async_test_db, publishable, show_participants
+):
+    admin, project = await _seed_overlap(async_test_db)
+    report = await _report(async_test_db, project, admin, show_participants=show_participants)
+    expected_names = {"Ash", "Birch", "Cedar"} if show_participants else set()
+
+    with _as_user(admin):
+        draft = await async_test_client.get(f"/api/reports/{report.id}/data")
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
+        refreshed = await async_test_client.post(f"/api/projects/{project.id}/report/refresh")
+    with _as_user(None):
+        public = await async_test_client.get(f"/api/reports/{report.id}/data")
+
+    for r in (draft, published, refreshed, public):
+        assert r.status_code == 200, r.text
+    payloads = [
+        draft.json()["snapshot"],
+        draft.json()["report"]["content"]["snapshot"],
+        published.json()["content"]["snapshot"],
+        refreshed.json()["content"]["snapshot"],
+        public.json()["snapshot"],
+        public.json()["report"]["content"]["snapshot"],
+    ]
+    await async_test_db.refresh(report)
+    payloads.append(report.content["snapshot"])
+    for snap in payloads:
+        agreement = snap["annotator_agreement"]
+        (label,) = agreement["controls"]
+        assert label["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
+        assert label["cohens_kappa_mean"] == pytest.approx(0.4, abs=1e-4)
+        assert label["percent_agreement"] == pytest.approx(0.5)
+        assert agreement["annotator_count"] == 3
+        assert _pair_names(agreement) == expected_names
+
+
+@pytest.mark.asyncio
+async def test_hiding_participants_after_publish_drops_stored_pairs(async_test_client, async_test_db, publishable):
+    admin, project = await _seed_overlap(async_test_db)
+    report = await _report(async_test_db, project, admin, show_participants=True)
+
+    with _as_user(admin):
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
+        assert _pair_names(published.json()["content"]["snapshot"]["annotator_agreement"]) == {"Ash", "Birch", "Cedar"}
+        content = published.json()["content"]
+        content.pop("snapshot")
+        content["sections"]["annotations"]["show_participants"] = False
+        saved = await async_test_client.post(f"/api/projects/{project.id}/report", json={"content": content})
+    assert saved.status_code == 200, saved.text
+    with _as_user(None):
+        public = await async_test_client.get(f"/api/reports/{report.id}/data")
+
+    assert public.status_code == 200
+    agreement = public.json()["snapshot"]["annotator_agreement"]
+    assert agreement["controls"][0]["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
+    assert _pair_names(agreement) == set()

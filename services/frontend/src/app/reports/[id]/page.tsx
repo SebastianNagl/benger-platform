@@ -283,7 +283,10 @@ export default function ReportViewerPage({
                 <SubHeading>
                   {t('evaluation.annotatorAgreement.title')}
                 </SubHeading>
-                <AnnotatorAgreement agreement={agreement} />
+                <AnnotatorAgreement
+                  agreement={agreement}
+                  showPairs={showParticipants}
+                />
               </div>
             )}
           </ReportSection>

@@ -129,8 +129,11 @@ def test_ratings_are_ordinal_and_scored_with_kappa():
     assert stars["score_type"] == "ordinal"
     assert stars["categories"] == ["1", "2", "3", "4", "5"]
     assert stars["percent_agreement"] == pytest.approx(0.75)
-    assert stars["fleiss_kappa"] is not None
-    assert stars["cohens_kappa_mean"] is not None
+    # Unweighted kappa by hand. Cohen: p_o = 3/4, p_e = 3 * (1/4 * 1/4) = 3/16,
+    # kappa = (3/4 - 3/16) / (1 - 3/16) = 9/13. Fleiss: P_bar = 3/4,
+    # p_j = (1/4, 1/4, 1/4, 1/8, 1/8), P_e = 7/32, kappa = 0.68.
+    assert stars["cohens_kappa_mean"] == pytest.approx(9 / 13, abs=1e-4)
+    assert stars["fleiss_kappa"] == pytest.approx(0.68, abs=1e-4)
 
 
 def test_multi_select_counts_a_set_of_choices_as_one_category():

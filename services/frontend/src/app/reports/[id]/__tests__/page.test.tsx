@@ -565,6 +565,35 @@ describe('ReportViewerPage annotator agreement', () => {
     )
   })
 
+  it('lists the annotator pairs when participants are shown', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: AGREEMENT_FIXTURE,
+    })
+    await renderPage()
+    const block = screen.getByTestId('report-annotator-agreement')
+    expect(block).toHaveTextContent('Ash · Birch')
+    expect(block).toHaveTextContent('Birch · Cedar')
+  })
+
+  it('keeps the summary but no pair rows when participants are hidden', async () => {
+    mockData(
+      makeReport({ sections: { annotations: { show_participants: false } } }),
+      {
+        ...REPORT_SNAPSHOT_FIXTURE,
+        annotator_agreement: AGREEMENT_FIXTURE,
+      },
+    )
+    await renderPage()
+    const block = screen.getByTestId('report-annotator-agreement')
+    expect(within(block).getByTestId('agreement-fleiss')).toHaveTextContent(
+      '0,33',
+    )
+    for (const name of ['Ash', 'Birch', 'Cedar']) {
+      expect(block).not.toHaveTextContent(name)
+    }
+  })
+
   it('hides it when the editor switched it off', async () => {
     mockData(
       makeReport({ sections: { annotations: { show_agreement: false } } }),

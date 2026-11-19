@@ -30,7 +30,7 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import build_report_snapshot
+from report_snapshot import apply_section_visibility, build_report_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +213,13 @@ def _build_snapshot_sync(sync_db, project_id: str):
     """Compute the report snapshot on the bridged sync session (SQL
     aggregation only — see report_snapshot)."""
     return build_report_snapshot(sync_db, project_id)
+
+
+def _with_snapshot(content: Optional[Dict[str, Any]], snapshot: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Report content carrying ``snapshot`` as its sections allow it to be
+    stored and served (see ``apply_section_visibility``)."""
+    content = content or {}
+    return {**content, "snapshot": apply_section_visibility(snapshot, content.get("sections"))}
 
 
 def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
@@ -401,9 +408,10 @@ async def update_project_report(
     # the computed snapshot is server-owned and survives a body that omits it.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
-    if new_content.get("snapshot") is None and existing.get("snapshot"):
-        new_content["snapshot"] = existing["snapshot"]
-    report.content = new_content
+    snapshot = new_content.get("snapshot")
+    if snapshot is None:
+        snapshot = existing.get("snapshot")
+    report.content = _with_snapshot(new_content, snapshot)
     report.updated_at = datetime.utcnow()
 
     await db.commit()
@@ -465,7 +473,7 @@ async def publish_report(
 
     # Freeze the numbers, then publish
     snapshot = await db.run_sync(_build_snapshot_sync, project_id)
-    report.content = {**(report.content or {}), "snapshot": snapshot}
+    report.content = _with_snapshot(report.content, snapshot)
     report.is_published = True
     report.is_public = bool(body.is_public) if body else False
     report.published_at = datetime.utcnow()
@@ -592,7 +600,7 @@ async def refresh_report_snapshot(
         )
     project, report = await _load_project_and_report(db, project_id)
     snapshot = await db.run_sync(_build_snapshot_sync, project_id)
-    report.content = {**(report.content or {}), "snapshot": snapshot}
+    report.content = _with_snapshot(report.content, snapshot)
     report.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(report)
@@ -762,10 +770,12 @@ async def get_report_data(
     snapshot = content.get("snapshot")
     if snapshot is None and is_superadmin:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
-        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
-        report.content = {**content, "snapshot": snapshot}
+        report.content = _with_snapshot(
+            content, await db.run_sync(_build_snapshot_sync, report.project_id)
+        )
         await db.commit()
         await db.refresh(report)
+        snapshot = report.content.get("snapshot")
 
     can_publish, reason = (
         await db.run_sync(_can_publish_report_sync, report.project_id)

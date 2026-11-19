@@ -284,6 +284,24 @@ def _empty_bins(n: int) -> List[int]:
     return [0] * n
 
 
+def apply_section_visibility(
+    snapshot: Optional[Dict[str, Any]], sections: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """The snapshot as a report with these sections may store and serve it.
+
+    With ``sections.annotations.show_participants`` off, the annotator
+    agreement keeps its aggregate numbers but drops the per-pair rows, which
+    name and score individual annotators."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    annotations = (sections or {}).get("annotations") or {}
+    agreement = snapshot.get("annotator_agreement")
+    if annotations.get("show_participants") is not False or not agreement:
+        return snapshot
+    controls = [{**c, "pairs": []} for c in agreement.get("controls") or []]
+    return {**snapshot, "annotator_agreement": {**agreement, "controls": controls}}
+
+
 # ---------------------------------------------------------------------------
 # Builder
 # ---------------------------------------------------------------------------

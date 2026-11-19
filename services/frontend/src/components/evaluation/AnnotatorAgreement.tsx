@@ -6,7 +6,8 @@
  * controls show Fleiss' kappa, the mean of the pairwise Cohen's kappas and
  * percent agreement; number controls show the mean pairwise Pearson's r and
  * the mean absolute deviation. Each control lists its annotator pairs in a
- * collapsible table. The parent hides the component when no task has two
+ * collapsible table unless `showPairs` is off (a report that hides its
+ * participants). The parent hides the component when no task has two
  * annotators (`hasAgreement`).
  */
 
@@ -35,6 +36,7 @@ export function kappaBand(kappa: number): KappaBand {
 
 interface AnnotatorAgreementProps {
   agreement: AnnotatorAgreementSummary
+  showPairs?: boolean
 }
 
 function Stat({
@@ -64,7 +66,13 @@ function Stat({
   )
 }
 
-function ControlBlock({ control }: { control: ControlAgreement }) {
+function ControlBlock({
+  control,
+  showPairs,
+}: {
+  control: ControlAgreement
+  showPairs: boolean
+}) {
   const { t, locale } = useI18n()
   const dash = '-'
   const num = (v: number | null | undefined, digits = 2) =>
@@ -147,7 +155,7 @@ function ControlBlock({ control }: { control: ControlAgreement }) {
         </p>
       )}
 
-      {control.pairs.length > 0 && (
+      {showPairs && control.pairs.length > 0 && (
         <details className="group mt-3">
           <summary className="cursor-pointer text-sm font-medium text-zinc-700 select-none dark:text-zinc-300">
             {t('evaluation.annotatorAgreement.pairs', {
@@ -205,7 +213,10 @@ function ControlBlock({ control }: { control: ControlAgreement }) {
   )
 }
 
-export function AnnotatorAgreement({ agreement }: AnnotatorAgreementProps) {
+export function AnnotatorAgreement({
+  agreement,
+  showPairs = true,
+}: AnnotatorAgreementProps) {
   const { t, locale } = useI18n()
   const unsupported = agreement.unsupported_controls ?? []
   return (
@@ -217,7 +228,11 @@ export function AnnotatorAgreement({ agreement }: AnnotatorAgreementProps) {
         })}
       </p>
       {agreement.controls.map((control) => (
-        <ControlBlock key={control.control} control={control} />
+        <ControlBlock
+          key={control.control}
+          control={control}
+          showPairs={showPairs}
+        />
       ))}
       {unsupported.length > 0 && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
