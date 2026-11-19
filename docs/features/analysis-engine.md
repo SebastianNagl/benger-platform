@@ -397,10 +397,10 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   tests) and **Fit** (the run's warnings and the per-fit summaries).
 
 Superadmins and members whose project grants edit rights (`can_edit`) get
-**Start analysis**: a
-dialog that takes a spec as JSON, validates it against the engine (every
-problem it names is listed) and starts the run, which the view then selects
-and polls. A pending or running run is polled until it finishes.
+**Start analysis**: a dialog that takes a spec as JSON, validates it against
+the engine (every problem it names is listed) and starts the run, which the
+view then selects and polls. A pending or running run is polled until it
+finishes.
 
 `/evaluations/analysis/{analysis_run_id}` is the run page, next to the
 evaluation run page `/evaluations/{id}`. It shows the same status, warnings,

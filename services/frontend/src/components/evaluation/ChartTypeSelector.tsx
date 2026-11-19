@@ -150,6 +150,7 @@ export function ChartTypeSelector({
     disabledTypes,
     onChange,
     selectedType,
+    CHART_TYPES,
   ])
 
   // Close dropdown when clicking outside
