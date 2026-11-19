@@ -218,6 +218,18 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
       is_published: false,
       can_publish: true,
     })
+    // The report card shows for report authors (can_edit from the API).
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({
+        id: 'r1',
+        is_published: false,
+        can_publish: true,
+        can_publish_reason: '',
+        can_edit: true,
+      }),
+    }) as any
     jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
   }

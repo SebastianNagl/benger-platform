@@ -84,6 +84,206 @@ export interface ReportDistribution {
   by_subject: Record<string, number[]>
 }
 
+/** A free-form JSON document (manifest, provenance) with its hash; the
+ *  content is left out (`truncated`) when it is too large for a report,
+ *  and is never served to a reader outside the project. */
+export interface ReportFreeJson {
+  sha256: string
+  content?: unknown
+  truncated?: boolean
+}
+
+export interface ReportVariantFactor {
+  name: string
+  type: string | null
+  role: string
+  source: string
+  varies: string
+  levels: Array<string | number | boolean> | null
+  level_count: number | null
+}
+
+export interface ReportVariantDesign {
+  key: string
+  version: number
+  status: 'draft' | 'frozen' | string
+  content_hash: string | null
+  spec_sha256: string
+  frozen_at: string | null
+  task_count: number
+  unit_count: number
+  cell_count: number
+  title: string | null
+  unit: string | null
+  factors: ReportVariantFactor[]
+  outcomes: string[]
+  declared_cells: number | null
+  provenance: ReportFreeJson | null
+}
+
+export interface ReportImport {
+  format: string | null
+  mode: string | null
+  completed_at: string | null
+  payload_sha256: string | null
+  byte_size: number | null
+  task_count: number
+  /** A repeat of an identical earlier import that wrote nothing. */
+  no_op: boolean
+  declared_manifest: ReportFreeJson | null
+}
+
+export interface ReportDataSection {
+  task_count: number
+  variant_designs: ReportVariantDesign[]
+  imports: ReportImport[]
+  import_count: number
+  imports_truncated: boolean
+}
+
+export interface ReportGenerationRates {
+  generations: number
+  completed: number
+  failed: number
+  /** Share of completed generations; null without any. */
+  refusal_rate: number | null
+  truncation_rate: number | null
+  retry_rate: number | null
+  /** Share of parsed generations whose parse failed; null when none was parsed. */
+  parse_failure_rate: number | null
+  /** Share of generations with a stored request record. */
+  request_record_share: number | null
+}
+
+export interface ReportStructureCount {
+  /** Prompt structure key; null for generations without one. */
+  key: string | null
+  generations: number
+}
+
+export interface ReportGenerationModel extends ReportGenerationRates {
+  model_id: string
+  label: string
+  provider: string | null
+  tasks: number
+  runs_per_task: number | null
+  max_runs_per_task: number | null
+  parse_attempted: number
+  structures: ReportStructureCount[]
+}
+
+export interface ReportGenerationSection {
+  models: ReportGenerationModel[]
+  structures: ReportStructureCount[]
+  totals: ReportGenerationRates
+}
+
+export interface ReportLikertDimension {
+  dimension: string
+  description: string | null
+  n: number
+  mean: number | null
+  std: number | null
+  /** Ratings per scale point (1..5). */
+  distribution: number[]
+  by_model: Array<{
+    model_id: string
+    label: string
+    n: number
+    mean: number | null
+    std: number | null
+  }>
+}
+
+export interface ReportPreferenceModel {
+  model_id: string
+  label: string
+  comparisons: number
+  wins: number
+  losses: number
+  ties: number
+  win_rate: number | null
+}
+
+export interface ReportHumanEvaluations {
+  likert: {
+    evaluator_count: number
+    rating_count: number
+    scale: number[]
+    dimensions: ReportLikertDimension[]
+  }
+  preference: {
+    evaluator_count: number
+    comparisons: number
+    ties: number
+    models: ReportPreferenceModel[]
+    pairs: Array<{
+      model_a: string
+      label_a: string
+      model_b: string
+      label_b: string
+      a_wins: number
+      b_wins: number
+      ties: number
+    }>
+  }
+}
+
+export interface ReportAnalysisRunRecord {
+  id: string
+  name: string
+  spec_hash: string
+  spec_version: number
+  engine_version: string
+  frame_hash: string | null
+  frame_sha256: string | null
+  frame_rows: number | null
+  estimates_count: number
+  library_versions: Record<string, string> | null
+  lockfile_sha256: string | null
+  seed: number | null
+  completed_at: string | null
+}
+
+export interface ReportReproducibility {
+  /** Build the snapshot was computed on (not part of snapshot_sha256). */
+  platform: { app_version: string | null; core_api_version: string }
+  label_config: { version: string | null; sha256: string | null }
+  models: Array<{ id: string; provider: string | null; label: string }>
+  prompt_structures: Array<{
+    key: string | null
+    generations: number
+    definition_sha256: string | null
+  }>
+  evaluation_configs: Array<{
+    id: string
+    metric: string
+    name: string | null
+    judge_runs: Array<{
+      judge_model: string | null
+      samples: number
+      parameters_sha256: string | null
+      /** Absent for a reader outside the project (hash only). */
+      parameters?: unknown
+    }>
+  }>
+  variant_designs: Array<{
+    key: string
+    version: number
+    status: string
+    content_hash: string | null
+    spec_sha256: string
+  }>
+  imports: Array<{
+    payload_sha256: string | null
+    completed_at: string | null
+    no_op: boolean
+  }>
+  analysis_runs: ReportAnalysisRunRecord[]
+  /** SHA-256 over the canonical snapshot without generated_at and platform. */
+  snapshot_sha256: string | null
+}
+
 export interface ReportSnapshot {
   /** ISO timestamp of the snapshot computation. */
   generated_at: string
@@ -108,6 +308,11 @@ export interface ReportSnapshot {
   distributions: ReportDistribution[]
   participants: Array<{ id: string; label: string; annotation_count: number }>
   models: ReportSubject[]
+  /** Sections added with the generalised report; absent in older snapshots. */
+  data?: ReportDataSection
+  generation?: ReportGenerationSection
+  human_evaluations?: ReportHumanEvaluations
+  reproducibility?: ReportReproducibility
   /** Inter-annotator agreement per control; null (or absent in snapshots
    *  taken before it existed) when no task has two annotators. */
   annotator_agreement?: AnnotatorAgreementSummary | null

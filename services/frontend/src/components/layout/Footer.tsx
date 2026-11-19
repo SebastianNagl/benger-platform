@@ -86,7 +86,7 @@ export function Footer({ innerClassName }: { innerClassName?: string }) {
   // shells with a different content width (e.g. the student shell's max-w-6xl)
   // pass their own so the footer rule aligns with the content above it.
   return (
-    <footer className="w-full px-4 pb-16 sm:px-6 lg:px-8">
+    <footer className="w-full px-4 pb-16 sm:px-6 lg:px-8 print:hidden">
       <div
         className={
           innerClassName ??

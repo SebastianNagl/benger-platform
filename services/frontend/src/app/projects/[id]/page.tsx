@@ -458,12 +458,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   // Report state (Issue #770)
   const [reportStatus, setReportStatus] = useState<{
-    exists: boolean
     reportId: string | null
     isPublished: boolean
     isPublic: boolean
     canPublish: boolean
     canPublishReason: string
+    /** The viewer authors the report (owner, org admin or superadmin). */
+    canEdit: boolean
   } | null>(null)
   const [loadingReport, setLoadingReport] = useState(false)
 
@@ -476,9 +477,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     resolveParams()
   }, [params])
 
-  // Fetch report status (Issue #770)
+  // Fetch report status (Issue #770). The API decides who authors the
+  // report (can_edit) and creates it on an author's first view; readers get
+  // a 403 for a draft, or can_edit false, and no card.
   const fetchReportStatus = async () => {
-    if (!projectId || !user?.is_superadmin) return
+    if (!projectId || !user) return
 
     setLoadingReport(true)
     try {
@@ -489,22 +492,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       if (response.ok) {
         const data = await response.json()
         setReportStatus({
-          exists: true,
           reportId: data.id ?? null,
           isPublished: data.is_published,
           isPublic: Boolean(data.is_public),
           canPublish: data.can_publish,
           canPublishReason: data.can_publish_reason,
+          canEdit: data.can_edit === true,
         })
-      } else if (response.status === 404) {
-        setReportStatus({
-          exists: false,
-          reportId: null,
-          isPublished: false,
-          isPublic: false,
-          canPublish: false,
-          canPublishReason: t('project.settings.review.reportNotCreated'),
-        })
+      } else {
+        setReportStatus(null)
       }
     } catch (error) {
       console.error('Failed to fetch report status:', error)
@@ -3421,74 +3417,60 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Project Report - Issue #770 */}
-          {!isDeletedView &&
-            (user?.is_superadmin ||
-              currentProject?.effective_role === 'ORG_ADMIN' ||
-              currentProject?.effective_role === 'CONTRIBUTOR') &&
-            reportStatus && (
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                    {t('project.report.title')}
-                  </h2>
-                  <DocumentChartBarIcon className="h-5 w-5 text-zinc-400" />
-                </div>
-
-                {reportStatus.exists ? (
-                  <div className="space-y-4">
-                    <PublicationToggle
-                      projectId={projectId || ''}
-                      reportId={reportStatus.reportId}
-                      isPublished={reportStatus.isPublished}
-                      isPublic={reportStatus.isPublic}
-                      canPublish={reportStatus.canPublish}
-                      canPublishReason={reportStatus.canPublishReason}
-                      onToggle={(published) => {
-                        setReportStatus((prev) =>
-                          prev ? { ...prev, isPublished: published } : null,
-                        )
-                        addToast(
-                          published
-                            ? t('project.report.publishedSuccessfully')
-                            : t('project.report.unpublishedSuccessfully'),
-                          'success',
-                        )
-                      }}
-                      onChange={(next) => {
-                        setReportStatus((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                isPublished: next.is_published,
-                                isPublic: next.is_public,
-                              }
-                            : null,
-                        )
-                      }}
-                    />
-                    <Button
-                      onClick={() =>
-                        router.push(`/projects/${projectId}/report/edit`)
-                      }
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <PencilIcon className="mr-2 h-4 w-4" />
-                      {t('project.report.editReport')}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="py-4 text-center">
-                    <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.report.autoGenerated')}
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      {t('project.report.autoGeneratedHint')}
-                    </p>
-                  </div>
-                )}
+          {!isDeletedView && reportStatus?.canEdit && (
+            <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                  {t('project.report.title')}
+                </h2>
+                <DocumentChartBarIcon className="h-5 w-5 text-zinc-400" />
               </div>
-            )}
+
+              <div className="space-y-4">
+                <PublicationToggle
+                  projectId={projectId || ''}
+                  reportId={reportStatus.reportId}
+                  isPublished={reportStatus.isPublished}
+                  isPublic={reportStatus.isPublic}
+                  canPublish={reportStatus.canPublish}
+                  canPublishReason={reportStatus.canPublishReason}
+                  canEdit={reportStatus.canEdit}
+                  onToggle={(published) => {
+                    setReportStatus((prev) =>
+                      prev ? { ...prev, isPublished: published } : null,
+                    )
+                    addToast(
+                      published
+                        ? t('project.report.publishedSuccessfully')
+                        : t('project.report.unpublishedSuccessfully'),
+                      'success',
+                    )
+                  }}
+                  onChange={(next) => {
+                    setReportStatus((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            isPublished: next.is_published,
+                            isPublic: next.is_public,
+                          }
+                        : null,
+                    )
+                  }}
+                />
+                <Button
+                  onClick={() =>
+                    router.push(`/projects/${projectId}/report/edit`)
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  <PencilIcon className="mr-2 h-4 w-4" />
+                  {t('project.report.editReport')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

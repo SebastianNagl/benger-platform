@@ -1,4 +1,4 @@
-"""Analysis plans in ``evaluation_config.analysis_plans`` (CORE 2.70).
+"""Analysis plans in ``evaluation_config.analysis_plans`` (CORE 2.71).
 
 Both writers of the document validate every plan's spec with the analysis
 engine and store it with the hash of its normalized form:
