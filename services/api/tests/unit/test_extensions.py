@@ -198,7 +198,9 @@ class TestExtensionLoader:
         # 2.70 adds the report's data, generation, human evaluation and
         # reproducibility sections, snapshot_sha256 and report authorship
         # for project owners and org admins.
-        assert CORE_API_VERSION == "2.70"
+        # 2.72 adds the report's Analyses section (member-only runs, the
+        # report analysis-runs route, frame models and fit references).
+        assert CORE_API_VERSION == "2.72"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

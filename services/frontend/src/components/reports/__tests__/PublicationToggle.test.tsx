@@ -142,6 +142,7 @@ describe('PublicationToggle', () => {
         'Report not found',
         'Project must have tasks',
         'Project must have annotations, generations, evaluations or analyses',
+        'Every run in the Analyses section must be a completed analysis run of this project that reads no other project',
         'Report not created yet',
       ]
       for (const reason of reasons) {
@@ -335,6 +336,25 @@ describe('PublicationToggle', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Only while published')).toBeInTheDocument()
+      })
+    })
+
+    it('explains why a report with a member-only analysis run cannot be public', async () => {
+      // The detail the API sends (routers/reports.py,
+      // PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL).
+      mockVisibility.mockRejectedValue(
+        new Error(
+          'A public report cannot show an analysis run in which a private model may appear',
+        ),
+      )
+      render(<PublicationToggle {...props} />)
+
+      fireEvent.click(screen.getByText(T.makePublic))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('project.report.reasons.publicMemberOnlyAnalyses'),
+        ).toBeInTheDocument()
       })
     })
 

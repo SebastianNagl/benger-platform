@@ -38,6 +38,53 @@ jest.mock('@/lib/api/reports', () => ({
   refreshReport: jest.fn(),
 }))
 
+// The Analyses card loads runs and estimates itself (AnalysesEditor tests);
+// here a stub reports its props and changes the runs.
+jest.mock('@/components/reports/editor/AnalysesEditor', () => ({
+  AnalysesEditor: ({
+    customText,
+    runs,
+    onCustomTextChange,
+    onRunsChange,
+    snapshot,
+  }: any) => (
+    <div
+      data-testid="analyses-editor-stub"
+      data-runs={JSON.stringify(runs)}
+      data-snapshot-runs={snapshot?.runs?.length ?? 0}
+    >
+      <span data-testid="analyses-editor-text">{customText}</span>
+      <button type="button" onClick={() => onCustomTextChange('Einleitung')}>
+        stub-set-text
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onRunsChange([
+            {
+              run_id: 'run-1',
+              title: '',
+              text: 'Was der Lauf zeigt',
+              exhibits: [
+                {
+                  id: 'exhibit-1',
+                  type: 'forest',
+                  title: '',
+                  caption: null,
+                  filters: { systems: ['b', 'a'], families: [] },
+                  band: 0,
+                },
+              ],
+            },
+          ])
+        }
+      >
+        stub-add-run
+      </button>
+    </div>
+  ),
+}))
+
 jest.mock('@/lib/api/evaluation-types', () => ({
   getMetricDefinitions: () => ({
     bleu: { name: 'bleu', display_name: 'BLEU Score' },
@@ -546,6 +593,116 @@ describe('ReportEditorPage', () => {
       expect(
         screen.queryByLabelText('reports.editor.primaryMetric'),
       ).not.toBeInTheDocument()
+    })
+  })
+
+  describe('analyses section', () => {
+    it('hands the stored section to the card and saves its runs with clean filters', async () => {
+      const stored = {
+        visible: false,
+        custom_text: 'Stored intro',
+        runs: [{ run_id: 'run-0', title: 'Old', text: null, exhibits: [] }],
+      }
+      const user = await renderLoaded({
+        ...baseReport,
+        content: {
+          ...baseReport.content,
+          sections: { ...baseReport.content.sections, analyses: stored },
+          snapshot: {
+            ...snapshot,
+            analyses: { runs: [], omitted: [] },
+          },
+        },
+      })
+      const card = screen.getByTestId('section-analyses')
+      expect(
+        within(card).getByText('reports.editor.analyses.title'),
+      ).toBeVisible()
+      const stub = screen.getByTestId('analyses-editor-stub')
+      expect(JSON.parse(stub.getAttribute('data-runs')!)).toEqual(stored.runs)
+      expect(screen.getByTestId('analyses-editor-text')).toHaveTextContent(
+        'Stored intro',
+      )
+      expect(
+        within(card).getByRole('switch', {
+          name: 'reports.editor.showSection',
+        }),
+      ).toHaveAttribute('aria-checked', 'false')
+
+      await user.click(
+        within(card).getByRole('switch', {
+          name: 'reports.editor.showSection',
+        }),
+      )
+      await user.click(screen.getByText('stub-set-text'))
+      await user.click(screen.getByText('stub-add-run'))
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+      expect(mockUpdate.mock.calls[0][1].sections.analyses).toEqual({
+        visible: true,
+        custom_text: 'Einleitung',
+        runs: [
+          {
+            run_id: 'run-1',
+            title: null,
+            text: 'Was der Lauf zeigt',
+            exhibits: [
+              {
+                id: 'exhibit-1',
+                type: 'forest',
+                title: null,
+                caption: null,
+                filters: { systems: ['a', 'b'] },
+                band: 0,
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it('starts an older report without the section empty and visible', async () => {
+      const user = await renderLoaded()
+      expect(
+        JSON.parse(
+          screen.getByTestId('analyses-editor-stub').getAttribute('data-runs')!,
+        ),
+      ).toEqual([])
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+      expect(mockUpdate.mock.calls[0][1].sections.analyses).toEqual({
+        visible: true,
+        custom_text: null,
+        runs: [],
+      })
+    })
+
+    it('shows the validation errors the API returns for the section', async () => {
+      mockUpdate.mockRejectedValueOnce({
+        response: {
+          status: 422,
+          data: {
+            detail: {
+              code: 'invalid_report_analyses',
+              errors: ['analyses.runs[0].run_id: an analysis run id', 'x'],
+            },
+          },
+        },
+      })
+      jest.spyOn(console, 'error').mockImplementation(() => {})
+      const t = jest.fn((key: string, vars?: any) =>
+        vars?.errors ? `${key}:${vars.errors}` : key,
+      )
+      ;(useI18n as jest.Mock).mockReturnValue({ t })
+      const user = await renderLoaded()
+      await user.click(screen.getByText('project.report.editor.saveReport'))
+      await waitFor(() =>
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'reports.editor.analyses.invalid:analyses.runs[0].run_id: an analysis run id; x',
+          'error',
+        ),
+      )
     })
   })
 
