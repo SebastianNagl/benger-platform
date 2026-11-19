@@ -95,8 +95,8 @@ the status routes instead.
 | `annotations:read`, `annotations:write` | annotations, drafts, checkpoints, questionnaires, reviews, human evaluation, grading |
 | `models:read`, `models:manage` | model catalog, own OpenAI-compatible models (BYOM), provider API keys of the user or organisation |
 | `runs:read`, `runs:write` | generation configuration, prompt structures, starting and controlling generation, generation results |
-| `evaluations:read`, `evaluations:run` | evaluation configuration, starting, pausing, cancelling evaluations, their status |
-| `results:read` | evaluation results, statistics, significance, leaderboards, dashboards, reports |
+| `evaluations:read`, `evaluations:run` | evaluation configuration, starting, pausing, cancelling evaluations, their status; starting analysis runs |
+| `results:read` | evaluation results, statistics, significance, leaderboards, dashboards, reports, analysis runs and their estimates |
 | `exports:read` | exports (with `tasks:read_reference`, because exports are unblinded) |
 | `files:read`, `files:write` | uploaded files and object-storage uploads |
 | `keys:manage` | access keys of the owner and, for org admins, the organisation |

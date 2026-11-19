@@ -18,7 +18,7 @@ Pure additive and idempotent: each step is guarded by an inspector check,
 so a database built from the models (the test DB) runs it as a no-op.
 
 Revision ID: 147_import_provenance
-Revises: 143_generation_request_record
+Revises: 146_analysis_runs
 Create Date: 2026-11-19
 """
 
@@ -29,7 +29,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision = "147_import_provenance"
-down_revision = "143_generation_request_record"
+down_revision = "146_analysis_runs"
 branch_labels = None
 depends_on = None
 

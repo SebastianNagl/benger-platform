@@ -270,7 +270,7 @@ services:
       - bulk@%h
       - --prefetch-multiplier=1
       - -Q
-      - generation,evaluation,bulk,default
+      - generation,evaluation,bulk,analysis,default
     env_file:
       - ../services/workers/.env
     depends_on:

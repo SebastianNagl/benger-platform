@@ -73,7 +73,7 @@ class TestMigration147:
     def test_revision_chains_after_the_previous_head(self):
         mig = _load()
         assert mig.revision == NAME
-        assert mig.down_revision == "143_generation_request_record"
+        assert mig.down_revision == "146_analysis_runs"
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()
