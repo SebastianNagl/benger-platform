@@ -31,6 +31,7 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from models import (
+    AnalysisRun,
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
@@ -102,6 +103,7 @@ def purge_project_data(
         "task_evaluations": 0,
         "generations": 0,
         "generation_jobs": 0,
+        "analysis_runs": 0,
         "projects": 0,
     }
     exists, deleted_at = _locked_deleted_at(db, project_id)
@@ -179,10 +181,49 @@ def purge_project_data(
             )
         )
     )
+    # Analysis runs cascade with the project (their estimates with them), but
+    # their frame snapshots live in object storage: collect the keys first and
+    # delete the objects once the rows are gone.
+    frame_keys = [
+        key
+        for (key,) in db.execute(
+            select(AnalysisRun.frame_object_key).where(
+                AnalysisRun.project_id == project_id,
+                AnalysisRun.frame_object_key.isnot(None),
+            )
+        ).all()
+    ]
+    counts["analysis_runs"] = db.execute(
+        delete(AnalysisRun).where(AnalysisRun.project_id == project_id)
+    ).rowcount
     db.execute(delete(ProjectOrganization).where(ProjectOrganization.project_id == project_id))
     counts["projects"] = db.execute(delete(Project).where(Project.id == project_id)).rowcount
     db.commit()
+    delete_analysis_frames(frame_keys)
     return counts
+
+
+def delete_analysis_frames(keys) -> int:
+    """Delete stored analysis frame snapshots, best effort: a storage error
+    is logged and leaves the object behind (the rows are already gone).
+    Returns how many were deleted."""
+    if not keys:
+        return 0
+    try:
+        from storage.object_storage import object_storage
+    except Exception:  # pragma: no cover - storage misconfigured in this process
+        logger.exception("purge: storage unavailable, %d analysis frame(s) left behind", len(keys))
+        return 0
+    deleted = 0
+    for key in keys:
+        try:
+            if object_storage.delete_file(key):
+                deleted += 1
+            else:
+                logger.warning("purge: analysis frame %s could not be deleted", key)
+        except Exception:
+            logger.exception("purge: analysis frame %s could not be deleted", key)
+    return deleted
 
 
 # --- Queueing a purge (API routes and the stale-draft sweep) ----------------

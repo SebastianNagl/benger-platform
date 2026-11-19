@@ -1234,11 +1234,51 @@ migration).
     google.generate_content, mistral.chat, cohere.chat), so filled-in and
     coerced values count; a ``worker_call`` entry or a body without those
     parameters falls back to the run config as in 2.56.
+
+2.62 (2026-11-19): the analysis engine for variant experiments (migration 146).
+  - ``services/shared/analysis`` (``import analysis``; importing the package
+    pulls in no numeric library): ``analysis.spec`` (``validate_spec``,
+    ``normalize_spec``, ``spec_hash``, ``SpecError``, ``DEFAULT_CONVENTIONS``,
+    ``BASE_COLUMNS``; the JSON Schema ``schemas/analysis_spec.schema.json``,
+    spec format 1), ``analysis.expression`` (``parse_expression``, grammar 1),
+    ``analysis.observations`` (``Observation``, ``variant_of_task_meta``,
+    ``typed_field_values``, ``observations_from_records``),
+    ``analysis.db_source.iter_observations(db, project_id, inputs, counts)``
+    (the seam to ``tasks.meta.variant``; the frame's ``system`` column is
+    the generation's system key ``response_metadata.system.key``, see 2.56,
+    read from the metadata as stored (a JSON object or its JSON text), and
+    falls back to the model id for answers generated before 2.56; its
+    ``retried`` column is ``generations.retried``, see 2.61),
+    ``analysis.frame``
+    (``build_frame``, ``frame_hash``, ``to_parquet``, ``from_parquet``),
+    ``analysis.runner.run_spec(frame, spec)`` (estimates in a fixed order with
+    the keys of ``ESTIMATE_KEYS``), ``analysis.multiplicity.adjust`` and
+    ``analysis.version.ENGINE_VERSION`` (1.0.0). Estimators ``fe_ols``,
+    ``mean_rate``, ``paired_within``; variances iid, HC1, one- and two-way
+    cluster with ``ssc`` ``statsmodels`` | ``fixest`` | ``none``; inference
+    normal or t; linear and ratio contrasts, TOST, Holm, Bonferroni,
+    Benjamini-Hochberg (exploratory families only), MDE.
+  - Tables ``analysis_runs`` (``models.AnalysisRun``) and
+    ``analysis_estimates`` (``models.AnalysisEstimate``), cascading with the
+    project and the run.
+  - Queue ``analysis`` (``celery_queues.ANALYSIS``, served by the bulk pool)
+    and the worker task ``tasks.run_analysis(run_id)``; frame snapshots under
+    the durable storage prefix ``analysis/``.
+  - Routes ``GET /api/analysis/engine``, ``POST /api/analysis/specs/validate``,
+    ``POST|GET /api/projects/{project_id}/analysis-runs``,
+    ``GET /api/analysis-runs/{analysis_run_id}``, ``.../estimates`` and
+    ``.../frame`` (``routers.analysis``: ``create_run``,
+    ``load_run_for_read``, ``serialize_run``, ``serialize_estimate``,
+    ``build_select_estimates``), and the v1 reads
+    ``GET /api/v1/projects/{project_id}/analysis-runs``,
+    ``GET /api/v1/analysis-runs/{analysis_run_id}`` and ``.../estimates``
+    (scope ``results:read``). The key gate binds ``analysis_run_id`` to its
+    project.
 """
 
 import os
 
-CORE_API_VERSION = "2.61"
+CORE_API_VERSION = "2.62"
 
 
 def extended_required() -> bool:

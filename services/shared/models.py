@@ -4258,3 +4258,134 @@ class ComplianceFinding(Base):
 
     def __repr__(self):
         return f"<ComplianceFinding(id={self.id}, metric={self.metric}, verdict={self.verdict})>"
+
+
+class AnalysisRun(Base):
+    """One run of the analysis engine over a project (migration 146).
+
+    A run is the audit record of a statistical analysis of a variant
+    experiment: the spec as submitted and normalized (every inference
+    convention filled in) with its hash, the frame snapshot it read (content
+    hash, the Parquet object in storage under ``analysis/``, its SHA-256 and
+    size), the engine version, the numeric library versions and the workers'
+    lockfile hash, and what happened (status, per-fit summaries, warnings,
+    timings). Its estimates are the ``analysis_estimates`` rows. Same frame,
+    same normalized spec and same engine version give bit-identical
+    estimates. Rows cascade with the project; nothing edits a finished run.
+    """
+
+    __tablename__ = "analysis_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending")
+    spec = Column(JSONB, nullable=False)
+    normalized_spec = Column(JSONB, nullable=False)
+    spec_hash = Column(String(64), nullable=False, index=True)
+    spec_version = Column(Integer, nullable=False)
+    engine_version = Column(String(32), nullable=False)
+    # Filled by the worker.
+    frame_hash = Column(String(64), nullable=True)
+    frame_object_key = Column(String, nullable=True)
+    frame_sha256 = Column(String(64), nullable=True)
+    frame_bytes = Column(BigInteger, nullable=True)
+    frame_rows = Column(Integer, nullable=True)
+    # {"observations", "designs", "units", "tasks", "systems", "parse_failures",
+    # "rows_in_filter"}
+    frame_counts = Column(JSONB, nullable=True)
+    # {"python", "numpy", "pandas", "scipy", "statsmodels", "pyarrow"}
+    library_versions = Column(JSONB, nullable=True)
+    lockfile_sha256 = Column(String(64), nullable=True)
+    # Reserved for resampling estimators; None for the closed-form ones.
+    seed = Column(BigInteger, nullable=True)
+    fits = Column(JSONB, nullable=True)
+    warnings = Column(JSONB, nullable=True)
+    timings = Column(JSONB, nullable=True)
+    estimates_count = Column(Integer, nullable=False, server_default=text("0"))
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_analysis_runs_status",
+        ),
+        Index("ix_analysis_runs_project_created", "project_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisRun(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
+        )
+
+
+class AnalysisEstimate(Base):
+    """One estimate of an analysis run (migration 146): a contrast of an
+    estimand in one scope (pooled, or one level of the ``by`` columns), with
+    its interval, p-value, equivalence tests, multiplicity adjustments and
+    the conventions it was computed under. ``position`` is the engine's
+    deterministic output order."""
+
+    __tablename__ = "analysis_estimates"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    run_id = Column(
+        String, ForeignKey("analysis_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    position = Column(Integer, nullable=False)
+    estimand_id = Column(String(200), nullable=False)
+    contrast_id = Column(Text, nullable=True)
+    estimator = Column(String(32), nullable=False)
+    kind = Column(String(16), nullable=False, server_default="linear")
+    outcome = Column(String(100), nullable=False)
+    scope = Column(Text, nullable=False)
+    scope_values = Column(JSONB, nullable=True)
+    # ok | degenerate | negative_variance | not_estimable | error
+    status = Column(String(32), nullable=False)
+    message = Column(Text, nullable=True)
+    estimate = Column(Float, nullable=True)
+    std_error = Column(Float, nullable=True)
+    statistic = Column(Float, nullable=True)
+    df = Column(Integer, nullable=True)
+    p_value = Column(Float, nullable=True)
+    null_value = Column(Float, nullable=True)
+    ci_level = Column(Float, nullable=True)
+    ci_lower = Column(Float, nullable=True)
+    ci_upper = Column(Float, nullable=True)
+    # Equivalence result of the first bound set; every set is in ``tost``.
+    equivalent = Column(Boolean, nullable=True)
+    tost = Column(JSONB, nullable=True)
+    mde = Column(JSONB, nullable=True)
+    ratio = Column(JSONB, nullable=True)
+    # The first family (spec order) the estimate belongs to; every
+    # membership with its adjusted p-value is in ``adjustments``.
+    family = Column(String(200), nullable=True)
+    p_adjusted = Column(Float, nullable=True)
+    adjustments = Column(JSONB, nullable=True)
+    n_obs = Column(Integer, nullable=True)
+    n_clusters = Column(JSONB, nullable=True)
+    k_params = Column(Integer, nullable=True)
+    conventions = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "position", name="uq_analysis_estimates_run_position"),
+        Index("ix_analysis_estimates_run_estimand", "run_id", "estimand_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisEstimate(run={self.run_id}, estimand={self.estimand_id}, "
+            f"scope={self.scope}, status={self.status})>"
+        )

@@ -217,6 +217,10 @@ targeted_fix.py
 # Unignore the JSON schemas of variant designs (services/shared/variant_designs.py)
 !services/shared/schemas/*.json
 
+# Unignore the analysis spec schema and the analysis golden and reference files
+!services/shared/analysis/schemas/*.json
+!services/workers/tests/analysis/*.json
+
 # Unignore root-level JSON files that are meant to be tracked
 !package.json
 !package-lock.json
