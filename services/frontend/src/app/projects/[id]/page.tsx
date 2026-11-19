@@ -59,7 +59,9 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
-import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
+import { useMaxGenerationRunsPerTask } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
@@ -140,6 +142,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { addToast } = useToast()
   const { isSidebarHidden } = useUIStore()
   const { t, locale } = useI18n()
+  // The experiment features (variant_experiments): the Analysis action and
+  // count, and a runs cap of 100 instead of 25.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const maxRunsPerTask = useMaxGenerationRunsPerTask()
 
   const {
     currentProject,
@@ -909,7 +915,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Analysis runs of variant experiments: the quick action shows once the
   // project declares a variant design (a run needs one). Only fetched for
   // the viewers who may see the action.
-  const mayOpenAnalysis = accessTierKnown && canSeeQuickAction('analysis')
+  const mayOpenAnalysis =
+    variantExperiments && accessTierKnown && canSeeQuickAction('analysis')
   const [variantDesigns, setVariantDesigns] = useState<{
     projectId: string
     any: boolean
@@ -2461,7 +2468,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <Input
                             type="number"
                             min={1}
-                            max={MAX_GENERATION_RUNS_PER_TASK}
+                            max={maxRunsPerTask}
                             step={1}
                             value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"
@@ -2476,7 +2483,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             className="mt-1 h-8"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.runsPerTaskHelp')}
+                            {t('project.generationDefaults.runsPerTaskHelp', {
+                              max: maxRunsPerTask,
+                            })}
                           </p>
                         </div>
                       </SubSection>
@@ -3250,7 +3259,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dd>
                 </div>
               )}
-              {(currentProject.analysis_count ?? 0) > 0 && (
+              {variantExperiments && (currentProject.analysis_count ?? 0) > 0 && (
                 <div className="flex justify-between">
                   <dt className="text-sm text-zinc-500 dark:text-zinc-400">
                     {t('project.statistics.analyses')}

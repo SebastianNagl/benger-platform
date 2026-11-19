@@ -1193,7 +1193,8 @@
       "description": "Beschreibung (Optional)",
       "descriptionPlaceholder": "Beschreibe, wofür diese Struktur verwendet wird...",
       "structureConfiguration": "Strukturkonfiguration",
-      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt. Antwortformat: append_schema_instruction (true/false), structured_output (auto/off) und optional format_retry, answer_schema und refusal_heuristic",
+      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt",
+      "structureConfigHelpAnswerFormat": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt. Antwortformat: append_schema_instruction (true/false), structured_output (auto/off) und optional format_retry, answer_schema und refusal_heuristic",
       "cancel": "Abbrechen",
       "saving": "Wird gespeichert...",
       "createStructure": "Struktur erstellen",
@@ -1348,7 +1349,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
       "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
-      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 100."
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap {max}."
     },
     "settings": {
       "title": "Einstellungen",
@@ -9268,7 +9269,8 @@
       "runIndex": "Lauf #",
       "preview": "Antwort (Vorschau)",
       "response": "Antwort",
-      "prompt": "Prompt-Vorlagen",
+      "prompt": "Verwendeter Prompt",
+      "promptTemplates": "Prompt-Vorlagen",
       "linkedEvaluations": "Verknüpfte Evaluierungen",
       "metric": "Metrik",
       "scoredSamples": "Bewertete Samples",

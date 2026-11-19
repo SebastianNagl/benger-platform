@@ -7,6 +7,8 @@
 
 'use client'
 
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { GenerationStructureEditor } from '@/components/projects/GenerationStructureEditor'
 import { PromptText } from '@/components/projects/PromptText'
 import { Alert } from '@/components/shared/Alert'
@@ -73,6 +75,9 @@ export function PromptStructuresManager({
   readOnly = false,
 }: PromptStructuresManagerProps) {
   const { t } = useI18n()
+  // The answer-format options belong to the variant_experiments flag: off,
+  // the editor neither shows nor sends them (the API ignores them too).
+  const answerFormat = useFeatureFlag(VARIANT_EXPERIMENTS)
   const [structures, setStructures] = useState<Record<string, PromptStructure>>(
     {},
   )
@@ -190,14 +195,20 @@ export function PromptStructuresManager({
           evaluation_prompt: structure.evaluation_prompt,
           // The two switches are always shown so their current value is
           // visible; the optional blocks only when set.
-          append_schema_instruction:
-            structure.append_schema_instruction ?? true,
-          structured_output: structure.structured_output ?? 'auto',
-          ...Object.fromEntries(
-            (['format_retry', 'answer_schema', 'refusal_heuristic'] as const)
-              .filter((k) => structure[k] != null)
-              .map((k) => [k, structure[k]]),
-          ),
+          ...(answerFormat
+            ? {
+                append_schema_instruction:
+                  structure.append_schema_instruction ?? true,
+                structured_output: structure.structured_output ?? 'auto',
+                ...Object.fromEntries(
+                  (
+                    ['format_retry', 'answer_schema', 'refusal_heuristic'] as const
+                  )
+                    .filter((k) => structure[k] != null)
+                    .map((k) => [k, structure[k]]),
+                ),
+              }
+            : {}),
         },
         null,
         2,
@@ -278,12 +289,14 @@ export function PromptStructuresManager({
         exclude_from_generation: editingKey
           ? (structures[editingKey]?.exclude_from_generation ?? false)
           : false,
-        ...Object.fromEntries(
-          ANSWER_FORMAT_KEYS.filter((k) => k in parsedConfig).map((k) => [
-            k,
-            parsedConfig[k],
-          ]),
-        ),
+        ...(answerFormat
+          ? Object.fromEntries(
+              ANSWER_FORMAT_KEYS.filter((k) => k in parsedConfig).map((k) => [
+                k,
+                parsedConfig[k],
+              ]),
+            )
+          : {}),
       }
 
       logger.debug('Calling API with:', key, structureData)
@@ -495,6 +508,7 @@ export function PromptStructuresManager({
                               </div>
                             </div>
                           )}
+                          {answerFormat && (
                           <div
                             className="mt-2 flex flex-wrap gap-1"
                             data-testid={`prompt-structure-format-${key}`}
@@ -537,6 +551,7 @@ export function PromptStructuresManager({
                               </span>
                             )}
                           </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => togglePrompts(key)}
@@ -581,7 +596,7 @@ export function PromptStructuresManager({
                           label={t('generation.prompts.instruction')}
                           value={structure.instruction_prompt}
                         />
-                        {structure.schema_instruction_preview ? (
+                        {answerFormat && structure.schema_instruction_preview ? (
                           <PromptText
                             label={t(
                               'project.promptStructures.format.appendedText',
@@ -589,7 +604,7 @@ export function PromptStructuresManager({
                             value={structure.schema_instruction_preview}
                           />
                         ) : null}
-                        {structure.format_retry ? (
+                        {answerFormat && structure.format_retry ? (
                           <PromptText
                             label={t(
                               'project.promptStructures.format.retryMessage',
@@ -704,7 +719,11 @@ export function PromptStructuresManager({
                   {t('project.promptStructures.structureConfiguration')}
                 </Label>
                 <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  {t('project.promptStructures.structureConfigHelp')}
+                  {t(
+                    answerFormat
+                      ? 'project.promptStructures.structureConfigHelpAnswerFormat'
+                      : 'project.promptStructures.structureConfigHelp',
+                  )}
                 </p>
                 <GenerationStructureEditor
                   initialConfig={modalData.config}

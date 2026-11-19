@@ -5,6 +5,8 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { intlTag } from '@/lib/i18n/locales'
@@ -231,6 +233,7 @@ export default function GenerationRunDetailPage({
 }) {
   const { id } = use(params)
   const { t, locale } = useI18n()
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
   const router = useRouter()
   const [data, setData] = useState<GenerationRunDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -541,8 +544,9 @@ export default function GenerationRunDetailPage({
         </div>
       )}
 
-      {/* What the provider client actually sent (per trial) */}
-      {data.children.length > 0 && (
+      {/* What the provider client actually sent (per trial); the request
+          record belongs to the variant_experiments flag */}
+      {variantExperiments && data.children.length > 0 && (
         <div className="mb-6">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -585,7 +589,11 @@ export default function GenerationRunDetailPage({
       {data.prompt_used && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {t('generations.detail.prompt')}
+            {t(
+              variantExperiments
+                ? 'generations.detail.promptTemplates'
+                : 'generations.detail.prompt',
+            )}
           </h2>
           <pre className="max-h-96 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
             {data.prompt_used}

@@ -1193,7 +1193,8 @@
       "description": "Description (facultative)",
       "descriptionPlaceholder": "Décrivez à quoi sert cette structure...",
       "structureConfiguration": "Configuration de la structure",
-      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt. Format de réponse : append_schema_instruction (true/false), structured_output (auto/off) et, en option, format_retry, answer_schema et refusal_heuristic",
+      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt",
+      "structureConfigHelpAnswerFormat": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt. Format de réponse : append_schema_instruction (true/false), structured_output (auto/off) et, en option, format_retry, answer_schema et refusal_heuristic",
       "cancel": "Annuler",
       "saving": "Enregistrement...",
       "createStructure": "Créer la structure",
@@ -1348,7 +1349,7 @@
       "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque combinaison tâche-modèle doit être générée. Les coûts sont multipliés en conséquence.",
       "defaultRunsPerTask": "Nombre d'exécutions par tâche par défaut",
-      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 100."
+      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond {max}."
     },
     "settings": {
       "title": "Paramètres",
@@ -9268,7 +9269,8 @@
       "runIndex": "Exécution n°",
       "preview": "Réponse (aperçu)",
       "response": "Réponse",
-      "prompt": "Modèles de prompt",
+      "prompt": "Prompt utilisé",
+      "promptTemplates": "Modèles de prompt",
       "linkedEvaluations": "Évaluations liées",
       "metric": "Métrique",
       "scoredSamples": "Échantillons notés",

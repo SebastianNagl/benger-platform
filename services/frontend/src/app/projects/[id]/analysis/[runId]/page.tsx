@@ -9,6 +9,8 @@
  * finishes.
  */
 
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { ContrastForestPlot } from '@/components/analysis/ContrastForestPlot'
 import { EstimatesTable } from '@/components/analysis/EstimatesTable'
 import { RunProvenance } from '@/components/analysis/RunProvenance'
@@ -89,7 +91,7 @@ type LoadState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; run: AnalysisRun }
 
-export default function AnalysisRunPage() {
+function AnalysisRunPageContent() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const params = useParams<{ id: string; runId: string }>()
@@ -422,5 +424,14 @@ export default function AnalysisRunPage() {
         </Section>
       )}
     </div>
+  )
+}
+
+/** Behind the variant_experiments flag: not found while it is off. */
+export default function AnalysisRunPage() {
+  return (
+    <FeatureFlagGate flag={VARIANT_EXPERIMENTS}>
+      <AnalysisRunPageContent />
+    </FeatureFlagGate>
   )
 }

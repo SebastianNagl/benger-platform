@@ -1193,7 +1193,8 @@
       "description": "Description (Optional)",
       "descriptionPlaceholder": "Describe what this structure is used for...",
       "structureConfiguration": "Structure Configuration",
-      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt. Answer format: append_schema_instruction (true/false), structured_output (auto/off), and optionally format_retry, answer_schema and refusal_heuristic",
+      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt",
+      "structureConfigHelpAnswerFormat": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt. Answer format: append_schema_instruction (true/false), structured_output (auto/off), and optionally format_retry, answer_schema and refusal_heuristic",
       "cancel": "Cancel",
       "saving": "Saving...",
       "createStructure": "Create Structure",
@@ -1348,7 +1349,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
       "defaultRunsPerTask": "Default runs per task",
-      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 100."
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap {max}."
     },
     "settings": {
       "title": "Settings",
@@ -9268,7 +9269,8 @@
       "runIndex": "Run #",
       "preview": "Response (preview)",
       "response": "Response",
-      "prompt": "Prompt templates",
+      "prompt": "Prompt used",
+      "promptTemplates": "Prompt templates",
       "linkedEvaluations": "Linked evaluations",
       "metric": "Metric",
       "scoredSamples": "Samples scored",

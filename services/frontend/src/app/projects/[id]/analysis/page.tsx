@@ -6,6 +6,8 @@
  * that run's spec, so a run can be repeated or varied.
  */
 
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { NewAnalysisRunForm } from '@/components/analysis/NewAnalysisRunForm'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
@@ -43,7 +45,7 @@ function formatDate(value: string | null | undefined, locale: string) {
   }
 }
 
-export default function ProjectAnalysisPage() {
+function ProjectAnalysisPageContent() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const router = useRouter()
@@ -325,5 +327,14 @@ export default function ProjectAnalysisPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/** Behind the variant_experiments flag: not found while it is off. */
+export default function ProjectAnalysisPage() {
+  return (
+    <FeatureFlagGate flag={VARIANT_EXPERIMENTS}>
+      <ProjectAnalysisPageContent />
+    </FeatureFlagGate>
   )
 }
