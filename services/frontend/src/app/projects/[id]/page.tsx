@@ -60,7 +60,12 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
-import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import {
+  REPORT_PAPER,
+  VARIANT_EXPERIMENTS,
+} from '@/lib/featureFlags/platformFlags'
+import { useMaxGenerationRunsPerTask } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
@@ -142,6 +147,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { addToast } = useToast()
   const { isSidebarHidden } = useUIStore()
   const { t, locale } = useI18n()
+  // The experiment features (variant_experiments): the Analysis action and
+  // count, and a runs cap of 100 instead of 25.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const reportPaper = useFeatureFlag(REPORT_PAPER)
+  const maxRunsPerTask = useMaxGenerationRunsPerTask()
 
   const {
     currentProject,
@@ -481,7 +491,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // report (can_edit) and creates it on an author's first view; readers get
   // a 403 for a draft, or can_edit false, and no card.
   const fetchReportStatus = async () => {
-    if (!projectId || !user) return
+    // Report authors besides superadmins belong to the report as project
+    // paper (report_paper); off, only superadmins get the card.
+    if (!projectId || !user || !(user.is_superadmin || reportPaper)) return
 
     setLoadingReport(true)
     try {
@@ -545,7 +557,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       fetchReportStatus()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReportStatus is stable, only re-run when projectId or user changes
-  }, [projectId, user, accessTierKnown, isParticipant])
+  }, [projectId, user, accessTierKnown, isParticipant, reportPaper])
 
   // Fetch existing multi-field evaluations on page load (for badge display)
   useEffect(() => {
@@ -914,15 +926,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Analysis runs of variant experiments open in the evaluations page's
   // Analyses view. The Evaluations quick action goes there directly when the
   // project has analysis runs or variant designs but no metric configs.
-  // Only fetched for the viewers who may see the action.
+  // Only fetched for the viewers who may see the action, and only with the
+  // variant_experiments flag (off, the action keeps its classic target).
   const mayOpenEvaluations = accessTierKnown && canSeeQuickAction('evaluations')
+  const mayLookForAnalyses = variantExperiments && mayOpenEvaluations
   const [analysisPresence, setAnalysisPresence] = useState<{
     projectId: string
     any: boolean
     designs: number
   } | null>(null)
   useEffect(() => {
-    if (!projectId || !mayOpenEvaluations) return
+    if (!projectId || !mayLookForAnalyses) return
     let cancelled = false
     Promise.allSettled([
       analysisAPI.listRuns(projectId, 1),
@@ -942,16 +956,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     return () => {
       cancelled = true
     }
-  }, [projectId, mayOpenEvaluations])
+  }, [projectId, mayLookForAnalyses])
   const opensAnalyses =
     analysisPresence?.projectId === projectId &&
     analysisPresence.any &&
     evaluationConfigs.length === 0
 
   // Variant designs, analysis plans and starting analysis runs (the
-  // Analyses part of the Evaluation card): edit rights and the CONTRIBUTOR
-  // or ORG_ADMIN role, like starting a run in the API.
+  // Analyses part of the Evaluation card): variant_experiments, edit rights
+  // and the CONTRIBUTOR or ORG_ADMIN role, like starting a run in the API.
   const canManageAnalyses =
+    variantExperiments &&
     canEditProject() &&
     (Boolean(user?.is_superadmin) ||
       currentProject?.effective_role === 'ORG_ADMIN' ||
@@ -2501,7 +2516,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <Input
                             type="number"
                             min={1}
-                            max={MAX_GENERATION_RUNS_PER_TASK}
+                            max={maxRunsPerTask}
                             step={1}
                             value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"
@@ -2516,7 +2531,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             className="mt-1 h-8"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.runsPerTaskHelp')}
+                            {t('project.generationDefaults.runsPerTaskHelp', {
+                              max: maxRunsPerTask,
+                            })}
                           </p>
                         </div>
                       </SubSection>
@@ -3315,19 +3332,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dd>
                 </div>
               )}
-              {(currentProject.analysis_count ?? 0) > 0 && (
-                <div className="flex justify-between">
-                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {t('project.statistics.analyses')}
-                  </dt>
-                  <dd
-                    className="text-sm font-medium text-zinc-900 dark:text-white"
-                    data-testid="project-statistics-analyses"
-                  >
-                    {currentProject.analysis_count}
-                  </dd>
-                </div>
-              )}
+              {variantExperiments &&
+                (currentProject.analysis_count ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('project.statistics.analyses')}
+                    </dt>
+                    <dd
+                      className="text-sm font-medium text-zinc-900 dark:text-white"
+                      data-testid="project-statistics-analyses"
+                    >
+                      {currentProject.analysis_count}
+                    </dd>
+                  </div>
+                )}
               {ProjectStatisticsExtended && (
                 <ProjectStatisticsExtended project={currentProject} />
               )}

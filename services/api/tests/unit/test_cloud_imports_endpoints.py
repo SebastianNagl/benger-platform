@@ -185,6 +185,7 @@ class TestCreateCloudImports:
         assert by_key["in/c.txt"].format == "txt"
         assert all(r.celery_task_id == "celery-task-1" for r in rows)
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_reimport_travels_with_every_job(
         self, async_test_client, async_test_db
@@ -224,6 +225,7 @@ class TestCreateCloudImports:
         assert response.status_code == 202, response.text
         assert "kwargs" not in mock_send.call_args.kwargs
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_non_boolean_reimport_400(self, async_test_client, async_test_db):
         org = await _seed_org(async_test_db)

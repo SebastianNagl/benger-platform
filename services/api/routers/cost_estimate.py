@@ -28,6 +28,8 @@ from routers.projects.helpers import (
     check_project_accessible_async,
 )
 from evaluation_planning import judge_call_counts, judge_runs, plan_evaluation
+from catalog_flags import reasoning_config_for
+from feature_flags.scope import scoped_flag
 from system_profile import thinking_flag
 from services.generation_planning import (
     NoPromptStructures,
@@ -277,6 +279,9 @@ def _is_reasoning_model(
     """
     dc = getattr(llm_model_row, "default_config", None) or {}
     rc = dc.get("reasoning_config") if isinstance(dc, dict) else None
+    # A knob that belongs to a feature flag that is off for the caller does
+    # not exist for them (catalog_flags, core 2.75).
+    rc = reasoning_config_for(rc, scoped_flag)
     if isinstance(rc, dict) and rc.get("parameter") == "enable_thinking":
         value = (model_config or {}).get("enable_thinking")
         if value is None:
@@ -436,9 +441,17 @@ async def estimate_cost(
 
     # Bridge the sync-only cost computation onto a sync Session sharing this
     # async connection/transaction.
-    return await db.run_sync(
-        lambda sync_db: _compute_cost_estimate_impl(sync_db, request)
-    )
+    # The catalog's flagged entries (catalog_flags) count as they do for
+    # this caller; the sync computation reads the answer from the scope.
+    from feature_flags.deps import flag_on
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import flag_scope
+
+    experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
+    with flag_scope({VARIANT_EXPERIMENTS: experiments}):
+        return await db.run_sync(
+            lambda sync_db: _compute_cost_estimate_impl(sync_db, request)
+        )
 
 
 def _compute_cost_estimate_impl(

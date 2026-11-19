@@ -298,7 +298,7 @@ def _schema(_eager_celery):
             # names the column.
             "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
             "is_wizard_draft BOOLEAN NOT NULL DEFAULT false",
-            # Migration 142: the task columns derived from meta.variant; every
+            # Migration 142: the task columns derived from meta.benger_variant; every
             # Task select names them (create_all builds variant_designs, and a
             # fresh tasks table with its trigger and index).
             "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS variant_design VARCHAR(100)",

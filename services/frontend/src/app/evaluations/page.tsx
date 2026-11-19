@@ -20,6 +20,8 @@ import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import {
   evaluationsPath,
   resultTypeOf,
@@ -107,9 +109,16 @@ export default function EvaluationDashboard() {
   const projectList = useProjectList(!authLoading)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   // The result type is read from the URL once; the views write it back.
-  const [resultType, setResultType] = useState<ResultType>(() =>
+  // Analyses belong to the variant_experiments flag: off, there is no
+  // Analyses result type and ?type=analysis shows the metrics.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const [requestedResultType, setResultType] = useState<ResultType>(() =>
     resultTypeOf(searchParams?.get('type')),
   )
+  const resultType: ResultType =
+    requestedResultType === 'analysis' && !variantExperiments
+      ? 'metrics'
+      : requestedResultType
   // The URL the views restore their filters from: the page URL on the first
   // view, nothing after the viewer switches the type or the project.
   const [viewParams, setViewParams] = useState<InitialParams | null>(
@@ -166,10 +175,15 @@ export default function EvaluationDashboard() {
   }, [selectedProject])
 
   const availability = useAnalysisAvailability(
-    selectedProject ? selectedProject.id.toString() : null,
+    variantExperiments && selectedProject
+      ? selectedProject.id.toString()
+      : null,
   )
   const offerAnalyses =
-    resultType === 'analysis' || availability.hasRuns || availability.hasDesigns
+    variantExperiments &&
+    (resultType === 'analysis' ||
+      availability.hasRuns ||
+      availability.hasDesigns)
 
   const selectProject = (project: Project) => {
     if (selectedProject?.id === project.id) return

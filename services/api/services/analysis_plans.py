@@ -18,6 +18,11 @@ the stored list as a whole, like every list of the document, and ``null``
 deletes it. The engine validates each spec (``analysis.spec.normalize_spec``);
 a refused save answers 422 ``invalid_analysis_plan`` with every problem,
 each prefixed with the plan's path (``/analysis_plans/<i>/spec/...``).
+
+Plans belong to the platform flag ``variant_experiments`` (CORE 2.75): with
+it off for the caller both writers drop the key from the body
+(:func:`without_analysis_plans`), so stored plans stay as they are and none
+are added, changed or deleted.
 """
 
 from __future__ import annotations
@@ -88,6 +93,13 @@ def _normalize_plans(value: Any) -> Tuple[List[Dict[str, Any]], List[str]]:
         if name is not None:
             plans.append({"id": plan_id, "name": name.strip(), "spec": spec, "spec_hash": digest})
     return plans, errors
+
+
+def without_analysis_plans(body: Any) -> Any:
+    """``body`` without :data:`ANALYSIS_PLANS_KEY` (a copy when it had it)."""
+    if isinstance(body, dict) and ANALYSIS_PLANS_KEY in body:
+        return {k: v for k, v in body.items() if k != ANALYSIS_PLANS_KEY}
+    return body
 
 
 def validate_analysis_plans(value: Any) -> None:

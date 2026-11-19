@@ -177,6 +177,50 @@ def _instant_ai_backoff_sleep(monkeypatch):
     monkeypatch.setattr(di_mod, "_sleep", _no_sleep)
 
 
+@pytest.fixture(autouse=True)
+def _platform_flags_on(request, monkeypatch):
+    """Platform feature flags (core 2.75) are off by default, as in a fresh
+    deployment; tests of a flagged feature opt in with
+    ``@pytest.mark.flags_on("variant_experiments", ...)`` (or a module-level
+    ``pytestmark``), and the named flags then evaluate as ``everyone`` for
+    every check (``feature_flags.worker.flag_enabled_sync``,
+    ``extension_activation.flag_active``)."""
+    names = set()
+    for marker in request.node.iter_markers("flags_on"):
+        names.update(marker.args)
+    # ``flags_off`` (e.g. on one test of a flags_on module) wins.
+    for marker in request.node.iter_markers("flags_off"):
+        names.difference_update(marker.args)
+    if not names:
+        yield
+        return
+    from feature_flags import service as flag_service
+
+    real_entry_of = flag_service.entry_of
+
+    def entry_of(snapshot, name):
+        if name in names:
+            return {"state": "everyone", "users": [], "orgs": []}
+        return real_entry_of(snapshot, name)
+
+    monkeypatch.setattr(flag_service, "entry_of", entry_of)
+
+    # A test that hands a job a fake session cannot read the flag rows; the
+    # registered defaults stand in, so the named flags still answer on.
+    from feature_flags import worker as flag_worker
+
+    real_snapshot = flag_worker.worker_snapshot
+
+    def worker_snapshot(db):
+        try:
+            return real_snapshot(db)
+        except Exception:
+            return flag_service.defaults_snapshot()
+
+    monkeypatch.setattr(flag_worker, "worker_snapshot", worker_snapshot)
+    yield
+
+
 @pytest.fixture
 def mock_api_client():
     """Mock API client for evaluation tasks.

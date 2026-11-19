@@ -23,6 +23,7 @@ import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import {
   act,
@@ -37,6 +38,9 @@ import { useRouter } from 'next/navigation'
 // Re-mock next/navigation locally so useRouter().push is a stable captured
 // spy (the global jest.setup mock hands back a fresh push each render).
 const mockPush = jest.fn()
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(() => ({ id: 'proj-1' })),
@@ -677,7 +681,18 @@ describe('ProjectDetailPage — statistics + completion rate', () => {
     expect(screen.getByText('0%')).toBeInTheDocument()
   })
 
+  it('shows no Analyses line while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    setStore({ currentProject: { ...baseProject, analysis_count: 4 } })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(
+      screen.queryByTestId('project-statistics-analyses'),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows an Analyses line with the completed analysis runs, and none without', async () => {
+    setMockFeatureFlags({ variant_experiments: true })
     setStore({ currentProject: { ...baseProject, analysis_count: 4 } })
     const { unmount } = render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')
@@ -754,6 +769,27 @@ describe('ProjectDetailPage: report card', () => {
       status,
       json: jest.fn().mockResolvedValue(body),
     }) as any
+
+  beforeEach(() => {
+    // Report authors besides superadmins belong to report_paper.
+    setMockFeatureFlags({ report_paper: true })
+  })
+
+  it('asks for no report and shows no card to a non-superadmin while report_paper is off', async () => {
+    setMockFeatureFlags({ variant_experiments: true })
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { ...superadmin, is_superadmin: false },
+      currentOrganization: null,
+    })
+    global.fetch = reportResponse({ is_published: true, can_edit: true })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/projects/proj-1/report'),
+      expect.anything(),
+    )
+    expect(screen.queryByTestId('publication-toggle')).not.toBeInTheDocument()
+  })
 
   it('shows no card when the API refuses the report (403) or has none (404)', async () => {
     for (const status of [403, 404]) {

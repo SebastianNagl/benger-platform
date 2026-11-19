@@ -250,7 +250,13 @@ def run_evaluation(
                 detail="No evaluation configurations provided",
             )
 
-        enabled_configs = [c for c in request.evaluation_configs if c.enabled]
+        # A metric of a feature flag that is off for the caller (text_pattern,
+        # variant_experiments, core 2.75) does not run; its stored config stays.
+        from services.evaluation.config import metric_flag_on
+
+        enabled_configs = [
+            c for c in request.evaluation_configs if c.enabled and metric_flag_on(c.metric)
+        ]
         if not enabled_configs:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

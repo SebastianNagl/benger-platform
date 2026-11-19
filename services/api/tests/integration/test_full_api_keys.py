@@ -349,6 +349,7 @@ async def test_restricted_key_polls_its_runs_by_id(async_test_client, async_test
         assert r.status_code == 404 and _code(r) == "not_found", (path, r.text)
 
 
+@pytest.mark.flags_on("variant_experiments")
 async def test_runs_read_key_fetches_a_trial_request_record(
     async_test_client, async_test_db, world
 ):

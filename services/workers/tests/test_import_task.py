@@ -143,6 +143,34 @@ def _run_with_job(workers_tasks, ImportJob, job):
     return result, session
 
 
+def test_import_without_variant_experiments_records_no_provenance(_patched):
+    """Off for the requester, the job imports as before provenance existed:
+    no hash, no manifest, no key."""
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"data": [{"id": 1}], "meta": {}}'
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, content)
+
+    def _fake_nested(db, project_id, fileobj, user_id, before_commit=None):
+        assert fileobj.read() == content
+        return _committed(before_commit, {"created_tasks": 1})
+
+    with patch("import_stream.run_nested_import", _fake_nested), patch(
+        "import_provenance.find_completed_import"
+    ) as lookup, patch("import_provenance.lock_import_key") as lock:
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    assert result["status"] == "completed"
+    assert job.status == "completed" and job.format == "nested"
+    assert job.byte_size == len(content)
+    assert job.payload_sha256 is None
+    assert job.source_manifest is None
+    assert job.idempotency_key is None
+    lookup.assert_not_called()
+    lock.assert_not_called()
+
+
+@pytest.mark.flags_on("variant_experiments")
 def test_import_nested_runs_nested_driver(_patched):
     workers_tasks, storage, ImportJob = _patched
     content = b'{"data": [{"id": 1}], "meta": {}}'
@@ -741,6 +769,7 @@ def test_export_failing_before_its_handler_marks_the_job_failed(_patched):
     assert job.error_message.startswith("The export failed because of an internal error.")
 
 
+@pytest.mark.flags_on("variant_experiments")
 def test_repeat_of_a_completed_import_is_a_no_op_without_the_driver(_patched):
     """An earlier completed import with the same key: the job completes as
     a no-op pointing at it, and no driver runs."""
@@ -784,6 +813,7 @@ def test_repeat_of_a_completed_import_is_a_no_op_without_the_driver(_patched):
     assert job.result["duplicate_of"]["job_id"] == "ijob-0"
 
 
+@pytest.mark.flags_on("variant_experiments")
 def test_reimport_skips_the_lookup_but_takes_the_lock(_patched):
     import import_provenance
 
@@ -809,6 +839,7 @@ def test_reimport_skips_the_lookup_but_takes_the_lock(_patched):
     assert job.duplicate_of_job_id is None
 
 
+@pytest.mark.flags_on("variant_experiments")
 def test_merge_preview_records_provenance_without_a_key(_patched):
     import import_provenance
 

@@ -16,6 +16,7 @@ import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
@@ -25,6 +26,9 @@ import {
   useSearchParams,
 } from 'next/navigation'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(() => ({ id: 'test-project-123' })),
@@ -254,6 +258,7 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    setMockFeatureFlags({ variant_experiments: true })
     mockListDesignKeys.mockResolvedValue([])
     mockListRuns.mockResolvedValue({ items: [], total: 0 })
   })
@@ -280,6 +285,19 @@ describe('ProjectDetailPage — Evaluations quick action', () => {
     expect(
       screen.queryByText('project.quickActions.analysis'),
     ).not.toBeInTheDocument()
+  })
+
+  it('keeps the classic Evaluations target and asks for nothing while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 1 })
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
+    renderPage()
+    await clickEvaluations()
+    expect(mockRouter.push).not.toHaveBeenCalledWith(
+      '/evaluations?projectId=test-project-123&type=analysis',
+    )
+    expect(mockListRuns).not.toHaveBeenCalled()
+    expect(mockListDesignKeys).not.toHaveBeenCalled()
   })
 
   it('opens the Analyses view for a project with runs and no metric configs', async () => {
@@ -420,6 +438,8 @@ describe('ProjectDetailPage — Analyses on the Evaluation card', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    // The Analyses part belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
     mockListDesignKeys.mockResolvedValue(['role_swap'])
     mockListRuns.mockResolvedValue({ items: [], total: 0 })
   })
@@ -482,6 +502,18 @@ describe('ProjectDetailPage — Analyses on the Evaluation card', () => {
     expect(
       screen.queryByText(/analysis\.section\.(designs|plans)/),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows no Analyses part and asks for no designs while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    await renderFor(
+      { effective_role: 'CONTRIBUTOR', can_edit: true },
+      member('CONTRIBUTOR'),
+    )
+    await screen.findByText('project.quickActions.title')
+    expect(screen.queryByText('analysis.section.title')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-analyses-stub')).toBeNull()
+    expect(mockListDesignKeys).not.toHaveBeenCalled()
   })
 
   it('hides it from annotators', async () => {

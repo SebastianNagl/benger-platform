@@ -1,5 +1,7 @@
 """Unit tests for shared serialization functions."""
 
+import pytest
+
 import os
 import sys
 from datetime import datetime
@@ -182,6 +184,7 @@ class TestSerializeAnnotation:
 
 
 class TestSerializeGeneration:
+    @pytest.mark.flags_on("variant_experiments")
     def test_data_mode_with_evaluations(self):
         gen = _mock_generation()
         evals = [{"id": "te-1", "field_name": "f1", "passed": True}]
@@ -194,6 +197,15 @@ class TestSerializeGeneration:
         assert "task_id" not in result
         assert result["usage_stats"] == {"total_tokens": 100}
         assert "structure_key" in result
+
+    def test_data_mode_has_the_previous_fields_without_variant_experiments(self):
+        gen = _mock_generation()
+        evals = [{"id": "te-1", "field_name": "f1", "passed": True}]
+        result = serialize_generation(gen, mode="data", evaluations=evals)
+        assert result["evaluations"] == evals
+        assert "generation_id" not in result
+        assert "usage_stats" not in result
+        assert "structure_key" not in result
 
     def test_data_mode_default_empty_evaluations(self):
         gen = _mock_generation()

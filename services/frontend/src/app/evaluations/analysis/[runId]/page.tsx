@@ -28,6 +28,7 @@ import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
 import { RunAgreementBlock } from '@/components/evaluation/statistics/AgreementValidity'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -40,6 +41,7 @@ import {
   type AnalysisRun,
 } from '@/lib/api/analysis'
 import { projectsAPI } from '@/lib/api/projects'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { evaluationsPath } from '@/lib/results/paths'
 import {
@@ -103,7 +105,7 @@ type LoadState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; run: AnalysisRun }
 
-export default function AnalysisRunPage() {
+function AnalysisRunPageContent() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const params = useParams<{ runId: string }>()
@@ -478,5 +480,14 @@ export default function AnalysisRunPage() {
 
       {r.status === 'completed' && <RunAgreementBlock run={r} />}
     </div>
+  )
+}
+
+/** Behind the variant_experiments flag: not found while it is off. */
+export default function AnalysisRunPage() {
+  return (
+    <FeatureFlagGate flag={VARIANT_EXPERIMENTS}>
+      <AnalysisRunPageContent />
+    </FeatureFlagGate>
   )
 }

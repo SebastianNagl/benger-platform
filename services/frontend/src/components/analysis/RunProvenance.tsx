@@ -5,6 +5,12 @@
  * hashes and size, the engine, spec and library versions, the lockfile
  * hash, the seed, the frame counts and the timings. Hashes are shown
  * shortened with a copy button for the full value.
+ *
+ * The layout shrinks to any width its container gives it (a phone, a side
+ * panel, a narrow column of an overlay): a value keeps its place beside
+ * its label while 8rem are left for it and moves under the label when
+ * not, and values and list entries break instead of forcing one line, so
+ * the component is never wider than its container.
  */
 
 import { useI18n } from '@/contexts/I18nContext'
@@ -53,9 +59,9 @@ function Hash({ value, label }: { value: string | null; label: string }) {
   const { t } = useI18n()
   if (!value) return <span className="text-zinc-400">{MISSING}</span>
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex max-w-full items-center gap-1">
       <code
-        className="font-mono text-xs text-zinc-800 dark:text-zinc-200"
+        className="min-w-0 font-mono text-xs [overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200"
         title={value}
       >
         {shortHash(value)}
@@ -70,11 +76,14 @@ function Hash({ value, label }: { value: string | null; label: string }) {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 items-baseline justify-between gap-3 py-1.5">
-      <dt className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+    <div
+      className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-1.5"
+      data-testid="run-provenance-row"
+    >
+      <dt className="min-w-0 text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
         {label}
       </dt>
-      <dd className="min-w-0 truncate text-right text-sm text-zinc-800 dark:text-zinc-200">
+      <dd className="max-w-full min-w-0 flex-[1_1_8rem] text-right text-sm [overflow-wrap:anywhere] text-zinc-800 dark:text-zinc-200">
         {children}
       </dd>
     </div>
@@ -94,11 +103,12 @@ function KeyValues({
   if (entries.length === 0)
     return <span className="text-zinc-400">{MISSING}</span>
   return (
-    <span className="flex flex-wrap justify-end gap-1.5">
+    <span className="flex min-w-0 flex-wrap justify-end gap-1.5">
       {entries.map(([key, value]) => (
         <span
           key={key}
-          className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+          className="max-w-full rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] [overflow-wrap:anywhere] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+          data-testid="run-provenance-entry"
         >
           {formatKey(key)} {format(value)}
         </span>
@@ -125,8 +135,11 @@ export function RunProvenance({ run }: { run: AnalysisRun }) {
     typeof v === 'number' ? `${formatNumber(v, locale, 3)} s` : String(v)
 
   return (
-    <div className="grid gap-x-10 md:grid-cols-2" data-testid="run-provenance">
-      <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+    <div
+      className="grid min-w-0 grid-cols-1 gap-x-10 md:grid-cols-2"
+      data-testid="run-provenance"
+    >
+      <dl className="min-w-0 divide-y divide-zinc-100 dark:divide-zinc-800">
         <Row label={t('analysis.provenance.specHash')}>
           <Hash
             value={run.spec_hash}
@@ -160,7 +173,7 @@ export function RunProvenance({ run }: { run: AnalysisRun }) {
               })}
         </Row>
       </dl>
-      <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      <dl className="min-w-0 divide-y divide-zinc-100 dark:divide-zinc-800">
         <Row label={t('analysis.provenance.engine')}>
           <span className="font-mono text-xs">
             {t('analysis.provenance.engineVersions', {

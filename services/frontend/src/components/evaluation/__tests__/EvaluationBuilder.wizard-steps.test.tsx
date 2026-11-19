@@ -12,6 +12,7 @@
  * @jest-environment jsdom
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationBuilder } from '../EvaluationBuilder'
@@ -19,6 +20,9 @@ import { EvaluationBuilder } from '../EvaluationBuilder'
 // ---------- mocks ----------
 
 // i18n: plain key passthrough, assertions target the translation keys.
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, _vars?: Record<string, unknown>) => key,
@@ -1428,6 +1432,22 @@ describe('EvaluationBuilder wizard step rendering', () => {
 describe('EvaluationBuilder reference-free metric (text_pattern)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // text_pattern belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
+  })
+
+  it('offers no text_pattern and no Codes group with variant_experiments off', async () => {
+    setMockFeatureFlags({})
+    const user = userEvent.setup()
+    render(<EvaluationBuilder {...defaultProps} />)
+    await user.click(screen.getByTestId('add-evaluation-button'))
+    expect(screen.getByTestId('metric-button-bleu')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('metric-button-text_pattern'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('evaluation.methodSelector.category.codes'),
+    ).not.toBeInTheDocument()
   })
 
   it('skips the reference step and saves the config without reference fields', async () => {

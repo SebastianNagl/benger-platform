@@ -4,9 +4,10 @@ The shared test DB already carries the table, the derived task columns, the
 trigger, the unique cell index and the design key (built from the models),
 so ``upgrade()`` must be a no-op through its guards, twice. ``downgrade()``
 removes all of it, and a re-run ``upgrade()`` rebuilds the shape of the
-models; an assignment stored before the key was reserved moves to
-``meta.variant_legacy`` on that first run. The trigger the re-run installs
-derives the cell from the within-unit task factors and guards frozen designs.
+models without rewriting any stored row: a plain ``meta.variant`` a user
+stored stays where it is (the reserved key is ``meta.benger_variant``). The
+trigger the re-run installs derives the cell from the within-unit task
+factors and guards frozen designs.
 """
 
 from __future__ import annotations
@@ -85,7 +86,7 @@ _INSERT_TASK = text(
 
 def _insert_task(conn, project_id, inner_id, factors):
     task_id = str(uuid.uuid4())
-    meta = {"variant": {"design": "swap", "unit": "u1", "factors": factors}}
+    meta = {"benger_variant": {"design": "swap", "unit": "u1", "factors": factors}}
     conn.execute(
         _INSERT_TASK,
         {"t": task_id, "p": project_id, "d": json.dumps({"facts": "x"}), "m": json.dumps(meta), "n": inner_id},
@@ -151,7 +152,7 @@ class TestMigration142:
             mig.upgrade()
         _assert_shape(conn)
 
-    def test_downgrade_then_upgrade_rebuilds_and_moves_legacy_keys(
+    def test_downgrade_then_upgrade_rebuilds_and_keeps_plain_variant_keys(
         self, test_db: Session, test_users
     ):
         conn = test_db.get_bind()
@@ -161,7 +162,7 @@ class TestMigration142:
         assert "variant_designs" not in inspect(conn).get_table_names()
         assert "variant_design" not in {c["name"] for c in inspect(conn).get_columns("tasks")}
 
-        # A task that used the key before it was reserved.
+        # A task that stores its own meta.variant (plain data, as on main).
         from project_models import Project
 
         project_id, task_id = str(uuid.uuid4()), str(uuid.uuid4())
@@ -182,6 +183,14 @@ class TestMigration142:
         meta, design = conn.execute(
             text("SELECT meta, variant_design FROM tasks WHERE id = :t"), {"t": task_id}
         ).one()
-        assert meta == {"tags": ["a"], "variant_legacy": {"design": "x"}}
+        assert meta == {"tags": ["a"], "variant": {"design": "x"}}
         assert design is None
+        # A later write of that plain key is not refused and derives nothing.
+        conn.execute(
+            text("UPDATE tasks SET meta = CAST(:m AS json) WHERE id = :t"),
+            {"t": task_id, "m": json.dumps({"variant": {"design": "y", "unit": "u"}})},
+        )
+        assert conn.execute(
+            text("SELECT variant_design FROM tasks WHERE id = :t"), {"t": task_id}
+        ).scalar() is None
         _assert_installed_trigger_behaves(conn, project_id)

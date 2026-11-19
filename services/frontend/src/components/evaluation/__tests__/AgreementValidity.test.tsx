@@ -14,6 +14,10 @@ jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock(() => mockLocale),
 )
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
+
 jest.mock('@/lib/api/coding', () => ({
   ...jest.requireActual('@/lib/api/coding'),
   codingAPI: {
@@ -31,6 +35,7 @@ import {
   PATTERN_HASH,
   VALIDATION_METRICS,
 } from '@/test-utils/codingFixtures'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { StatisticalResultsPanel } from '../StatisticalResultsPanel'
 import {
   JudgeAgreementBlock,
@@ -259,6 +264,9 @@ describe('RunAgreementBlock', () => {
 })
 
 describe('StatisticalResultsPanel', () => {
+  // The Agreement and validity block belongs to variant_experiments.
+  beforeEach(() => setMockFeatureFlags({ variant_experiments: true }))
+
   it('shows the block under Inference and Fit only for a run with codes', async () => {
     const { rerender } = render(
       <StatisticalResultsPanel
@@ -281,6 +289,30 @@ describe('StatisticalResultsPanel', () => {
     )
     expect(screen.getByTestId('agreement-validity-block')).toBeInTheDocument()
     await screen.findByTestId('validation-kappa')
+  })
+
+  it('shows no judge agreement while variant_experiments is off', () => {
+    setMockFeatureFlags({})
+    render(
+      <StatisticalResultsPanel
+        data={{
+          aggregation: 'model',
+          metrics: {},
+          judge_agreement_by_model_metric: {
+            'model-a|cfg-1|llm_judge_custom': {
+              n_judges: 2,
+              n_items: 12,
+              fleiss_kappa: null,
+              cohens_kappa_pairwise: {},
+              pearson_r_pairwise: { 'judge-x__judge-y': 0.91 },
+              percent_agreement: 0.5,
+              mean_absolute_deviation: 0.12,
+            },
+          },
+        }}
+      />,
+    )
+    expect(screen.queryByTestId('judge-agreement-block')).toBeNull()
   })
 
   it('shows judge agreement in the same block for metrics', () => {

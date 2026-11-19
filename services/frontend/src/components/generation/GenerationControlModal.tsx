@@ -16,7 +16,7 @@ import { ModelScopeProvider, useModelScope } from '@/contexts/ModelScopeContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
-import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
+import { useMaxGenerationRunsPerTask } from '@/lib/generationLimits'
 import {
   getRecommendedParam,
   getTemperatureConstraints,
@@ -82,6 +82,8 @@ function GenerationControlModalBody({
   const { addToast } = useToast()
   const { t, locale } = useI18n()
   const { billingOrganizationId } = useModelScope()
+  // 100 with variant_experiments, else 25 (the API enforces the same).
+  const maxRunsPerTask = useMaxGenerationRunsPerTask()
   const [mode, setMode] = useState<'all' | 'missing'>('missing')
   // "Regenerate all" cancels every pending or running generation on the
   // project, so it is for real project members only (the API's
@@ -683,14 +685,14 @@ function GenerationControlModalBody({
                             <Input
                               type="number"
                               min={1}
-                              max={MAX_GENERATION_RUNS_PER_TASK}
+                              max={maxRunsPerTask}
                               value={runsPerTask}
                               onChange={(e) =>
                                 setRunsPerTask(
                                   Math.max(
                                     1,
                                     Math.min(
-                                      MAX_GENERATION_RUNS_PER_TASK,
+                                      maxRunsPerTask,
                                       parseInt(e.target.value) || 1,
                                     ),
                                   ),

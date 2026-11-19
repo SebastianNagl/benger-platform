@@ -1656,11 +1656,94 @@ API change).
     (``codingAPI``) reads validations; ``AnalysisRun.codes`` is typed
     (``AnalysisCodeRecord``); the statistics blocks' layout primitives are
     ``@/components/evaluation/statistics/blocks``.
+
+
+2.75 (2026-11-19): the experiment features behind platform feature flags
+  (migrations 151 and 152; docs/features/feature-flags.md; 2.71 is taken by the
+  Evaluation card's analysis start, 2.72 by the report's Analyses section,
+  2.73 by the shared variant and analysis views, 2.74 by the agreement and
+  validity views).
+  - Three platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
+    ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``,
+    ``REPORT_PAPER`` = ``report_paper``), owner ``platform``, default
+    ``off``, coupled to no master flag. An overlay that uses these features
+    (the compliance overlay) needs them on for its users:
+    ``compliance_records`` for ``/api/compliance`` and the ``/compliance``
+    shells (besides ``extension.compliance``), ``report_paper`` for the
+    report as project paper of 2.70, ``variant_experiments`` for everything
+    else listed below. Migration 152 rolls all three out on deploy: a flag
+    nobody has set (no row) becomes ``allowlist`` with the TUM organization
+    as its only target when that organization exists; an existing row is
+    left as it is.
+  - Off, the routes of 2.56-2.74 answer 404 ``feature_disabled``
+    (``feature_flags.deps.require_variant_experiments`` /
+    ``require_compliance_records``; an organization key's organization
+    counts on the v1 analysis routes), the analysis and code-validation
+    jobs end failed with ``FEATURE_DISABLED_MESSAGE``, and every changed
+    behaviour takes its previous branch: no request record (the httpx hook
+    is installed on the first capture scope, no longer at import), no
+    system key, prompt structures at the default answer format, the
+    single-value multi-choice schema and the previous parsing
+    (``ResponseParser(..., variant_experiments=)``,
+    ``generate_json_schema_from_label_config(..., variant_experiments=)``),
+    runs per task at most 25 (``generation_fidelity.max_runs_per_task``),
+    ``text_pattern`` neither offered nor run
+    (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
+    ``<Repeater>`` an unsupported field type, no import provenance, the
+    previous generation export and nested import, no analysis counts, no
+    annotator agreement (also computed from annotations alone, it stays
+    behind the flag), a completed analysis run is no result for publishing
+    (``report_service.REASON_NO_RESULTS_WITHOUT_ANALYSES``), and new
+    snapshots carry no agreement, analyses section or analysis count and,
+    inside the paper's parts, no variant designs, import provenance,
+    refusal, retry or request record shares or analysis runs
+    (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
+    ``EXPERIMENT_STATISTICS_KEYS``, ``EXPERIMENT_LIST_KEYS``,
+    ``EXPERIMENT_IMPORT_FIELDS``, ``EXPERIMENT_GENERATION_FIELDS``); none of
+    these is served while the flag is off for everybody. A report save
+    neither adds nor changes
+    ``sections.analyses`` nor adds ``show_agreement`` or
+    ``show_code_validations``, the statistics panel shows no judge
+    agreement, and an evaluation config write drops
+    ``analysis_plans`` (``services.analysis_plans.without_analysis_plans``),
+    so stored sections and plans stay as they are.
+  - ``report_paper`` off: only superadmins author reports (each route's
+    previous 403), the previous publish rule (tasks, LLM generations,
+    completed evaluations; ``report_service.REASON_NO_GENERATIONS``,
+    ``REASON_NO_EVALUATIONS``), and new snapshots have no data, generation,
+    human evaluation or reproducibility part
+    (``report_snapshot.PAPER_SNAPSHOT_KEYS``), none of which is served while
+    the flag is off for everybody. ``report_snapshot.gated_snapshot``
+    leaves out the parts of the flags that are off; after every part left
+    out for a reader (flags, visibility switches, the public view),
+    ``report_snapshot.with_served_hash`` computes
+    ``reproducibility.snapshot_sha256`` over what that reader gets, and an
+    unchanged read keeps the stored hash.
+  - Catalog entries can belong to a flag: ``default_config.feature_flag``
+    (the model) and ``default_config.reasoning_config.feature_flag`` (its
+    reasoning knob); ``catalog_flags`` (``model_offered``,
+    ``served_default_config``, ``reasoning_config_for``) applies them and
+    ``provider_capabilities.model_reasoning_config`` returns no knob while
+    its flag is off.
+  - ``feature_flags.scope`` (``flag_scope``, ``scoped_flag``,
+    ``scoped_answer``, ``flag_on_for_anybody``) carries a job's answer into
+    shared code; ``feature_flags.worker.flag_enabled_or_default``;
+    ``service.is_enabled_for_caller(_sync)``, ``on_for_anybody``,
+    ``is_on_for_anybody(_sync)``; ``extension_activation.flag_snapshot``;
+    ``require_feature_flag(name, key_organization=False)``.
+  - The reserved task key of variant assignments is ``meta.benger_variant``
+    (``variant_designs.META_KEY``; the CSV column ``meta.benger_variant``);
+    ``meta.variant`` is plain data again. Migration 142 no longer rewrites
+    stored rows; migration 151 moves the assignments of a database that ran
+    its first version and returns ``meta.variant_legacy`` to
+    ``meta.variant``. Design files, imports and specs name the new key, and
+    a refused assignment's problem paths start at
+    ``variant_designs.META_PATH`` (``/meta/benger_variant``).
 """
 
 import os
 
-CORE_API_VERSION = "2.74"
+CORE_API_VERSION = "2.75"
 
 
 def extended_required() -> bool:

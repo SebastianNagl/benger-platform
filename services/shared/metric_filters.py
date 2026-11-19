@@ -149,6 +149,23 @@ def is_immediate_eligible(metric_name: Optional[str]) -> bool:
 # attribute, so an overlay's handler can declare it.
 REFERENCE_FREE_METRICS = frozenset({"text_pattern"})
 
+#: Platform metrics that belong to a feature flag (core 2.75): with the flag
+#: off for the caller or the run's owner they are neither offered nor run;
+#: stored configs naming them stay as they are.
+FLAGGED_METRICS = {"text_pattern": "variant_experiments"}
+
+
+def without_flagged_metrics(configs: Any, is_on) -> list:
+    """``configs`` without the entries whose metric belongs to a flag
+    ``is_on(name)`` answers False for (:data:`FLAGGED_METRICS`)."""
+    kept = []
+    for config in configs or []:
+        metric = config.get("metric") if isinstance(config, dict) else getattr(config, "metric", None)
+        flag = FLAGGED_METRICS.get(metric) if isinstance(metric, str) else None
+        if flag is None or is_on(flag):
+            kept.append(config)
+    return kept
+
 
 def is_reference_free(metric_name: Optional[str]) -> bool:
     if not metric_name:

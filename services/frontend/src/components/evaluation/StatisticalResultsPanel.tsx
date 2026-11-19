@@ -22,6 +22,8 @@ import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import type { AnalysisEstimate, AnalysisRun } from '@/lib/api/analysis'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
@@ -192,6 +194,8 @@ export function StatisticalResultsPanel({
   analysis = null,
 }: StatisticalResultsPanelProps) {
   const { t, locale } = useI18n()
+  // The Agreement and validity block belongs to variant_experiments.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
 
   // Helper to check if a statistic should be shown
   // If no statistics selected, show all (default behavior)
@@ -751,7 +755,9 @@ export function StatisticalResultsPanel({
           </Card>
         )}
 
-      <JudgeAgreementBlock agreement={data.judge_agreement_by_model_metric} />
+      {variantExperiments && (
+        <JudgeAgreementBlock agreement={data.judge_agreement_by_model_metric} />
+      )}
     </div>
   )
 }

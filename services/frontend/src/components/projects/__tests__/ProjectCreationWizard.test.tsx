@@ -1183,6 +1183,11 @@ describe('ProjectCreationWizard', () => {
 // test above is unaffected; only the tests below switch them on.
 let mockAuthValue: any = null
 let mockOrganizations: any[] = []
+// The wizard reads the viewer's feature flags (metric list, runs cap);
+// every flag is off here, as for a viewer the server gave none.
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => mockAuthValue,
   useAuth: () => mockAuthValue,

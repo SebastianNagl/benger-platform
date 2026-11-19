@@ -386,9 +386,9 @@ class Task(Base):
     source_task_id = Column(String, nullable=True)
 
     # The task's place in a variant design, derived by the database from
-    # ``meta.variant`` (``design``, ``unit``, ``factors``) on every write: the
+    # ``meta.benger_variant`` (``design``, ``unit``, ``factors``) on every write: the
     # trigger of :data:`TASKS_VARIANT_DDL` (migration 142) overwrites whatever
-    # a writer sends, so ``meta.variant`` stays the single source of truth.
+    # a writer sends, so ``meta.benger_variant`` stays the single source of truth.
     # ``variant_cell`` holds the design cell: the factors of the assignment
     # that the design declares as within-unit task factors (``{}`` when it has
     # none). ``uq_tasks_variant_cell`` allows one task per cell and unit (the
@@ -477,12 +477,12 @@ class VariantDesign(Base):
     ``spec`` follows ``schemas/variant_design.schema.json`` (factors with
     typed levels and roles, the unit, slots, outcome, gold and invariance
     bindings; see ``variant_designs``). Each task's place in the design is
-    ``task.meta.variant`` with ``design`` = :attr:`key`.
+    ``task.meta.benger_variant`` with ``design`` = :attr:`key`.
 
     ``version`` counts the spec edits of a draft. Freezing (``status
     'frozen'``) runs the balance and invariance checks, records
     ``content_hash`` (spec plus every task's data and assignment) and makes
-    the tasks' ``data`` and ``meta.variant`` read-only: the trigger of
+    the tasks' ``data`` and ``meta.benger_variant`` read-only: the trigger of
     :data:`TASKS_VARIANT_DDL` refuses such edits and new tasks in the design.
     A frozen design is never thawed; a changed experiment is a new design.
     """
@@ -538,8 +538,8 @@ DECLARE
     design_factors jsonb;
     cell jsonb;
 BEGIN
-    IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'variant') = 'object' THEN
-        new_variant := new_meta -> 'variant';
+    IF jsonb_typeof(new_meta) = 'object' AND jsonb_typeof(new_meta -> 'benger_variant') = 'object' THEN
+        new_variant := new_meta -> 'benger_variant';
         NEW.variant_design := new_variant ->> 'design';
         NEW.variant_unit := new_variant ->> 'unit';
         cell := new_variant -> 'factors';
@@ -570,7 +570,7 @@ BEGIN
            FOR SHARE;
         IF design_status = 'frozen' THEN
             IF jsonb_typeof(OLD.meta::jsonb) = 'object' THEN
-                old_variant := OLD.meta::jsonb -> 'variant';
+                old_variant := OLD.meta::jsonb -> 'benger_variant';
             END IF;
             IF NEW.project_id IS DISTINCT FROM OLD.project_id
                OR NEW.data::jsonb IS DISTINCT FROM OLD.data::jsonb
@@ -578,7 +578,7 @@ BEGIN
                 RAISE EXCEPTION USING ERRCODE = 'restrict_violation',
                     MESSAGE = 'variant_design_frozen: task ' || OLD.id
                         || ' belongs to the frozen variant design ' || OLD.variant_design
-                        || '; its data and meta.variant are read-only';
+                        || '; its data and meta.benger_variant are read-only';
             END IF;
             RETURN NEW;
         END IF;
@@ -617,7 +617,7 @@ del _statement
 
 @sa.event.listens_for(sa.orm.Session, "before_flush")
 def _validate_task_variants_before_flush(session, flush_context, instances):
-    """Validate ``meta.variant`` of every task this flush writes against its
+    """Validate ``meta.benger_variant`` of every task this flush writes against its
     design (every ORM write path: imports, PATCH routes, wizard drafts, ...).
     Raises ``variant_design_guard.VariantDesignError``."""
     from variant_design_guard import check_session_tasks

@@ -29,7 +29,8 @@ from models import (
 )
 from project_models import Project, ProjectOrganization, Task
 
-pytestmark = pytest.mark.asyncio
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = [pytest.mark.asyncio, pytest.mark.flags_on("variant_experiments")]
 
 CONFIG = (
     '<View><Text name="facts_view" value="$facts"/>'
@@ -181,7 +182,7 @@ async def world(async_test_db, async_test_client):
                     inner_id=inner,
                     data={"facts": text, "reference": 40 + i},
                     meta={
-                        "variant": {
+                        "benger_variant": {
                             "design": "swap",
                             "unit": unit,
                             "factors": {"party": party, "level": i + 1},

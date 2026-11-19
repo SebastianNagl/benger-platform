@@ -948,6 +948,7 @@ class TestSerializers:
         assert result["task_id"] == "t1"
         assert result["draft"] == {"partial": True}
 
+    @pytest.mark.flags_on("variant_experiments")
     def test_serialize_generation_data_mode(self):
         from routers.projects.serializers import serialize_generation
 
@@ -992,6 +993,22 @@ class TestSerializers:
         assert (result["run_index"], result["seed"], result["structure_key"]) == (3, 7, "s1")
         assert result["request_sha256"] == "a" * 64
         assert "generation_id" not in result
+
+    def test_serialize_generation_data_mode_without_variant_experiments(self):
+        from routers.projects.serializers import serialize_generation
+
+        class FakeGen:
+            id = "g1"
+            model_id = "gpt-4o"
+            response_content = "Generated text"
+            reasoning = None
+            case_data = '{"text": "input"}'
+            created_at = datetime(2024, 1, 1)
+            response_metadata = {"temperature": 0.5}
+
+        result = serialize_generation(FakeGen(), mode="data", evaluations=[{"id": "e1"}])
+        assert result["evaluations"] == [{"id": "e1"}]
+        assert "run_index" not in result and "request_record" not in result
 
     def test_serialize_generation_full_mode(self):
         from routers.projects.serializers import serialize_generation

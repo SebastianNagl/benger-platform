@@ -203,6 +203,7 @@ async def _seed_benchmark(db, creator: User, annotator: User, *, org: Organizati
 # builder
 # ---------------------------------------------------------------------------
 
+@pytest.mark.flags_on("variant_experiments")
 @pytest.mark.asyncio
 async def test_snapshot_builder_normalizes_shapes_and_hides_private_models(async_test_db):
     admin = await _user(async_test_db, is_superadmin=True)

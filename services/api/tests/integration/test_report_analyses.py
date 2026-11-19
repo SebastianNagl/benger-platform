@@ -34,6 +34,9 @@ from report_snapshot import (
 )
 from tests.integration.test_report_snapshot_public import _as_user, _user
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments", "report_paper")
+
 OPEN = "open-model@p1"
 SECRET = "custom-secret-model@p2"
 OTHER = "other-model@p3"
@@ -497,8 +500,11 @@ async def test_member_only_runs_are_left_out_of_the_public_reproducibility_list(
     assert [r["id"] for r in public_list] == [public.id]
     assert "custom-secret-model" not in str(anonymous)
     assert hidden.id not in str(anonymous)
-    # The stored snapshot and its hash stay whole.
-    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] == (
+    # The author gets the stored hash; the public view's hash is the one of
+    # what it serves.
+    assert author["snapshot"]["reproducibility"]["snapshot_sha256"] == snapshot_sha256(author["snapshot"])
+    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] == snapshot_sha256(anonymous["snapshot"])
+    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] != (
         author["snapshot"]["reproducibility"]["snapshot_sha256"])
 
 
@@ -697,3 +703,78 @@ async def test_only_report_authors_list_runs(async_test_client, async_test_db):
     with _as_user(stranger):
         denied = await async_test_client.get(f"/api/projects/{project.id}/report/analysis-runs")
     assert denied.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# with variant_experiments off (the platform before the Analyses section)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.flags_off("variant_experiments")
+@pytest.mark.asyncio
+async def test_off_the_run_list_is_not_found_and_snapshots_have_no_analyses(async_test_client, async_test_db):
+    admin = await _user(async_test_db, is_superadmin=True)
+    project, _, report = await _project(async_test_db, admin)
+    runs = await _seed_runs(async_test_db, project, admin)
+    with _as_user(admin):
+        listed = await async_test_client.get(f"/api/projects/{project.id}/report/analysis-runs")
+    assert listed.status_code == 404
+    assert listed.json()["detail"] == {"code": "feature_disabled", "flag": "variant_experiments"}
+
+    snap = await _snapshot(async_test_db, project.id, _section(runs["main"].id, [{"id": "t", "type": "table"}]))
+    assert "analyses" not in snap
+    # The paper's reproducibility appendix lists no analysis run.
+    assert snap["reproducibility"]["analysis_runs"] == []
+
+    # A stored section naming runs the report could not show does not block
+    # publishing while the section is not part of the report.
+    await _set_analyses(async_test_db, report, {"runs": [{"run_id": runs["cross"].id, "exhibits": []}]})
+    ok, reason = await async_test_db.run_sync(lambda s: can_publish_report(s, project.id))
+    assert reason != REASON_ANALYSIS_RUNS
+
+
+@pytest.mark.flags_off("variant_experiments")
+@pytest.mark.asyncio
+async def test_off_saving_neither_adds_nor_changes_the_section(async_test_client, async_test_db):
+    admin = await _user(async_test_db, is_superadmin=True)
+    project, _, report = await _project(async_test_db, admin)
+
+    def body(analyses):
+        return {"content": {**report.content, "sections": {**report.content["sections"], "analyses": analyses}}}
+
+    with _as_user(admin):
+        added = await async_test_client.post(
+            f"/api/projects/{project.id}/report", json=body({"runs": [{"run_id": "r", "exhibits": [{"id": "x", "type": "pie"}]}]})
+        )
+    assert added.status_code == 200, added.text
+    row = (await async_test_db.execute(select(ProjectReport).where(ProjectReport.id == report.id))).scalar_one()
+    await async_test_db.refresh(row)
+    assert "analyses" not in row.content["sections"]
+
+    stored = {"visible": True, "custom_text": "kept", "runs": []}
+    await _set_analyses(async_test_db, row, stored)
+    with _as_user(admin):
+        changed = await async_test_client.post(
+            f"/api/projects/{project.id}/report", json=body({"visible": False, "custom_text": "new", "runs": []})
+        )
+        without = {k: v for k, v in row.content["sections"].items() if k != "analyses"}
+        dropped = await async_test_client.post(
+            f"/api/projects/{project.id}/report", json={"content": {**row.content, "sections": without}}
+        )
+    assert changed.status_code == 200 and dropped.status_code == 200
+    await async_test_db.refresh(row)
+    assert row.content["sections"]["analyses"] == stored
+
+    # The Annotation card's agreement and code validation settings are not
+    # added either.
+    sections = {k: v for k, v in row.content["sections"].items() if k != "analyses"}
+    sections["annotations"] = {"visible": True, "show_agreement": False, "show_code_validations": False}
+    with _as_user(admin):
+        switched = await async_test_client.post(
+            f"/api/projects/{project.id}/report", json={"content": {**row.content, "sections": sections}}
+        )
+    assert switched.status_code == 200, switched.text
+    await async_test_db.refresh(row)
+    assert row.content["sections"]["annotations"] == {"visible": True}
+    # Nor is it served while the flag is off for everybody.
+    assert "analyses" not in dropped.json()["content"]["sections"]

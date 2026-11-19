@@ -22,11 +22,15 @@ import {
   updateProjectReport,
 } from '@/lib/api/reports'
 import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import ReportEditorPage from '../../edit/page'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
@@ -237,6 +241,9 @@ const mockReportFullSections = {
 
 describe('ReportEditorPage - branch coverage', () => {
   beforeEach(() => {
+    // Report authors and the paper's parts belong to report_paper, the
+    // Analyses section and the agreement switches to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true, report_paper: true })
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })

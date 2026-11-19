@@ -13,10 +13,14 @@
 import DashboardPage from '@/app/dashboard/page'
 import api from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -115,6 +119,8 @@ const waitForLoaded = () =>
 describe('Dashboard error states', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // The analyses tile belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
     ;(api.getDashboardStats as jest.Mock).mockResolvedValue(stats)
     ;(projectsAPI.list as jest.Mock).mockResolvedValue(projectPage)
   })
@@ -250,5 +256,40 @@ describe('Dashboard error states', () => {
 
     expect(screen.getByText('0')).toBeInTheDocument()
     expect(screen.queryByTestId(/stat-unavailable-/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Dashboard error states with variant_experiments off', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    setMockFeatureFlags({})
+    ;(projectsAPI.list as jest.Mock).mockResolvedValue(projectPage)
+  })
+
+  it('shows the five classic tiles as unavailable and no analyses tile', async () => {
+    ;(api.getDashboardStats as jest.Mock).mockRejectedValue(unavailableError())
+
+    renderDashboard()
+    await waitForLoaded()
+
+    for (const key of STAT_KEYS.filter((k) => k !== 'analyses_count')) {
+      expect(screen.getByTestId(`stat-unavailable-${key}`)).toBeInTheDocument()
+    }
+    expect(
+      screen.queryByTestId('stat-unavailable-analyses_count'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows no analyses tile while the stats are pending', async () => {
+    ;(api.getDashboardStats as jest.Mock).mockReturnValue(new Promise(() => {}))
+
+    renderDashboard()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stat-loading-task_count')).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByTestId('stat-loading-analyses_count'),
+    ).not.toBeInTheDocument()
   })
 })

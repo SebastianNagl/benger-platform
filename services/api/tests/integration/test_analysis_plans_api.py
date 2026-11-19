@@ -23,6 +23,9 @@ from sqlalchemy import select
 from models import AnalysisRun
 from project_models import Project, ProjectOrganization
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 BASE = "/api/evaluations"
 
 SPEC = {
@@ -393,3 +396,60 @@ async def test_a_run_started_from_a_plan_has_the_plans_hash(
         await async_test_db.execute(select(AnalysisRun).where(AnalysisRun.id == started.json()["id"]))
     ).scalar_one()
     assert run.spec_hash == plan["spec_hash"] and run.name == "Plan"
+
+
+# --------------------------------------------------------------------------- #
+# with variant_experiments off: both writers ignore the plans
+# --------------------------------------------------------------------------- #
+
+STORED_PLAN = {
+    "id": "plan-1",
+    "name": "Stored",
+    "spec": SPEC,
+    "spec_hash": "a" * 64,
+    "saved_at": "2026-11-19T00:00:00+00:00",
+    "saved_by": "someone",
+}
+
+
+@pytest.mark.integration
+@pytest.mark.flags_off("variant_experiments")
+class TestAnalysisPlansWhileOff:
+    def test_put_neither_adds_nor_changes_nor_deletes_plans(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(test_db, test_users, test_org, copy.deepcopy(STORED))
+        added = _put(
+            client,
+            project.id,
+            {"default_temperature": 0.5, "analysis_plans": [{"name": "P", "spec": {"broken": True}}]},
+            auth_headers["admin"],
+        )
+        assert added.status_code == 200, added.text
+        stored = _stored(test_db, project.id)
+        assert "analysis_plans" not in stored
+        assert stored["default_temperature"] == 0.5
+
+        kept = _seed_project(
+            test_db, test_users, test_org, {**copy.deepcopy(STORED), "analysis_plans": [STORED_PLAN]}
+        )
+        for body in ({"analysis_plans": []}, {"analysis_plans": None}, {"analysis_plans": [{"name": "N", "spec": SPEC}]}):
+            resp = _put(client, kept.id, body, auth_headers["admin"])
+            assert resp.status_code == 200, resp.text
+            assert _stored(test_db, kept.id)["analysis_plans"] == [STORED_PLAN]
+
+
+@pytest.mark.integration
+@pytest.mark.flags_off("variant_experiments")
+async def test_patch_ignores_plans_while_off(async_test_client, async_test_db, world):
+    from tests.fixtures.v1 import v1_auth
+
+    project_id = world["project"].id
+    with v1_auth(async_test_db, session_user=world["member"]):
+        saved = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"evaluation_config": {"default_temperature": 0.3, "analysis_plans": [{"name": "B", "spec": {}}]}},
+        )
+    assert saved.status_code == 200, saved.text
+    stored = await _stored_async(async_test_db, project_id)
+    assert "analysis_plans" not in stored and stored["default_temperature"] == 0.3

@@ -32,6 +32,7 @@ import contextvars
 import copy
 import hashlib
 import json
+import threading
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -50,6 +51,7 @@ def capture_requests() -> Iterator[List[Dict[str, Any]]]:
     Yields the list the entries land in. Nested scopes are independent: the
     inner one sees only its own requests.
     """
+    _ensure_httpx_hook()
     captured: List[Dict[str, Any]] = []
     token = _capture_ctx.set(captured)
     try:
@@ -192,7 +194,21 @@ def _install_httpx_hook() -> None:
             cls.send = wrapped
 
 
-_install_httpx_hook()
+# Installed on the first capture scope, not at import: a process that never
+# records a request (every generation with the variant_experiments flag off,
+# judges, scripts) keeps httpx exactly as shipped (core 2.75). Idempotent.
+_hook_installed = False
+_hook_lock = threading.Lock()
+
+
+def _ensure_httpx_hook() -> None:
+    global _hook_installed
+    if _hook_installed:
+        return
+    with _hook_lock:
+        if not _hook_installed:
+            _install_httpx_hook()
+            _hook_installed = True
 
 
 def canonical_json(value: Any) -> str:

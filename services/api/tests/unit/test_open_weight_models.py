@@ -103,6 +103,7 @@ def _as_user(db_user: User):
         app.dependency_overrides.pop(require_user, None)
 
 
+@pytest.mark.flags_on("variant_experiments")
 class TestAvailableModelsOffersOpenWeight:
     @pytest.mark.asyncio
     async def test_caller_with_deepinfra_key_sees_the_models(
@@ -146,7 +147,10 @@ class TestAvailableModelsOffersOpenWeight:
             offered["Qwen/Qwen3.8-27B"]["default_config"]["reasoning_config"]["default"]
             == "on"
         )
-        assert offered["microsoft/phi-4"]["default_config"] is None
+        # The panel model carries only its flag mark (catalog_flags).
+        assert offered["microsoft/phi-4"]["default_config"] == {
+            "feature_flag": "variant_experiments"
+        }
 
     @pytest.mark.asyncio
     async def test_caller_without_deepinfra_key_does_not(

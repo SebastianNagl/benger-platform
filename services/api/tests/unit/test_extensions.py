@@ -207,7 +207,10 @@ class TestExtensionLoader:
         # unit, request and design components).
         # 2.74 adds the agreement and validity views (code validations of a
         # project's answers, the snapshot's analyses.code_validations).
-        assert CORE_API_VERSION == "2.74"
+        # 2.75 adds the platform flags variant_experiments and
+        # compliance_records and moves the reserved key to meta.benger_variant
+        # (migration 151).
+        assert CORE_API_VERSION == "2.75"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

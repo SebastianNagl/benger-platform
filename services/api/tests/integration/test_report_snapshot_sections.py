@@ -43,6 +43,9 @@ from report_models import ProjectReport
 from report_snapshot import build_report_snapshot, canonical_snapshot_json, snapshot_sha256
 from tests.integration.test_report_snapshot_public import _as_user, _seed_benchmark, _user
 
+# The features are behind platform flags (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments", "report_paper")
+
 
 def _uid() -> str:
     return str(uuid.uuid4())
@@ -371,7 +374,7 @@ async def _seed_data(db, project, admin):
                 db.add(Task(id=_uid(), project_id=project.id, created_by=admin.id,
                             inner_id=100 + u * 10 + (framing == "loaded") * 2 + order,
                             data={"text": f"unit {u} {framing} {order}"},
-                            meta={"variant": {"design": "framing", "unit": f"u{u}",
+                            meta={"benger_variant": {"design": "framing", "unit": f"u{u}",
                                               "factors": {"framing": framing, "order": order}}}))
     await db.flush()
 
@@ -456,6 +459,45 @@ async def test_data_section_designs_and_import_provenance(async_test_db):
     assert run["name"] == "single"
     assert (run["spec_hash"], run["frame_sha256"], run["lockfile_sha256"]) == ("f" * 64, "2" * 64, "3" * 64)
     assert run["engine_version"] == "1.1.0" and run["library_versions"] == {"numpy": "2.0.0"} and run["seed"] == 7
+
+
+@pytest.mark.flags_off("variant_experiments")
+@pytest.mark.asyncio
+async def test_without_variant_experiments_the_paper_has_no_values_of_its_features(async_test_db):
+    """report_paper on, variant_experiments off: the paper's parts are built,
+    but refusal, retry and request record shares, variant designs, import
+    provenance and analysis runs are not in them, and the hash is the one of
+    what is left."""
+    admin = await _user(async_test_db, is_superadmin=True)
+    ann = await _user(async_test_db)
+    project, _ = await _seed_benchmark(async_test_db, admin, ann)
+    await _add_generation_outcomes(async_test_db, project, admin)
+    await _seed_data(async_test_db, project, admin)
+
+    snap = await _snapshot(async_test_db, project.id)
+
+    gen = snap["generation"]
+    assert gen["models"]
+    for row in gen["models"] + [gen["totals"]]:
+        assert not {"refusal_rate", "retry_rate", "request_record_share"} & set(row)
+        assert "parse_failure_rate" in row and "truncation_rate" in row
+    assert gen["totals"]["generations"] == 3
+    data = snap["data"]
+    assert data["variant_designs"] == []
+    assert data["import_count"] == 2
+    assert [set(i) for i in data["imports"]] == [{"format", "completed_at"}] * 2
+    repro = snap["reproducibility"]
+    assert repro["variant_designs"] == [] and repro["analysis_runs"] == []
+    assert [set(i) for i in repro["imports"]] == [{"completed_at"}] * 2
+    assert "analyses" not in snap and "annotator_agreement" not in snap
+    assert "analysis_count" not in snap["statistics"]
+    assert repro["snapshot_sha256"] == snapshot_sha256(snap)
+
+    # The same data with the flag has those values.
+    on = await _snapshot(async_test_db, project.id, variant_experiments=True)
+    assert on["generation"]["totals"]["refusal_rate"] == pytest.approx(0.5)
+    assert on["data"]["imports"][0]["payload_sha256"] == "b" * 64
+    assert len(on["reproducibility"]["analysis_runs"]) == 1
 
 
 @pytest.mark.asyncio
@@ -818,7 +860,9 @@ async def test_public_readers_get_hashes_members_get_parameters(async_test_clien
             assert manifest == {"sha256": full["data"]["imports"][0]["declared_manifest"]["sha256"]}
             provenance = snapshot["data"]["variant_designs"][0]["provenance"]
             assert provenance == {"sha256": full["data"]["variant_designs"][0]["provenance"]["sha256"]}
-            assert snapshot["reproducibility"]["snapshot_sha256"] == full["reproducibility"]["snapshot_sha256"]
+            # The public view's hash is the one of what it serves.
+            assert snapshot["reproducibility"]["snapshot_sha256"] == snapshot_sha256(snapshot)
+            assert snapshot["reproducibility"]["snapshot_sha256"] != full["reproducibility"]["snapshot_sha256"]
             assert snapshot["series"] == full["series"]
 
     # The stored snapshot stays whole.

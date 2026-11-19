@@ -37,7 +37,7 @@ def task(task_id, party, name, *, note="n"):
         1 if party == "A" else 2,
         {"case": text, "note": note, "bench": {"fault": 40}, "other": 1},
         {
-            "variant": {
+            "benger_variant": {
                 "design": "swap",
                 "unit": "u1",
                 "factors": {"party": party, "level": 40},
@@ -220,7 +220,7 @@ def test_unit_view_lists_the_slots_of_a_task():
         1,
         {"case": "Roster one"},
         {
-            "variant": {
+            "benger_variant": {
                 "design": "swap",
                 "unit": "u1",
                 "factors": {"kind": "a"},

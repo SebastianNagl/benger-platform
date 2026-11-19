@@ -3,7 +3,7 @@ export and import.
 
 A design declares a variant experiment (factors, unit, slots, outcome, gold
 and invariance bindings; ``schemas/variant_design.schema.json``); each task's
-place in it is ``task.meta.variant``. The rules live in ``variant_designs``
+place in it is ``task.meta.benger_variant``. The rules live in ``variant_designs``
 (pure) and ``variant_design_guard`` (database); this module only routes.
 
 Access: reading a design needs the full-data tier of the project (the roles
@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import variant_designs as vd
 import variant_unit_views as units
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from project_models import Task, VariantDesign
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import can_read_all_task_content_async
@@ -43,13 +44,14 @@ from variant_design_guard import (
     update_design_spec,
 )
 
-router = APIRouter()
+# Behind the variant_experiments flag (core 2.75): 404 feature_disabled while off.
+router = APIRouter(dependencies=[Depends(require_variant_experiments)])
 
 _BASE = "/{project_id}/variant-designs"
 
 
 class VariantDesignCreate(BaseModel):
-    key: str = Field(..., description="Key of the design in the project (meta.variant.design)")
+    key: str = Field(..., description="Key of the design in the project (meta.benger_variant.design)")
     spec: Dict[str, Any] = Field(..., description="schemas/variant_design.schema.json")
     provenance: Optional[Dict[str, Any]] = None
 
@@ -246,7 +248,7 @@ async def export_variant_design(
     access: ProjectAccess = Depends(require_project_access()),
 ):
     """The design as a portable document (the assignments travel with the
-    tasks in ``meta.variant``)."""
+    tasks in ``meta.benger_variant``)."""
     await _require_read(db, access)
     return export_document(await _load(db, project_id, key))
 
@@ -299,7 +301,7 @@ async def delete_variant_design(
             409,
             "variant_design_in_use",
             f"{count} task(s) name the variant design {key!r}; remove their "
-            "meta.variant or delete them first.",
+            "meta.benger_variant or delete them first.",
             task_count=count,
         )
     await db.delete(row)
@@ -335,7 +337,7 @@ async def freeze_variant_design(
     access: ProjectAccess = Depends(require_project_access(min_role="edit")),
 ):
     """Freeze the design when every check passes: records the content hash
-    and makes the tasks' ``data`` and ``meta.variant`` read-only (409 on any
+    and makes the tasks' ``data`` and ``meta.benger_variant`` read-only (409 on any
     later edit). 409 with the report when a check fails."""
     await _load(db, project_id, key)
     user_id = str(access.user.id)

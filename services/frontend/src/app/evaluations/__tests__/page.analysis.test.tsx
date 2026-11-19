@@ -56,9 +56,14 @@ jest.mock('@/utils/permissions', () => ({
   canAccessProjectData: () => true,
 }))
 
+let mockVariantExperiments = true
 jest.mock('@/lib/featureFlags', () => ({
   ...jest.requireActual('@/lib/featureFlags'),
   useActiveExtensionsReady: () => true,
+  useFeatureFlag: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments,
+  useFeatureFlagStatus: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments ? 'on' : 'off',
 }))
 
 // The Metrics view has its own suites; here it only shows the shell's lead.
@@ -608,6 +613,23 @@ describe('Evaluations page, shared variant views', () => {
       'roster_001',
       null,
     )
+  })
+})
+
+describe('Evaluations page with variant_experiments off', () => {
+  afterEach(() => {
+    mockVariantExperiments = true
+  })
+
+  it('offers no Analyses and shows the metrics for ?type=analysis', async () => {
+    mockVariantExperiments = false
+    mockSearch = new URLSearchParams('projectId=project-1&type=analysis')
+    render(<EvaluationDashboard />)
+    expect(await screen.findByTestId('metric-view')).toBeInTheDocument()
+    expect(screen.queryByTestId('result-type-switch')).toBeNull()
+    expect(screen.queryByTestId('estimates-table')).toBeNull()
+    expect(mockListRuns).not.toHaveBeenCalled()
+    expect(mockDesigns).not.toHaveBeenCalled()
   })
 })
 

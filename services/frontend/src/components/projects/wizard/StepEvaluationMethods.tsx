@@ -34,6 +34,7 @@ import {
 } from '@/lib/api/evaluation-types'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { useSlot } from '@/lib/extensions/slots'
+import { useFeatureFlagMap } from '@/lib/featureFlags'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
@@ -79,7 +80,9 @@ export function StepEvaluationMethods({
   const EvaluationSettings = useSlot('ProjectWizardEvaluationSettings')
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null)
 
-  const groupedMetrics = getGroupedMetrics()
+  // A metric of a feature flag the viewer has off is not offered.
+  const flags = useFeatureFlagMap()
+  const groupedMetrics = getGroupedMetrics(flags)
   const metricDefinitions = getMetricDefinitions()
 
   const selectedMetrics = new Set(evaluationConfigs.map((c) => c.metric))

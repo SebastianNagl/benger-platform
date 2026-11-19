@@ -13,6 +13,8 @@ import { Tag } from '@/components/shared/Tag'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { COMPLIANCE_RECORDS } from '@/lib/featureFlags/platformFlags'
 import { remToPx } from '@/lib/remToPx'
 import { bestOrgRole } from '@/utils/permissions'
 import { CloseButton } from '@headlessui/react'
@@ -513,7 +515,11 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
   // Compliance overlay: its dashboard entry shows only while the overlay is
   // active for the viewer and registers the dashboard.
-  const hasCompliance = useComplianceSlot('ComplianceDashboard').status === 'on'
+  // The /compliance shells are behind the compliance_records flag too.
+  const complianceRecords = useFeatureFlag(COMPLIANCE_RECORDS)
+  const hasCompliance =
+    useComplianceSlot('ComplianceDashboard').status === 'on' &&
+    complianceRecords
 
   // Helper function to check if user has access to specific routes. The
   // host (apex or org subdomain) plays no part: the data-management

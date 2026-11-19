@@ -1758,10 +1758,31 @@ export function isMetricImmediateEligible(key: string): boolean {
  * core ordering and description); other extended groups are appended. Only
  * groups and metrics of active owners are listed (lib/extensions/active.ts).
  */
-export function getGroupedMetrics(): MetricCategory[] {
-  const merged: MetricCategory[] = GROUPED_METRICS.map((g) => ({
+/**
+ * Platform metrics that belong to a feature flag (core 2.75; mirrors
+ * metric_filters.FLAGGED_METRICS): offered only while the flag is on.
+ */
+export const FLAGGED_METRICS: Readonly<Record<string, string>> = {
+  text_pattern: 'variant_experiments',
+}
+
+/**
+ * The metric groups to offer. `flags` are the viewer's feature flags
+ * (`useFeatureFlagMap()`); a metric of a flag that is off or unknown is left
+ * out, and a group left empty by that is left out too.
+ */
+export function getGroupedMetrics(
+  flags: Readonly<Record<string, boolean>> = {},
+): MetricCategory[] {
+  const flagged = (metric: string) => {
+    const flag = FLAGGED_METRICS[metric]
+    return flag !== undefined && flags[flag] !== true
+  }
+  const merged: MetricCategory[] = GROUPED_METRICS.filter(
+    (g) => g.metrics.length === 0 || g.metrics.some((m) => !flagged(m)),
+  ).map((g) => ({
     ...g,
-    metrics: [...g.metrics],
+    metrics: g.metrics.filter((m) => !flagged(m)),
   }))
   const byName = new Map(merged.map((g) => [g.name, g]))
   for (const { owner, group: ext } of _extendedGroups) {

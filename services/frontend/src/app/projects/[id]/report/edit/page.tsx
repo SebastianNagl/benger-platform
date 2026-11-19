@@ -48,6 +48,11 @@ import {
   type ReportContent,
   type ReportResponse,
 } from '@/lib/api/reports'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import {
+  REPORT_PAPER,
+  VARIANT_EXPERIMENTS,
+} from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { cleanFilters } from '@/lib/reports/analyses'
 import { formatCount, formatRate } from '@/lib/reports/format'
@@ -334,6 +339,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const { user, isLoading: authLoading } = useAuth()
   const { addToast } = useToast()
   const { t, locale } = useI18n()
+  // The paper's parts (data record, generation details, human evaluation,
+  // reproducibility) and authors besides superadmins belong to
+  // report_paper; the agreement and code validation switches, the Analyses
+  // section and the values of variant designs, import provenance and
+  // refusals to variant_experiments.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const reportPaper = useFeatureFlag(REPORT_PAPER)
 
   const [projectId, setProjectId] = useState<string | null>(null)
   const [report, setReport] = useState<ReportResponse | null>(null)
@@ -473,8 +485,12 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ...sections.annotations,
           visible: state.sectionVisible.annotations,
           show_participants: state.showParticipants,
-          show_agreement: state.showAgreement,
-          show_code_validations: state.showCodeValidations,
+          ...(variantExperiments
+            ? {
+                show_agreement: state.showAgreement,
+                show_code_validations: state.showCodeValidations,
+              }
+            : {}),
           custom_text: state.annotationsText || null,
           acknowledgment_text: state.acknowledgment || null,
         },
@@ -493,22 +509,29 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           show_human_evaluation: state.showHumanEvaluation,
           charts_config: chartsConfig,
         },
-        analyses: {
-          ...sections.analyses,
-          visible: state.sectionVisible.analyses,
-          custom_text: state.analysesText || null,
-          runs: state.analysesRuns.map((run) => ({
-            ...run,
-            title: run.title || null,
-            text: run.text || null,
-            exhibits: run.exhibits.map((exhibit) => ({
-              ...exhibit,
-              title: exhibit.title || null,
-              caption: exhibit.caption || null,
-              filters: cleanFilters(exhibit.filters),
-            })),
-          })),
-        },
+        // The Analyses section belongs to variant_experiments; without the
+        // flag the editor neither adds nor changes it (the API keeps a
+        // stored one).
+        ...(variantExperiments
+          ? {
+              analyses: {
+                ...sections.analyses,
+                visible: state.sectionVisible.analyses,
+                custom_text: state.analysesText || null,
+                runs: state.analysesRuns.map((run) => ({
+                  ...run,
+                  title: run.title || null,
+                  text: run.text || null,
+                  exhibits: run.exhibits.map((exhibit) => ({
+                    ...exhibit,
+                    title: exhibit.title || null,
+                    caption: exhibit.caption || null,
+                    filters: cleanFilters(exhibit.filters),
+                  })),
+                })),
+              },
+            }
+          : {}),
         reproducibility: {
           ...sections.reproducibility,
           visible: state.sectionVisible.reproducibility,
@@ -605,10 +628,18 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           role="alert"
         >
           <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">
-            {t('reports.editor.notAuthor')}
+            {t(
+              reportPaper
+                ? 'reports.editor.notAuthor'
+                : 'reports.editor.notSuperadmin',
+            )}
           </h1>
           <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-            {t('reports.editor.notAuthorHint')}
+            {t(
+              reportPaper
+                ? 'reports.editor.notAuthorHint'
+                : 'reports.editor.notSuperadminHint',
+            )}
           </p>
           <div className="mt-4 flex gap-3">
             <Button
@@ -801,20 +832,38 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showDataCount: enabled })}
               label={t('reports.editor.showDataCount')}
             />
-            <ToggleSwitch
-              enabled={state.showProvenance}
-              onChange={(enabled) => update({ showProvenance: enabled })}
-              label={t('reports.editor.showProvenance')}
-            />
-            <SnapshotNote show={Boolean(snapshot)}>
-              {t('reports.editor.dataSummary', {
-                designs: formatCount(
-                  dataRecord?.variant_designs.length ?? 0,
-                  locale,
-                ),
-                imports: formatCount(dataRecord?.import_count ?? 0, locale),
-              })}
-            </SnapshotNote>
+            {reportPaper && (
+              <>
+                <ToggleSwitch
+                  enabled={state.showProvenance}
+                  onChange={(enabled) => update({ showProvenance: enabled })}
+                  label={t(
+                    variantExperiments
+                      ? 'reports.editor.showProvenance'
+                      : 'reports.editor.showImports',
+                  )}
+                />
+                <SnapshotNote show={Boolean(snapshot)}>
+                  {variantExperiments
+                    ? t('reports.editor.dataSummary', {
+                        designs: formatCount(
+                          dataRecord?.variant_designs.length ?? 0,
+                          locale,
+                        ),
+                        imports: formatCount(
+                          dataRecord?.import_count ?? 0,
+                          locale,
+                        ),
+                      })
+                    : t('reports.editor.importSummary', {
+                        imports: formatCount(
+                          dataRecord?.import_count ?? 0,
+                          locale,
+                        ),
+                      })}
+                </SnapshotNote>
+              </>
+            )}
           </div>
         </div>
 
@@ -858,16 +907,22 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showParticipants: enabled })}
               label={t('reports.editor.showParticipants')}
             />
-            <ToggleSwitch
-              enabled={state.showAgreement}
-              onChange={(enabled) => update({ showAgreement: enabled })}
-              label={t('reports.editor.showAgreement')}
-            />
-            <ToggleSwitch
-              enabled={state.showCodeValidations}
-              onChange={(enabled) => update({ showCodeValidations: enabled })}
-              label={t('reports.editor.showCodeValidations')}
-            />
+            {variantExperiments && (
+              <>
+                <ToggleSwitch
+                  enabled={state.showAgreement}
+                  onChange={(enabled) => update({ showAgreement: enabled })}
+                  label={t('reports.editor.showAgreement')}
+                />
+                <ToggleSwitch
+                  enabled={state.showCodeValidations}
+                  onChange={(enabled) =>
+                    update({ showCodeValidations: enabled })
+                  }
+                  label={t('reports.editor.showCodeValidations')}
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -897,26 +952,46 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showModels: enabled })}
               label={t('reports.editor.showModels')}
             />
-            <ToggleSwitch
-              enabled={state.showGenerationDetails}
-              onChange={(enabled) => update({ showGenerationDetails: enabled })}
-              label={t('reports.editor.showGenerationDetails')}
-            />
-            <SnapshotNote show={Boolean(snapshot)}>
-              {generationRecord && generationRecord.models.length > 0
-                ? t('reports.editor.generationSummary', {
-                    models: formatCount(generationRecord.models.length, locale),
-                    generations: formatCount(
-                      generationRecord.totals.generations,
-                      locale,
-                    ),
-                    refusals: formatRate(
-                      generationRecord.totals.refusal_rate,
-                      locale,
-                    ),
-                  })
-                : t('reports.editor.noGenerations')}
-            </SnapshotNote>
+            {reportPaper && (
+              <>
+                <ToggleSwitch
+                  enabled={state.showGenerationDetails}
+                  onChange={(enabled) =>
+                    update({ showGenerationDetails: enabled })
+                  }
+                  label={t('reports.editor.showGenerationDetails')}
+                />
+                <SnapshotNote show={Boolean(snapshot)}>
+                  {generationRecord && generationRecord.models.length > 0
+                    ? generationRecord.totals.refusal_rate !== undefined
+                      ? t('reports.editor.generationSummary', {
+                          models: formatCount(
+                            generationRecord.models.length,
+                            locale,
+                          ),
+                          generations: formatCount(
+                            generationRecord.totals.generations,
+                            locale,
+                          ),
+                          refusals: formatRate(
+                            generationRecord.totals.refusal_rate,
+                            locale,
+                          ),
+                        })
+                      : t('reports.editor.generationCountSummary', {
+                          models: formatCount(
+                            generationRecord.models.length,
+                            locale,
+                          ),
+                          generations: formatCount(
+                            generationRecord.totals.generations,
+                            locale,
+                          ),
+                        })
+                    : t('reports.editor.noGenerations')}
+                </SnapshotNote>
+              </>
+            )}
           </div>
         </div>
 
@@ -956,31 +1031,37 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <ToggleSwitch
-                enabled={state.showHumanEvaluation}
-                onChange={(enabled) => update({ showHumanEvaluation: enabled })}
-                label={t('reports.editor.showHumanEvaluation')}
-              />
-              <SnapshotNote show={Boolean(snapshot)}>
-                {humanRecord && hasHumanEvaluations(humanRecord)
-                  ? t('reports.editor.humanSummary', {
-                      dimensions: formatCount(
-                        humanRecord.likert.dimensions.length,
-                        locale,
-                      ),
-                      ratings: formatCount(
-                        humanRecord.likert.rating_count,
-                        locale,
-                      ),
-                      comparisons: formatCount(
-                        humanRecord.preference.comparisons,
-                        locale,
-                      ),
-                    })
-                  : t('reports.editor.noHumanEvaluation')}
-              </SnapshotNote>
-            </div>
+            {reportPaper && (
+              <>
+                <div className="space-y-2">
+                  <ToggleSwitch
+                    enabled={state.showHumanEvaluation}
+                    onChange={(enabled) =>
+                      update({ showHumanEvaluation: enabled })
+                    }
+                    label={t('reports.editor.showHumanEvaluation')}
+                  />
+                  <SnapshotNote show={Boolean(snapshot)}>
+                    {humanRecord && hasHumanEvaluations(humanRecord)
+                      ? t('reports.editor.humanSummary', {
+                          dimensions: formatCount(
+                            humanRecord.likert.dimensions.length,
+                            locale,
+                          ),
+                          ratings: formatCount(
+                            humanRecord.likert.rating_count,
+                            locale,
+                          ),
+                          comparisons: formatCount(
+                            humanRecord.preference.comparisons,
+                            locale,
+                          ),
+                        })
+                      : t('reports.editor.noHumanEvaluation')}
+                  </SnapshotNote>
+                </div>
+              </>
+            )}
 
             <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
               <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
@@ -1236,58 +1317,63 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           </div>
         </div>
 
-        {/* Analyses Section */}
-        <div className={cardClass} data-testid="section-analyses">
-          {sectionHeader('analyses', t('reports.editor.analyses.title'))}
-          <AnalysesEditor
-            projectId={projectId}
-            customText={state.analysesText}
-            runs={state.analysesRuns}
-            onCustomTextChange={(text) => update({ analysesText: text })}
-            onRunsChange={(runs) => update({ analysesRuns: runs })}
-            snapshot={snapshot?.analyses}
-            isPublic={Boolean(report?.is_published && report?.is_public)}
-          />
-        </div>
-
-        {/* Reproducibility Section */}
-        <div className={cardClass} data-testid="section-reproducibility">
-          {sectionHeader(
-            'reproducibility',
-            t('reports.editor.reproducibility.title'),
-          )}
-          <div className="space-y-4">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {t('reports.editor.reproducibility.hint')}
-            </p>
-            <div>
-              <Label htmlFor="reproducibilityText">
-                {t('reports.editor.reproducibility.customText')}
-              </Label>
-              <Textarea
-                id="reproducibilityText"
-                value={state.reproducibilityText}
-                onChange={(e) =>
-                  update({ reproducibilityText: e.target.value })
-                }
-                placeholder={t(
-                  'reports.editor.reproducibility.customTextPlaceholder',
-                )}
-                rows={3}
-              />
-            </div>
-            {snapshot?.reproducibility?.snapshot_sha256 && (
-              <div className="text-sm" data-testid="editor-snapshot-hash">
-                <div className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('reports.view.records.snapshotHash')}
-                </div>
-                <code className="font-mono text-xs break-all text-zinc-700 dark:text-zinc-300">
-                  {snapshot.reproducibility.snapshot_sha256}
-                </code>
-              </div>
-            )}
+        {variantExperiments && (
+          <div className={cardClass} data-testid="section-analyses">
+            {sectionHeader('analyses', t('reports.editor.analyses.title'))}
+            <AnalysesEditor
+              projectId={projectId}
+              customText={state.analysesText}
+              runs={state.analysesRuns}
+              onCustomTextChange={(text) => update({ analysesText: text })}
+              onRunsChange={(runs) => update({ analysesRuns: runs })}
+              snapshot={snapshot?.analyses}
+              isPublic={Boolean(report?.is_published && report?.is_public)}
+            />
           </div>
-        </div>
+        )}
+
+        {reportPaper && (
+          <>
+            {/* Reproducibility Section */}
+            <div className={cardClass} data-testid="section-reproducibility">
+              {sectionHeader(
+                'reproducibility',
+                t('reports.editor.reproducibility.title'),
+              )}
+              <div className="space-y-4">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {t('reports.editor.reproducibility.hint')}
+                </p>
+                <div>
+                  <Label htmlFor="reproducibilityText">
+                    {t('reports.editor.reproducibility.customText')}
+                  </Label>
+                  <Textarea
+                    id="reproducibilityText"
+                    value={state.reproducibilityText}
+                    onChange={(e) =>
+                      update({ reproducibilityText: e.target.value })
+                    }
+                    placeholder={t(
+                      'reports.editor.reproducibility.customTextPlaceholder',
+                    )}
+                    rows={3}
+                  />
+                </div>
+                {snapshot?.reproducibility?.snapshot_sha256 && (
+                  <div className="text-sm" data-testid="editor-snapshot-hash">
+                    <div className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                      {t('reports.view.records.snapshotHash')}
+                    </div>
+                    <code className="font-mono text-xs break-all text-zinc-700 dark:text-zinc-300">
+                      {snapshot.reproducibility.snapshot_sha256}
+                    </code>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Action Buttons */}
         <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-6 dark:border-zinc-700">

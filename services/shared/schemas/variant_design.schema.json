@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:benger:schema:variant-design:1",
   "title": "Variant design",
-  "description": "The declared, freezable design of a variant experiment: the unit that ties variants together, the factors with their levels, optional per-answer slots, the outcome, gold and invariance bindings. Each task's place in the design lives in task.meta.variant (see task_variant.schema.json). Rules that JSON Schema cannot express (unique names, levels matching the factor type, references between sections) are checked by variant_designs.validate_spec.",
+  "description": "The declared, freezable design of a variant experiment: the unit that ties variants together, the factors with their levels, optional per-answer slots, the outcome, gold and invariance bindings. Each task's place in the design lives in task.meta.benger_variant (see task_variant.schema.json). Rules that JSON Schema cannot express (unique names, levels matching the factor type, references between sections) are checked by variant_designs.validate_spec.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -23,7 +23,7 @@
       "maxLength": 10000
     },
     "unit": {
-      "description": "What ties the variants of one item together. Its value per task is meta.variant.unit; analyses use it as the fixed effect or cluster.",
+      "description": "What ties the variants of one item together. Its value per task is meta.benger_variant.unit; analyses use it as the fixed effect or cluster.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -155,7 +155,7 @@
           "default": "manipulated"
         },
         "source": {
-          "description": "Where the factor's value comes from: the task (meta.variant.factors), the prompt structure, the system (model plus parameter profile) or the run index. Only task factors are stored per task.",
+          "description": "Where the factor's value comes from: the task (meta.benger_variant.factors), the prompt structure, the system (model plus parameter profile) or the run index. Only task factors are stored per task.",
           "enum": [
             "task",
             "structure",
@@ -179,7 +179,7 @@
       }
     },
     "slots": {
-      "description": "Several records inside one answer (one per person or case), each with its own factors (meta.variant.slots).",
+      "description": "Several records inside one answer (one per person or case), each with its own factors (meta.benger_variant.slots).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -315,7 +315,7 @@
       "additionalProperties": false,
       "properties": {
         "fields": {
-          "description": "Data paths whose text may differ only inside the character spans each task declares (meta.variant.spans and slots[].spans).",
+          "description": "Data paths whose text may differ only inside the character spans each task declares (meta.benger_variant.spans and slots[].spans).",
           "type": "array",
           "maxItems": 256,
           "uniqueItems": true,

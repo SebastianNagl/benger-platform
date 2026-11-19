@@ -542,6 +542,7 @@ ANSWER_LABEL_CONFIG = (
 )
 
 
+@pytest.mark.flags_on("variant_experiments")
 class TestAnswerFormatOptions:
     """The answer-format options of a structure: validated on write, shown
     as generation uses them, with the exact text a generation appends."""
@@ -640,10 +641,26 @@ class TestAnswerFormatOptions:
         assert data["schema_instruction_preview"] is None
 
 
+@pytest.mark.flags_on("variant_experiments")
 class TestGenerationRunsPerTaskCap:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("runs, expected", [(100, 200), (101, 422), (0, 422), (True, 422)])
     async def test_generation_config_runs_per_task_bound(
+        self, async_test_client, async_test_db, runs, expected
+    ):
+        creator = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, creator, generation_config={})
+        await async_test_db.commit()
+        with _as_user(creator):
+            response = await async_test_client.put(
+                f"{BASE}/{project.id}/generation-config", json={"runs_per_task": runs}
+            )
+        assert response.status_code == expected
+
+    @pytest.mark.flags_off("variant_experiments")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("runs, expected", [(25, 200), (26, 422), (100, 422)])
+    async def test_generation_config_runs_per_task_bound_without_variant_experiments(
         self, async_test_client, async_test_db, runs, expected
     ):
         creator = await _make_user(async_test_db, is_superadmin=True)

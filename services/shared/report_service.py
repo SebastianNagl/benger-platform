@@ -10,7 +10,7 @@ This service handles:
 
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -218,6 +218,19 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
     return report
 
 
+def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
+    """The ``show_agreement`` key of the annotations section: kept or
+    defaulted while the variant_experiments flag is on in this context
+    (core 2.75), absent otherwise, as before annotator agreement existed."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    annotations = annotations if isinstance(annotations, dict) else {}
+    if not scoped_flag(VARIANT_EXPERIMENTS):
+        return {"show_agreement": annotations["show_agreement"]} if "show_agreement" in annotations else {}
+    return {"show_agreement": annotations.get("show_agreement", True)}
+
+
 def update_report_annotations_section(db: Session, project_id: str) -> Optional[ProjectReport]:
     """
     Update annotations section when annotations are completed
@@ -268,7 +281,7 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
         "custom_text": custom_text,
         "show_count": True,
         "show_participants": existing_annotations.get("show_participants", True),
-        "show_agreement": existing_annotations.get("show_agreement", True),
+        **_show_agreement_setting(existing_annotations),
         "acknowledgment_text": acknowledgment_text,
         "status": "completed",
         "editable": True,
@@ -427,6 +440,7 @@ def _update_metadata(report: ProjectReport, section_name: str):
 REASON_NO_REPORT = "Report not found"
 REASON_NO_TASKS = "Project must have tasks"
 REASON_NO_RESULTS = "Project must have annotations, generations, evaluations or analyses"
+REASON_NO_RESULTS_WITHOUT_ANALYSES = "Project must have annotations, generations or evaluations"
 REASON_ANALYSIS_RUNS = (
     "Every run in the Analyses section must be a completed analysis run of this project "
     "that reads no other project"
@@ -436,10 +450,11 @@ REASON_OK = "All requirements met"
 
 def _has_results(db: Session, project_id: str) -> bool:
     """Whether the project has anything a report can be about: annotations,
-    generations, completed evaluation runs or completed analysis runs."""
+    generations, completed evaluation runs or, with analyses on in this
+    context, completed analysis runs."""
     from models import AnalysisRun
 
-    checks = (
+    checks = [
         db.query(Annotation.id).filter(
             Annotation.project_id == project_id, Annotation.was_cancelled == False  # noqa: E712
         ),
@@ -449,10 +464,13 @@ def _has_results(db: Session, project_id: str) -> bool:
         db.query(EvaluationRun.id).filter(
             EvaluationRun.project_id == project_id, EvaluationRun.status == "completed"
         ),
-        db.query(AnalysisRun.id).filter(
-            AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
-        ),
-    )
+    ]
+    if _analyses_on():
+        checks.append(
+            db.query(AnalysisRun.id).filter(
+                AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
+            )
+        )
     return any(db.query(q.exists()).scalar() for q in checks)
 
 
@@ -481,7 +499,9 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     if not report:
         return False, REASON_NO_REPORT
     ok, reason = can_publish_project(db, project_id)
-    if not ok:
+    if not ok or not _analyses_on():
+        # Without variant_experiments a snapshot has no Analyses section, so
+        # its runs do not count.
         return ok, reason
     content = report.content if isinstance(report.content, dict) else {}
     sections = content.get("sections") if isinstance(content.get("sections"), dict) else {}
@@ -491,13 +511,64 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     return True, REASON_OK
 
 
+# The rule before reports covered the whole project (report_paper off,
+# core 2.75): tasks, LLM generations and completed evaluations.
+REASON_NO_GENERATIONS = "Project must have LLM generations"
+REASON_NO_EVALUATIONS = "Project must have completed evaluations"
+
+
+def _can_publish_project_classic(db: Session, project_id: str) -> Tuple[bool, str]:
+    task_count = db.query(Task).filter(Task.project_id == project_id).count()
+    if task_count == 0:
+        return False, REASON_NO_TASKS
+    generation_count = (
+        db.query(Generation)
+        .join(Generation.generation)
+        .filter(Generation.generation.has(project_id=project_id))
+        .count()
+    )
+    if generation_count == 0:
+        return False, REASON_NO_GENERATIONS
+    evaluation_count = (
+        db.query(EvaluationRun)
+        .filter(EvaluationRun.project_id == project_id, EvaluationRun.status == "completed")
+        .count()
+    )
+    if evaluation_count == 0:
+        return False, REASON_NO_EVALUATIONS
+    return True, REASON_OK
+
+
+def _paper_rules() -> bool:
+    """Whether the report as project paper (report_paper, core 2.75)
+    applies in this request or job context."""
+    from feature_flags.registry import REPORT_PAPER
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(REPORT_PAPER)
+
+
+def _analyses_on() -> bool:
+    """Whether analyses (variant_experiments, core 2.75) apply in this
+    request or job context."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(VARIANT_EXPERIMENTS)
+
+
 def can_publish_project(db: Session, project_id: str) -> Tuple[bool, str]:
-    """The data half of :func:`can_publish_report` (no report row needed)."""
+    """The data half of :func:`can_publish_report` (no report row needed).
+
+    With report_paper off in this context the rule is the one before
+    (:func:`_can_publish_project_classic`)."""
+    if not _paper_rules():
+        return _can_publish_project_classic(db, project_id)
     has_tasks = db.query(db.query(Task.id).filter(Task.project_id == project_id).exists()).scalar()
     if not has_tasks:
         return False, REASON_NO_TASKS
     if not _has_results(db, project_id):
-        return False, REASON_NO_RESULTS
+        return False, REASON_NO_RESULTS if _analyses_on() else REASON_NO_RESULTS_WITHOUT_ANALYSES
     return True, REASON_OK
 
 
@@ -917,9 +988,7 @@ def create_or_update_report_from_existing_data(
             "show_participants": content.get("sections", {})
             .get("annotations", {})
             .get("show_participants", True),
-            "show_agreement": content.get("sections", {})
-            .get("annotations", {})
-            .get("show_agreement", True),
+            **_show_agreement_setting(content.get("sections", {}).get("annotations", {})),
             "status": "completed",
             "editable": True,
             "visible": True,
@@ -1001,7 +1070,11 @@ def create_or_update_report_from_existing_data(
     content["metadata"] = {
         "last_auto_update": datetime.utcnow().isoformat(),
         "sections_completed": sections_completed,
-        "can_publish": can_publish_project(db, project_id)[0],
+        "can_publish": (
+            can_publish_project(db, project_id)[0]
+            if _paper_rules()
+            else all(s in sections_completed for s in ["data", "generation", "evaluation"])
+        ),
     }
 
     report.content = content

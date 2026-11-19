@@ -366,7 +366,13 @@ async def get_dashboard_stats(
             status_code=503,
             detail="Dashboard statistics are temporarily unavailable.",
         )
-    cache_key = f"dashboard_stats:v6:{current_user.id}:{scope}"
+    # The analyses tile belongs to variant_experiments (core 2.75); the
+    # answer is part of the cache key so a switched flag shows at once.
+    from feature_flags.deps import flag_on
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+
+    experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
+    cache_key = f"dashboard_stats:v6:{current_user.id}:{scope}:{int(experiments)}"
 
     cached_stats = cache.get(cache_key)
     if cached_stats:
@@ -453,7 +459,7 @@ async def get_dashboard_stats(
             annotation_count,
             generations_count,
             evaluations_count,
-            await _analyses_count_async(db, accessible_ids),
+            await _analyses_count_async(db, accessible_ids) if experiments else 0,
         )
 
         cache.set(cache_key, stats, ttl=OVERVIEW_TTL)

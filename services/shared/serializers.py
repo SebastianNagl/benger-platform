@@ -179,7 +179,16 @@ def serialize_generation(
     restores the row as it was. ``structure_key`` is the prompt structure of
     the row's job; the "data" mode names it because the import regroups the
     rows into jobs by model and structure.
+
+    Lossless export belongs to the variant_experiments flag (core 2.75):
+    with it off for the job or caller (``feature_flags.scope``) the row has
+    the fields it had before, :func:`_serialize_generation_classic`.
     """
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    if not scoped_flag(VARIANT_EXPERIMENTS):
+        return _serialize_generation_classic(gen, mode=mode, evaluations=evaluations)
     d = {
         "id": gen.id,
         "model_id": gen.model_id,
@@ -212,6 +221,46 @@ def serialize_generation(
         d.update({
             "generation_id": gen.generation_id,
             "task_id": gen.task_id,
+        })
+    return d
+
+
+def _serialize_generation_classic(
+    gen, *, mode: str = "data", evaluations: Optional[List[dict]] = None
+) -> dict:
+    """A generation row as exports carried it before lossless export (the
+    variant_experiments flag off): the data mode without the research
+    columns, the full mode without the request record."""
+    d = {
+        "id": gen.id,
+        "model_id": gen.model_id,
+        "response_content": gen.response_content,
+        # Reasoning the model returned beside the answer (None when none).
+        "reasoning": gen.reasoning,
+        "case_data": gen.case_data,
+        "created_at": _isoformat(gen.created_at),
+        "response_metadata": gen.response_metadata,
+    }
+    if mode == "data":
+        d["evaluations"] = evaluations if evaluations is not None else []
+    elif mode == "full":
+        d.update({
+            "generation_id": gen.generation_id,
+            "task_id": gen.task_id,
+            "usage_stats": gen.usage_stats,
+            "status": gen.status,
+            "error_message": gen.error_message,
+            "parse_status": gen.parse_status,
+            "parse_error": gen.parse_error,
+            "parsed_annotation": gen.parsed_annotation,
+            "parse_metadata": gen.parse_metadata,
+            "label_config_version": gen.label_config_version,
+            "label_config_snapshot": gen.label_config_snapshot,
+            # Trial number within the parent job. Without it every child of a
+            # multi-run job re-imported as run 0 and collided on
+            # uq_generations_parent_run_index, failing the whole import.
+            "run_index": gen.run_index,
+            **_call_telemetry(gen),
         })
     return d
 

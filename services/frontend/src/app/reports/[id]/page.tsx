@@ -228,6 +228,11 @@ export default function ReportViewerPage({
   }
 
   const stats = snapshot?.statistics
+  // The report as project paper (report_paper): its parts are in the
+  // snapshot only when it was built with the flag and the flag is on for
+  // anybody (the API strips them otherwise). Without them the page reads as
+  // a classic report: every tile and section, no citation block.
+  const paper = Boolean(snapshot?.reproducibility)
   const chartsConfig = (sections.evaluation.charts_config ??
     null) as ReportChartsConfig | null
   const showParticipants = sections.annotations.show_participants !== false
@@ -259,14 +264,15 @@ export default function ReportViewerPage({
         value: formatCount(stats.participant_count, locale),
       })
     }
-    if (stats.model_count > 0) {
+    // The paper hides empty tiles; a classic report shows every tile.
+    if (!paper || stats.model_count > 0) {
       tiles.push({
         id: 'models',
         label: t('reports.view.modelsEvaluated'),
         value: formatCount(stats.model_count, locale),
       })
     }
-    if (stats.evaluation_count > 0) {
+    if (!paper || stats.evaluation_count > 0) {
       tiles.push({
         id: 'evaluations',
         label: t('reports.view.evaluations'),
@@ -286,7 +292,8 @@ export default function ReportViewerPage({
   const annotationCount = stats?.annotation_count ?? 0
   // The validations behind the shown analyses' codes; a project whose
   // codes were validated on coding projects has them without annotations
-  // of its own.
+  // of its own. Both show only what the served snapshot carries (none
+  // without variant_experiments).
   const analysesContent = sections.analyses
   const showAnalyses =
     analysesContent?.visible !== false && hasAnalyses(snapshot?.analyses)
@@ -305,7 +312,7 @@ export default function ReportViewerPage({
   const generationModels = snapshot?.generation?.models.length ?? models.length
   const showGeneration =
     sections.generation.visible !== false &&
-    (generationModels > 0 || Boolean(sections.generation.custom_text))
+    (!paper || generationModels > 0 || Boolean(sections.generation.custom_text))
   // With an Analyses section the conclusions follow it, as in a paper.
   const conclusions = sections.evaluation.conclusions
   const conclusionsAfterAnalyses =
@@ -318,7 +325,8 @@ export default function ReportViewerPage({
     snapshot.methods.length > 0 ||
     Boolean(sections.evaluation.custom_interpretation) ||
     (Boolean(conclusions) && !conclusionsAfterAnalyses)
-  const showEvaluation = sections.evaluation.visible !== false && hasEvaluation
+  const showEvaluation =
+    sections.evaluation.visible !== false && (!paper || hasEvaluation)
   const showHuman =
     sections.evaluation.visible !== false &&
     sections.evaluation.show_human_evaluation !== false &&
@@ -484,7 +492,7 @@ export default function ReportViewerPage({
           />
         )}
 
-        {report.is_published && (
+        {paper && report.is_published && (
           <CitationBlock
             reportId={report.id}
             title={title}

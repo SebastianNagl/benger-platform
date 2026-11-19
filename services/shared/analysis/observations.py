@@ -8,7 +8,7 @@ design, flattened to what an analysis needs:
   structure and run index;
 * the project it belongs to (frames may stack the observations of several
   projects);
-* the task's place in its design, read from ``tasks.meta.variant``
+* the task's place in its design, read from ``tasks.meta.benger_variant``
   (``{"design", "unit", "factors": {...}, "slots": [...], ...}``, see
   :func:`variant_of_task_meta`), including the task's slots: the records
   inside one answer (one per person or case) with their own factors;
@@ -31,6 +31,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from variant_designs import META_KEY as VARIANT_META_KEY
+
 
 @dataclass(frozen=True)
 class Observation:
@@ -52,7 +54,7 @@ class Observation:
     finish_reason: Optional[str] = None
     project_id: str = ""
     #: The task's slots, ``({"index": int, "factors": {...}}, ...)`` sorted by
-    #: index (``meta.variant.slots``; the index is the one the per-slot
+    #: index (``meta.benger_variant.slots``; the index is the one the per-slot
     #: control names use, in the design's index base).
     slots: Tuple[Mapping[str, Any], ...] = ()
     #: The full answer text (``generations.response_content``), read only
@@ -74,7 +76,7 @@ def variant_of_task_meta(meta: Any) -> Optional[Dict[str, Any]]:
     absent (the task is not part of a design)."""
     if not isinstance(meta, Mapping):
         return None
-    variant = meta.get("variant")
+    variant = meta.get(VARIANT_META_KEY)
     if not isinstance(variant, Mapping):
         return None
     design, unit = variant.get("design"), variant.get("unit")
@@ -90,7 +92,7 @@ def variant_of_task_meta(meta: Any) -> Optional[Dict[str, Any]]:
 
 
 def variant_slots(raw: Any) -> Tuple[Dict[str, Any], ...]:
-    """The slots of a ``meta.variant`` block, ``({"index", "factors"}, ...)``
+    """The slots of a ``meta.benger_variant`` block, ``({"index", "factors"}, ...)``
     sorted by index. Entries without a whole-number index are skipped and a
     repeated index keeps its first entry (the design validator refuses
     both when the task is written)."""
@@ -196,7 +198,7 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
 
     Keys: ``generation_id``, ``task_id``, ``model_id`` (and optionally
     ``system``, defaulting to the model id), ``project_id``, ``variant`` (the
-    ``meta.variant`` block) or ``design``/``unit``/``factors``/``slots`` directly, ``fields`` (typed
+    ``meta.benger_variant`` block) or ``design``/``unit``/``factors``/``slots`` directly, ``fields`` (typed
     values) or ``parsed_annotation`` (Label Studio results), ``task_data``,
     ``structure_key``, ``run_index``, ``parse_ok``, ``refusal``,
     ``truncated``, ``retried``, ``finish_reason``, ``answer_text``."""
@@ -204,10 +206,10 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
         raise ObservationError("an observation record must be an object")
     variant = None
     if "variant" in record:
-        variant = variant_of_task_meta({"variant": record.get("variant")})
+        variant = variant_of_task_meta({VARIANT_META_KEY: record.get("variant")})
     elif "design" in record:
         variant = variant_of_task_meta(
-            {"variant": {k: record.get(k) for k in ("design", "unit", "factors", "slots")}}
+            {VARIANT_META_KEY: {k: record.get(k) for k in ("design", "unit", "factors", "slots")}}
         )
     if variant is None:
         raise ObservationError(

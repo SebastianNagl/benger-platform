@@ -24,6 +24,9 @@ from project_models import Project, ProjectOrganization, Task
 from routers.projects._export_stream import stream_export_ndjson
 from routers.projects._import_stream import run_full_project_import, run_nested_import
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 
 def _uid() -> str:
     return str(uuid.uuid4())

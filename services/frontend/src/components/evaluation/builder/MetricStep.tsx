@@ -16,6 +16,7 @@ import {
   metricGroupDescription,
   metricGroupLabel,
 } from '@/lib/api/evaluation-types'
+import { useFeatureFlagMap } from '@/lib/featureFlags'
 
 export interface MetricStepProps {
   /** Currently selected metric id (from `newEvaluation.metric`). */
@@ -29,6 +30,8 @@ export function MetricStep({
   onSelectMetric,
 }: MetricStepProps) {
   const { t } = useI18n()
+  // A metric of a feature flag the viewer has off is not offered.
+  const flags = useFeatureFlagMap()
 
   return (
     <div className="space-y-4">
@@ -39,7 +42,7 @@ export function MetricStep({
         {t('evaluationBuilder.steps.metric.description')}
       </p>
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
-        {getGroupedMetrics().map((group) => (
+        {getGroupedMetrics(flags).map((group) => (
           <div
             key={group.name}
             className="rounded-lg border p-3 dark:border-zinc-700"

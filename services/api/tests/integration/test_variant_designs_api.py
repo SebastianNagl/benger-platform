@@ -3,7 +3,7 @@
 Routes under ``/api/projects/{id}/variant-designs`` (CRUD, export and import
 of a design, checks, freeze), the meta and data write routes against a
 design (invalid assignments 422, a duplicate cell 409, frozen designs 409),
-and the canary: ``meta.variant`` never reaches a blinded caller or a v1
+and the canary: ``meta.benger_variant`` never reaches a blinded caller or a v1
 task read. Synthetic content only.
 """
 
@@ -22,7 +22,7 @@ from main import app
 from models import Organization, OrganizationMembership, OrganizationRole, User
 from project_models import Project, ProjectOrganization, Task
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.flags_on("variant_experiments")]
 
 CANARY = "CANARY-VARIANT-7f3a"
 CONFIG = (
@@ -59,7 +59,7 @@ def task_payload(unit: str, role: str, level: int = 1, *, facts=None, design="sw
         "spans": {"facts": [[at, at + len(name)]] if at >= 0 else []},
         "provenance": {"generator": CANARY},
     }
-    return {"facts": facts, "reference": 50 + level}, {"variant": variant, "tags": ["t"]}
+    return {"facts": facts, "reference": 50 + level}, {"benger_variant": variant, "tags": ["t"]}
 
 
 @contextmanager
@@ -373,7 +373,7 @@ class TestChecksAndFreeze:
             )
             variant_edit = await api("patch",
                 f"/api/projects/tasks/{tasks[0].id}/metadata",
-                json={"variant": {**tasks[0].meta["variant"], "unit": "u9"}},
+                json={"benger_variant": {**tasks[0].meta["benger_variant"], "unit": "u9"}},
             )
             tags_edit = await api("patch",
                 f"/api/projects/tasks/{tasks[0].id}/metadata", json={"tags": ["kept"]}
@@ -395,7 +395,7 @@ class TestChecksAndFreeze:
         assert _detail(data_edit)["code"] == "variant_design_frozen"
         assert variant_edit.status_code == 409, variant_edit.text
         assert tags_edit.status_code == 200, tags_edit.text
-        assert tags_edit.json()["meta"]["variant"] == tasks[0].meta["variant"]
+        assert tags_edit.json()["meta"]["benger_variant"] == tasks[0].meta["benger_variant"]
         assert delete.status_code == 409
         assert spec_edit.status_code == 409
         assert drop.status_code == 409
@@ -529,7 +529,7 @@ class TestWritePaths:
     ):
         await _create_design(async_test_client, world)
         tasks = await _add_tasks(async_test_db, world["project"])
-        good = tasks[0].meta["variant"]
+        good = tasks[0].meta["benger_variant"]
         cases = {
             "unknown level": {**good, "factors": {"role": "judge", "level": 1}},
             "unknown design": {**good, "design": "nope"},
@@ -539,11 +539,11 @@ class TestWritePaths:
         for label, variant in cases.items():
             with _as_user(world["admin"]):
                 single = await api("patch",
-                    f"/api/projects/tasks/{tasks[0].id}/metadata", json={"variant": variant}
+                    f"/api/projects/tasks/{tasks[0].id}/metadata", json={"benger_variant": variant}
                 )
                 bulk = await api("patch",
                     "/api/projects/tasks/bulk-metadata",
-                    json={"task_ids": [tasks[2].id], "metadata": {"variant": variant}},
+                    json={"task_ids": [tasks[2].id], "metadata": {"benger_variant": variant}},
                 )
             assert single.status_code == 422, (label, single.text)
             assert bulk.status_code == 422, (label, bulk.text)
@@ -554,20 +554,20 @@ class TestWritePaths:
     ):
         await _create_design(async_test_client, world)
         tasks = await _add_tasks(async_test_db, world["project"])
-        twin = tasks[1].meta["variant"]
+        twin = tasks[1].meta["benger_variant"]
         # Move the respondent task onto the claimant cell, keys reordered.
         clash = {**twin, "factors": {"level": 1, "role": "claimant"}}
-        clash["spans"] = tasks[0].meta["variant"]["spans"]
+        clash["spans"] = tasks[0].meta["benger_variant"]["spans"]
         with _as_user(world["admin"]):
             resp = await api("patch",
                 f"/api/projects/tasks/{tasks[1].id}/metadata",
-                json={"variant": clash},
+                json={"benger_variant": clash},
             )
         assert resp.status_code == 409, resp.text
         assert _detail(resp)["code"] == "variant_cell_duplicate"
         # The same through a raw insert (no ORM guard on the way).
         data, meta = task_payload("u1", "claimant")
-        meta["variant"]["factors"] = {"level": 1, "role": "claimant"}
+        meta["benger_variant"]["factors"] = {"level": 1, "role": "claimant"}
         from sqlalchemy.exc import IntegrityError
 
         with pytest.raises(IntegrityError) as exc:
@@ -594,14 +594,14 @@ class TestWritePaths:
             )
         ).scalar_one()
         assert cell == {"role": "claimant"}
-        twin = tasks[1].meta["variant"]
+        twin = tasks[1].meta["benger_variant"]
         for factors in ({"role": "claimant", "level": 2}, {"level": 2, "role": "claimant"}):
-            clash = {**twin, "factors": factors, "spans": tasks[0].meta["variant"]["spans"]}
+            clash = {**twin, "factors": factors, "spans": tasks[0].meta["benger_variant"]["spans"]}
             with _as_user(world["admin"]):
                 resp = await api(
                     "patch",
                     f"/api/projects/tasks/{tasks[1].id}/metadata",
-                    json={"variant": clash},
+                    json={"benger_variant": clash},
                 )
             assert resp.status_code == 409, (factors, resp.text)
             assert _detail(resp)["code"] == "variant_cell_duplicate"
@@ -671,7 +671,7 @@ class TestWritePaths:
 
 
 class TestCanary:
-    """``meta.variant`` never reaches a system under test or a blinded
+    """``meta.benger_variant`` never reaches a system under test or a blinded
     annotator: not in v1 task reads (any caller), not in blinded task reads."""
 
     async def _world_with_tasks(self, client, db, world):
@@ -690,7 +690,7 @@ class TestCanary:
             assert listing.status_code == 200, listing.text
             assert one.status_code == 200, one.text
             for body in (listing.text, one.text):
-                assert CANARY not in body and '"variant"' not in body
+                assert CANARY not in body and '"benger_variant"' not in body
         # The editor still gets the rest of the meta.
         assert one.json()["meta"] == {"tags": ["t"]}
 
@@ -708,8 +708,8 @@ class TestCanary:
             ]
         for resp in responses:
             assert resp.status_code == 200, resp.text
-            assert CANARY not in resp.text and '"variant"' not in resp.text
+            assert CANARY not in resp.text and '"benger_variant"' not in resp.text
         # Editors see it (they own the design).
         with _as_user(world["admin"]):
             editor = await api("get", f"/api/projects/tasks/{tasks[0].id}")
-        assert editor.json()["meta"]["variant"]["provenance"]["generator"] == CANARY
+        assert editor.json()["meta"]["benger_variant"]["provenance"]["generator"] == CANARY

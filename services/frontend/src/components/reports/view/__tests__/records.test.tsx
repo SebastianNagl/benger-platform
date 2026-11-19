@@ -49,6 +49,25 @@ describe('DataProvenance', () => {
     ).toBeInTheDocument()
   })
 
+  it('lists imports without provenance columns in a snapshot without them', () => {
+    const data = {
+      ...REC.data,
+      variant_designs: [],
+      imports: REC.data.imports.map(({ format, completed_at }) => ({
+        format,
+        completed_at,
+      })),
+    }
+    render(<DataProvenance data={data} locale="de" t={t} />)
+    const rows = screen.getAllByTestId('import-row')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(within(row).getAllByRole('cell')).toHaveLength(2)
+    }
+    expect(screen.queryByText('SHA-256 der Datei')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('variant-designs')).not.toBeInTheDocument()
+  })
+
   it('shows only the manifest hash when the public view leaves the content out', () => {
     const [first, ...rest] = REC.data.imports
     render(
@@ -105,6 +124,34 @@ describe('GenerationDetails', () => {
       '100 %',
       'plain',
     ])
+  })
+
+  it('has no refusal, retry or request record columns in a snapshot without them', () => {
+    // A snapshot built without variant_experiments carries none of the three.
+    const strip = <T extends object>(row: T) => {
+      const {
+        refusal_rate: _r,
+        retry_rate: _y,
+        request_record_share: _q,
+        ...rest
+      } = row as T & {
+        refusal_rate?: unknown
+        retry_rate?: unknown
+        request_record_share?: unknown
+      }
+      return rest as T
+    }
+    const generation = {
+      ...REC.generation,
+      models: REC.generation.models.map(strip),
+      totals: strip(REC.generation.totals),
+    }
+    render(<GenerationDetails generation={generation} locale="de" t={t} />)
+    const cells = within(screen.getByTestId('generation-row'))
+      .getAllByRole('cell')
+      .map((c) => c.textContent)
+    expect(cells.slice(2)).toEqual(['2', '50 %', 'plain'])
+    expect(screen.queryByText('Gespeicherte Anfragen')).not.toBeInTheDocument()
   })
 
   it('drops the parse column when nothing was parsed and renders nothing without models', () => {

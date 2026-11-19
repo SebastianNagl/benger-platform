@@ -705,6 +705,7 @@ class TestEvaluationSectionWrite:
 # ===========================================================================
 
 
+@pytest.mark.flags_on("report_paper")
 class TestCanPublishGate:
     def test_no_report_blocks_with_report_not_found(self, test_db: Session, test_user):
         from report_service import can_publish_report
@@ -723,6 +724,7 @@ class TestCanPublishGate:
         assert ok is False
         assert reason == "Project must have tasks"
 
+    @pytest.mark.flags_on("variant_experiments")
     def test_tasks_without_any_result_block_with_results_reason(self, test_db: Session, test_user):
         from report_service import can_publish_report, create_initial_report_draft
 
@@ -765,6 +767,7 @@ class TestCanPublishGate:
         create_initial_report_draft(test_db, project.id, test_user.id)
         assert can_publish_report(test_db, project.id) == (True, "All requirements met")
 
+    @pytest.mark.flags_on("variant_experiments")
     def test_pending_eval_does_not_satisfy_gate(self, test_db: Session, test_user):
         """A non-completed evaluation run must NOT count toward the gate."""
         from report_service import can_publish_report, create_initial_report_draft
@@ -786,6 +789,7 @@ class TestCanPublishGate:
         create_initial_report_draft(test_db, project.id, test_user.id)
         assert can_publish_report(test_db, project.id)[0] is True
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.parametrize("status, expected", [("completed", True), ("pending", False), ("failed", False)])
     def test_analysis_runs_count_only_when_completed(self, test_db: Session, test_user, status, expected):
         from models import AnalysisRun
@@ -801,6 +805,27 @@ class TestCanPublishGate:
         test_db.commit()
         create_initial_report_draft(test_db, project.id, test_user.id)
         assert can_publish_report(test_db, project.id)[0] is expected
+
+    def test_completed_analysis_run_does_not_count_without_variant_experiments(
+        self, test_db: Session, test_user
+    ):
+        """Analyses belong to variant_experiments: without it a completed run
+        is no result and the reason does not name analyses."""
+        from models import AnalysisRun
+        from report_service import can_publish_report, create_initial_report_draft
+
+        project = _new_project(test_db, test_user)
+        _new_task(test_db, project, 1)
+        test_db.add(AnalysisRun(
+            id=str(uuid.uuid4()), project_id=project.id, created_by=test_user.id, name="run",
+            status="completed", spec={}, normalized_spec={}, spec_hash="0" * 64, spec_version=1,
+            engine_version="1.1.0",
+        ))
+        test_db.commit()
+        create_initial_report_draft(test_db, project.id, test_user.id)
+        assert can_publish_report(test_db, project.id) == (
+            False, "Project must have annotations, generations or evaluations"
+        )
 
     def test_all_requirements_met_allows_publish(self, test_db: Session, test_user):
         from report_service import can_publish_report, create_initial_report_draft

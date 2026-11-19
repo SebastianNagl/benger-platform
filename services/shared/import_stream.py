@@ -32,10 +32,10 @@ Variant designs (CORE 2.59) travel with the files that can carry them: the
 ``variant_design`` records of NDJSON. They are created before the tasks (as
 drafts) and frozen again before the commit when the file says they were
 frozen, which re-runs the checks and must reproduce the recorded content
-hash. Each task's ``meta.variant`` is checked by the flush guard
+hash. Each task's ``meta.benger_variant`` is checked by the flush guard
 (``variant_design_guard``); its refusals, and those of the database's own
 variant guards, reach the caller as ``ImportValidationError``. A flat row (a
-CSV column, or a row without ``data``) may carry ``meta.variant`` as JSON text
+CSV column, or a row without ``data``) may carry ``meta.benger_variant`` as JSON text
 in a column of that name.
 
 All take a seekable binary file object already filled with the upload body
@@ -965,8 +965,8 @@ def run_nested_import(
                 review_events_to_import = item["rubric_review_events"]
         else:
             # A flat row (a parsed CSV line) may carry its variant assignment
-            # as JSON text in a "meta.variant" column.
-            task_data, flat_meta = lift_flat_meta(item)
+            # as JSON text in a "meta.benger_variant" column.
+            task_data, flat_meta = lift_flat_meta(item) if _experiments_on() else (item, None)
             if flat_meta:
                 task_meta = {**task_meta, **flat_meta}
 
@@ -1158,9 +1158,13 @@ def run_nested_import(
             # prompt structure, so each imported row keeps the job (and the
             # structure_key) it was generated under.
             model_response_generations: dict = {}
+            # Lossless generation import belongs to variant_experiments
+            # (core 2.75): off, the rows import as before (one job per
+            # model, run indexes renumbered, no telemetry or request record).
+            lossless = _experiments_on()
 
             def _job_key(gen_data: dict) -> tuple:
-                structure_key = gen_data.get("structure_key")
+                structure_key = gen_data.get("structure_key") if lossless else None
                 return (
                     gen_data.get("model_id", "unknown"),
                     structure_key if isinstance(structure_key, str) and structure_key else None,
@@ -1183,9 +1187,15 @@ def run_nested_import(
                         config_id="import-default",  # Default config for imported data
                         structure_key=job_key[1],
                         status="completed",  # Imported generations are completed
-                        responses_generated=runs_per_job[job_key],
-                        runs_requested=runs_per_job[job_key],
-                        runs_completed=runs_per_job[job_key],
+                        responses_generated=runs_per_job[job_key] if lossless else 1,
+                        **(
+                            {
+                                "runs_requested": runs_per_job[job_key],
+                                "runs_completed": runs_per_job[job_key],
+                            }
+                            if lossless
+                            else {}
+                        ),
                         created_by=user_id,
                         completed_at=datetime.utcnow(),
                     )
@@ -1213,14 +1223,20 @@ def run_nested_import(
 
             # Rows that carry a run_index claim theirs first, so a row
             # without one cannot take an index a later row names.
-            ordered = sorted(
-                enumerate(generations_to_import),
-                key=lambda item: not isinstance(item[1].get("run_index"), int),
+            ordered = (
+                sorted(
+                    enumerate(generations_to_import),
+                    key=lambda item: not isinstance(item[1].get("run_index"), int),
+                )
+                if lossless
+                else list(enumerate(generations_to_import))
             )
             claimed_run_index: dict = {}
             for position, gen_data in ordered:
                 parent_id = model_response_generations[_job_key(gen_data)]
-                claimed_run_index[position] = _claim(parent_id, gen_data.get("run_index"))
+                claimed_run_index[position] = _claim(
+                    parent_id, gen_data.get("run_index") if lossless else None
+                )
 
             for position, gen_data in enumerate(generations_to_import):
                 model_id = gen_data.get("model_id", "unknown")
@@ -1252,9 +1268,15 @@ def run_nested_import(
                     # Per-call telemetry (seed, finish reason, refusal,
                     # truncation, latency, tokens), the request record and
                     # the format-retry trail, as exported.
-                    **_call_telemetry_kwargs(gen_data),
-                    **_request_kwargs(gen_data),
-                    **_timestamps(gen_data, "created_at"),
+                    **(
+                        {
+                            **_call_telemetry_kwargs(gen_data),
+                            **_request_kwargs(gen_data),
+                            **_timestamps(gen_data, "created_at"),
+                        }
+                        if lossless
+                        else {}
+                    ),
                 )
                 db.add(generation)
                 created_generations += 1
@@ -1649,8 +1671,8 @@ def run_tabular_import(
                     for idx, header in enumerate(headers)
                     if header
                 }
-                # A "meta.variant" column holds the row's variant assignment.
-                data, flat_meta = lift_flat_meta(data)
+                # A "meta.benger_variant" column holds the row's variant assignment.
+                data, flat_meta = lift_flat_meta(data) if _experiments_on() else (data, None)
                 db.add(
                     Task(
                         id=str(uuid.uuid4()),
@@ -2152,6 +2174,21 @@ def _call_telemetry_kwargs(data: dict) -> dict:
 _SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 
+def _experiments_on() -> bool:
+    """Whether the import runs with the variant_experiments flag (core
+    2.69): the job opens a ``feature_flags.scope`` with the requester's
+    answer, other callers fall back to their request or task context. Off,
+    the CSV ``meta.benger_variant`` column stays a data column, the merge
+    does not compare variant assignments and generations import as before
+    lossless generation import existed. Variant designs import either way:
+    only files from projects that have them carry them, and their tasks'
+    assignments need them."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(VARIANT_EXPERIMENTS)
+
+
 def _request_kwargs(data: dict) -> dict:
     """The request record and format-retry columns (migration 143) of an
     exported generation, as constructor kwargs.
@@ -2528,7 +2565,7 @@ def _insert_generation(ctx: _FullImportContext, generation_data: dict) -> None:
                 ctx, generation_id, generation_data.get("run_index")
             ),
             **_call_telemetry_kwargs(generation_data),
-            **_request_kwargs(generation_data),
+            **(_request_kwargs(generation_data) if _experiments_on() else {}),
             **_timestamps(generation_data, "created_at"),
         )
 
@@ -4181,7 +4218,7 @@ class _MergeState:
         self.tasks_by_id: Set[str] = set()
         self.tasks_by_source: Dict[str, List[str]] = {}
         self.tasks_by_data: Dict[str, List[str]] = {}
-        # Canonical meta.variant per task holding one: a merged task must sit
+        # Canonical meta.benger_variant per task holding one: a merged task must sit
         # in the same cell of the same design as the task it lands on.
         self.variants: Dict[str, str] = {}
         self.variant_mismatch: List[str] = []
@@ -4326,6 +4363,9 @@ def _merge_variant_design(state: "_MergeState", db, project_id: str, doc: dict) 
     """A design in the merged file must equal the project's design of that
     key; one the project lacks only matters through its tasks (each must
     carry the target task's assignment, see ``_merge_task``)."""
+    if not _experiments_on():
+        # The variant check belongs to variant_experiments (core 2.75).
+        return
     key = doc.get("key")
     if not isinstance(key, str):
         raise ImportValidationError(422, "A variant design in the file has no key")
@@ -4434,7 +4474,10 @@ def _merge_task(ctx: _FullImportContext, state: _MergeState, task_data: dict) ->
         return
     target = candidates[0]
     state.claimed[target] = label
-    if _merge_variant_key(task_data.get("meta")) != state.variants.get(target):
+    # The variant check belongs to variant_experiments (core 2.75).
+    if _experiments_on() and _merge_variant_key(task_data.get("meta")) != state.variants.get(
+        target
+    ):
         state.variant_mismatch.append(label)
     if old_id:
         ctx.id_mappings["tasks"][old_id] = target

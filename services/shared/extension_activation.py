@@ -197,6 +197,12 @@ def _snapshot(ctx: ExtContext) -> Dict[str, Dict]:
     return snapshot
 
 
+def flag_snapshot() -> Dict[str, Dict]:
+    """The flag snapshot of the current context (memoized per request or
+    task; Redis, else a read-only database read, else the defaults)."""
+    return _snapshot(current_context())
+
+
 def prime_snapshot(snapshot: Dict[str, Dict], ctx: Optional[ExtContext] = None) -> None:
     """Store an already loaded snapshot in the context's memo (the async
     API lane loads it with its own session)."""

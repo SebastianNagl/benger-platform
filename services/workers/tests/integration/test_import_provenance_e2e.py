@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 import tasks
 
-pytestmark = [pytest.mark.integration, pytest.mark.database]
+pytestmark = [pytest.mark.integration, pytest.mark.database, pytest.mark.flags_on("variant_experiments")]
 
 
 def _uid():
@@ -164,6 +164,28 @@ def _assert_no_op(outcome, job, prior):
         "no_op": True,
         "duplicate_of_job_id": prior.id,
     }
+
+
+@pytest.mark.flags_off("variant_experiments")
+def test_repeated_import_imports_again_and_records_nothing_while_the_flag_is_off(
+    db_conn, make_user, make_project, storage, jobs
+):
+    """With variant_experiments off for the requester an import records no
+    provenance and a repeat imports again, as before provenance existed."""
+    user = make_user()
+    target = make_project(created_by=user.id, title=f"Prov off {_uid()[:8]}")
+    key = _stage(storage, _nested_body(["alpha", "beta"]), "tasks.json")
+
+    first_outcome, first = _import(db_conn, jobs, user, key, project_id=target.id)
+    _assert_imported(first_outcome, first)
+    second_outcome, second = _import(db_conn, jobs, user, key, project_id=target.id)
+    _assert_imported(second_outcome, second)
+
+    for job in (first, second):
+        assert job.payload_sha256 is None
+        assert job.source_manifest is None
+        assert job.idempotency_key is None
+    assert _task_texts(db_conn, target.id) == ["alpha", "alpha", "beta", "beta"]
 
 
 def test_nested_import_records_hash_and_manifest(

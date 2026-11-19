@@ -291,7 +291,7 @@ export function ReproducibilitySection({
                 <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                   {formatDate(imp.completed_at, locale) || MISSING}
                 </span>
-                {hash(imp.payload_sha256)}
+                {imp.payload_sha256 !== undefined && hash(imp.payload_sha256)}
                 {imp.no_op && (
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">
                     {t('reports.view.records.noOpImport')}

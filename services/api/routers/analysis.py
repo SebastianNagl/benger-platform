@@ -1,6 +1,6 @@
 """Analysis runs of variant experiments (the full API).
 
-A project whose tasks carry ``meta.variant`` can be analysed as a factorial
+A project whose tasks carry ``meta.benger_variant`` can be analysed as a factorial
 experiment: a spec (``services/shared/analysis/schemas/analysis_spec.schema.json``)
 names designs, measures, estimands, contrasts, equivalence bounds and
 multiplicity families, and an analysis run computes it on the ``analysis``
@@ -54,6 +54,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth_module import require_user
 from celery_client import send_task_safe
 from database import get_async_db
+from feature_flags.deps import require_variant_experiments
 from models import AnalysisEstimate, AnalysisLookupTable, AnalysisRun
 from project_models import Project
 from routers.projects.deps import ProjectAccess, require_project_access
@@ -64,7 +65,8 @@ from routers.projects.helpers import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["analysis"])
+# Behind the variant_experiments flag (core 2.75): 404 feature_disabled while off.
+router = APIRouter(tags=["analysis"], dependencies=[Depends(require_variant_experiments)])
 
 FRAME_DOWNLOAD_URL_TTL = 300
 MAX_ESTIMATES_PAGE = 5000

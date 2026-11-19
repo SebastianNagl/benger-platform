@@ -23,6 +23,12 @@ from sqlalchemy.orm import defer, load_only
 
 from auth_module import User, require_user
 from database import get_async_db
+from feature_flags.deps import (
+    feature_disabled_error,
+    flag_on,
+    require_variant_experiments,
+)
+from feature_flags.registry import VARIANT_EXPERIMENTS
 from evaluation_run_models import run_evaluated_model_ids
 from models import AnalysisRun, EvaluationRun, ResponseGeneration
 from project_models import Project
@@ -359,6 +365,8 @@ def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
 @router.get(
     "/generations/{generation_id}/trials/{trial_id}/request",
     response_model=TrialRequest,
+    # The request record belongs to variant_experiments (core 2.75).
+    dependencies=[Depends(require_variant_experiments)],
 )
 async def get_generation_trial_request(
     generation_id: str,
@@ -387,7 +395,11 @@ async def get_generation_trial_request(
     return trial_request_view(trial, parent)
 
 
-@router.get("/trials/{trial_id}/request", response_model=TrialRequest)
+@router.get(
+    "/trials/{trial_id}/request",
+    response_model=TrialRequest,
+    dependencies=[Depends(require_variant_experiments)],
+)
 async def get_trial_request(
     trial_id: str,
     current_user: User = Depends(require_user),
@@ -426,6 +438,9 @@ async def get_generation_run(
     from models import Generation as DBGeneration
 
     parent = await _accessible_generation(db, current_user, generation_id)
+    # The request record fields of the trials (variant_experiments): with the
+    # flag off they keep their neutral defaults, as before the record existed.
+    show_record = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
 
     children_result = await db.execute(
         select(
@@ -455,10 +470,12 @@ async def get_generation_run(
             error_message=getattr(c, "error_message", None),
             has_response=bool(getattr(c, "response_content", None)),
             response_preview=_preview(getattr(c, "response_content", None)),
-            has_request_record=bool(has_record),
-            request_sha256=getattr(c, "request_sha256", None),
-            retried=bool(getattr(c, "retried", False)),
-            first_response_preview=_preview(getattr(c, "first_response_content", None)),
+            has_request_record=show_record and bool(has_record),
+            request_sha256=getattr(c, "request_sha256", None) if show_record else None,
+            retried=show_record and bool(getattr(c, "retried", False)),
+            first_response_preview=(
+                _preview(getattr(c, "first_response_content", None)) if show_record else None
+            ),
         )
         for c, has_record in children_with_flag
     ]
@@ -641,6 +658,9 @@ async def list_runs(
         model = EvaluationRun
         to_summary = _evaluation_to_summary
     else:  # type == "analysis"
+        # Analysis runs belong to variant_experiments (core 2.75).
+        if not await flag_on(db, current_user, VARIANT_EXPERIMENTS, request):
+            raise feature_disabled_error(VARIANT_EXPERIMENTS)
         model = AnalysisRun
         to_summary = _analysis_to_summary
 

@@ -157,7 +157,7 @@ class TestTaskVariant:
         data, variant = swap_task("c1", "judge", "claimant_first")
         variant["factors"]["difficulty"] = True  # a boolean is not a number
         paths = {p["path"] for p in vd.validate_task_variant(view, variant, data)}
-        assert paths == {"/meta/variant/factors/role", "/meta/variant/factors/difficulty"}
+        assert paths == {"/meta/benger_variant/factors/role", "/meta/benger_variant/factors/difficulty"}
 
     def test_factors_must_be_exactly_the_task_factors(self, view):
         data, variant = swap_task("c1", "claimant", "claimant_first")
@@ -169,7 +169,7 @@ class TestTaskVariant:
         data, variant = swap_task("c1", "claimant", "claimant_first")
         variant["twin_of"] = "c1-respondent"
         problems = vd.validate_task_variant(view, variant, data)
-        assert problems[0]["path"] == "/meta/variant"
+        assert problems[0]["path"] == "/meta/benger_variant"
 
     def test_spans_must_lie_in_declared_text_fields(self, view):
         data, variant = swap_task("c1", "claimant", "claimant_first")
@@ -356,7 +356,7 @@ class TestFlatRows:
         row = {"facts": "f", FLAT_META_COLUMN: json.dumps(variant)}
         data, meta = lift_flat_meta(row)
         assert data == {"facts": "f"}
-        assert meta == {"variant": variant}
+        assert meta == {"benger_variant": variant}
 
     def test_empty_cell_and_missing_column(self):
         assert lift_flat_meta({"facts": "f", FLAT_META_COLUMN: " "}) == ({"facts": "f"}, None)

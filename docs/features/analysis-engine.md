@@ -10,6 +10,10 @@ equivalence tests and multiplicity-adjusted p-values, and records everything
 it needs to reproduce the numbers: the spec, the frame snapshot and its hash,
 the engine version and the numeric library versions.
 
+Everything described here needs the platform flag `variant_experiments`;
+while it is off the routes answer 404 `feature_disabled` and runs are not
+computed ([feature flags](feature-flags.md)).
+
 The code lives in `services/shared/analysis/` (pure functions and the spec
 schema) and runs in the workers on the `analysis` queue (`tasks.run_analysis`).
 The API validates specs and starts and reads runs; it does not load the
@@ -17,11 +21,11 @@ numeric stack.
 
 ## Where the data comes from
 
-A task belongs to a design through its `meta.variant` block:
+A task belongs to a design through its `meta.benger_variant` block:
 
 ```json
-{"variant": {"design": "role_swap", "unit": "case_017",
-             "factors": {"x_role": "P", "first": "D", "level": 75}}}
+{"benger_variant": {"design": "role_swap", "unit": "case_017",
+                    "factors": {"x_role": "P", "first": "D", "level": 75}}}
 ```
 
 `design` names the design, `unit` ties the variants of one case together
@@ -45,15 +49,15 @@ that does not depend on the Parquet writer.
 ### Slot frames: one row per item of an answer
 
 When a task asks the same questions once per item (per case of a docket,
-per person in a judgment), its `meta.variant.slots` lists the items with
+per person in a judgment), its `meta.benger_variant.slots` lists the items with
 their own factors, and the answers sit under indexed control names, as a
 Label Studio `<Repeater>` stores them (`risk_0`, `risk_1`, ...; see
 [per-item answers](../user-guides/per-item-answers.md)):
 
 ```json
-{"variant": {"design": "docket", "unit": "docket_017", "factors": {"gender": "f"},
-             "slots": [{"index": 0, "factors": {"pos": 1, "group": "a", "fact": "f2"}},
-                       {"index": 1, "factors": {"pos": 2, "group": "ref", "fact": "f0"}}]}}
+{"benger_variant": {"design": "docket", "unit": "docket_017", "factors": {"gender": "f"},
+                    "slots": [{"index": 0, "factors": {"pos": 1, "group": "a", "fact": "f2"}},
+                              {"index": 1, "factors": {"pos": 2, "group": "ref", "fact": "f0"}}]}}
 ```
 
 With `"frame": {"unit": "slot"}` the frame has one row per generation and

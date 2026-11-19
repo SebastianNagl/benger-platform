@@ -114,7 +114,7 @@
       "required": ["unit"],
       "properties": {
         "unit": {
-          "description": "generation: one row per generation (the default). slot: one row per generation and slot of the task's meta.variant.slots, with the slot index and the slot factors as columns.",
+          "description": "generation: one row per generation (the default). slot: one row per generation and slot of the task's meta.benger_variant.slots, with the slot index and the slot factors as columns.",
           "enum": ["generation", "slot"]
         }
       }

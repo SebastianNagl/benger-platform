@@ -21,6 +21,9 @@ from project_models import Project, ProjectOrganization, Task
 from tests.fixtures.access_keys import make_membership, make_user, seed_world
 from tests.fixtures.v1 import make_project, v1_auth
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 SCHEME = (
     '<View><Text name="answer" value="$answer"/><Text name="case" value="$sachverhalt"/>'
     '<Choices name="side" toName="answer"><Choice value="P"/><Choice value="D"/></Choices></View>'
