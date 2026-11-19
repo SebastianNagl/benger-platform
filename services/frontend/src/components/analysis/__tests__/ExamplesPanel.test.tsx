@@ -206,6 +206,10 @@ describe('ExamplesPanel', () => {
         /Examples need the org admin or contributor role on the project/,
       ),
     ).toBeInTheDocument()
+    // The pickers would change nothing for this viewer: only the notice.
+    expect(screen.queryByTestId('examples-contrast')).toBeNull()
+    expect(screen.queryByTestId('examples-system')).toBeNull()
+    expect(screen.queryByTestId('examples-design')).toBeNull()
     expect(api.getUnit).not.toHaveBeenCalled()
   })
 
@@ -217,6 +221,9 @@ describe('ExamplesPanel', () => {
     expect(
       await screen.findByText('The units could not be loaded.'),
     ).toBeInTheDocument()
+    // Another choice may load: the pickers stay after a failure.
+    expect(screen.getByTestId('examples-contrast')).toBeInTheDocument()
+    expect(screen.getByTestId('examples-system')).toBeInTheDocument()
     rerender(<ExamplesPanel projectId="p1" run={run} estimates={[]} />)
     expect(container).toBeEmptyDOMElement()
     rerender(

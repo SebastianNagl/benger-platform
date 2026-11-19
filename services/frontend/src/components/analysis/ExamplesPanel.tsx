@@ -153,6 +153,16 @@ export function ExamplesPanel({
     return g ? contrastLabel(g.estimates[0]) : key
   }
 
+  // Without full content rights every design's units answer 403: the
+  // pickers would change nothing, so only the reason is shown.
+  if (pageError === 'forbidden') {
+    return (
+      <div className="min-w-0" data-testid="examples-panel">
+        <Notice tone="info">{t('analysis.views.unit.forbidden')}</Notice>
+      </div>
+    )
+  }
+
   return (
     <div className="min-w-0 space-y-4" data-testid="examples-panel">
       <div className="flex flex-wrap items-end gap-3">
@@ -220,11 +230,7 @@ export function ExamplesPanel({
       </div>
 
       {pageError && (
-        <Notice tone={pageError === 'forbidden' ? 'info' : 'error'}>
-          {pageError === 'forbidden'
-            ? t('analysis.views.unit.forbidden')
-            : t('analysis.views.examples.loadFailed')}
-        </Notice>
+        <Notice tone="error">{t('analysis.views.examples.loadFailed')}</Notice>
       )}
 
       {page && (
