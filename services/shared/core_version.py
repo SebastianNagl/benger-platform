@@ -1077,7 +1077,53 @@ migration).
     ``is_transient_upstream_error``, the DeepInfra / Custom backoff
     predicate.
 
-2.59 (2026-11-18): per-slot label configs (Label Studio ``<Repeater>``; no
+2.59 (2026-11-18): variant designs, the declared and freezable design of a
+  variant experiment (counterfactual and robustness tests), migration 142.
+  - Table ``variant_designs`` (``project_models.VariantDesign``: ``key``
+    unique per project, ``spec`` JSONB, ``version``, ``status``
+    draft|frozen, ``content_hash``, ``frozen_at/by``, ``provenance``). The
+    spec follows ``shared/schemas/variant_design.schema.json`` (factors with
+    typed levels, ``role`` and ``source`` task|structure|system|run, the
+    unit, optional slots, outcome, gold and invariance bindings).
+  - ``task.meta.variant`` is a reserved key (``variant_designs.META_KEY``,
+    ``shared/schemas/task_variant.schema.json``: ``design``, ``unit``,
+    ``factors``, ``slots``, ``spans``, ``provenance``) and the single source
+    of each task's place in a design. ``tasks.variant_design`` /
+    ``variant_unit`` / ``variant_cell`` are derived from it by the trigger
+    ``trg_tasks_variant_sync`` (``project_models.TASKS_VARIANT_DDL``); never
+    write them. ``variant_cell`` is the design cell (the within-unit task
+    factors of the assignment), and ``uq_tasks_variant_cell`` allows one
+    task per cell and unit,
+    ``fk_tasks_variant_design`` requires the design (a writer flushes a
+    new design before its tasks).
+  - Every ORM flush validates the ``meta.variant`` it writes against its
+    design (``variant_design_guard.check_session_tasks``, a ``before_flush``
+    listener on every Session). Refusals raise
+    ``variant_design_guard.VariantDesignError`` (``status_code``, ``code``,
+    ``detail``); the API answers them, and the database guards'
+    errors (``error_from_db``), with 422/409 ``{"detail": {"code",
+    "message", "problems"?}}``; the importers raise ``ImportValidationError``.
+  - A frozen design makes its tasks' ``data`` and ``meta.variant``
+    read-only and takes no new tasks (the trigger; SQLSTATE 23001, message
+    ``variant_design_frozen``), and their bulk delete answers 409. An
+    overlay that writes task data must expect that refusal.
+  - Pure rules in ``variant_designs`` (``validate_spec``, ``DesignView``,
+    ``validate_task_variant``, ``DesignCheck``/``check_design`` for the
+    assignment, balance and span-invariance checks, ``content_hash``);
+    service functions in ``variant_design_guard`` (``run_checks``,
+    ``freeze_design``, ``update_design_spec``, ``serialize_design``,
+    ``export_document``, ``iter_design_records``).
+  - Routes under ``/api/projects/{id}/variant-designs`` (list, create,
+    ``import``, get, ``export``, PUT spec, DELETE draft, ``check``,
+    ``freeze``); reads need the full-data tier, writes edit rights.
+  - Exports carry ``variant_designs`` (JSON and comprehensive, only when
+    the project has any) and ``variant_design`` records (NDJSON); every
+    importer creates them before the tasks and freezes them again (same
+    content hash) before its commit. A flat import row may carry
+    ``meta.variant`` as JSON in a column of that name. The v1 task reads
+    never carry ``meta.variant``.
+
+2.60 (2026-11-19): per-slot label configs (Label Studio ``<Repeater>``; no
 migration).
   - Label configs may contain ``<Repeater on="$array" indexFlag="{{idx}}">``.
     It is expanded against each task's data exactly as Label Studio's
@@ -1149,7 +1195,7 @@ migration).
 
 import os
 
-CORE_API_VERSION = "2.59"
+CORE_API_VERSION = "2.60"
 
 
 def extended_required() -> bool:

@@ -27,6 +27,17 @@ Four drivers:
   CSV/TSV/TXT rows imported as tasks into an *existing* project (the cloud
   import flow's tabular arm).
 
+Variant designs (CORE 2.59) travel with the files that can carry them: the
+``variant_designs`` array of the nested and the comprehensive format and the
+``variant_design`` records of NDJSON. They are created before the tasks (as
+drafts) and frozen again before the commit when the file says they were
+frozen, which re-runs the checks and must reproduce the recorded content
+hash. Each task's ``meta.variant`` is checked by the flush guard
+(``variant_design_guard``); its refusals, and those of the database's own
+variant guards, reach the caller as ``ImportValidationError``. A flat row (a
+CSV column, or a row without ``data``) may carry ``meta.variant`` as JSON text
+in a column of that name.
+
 All take a seekable binary file object already filled with the upload body
 (``SpooledTemporaryFile`` / ``io.BytesIO``); the caller streams the request body
 or downloads the storage object into one first. Memory stays O(batch): only a
@@ -48,6 +59,7 @@ each other (``_placeholder_users_connection``).
 
 import copy
 import csv
+import functools
 import gzip
 import hashlib
 import io
@@ -67,7 +79,7 @@ from ijson.common import ObjectBuilder
 from sqlalchemy import exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 
 # models must be imported before project_models so the User mapper is registered
@@ -119,6 +131,15 @@ from serializers import (
 from stream_io.batch_utils import flush_every, stream_array_rows
 from task_rubric_service import REVIEW_STATE_CONFIRMED
 from user_display import masked_name
+import variant_designs as _vd
+from variant_design_guard import (
+    VariantDesignError,
+    error_from_db,
+    freeze_design,
+    lift_flat_meta,
+    load_design,
+    new_design_row,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +164,150 @@ def _commit(db, result: dict, before_commit: BeforeCommit) -> dict:
     db.commit()
     return result
 
+def _variant_error_text(exc: VariantDesignError) -> str:
+    """A refused variant write as one line for an import job's error."""
+    parts = []
+    for problem in exc.problems[:5]:
+        if "path" in problem:
+            parts.append(f"{problem['path']}: {problem['message']}")
+        elif problem.get("errors"):
+            first = problem["errors"][0]
+            parts.append(
+                f"task {problem.get('inner_id') or problem.get('task_id')}: "
+                f"{first.get('path')}: {first.get('message')}"
+            )
+    if exc.problems[5:]:
+        parts.append(f"and {len(exc.problems) - 5} more")
+    report = exc.extra.get("report")
+    if isinstance(report, dict):
+        for section in ("assignments", "balance", "invariance"):
+            part = report.get(section) or {}
+            if part.get("problem_count"):
+                first = (part.get("problems") or [{}])[0]
+                parts.append(
+                    f"{section}: {part['problem_count']} problem(s), first "
+                    + ", ".join(
+                        f"{k}={first[k]}"
+                        for k in ("unit", "kind", "path", "task_id")
+                        if first.get(k) is not None
+                    )
+                )
+    return exc.message + (" " + "; ".join(parts) if parts else "")
+
+
+def _variant_errors_as_import_errors(driver):
+    """Report the variant guards' refusals (the flush guard, the frozen-design
+    trigger, one task per cell, the design key) as ``ImportValidationError``
+    with their status, like every other client-correctable problem."""
+
+    @functools.wraps(driver)
+    def _driver(*args, **kwargs):
+        try:
+            return driver(*args, **kwargs)
+        except VariantDesignError as exc:
+            raise ImportValidationError(exc.status_code, _variant_error_text(exc), code=exc.code)
+        except DBAPIError as exc:
+            mapped = error_from_db(exc)
+            if mapped is None:
+                raise
+            raise ImportValidationError(mapped.status_code, mapped.message, code=mapped.code)
+
+    return _driver
+
+
+class _ImportDesigns:
+    """The variant designs an import file carries, for one target project.
+
+    ``add`` creates each as a draft before the tasks arrive (a design the
+    target project already has with the same spec is reused; a different
+    spec is a 409). ``finalize`` freezes, before the commit, the designs the
+    file marks as frozen: the checks run again and the tasks must hash to
+    the recorded ``content_hash``.
+    """
+
+    def __init__(self, db, project_id: str, user_id: str, *, reuse_existing: bool):
+        self.db = db
+        self.project_id = project_id
+        self.user_id = user_id
+        self.reuse_existing = reuse_existing
+        self.keys: Set[str] = set()
+        self.created = 0
+        self.frozen = 0
+        self.to_freeze: List[Tuple[str, Optional[str], Optional[datetime]]] = []
+
+    def add_all(self, docs) -> None:
+        if docs is None:
+            return
+        if not isinstance(docs, list):
+            raise ImportValidationError(422, "Field 'variant_designs' must be a list")
+        for doc in docs:
+            self.add(doc)
+
+    def add(self, doc) -> None:
+        if not isinstance(doc, dict):
+            raise ImportValidationError(422, "Each variant design must be an object")
+        key, spec = doc.get("key"), doc.get("spec")
+        if isinstance(key, str) and key in self.keys:
+            raise ImportValidationError(
+                422, f"The file lists the variant design {key!r} twice"
+            )
+        if self.reuse_existing and isinstance(key, str):
+            existing = load_design(self.db, self.project_id, key)
+            if existing is not None:
+                if _vd.canonical_json(existing.spec) != _vd.canonical_json(spec):
+                    raise ImportValidationError(
+                        409,
+                        f"The project already has a variant design {key!r} with a "
+                        "different spec; nothing was imported.",
+                        code="variant_design_conflict",
+                    )
+                self.keys.add(key)
+                return
+        version = doc.get("version")
+        row = new_design_row(
+            self.project_id,
+            key,
+            spec,
+            created_by=self.user_id,
+            provenance=doc.get("provenance"),
+            version=version if isinstance(version, int) and version >= 1 else 1,
+        )
+        self.db.add(row)
+        self.db.flush()
+        self.keys.add(key)
+        self.created += 1
+        if doc.get("status") == _vd.STATUS_FROZEN:
+            recorded = doc.get("content_hash")
+            self.to_freeze.append(
+                (
+                    key,
+                    recorded if isinstance(recorded, str) else None,
+                    _parse_iso(doc.get("frozen_at")),
+                )
+            )
+
+    def finalize(self) -> None:
+        self.db.flush()
+        for key, recorded, frozen_at in self.to_freeze:
+            freeze_design(
+                self.db,
+                self.project_id,
+                key,
+                self.user_id,
+                expected_hash=recorded,
+                frozen_at=frozen_at,
+            )
+            self.frozen += 1
+
+    def stats(self) -> Dict[str, int]:
+        if not (self.created or self.frozen):
+            return {}
+        return {
+            "created_variant_designs": self.created,
+            "frozen_variant_designs": self.frozen,
+        }
+
+
 # Small top-level keys of the nested (Label-Studio) import payload that are safe
 # to fully materialize. The big `data` array is streamed separately via
 # iter_array, never built into RAM. Mirrors the optional fields the endpoint's
@@ -157,6 +322,7 @@ _NESTED_SMALL_KEYS = frozenset({
     "likert_scale_evaluations",
     "korrektur_comments",
     "grading_feedback",
+    "variant_designs",
 })
 
 # Accepted ``grading_feedback.grading_source`` values, mirroring the table's
@@ -497,6 +663,7 @@ class _NestedTopFields:
         "likert_scale_evaluations",
         "korrektur_comments",
         "grading_feedback",
+        "variant_designs",
     )
 
     def __init__(self, top_obj: Dict[str, Any]):
@@ -565,6 +732,7 @@ def _project_organization_id(db, project_id: str) -> Optional[str]:
     )
 
 
+@_variant_errors_as_import_errors
 def run_nested_import(
     db, project_id: str, fileobj, user_id: str, before_commit: BeforeCommit = None
 ) -> dict:
@@ -619,6 +787,8 @@ def run_nested_import(
     # Validate the small fields' types exactly as ProjectImportData did
     # (the streamed `data` items are dict-checked per row below).
     data = _NestedTopFields(top_obj)
+    designs = _ImportDesigns(db, project_id, user_id, reuse_existing=True)
+    designs.add_all(data.variant_designs)
 
     # Import evaluation runs first so task evaluations can reference them
     evaluation_run_id_mapping: Dict[str, str] = {}  # old er id -> new er id
@@ -793,6 +963,12 @@ def run_nested_import(
             # And their edit and check log
             if isinstance(item.get("rubric_review_events"), list):
                 review_events_to_import = item["rubric_review_events"]
+        else:
+            # A flat row (a parsed CSV line) may carry its variant assignment
+            # as JSON text in a "meta.variant" column.
+            task_data, flat_meta = lift_flat_meta(item)
+            if flat_meta:
+                task_meta = {**task_meta, **flat_meta}
 
         # No longer add generation prompts - using generation structure instead (Issue #519)
         # The prompts are now configured at project level via generation_config.prompt_structures
@@ -1316,9 +1492,11 @@ def run_nested_import(
         created_grading_feedback += 1
 
     _enforce_linked_exam_task_limit(db, project_id)
+    designs.finalize()
 
     # Commit everything atomically
     result = _commit(db, {
+        **designs.stats(),
         "created_tasks": created_tasks,
         "created_annotations": created_annotations,
         "created_generations": created_generations,
@@ -1352,6 +1530,7 @@ def run_nested_import(
 _TABULAR_DELIMITERS = {"csv": ",", "tsv": "\t"}
 
 
+@_variant_errors_as_import_errors
 def run_tabular_import(
     db,
     project_id: str,
@@ -1428,12 +1607,14 @@ def run_tabular_import(
                     for idx, header in enumerate(headers)
                     if header
                 }
+                # A "meta.variant" column holds the row's variant assignment.
+                data, flat_meta = lift_flat_meta(data)
                 db.add(
                     Task(
                         id=str(uuid.uuid4()),
                         project_id=project_id,
                         data=data,
-                        meta={},
+                        meta=flat_meta or {},
                         inner_id=created_tasks + 1,
                     )
                 )
@@ -1507,6 +1688,7 @@ class _FullImportContext:
         "model_id_map",
         "run_indexes",
         "organization_id",
+        "variant_designs",
     )
 
     def __init__(self, db, user_id: str, model_id_map: Optional[Dict[str, str]] = None):
@@ -1520,6 +1702,9 @@ class _FullImportContext:
         # (uq_generations_parent_run_index), see _claim_run_index.
         self.run_indexes: Dict[str, Set[int]] = {}
         self.new_project_id: Optional[str] = None
+        # The file's variant designs (_ImportDesigns), once the target
+        # project is known.
+        self.variant_designs: Optional["_ImportDesigns"] = None
         # Organization of the project the rows land in (the org a create-new
         # import names, the target project's org for a merge; None for a
         # private project): the org imported generation jobs are attributed to.
@@ -1920,6 +2105,11 @@ def _call_telemetry_kwargs(data: dict) -> dict:
             continue
         out[name] = value
     return out
+
+
+def _insert_variant_design(ctx: _FullImportContext, doc: dict) -> None:
+    doc = {k: v for k, v in doc.items() if k != "_type"}
+    ctx.variant_designs.add(doc)
 
 
 def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
@@ -3289,6 +3479,7 @@ def _full_import_result(ctx, project_data: dict, original_title: str, new_title:
 # check), not entity inserts, so they are deliberately absent here.
 _NDJSON_INSERT_DISPATCH = {
     "user": _insert_user,
+    "variant_design": _insert_variant_design,
     "task": _insert_task,
     "task_rubric": _insert_task_rubric,
     "task_rubric_review_event": _insert_task_rubric_review_event,
@@ -3501,6 +3692,7 @@ def _is_ndjson_stream(fileobj) -> bool:
     return isinstance(obj, dict) and bool(obj.get("_type"))
 
 
+@_variant_errors_as_import_errors
 def run_ndjson_import(
     db,
     fileobj,
@@ -3561,6 +3753,9 @@ def run_ndjson_import(
     _create_imported_project(
         ctx, project_data, new_title, organization_id, organization_group_id
     )
+    ctx.variant_designs = _ImportDesigns(
+        db, ctx.new_project_id, user_id, reuse_existing=False
+    )
 
     saw_end = False
     inserted = 0
@@ -3605,9 +3800,14 @@ def run_ndjson_import(
         raise ImportValidationError(
             400, "Truncated NDJSON export: missing end record"
         )
+    ctx.variant_designs.finalize()
 
     result = _commit(
-        db, _full_import_result(ctx, project_data, original_title, new_title),
+        db,
+        {
+            **_full_import_result(ctx, project_data, original_title, new_title),
+            **ctx.variant_designs.stats(),
+        },
         before_commit,
     )
 
@@ -3616,6 +3816,7 @@ def run_ndjson_import(
     return result
 
 
+@_variant_errors_as_import_errors
 def run_full_project_import(
     db,
     fileobj,
@@ -3707,6 +3908,13 @@ def run_full_project_import(
         ctx, project_data, new_title, organization_id, organization_group_id
     )
 
+    # Variant designs before their tasks (as drafts; frozen again below).
+    ctx.variant_designs = _ImportDesigns(
+        db, ctx.new_project_id, user_id, reuse_existing=False
+    )
+    for design_doc in _stream_rows(db, fileobj, "variant_designs.item"):
+        _insert_variant_design(ctx, design_doc)
+
     # FK-dependency-ordered passes. Each pass flushes its tail before the
     # next one starts, so the children always find their parents in the DB
     # (the unit of work orders tables only along relationship()s).
@@ -3795,10 +4003,15 @@ def run_full_project_import(
 
     for par_data in _stream_rows(db, fileobj, "post_annotation_responses.item"):
         _insert_post_annotation_response(ctx, par_data)
+    ctx.variant_designs.finalize()
 
     # Commit all changes
     result = _commit(
-        db, _full_import_result(ctx, project_data, original_title, new_title),
+        db,
+        {
+            **_full_import_result(ctx, project_data, original_title, new_title),
+            **ctx.variant_designs.stats(),
+        },
         before_commit,
     )
 
@@ -3857,6 +4070,7 @@ def _is_pseudo_model(model_id) -> bool:
 # Entity types a merge consumes, in FK-dependency order, with the array key of
 # the comprehensive JSON format.
 _MERGE_STREAMS = (
+    ("variant_design", "variant_designs"),
     ("user", "users"),
     ("task", "tasks"),
     ("task_rubric", "task_rubrics"),
@@ -3893,11 +4107,18 @@ class _MergeState:
         self.tasks_by_id: Set[str] = set()
         self.tasks_by_source: Dict[str, List[str]] = {}
         self.tasks_by_data: Dict[str, List[str]] = {}
-        for task_id, source_id, data in (
-            db.query(Task.id, Task.source_task_id, Task.data)
+        # Canonical meta.variant per task holding one: a merged task must sit
+        # in the same cell of the same design as the task it lands on.
+        self.variants: Dict[str, str] = {}
+        self.variant_mismatch: List[str] = []
+        for task_id, source_id, data, meta in (
+            db.query(Task.id, Task.source_task_id, Task.data, Task.meta)
             .filter(Task.project_id == project_id)
             .yield_per(_IMPORT_BATCH)
         ):
+            variant = _merge_variant_key(meta)
+            if variant is not None:
+                self.variants[task_id] = variant
             self.tasks_by_id.add(task_id)
             if source_id:
                 self.tasks_by_source.setdefault(source_id, []).append(task_id)
@@ -4021,6 +4242,32 @@ class _MergeState:
         }
 
 
+def _merge_variant_key(meta) -> Optional[str]:
+    if isinstance(meta, dict) and meta.get(_vd.META_KEY) is not None:
+        return _vd.canonical_json(meta[_vd.META_KEY])
+    return None
+
+
+def _merge_variant_design(state: "_MergeState", db, project_id: str, doc: dict) -> None:
+    """A design in the merged file must equal the project's design of that
+    key; one the project lacks only matters through its tasks (each must
+    carry the target task's assignment, see ``_merge_task``)."""
+    key = doc.get("key")
+    if not isinstance(key, str):
+        raise ImportValidationError(422, "A variant design in the file has no key")
+    existing = load_design(db, project_id, key)
+    if existing is not None and _vd.canonical_json(existing.spec) != _vd.canonical_json(
+        doc.get("spec")
+    ):
+        raise ImportValidationError(
+            409,
+            f"The variant design {key!r} of the file differs from the project's; "
+            "a merge only adds results to the same experiment, so nothing was "
+            "imported.",
+            code=MERGE_TASK_MISMATCH,
+        )
+
+
 def _rubric_digest(row: dict) -> str:
     try:
         total = float(row.get("total_points") or 100.0)
@@ -4113,6 +4360,8 @@ def _merge_task(ctx: _FullImportContext, state: _MergeState, task_data: dict) ->
         return
     target = candidates[0]
     state.claimed[target] = label
+    if _merge_variant_key(task_data.get("meta")) != state.variants.get(target):
+        state.variant_mismatch.append(label)
     if old_id:
         ctx.id_mappings["tasks"][old_id] = target
 
@@ -4137,6 +4386,12 @@ def _merge_check_tasks(state: _MergeState) -> None:
         problems.append(
             f"{len(state.ambiguous)} match more than one "
             f"(e.g. {', '.join(state.ambiguous[:3])})"
+        )
+    if state.variant_mismatch:
+        problems.append(
+            f"{len(state.variant_mismatch)} sit in a different cell of a variant "
+            f"design than the task they match "
+            f"(e.g. {', '.join(state.variant_mismatch[:3])})"
         )
     if problems:
         raise ImportValidationError(
@@ -4509,6 +4764,7 @@ def _add_merged_models_to_project(ctx, state: _MergeState, project, project_data
     return added
 
 
+@_variant_errors_as_import_errors
 def run_merge_import(
     db,
     project_id: str,
@@ -4555,6 +4811,9 @@ def run_merge_import(
 
     handled = 0
     for rtype, record in records:
+        if rtype == "variant_design":
+            _merge_variant_design(state, db, project_id, record)
+            continue
         if rtype == "user":
             _merge_user(ctx, record)
             continue

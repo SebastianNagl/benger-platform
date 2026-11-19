@@ -32,6 +32,7 @@ from auth_module import require_user
 from auth_module.principal import Principal, get_principal, session_principal
 from database import get_async_db
 from project_models import Project, Task, TaskAssignment
+from variant_designs import META_KEY as VARIANT_META_KEY
 from routers.projects.deps import ProjectAccess
 from routers.projects.helpers import (
     TIER_ATTEMPTED,
@@ -97,6 +98,11 @@ def serialize_task_public(
 ) -> Dict[str, Any]:
     full = bound is None or task.id in set(revealed)
     meta = blind_task_meta(task.meta, bound)
+    if isinstance(meta, dict) and VARIANT_META_KEY in meta:
+        # The variant assignment tells which tasks are twins; v1 serves
+        # systems under test, so it never carries it (not even with
+        # tasks:read_reference). The design routes serve it to editors.
+        meta = {k: v for k, v in meta.items() if k != VARIANT_META_KEY}
     return {
         "id": task.id,
         "inner_id": task.inner_id,

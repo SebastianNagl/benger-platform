@@ -15,7 +15,7 @@ from google import genai
 from google.genai import types
 
 from .attachments import google_contents
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, classify_retryable, derive_truncated
 from .reasoning import google_thoughts
 from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
@@ -41,8 +41,11 @@ def retry_with_exponential_backoff(
                 except Exception as e:
                     error_str = str(e).lower()
                     is_rate_limit = "429" in error_str or "rate limit" in error_str or "quota" in error_str or "resource exhausted" in error_str
+                    # Back off only on what the shared classifier deems retryable:
+                    # an exhausted quota is a 429 that no wait fixes.
+                    backs_off = is_rate_limit and classify_retryable(e)
 
-                    if not is_rate_limit or retries >= max_retries:
+                    if not backs_off or retries >= max_retries:
                         raise
 
                     delay = min(
