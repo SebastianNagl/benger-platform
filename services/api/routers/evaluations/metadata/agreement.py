@@ -1,5 +1,5 @@
 """Inter-annotator agreement over a project's overlapping annotations."""
-from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from ._common import *  # noqa: F401,F403  (binds _common.__all__, the shared surface)
 
 
 class AnnotatorPairAgreement(BaseModel):
