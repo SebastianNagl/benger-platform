@@ -9,6 +9,7 @@
  */
 
 import type { AnnotatorAgreementSummary } from '@/lib/api/agreement'
+import type { AnalysisEstimate } from '@/lib/api/analysis'
 
 /** Metric scale families the viewer knows how to format. */
 export type ReportMetricScale = '0-1' | '0-100' | '0-18' | 'raw'
@@ -243,6 +244,79 @@ export interface ReportAnalysisRunRecord {
   lockfile_sha256: string | null
   seed: number | null
   completed_at: string | null
+  /**
+   * A hidden model may appear in the run; readers outside the project never
+   * get such a run (absent in snapshots taken before it was recorded).
+   */
+  member_only?: boolean
+}
+
+/** One estimate as a report copies it: the engine's fields, no row id. */
+export type ReportAnalysisEstimate = Omit<AnalysisEstimate, 'id'>
+
+/** How an Analyses exhibit draws its estimates. */
+export type ReportExhibitType = 'forest' | 'table'
+
+/** Which estimates an exhibit shows; an absent or empty list does not
+ *  restrict. Systems keep an estimate only when it involves at least one
+ *  system and every system it involves is listed, so a pooled estimate
+ *  that involves no system is dropped (`exhibitSelects` in
+ *  lib/reports/analyses.ts). */
+export interface ReportExhibitFilters {
+  estimands?: string[]
+  contrasts?: string[]
+  families?: string[]
+  systems?: string[]
+}
+
+export interface ReportAnalysisExhibit {
+  /** The exhibit's id in content.sections.analyses (its title and caption). */
+  id: string
+  type: ReportExhibitType
+  filters: ReportExhibitFilters
+  /** Equivalence bound set a forest draws (index into `tost`), or none. */
+  band: number | null
+  /** Estimates the filters matched (before a run's truncation). */
+  row_count: number
+  /** Positions of its estimates in the run's `estimates`. */
+  positions: number[]
+}
+
+export interface ReportAnalysisRun {
+  id: string
+  name: string
+  spec_hash: string
+  spec_version: number
+  engine_version: string
+  frame_hash: string | null
+  frame_sha256: string | null
+  frame_rows: number | null
+  estimates_count: number
+  completed_at: string | null
+  warnings: string[]
+  /** Multiplicity families of the shown estimates. */
+  families: Array<{
+    family: string
+    method: string | null
+    size: number | null
+  }>
+  /** A private model may appear in it; the public view leaves it out. */
+  member_only?: boolean
+  /** More estimates were selected than a report keeps per run. */
+  truncated: boolean
+  /** The union of its exhibits' estimates, in engine order. */
+  estimates: ReportAnalysisEstimate[]
+  exhibits: ReportAnalysisExhibit[]
+}
+
+export type ReportAnalysisOmission =
+  'not_found' | 'not_completed' | 'reads_other_projects'
+
+export interface ReportAnalysesSnapshot {
+  runs: ReportAnalysisRun[]
+  /** Runs the section names but the report cannot show (authors and
+   *  project members only). */
+  omitted?: Array<{ run_id: string; reason: ReportAnalysisOmission | string }>
 }
 
 export interface ReportReproducibility {
@@ -312,6 +386,8 @@ export interface ReportSnapshot {
   data?: ReportDataSection
   generation?: ReportGenerationSection
   human_evaluations?: ReportHumanEvaluations
+  /** The runs and exhibits of the Analyses section; absent in older snapshots. */
+  analyses?: ReportAnalysesSnapshot
   reproducibility?: ReportReproducibility
   /** Inter-annotator agreement per control; null (or absent in snapshots
    *  taken before it existed) when no task has two annotators. */

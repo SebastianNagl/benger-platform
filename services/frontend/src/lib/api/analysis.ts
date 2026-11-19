@@ -30,6 +30,10 @@ export interface AnalysisFit {
   dropped?: string[]
   warnings?: string[]
   error?: string
+  /** Reference level of every dummy coding (factor, or `strength`). */
+  references?: Record<string, string>
+  /** Bradley-Terry: every player level is a system of the frame. */
+  players_are_systems?: boolean
   [key: string]: unknown
 }
 

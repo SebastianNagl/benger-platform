@@ -1548,11 +1548,37 @@ API change).
     ``savePlans``; ``specErrorsOf`` also reads ``invalid_analysis_plan``.
     ``@/lib/api/variantDesigns``: ``variantDesignsAPI`` (``list``, ``check``,
     ``freeze``, ``importDocument``) and ``variantDesignRefusalOf``.
+
+2.72 (2026-11-19): the project report's Analyses section (no migration,
+  additive API changes only; 2.71 is taken by the Evaluation card's analysis
+  start).
+  - ``report_snapshot.build_report_snapshot`` takes ``analyses`` and copies
+    the selected completed single-project runs (``report_analysis_runs``,
+    ``analysis_run_problems``) with their metadata and the estimates each
+    exhibit selects; ``parse_analyses_section`` validates the stored section
+    (``AnalysesSectionError``, limits ``MAX_REPORT_ANALYSIS_RUNS``,
+    ``MAX_RUN_EXHIBITS``, ``MAX_REPORT_ESTIMATES_PER_RUN``),
+    ``exhibit_selects`` and ``estimate_systems`` are the exhibit filter
+    rule. A run whose frame holds a hidden model is member-only
+    (``analysis_runs_member_only``, ``has_member_only_analyses``):
+    ``public_snapshot`` withholds it and ``report_service.can_publish_report``
+    refuses it with ``REASON_ANALYSIS_RUNS``.
+  - ``GET /api/projects/{project_id}/report/analysis-runs`` lists the runs a
+    report author can pick. Saving report content answers 422
+    ``invalid_report_analyses`` for an invalid section.
+  - ``analysis.frame.frame_models`` names the models of a frame, which an
+    analysis run records as ``resolved_inputs.models``; each fit summary
+    records the reference level of every categorical term
+    (``references``).
+  - Frontend: ``@/components/analysis/ContrastForestPlot`` exports
+    ``ContrastForest`` (one contrast, a given band, no pickers) and
+    ``EstimatesTable`` takes ``compact``; the report's exhibits are
+    ``@/components/reports/view/AnalysesSection`` and ``AnalysisExhibit``.
 """
 
 import os
 
-CORE_API_VERSION = "2.71"
+CORE_API_VERSION = "2.72"
 
 
 def extended_required() -> bool:
