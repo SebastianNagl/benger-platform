@@ -1210,10 +1210,16 @@ migration).
   - Prompt structures take ``append_schema_instruction``,
     ``structured_output`` (``auto`` / ``off``), ``format_retry``,
     ``answer_schema`` and ``refusal_heuristic`` (``generation_fidelity``:
-    ``answer_format(structure)``, ``schema_instruction``,
+    ``answer_format(structure)``, ``answer_skeleton(label_config,
+    task_data, answer_keys)`` and ``schema_instruction``,
     ``render_answer_schema`` / ``AnswerKeys``, ``refusal_matches``,
-    ``MAX_GENERATION_RUNS_PER_TASK`` = 100). ``ResponseParser`` takes
-    ``answer_keys``; ``ParseResult.mapped_values``.
+    ``MAX_GENERATION_RUNS_PER_TASK`` = 100). The appended skeleton lists the
+    flat answer fields under their rendered answer keys plus one example
+    object per item for each Repeater block; a config without a Repeater
+    appends the same text as before. ``ResponseParser`` takes
+    ``answer_keys`` (kept by the per-task Repeater parser);
+    ``ParseResult.mapped_values``; ``answer_controls(task_data)`` names the
+    indexed controls the format retry checks a parse against.
   - ``GET /api/runs/generations/{id}`` children carry
     ``has_request_record``, ``request_sha256``, ``retried`` and
     ``first_response_preview``; ``GET /api/runs/generations/{id}/trials/

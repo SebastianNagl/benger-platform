@@ -199,9 +199,10 @@ existing ones. A project with structures needs `structure_keys` in the
 generate call (step 6), otherwise it answers 422 and names them.
 
 A structure also decides the answer format. By default a generation appends
-the label config's answer fields as a JSON skeleton to the user prompt and
-asks the provider for structured output; the listing shows the appended text
-as `schema_instruction_preview`. To send a fixed prompt design unchanged, set
+the label config's answer fields as a JSON skeleton (a Repeater block as one
+example object per item of the task) to the user prompt and asks the
+provider for structured output; the listing shows the appended text as
+`schema_instruction_preview`. To send a fixed prompt design unchanged, set
 `append_schema_instruction: false` and `structured_output: "off"` (the
 answer is then parsed from free text). Optional blocks:
 
