@@ -225,7 +225,7 @@ function RunCode({
 // Columns of the project's validations from `sm` up; below it each
 // validation stacks and its numbers carry their own labels.
 const VALIDATION_COLUMNS =
-  'sm:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_6.5rem_3.5rem_5.5rem_5rem]'
+  'sm:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_6.5rem_3.5rem_8.5rem_6rem]'
 const JUDGE_COLUMNS =
   'sm:grid-cols-[minmax(0,2fr)_3.5rem_3.5rem_4.5rem_5.5rem_5.5rem_minmax(0,2fr)]'
 const headCell =
