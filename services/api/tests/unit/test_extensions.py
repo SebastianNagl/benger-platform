@@ -198,6 +198,8 @@ class TestExtensionLoader:
         # 2.70 adds the report's data, generation, human evaluation and
         # reproducibility sections, snapshot_sha256 and report authorship
         # for project owners and org admins.
+        # 2.71 adds analysis plans (evaluation_config.analysis_plans, checked
+        # and hashed on save) and the Analyses part of the Evaluation card.
         # 2.72 adds the report's Analyses section (member-only runs, the
         # report analysis-runs route, frame models and fit references).
         # 2.73 adds the shared variant and analysis views (variant unit

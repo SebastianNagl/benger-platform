@@ -19,6 +19,11 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     audience: 'benger',
   },
   {
+    id: '2026-11-19-analyses-on-evaluation-card',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
     id: '2026-11-19-report-as-project-paper',
     date: '2026-11-19',
     audience: 'benger',

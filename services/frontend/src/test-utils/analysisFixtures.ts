@@ -1,13 +1,19 @@
 /**
- * Invented analysis runs and estimates for the analysis results page tests.
- * The numbers have the shapes the engine writes; they come from no study.
+ * Invented analysis runs, estimates, plans and variant designs for the
+ * analysis tests. The numbers have the shapes the API writes; they come from
+ * no study.
  */
 
 import type {
   AnalysisEstimate,
+  AnalysisPlan,
   AnalysisRun,
   AnalysisTost,
 } from '@/lib/api/analysis'
+import type {
+  VariantDesign,
+  VariantDesignReport,
+} from '@/lib/api/variantDesigns'
 
 export function makeTost(overrides: Partial<AnalysisTost> = {}): AnalysisTost {
   return {
@@ -197,6 +203,64 @@ export function makeRun(overrides: Partial<AnalysisRun> = {}): AnalysisRun {
     warnings: ['by_system [pooled]: collinear regressors'],
     timings: { fit_s: 0.64, total_s: 1.9 },
     frame_available: true,
+    ...overrides,
+  }
+}
+
+export function makePlan(overrides: Partial<AnalysisPlan> = {}): AnalysisPlan {
+  return {
+    id: 'plan-1',
+    name: 'Primary analysis',
+    spec: { spec_version: 1, name: 'Role swap', inputs: { designs: ['d'] } },
+    spec_hash:
+      'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    saved_at: '2026-11-19T09:00:00+00:00',
+    saved_by: 'user-1',
+    ...overrides,
+  }
+}
+
+export function makeDesign(
+  overrides: Partial<VariantDesign> = {},
+): VariantDesign {
+  return {
+    id: 'design-1',
+    project_id: 'project-1',
+    key: 'role_swap',
+    version: 1,
+    status: 'draft',
+    spec: { schema_version: 1, title: 'Role swap' },
+    spec_sha256: '5'.repeat(64),
+    content_hash: null,
+    frozen_at: null,
+    frozen_by: null,
+    provenance: null,
+    created_by: 'user-1',
+    created_at: '2026-11-19T08:00:00Z',
+    updated_at: '2026-11-19T08:00:00Z',
+    task_count: 48,
+    unit_count: 12,
+    cell_count: 4,
+    ...overrides,
+  }
+}
+
+export function makeDesignReport(
+  overrides: Partial<VariantDesignReport> = {},
+): VariantDesignReport {
+  return {
+    design: 'role_swap',
+    task_count: 48,
+    unit_count: 12,
+    assignments: { ok: true, problem_count: 0, problems: [] },
+    balance: {
+      ok: true,
+      problem_count: 0,
+      problems: [],
+      expected_cells_per_unit: 4,
+    },
+    invariance: { ok: true, problem_count: 0, problems: [], checked_pairs: 36 },
+    ok: true,
     ...overrides,
   }
 }

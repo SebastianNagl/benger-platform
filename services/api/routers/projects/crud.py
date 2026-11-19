@@ -24,6 +24,7 @@ from grade_scale_history import (
     apply_grade_scale_write,
     grade_scale_changed,
 )
+from services.analysis_plans import apply_analysis_plans_write
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
 from services.member_privacy import (
@@ -919,6 +920,13 @@ async def update_project(
             # server-owned and every change of the key is appended.
             eval_config_after = apply_grade_scale_write(
                 eval_config_before, eval_config_after, actor_id=str(current_user.id)
+            )
+            # Analysis plans: spec hash and save stamp are server-owned.
+            eval_config_after = apply_analysis_plans_write(
+                eval_config_before,
+                eval_config_after,
+                eval_config_body,
+                actor_id=str(current_user.id),
             )
 
     # Kind is editable on expert projects (the extended student surfaces key

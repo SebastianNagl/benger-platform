@@ -105,13 +105,25 @@ async def _load(db: AsyncSession, project_id: str, key: str) -> VariantDesign:
     return row
 
 
-async def _task_counts(db: AsyncSession, project_id: str) -> Dict[str, int]:
+_NO_TASKS = {"task_count": 0, "unit_count": 0, "cell_count": 0}
+
+
+async def _task_counts(db: AsyncSession, project_id: str) -> Dict[str, Dict[str, int]]:
+    """Per design key: its tasks, its distinct units and its distinct cells."""
     rows = await db.execute(
-        select(Task.variant_design, func.count(Task.id))
+        select(
+            Task.variant_design,
+            func.count(Task.id),
+            func.count(Task.variant_unit.distinct()),
+            func.count(Task.variant_cell.distinct()),
+        )
         .where(Task.project_id == project_id, Task.variant_design.isnot(None))
         .group_by(Task.variant_design)
     )
-    return {key: count for key, count in rows.all()}
+    return {
+        key: {"task_count": tasks, "unit_count": units, "cell_count": cells}
+        for key, tasks, units, cells in rows.all()
+    }
 
 
 async def _run(db: AsyncSession, work: Callable[[Any], Any]) -> Any:
@@ -153,7 +165,7 @@ async def _create(
             409, "variant_design_exists", f"The project already has a variant design {key!r}."
         )
     await db.refresh(row)
-    return serialize_design(row, task_count=0)
+    return serialize_design(row, **_NO_TASKS)
 
 
 @router.get(_BASE)
@@ -162,7 +174,7 @@ async def list_variant_designs(
     db: AsyncSession = Depends(get_async_db),
     access: ProjectAccess = Depends(require_project_access()),
 ):
-    """The project's variant designs with their task counts."""
+    """The project's variant designs with their task, unit and cell counts."""
     await _require_read(db, access)
     rows = (
         await db.execute(
@@ -172,7 +184,7 @@ async def list_variant_designs(
         )
     ).scalars().all()
     counts = await _task_counts(db, project_id)
-    return {"items": [serialize_design(r, task_count=counts.get(r.key, 0)) for r in rows]}
+    return {"items": [serialize_design(r, **counts.get(r.key, _NO_TASKS)) for r in rows]}
 
 
 @router.post(_BASE, status_code=201)
@@ -223,7 +235,7 @@ async def get_variant_design(
     await _require_read(db, access)
     row = await _load(db, project_id, key)
     counts = await _task_counts(db, project_id)
-    return serialize_design(row, task_count=counts.get(key, 0))
+    return serialize_design(row, **counts.get(key, _NO_TASKS))
 
 
 @router.get(f"{_BASE}/{{key}}/export")
@@ -281,7 +293,7 @@ async def delete_variant_design(
         raise VariantDesignError(
             409, "variant_design_frozen", f"The variant design {key!r} is frozen."
         )
-    count = (await _task_counts(db, project_id)).get(key, 0)
+    count = (await _task_counts(db, project_id)).get(key, _NO_TASKS)["task_count"]
     if count:
         raise VariantDesignError(
             409,
