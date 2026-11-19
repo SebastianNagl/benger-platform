@@ -11,7 +11,8 @@
  *      its Bewertungsbogen: a prefilled rubric judge plus the Korrektur by
  *      sheet, both on the submitted answer (`loesung`, shown as the
  *      `human:loesung` option) against the `musterloesung` column (stored as
- *      `task.musterloesung`).
+ *      `task.musterloesung`). The wizard works on a draft, and leaving its
+ *      Bewertungsbogen step with the task still unchecked asks first.
  *   2. A Korrekturbogen written as Markdown goes through the platform importer.
  *      Such an exam requires the Bewertungsbogen check step, so activating
  *      the sheet on create is refused; the sheet is created as a candidate,
@@ -468,6 +469,40 @@ test.describe('Bewertungsbogen grading @extended', () => {
         page.locator('[data-testid="wizard-grade-scale-clear"]'),
       ).toBeVisible()
 
+      // The exam is built on a draft, so its task already exists in the
+      // Bewertungsbogen step. This spec checks the sheet after creation
+      // (imported Korrekturbogen below), so the step shows the task without a
+      // checked sheet, and moving on asks first: such a task keeps the exam
+      // closed for students until its sheet is checked.
+      const indicator = page.locator(
+        '[data-testid="project-create-step-indicator"]',
+      )
+      await advanceWizardUntil(
+        page,
+        page.locator('[data-testid="wizard-rubric-step"]'),
+      )
+      await expect(indicator).toHaveAttribute('data-current-step-id', 'rubric')
+      const counter = page.locator(
+        '[data-testid="rubric-review-checked-counter"]',
+      )
+      await expect(counter).toHaveAttribute('data-total', '1', {
+        timeout: 30000,
+      })
+      await expect(counter).toHaveAttribute('data-checked', '0')
+      await page.locator('[data-testid="project-create-next-button"]').click()
+      const confirmMove = page.locator(
+        '[data-testid="confirm-dialog-confirm-button"]',
+      )
+      await expect(confirmMove).toBeVisible({ timeout: 30000 })
+      await expect(page.getByRole('dialog')).toContainText('Aufgabe 1')
+      await confirmMove.click()
+      await expect(indicator).not.toHaveAttribute(
+        'data-current-step-id',
+        'rubric',
+        { timeout: 30000 },
+      )
+
+      // The move was confirmed for this task, so "Create" asks nothing new.
       await clickSubmitFromAnyStep(page)
       await page.waitForURL(/\/projects\/[0-9a-f-]{36}$/, { timeout: 180000 })
       projectId = new URL(page.url()).pathname.split('/').pop() ?? ''
