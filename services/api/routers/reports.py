@@ -30,7 +30,13 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import apply_section_visibility, build_report_snapshot
+from feature_flags.deps import flag_on
+from feature_flags.registry import VARIANT_EXPERIMENTS
+from report_snapshot import (
+    apply_section_visibility,
+    build_report_snapshot,
+    without_experiment_parts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -175,11 +181,23 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     annotations = sections.get("annotations") or {}
     if annotations.get("show_participants") is False and "participants" in annotations:
         sections = {**sections, "annotations": {**annotations, "participants": []}}
+    snapshot = apply_section_visibility(content.get("snapshot"), sections)
+    # The parts of the variant_experiments flag (core 2.69) are served while
+    # it is on for anybody; off for everybody, the report reads as before.
+    if not _experiment_parts_served():
+        snapshot = without_experiment_parts(snapshot)
     return {
         **content,
         "sections": sections,
-        "snapshot": apply_section_visibility(content.get("snapshot"), sections),
+        "snapshot": snapshot,
     }
+
+
+def _experiment_parts_served() -> bool:
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import flag_on_for_anybody
+
+    return flag_on_for_anybody(VARIANT_EXPERIMENTS)
 
 
 def _report_response(
@@ -425,6 +443,14 @@ async def update_project_report(
     new_annotations = (new_content.get("sections") or {}).get("annotations")
     if isinstance(new_annotations, dict) and "participants" in existing_annotations:
         new_annotations["participants"] = existing_annotations["participants"]
+    # show_agreement belongs to variant_experiments (core 2.69): with the
+    # flag off for the caller a setting the report does not hold is not added.
+    if (
+        isinstance(new_annotations, dict)
+        and "show_agreement" not in existing_annotations
+        and not await flag_on(db, current_user, VARIANT_EXPERIMENTS)
+    ):
+        new_annotations.pop("show_agreement", None)
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -705,6 +731,7 @@ async def list_published_reports(
                 {"id": po.organization.id, "name": po.organization.name}
             )
 
+    analyses_served = _experiment_parts_served()
     result = []
     for report in reports:
         stats = dict(stats_map.get(
@@ -738,7 +765,7 @@ async def list_published_reports(
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
-                analysis_count=stats["analysis_count"],
+                analysis_count=stats["analysis_count"] if analyses_served else 0,
                 organizations=orgs_by_project.get(report.project_id, []),
                 is_public=bool(report.is_public),
                 visibility="public" if report.is_public else "organizations",

@@ -40,6 +40,8 @@ import {
   type ReportContent,
   type ReportResponse,
 } from '@/lib/api/reports'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import type {
   ReportChartsConfig,
@@ -283,6 +285,8 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const { user, isLoading: authLoading } = useAuth()
   const { addToast } = useToast()
   const { t, locale } = useI18n()
+  // The agreement toggle belongs to the variant_experiments flag.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
 
   const [projectId, setProjectId] = useState<string | null>(null)
   const [report, setReport] = useState<ReportResponse | null>(null)
@@ -407,7 +411,9 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ...sections.annotations,
           visible: state.sectionVisible.annotations,
           show_participants: state.showParticipants,
-          show_agreement: state.showAgreement,
+          ...(variantExperiments
+            ? { show_agreement: state.showAgreement }
+            : {}),
           custom_text: state.annotationsText || null,
           acknowledgment_text: state.acknowledgment || null,
         },
@@ -738,11 +744,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               onChange={(enabled) => update({ showParticipants: enabled })}
               label={t('reports.editor.showParticipants')}
             />
-            <ToggleSwitch
-              enabled={state.showAgreement}
-              onChange={(enabled) => update({ showAgreement: enabled })}
-              label={t('reports.editor.showAgreement')}
-            />
+            {variantExperiments && (
+              <ToggleSwitch
+                enabled={state.showAgreement}
+                onChange={(enabled) => update({ showAgreement: enabled })}
+                label={t('reports.editor.showAgreement')}
+              />
+            )}
           </div>
         </div>
 

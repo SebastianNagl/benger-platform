@@ -1464,11 +1464,57 @@ frame format 2).
     off, every read path leaves out the agreement pairs and the participant
     lists of the snapshot and the Annotation section, keeping the aggregates
     and ``participant_count``. The stored snapshot is not changed.
+
+2.69 (2026-11-19): the experiment features behind platform feature flags
+  (migration 151; docs/features/feature-flags.md).
+  - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
+    ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
+    owner ``platform``, default ``off``, coupled to no master flag. An
+    overlay that uses these features (the compliance overlay) needs them on
+    for its users: ``compliance_records`` for ``/api/compliance`` and the
+    ``/compliance`` shells (besides ``extension.compliance``),
+    ``variant_experiments`` for everything else listed below.
+  - Off, the routes of 2.56-2.68 answer 404 ``feature_disabled``
+    (``feature_flags.deps.require_variant_experiments`` /
+    ``require_compliance_records``; an organization key's organization
+    counts on the v1 analysis routes), the analysis and code-validation
+    jobs end failed with ``FEATURE_DISABLED_MESSAGE``, and every changed
+    behaviour takes its previous branch: no request record (the httpx hook
+    is installed on the first capture scope, no longer at import), no
+    system key, prompt structures at the default answer format, the
+    single-value multi-choice schema and the previous parsing
+    (``ResponseParser(..., variant_experiments=)``,
+    ``generate_json_schema_from_label_config(..., variant_experiments=)``),
+    runs per task at most 25 (``generation_fidelity.max_runs_per_task``),
+    ``text_pattern`` neither offered nor run
+    (``metric_filters.FLAGGED_METRICS``, ``without_flagged_metrics``),
+    ``<Repeater>`` an unsupported field type, no import provenance, the
+    previous generation export and nested import, no analysis counts, no
+    annotator agreement in new snapshots and none served while the flag is
+    off for everybody (``report_snapshot.without_experiment_parts``).
+  - Catalog entries can belong to a flag: ``default_config.feature_flag``
+    (the model) and ``default_config.reasoning_config.feature_flag`` (its
+    reasoning knob); ``catalog_flags`` (``model_offered``,
+    ``served_default_config``, ``reasoning_config_for``) applies them and
+    ``provider_capabilities.model_reasoning_config`` returns no knob while
+    its flag is off.
+  - ``feature_flags.scope`` (``flag_scope``, ``scoped_flag``,
+    ``scoped_answer``, ``flag_on_for_anybody``) carries a job's answer into
+    shared code; ``feature_flags.worker.flag_enabled_or_default``;
+    ``service.is_enabled_for_caller(_sync)``, ``on_for_anybody``,
+    ``is_on_for_anybody(_sync)``; ``extension_activation.flag_snapshot``;
+    ``require_feature_flag(name, key_organization=False)``.
+  - The reserved task key of variant assignments is ``meta.benger_variant``
+    (``variant_designs.META_KEY``; the CSV column ``meta.benger_variant``);
+    ``meta.variant`` is plain data again. Migration 142 no longer rewrites
+    stored rows; migration 151 moves the assignments of a database that ran
+    its first version and returns ``meta.variant_legacy`` to
+    ``meta.variant``. Design files, imports and specs name the new key.
 """
 
 import os
 
-CORE_API_VERSION = "2.68"
+CORE_API_VERSION = "2.69"
 
 
 def extended_required() -> bool:

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 PATTERN_SET = {
     "name": "parties",
     "version": "3",

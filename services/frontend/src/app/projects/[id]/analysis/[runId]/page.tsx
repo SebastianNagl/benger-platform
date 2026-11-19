@@ -9,8 +9,6 @@
  * finishes.
  */
 
-import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
-import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { ContrastForestPlot } from '@/components/analysis/ContrastForestPlot'
 import { EstimatesTable } from '@/components/analysis/EstimatesTable'
 import { RunProvenance } from '@/components/analysis/RunProvenance'
@@ -18,6 +16,7 @@ import { RunFits, RunSpec } from '@/components/analysis/RunSpecAndFits'
 import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -29,6 +28,7 @@ import {
   type AnalysisRun,
 } from '@/lib/api/analysis'
 import { projectsAPI } from '@/lib/api/projects'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import {
   ArrowDownTrayIcon,

@@ -234,10 +234,10 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
         # is drained (serializers.serialize_generation).
         from feature_flags import VARIANT_EXPERIMENTS
         from feature_flags.scope import flag_scope
-        from feature_flags.worker import flag_enabled_sync
+        from feature_flags.worker import flag_enabled_or_default
 
         with flag_scope(
-            {VARIANT_EXPERIMENTS: flag_enabled_sync(db, job.requested_by, VARIANT_EXPERIMENTS)}
+            {VARIANT_EXPERIMENTS: flag_enabled_or_default(db, job.requested_by, VARIANT_EXPERIMENTS)}
         ):
             for chunk in generator:
                 if not chunk:
@@ -476,9 +476,9 @@ def import_project_impl(
             # off for the requester, nothing is recorded and every import
             # imports, as before.
             from feature_flags import VARIANT_EXPERIMENTS
-            from feature_flags.worker import flag_enabled_sync
+            from feature_flags.worker import flag_enabled_or_default
 
-            provenance_on = flag_enabled_sync(db, requested_by, VARIANT_EXPERIMENTS)
+            provenance_on = flag_enabled_or_default(db, requested_by, VARIANT_EXPERIMENTS)
             if provenance_on:
                 payload_sha256, byte_size = provenance.hash_fileobj(spooled)
             else:

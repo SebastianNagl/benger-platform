@@ -32,7 +32,7 @@ from routers.projects._export_stream import (
 )
 from variant_design_guard import export_document, freeze_design, new_design_row
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.flags_on("variant_experiments")]
 
 NAMES = {"claimant": "Alma Reyes", "respondent": "Bodo Lind"}
 SPEC = {
@@ -148,7 +148,7 @@ class TestImportValidation:
         mutate(items[3]["meta"]["benger_variant"])
         error = _refused(test_db, _nested, test_db, world["project"], world["admin"], items)
         assert error.status_code == status
-        assert "benger_variant" in error.detail
+        assert "variant" in error.detail
         assert test_db.query(Task).filter(Task.project_id == world["project"].id).count() == 0
 
     def test_global_meta_counts_too(self, test_db, world):

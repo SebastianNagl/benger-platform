@@ -313,6 +313,7 @@ class TestDashboardStats:
         finally:
             app.dependency_overrides.clear()
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_projects_without_summary_are_counted_live_and_added(self):
         user = _make_user(is_superadmin=False)

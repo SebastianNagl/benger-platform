@@ -1,57 +1,68 @@
 import type { ChangelogEntry } from '@/lib/extensions/changelog'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 
 /**
  * Platform changelog entries, newest first. One short user-facing bullet
  * per new feature. The entry here carries id, date and audience; the text
  * lives at `changelogEntries.<id>` in src/locales/<locale>/changelog.json
  * (de, en and fr). Extended-edition entries live in the extended package
- * and are merged in via registerChangelogEntries().
+ * and are merged in via registerChangelogEntries(). Entries of a feature
+ * behind a flag name it (`featureFlag`) and stay hidden while it is off.
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-19-annotator-agreement',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-analysis-counts',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-codes-and-coding-validation',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-analysis-estimators-slots',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-analysis-results-page',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-19-import-provenance',
     date: '2026-11-19',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-18-variant-experiment-analysis',
     date: '2026-11-18',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-18-generation-request-record',
     date: '2026-11-18',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-18-per-item-answers',
     date: '2026-11-18',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-18-personal-dashboard-for-students',
@@ -62,6 +73,7 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     id: '2026-11-18-open-weight-models-thinking',
     date: '2026-11-18',
     audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
   },
   {
     id: '2026-11-17-wizard-drafts',

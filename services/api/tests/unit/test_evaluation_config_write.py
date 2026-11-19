@@ -154,5 +154,6 @@ class TestReferenceFieldWarning:
         warnings = collect_evaluation_config_warnings([self._cfg("bleu", [])])
         assert [(w["config_id"], w["code"]) for w in warnings] == [("bleu", "no_reference_fields")]
 
+    @pytest.mark.flags_on("variant_experiments")
     def test_a_reference_free_metric_is_not(self):
         assert collect_evaluation_config_warnings([self._cfg("text_pattern", [])]) == []

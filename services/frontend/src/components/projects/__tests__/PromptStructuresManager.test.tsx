@@ -2,12 +2,16 @@
  * @jest-environment jsdom
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { apiClient } from '@/lib/api/client'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PromptStructuresManager } from '../PromptStructuresManager'
 
 // Mock I18nContext
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, vars?: Record<string, unknown>) => {
@@ -1277,6 +1281,48 @@ describe('PromptStructuresManager', () => {
 
     beforeEach(() => {
       ;(apiClient.get as jest.Mock).mockResolvedValue(formatStructures)
+      // The answer-format options belong to variant_experiments.
+      setMockFeatureFlags({ variant_experiments: true })
+    })
+
+    it('shows and sends no answer-format options with variant_experiments off', async () => {
+      setMockFeatureFlags({})
+      ;(apiClient.put as jest.Mock).mockResolvedValue({})
+      render(<PromptStructuresManager projectId={mockProjectId} />)
+      await openList()
+
+      expect(
+        screen.queryByTestId('prompt-structure-format-appended'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('prompt-structure-format-fixed'),
+      ).not.toBeInTheDocument()
+
+      const card = screen.getByText('Fixed design').closest('[class*="p-4"]')!
+      await userEvent.click(within(card as HTMLElement).getByTitle('Edit'))
+      const config = JSON.parse(
+        (screen.getByTestId('structure-config-textarea') as HTMLTextAreaElement)
+          .value,
+      )
+      expect(Object.keys(config).sort()).toEqual(
+        ['evaluation_prompt', 'instruction_prompt', 'system_prompt'].filter(
+          (k) => k in config,
+        ),
+      )
+      await userEvent.click(
+        screen.getByRole('button', { name: /Update Structure/i }),
+      )
+      await waitFor(() => expect(apiClient.put).toHaveBeenCalled())
+      const body = (apiClient.put as jest.Mock).mock.calls[0][1]
+      for (const key of [
+        'append_schema_instruction',
+        'structured_output',
+        'format_retry',
+        'answer_schema',
+        'refusal_heuristic',
+      ]) {
+        expect(body).not.toHaveProperty(key)
+      }
     })
 
     it('says per structure what a generation adds to the prompt', async () => {

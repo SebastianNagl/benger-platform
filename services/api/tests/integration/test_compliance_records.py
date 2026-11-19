@@ -24,7 +24,7 @@ from models import (
 )
 from tests.integration.test_group_visibility import _as_user, _attach, _org, _project, _user
 
-pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio, pytest.mark.flags_on("compliance_records")]
 
 BASE = "/api/compliance"
 

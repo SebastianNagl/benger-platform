@@ -1,8 +1,8 @@
 'use client'
 
+import { ComplianceRouteShell } from '@/components/compliance/ComplianceSlot'
 import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
 import { COMPLIANCE_RECORDS } from '@/lib/featureFlags/platformFlags'
-import { ComplianceRouteShell } from '@/components/compliance/ComplianceSlot'
 import { useParams } from 'next/navigation'
 
 /**

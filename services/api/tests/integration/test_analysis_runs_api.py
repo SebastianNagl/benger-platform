@@ -19,6 +19,9 @@ from services import api_key_service as svc
 from tests.fixtures.access_keys import make_membership, make_user, seed_world
 from tests.fixtures.v1 import bearer, make_project, v1_auth
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 SPEC = {
     "spec_version": 1,
     "name": "role swap",

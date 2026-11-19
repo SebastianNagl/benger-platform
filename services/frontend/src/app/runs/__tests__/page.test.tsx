@@ -13,12 +13,17 @@
  *  - The analysis tab lists name, frame rows, estimates and spec hash
  *  - Empty / error state renders the proper message
  */
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
 let mockSearchParams = new URLSearchParams('type=evaluation')
+
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
@@ -101,6 +106,25 @@ beforeEach(() => {
   mockPush.mockReset()
   mockReplace.mockReset()
   mockSearchParams = new URLSearchParams('type=evaluation')
+  // The analysis tab belongs to variant_experiments.
+  setMockFeatureFlags({ variant_experiments: true })
+})
+
+describe('RunsPage with variant_experiments off', () => {
+  it('has no analysis tab and shows evaluation runs for ?type=analysis', async () => {
+    setMockFeatureFlags({})
+    mockSearchParams = new URLSearchParams('type=analysis')
+    mockGet.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+    render(<RunsPage />)
+    await waitFor(() => expect(mockGet).toHaveBeenCalled())
+    expect(mockGet.mock.calls[0][0]).toContain('type=evaluation')
+    expect(mockGet.mock.calls.some(([url]) => url.includes('type=analysis'))).toBe(
+      false,
+    )
+    expect(screen.getByTestId('runs-tab-evaluation')).toBeInTheDocument()
+    expect(screen.getByTestId('runs-tab-generation')).toBeInTheDocument()
+    expect(screen.queryByTestId('runs-tab-analysis')).not.toBeInTheDocument()
+  })
 })
 
 describe('RunsPage', () => {

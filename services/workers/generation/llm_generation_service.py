@@ -708,11 +708,11 @@ def generate_llm_responses_impl(
             # flag that is off does not exist for the job (catalog_flags).
             from catalog_flags import model_flag
             from feature_flags.registry import VARIANT_EXPERIMENTS
-            from feature_flags.worker import flag_enabled_sync
+            from feature_flags.worker import flag_enabled_or_default
 
-            experiments = flag_enabled_sync(db, user_id, VARIANT_EXPERIMENTS)
+            experiments = flag_enabled_or_default(db, user_id, VARIANT_EXPERIMENTS)
             _model_flag = model_flag(getattr(model, "default_config", None))
-            if _model_flag and not flag_enabled_sync(db, user_id, _model_flag):
+            if _model_flag and not flag_enabled_or_default(db, user_id, _model_flag):
                 raise Exception(f"Model {model_id} not found")
 
             # BYOM: re-check access + liveness for custom models (mid-run

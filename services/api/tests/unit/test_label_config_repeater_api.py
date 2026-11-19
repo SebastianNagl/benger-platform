@@ -35,6 +35,7 @@ TASK = {
 }
 
 
+@pytest.mark.flags_on("variant_experiments")
 class TestValidator:
     def test_repeater_config_is_valid(self):
         assert LabelConfigValidator.validate(DOCKET) == (True, [])

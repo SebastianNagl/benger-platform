@@ -42,6 +42,23 @@ def scoped_answer(name: str) -> Optional[bool]:
     return None
 
 
+def flag_on_for_anybody(name: str) -> bool:
+    """Whether ``name`` is on for at least one possible caller
+    (``service.on_for_anybody``): content built while the flag was on for
+    its author and read by others (a published report) is served while this
+    holds and hidden once the flag is off for everybody."""
+    answer = scoped_answer(name)
+    if answer is not None:
+        return answer
+    try:
+        import extension_activation
+        from feature_flags import service
+
+        return service.on_for_anybody(extension_activation.flag_snapshot(), name)
+    except Exception:
+        return False
+
+
 def scoped_flag(name: str) -> bool:
     """The answer of the innermost scope naming ``name``, else the current
     request or task context's (``extension_activation.flag_active``)."""

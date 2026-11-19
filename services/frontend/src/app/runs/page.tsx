@@ -13,6 +13,8 @@ import {
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { translate } from '@/lib/utils/translate'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -139,7 +141,15 @@ export default function RunsPage() {
   const initialTab = asRunType(searchParams?.get('type'))
   const initialProject = searchParams?.get('project_id') || ''
   const initialStatus = searchParams?.get('status') || ''
-  const [tab, setTab] = useState<RunType>(initialTab)
+  const [requestedTab, setTab] = useState<RunType>(initialTab)
+  // Analysis runs belong to the variant_experiments flag: off, there is no
+  // Analysis tab and ?type=analysis shows the evaluation runs.
+  const analysisTab = useFeatureFlag(VARIANT_EXPERIMENTS)
+  const runTypes = analysisTab
+    ? RUN_TYPES
+    : RUN_TYPES.filter((type) => type !== 'analysis')
+  const tab: RunType =
+    requestedTab === 'analysis' && !analysisTab ? 'evaluation' : requestedTab
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>(
     STATUSES.includes(initialStatus) ? initialStatus : '',
@@ -275,7 +285,7 @@ export default function RunsPage() {
       {/* Tabs */}
       <div className="mb-4">
         <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
-          {RUN_TYPES.map((tname) => (
+          {runTypes.map((tname) => (
             <button
               key={tname}
               onClick={() => handleTabChange(tname)}

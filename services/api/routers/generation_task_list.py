@@ -806,11 +806,12 @@ async def start_generation(
     # Catalog models that belong to a feature flag (catalog_flags, core 2.69)
     # do not exist for a caller who has it off: refused like an unknown model.
     from catalog_flags import model_flag
+    from models import LLMModel as CatalogModel
 
     flagged_rows = (
         await db.execute(
-            select(DBLLMModel.id, DBLLMModel.default_config).where(
-                DBLLMModel.id.in_([m for m in model_ids if isinstance(m, str)])
+            select(CatalogModel.id, CatalogModel.default_config).where(
+                CatalogModel.id.in_([m for m in model_ids if isinstance(m, str)])
             )
         )
     ).all()

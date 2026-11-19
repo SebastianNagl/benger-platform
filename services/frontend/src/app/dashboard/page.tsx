@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { projectsAPI } from '@/lib/api/projects'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -148,6 +150,7 @@ const TILE_GRID_COLUMNS: Record<number, string> = {
 
 export default function DashboardPage() {
   const { t, locale } = useI18n()
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
   const { user, organizations } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -219,7 +222,10 @@ export default function DashboardPage() {
     return typeof value === 'number' ? value : undefined
   }
   const visibleTiles = statTiles.filter(
-    (tile) => !(tile.hideWhenZero && statValue(tile) === 0),
+    (tile) =>
+      !(tile.hideWhenZero && statValue(tile) === 0) &&
+      // The analyses tile belongs to the variant_experiments flag.
+      (tile.key !== 'analyses_count' || variantExperiments),
   )
 
   // Sort a copy: the order must not depend on the response order, and the

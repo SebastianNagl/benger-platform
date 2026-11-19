@@ -172,7 +172,7 @@ class TestExtensionLoader:
         # 2.58 adds metadata.retryable on every provider's error response
         # (base_service.classify_retryable).
         # 2.59 adds variant designs (variant_designs, the derived task
-        # columns and their guards, meta.benger_variant as a reserved key).
+        # columns and their guards, meta.variant as a reserved key).
         # 2.60 adds per-slot label configs (<Repeater>, label_config_repeater,
         # task_data on the response parser and the schema generator).
         # 2.61 adds the generation request record and answer-format options
@@ -192,7 +192,10 @@ class TestExtensionLoader:
         # 2.68 adds inter-annotator agreement per control (the
         # annotator-agreement route, the snapshot's annotator_agreement and
         # show_agreement, section visibility applied on read).
-        assert CORE_API_VERSION == "2.68"
+        # 2.69 adds the platform flags variant_experiments and
+        # compliance_records and moves the reserved key to meta.benger_variant
+        # (migration 151).
+        assert CORE_API_VERSION == "2.69"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

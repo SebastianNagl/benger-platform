@@ -3,6 +3,7 @@
  * Issue #580: Add Annotations stat box to dashboard between Tasks and Generations
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import DashboardPage from '@/app/dashboard/page'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom'
@@ -23,6 +24,9 @@ const render: typeof rtlRender = (ui, options) => {
 }
 
 // Mock the Next.js hooks
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -109,6 +113,11 @@ jest.mock('@/lib/api', () => ({
 }))
 
 describe('Dashboard Annotations Stat Box', () => {
+  beforeEach(() => {
+    // The analyses tile belongs to variant_experiments.
+    setMockFeatureFlags({ variant_experiments: true })
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
   })
@@ -262,5 +271,28 @@ describe('Dashboard Annotations Stat Box', () => {
       expect(screen.getByText('850')).toBeInTheDocument()
     })
     expect(screen.queryByText('Analyses')).not.toBeInTheDocument()
+  })
+
+  it('shows no Analyses tile with variant_experiments off, even with runs', async () => {
+    setMockFeatureFlags({})
+    const api = require('@/lib/api').default
+    api.getDashboardStats.mockResolvedValueOnce({
+      project_count: 5,
+      task_count: 10,
+      annotation_count: 0,
+      generations_count: 0,
+      evaluations_count: 0,
+      analyses_count: 3,
+    })
+
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dashboard-stats')).toHaveTextContent('10')
+    })
+    expect(screen.queryByText('Analyses')).not.toBeInTheDocument()
+    expect(screen.getByTestId('dashboard-stats').className).toContain(
+      'lg:grid-cols-5',
+    )
   })
 })

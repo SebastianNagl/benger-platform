@@ -22,7 +22,7 @@ from main import app
 from models import Organization, OrganizationMembership, OrganizationRole, User
 from project_models import Project, ProjectOrganization, Task
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.flags_on("variant_experiments")]
 
 CANARY = "CANARY-VARIANT-7f3a"
 CONFIG = (

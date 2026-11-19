@@ -35,7 +35,7 @@ from models import Generation, ResponseGeneration
 
 import tasks
 
-pytestmark = [pytest.mark.integration, pytest.mark.database]
+pytestmark = [pytest.mark.integration, pytest.mark.database, pytest.mark.flags_on("variant_experiments")]
 
 LABEL_CONFIG = """<View>
   <Text name="akte" value="$akte"/>

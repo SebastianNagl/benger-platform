@@ -22,6 +22,9 @@ from analysis.spec import normalize_spec, spec_hash  # noqa: E402
 from analysis.version import ENGINE_VERSION, SPEC_VERSION  # noqa: E402
 from analysis_synthetic import role_swap_design, role_swap_records, role_swap_spec  # noqa: E402
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 UNITS = 12
 
 
@@ -109,6 +112,22 @@ def _reload(db_conn, run_id):
         .order_by(AnalysisEstimate.position).all()
     )
     return run, estimates
+
+
+@pytest.mark.flags_off("variant_experiments")
+def test_run_of_an_owner_with_the_flag_off_is_not_computed(db_conn, seeded):
+    from feature_flags import FEATURE_DISABLED, FEATURE_DISABLED_MESSAGE
+
+    project, user, _records = seeded
+    run = _new_run(db_conn, project, user)
+    out = tasks.run_analysis.apply(args=[run.id]).get()
+    assert out["reason"] == FEATURE_DISABLED and out["flag"] == "variant_experiments"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed"
+    assert run.error_message == FEATURE_DISABLED_MESSAGE
+    assert estimates == [] and run.frame_object_key is None
+    # The spec stays stored.
+    assert run.normalized_spec
 
 
 def test_run_reads_the_design_and_stores_frame_and_estimates(db_conn, seeded):

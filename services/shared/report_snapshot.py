@@ -314,14 +314,52 @@ def apply_section_visibility(
 # Builder
 # ---------------------------------------------------------------------------
 
+#: Snapshot parts that belong to the variant_experiments flag (core 2.69):
+#: top-level keys and ``statistics`` keys. They are built only while the
+#: flag is on for whoever builds the snapshot, and served only while it is
+#: on for anybody (:func:`without_experiment_parts`).
+EXPERIMENT_SNAPSHOT_KEYS: Tuple[str, ...] = ("annotator_agreement",)
+EXPERIMENT_STATISTICS_KEYS: Tuple[str, ...] = ("analysis_count",)
+
+
+def without_experiment_parts(snapshot: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """``snapshot`` without the parts of :data:`EXPERIMENT_SNAPSHOT_KEYS` and
+    :data:`EXPERIMENT_STATISTICS_KEYS`: the snapshot as a report showed it
+    before those features (a copy; the stored snapshot is not changed)."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    served = {k: v for k, v in snapshot.items() if k not in EXPERIMENT_SNAPSHOT_KEYS}
+    statistics = served.get("statistics")
+    if isinstance(statistics, dict):
+        served["statistics"] = {
+            k: v for k, v in statistics.items() if k not in EXPERIMENT_STATISTICS_KEYS
+        }
+    return served
+
+
+def _experiments_on() -> bool:
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    return scoped_flag(VARIANT_EXPERIMENTS)
+
+
 def build_report_snapshot(
     db: Session,
     project_id: str,
     *,
     include_private_models: bool = False,
     now: Optional[datetime] = None,
+    variant_experiments: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    """Compute the full report snapshot for a project (see module docstring)."""
+    """Compute the full report snapshot for a project (see module docstring).
+
+    ``variant_experiments`` (None: the request or job context decides,
+    ``feature_flags.scope``) adds the parts of that flag
+    (:data:`EXPERIMENT_SNAPSHOT_KEYS`, :data:`EXPERIMENT_STATISTICS_KEYS`);
+    without it the snapshot has the shape it had before them."""
+    if variant_experiments is None:
+        variant_experiments = _experiments_on()
     from project_models import Project
 
     params = {"project_id": project_id}
@@ -485,16 +523,18 @@ def build_report_snapshot(
             d["by_subject"].setdefault(subject["id"], _empty_bins(len(bins)))[b] += n
     distributions = sorted(dist_map.values(), key=lambda d: (d["metric"] != grade_metric, d["metric"] != primary_metric, d["metric"], d["config_id"]))
 
-    return {
+    statistics = {
+        "task_count": int(counts["task_count"]),
+        "annotation_count": int(counts["annotation_count"]),
+        "participant_count": int(counts["participant_count"]),
+        "model_count": len(model_info),
+        "evaluation_count": int(counts["evaluation_count"]),
+    }
+    if variant_experiments:
+        statistics["analysis_count"] = int(counts["analysis_count"])
+    snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),
-        "statistics": {
-            "task_count": int(counts["task_count"]),
-            "annotation_count": int(counts["annotation_count"]),
-            "participant_count": int(counts["participant_count"]),
-            "model_count": len(model_info),
-            "evaluation_count": int(counts["evaluation_count"]),
-            "analysis_count": int(counts["analysis_count"]),
-        },
+        "statistics": statistics,
         "methods": methods,
         "configs": configs,
         "primary_metric": primary_metric,
@@ -504,7 +544,9 @@ def build_report_snapshot(
         "distributions": distributions,
         "participants": participants,
         "models": sorted(model_info.values(), key=lambda m: m["label"].lower()),
+    }
+    if variant_experiments:
         # Inter-annotator agreement per control over tasks with two or more
         # annotators (``annotator_agreement``); ``None`` without overlap.
-        "annotator_agreement": project_annotator_agreement(db, project_id),
-    }
+        snapshot["annotator_agreement"] = project_annotator_agreement(db, project_id)
+    return snapshot

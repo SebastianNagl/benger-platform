@@ -55,6 +55,8 @@ import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
 import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
+import { useFeatureFlag } from '@/lib/featureFlags'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { parseSubdomain } from '@/lib/utils/subdomain'
 import { Project } from '@/types/labelStudio'
 import { canAccessProjectData } from '@/utils/permissions'
@@ -161,6 +163,8 @@ export default function EvaluationDashboard() {
   const { startEvaluation, updateEvaluation, renderToasts } =
     useOperationToasts()
   const { t } = useI18n()
+  // Annotator agreement belongs to the variant_experiments flag.
+  const variantExperiments = useFeatureFlag(VARIANT_EXPERIMENTS)
   const searchParams = useSearchParams()
   const { user, isLoading: authLoading, organizations } = useAuth()
   const { isPrivateMode } =
@@ -1701,7 +1705,9 @@ export default function EvaluationDashboard() {
             )}
 
           {/* Annotator agreement - hidden unless a task has two annotators */}
-          <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
+          {variantExperiments && (
+            <AnnotatorAgreementCard projectId={selectedProject.id.toString()} />
+          )}
         </div>
       )}
 

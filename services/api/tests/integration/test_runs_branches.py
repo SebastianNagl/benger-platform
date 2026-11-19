@@ -641,6 +641,7 @@ class TestGetGenerationRun:
         await async_test_db.commit()
         return admin, project, task, rg, child, plain, record
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_detail_names_the_request_record_and_retry_trail_without_the_record(
         self, async_test_client, async_test_db
@@ -665,6 +666,28 @@ class TestGetGenerationRun:
         assert second["retried"] is False
         assert second["first_response_preview"] is None
 
+    @pytest.mark.asyncio
+    async def test_detail_shows_no_request_record_fields_without_variant_experiments(
+        self, async_test_client, async_test_db
+    ):
+        """Off, the detail reads as before the request record existed."""
+        admin, _, _, rg, child, plain, _ = await self._retried_and_plain_trials(async_test_db)
+
+        with _as_user(admin):
+            resp = await async_test_client.get(f"{BASE}/generations/{rg.id}")
+            trial = await async_test_client.get(
+                f"{BASE}/generations/{rg.id}/trials/{child.id}/request"
+            )
+        assert resp.status_code == 200
+        for row in resp.json()["children"]:
+            assert row["has_request_record"] is False
+            assert row["request_sha256"] is None
+            assert row["retried"] is False
+            assert row["first_response_preview"] is None
+        assert trial.status_code == 404
+        assert trial.json()["detail"]["code"] == "feature_disabled"
+
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_trial_request_returns_the_record_of_one_trial(
         self, async_test_client, async_test_db
@@ -716,6 +739,7 @@ class TestGetGenerationRun:
         assert missing_trial.status_code == 404
         assert foreign_trial.status_code == 404
 
+    @pytest.mark.flags_on("variant_experiments")
     @pytest.mark.asyncio
     async def test_trial_request_403_for_an_inaccessible_project(
         self, async_test_client, async_test_db

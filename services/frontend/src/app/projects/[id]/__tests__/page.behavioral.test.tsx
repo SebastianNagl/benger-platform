@@ -17,6 +17,7 @@
  * @jest-environment jsdom
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
@@ -37,6 +38,9 @@ import { useRouter } from 'next/navigation'
 // Re-mock next/navigation locally so useRouter().push is a stable captured
 // spy (the global jest.setup mock hands back a fresh push each render).
 const mockPush = jest.fn()
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(() => ({ id: 'proj-1' })),
@@ -677,7 +681,18 @@ describe('ProjectDetailPage — statistics + completion rate', () => {
     expect(screen.getByText('0%')).toBeInTheDocument()
   })
 
+  it('shows no Analyses line while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    setStore({ currentProject: { ...baseProject, analysis_count: 4 } })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(
+      screen.queryByTestId('project-statistics-analyses'),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows an Analyses line with the completed analysis runs, and none without', async () => {
+    setMockFeatureFlags({ variant_experiments: true })
     setStore({ currentProject: { ...baseProject, analysis_count: 4 } })
     const { unmount } = render(<ProjectDetailPage params={params()} />)
     await screen.findByText('proj-1')

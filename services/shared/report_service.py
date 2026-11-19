@@ -10,7 +10,7 @@ This service handles:
 
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -201,6 +201,19 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
     return report
 
 
+def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
+    """The ``show_agreement`` key of the annotations section: kept or
+    defaulted while the variant_experiments flag is on in this context
+    (core 2.69), absent otherwise, as before annotator agreement existed."""
+    from feature_flags.registry import VARIANT_EXPERIMENTS
+    from feature_flags.scope import scoped_flag
+
+    annotations = annotations if isinstance(annotations, dict) else {}
+    if not scoped_flag(VARIANT_EXPERIMENTS):
+        return {"show_agreement": annotations["show_agreement"]} if "show_agreement" in annotations else {}
+    return {"show_agreement": annotations.get("show_agreement", True)}
+
+
 def update_report_annotations_section(db: Session, project_id: str) -> Optional[ProjectReport]:
     """
     Update annotations section when annotations are completed
@@ -251,7 +264,7 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
         "custom_text": custom_text,
         "show_count": True,
         "show_participants": existing_annotations.get("show_participants", True),
-        "show_agreement": existing_annotations.get("show_agreement", True),
+        **_show_agreement_setting(existing_annotations),
         "acknowledgment_text": acknowledgment_text,
         "status": "completed",
         "editable": True,
@@ -871,9 +884,7 @@ def create_or_update_report_from_existing_data(
             "show_participants": content.get("sections", {})
             .get("annotations", {})
             .get("show_participants", True),
-            "show_agreement": content.get("sections", {})
-            .get("annotations", {})
-            .get("show_agreement", True),
+            **_show_agreement_setting(content.get("sections", {}).get("annotations", {})),
             "status": "completed",
             "editable": True,
             "visible": True,

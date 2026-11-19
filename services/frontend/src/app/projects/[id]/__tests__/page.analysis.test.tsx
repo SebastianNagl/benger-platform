@@ -6,6 +6,7 @@
  * @jest-environment jsdom
  */
 
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
@@ -21,6 +22,9 @@ import {
   useSearchParams,
 } from 'next/navigation'
 
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useParams: jest.fn(() => ({ id: 'test-project-123' })),
@@ -228,6 +232,7 @@ describe('ProjectDetailPage — analysis quick action', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    setMockFeatureFlags({ variant_experiments: true })
     mockListDesignKeys.mockResolvedValue(['role_swap'])
   })
 
@@ -248,6 +253,15 @@ describe('ProjectDetailPage — analysis quick action', () => {
     )
     expect(action).toHaveTextContent('project.quickActions.analysis')
     expect(mockListDesignKeys).toHaveBeenCalledWith('test-project-123')
+  })
+
+  it('stays hidden and asks for no designs while variant_experiments is off', async () => {
+    setMockFeatureFlags({})
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
+    renderPage()
+    await screen.findByText('project.quickActions.title')
+    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    expect(mockListDesignKeys).not.toHaveBeenCalled()
   })
 
   it('stays hidden for a project without a variant design', async () => {

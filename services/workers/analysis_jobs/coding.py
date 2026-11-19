@@ -350,9 +350,9 @@ def run_code_validation_impl(validation_id: str, *, session_factory=None) -> Dic
             return {"validation_id": validation_id, "status": "skipped"}
         # Coding validation belongs to variant_experiments (core 2.69).
         from feature_flags import FEATURE_DISABLED_MESSAGE, VARIANT_EXPERIMENTS
-        from feature_flags.worker import feature_disabled_result, flag_enabled_sync
+        from feature_flags.worker import feature_disabled_result, flag_enabled_or_default
 
-        if not flag_enabled_sync(db, v.created_by, VARIANT_EXPERIMENTS):
+        if not flag_enabled_or_default(db, v.created_by, VARIANT_EXPERIMENTS):
             _fail(db, validation_id, FEATURE_DISABLED_MESSAGE)
             return {"validation_id": validation_id, **feature_disabled_result(VARIANT_EXPERIMENTS)}
         try:

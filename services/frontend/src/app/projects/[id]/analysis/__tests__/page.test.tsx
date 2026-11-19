@@ -11,6 +11,13 @@ import userEvent from '@testing-library/user-event'
 import ProjectAnalysisPage from '@/app/projects/[id]/analysis/page'
 import { makeRun } from '@/test-utils/analysisFixtures'
 
+let mockVariantExperiments = true
+jest.mock('@/lib/featureFlags', () => ({
+  ...jest.requireActual('@/lib/featureFlags'),
+  useFeatureFlagStatus: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments ? 'on' : 'off',
+}))
+
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('en'),
 )
@@ -74,6 +81,7 @@ const summary = (overrides = {}) => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockVariantExperiments = true
   mockSearch = new URLSearchParams()
   mockUser = { is_superadmin: false }
   mockProject.mockResolvedValue({
@@ -99,6 +107,13 @@ beforeEach(() => {
 })
 
 describe('ProjectAnalysisPage', () => {
+  it('is not found and loads nothing while variant_experiments is off', async () => {
+    mockVariantExperiments = false
+    render(<ProjectAnalysisPage />)
+    expect(await screen.findByText('Page not found')).toBeInTheDocument()
+    expect(mockListRuns).not.toHaveBeenCalled()
+  })
+
   it('lists the runs newest first and opens one', async () => {
     const user = userEvent.setup()
     render(<ProjectAnalysisPage />)

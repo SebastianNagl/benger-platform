@@ -115,3 +115,34 @@ def _public_api_gate_open(request, monkeypatch):
 
     monkeypatch.setattr(extensions, "public_api_enabled", _open)
     yield
+
+
+@pytest.fixture(autouse=True)
+def _platform_flags_on(request, monkeypatch):
+    """Platform feature flags (core 2.69) are off by default, as in a fresh
+    deployment, so the suite checks the platform as it behaves with them
+    off. Tests of a flagged feature opt in with
+    ``@pytest.mark.flags_on("variant_experiments", ...)`` (or a module-level
+    ``pytestmark``): the named flags then evaluate as ``everyone`` on every
+    path (API dependencies, ``extension_activation.flag_active``, the
+    worker check). Tests of the gate itself use the real rows instead."""
+    names = set()
+    for marker in request.node.iter_markers("flags_on"):
+        names.update(marker.args)
+    # ``flags_off`` (e.g. on one test of a flags_on module) wins.
+    for marker in request.node.iter_markers("flags_off"):
+        names.difference_update(marker.args)
+    if not names:
+        yield
+        return
+    from feature_flags import service as flag_service
+
+    real_entry_of = flag_service.entry_of
+
+    def entry_of(snapshot, name):
+        if name in names:
+            return {"state": "everyone", "users": [], "orgs": []}
+        return real_entry_of(snapshot, name)
+
+    monkeypatch.setattr(flag_service, "entry_of", entry_of)
+    yield

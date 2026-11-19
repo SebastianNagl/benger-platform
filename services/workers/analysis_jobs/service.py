@@ -163,9 +163,9 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
         # owner has the flag off is not computed; it ends failed with the
         # platform's feature-disabled message, its spec stays stored.
         from feature_flags import FEATURE_DISABLED_MESSAGE, VARIANT_EXPERIMENTS
-        from feature_flags.worker import feature_disabled_result, flag_enabled_sync
+        from feature_flags.worker import feature_disabled_result, flag_enabled_or_default
 
-        if not flag_enabled_sync(db, run.created_by, VARIANT_EXPERIMENTS):
+        if not flag_enabled_or_default(db, run.created_by, VARIANT_EXPERIMENTS):
             _fail(db, run_id, FEATURE_DISABLED_MESSAGE)
             return {"run_id": run_id, **feature_disabled_result(VARIANT_EXPERIMENTS)}
         try:

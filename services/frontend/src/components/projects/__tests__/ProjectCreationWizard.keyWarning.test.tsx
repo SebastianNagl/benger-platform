@@ -54,6 +54,11 @@ jest.mock('@/components/shared/Toast', () => ({
 }))
 
 // A signed-in creator outside any organization context.
+// The wizard reads the viewer's feature flags (metric list, runs cap);
+// every flag is off here, as for a viewer the server gave none.
+jest.mock('@/lib/featureFlags', () =>
+  jest.requireActual('@/test-utils/featureFlagsMock').featureFlagsMockModule(),
+)
 jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => ({
     user: { is_superadmin: false },

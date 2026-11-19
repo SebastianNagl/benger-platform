@@ -1885,12 +1885,12 @@ def run_evaluation(
             # Filter enabled configs. A metric of a feature flag that is off
             # for the run's owner (text_pattern, variant_experiments, core
             # 2.69) does not run.
-            from feature_flags.worker import flag_enabled_sync
+            from feature_flags.worker import flag_enabled_or_default
             from metric_filters import without_flagged_metrics
 
             enabled_configs = without_flagged_metrics(
                 [c for c in evaluation_configs if c.get("enabled", True)],
-                lambda name: flag_enabled_sync(db, evaluation.created_by, name),
+                lambda name: flag_enabled_or_default(db, evaluation.created_by, name),
             )
             if not enabled_configs:
                 evaluation.status = "failed"
@@ -3142,12 +3142,12 @@ def run_single_sample_evaluation(
         # OOM risk on the interactive fleet) are filtered out. The dispatcher
         # already excludes them; doing it here too guarantees expected ==
         # actual so the polling endpoint's completion detection is exact.
-        from feature_flags.worker import flag_enabled_sync
+        from feature_flags.worker import flag_enabled_or_default
         from metric_filters import is_immediate_eligible, without_flagged_metrics
 
         eligible_configs = without_flagged_metrics(
             [c for c in evaluation_configs if is_immediate_eligible(c.get("metric", ""))],
-            lambda name: flag_enabled_sync(db, user_id, name),
+            lambda name: flag_enabled_or_default(db, user_id, name),
         )
 
         # Per-dispatch EvaluationRun. The API pre-creates this row at dispatch

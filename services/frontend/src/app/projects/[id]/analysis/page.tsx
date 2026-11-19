@@ -6,11 +6,10 @@
  * that run's spec, so a run can be repeated or varied.
  */
 
-import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
-import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { NewAnalysisRunForm } from '@/components/analysis/NewAnalysisRunForm'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FeatureFlagGate } from '@/components/shared/FeatureFlagGate'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -22,6 +21,7 @@ import {
   type AnalysisRunSummary,
 } from '@/lib/api/analysis'
 import { projectsAPI } from '@/lib/api/projects'
+import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
 import type { Project } from '@/types/labelStudio'
 import { PlusIcon } from '@heroicons/react/24/outline'

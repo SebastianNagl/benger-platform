@@ -28,9 +28,12 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }))
 
+let mockVariantExperiments = true
 jest.mock('@/lib/featureFlags', () => ({
   ...jest.requireActual('@/lib/featureFlags'),
   useActiveExtensionsReady: () => true,
+  useFeatureFlagStatus: (name: string) =>
+    name === 'variant_experiments' && mockVariantExperiments ? 'on' : 'off',
 }))
 
 const mockGetRun = jest.fn()
@@ -94,6 +97,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockVariantExperiments = true
   _resetActiveExtensionsForTests()
   mockGetRun.mockResolvedValue(makeRun())
   mockListEstimates.mockResolvedValue(makeEstimates())
@@ -106,6 +110,13 @@ afterEach(() => {
 })
 
 describe('AnalysisRunPage', () => {
+  it('is not found and loads nothing while variant_experiments is off', async () => {
+    mockVariantExperiments = false
+    render(<AnalysisRunPage />)
+    expect(await screen.findByText('Page not found')).toBeInTheDocument()
+    expect(mockGetRun).not.toHaveBeenCalled()
+  })
+
   it('shows a completed run with plot, estimates, provenance, spec and fits', async () => {
     render(<AnalysisRunPage />)
     expect(

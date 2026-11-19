@@ -41,6 +41,9 @@ from analysis.spec import normalize_spec, spec_hash  # noqa: E402
 from analysis.version import ENGINE_VERSION, SPEC_VERSION  # noqa: E402
 from core_version import CORE_API_VERSION  # noqa: E402
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 ANSWERS = [
     "The claimant caused it.",
     "The respondent caused it.",
