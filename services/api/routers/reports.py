@@ -164,21 +164,30 @@ class ReportDataResponse(BaseModel):
     snapshot: Optional[Dict[str, Any]] = None
 
 
-def _served_snapshot(content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """The stored snapshot as the report's sections allow it to be served
-    (see ``apply_section_visibility``); the stored copy stays complete."""
-    return apply_section_visibility(content.get("snapshot"), content.get("sections"))
+def _served_content(report: ProjectReport) -> Dict[str, Any]:
+    """The stored content as its sections allow it to be served: with
+    participants hidden, no participant list and no per-person snapshot data
+    (see ``apply_section_visibility``). The stored copy stays complete."""
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") or {}
+    annotations = sections.get("annotations") or {}
+    if annotations.get("show_participants") is False and "participants" in annotations:
+        sections = {**sections, "annotations": {**annotations, "participants": []}}
+    return {
+        **content,
+        "sections": sections,
+        "snapshot": apply_section_visibility(content.get("snapshot"), sections),
+    }
 
 
 def _report_response(
     report: ProjectReport, project_title: str, can_publish: bool, reason: str
 ) -> "ReportResponse":
-    content = report.content if isinstance(report.content, dict) else {}
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
-        content=ReportContent(**{**content, "snapshot": _served_snapshot(content)}),
+        content=ReportContent(**_served_content(report)),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
         published_at=report.published_at,
@@ -405,10 +414,15 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned, so the stored one is kept.
+    # the computed snapshot and participant list are server-owned, so the
+    # stored ones are kept.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
     new_content["snapshot"] = existing.get("snapshot")
+    existing_annotations = (existing.get("sections") or {}).get("annotations") or {}
+    new_annotations = (new_content.get("sections") or {}).get("annotations")
+    if isinstance(new_annotations, dict) and "participants" in existing_annotations:
+        new_annotations["participants"] = existing_annotations["participants"]
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -778,7 +792,5 @@ async def get_report_data(
         else (report.is_published, "published")
     )
 
-    return ReportDataResponse(
-        report=_report_response(report, report.project.title, can_publish, reason),
-        snapshot=_served_snapshot(report.content if isinstance(report.content, dict) else {}),
-    )
+    response = _report_response(report, report.project.title, can_publish, reason)
+    return ReportDataResponse(report=response, snapshot=response.content.snapshot)

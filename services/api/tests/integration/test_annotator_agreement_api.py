@@ -274,7 +274,9 @@ async def test_report_agreement_pairs_follow_show_participants(
 
 
 @pytest.mark.asyncio
-async def test_participant_switch_hides_and_restores_frozen_pairs(async_test_client, async_test_db, publishable):
+async def test_participant_switch_hides_and_restores_frozen_per_person_data(
+    async_test_client, async_test_db, publishable
+):
     admin, project = await _seed_overlap(async_test_db)
     report = await _report(async_test_db, project, admin, show_participants=True)
     all_names = {"Ash", "Birch", "Cedar"}
@@ -287,6 +289,7 @@ async def test_participant_switch_hides_and_restores_frozen_pairs(async_test_cli
             return await async_test_client.post(f"/api/projects/{project.id}/report", json={"content": content})
 
     async def served():
+        """(snapshot, annotations section) of every read path, and the public body."""
         with _as_user(admin):
             editor = await async_test_client.get(f"/api/projects/{project.id}/report")
             visibility = await async_test_client.put(
@@ -296,26 +299,51 @@ async def test_participant_switch_hides_and_restores_frozen_pairs(async_test_cli
             public = await async_test_client.get(f"/api/reports/{report.id}/data")
         for r in (editor, visibility, public):
             assert r.status_code == 200, r.text
-        return [
-            editor.json()["content"]["snapshot"],
-            visibility.json()["content"]["snapshot"],
-            public.json()["snapshot"],
-            public.json()["report"]["content"]["snapshot"],
+        pairs = [
+            (body["content"]["snapshot"], body["content"]["sections"]["annotations"])
+            for body in (editor.json(), visibility.json(), public.json()["report"])
         ]
+        pairs.append((public.json()["snapshot"], public.json()["report"]["content"]["sections"]["annotations"]))
+        return pairs, public.text
 
     with _as_user(admin):
         published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
-    frozen_at = published.json()["content"]["snapshot"]["generated_at"]
-    assert _pair_names(published.json()["content"]["snapshot"]["annotator_agreement"]) == all_names
+    frozen = published.json()["content"]["snapshot"]
+    frozen_at = frozen["generated_at"]
+    assert _pair_names(frozen["annotator_agreement"]) == all_names
+    assert {p["label"] for p in frozen["participants"]} == all_names
+    section_participants = [
+        {"id": p["id"], "name": p["label"], "count": p["annotation_count"]} for p in frozen["participants"]
+    ]
+    report.content = {
+        **report.content,
+        "sections": {
+            **report.content["sections"],
+            "annotations": {**report.content["sections"]["annotations"], "participants": section_participants},
+        },
+    }
+    await async_test_db.flush()
 
     hidden = await save(False)
     assert hidden.status_code == 200, hidden.text
-    for snap in [hidden.json()["content"]["snapshot"], *await served()]:
+    views, public_text = await served()
+    views.append((hidden.json()["content"]["snapshot"], hidden.json()["content"]["sections"]["annotations"]))
+    for snap, annotations in views:
         assert snap["annotator_agreement"]["controls"][0]["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
+        assert snap["statistics"]["participant_count"] == 3
         assert _pair_names(snap["annotator_agreement"]) == set()
+        assert snap["participants"] == []
+        assert annotations["participants"] == []
+    for p in frozen["participants"]:
+        assert p["id"] not in public_text
+        assert f'"{p["label"]}"' not in public_text
 
     shown = await save(True)
     assert shown.status_code == 200, shown.text
-    for snap in [shown.json()["content"]["snapshot"], *await served()]:
+    views, _ = await served()
+    views.append((shown.json()["content"]["snapshot"], shown.json()["content"]["sections"]["annotations"]))
+    for snap, annotations in views:
         assert snap["generated_at"] == frozen_at
         assert _pair_names(snap["annotator_agreement"]) == all_names
+        assert snap["participants"] == frozen["participants"]
+        assert annotations["participants"] == section_participants
