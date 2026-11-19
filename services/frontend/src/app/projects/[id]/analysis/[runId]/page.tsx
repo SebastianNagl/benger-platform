@@ -17,6 +17,7 @@ import { ComplianceInlineSlot } from '@/components/compliance/ComplianceSlot'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
+import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   analysisAPI,
@@ -90,6 +91,7 @@ type LoadState =
 
 export default function AnalysisRunPage() {
   const { t, locale } = useI18n()
+  const { user } = useAuth()
   const params = useParams<{ id: string; runId: string }>()
   const projectId = typeof params?.id === 'string' ? params.id : ''
   const runId = typeof params?.runId === 'string' ? params.runId : ''
@@ -98,10 +100,12 @@ export default function AnalysisRunPage() {
   const [estimates, setEstimates] = useState<AnalysisEstimate[] | null>(null)
   const [estimatesError, setEstimatesError] = useState<string | null>(null)
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
+  const [projectRole, setProjectRole] = useState<string | null>(null)
+  const [failedPolls, setFailedPolls] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  const loadRun = useCallback(async () => {
+  const loadRun = useCallback(async (isPoll = false) => {
     try {
       const run = await analysisAPI.getRun(runId)
       if (run.project_id !== projectId) {
@@ -111,6 +115,10 @@ export default function AnalysisRunPage() {
       setState({ kind: 'ready', run })
       return run
     } catch (error) {
+      if (isPoll && statusOf(error) !== 404) {
+        setFailedPolls((n) => n + 1)
+        return null
+      }
       if (statusOf(error) === 404) setState({ kind: 'notFound' })
       else
         setState({
@@ -133,7 +141,9 @@ export default function AnalysisRunPage() {
     projectsAPI
       .get(projectId)
       .then((project) => {
-        if (!cancelled) setProjectTitle(project?.title ?? null)
+        if (cancelled) return
+        setProjectTitle(project?.title ?? null)
+        setProjectRole(project?.effective_role ?? null)
       })
       .catch(() => {
         // The breadcrumb falls back to a generic label.
@@ -149,9 +159,9 @@ export default function AnalysisRunPage() {
   // Poll while the run can still change.
   useEffect(() => {
     if (!status || !isRunActive(status)) return
-    const timer = window.setTimeout(() => void loadRun(), RUN_POLL_MS)
+    const timer = window.setTimeout(() => void loadRun(true), RUN_POLL_MS)
     return () => window.clearTimeout(timer)
-  }, [status, run, loadRun])
+  }, [status, run, failedPolls, loadRun])
 
   // Estimates once the run has completed (failed runs have none).
   useEffect(() => {
@@ -174,6 +184,11 @@ export default function AnalysisRunPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, runId])
+
+  const mayDownloadFrame =
+    !!user?.is_superadmin ||
+    projectRole === 'ORG_ADMIN' ||
+    projectRole === 'CONTRIBUTOR'
 
   const downloadFrame = async () => {
     setDownloading(true)
@@ -268,7 +283,7 @@ export default function AnalysisRunPage() {
             <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
             {t('analysis.run.reuseSpec')}
           </Button>
-          {r.frame_available && (
+          {r.frame_available && mayDownloadFrame && (
             <Button
               variant="primary"
               onClick={downloadFrame}

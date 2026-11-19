@@ -45,11 +45,21 @@ jest.mock('@/lib/api/analysis', () => ({
   },
 }))
 
+const mockGetProject = jest.fn()
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    get: jest.fn(() => Promise.resolve({ id: 'project-1', title: 'Variants' })),
+    get: (...a: unknown[]) => mockGetProject(...a),
   },
 }))
+
+const mockUseAuth = jest.fn()
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}))
+
+function project(effectiveRole: string | null) {
+  return { id: 'project-1', title: 'Variants', effective_role: effectiveRole }
+}
 
 function httpError(status: number) {
   return Object.assign(new Error(`HTTP ${status}`), {
@@ -82,6 +92,8 @@ beforeEach(() => {
   _resetActiveExtensionsForTests()
   mockGetRun.mockResolvedValue(makeRun())
   mockListEstimates.mockResolvedValue(makeEstimates())
+  mockGetProject.mockResolvedValue(project('CONTRIBUTOR'))
+  mockUseAuth.mockReturnValue({ user: { id: 'u1', is_superadmin: false } })
 })
 
 afterEach(() => {
@@ -183,6 +195,41 @@ describe('AnalysisRunPage', () => {
     expect(mockListEstimates).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the run on screen when a poll fails and polls again', async () => {
+    jest.useFakeTimers()
+    mockGetRun
+      .mockResolvedValueOnce(
+        makeRun({ status: 'running', completed_at: null }),
+      )
+      .mockRejectedValueOnce(httpError(502))
+      .mockResolvedValue(makeRun())
+    render(<AnalysisRunPage />)
+    expect(await screen.findByTestId('analysis-run-active')).toBeInTheDocument()
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000)
+    })
+    await waitFor(() => expect(mockGetRun).toHaveBeenCalledTimes(2))
+    expect(screen.queryByTestId('analysis-run-error')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Role swap' })).toBeInTheDocument()
+    expect(screen.getByTestId('analysis-run-active')).toBeInTheDocument()
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000)
+    })
+    await waitFor(() => expect(mockGetRun).toHaveBeenCalledTimes(3))
+    expect(await screen.findByTestId('estimates-table')).toBeInTheDocument()
+    expect(screen.queryByTestId('analysis-run-active')).toBeNull()
+  })
+
+  it('shows an error when the first load fails', async () => {
+    mockGetRun.mockRejectedValue(httpError(502))
+    render(<AnalysisRunPage />)
+    expect(await screen.findByTestId('analysis-run-error')).toHaveTextContent(
+      'HTTP 502',
+    )
+  })
+
   it('shows the error of a failed run and no estimates', async () => {
     mockGetRun.mockResolvedValue(
       makeRun({
@@ -221,6 +268,31 @@ describe('AnalysisRunPage', () => {
         'http://storage.test/analysis/frame.parquet?sig=1',
       ),
     )
+  })
+
+  it('hides the frame download from roles the API refuses it to', async () => {
+    mockGetProject.mockResolvedValue(project('ANNOTATOR'))
+    render(<AnalysisRunPage />)
+    await screen.findByTestId('estimates-table')
+    await waitFor(() => expect(mockGetProject).toHaveBeenCalled())
+    expect(screen.getByText('Variants')).toBeInTheDocument()
+    expect(screen.queryByTestId('analysis-frame-download')).toBeNull()
+  })
+
+  it('offers the frame download to an org admin and a superadmin', async () => {
+    mockGetProject.mockResolvedValue(project('ORG_ADMIN'))
+    const { unmount } = render(<AnalysisRunPage />)
+    expect(
+      await screen.findByTestId('analysis-frame-download'),
+    ).toBeInTheDocument()
+    unmount()
+
+    mockGetProject.mockResolvedValue(project(null))
+    mockUseAuth.mockReturnValue({ user: { id: 'u0', is_superadmin: true } })
+    render(<AnalysisRunPage />)
+    expect(
+      await screen.findByTestId('analysis-frame-download'),
+    ).toBeInTheDocument()
   })
 
   it('explains a refused frame download', async () => {
