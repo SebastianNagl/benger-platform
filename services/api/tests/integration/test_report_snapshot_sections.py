@@ -65,8 +65,12 @@ async def _project(db, creator, *, title="Section Bench", tasks=2, report=True):
     if report:
         rep = ProjectReport(
             id=_uid(), project_id=project.id, created_by=creator.id, is_published=False,
+            # The draft shape report_service.create_report_draft writes: every
+            # section present, only project_info completed.
             content={"sections": {"project_info": {"title": title, "description": "d", "status": "completed",
-                                                   "editable": True, "visible": True}},
+                                                   "editable": True, "visible": True},
+                                  **{name: {"status": "pending", "editable": True, "visible": True}
+                                     for name in ("data", "annotations", "generation", "evaluation")}},
                      "metadata": {"sections_completed": ["project_info"], "can_publish": False}},
         )
         db.add(rep)
