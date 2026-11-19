@@ -8,9 +8,22 @@ intended, bump ``analysis.version.ENGINE_VERSION`` and regenerate with
 
     python services/workers/tests/analysis/test_analysis_golden.py
 
-The golden comparison allows 1e-12 relative on floats because BLAS kernels
-may differ between CPUs; reruns on one machine are bit-identical, which the
-determinism tests check exactly.
+Reruns on one machine are bit-identical, which the determinism tests check
+exactly. Across machines they are not: numpy's OpenBLAS picks its kernels by
+CPU (an AVX-512 runner and an AVX2 desktop sum in different orders), which
+moves the fitted quantities by a few units in the last place. The thread count
+does not matter. The golden comparison therefore allows ``REL_TOL`` (1e-12)
+of relative error, measured against what each field's rounding error scales
+with rather than against the field itself (see :func:`_assert_close`):
+
+* most floats are compared relative to their own value;
+* an interval bound is ``estimate +- crit * std_error`` and cancels when the
+  bound is near zero (``-26.39 + 26.37 = -0.02``), so its error scales with
+  ``|estimate| + crit * std_error``, which is ``max(|ci_lower|, |ci_upper|)``;
+* a tail p-value ``p = P(|T| > |t|)`` amplifies a relative error ``e`` of the
+  statistic to about ``t**2 * e`` in ``p``, while ``log p`` (about
+  ``-t**2 / 2``) keeps it near ``2 * e``, so p-values are compared on the log
+  scale, relative to ``max(1, |log p|)``.
 """
 
 from __future__ import annotations
@@ -53,13 +66,33 @@ def _bits(value):
     return value
 
 
+REL_TOL = 1e-12
+INTERVAL_KEYS = frozenset({"ci_lower", "ci_upper"})
+P_VALUE_KEYS = frozenset({"p_value", "p_adjusted", "p_lower", "p_upper", "p_tost"})
+
+
+def _floats(*values):
+    return all(isinstance(v, float) and math.isfinite(v) for v in values)
+
+
 def _assert_close(mine, golden, path="estimate"):
+    """Compare an estimate row with its golden copy to ``REL_TOL``, scaled per
+    field as the module docstring explains."""
     if isinstance(golden, float) and isinstance(mine, float):
-        assert math.isclose(mine, golden, rel_tol=1e-12, abs_tol=1e-300), f"{path}: {mine!r} != {golden!r}"
+        assert math.isclose(mine, golden, rel_tol=REL_TOL, abs_tol=1e-300), f"{path}: {mine!r} != {golden!r}"
     elif isinstance(golden, dict):
         assert isinstance(mine, dict) and set(mine) == set(golden), f"{path}: keys differ"
+        bounds = [golden.get(k) for k in INTERVAL_KEYS]
+        interval_scale = max(abs(b) for b in bounds) if _floats(*bounds) else None
         for k in golden:
-            _assert_close(mine[k], golden[k], f"{path}.{k}")
+            a, b, where = mine[k], golden[k], f"{path}.{k}"
+            if k in INTERVAL_KEYS and interval_scale and _floats(a, b):
+                assert math.isclose(a, b, rel_tol=REL_TOL, abs_tol=REL_TOL * interval_scale), f"{where}: {a!r} != {b!r}"
+            elif k in P_VALUE_KEYS and _floats(a, b) and a > 0 and b > 0:
+                ok = math.isclose(math.log(a), math.log(b), rel_tol=REL_TOL, abs_tol=REL_TOL)
+                assert ok, f"{where}: {a!r} != {b!r} (compared as log p)"
+            else:
+                _assert_close(a, b, where)
     elif isinstance(golden, list):
         assert isinstance(mine, list) and len(mine) == len(golden), f"{path}: lengths differ"
         for i, (a, b) in enumerate(zip(mine, golden)):
