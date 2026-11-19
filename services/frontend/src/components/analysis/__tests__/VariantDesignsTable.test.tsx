@@ -45,6 +45,8 @@ const FROZEN = makeDesign({
   content_hash: HASH,
   spec: { schema_version: 1 },
   task_count: 30,
+  unit_count: 15,
+  cell_count: 2,
 })
 
 const refusal = (status: number, detail: Record<string, unknown>) =>
@@ -67,19 +69,29 @@ beforeEach(() => {
 })
 
 describe('VariantDesignsTable', () => {
-  it('lists the designs with status, version, tasks and hash', async () => {
+  it('lists the designs with status, version, units, cells, tasks and hash', async () => {
     renderTable()
     const draft = await screen.findByTestId('variant-design-role_swap')
     expect(draft).toHaveTextContent('role_swap')
     expect(draft).toHaveTextContent('Role swap')
     expect(draft).toHaveTextContent('Draft')
-    expect(draft).toHaveTextContent('48')
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent)
+    const cellUnder = (row: HTMLElement, header: string) =>
+      within(row).getAllByRole('cell')[headers.indexOf(header)]
+    expect(cellUnder(draft, 'Units')).toHaveTextContent('12')
+    expect(cellUnder(draft, 'Cells')).toHaveTextContent('4')
+    expect(cellUnder(draft, 'Tasks')).toHaveTextContent('48')
     expect(
       within(draft).getByRole('button', { name: 'Freeze design role_swap' }),
     ).toBeVisible()
 
     const frozen = screen.getByTestId('variant-design-docket')
     expect(frozen).toHaveTextContent('Frozen')
+    expect(cellUnder(frozen, 'Units')).toHaveTextContent('15')
+    expect(cellUnder(frozen, 'Cells')).toHaveTextContent('2')
+    expect(cellUnder(frozen, 'Tasks')).toHaveTextContent('30')
     expect(within(frozen).getByTitle(HASH)).toHaveTextContent('c0ffee111111')
     // A frozen design cannot be frozen again.
     expect(

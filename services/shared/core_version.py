@@ -1491,9 +1491,14 @@ API change).
     three are server-owned. The list replaces the stored one, null deletes
     it; at most 50 plans with unique ids and a name of at most 200
     characters.
+  - ``GET /api/projects/{id}/variant-designs`` and ``GET .../{key}`` add
+    ``unit_count`` (distinct ``variant_unit``) and ``cell_count`` (distinct
+    ``variant_cell``) of the design's tasks next to ``task_count``
+    (additive).
   - Frontend: ``@/components/analysis/ProjectAnalysesSection`` (the Analyses
     part of the project page's Evaluation card, CONTRIBUTOR and ORG_ADMIN
-    only) with ``VariantDesignsTable`` (status, hash, check, freeze, import)
+    only) with ``VariantDesignsTable`` (status, units, cells, hash, check, freeze,
+    import)
     and ``AnalysisPlansPanel``; ``StartAnalysisDialog`` takes ``planId`` and
     offers a plan picker (saved plans, the ``fromRunId`` run, a blank spec);
     ``NewAnalysisRunForm`` is built on ``AnalysisSpecForm`` (name, spec,

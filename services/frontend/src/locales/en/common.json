@@ -12102,6 +12102,8 @@
         "key": "Design",
         "status": "Status",
         "version": "Version",
+        "units": "Units",
+        "cells": "Cells",
         "tasks": "Tasks",
         "contentHash": "Content hash",
         "actions": "Actions"

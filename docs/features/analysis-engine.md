@@ -365,7 +365,9 @@ CONTRIBUTOR and ORG_ADMIN roles (the roles that may start runs, save plans
 and freeze designs). It holds:
 
 - **Variant designs**: every design of the project with its status (draft or
-  frozen), version, task count and frozen content hash. **Check** runs the
+  frozen), version, units, cells and tasks (the distinct units, distinct
+  design cells and tasks that name the design, as `unit_count`, `cell_count`
+  and `task_count` of `GET .../variant-designs`) and frozen content hash. **Check** runs the
   assignment, balance and invariance checks
   (`POST .../variant-designs/{key}/check`) and shows the report as the route
   answered it: units, cells per unit, checked pairs, the problems of each

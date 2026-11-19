@@ -239,6 +239,8 @@ export function makeDesign(
     created_at: '2026-11-19T08:00:00Z',
     updated_at: '2026-11-19T08:00:00Z',
     task_count: 48,
+    unit_count: 12,
+    cell_count: 4,
     ...overrides,
   }
 }

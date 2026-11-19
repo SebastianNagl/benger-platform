@@ -463,6 +463,12 @@ export function VariantDesignsTable({
                   {t('analysis.designs.col.version')}
                 </th>
                 <th scope="col" className="px-3 py-2 text-right">
+                  {t('analysis.designs.col.units')}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
+                  {t('analysis.designs.col.cells')}
+                </th>
+                <th scope="col" className="px-3 py-2 text-right">
                   {t('analysis.designs.col.tasks')}
                 </th>
                 <th scope="col" className="px-3 py-2">
@@ -506,6 +512,12 @@ export function VariantDesignsTable({
                     </td>
                     <td className="px-3 py-2 text-right align-top text-zinc-700 tabular-nums dark:text-zinc-300">
                       {design.version}
+                    </td>
+                    <td className="px-3 py-2 text-right align-top text-zinc-700 tabular-nums dark:text-zinc-300">
+                      {design.unit_count ?? MISSING}
+                    </td>
+                    <td className="px-3 py-2 text-right align-top text-zinc-700 tabular-nums dark:text-zinc-300">
+                      {design.cell_count ?? MISSING}
                     </td>
                     <td className="px-3 py-2 text-right align-top text-zinc-700 tabular-nums dark:text-zinc-300">
                       {design.task_count ?? MISSING}

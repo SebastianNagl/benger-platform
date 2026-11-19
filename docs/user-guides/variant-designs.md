@@ -67,7 +67,7 @@ The assignment is never shown to a system under test or to an annotator who work
 
 `POST .../freeze` runs the same checks and, when all pass, records a content hash over the spec and every task's data and assignment. From then on the tasks' `data` and `meta.variant` are read-only (409), the design takes no new tasks, and its tasks cannot be deleted; tags and other meta stay editable. A frozen design is never thawed: a changed experiment is a new design with a new key. A draft's spec can be replaced (`PUT`, the version goes up by one) as long as every task already in it still fits; the tasks' cells are derived again from the new spec, and a spec under which two tasks of one unit would share a cell is refused with 409.
 
-On the project page, the **Analyses** part of the **Evaluation Configuration** card lists the designs with their status, version, task count and content hash, and offers **Check**, **Freeze** and **Import design** for the CONTRIBUTOR and ORG_ADMIN roles; what it shows after each action is the route's answer ([analysis engine](../features/analysis-engine.md#configuring-and-starting-analyses)).
+On the project page, the **Analyses** part of the **Evaluation Configuration** card lists the designs with their status, version, units and cells (the distinct units and design cells among the tasks that name the design), tasks and content hash, and offers **Check**, **Freeze** and **Import design** for the CONTRIBUTOR and ORG_ADMIN roles; what it shows after each action is the route's answer ([analysis engine](../features/analysis-engine.md#configuring-and-starting-analyses)).
 
 ## Export and import
 

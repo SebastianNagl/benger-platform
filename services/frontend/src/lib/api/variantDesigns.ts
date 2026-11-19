@@ -30,6 +30,10 @@ export interface VariantDesign {
   updated_at: string | null
   /** Tasks naming the design (list and detail reads). */
   task_count?: number
+  /** Distinct units among those tasks (list and detail reads). */
+  unit_count?: number
+  /** Distinct design cells among those tasks (list and detail reads). */
+  cell_count?: number
 }
 
 export interface VariantDesignProblem {

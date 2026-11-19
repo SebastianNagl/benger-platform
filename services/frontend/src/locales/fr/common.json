@@ -12102,6 +12102,8 @@
         "key": "Plan",
         "status": "Statut",
         "version": "Version",
+        "units": "Unités",
+        "cells": "Cellules",
         "tasks": "Tâches",
         "contentHash": "Hash du contenu",
         "actions": "Actions"
