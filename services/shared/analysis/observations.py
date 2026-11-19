@@ -26,6 +26,7 @@ JSON files); the database reader lives in :mod:`analysis.db_source`.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
@@ -107,6 +108,25 @@ def variant_slots(raw: Any) -> Tuple[Dict[str, Any], ...]:
         factors = entry.get("factors")
         out[index] = {"index": index, "factors": dict(factors) if isinstance(factors, Mapping) else {}}
     return tuple(out[i] for i in sorted(out))
+
+
+def response_metadata_object(raw: Any) -> Optional[Mapping[str, Any]]:
+    """The response metadata as an object: a mapping as it is, JSON text
+    decoded; anything else (no metadata, invalid JSON, a non-object) is None."""
+    if isinstance(raw, (str, bytes, bytearray)):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return None
+    return raw if isinstance(raw, Mapping) else None
+
+
+def system_key(model_id: str, metadata: Optional[Mapping[str, Any]]) -> str:
+    """The system key of a generation as frames name it:
+    ``response_metadata.system.key``, else the model id."""
+    block = metadata.get("system") if isinstance(metadata, Mapping) else None
+    key = block.get("key") if isinstance(block, Mapping) else None
+    return key if isinstance(key, str) and key else model_id
 
 
 def typed_field_values(results: Any) -> Dict[str, Any]:

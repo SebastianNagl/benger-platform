@@ -221,7 +221,7 @@ def update_report_data_section(db: Session, project_id: str) -> Optional[Project
 def _show_agreement_setting(annotations: Any) -> Dict[str, Any]:
     """The ``show_agreement`` key of the annotations section: kept or
     defaulted while the variant_experiments flag is on in this context
-    (core 2.73), absent otherwise, as before annotator agreement existed."""
+    (core 2.74), absent otherwise, as before annotator agreement existed."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
 
@@ -507,7 +507,7 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
 
 
 # The rule before reports covered the whole project (variant_experiments
-# off, core 2.73): tasks, LLM generations and completed evaluations.
+# off, core 2.74): tasks, LLM generations and completed evaluations.
 REASON_NO_GENERATIONS = "Project must have LLM generations"
 REASON_NO_EVALUATIONS = "Project must have completed evaluations"
 
@@ -535,7 +535,7 @@ def _can_publish_project_classic(db: Session, project_id: str) -> Tuple[bool, st
 
 
 def _paper_rules() -> bool:
-    """Whether the report as project paper (variant_experiments, core 2.73)
+    """Whether the report as project paper (variant_experiments, core 2.74)
     applies in this request or job context."""
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag

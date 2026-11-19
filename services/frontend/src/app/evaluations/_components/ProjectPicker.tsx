@@ -125,9 +125,9 @@ export function ProjectPicker({
 
   return (
     <div className="relative" ref={ref}>
-      <label className="mb-1 block text-xs font-medium text-zinc-500">
+      <span className="mb-1 block text-xs font-medium text-zinc-500">
         {t('evaluation.viewer.filters.project')}
-      </label>
+      </span>
       <Button
         variant="outline"
         onClick={() => setOpen(!open)}

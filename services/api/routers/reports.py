@@ -225,7 +225,7 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     if annotations.get("show_participants") is False and "participants" in annotations:
         sections = {**sections, "annotations": {**annotations, "participants": []}}
     snapshot = apply_section_visibility(content.get("snapshot"), sections)
-    # The parts of the variant_experiments flag (core 2.73) are served while
+    # The parts of the variant_experiments flag (core 2.74) are served while
     # it is on for anybody; off for everybody, the report reads as before.
     if not _experiment_parts_served():
         snapshot = without_experiment_parts(snapshot)
@@ -368,7 +368,7 @@ async def can_edit_report(db: AsyncSession, user: Optional[User], project_id: st
     if user.is_superadmin:
         return True
     # Authors besides superadmins belong to the report as project paper
-    # (variant_experiments, core 2.73): off, only superadmins author, as before.
+    # (variant_experiments, core 2.74): off, only superadmins author, as before.
     if not await flag_on(db, user, VARIANT_EXPERIMENTS):
         return False
     from routers.projects.helpers import check_user_can_edit_project_async
@@ -582,7 +582,7 @@ async def update_project_report(
     stored_sections = existing.get("sections") or {}
     experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
     if not experiments:
-        # The Analyses section belongs to variant_experiments (core 2.73):
+        # The Analyses section belongs to variant_experiments (core 2.74):
         # with the flag off for the caller it is neither added nor changed,
         # and a stored one stays as it is.
         sections.pop("analyses", None)
@@ -604,7 +604,7 @@ async def update_project_report(
     new_annotations = (new_content.get("sections") or {}).get("annotations")
     if isinstance(new_annotations, dict) and "participants" in existing_annotations:
         new_annotations["participants"] = existing_annotations["participants"]
-    # show_agreement belongs to variant_experiments (core 2.73): with the
+    # show_agreement belongs to variant_experiments (core 2.74): with the
     # flag off for the caller a setting the report does not hold is not added.
     if (
         isinstance(new_annotations, dict)

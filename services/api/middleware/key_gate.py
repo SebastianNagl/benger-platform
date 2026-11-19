@@ -162,6 +162,14 @@ def _resolver_statement(kind: str, value: str):
         from models import AnalysisRun
 
         return select(AnalysisRun.project_id).where(AnalysisRun.id == value)
+    if kind == "generation_trial":
+        from models import Generation, ResponseGeneration
+
+        return (
+            select(ResponseGeneration.project_id)
+            .join(Generation, Generation.generation_id == ResponseGeneration.id)
+            .where(Generation.id == value)
+        )
     if kind == "code_validation":
         from models import CodeValidation
 

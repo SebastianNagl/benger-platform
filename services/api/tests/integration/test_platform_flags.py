@@ -1,5 +1,5 @@
 """The platform flags ``variant_experiments`` and ``compliance_records``
-(core 2.73): registered by the platform, off by default; while off every
+(core 2.74): registered by the platform, off by default; while off every
 route of their features answers 404 ``feature_disabled`` and every changed
 behaviour is the one the platform had before. Tests without a
 ``flags_on`` marker run with both off, as a fresh deployment does; the
@@ -149,10 +149,14 @@ async def test_new_routes_are_closed_while_off(async_test_client, async_test_db,
             f"/api/code-validations/{uuid.uuid4()}",
             f"/api/projects/{pid}/variant-designs",
             f"/api/projects/{pid}/variant-designs/swap",
+            f"/api/projects/{pid}/variant-designs/swap/units",
+            f"/api/projects/{pid}/variant-designs/swap/units/u1",
             f"/api/projects/{pid}/label-config/label-studio",
             f"/api/projects/{pid}/label-config/slots?task_id=x",
             f"/api/evaluations/projects/{pid}/annotator-agreement",
             f"/api/runs/generations/{uuid.uuid4()}/trials/{uuid.uuid4()}/request",
+            f"/api/runs/trials/{uuid.uuid4()}/request",
+            f"/api/projects/{pid}/report/analysis-runs",
             "/api/runs?type=analysis",
         ):
             _disabled(await async_test_client.get(path))

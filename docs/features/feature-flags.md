@@ -21,7 +21,8 @@ retry, lossless generation export and import, up to 100 runs per task), the
 open-weight panel models and the system key, analysis runs (engine,
 estimators, frames, lookup tables), codes, text patterns and coding
 validation, analysis plans and the Analyses part of the project's
-Evaluation card, the analysis results views and counts, import provenance,
+Evaluation card, the analysis results views and counts (profiles,
+strengths, examples, the unit and request views), import provenance,
 annotator agreement and the report as the project's paper (authorship of
 project owners and organization admins, the data, generation, human
 evaluation, Analyses and reproducibility parts).
@@ -29,8 +30,9 @@ evaluation, Analyses and reproducibility parts).
 With the flag off:
 
 - the feature's routes answer `404 {"code": "feature_disabled", "flag":
-  "variant_experiments"}`: analysis, coding, variant designs, the
-  label-config `label-studio` and `slots` routes, the trial request record,
+  "variant_experiments"}`: analysis, coding, variant designs and their
+  units, the label-config `label-studio` and `slots` routes, the trial
+  request record (by generation and trial, and by trial alone),
   annotator agreement, the report's `analysis-runs` list,
   `/api/runs?type=analysis` and the v1 analysis routes;
 - analysis runs and code validations of an owner with the flag off are not

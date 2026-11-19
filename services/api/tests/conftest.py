@@ -119,7 +119,7 @@ def _public_api_gate_open(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _platform_flags_on(request, monkeypatch):
-    """Platform feature flags (core 2.73) are off by default, as in a fresh
+    """Platform feature flags (core 2.74) are off by default, as in a fresh
     deployment, so the suite checks the platform as it behaves with them
     off. Tests of a flagged feature opt in with
     ``@pytest.mark.flags_on("variant_experiments", ...)`` (or a module-level

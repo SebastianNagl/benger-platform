@@ -1,5 +1,5 @@
 """Worker-side behaviour of the platform flag ``variant_experiments``
-(core 2.73): with it off, generation and export run as before the
+(core 2.74): with it off, generation and export run as before the
 experiment features; with it on, they run the new way. The jobs open a
 ``feature_flags.scope`` with the answer for their owner, so these tests set
 the scope directly.

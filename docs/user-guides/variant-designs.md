@@ -76,6 +76,12 @@ On the project page, the **Analyses** part of the **Evaluation Configuration** c
 
 The JSON and comprehensive project exports carry a `variant_designs` array when the project has designs, and the NDJSON export carries `variant_design` records before the tasks. Every importer creates the designs before their tasks and freezes a frozen design again before it commits, which re-runs the checks and must reproduce the recorded content hash; an edited export is refused. A task subset export carries its designs as drafts. A single design can also be exported (`GET .../{key}/export`) and imported into another project (`POST .../variant-designs/import`, as a draft); its tasks then follow with a task import.
 
+## Units
+
+A unit ties the variants of one item together. `GET /api/projects/{id}/variant-designs/{key}/units` lists a design's units in name order with their task counts (`limit` up to 500, `offset`). `GET .../units/{unit}` shows one unit: every task with its factors, the texts the design lets vary (`invariance.fields`) with their declared spans, the free texts (`invariance.free`), the gold values and the answers, and the unit's own assignment, balance and invariance check, the check a freeze runs. `?system=` keeps the answers of one system (its system key or its model id); `systems` lists every system that answered the unit. Texts longer than 20,000 characters are cut and marked, and a task with more than 100 answers shows the first 100 with `generations_truncated` set.
+
+The unit view carries task data and answers, so both routes need full read access to the project's task content (ORG_ADMIN or CONTRIBUTOR, an editor on a SEB exam), like the frame download of an analysis run; others get 403 `variant_unit_forbidden`. On the evaluations page, the Examples panel of an analysis run opens these units in the unit viewer: twin tasks side by side along the factor a contrast compares, with the declared spans highlighted, each answer's parsed values and the request it sent.
+
 ## Routes
 
 | Method | Path | Needs |
@@ -89,5 +95,7 @@ The JSON and comprehensive project exports carry a `variant_designs` array when 
 | DELETE | `/api/projects/{id}/variant-designs/{key}` | project edit rights (a draft no task names) |
 | POST | `/api/projects/{id}/variant-designs/{key}/check` | full-data access |
 | POST | `/api/projects/{id}/variant-designs/{key}/freeze` | project edit rights |
+| GET | `/api/projects/{id}/variant-designs/{key}/units` | full read access to task content |
+| GET | `/api/projects/{id}/variant-designs/{key}/units/{unit}` | full read access to task content |
 
-Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs and `projects:write` to change them.
+Refusals answer `{"detail": {"code": ..., "message": ..., "problems": [...]}}`, where each problem names a JSON path (`/spec/factors/0/levels`, `/meta/variant/factors/role`) and what is wrong with it. Access keys need `tasks:read_reference` to read designs (and also `results:read` for units, which carry answers) and `projects:write` to change them.

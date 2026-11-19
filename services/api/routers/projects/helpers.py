@@ -334,7 +334,7 @@ def calculate_project_stats(
             project_id
         ]
     response.evaluations_completed_count = response.evaluation_count
-    # Analysis runs belong to variant_experiments (core 2.73): off, the
+    # Analysis runs belong to variant_experiments (core 2.74): off, the
     # count is not taken and stays at 0 (the page hides the row).
     from feature_flags.registry import VARIANT_EXPERIMENTS
     from feature_flags.scope import scoped_flag
@@ -445,7 +445,7 @@ async def calculate_project_stats_async(
             await count_eval_pairs_by_project_async(db, [project_id])
         )[project_id]
     response.evaluations_completed_count = response.evaluation_count
-    # Analysis runs belong to variant_experiments (core 2.73): off, the
+    # Analysis runs belong to variant_experiments (core 2.74): off, the
     # count is not taken and stays at 0 (the page hides the row).
     from feature_flags.deps import context_flag_on
     from feature_flags.registry import VARIANT_EXPERIMENTS

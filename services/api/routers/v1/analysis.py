@@ -46,7 +46,7 @@ from routers.v1._schemas import (
     Page,
 )
 
-# Behind the variant_experiments flag (core 2.73); an organization key counts
+# Behind the variant_experiments flag (core 2.74); an organization key counts
 # for its organization.
 router = APIRouter(tags=["analysis"], dependencies=[Depends(require_variant_experiments)])
 

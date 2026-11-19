@@ -69,7 +69,7 @@ class FlagDefinition:
 
 PUBLIC_API = "public_api"
 
-#: Controlled variant experiments and their analyses (core 2.73): variant
+#: Controlled variant experiments and their analyses (core 2.74): variant
 #: designs, per-item answers, generation fidelity, panel models and the
 #: system key, analysis runs, codes and coding validation, the results
 #: views, annotator agreement and the project report as paper. Off: the
@@ -79,7 +79,7 @@ PUBLIC_API = "public_api"
 VARIANT_EXPERIMENTS = "variant_experiments"
 
 #: The generic compliance records (assessments, suite runs, findings under
-#: ``/api/compliance``) and the ``/compliance`` route shells (core 2.73).
+#: ``/api/compliance``) and the ``/compliance`` route shells (core 2.74).
 COMPLIANCE_RECORDS = "compliance_records"
 
 
