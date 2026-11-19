@@ -12,13 +12,13 @@ numbers appear in two places:
   editor's Annotation card has a switch to hide the block; with it off,
   every API response that carries the report or its snapshot leaves out the
   agreement data entirely, and switching it back on shows the frozen block
-  again without a refresh. When the card's
-  participant switch is off, the report keeps the summary numbers and the
-  participant count, but every API response that carries the report or its
-  snapshot leaves out the annotator pairs and both participant lists (the
-  snapshot's and the Annotation section's). The stored report stays
-  complete, so switching participants back on shows the frozen pair table
-  and participant list again without a refresh.
+  again without a refresh. When the card's participant switch is off, the
+  report keeps the summary numbers and the participant count, but every API
+  response that carries the report or its snapshot leaves out the annotator
+  pairs and both participant lists (the snapshot's and the Annotation
+  section's). The stored report stays complete, so switching participants
+  back on shows the frozen pair table and participant list again without a
+  refresh.
 
 Both places hide the block when no task has two annotators, or when none of
 the overlapping controls can be scored.
