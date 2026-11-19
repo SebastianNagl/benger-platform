@@ -1,10 +1,9 @@
 """Migration 149: handwritten uploads on by default.
 
 ``upgrade()`` gives ``projects.handwriting_ocr_enabled`` the server default
-TRUE and switches on existing exam-shaped projects (a ``Loesung`` field with
-``name`` and ``toName``) that are off, recording them; ``downgrade()``
-switches exactly those back off and restores the FALSE default. Projects
-without an answer field and switches a teacher set stay as they are.
+TRUE and switches on every existing project that is off, whatever its label
+config; ``downgrade()`` restores the FALSE default and leaves the per-project
+values on.
 """
 
 from __future__ import annotations
@@ -29,8 +28,6 @@ EXAM = (
     '<Loesung name="loesung" toName="angabe"/></View>'
 )
 TEXTAREA = '<View><Text name="t" value="$text"/><TextArea name="a" toName="t"/></View>'
-LOESUNG_WITHOUT_TONAME = '<View><Loesung name="loesung"/></View>'
-MALFORMED = "<View><Loesung name='loesung' toName='a'>"
 
 
 def _load_migration():
@@ -56,7 +53,7 @@ def _server_default(conn):
 
 
 def _projects(test_db: Session):
-    """Projects keyed by role, each with its switch as the old default left it."""
+    """Projects keyed by role, each with its switch set explicitly."""
     from models import User
     from project_models import Project
 
@@ -72,10 +69,8 @@ def _projects(test_db: Session):
     specs = {
         "exam_off": (EXAM, False),
         "exam_on": (EXAM, True),
-        "textarea": (TEXTAREA, False),
-        "no_toname": (LOESUNG_WITHOUT_TONAME, False),
-        "malformed": (MALFORMED, False),
-        "no_config": (None, False),
+        "textarea_off": (TEXTAREA, False),
+        "no_config_off": (None, False),
     }
     ids = {}
     for key, (config, enabled) in specs.items():
@@ -104,40 +99,30 @@ class TestMigration149:
         assert mig.revision == "149_handwriting_ocr_default_on"
         assert mig.down_revision == "148_analysis_lookup_tables"
 
-    def test_answer_field_detection(self):
-        mig = _load_migration()
-        assert mig.has_answer_field(EXAM) is True
-        for config in (TEXTAREA, LOESUNG_WITHOUT_TONAME, MALFORMED, None, ""):
-            assert mig.has_answer_field(config) is False
-
-    def test_upgrade_switches_on_exam_projects_and_downgrade_restores(self, test_db: Session):
+    def test_upgrade_switches_on_every_project_and_downgrade_keeps_values(
+        self, test_db: Session
+    ):
         conn = test_db.get_bind()
         mig = _load_migration()
         # The models already carry the new default; start from the old one.
         with _op_context(conn):
             mig.downgrade()
-        conn.execute(text("ALTER TABLE projects ALTER COLUMN handwriting_ocr_enabled SET DEFAULT false"))
+        assert "false" in _server_default(conn)
         ids = _projects(test_db)
-        before = _enabled(conn, ids)
+        assert _enabled(conn, ids) == {
+            "exam_off": False,
+            "exam_on": True,
+            "textarea_off": False,
+            "no_config_off": False,
+        }
 
         with _op_context(conn):
             mig.upgrade()
             mig.upgrade()  # idempotent
-        after = _enabled(conn, ids)
-        assert after == {**before, "exam_off": True}
+        assert all(_enabled(conn, ids).values())
         assert "true" in _server_default(conn)
-        recorded = conn.execute(
-            text("SELECT project_id FROM handwriting_ocr_backfill_149 WHERE project_id = ANY(:ids)"),
-            {"ids": list(ids.values())},
-        ).scalars().all()
-        assert recorded == [ids["exam_off"]]
 
         with _op_context(conn):
             mig.downgrade()
-        assert _enabled(conn, ids) == before
+        assert all(_enabled(conn, ids).values())
         assert "false" in _server_default(conn)
-        assert "handwriting_ocr_backfill_149" not in inspect(conn).get_table_names()
-
-        with _op_context(conn):
-            mig.upgrade()
-        assert _enabled(conn, ids)["exam_off"] is True
