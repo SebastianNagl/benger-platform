@@ -1527,8 +1527,7 @@
       "evaluations": "Evaluierungen",
       "reviewWorkflow": "Review-Workflow",
       "korrektur": "Korrektur",
-      "members": "Mitglieder",
-      "analysis": "Analyse"
+      "members": "Mitglieder"
     },
     "billing": {
       "title": "Abrechnung",
@@ -5491,7 +5490,16 @@
         "selected": "ausgewählt",
         "noResults": "(keine Ergebnisse)",
         "notRun": "(nicht ausgeführt)",
-        "tasks": "Aufgaben"
+        "tasks": "Aufgaben",
+        "searchProjects": "Projekte suchen",
+        "noProjectsFound": "Keine Projekte gefunden.",
+        "moreProjects": "Mehr anzeigen ({shown} von {total})",
+        "run": "Analyselauf",
+        "runOption": "{name} ({status})",
+        "systems": "Systeme",
+        "estimands": "Schätzgrößen",
+        "family": "Familie",
+        "allFamilies": "Alle Familien"
       },
       "params": {
         "configure": "Konfigurieren",
@@ -5536,7 +5544,9 @@
           "heatmapNeedsModels": "Benötigt 2+ Modelle",
           "boxNeedsSampleAggregation": "Wähle \"Pro Sample\" Analyseebene für Boxplots",
           "boxComputingScores": "Berechne Sample-Scores...",
-          "boxNoSampleData": "Keine Sample-Daten für dieses Projekt verfügbar"
+          "boxNoSampleData": "Keine Sample-Daten für dieses Projekt verfügbar",
+          "forestNeedsModelAggregation": "Der Forest-Plot braucht die Analyseebene Modell",
+          "forestNoStatistics": "Noch keine Statistiken pro Modell verfügbar"
         }
       },
       "results": {
@@ -5583,6 +5593,16 @@
         "mode": "Evaluierungsmodus",
         "evaluateMissingOnly": "Nur fehlende/fehlerhafte evaluieren",
         "evaluateMissingDescription": "Evaluiert nur Generierungen, die noch nicht evaluiert wurden oder Fehler hatten"
+      },
+      "resultType": {
+        "label": "Ergebnis",
+        "metrics": "Metriken",
+        "analysis": "Analysen"
+      },
+      "analysis": {
+        "start": "Analyse starten",
+        "runDetails": "Details zum Lauf",
+        "engine": "Engine"
       }
     },
     "export": {
@@ -6080,7 +6100,21 @@
       "strongNegative": "Stark negativ",
       "weakNone": "Schwach/keine",
       "comparisonsAlpha": "{count} Vergleiche, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} Tests, unkorrigiertes α = {alpha}"
+      "testsUncorrectedAlpha": "{count} Tests, unkorrigiertes α = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inferenz",
+        "inferenceDescription": "Multiplizitätsfamilien mit ihren adjustierten p-Werten, Äquivalenztests, minimal nachweisbaren Effekten und gemeinsamen Tests, so wie die Spezifikation sie festlegt.",
+        "noInference": "Dieser Lauf legt keine Familien, Äquivalenzgrenzen, Power-Einstellungen oder gemeinsamen Tests fest.",
+        "familyTitle": "Familie {family}: {method}, {size} Tests",
+        "contrast": "Kontrast",
+        "familyMde": "Minimal nachweisbarer Effekt der Familie: {value} (Power {power}, α {alpha})",
+        "mdeTitle": "Minimal nachweisbare Effekte",
+        "mde": "MDE",
+        "power": "Power",
+        "jointTitle": "Gemeinsame Tests (Wald)",
+        "test": "Test",
+        "fitTitle": "Modellanpassung"
+      }
     },
     "scoreDistribution": {
       "title": "Score-Verteilung",
@@ -6227,7 +6261,10 @@
       "tableChart": "Tabelle + Diagramm",
       "tableChartDescription": "Datentabelle mit Diagrammvisualisierung",
       "tableChartBestFor": "Kombinierte Daten- und Visualisierungsansicht",
-      "selectView": "Ansicht wählen"
+      "selectView": "Ansicht wählen",
+      "forestPlot": "Forest-Plot",
+      "forestPlotDescription": "Schätzungen mit Konfidenzintervallen",
+      "forestPlotBestFor": "Schätzungen und ihre Unsicherheit vergleichen"
     },
     "statistics": {
       "ci": "95%-Konfidenzintervalle",
@@ -6327,7 +6364,11 @@
         "range90d": "90T",
         "rangeAll": "Alle",
         "noDataForRange": "Keine Daten für den ausgewählten Zeitraum verfügbar"
-      }
+      },
+      "intervalAriaLabel": "Schätzungen mit Konfidenzintervallen: {series}",
+      "intervalLegend": "Schätzung mit {level}-Konfidenzintervall",
+      "pAdjustedShort": "p adj. {p}",
+      "series": "Reihe"
     },
     "fieldPair": {
       "label": "Feldpaare",
@@ -11864,7 +11905,6 @@
     }
   },
   "analysis": {
-    "title": "Analyse",
     "project": "Projekt",
     "scope": {
       "pooled": "Gepoolt"
@@ -11891,9 +11931,6 @@
       "prefillFailed": "Die Spezifikation dieses Laufs konnte nicht geladen werden.",
       "more": "Die neuesten {shown} von {total} Läufen.",
       "col": {
-        "name": "Name",
-        "status": "Status",
-        "created": "Gestartet",
         "rows": "Zeilen im Frame",
         "estimates": "Schätzungen",
         "specHash": "Spec-Hash"

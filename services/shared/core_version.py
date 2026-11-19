@@ -1422,11 +1422,41 @@ frame format 2).
     (cells run once per prediction field, under the field key
     ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
+
+2.67 (2026-11-19): analysis runs on the evaluations page (no migration, no
+API change).
+  - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
+    (``?type=analysis``) with the URL state ``run``, ``chartType``,
+    ``systems``, ``estimands``, ``family`` and ``newRunFrom`` (opens the
+    start dialog prefilled with that run's spec). The run page moved to
+    ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
+    ``/projects/[id]/analysis?from=<runId>`` and
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)`` and
+    ``evaluationsPath({ projectId, type, run, newRunFrom })``. Overlays link
+    to result pages through them.
+  - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
+    ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
+    ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):
+    one shape for metric statistics and analysis estimates.
+  - ``ChartType`` gains ``forest`` (both result types);
+    ``DynamicChartRenderer`` takes ``intervalRows`` (forest, and bar and
+    table without models); ``ForestPlot`` takes ``mode`` (``point`` or
+    ``bar``); ``EstimatesTable`` takes ``showFilters``;
+    ``StatisticalResultsPanel`` takes ``analysis`` (``{ run, estimates }``)
+    and shows its Inference and Fit blocks
+    (``@/components/evaluation/statistics/AnalysisStatistics``);
+    ``@/components/analysis/StartAnalysisDialog`` wraps the spec form.
+  - The compliance slot ``AnalysisRunFindings`` keeps its name and props
+    (``{ projectId, run, estimates }``) and renders in two hosts: the run
+    page and, for the selected run, inline in the Analyses view of
+    ``/evaluations``. The component must render compact content without a
+    page heading, breadcrumb or full-width layout.
 """
 
 import os
 
-CORE_API_VERSION = "2.66"
+CORE_API_VERSION = "2.67"
 
 
 def extended_required() -> bool:

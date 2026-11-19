@@ -2,7 +2,7 @@
  * The analysis run page: a completed run with forest plot, estimates,
  * provenance, spec and fits; the compliance findings slot only with the
  * overlay flag on; polling of a running run; a failed run; the frame
- * download; a run of another project.
+ * download; the run's own project in the breadcrumb; a missing run.
  */
 
 import '@/test-utils/locationMock'
@@ -10,7 +10,7 @@ import '@testing-library/jest-dom'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import AnalysisRunPage from '@/app/projects/[id]/analysis/[runId]/page'
+import AnalysisRunPage from '@/app/evaluations/analysis/[runId]/page'
 import {
   _resetActiveExtensionsForTests,
   setActiveExtensions,
@@ -24,7 +24,7 @@ jest.mock('@/contexts/I18nContext', () =>
 )
 
 jest.mock('next/navigation', () => ({
-  useParams: () => ({ id: 'project-1', runId: 'run-1' }),
+  useParams: () => ({ runId: 'run-1' }),
   useRouter: () => ({ push: jest.fn() }),
 }))
 
@@ -315,7 +315,7 @@ describe('AnalysisRunPage', () => {
     const second = render(<AnalysisRunPage />)
     expect(await screen.findByRole('link', reuse)).toHaveAttribute(
       'href',
-      '/projects/project-1/analysis?from=run-1',
+      '/evaluations?projectId=project-1&type=analysis&newRunFrom=run-1',
     )
     second.unmount()
 
@@ -335,14 +335,23 @@ describe('AnalysisRunPage', () => {
     )
   })
 
-  it('treats a run of another project or a 404 as not found', async () => {
+  it('reads the project from the run and links back to its Analyses view', async () => {
     mockGetRun.mockResolvedValue(makeRun({ project_id: 'other-project' }))
-    const { unmount } = render(<AnalysisRunPage />)
-    expect(await screen.findByTestId('analysis-run-error')).toHaveTextContent(
-      'This analysis run does not exist or you cannot see it.',
+    render(<AnalysisRunPage />)
+    await screen.findByTestId('estimates-table')
+    expect(mockGetProject).toHaveBeenCalledWith('other-project')
+    const crumb = await screen.findByRole('link', { name: 'Variants' })
+    expect(crumb).toHaveAttribute(
+      'href',
+      '/evaluations?projectId=other-project&type=analysis',
     )
-    unmount()
+    expect(screen.getByRole('link', { name: 'Evaluations' })).toHaveAttribute(
+      'href',
+      '/evaluations',
+    )
+  })
 
+  it('treats a 404 as not found', async () => {
     mockGetRun.mockRejectedValue(httpError(404))
     render(<AnalysisRunPage />)
     expect(await screen.findByTestId('analysis-run-error')).toHaveTextContent(

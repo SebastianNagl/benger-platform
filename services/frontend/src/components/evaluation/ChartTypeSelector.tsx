@@ -3,6 +3,8 @@
  *
  * Dropdown for selecting between different chart visualization types.
  * Includes a 'data' view that shows only the data table without charts.
+ * `forest` draws interval rows (estimate and confidence interval) for both
+ * result types; callers pass `availableTypes` per result type.
  */
 
 'use client'
@@ -10,6 +12,7 @@
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
+  AdjustmentsHorizontalIcon,
   ChartBarIcon,
   ChartPieIcon,
   ChevronDownIcon,
@@ -19,7 +22,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export type ChartType = 'data' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
+export type ChartType =
+  'data' | 'forest' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
 
 interface ChartTypeConfig {
   type: ChartType
@@ -39,6 +43,13 @@ function getChartTypes(t: (key: string) => string): ChartTypeConfig[] {
       description: t('evaluation.chartType.dataViewDescription'),
       icon: TableCellsIcon,
       bestFor: t('evaluation.chartType.dataViewBestFor'),
+    },
+    {
+      type: 'forest',
+      label: t('evaluation.chartType.forestPlot'),
+      description: t('evaluation.chartType.forestPlotDescription'),
+      icon: AdjustmentsHorizontalIcon,
+      bestFor: t('evaluation.chartType.forestPlotBestFor'),
     },
     {
       type: 'bar',

@@ -11,6 +11,10 @@
  * their own rows and bands. It draws what it is given and computes nothing
  * statistical.
  *
+ * With `mode="bar"` each estimate is drawn as a bar from the reference
+ * value (the null value, else 0) instead of a point, with the interval as a
+ * whisker: the bar view of the evaluations page uses it.
+ *
  * The SVG is drawn at the container's measured width (ResizeObserver), so
  * text keeps its size on narrow screens; long row labels are shortened with
  * the full label in a tooltip.
@@ -55,6 +59,8 @@ export interface ForestPlotProps {
   axisLabel?: string
   /** Legend entries for the lines; omitted entries are not shown. */
   legend?: { interval?: string; inner?: string; band?: string }
+  /** `point` (default): a marker per estimate; `bar`: a bar from the reference. */
+  mode?: 'point' | 'bar'
   className?: string
   'data-testid'?: string
 }
@@ -94,6 +100,7 @@ export function ForestPlot({
   ariaLabel,
   axisLabel,
   legend,
+  mode = 'point',
   className,
   'data-testid': testId = 'forest-plot',
 }: ForestPlotProps) {
@@ -117,6 +124,14 @@ export function ForestPlot({
   if (nullValue !== null && nullValue !== undefined)
     domainValues.push(nullValue)
   if (band) domainValues.push(band.lower, band.upper)
+  // Bars start at the reference value, so it is always on the axis.
+  const barBase =
+    mode === 'bar'
+      ? nullValue !== null && nullValue !== undefined
+        ? nullValue
+        : 0
+      : null
+  if (barBase !== null) domainValues.push(barBase)
   const { min, max, ticks } = axisTicks(domainValues)
   const x = (value: number) =>
     plotLeft + ((value - min) / (max - min || 1)) * plotWidth
@@ -231,6 +246,26 @@ export function ForestPlot({
                   {label !== row.label && <title>{row.label}</title>}
                   {label}
                 </text>
+                {has && barBase !== null && (
+                  <rect
+                    data-testid="forest-plot-bar"
+                    x={Math.min(
+                      clampX(barBase),
+                      clampX(row.estimate as number),
+                    )}
+                    y={cy - 7}
+                    width={Math.abs(
+                      clampX(row.estimate as number) - clampX(barBase),
+                    )}
+                    height={14}
+                    rx={2}
+                    className={
+                      row.emphasis
+                        ? 'fill-emerald-600/80 dark:fill-emerald-400/80'
+                        : 'fill-emerald-500/50 dark:fill-emerald-400/45'
+                    }
+                  />
+                )}
                 {hasInterval && (
                   <line
                     x1={clampX(row.lower as number)}
@@ -253,7 +288,7 @@ export function ForestPlot({
                     className="stroke-emerald-700/70 dark:stroke-emerald-400/70"
                   />
                 )}
-                {has && (
+                {has && barBase === null && (
                   <rect
                     data-testid="forest-plot-point"
                     x={clampX(row.estimate as number) - (row.emphasis ? 5 : 4)}
