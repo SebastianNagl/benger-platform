@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth_module import User, require_user
 from database import get_async_db
 from models import (
+    AnalysisRun,
     EvaluationRun,
     Generation,
     OrganizationGroup,
@@ -272,6 +273,48 @@ async def _live_dashboard_counts_async(db: AsyncSession, project_ids):
     }
 
 
+async def _analyses_count_async(db: AsyncSession, accessible_ids) -> int:
+    """Completed analysis runs of the projects in ``accessible_ids`` (every
+    listed project when None), counted live: analysis runs are few, and the
+    count reads ``ix_analysis_runs_project_created``. The projects' own
+    count (``routers.projects.helpers.count_analysis_runs_by_project``)
+    counts the same runs, so the tile equals the sum over the projects."""
+    stmt = (
+        select(func.count(AnalysisRun.id))
+        .join(Project, Project.id == AnalysisRun.project_id)
+        .where(AnalysisRun.status == "completed", project_listable())
+    )
+    if accessible_ids is not None:
+        stmt = stmt.where(AnalysisRun.project_id.in_(list(accessible_ids)))
+    return int((await db.execute(stmt)).scalar() or 0)
+
+
+def _overview_stats(
+    project_count: int,
+    task_count: int,
+    annotation_count: int,
+    generations_count: int,
+    evaluations_count: int,
+    analyses_count: int,
+) -> dict:
+    """The overview answer. ``projects_with_generations`` and
+    ``projects_with_evaluations`` are the old names of ``generations_count``
+    and ``evaluations_count`` (they always carried those counts, not the
+    number of projects that have any) and stay as aliases with the same
+    values for older clients."""
+    return {
+        "scope": SCOPE_OVERVIEW,
+        "project_count": project_count,
+        "task_count": task_count,
+        "annotation_count": annotation_count,
+        "generations_count": generations_count,
+        "evaluations_count": evaluations_count,
+        "analyses_count": analyses_count,
+        "projects_with_generations": generations_count,
+        "projects_with_evaluations": evaluations_count,
+    }
+
+
 @router.get("/stats")
 async def get_dashboard_stats(
     request: Request,
@@ -292,8 +335,12 @@ async def get_dashboard_stats(
     - project_count: Total projects accessible to user
     - task_count: Total tasks (issues) across all accessible projects
     - annotation_count: Submitted annotations in those projects
-    - projects_with_generations: Projects that have LLM generated answers
-    - projects_with_evaluations: Projects that have completed evaluations
+    - generations_count: Successfully parsed LLM generations in those projects
+    - evaluations_count: Evaluated cells (subject, evaluation config, metric
+      with a scored row of a completed run), as each project's own count
+    - analyses_count: Completed analysis runs in those projects
+    - projects_with_generations, projects_with_evaluations: aliases of
+      generations_count and evaluations_count (:func:`_overview_stats`)
 
     The overview reads from the precomputed `project_summaries` table (refreshed by the
     `recompute_aggregates` Celery beat task every hour). Brand-new projects
@@ -319,7 +366,7 @@ async def get_dashboard_stats(
             status_code=503,
             detail="Dashboard statistics are temporarily unavailable.",
         )
-    cache_key = f"dashboard_stats:v5:{current_user.id}:{scope}"
+    cache_key = f"dashboard_stats:v6:{current_user.id}:{scope}"
 
     cached_stats = cache.get(cache_key)
     if cached_stats:
@@ -346,14 +393,7 @@ async def get_dashboard_stats(
         )
 
         if accessible_ids is not None and not accessible_ids:
-            stats = {
-                "scope": SCOPE_OVERVIEW,
-                "project_count": 0,
-                "task_count": 0,
-                "annotation_count": 0,
-                "projects_with_generations": 0,
-                "projects_with_evaluations": 0,
-            }
+            stats = _overview_stats(0, 0, 0, 0, 0, 0)
             cache.set(cache_key, stats, ttl=OVERVIEW_TTL)
             return stats
 
@@ -407,14 +447,14 @@ async def get_dashboard_stats(
             generations_count += live["generations_count"]
             evaluations_count += await _live_evaluations_count_async(db, unsummarized)
 
-        stats = {
-            "scope": SCOPE_OVERVIEW,
-            "project_count": project_count,
-            "task_count": task_count,
-            "annotation_count": annotation_count,
-            "projects_with_generations": generations_count,
-            "projects_with_evaluations": evaluations_count,
-        }
+        stats = _overview_stats(
+            project_count,
+            task_count,
+            annotation_count,
+            generations_count,
+            evaluations_count,
+            await _analyses_count_async(db, accessible_ids),
+        )
 
         cache.set(cache_key, stats, ttl=OVERVIEW_TTL)
         logger.debug(f"Dashboard stats cached for user {current_user.id}")

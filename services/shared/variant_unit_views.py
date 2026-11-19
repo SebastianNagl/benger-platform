@@ -1,4 +1,4 @@
-"""Read models of the units of a variant design (CORE 2.69).
+"""Read models of the units of a variant design (CORE 2.71).
 
 A unit ties the variants of one item together (the same case under every
 level of its manipulated factors). The unit view shows every task of one

@@ -113,6 +113,8 @@ interface ChartTypeSelectorProps {
   disabledReasons?: Partial<Record<ChartType, string>>
   className?: string
   size?: 'sm' | 'md'
+  /** Load and save the viewer's last choice; off when the URL owns the state. */
+  persistPreference?: boolean
 }
 
 const STORAGE_KEY = 'benger-preferred-chart-type'
@@ -125,6 +127,7 @@ export function ChartTypeSelector({
   disabledReasons = {},
   className = '',
   size = 'md',
+  persistPreference = true,
 }: ChartTypeSelectorProps) {
   const { t } = useI18n()
   const mounted = useHydration()
@@ -140,7 +143,7 @@ export function ChartTypeSelector({
   // Load preference from localStorage after hydration
   // Only apply if current selection is the default (no URL override)
   useEffect(() => {
-    if (!mounted || hasLoadedPreference.current) return
+    if (!persistPreference || !mounted || hasLoadedPreference.current) return
     hasLoadedPreference.current = true
 
     // Don't override if URL already set a non-default chart type
@@ -157,7 +160,15 @@ export function ChartTypeSelector({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- offered follows availableTypes
-  }, [mounted, availableTypes, disabledTypes, onChange, selectedType])
+  }, [
+    persistPreference,
+    mounted,
+    availableTypes,
+    disabledTypes,
+    onChange,
+    selectedType,
+    CHART_TYPES,
+  ])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -177,7 +188,7 @@ export function ChartTypeSelector({
   const handleSelect = (type: ChartType) => {
     onChange(type)
     setIsOpen(false)
-    if (mounted) {
+    if (persistPreference && mounted) {
       localStorage.setItem(STORAGE_KEY, type)
     }
   }

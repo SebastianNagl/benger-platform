@@ -22,9 +22,9 @@ Endpoints / branches exercised:
     * ``type=evaluation`` happy path with ``judge_models`` / ``metrics`` /
       ``samples_evaluated`` enrichment from ``eval_metadata``.
     * ``project_id`` filter, ``status`` filter.
-    * per-row accessibility filter: a non-superadmin only sees runs in
-      projects they can reach (rows in an unreachable project are dropped
-      from ``items`` while ``total`` reflects the pre-filter count).
+    * accessibility filter: a non-superadmin only sees runs in projects they
+      can reach (rows in an unreachable project are left out of ``items``
+      and of ``total``).
     * empty page (page past the end).
     * ``type`` is a required, constrained query param (422 on a bad value).
 
@@ -485,8 +485,8 @@ class TestListRunsAccessibilityFilter:
         self, async_test_client, async_test_db
     ):
         """A run in a project the requesting non-superadmin cannot reach is
-        filtered out of ``items`` per-row, while ``total`` still reflects the
-        pre-filter query count."""
+        left out of ``items`` and of ``total``: the access filter is part of
+        the query, so the pages add up to the total."""
         owner = await _make_user(async_test_db, is_superadmin=True)
         contributor = await _make_user(async_test_db, is_superadmin=False)
         member_org = await _make_org(async_test_db, name="Member")
@@ -507,8 +507,7 @@ class TestListRunsAccessibilityFilter:
             )
         assert resp.status_code == 200
         body = resp.json()
-        # total reflects the unfiltered query; the inaccessible row is dropped.
-        assert body["total"] == 1
+        assert body["total"] == 0
         assert body["items"] == []
 
 

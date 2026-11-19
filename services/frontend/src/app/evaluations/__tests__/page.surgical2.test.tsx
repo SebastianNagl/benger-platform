@@ -387,9 +387,15 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
       render(<EvaluationDashboard />)
 
-      await waitFor(() => {
-        expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
-      })
+      // The models load after the project list, the config and the methods,
+      // each in its own effect, so under a busy full run the chain can take
+      // longer than waitFor's default second.
+      await waitFor(
+        () => {
+          expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
+        },
+        { timeout: 5000 },
+      )
     })
 
     it('handles URL models filter with some invalid model ids and configs', async () => {
@@ -434,9 +440,15 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
       render(<EvaluationDashboard />)
 
-      await waitFor(() => {
-        expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
-      })
+      // The models load after the project list, the config and the methods,
+      // each in its own effect, so under a busy full run the chain can take
+      // longer than waitFor's default second.
+      await waitFor(
+        () => {
+          expect(apiClient.evaluations.getEvaluatedModels).toHaveBeenCalled()
+        },
+        { timeout: 5000 },
+      )
     })
   })
 

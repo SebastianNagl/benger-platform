@@ -253,7 +253,7 @@ async def get_next_evaluation_item(
                 {
                     "id": resp.id,
                     "type": "llm",
-                    "content": resp.response_text,
+                    "content": resp.response_content,
                     "metadata": {
                         "model_id": resp.model_id,
                         "anonymized_name": f"Response_{chr(65 + len(responses))}",  # A, B, C...

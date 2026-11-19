@@ -1423,7 +1423,49 @@ frame format 2).
     ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
 
-2.67 (2026-11-19): analysis runs on the evaluations page (no migration, no
+2.67 (2026-11-19): counts and listings reflect analysis runs (no
+  migration, additive response fields only).
+  - ``ProjectResponse.analysis_count``: completed analysis runs of the
+    project, on the detail and, batched in one grouped count, on the list
+    (``routers.projects.helpers.count_analysis_runs_by_project`` and
+    ``count_analysis_runs_by_project_async``, ``build_select_analysis_counts``).
+    A run that reads a further project counts for its own project.
+  - ``GET /api/dashboard/stats`` (overview) adds ``generations_count``,
+    ``evaluations_count`` and ``analyses_count``; ``projects_with_generations``
+    and ``projects_with_evaluations`` stay as aliases with the same values
+    (they always carried the counts, not a number of projects).
+  - ``GET /api/runs`` takes ``type=analysis`` (``RunSummary`` gains ``name``,
+    ``frame_rows``, ``estimates_count``, ``spec_hash``, ``engine_version``).
+    Every type filters the accessible projects in the query, so ``total``
+    and the pages count exactly the listed runs; analysis runs that read a
+    further project the user may not read are left out, as in the
+    per-project run list.
+  - Report statistics (``report_service.get_report_statistics`` and
+    ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
+    published list items carry ``analysis_count``.
+
+2.68 (2026-11-19): inter-annotator agreement per control (no migration,
+  additive only).
+  - ``GET /api/evaluations/projects/{project_id}/annotator-agreement``
+    (access-key scope ``annotations:read``): per control of the labeling
+    interface, Fleiss' kappa, pairwise Cohen's kappa and percent agreement
+    for ``choices`` and ``rating``, Pearson's r and mean absolute deviation
+    for ``number``, over tasks with two or more active annotations;
+    ``available: false`` without overlap. Computed by
+    ``annotator_agreement.project_annotator_agreement`` (shared) with
+    ``bg_statistics.compute_agreement``; annotators are labelled by
+    ``user_display.masked_name``.
+  - The report snapshot gains ``annotator_agreement`` (the same object
+    without ``available``, or ``None``), and the Annotation section the
+    flag ``show_agreement``.
+  - ``report_snapshot.apply_section_visibility`` applies the section flags
+    when a report is served: with ``show_agreement`` off, every read path
+    serves ``annotator_agreement`` as ``None``; with ``show_participants``
+    off, every read path leaves out the agreement pairs and the participant
+    lists of the snapshot and the Annotation section, keeping the aggregates
+    and ``participant_count``. The stored snapshot is not changed.
+
+2.69 (2026-11-19): analysis runs on the evaluations page (no migration, no
 API change).
   - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
     (``?type=analysis``) with the URL state ``run``, ``chartType``,
@@ -1455,7 +1497,28 @@ API change).
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
 
-2.69 (2026-11-19): shared variant and analysis views (no migration).
+2.70 (2026-11-19): the project report covers the whole project (no
+  migration, additive API changes only).
+  - ``report_snapshot.build_report_snapshot`` adds the ``data``,
+    ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
+    ``reproducibility.snapshot_sha256`` is the SHA-256 of
+    ``report_snapshot.canonical_snapshot_json`` (``snapshot_sha256``).
+    ``report_snapshot.public_snapshot`` is the view served to readers
+    outside the project (judge parameters, import manifests and design
+    provenance as hashes only); ``model_is_public`` and ``hidden_model_ids``
+    hold the hidden-model rule the report applies in every section.
+  - ``report_service.can_publish_report`` and ``can_publish_project`` allow
+    any project with tasks and at least one result (annotations,
+    generations, evaluation or analysis runs); the refusal reasons are
+    ``REASON_NO_TASKS`` and ``REASON_NO_RESULTS``.
+  - ``routers.reports.can_edit_report`` and ``require_report_author``: a
+    superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
+    organization authors the report; ``ReportResponse.can_edit`` carries
+    the answer. Saving report content keeps the server's snapshot. Readers
+    who do not author the report get the section visibility of 2.68 and,
+    outside the project, the public view on top.
+
+2.71 (2026-11-19): shared variant and analysis views (no migration).
   - Routes ``GET /api/projects/{project_id}/variant-designs/{key}/units``
     (the design's units in name order with their task counts, ``limit`` up
     to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
@@ -1516,7 +1579,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.69"
+CORE_API_VERSION = "2.71"
 
 
 def extended_required() -> bool:

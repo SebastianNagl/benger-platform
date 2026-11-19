@@ -27,17 +27,42 @@ submissions map to ``annotator:<user id>`` with the pseudonym display rule
 the leaderboards apply. Custom (BYOM) models that are neither official nor
 public are excluded unless ``include_private_models`` is set — same rule as
 the LLM leaderboard, so a published report cannot leak a private endpoint.
+The same rule drops a hidden model from every other section: its generation
+counts, the human ratings of its answers and every preference comparison it
+took part in.
+
+Beyond the metric evaluation, the snapshot holds what a paper about the
+project reports (each section is present for every project and stays empty
+when the project has nothing of its kind, so the viewer hides it):
+
+  * ``data``: the variant designs (factors, unit, task, unit and cell
+    counts, status, hashes) and the provenance of completed imports
+    (payload hash and size, mode, declared manifest, no-op repeats).
+  * ``generation``: per model the generations, tasks, runs per task, prompt
+    structures, refusal, truncation, parse-failure and retry rates and the
+    share with a stored request record.
+  * ``human_evaluations``: Likert ratings per dimension (overall and per
+    model) and preference comparisons (per model and per pair).
+  * ``reproducibility``: platform versions, label config version and hash,
+    prompt structure hashes, models, evaluation configs with the parameter
+    snapshots their judge runs used, variant design and import hashes, the
+    completed single-project analysis runs with their hashes and versions,
+    and ``snapshot_sha256`` (see :func:`snapshot_sha256`).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import math
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from annotator_agreement import project_annotator_agreement
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -233,7 +258,8 @@ SELECT
   (SELECT COUNT(*) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS annotation_count,
   (SELECT COUNT(DISTINCT completed_by) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS participant_count,
   (SELECT COUNT(*) FROM task_evaluations te JOIN evaluation_runs r ON r.id = te.evaluation_id
-     WHERE r.project_id = :project_id AND r.status = 'completed') AS evaluation_count
+     WHERE r.project_id = :project_id AND r.status = 'completed') AS evaluation_count,
+  (SELECT COUNT(*) FROM analysis_runs WHERE project_id = :project_id AND status = 'completed') AS analysis_count
 """
 
 _MODELS_SQL = """
@@ -258,7 +284,7 @@ _JUDGE_NAMES_SQL = "SELECT id, name FROM llm_models WHERE id = ANY(:ids)"
 _CONFIG_JUDGES_SQL = """
 SELECT config_id, judge_model_id FROM (
     SELECT COALESCE(te.evaluation_config_id, '') AS config_id, jr.judge_model_id, COUNT(*) AS n,
-           ROW_NUMBER() OVER (PARTITION BY COALESCE(te.evaluation_config_id, '') ORDER BY COUNT(*) DESC) AS rn
+           ROW_NUMBER() OVER (PARTITION BY COALESCE(te.evaluation_config_id, '') ORDER BY COUNT(*) DESC, jr.judge_model_id) AS rn
     FROM task_evaluations te
     JOIN evaluation_runs r ON r.id = te.evaluation_id
     JOIN evaluation_judge_runs jr ON jr.id = te.judge_run_id
@@ -266,6 +292,29 @@ SELECT config_id, judge_model_id FROM (
     GROUP BY 1, 2
 ) ranked WHERE rn = 1
 """
+
+
+def model_is_public(model_id: str, catalog: Optional[Dict[str, Any]]) -> bool:
+    """The hidden-model rule of every published report: a model with a
+    catalog row shows when it is official or public; one without a row shows
+    unless it is a custom (``custom-``) endpoint. ``catalog`` is the row's
+    ``is_official`` / ``is_public`` mapping, or None without a row."""
+    if catalog is None:
+        return not str(model_id).startswith("custom-")
+    return catalog.get("is_official") is True or catalog.get("is_public") is True
+
+
+def hidden_model_ids(db: Session, model_ids: Iterable[str]) -> set:
+    """The ids among ``model_ids`` a published report must not show (see
+    :func:`model_is_public`)."""
+    ids = sorted({str(m) for m in model_ids if m})
+    if not ids:
+        return set()
+    rows = db.execute(
+        text("SELECT id, is_official, is_public FROM llm_models WHERE id = ANY(:ids)"), {"ids": ids}
+    ).mappings().all()
+    catalog = {r["id"]: dict(r) for r in rows}
+    return {m for m in ids if not model_is_public(m, catalog.get(m))}
 
 
 def _model_label(model_id: str, catalog_name: Optional[str]) -> str:
@@ -281,6 +330,719 @@ def _f(value: Any) -> Optional[float]:
 
 def _empty_bins(n: int) -> List[int]:
     return [0] * n
+
+
+def _rate(part: int, whole: int) -> Optional[float]:
+    return None if not whole else part / whole
+
+
+# ---------------------------------------------------------------------------
+# Hashing
+# ---------------------------------------------------------------------------
+
+# Keys that describe when and on which build a snapshot was computed rather
+# than what it holds; they stay out of ``snapshot_sha256``.
+_UNHASHED_TOP_LEVEL = ("generated_at",)
+_UNHASHED_REPRODUCIBILITY = ("platform", "snapshot_sha256")
+
+# Significant digits floats are rounded to before hashing, so a mean that
+# Postgres sums in another order (last-bit noise) hashes the same.
+_HASH_FLOAT_DIGITS = 12
+
+
+def _hashable(value: Any) -> Any:
+    if isinstance(value, bool) or value is None or isinstance(value, (int, str)):
+        return value
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return str(value)
+        rounded = float(f"{value:.{_HASH_FLOAT_DIGITS}g}")
+        # 2.0 and 2 are the same number; hash them the same way.
+        return int(rounded) if rounded.is_integer() else rounded
+    if isinstance(value, dict):
+        return {str(k): _hashable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_hashable(v) for v in value]
+    return str(value)
+
+
+def canonical_snapshot_json(snapshot: Dict[str, Any]) -> str:
+    """The canonical JSON ``snapshot_sha256`` is computed over: the snapshot
+    without ``generated_at``, ``reproducibility.platform`` and the hash
+    itself, keys sorted, no whitespace, floats rounded to 12 significant
+    digits. A rebuild over unchanged data therefore gives the same text,
+    whenever and on whichever build it runs."""
+    body = {k: v for k, v in snapshot.items() if k not in _UNHASHED_TOP_LEVEL}
+    repro = body.get("reproducibility")
+    if isinstance(repro, dict):
+        body["reproducibility"] = {k: v for k, v in repro.items() if k not in _UNHASHED_REPRODUCIBILITY}
+    return json.dumps(_hashable(body), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def snapshot_sha256(snapshot: Dict[str, Any]) -> str:
+    """SHA-256 (hex) of :func:`canonical_snapshot_json`."""
+    return hashlib.sha256(canonical_snapshot_json(snapshot).encode("utf-8")).hexdigest()
+
+
+def _sha256_json(value: Any) -> str:
+    text_ = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(text_.encode("utf-8")).hexdigest()
+
+
+def _iso(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _bounded(value: Any, max_bytes: int) -> Dict[str, Any]:
+    """A free-form JSON document as ``{"sha256", "content"}``; the content is
+    left out (``truncated``) when it is larger than ``max_bytes``, so one
+    oversized manifest cannot bloat every report view."""
+    text_ = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    out: Dict[str, Any] = {"sha256": hashlib.sha256(text_.encode("utf-8")).hexdigest()}
+    if len(text_.encode("utf-8")) <= max_bytes:
+        out["content"] = value
+    else:
+        out["truncated"] = True
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Data: variant designs and import provenance
+# ---------------------------------------------------------------------------
+
+_DESIGNS_SQL = """
+SELECT vd.key, vd.version, vd.status, vd.content_hash, vd.frozen_at, vd.spec, vd.provenance,
+       COUNT(t.id) AS task_count,
+       COUNT(DISTINCT t.variant_unit) AS unit_count,
+       COUNT(DISTINCT t.variant_cell) AS cell_count
+FROM variant_designs vd
+LEFT JOIN tasks t ON t.project_id = vd.project_id AND t.variant_design = vd.key
+WHERE vd.project_id = :project_id
+GROUP BY vd.id
+ORDER BY vd.key
+"""
+
+# Completed imports that wrote (or would have written) the project's data;
+# merge previews write nothing and are left out.
+_IMPORTS_SQL = """
+SELECT ij.id, ij.format, ij.payload_sha256, ij.updated_at,
+       ij.duplicate_of_job_id IS NOT NULL AS no_op,
+       ij.source_manifest->'payload'->>'byte_size' AS byte_size,
+       ij.source_manifest->'import'->>'mode' AS mode,
+       ij.source_manifest->'declared' AS declared,
+       (SELECT COUNT(*) FROM import_job_tasks jt WHERE jt.import_job_id = ij.id) AS task_count
+FROM import_jobs ij
+WHERE ij.project_id = :project_id AND ij.status = 'completed'
+  AND COALESCE(ij.source_manifest->'import'->>'mode', '') <> 'merge_preview'
+ORDER BY ij.created_at, ij.id
+LIMIT :limit
+"""
+
+_IMPORT_TOTAL_SQL = """
+SELECT COUNT(*) FROM import_jobs ij
+WHERE ij.project_id = :project_id AND ij.status = 'completed'
+  AND COALESCE(ij.source_manifest->'import'->>'mode', '') <> 'merge_preview'
+"""
+
+# Imports listed per report; a project imported thousands of times keeps the
+# total and the first ones.
+MAX_IMPORTS = 200
+# Largest declared manifest or design provenance copied into a report.
+MAX_FREE_JSON_BYTES = 16 * 1024
+# Levels listed per factor.
+MAX_FACTOR_LEVELS = 50
+
+
+def _design_summary(spec: Dict[str, Any]) -> Dict[str, Any]:
+    factors = []
+    for f in spec.get("factors") or []:
+        if not isinstance(f, dict):
+            continue
+        levels = f.get("levels") if isinstance(f.get("levels"), list) else None
+        factors.append({
+            "name": f.get("name"),
+            "type": f.get("type"),
+            "role": f.get("role", "manipulated"),
+            "source": f.get("source", "task"),
+            "varies": f.get("varies", "within_unit"),
+            "levels": levels[:MAX_FACTOR_LEVELS] if levels is not None else None,
+            "level_count": len(levels) if levels is not None else None,
+        })
+    outcomes = [o.get("name") for o in spec.get("outcomes") or [] if isinstance(o, dict) and o.get("name")]
+    unit = spec.get("unit") if isinstance(spec.get("unit"), dict) else {}
+    return {
+        "title": spec.get("title"),
+        "unit": unit.get("name"),
+        "factors": factors,
+        "outcomes": outcomes,
+        "declared_cells": len(spec["cells"]) if isinstance(spec.get("cells"), list) else None,
+    }
+
+
+def _build_data_section(db: Session, params: Dict[str, Any], task_count: int) -> Dict[str, Any]:
+    designs = []
+    for r in db.execute(text(_DESIGNS_SQL), params).mappings().all():
+        spec = r["spec"] if isinstance(r["spec"], dict) else {}
+        designs.append({
+            "key": r["key"],
+            "version": int(r["version"]),
+            "status": r["status"],
+            "content_hash": r["content_hash"],
+            "spec_sha256": _sha256_json(spec),
+            "frozen_at": _iso(r["frozen_at"]),
+            "task_count": int(r["task_count"]),
+            "unit_count": int(r["unit_count"]),
+            "cell_count": int(r["cell_count"]),
+            **_design_summary(spec),
+            "provenance": _bounded(r["provenance"], MAX_FREE_JSON_BYTES) if r["provenance"] is not None else None,
+        })
+
+    imports = []
+    for r in db.execute(text(_IMPORTS_SQL), {**params, "limit": MAX_IMPORTS}).mappings().all():
+        byte_size = r["byte_size"]
+        imports.append({
+            "format": r["format"],
+            "mode": r["mode"],
+            "completed_at": _iso(r["updated_at"]),
+            "payload_sha256": r["payload_sha256"],
+            "byte_size": int(byte_size) if byte_size not in (None, "") else None,
+            "task_count": int(r["task_count"]),
+            "no_op": bool(r["no_op"]),
+            "declared_manifest": _bounded(r["declared"], MAX_FREE_JSON_BYTES) if r["declared"] is not None else None,
+        })
+    import_total = int(db.execute(text(_IMPORT_TOTAL_SQL), params).scalar() or 0)
+
+    return {
+        "task_count": task_count,
+        "variant_designs": designs,
+        "imports": imports,
+        "import_count": import_total,
+        "imports_truncated": import_total > len(imports),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Generation: per-model counts, structures and rates
+# ---------------------------------------------------------------------------
+
+_PARSE_ATTEMPTED = "('success', 'failed', 'validation_error')"
+_PARSE_FAILED = "('failed', 'validation_error')"
+
+_GENERATION_SQL = f"""
+SELECT g.model_id,
+       COUNT(*) AS generations,
+       COUNT(*) FILTER (WHERE g.status = 'failed') AS failed,
+       COUNT(DISTINCT g.task_id) AS tasks,
+       MAX(g.run_index) + 1 AS max_runs,
+       COUNT(*) FILTER (WHERE g.status <> 'failed' AND g.refusal) AS refusals,
+       COUNT(*) FILTER (WHERE g.status <> 'failed' AND g.truncated) AS truncated,
+       COUNT(*) FILTER (WHERE g.status <> 'failed' AND g.retried) AS retried,
+       COUNT(*) FILTER (WHERE g.parse_status IN {_PARSE_ATTEMPTED}) AS parse_attempted,
+       COUNT(*) FILTER (WHERE g.parse_status IN {_PARSE_FAILED}) AS parse_failed,
+       COUNT(*) FILTER (WHERE g.request_sha256 IS NOT NULL) AS with_request
+FROM generations g
+JOIN response_generations rg ON rg.id = g.generation_id
+WHERE rg.project_id = :project_id
+GROUP BY g.model_id
+"""
+
+_STRUCTURES_SQL = """
+SELECT g.model_id, COALESCE(rg.structure_key, '') AS structure_key, COUNT(*) AS n
+FROM generations g
+JOIN response_generations rg ON rg.id = g.generation_id
+WHERE rg.project_id = :project_id
+GROUP BY 1, 2
+"""
+
+
+def _generation_rates(r: Dict[str, Any]) -> Dict[str, Any]:
+    generations = int(r["generations"])
+    failed = int(r["failed"])
+    completed = generations - failed
+    tasks = int(r["tasks"])
+    return {
+        "generations": generations,
+        "completed": completed,
+        "failed": failed,
+        "tasks": tasks,
+        "runs_per_task": (generations / tasks) if tasks else None,
+        "max_runs_per_task": int(r["max_runs"]) if r["max_runs"] is not None else None,
+        "refusal_rate": _rate(int(r["refusals"]), completed),
+        "truncation_rate": _rate(int(r["truncated"]), completed),
+        "retry_rate": _rate(int(r["retried"]), completed),
+        "parse_attempted": int(r["parse_attempted"]),
+        "parse_failure_rate": _rate(int(r["parse_failed"]), int(r["parse_attempted"])),
+        "request_record_share": _rate(int(r["with_request"]), generations),
+    }
+
+
+def _build_generation_section(
+    db: Session, params: Dict[str, Any], subject_for_model
+) -> Dict[str, Any]:
+    rows = db.execute(text(_GENERATION_SQL), params).mappings().all()
+    structure_rows = db.execute(text(_STRUCTURES_SQL), params).mappings().all()
+
+    structures_by_model: Dict[str, Dict[str, int]] = {}
+    for r in structure_rows:
+        structures_by_model.setdefault(r["model_id"], {})[r["structure_key"]] = int(r["n"])
+
+    models = []
+    totals = {k: 0 for k in ("generations", "failed", "refusals", "truncated", "retried",
+                             "parse_attempted", "parse_failed", "with_request")}
+    structure_totals: Dict[str, int] = {}
+    for r in rows:
+        subject = subject_for_model(r["model_id"])
+        if subject is None:
+            continue
+        structures = structures_by_model.get(r["model_id"], {})
+        models.append({
+            "model_id": subject["id"],
+            "label": subject["label"],
+            "provider": subject.get("provider"),
+            **_generation_rates(r),
+            "structures": [
+                {"key": key or None, "generations": n}
+                for key, n in sorted(structures.items(), key=lambda kv: (-kv[1], kv[0]))
+            ],
+        })
+        for key in totals:
+            totals[key] += int(r[key])
+        for key, n in structures.items():
+            structure_totals[key] = structure_totals.get(key, 0) + n
+    models.sort(key=lambda m: (m["label"].lower(), m["model_id"]))
+
+    completed = totals["generations"] - totals["failed"]
+    return {
+        "models": models,
+        "structures": [
+            {"key": key or None, "generations": n}
+            for key, n in sorted(structure_totals.items(), key=lambda kv: (-kv[1], kv[0]))
+        ],
+        "totals": {
+            "generations": totals["generations"],
+            "completed": completed,
+            "failed": totals["failed"],
+            "refusal_rate": _rate(totals["refusals"], completed),
+            "truncation_rate": _rate(totals["truncated"], completed),
+            "retry_rate": _rate(totals["retried"], completed),
+            "parse_failure_rate": _rate(totals["parse_failed"], totals["parse_attempted"]),
+            "request_record_share": _rate(totals["with_request"], totals["generations"]),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Human evaluation: Likert ratings and preference comparisons
+# ---------------------------------------------------------------------------
+
+LIKERT_SCALE = [1, 2, 3, 4, 5]
+
+_LIKERT_SQL = """
+SELECT l.dimension, g.model_id, l.rating, COUNT(*) AS n
+FROM likert_scale_evaluations l
+JOIN human_evaluation_sessions s ON s.id = l.session_id
+LEFT JOIN generations g ON g.id = l.response_id
+WHERE s.project_id = :project_id
+GROUP BY 1, 2, 3
+"""
+
+_PREFERENCE_SQL = """
+SELECT ga.model_id AS model_a, gb.model_id AS model_b, p.winner, COUNT(*) AS n
+FROM preference_rankings p
+JOIN human_evaluation_sessions s ON s.id = p.session_id
+LEFT JOIN generations ga ON ga.id = p.response_a_id
+LEFT JOIN generations gb ON gb.id = p.response_b_id
+WHERE s.project_id = :project_id
+GROUP BY 1, 2, 3
+"""
+
+# Evaluators per session type, counting only sessions that rated something.
+_EVALUATORS_SQL = """
+SELECT s.session_type, COUNT(DISTINCT s.evaluator_id) AS evaluators
+FROM human_evaluation_sessions s
+WHERE s.project_id = :project_id
+  AND (EXISTS (SELECT 1 FROM likert_scale_evaluations l WHERE l.session_id = s.id)
+       OR EXISTS (SELECT 1 FROM preference_rankings p WHERE p.session_id = s.id))
+GROUP BY s.session_type
+"""
+
+_DIMENSIONS_SQL = """
+SELECT dimension_name, description, display_order
+FROM human_evaluation_dimensions
+WHERE project_id = :project_id
+"""
+
+
+def _rating_stats(counts: Dict[int, int]) -> Dict[str, Any]:
+    n = sum(counts.values())
+    if n == 0:
+        return {"n": 0, "mean": None, "std": None, "distribution": [0] * len(LIKERT_SCALE)}
+    mean = sum(r * c for r, c in counts.items()) / n
+    std = None
+    if n > 1:
+        std = math.sqrt(sum(c * (r - mean) ** 2 for r, c in counts.items()) / (n - 1))
+    return {
+        "n": n,
+        "mean": mean,
+        "std": std,
+        "distribution": [int(counts.get(r, 0)) for r in LIKERT_SCALE],
+    }
+
+
+def _build_human_evaluation_section(
+    db: Session, params: Dict[str, Any], subject_for_model, model_visible
+) -> Dict[str, Any]:
+    evaluators = {r["session_type"]: int(r["evaluators"]) for r in db.execute(text(_EVALUATORS_SQL), params).mappings().all()}
+    dim_meta = {
+        r["dimension_name"]: r for r in db.execute(text(_DIMENSIONS_SQL), params).mappings().all()
+    }
+
+    # ---- Likert ------------------------------------------------------------
+    overall: Dict[str, Dict[int, int]] = {}
+    per_model: Dict[str, Dict[str, Dict[int, int]]] = {}
+    for r in db.execute(text(_LIKERT_SQL), params).mappings().all():
+        model_id = r["model_id"]
+        # A rating of a hidden model's answer stays out of every number.
+        if model_id is not None and not model_visible(model_id):
+            continue
+        rating, n = int(r["rating"]), int(r["n"])
+        overall.setdefault(r["dimension"], {})[rating] = overall.get(r["dimension"], {}).get(rating, 0) + n
+        if model_id is not None:
+            cell = per_model.setdefault(r["dimension"], {}).setdefault(model_id, {})
+            cell[rating] = cell.get(rating, 0) + n
+
+    def _dim_order(name: str) -> Tuple[int, str]:
+        meta = dim_meta.get(name)
+        return (int(meta["display_order"]) if meta and meta["display_order"] is not None else 10**6, name)
+
+    dimensions = []
+    for name in sorted(overall, key=_dim_order):
+        by_model = []
+        for model_id, counts in per_model.get(name, {}).items():
+            subject = subject_for_model(model_id)
+            if subject is None:
+                continue
+            stats = _rating_stats(counts)
+            by_model.append({"model_id": subject["id"], "label": subject["label"], "n": stats["n"],
+                             "mean": stats["mean"], "std": stats["std"]})
+        by_model.sort(key=lambda m: (-(m["mean"] or 0), m["label"].lower(), m["model_id"]))
+        meta = dim_meta.get(name)
+        dimensions.append({
+            "dimension": name,
+            "description": meta["description"] if meta else None,
+            **_rating_stats(overall[name]),
+            "by_model": by_model,
+        })
+
+    # ---- preference ------------------------------------------------------------
+    pairs: Dict[Tuple[str, str], Dict[str, int]] = {}
+    tally: Dict[str, Dict[str, int]] = {}
+    comparisons = 0
+    ties = 0
+    for r in db.execute(text(_PREFERENCE_SQL), params).mappings().all():
+        a, b, winner, n = r["model_a"], r["model_b"], r["winner"], int(r["n"])
+        # A comparison with a hidden model is left out whole: its opponent's
+        # record would otherwise tell how the hidden model did.
+        if (a is not None and not model_visible(a)) or (b is not None and not model_visible(b)):
+            continue
+        comparisons += n
+        if winner == "tie":
+            ties += n
+        for me, other, won in ((a, b, winner == "a"), (b, a, winner == "b")):
+            if me is None:
+                continue
+            t = tally.setdefault(me, {"comparisons": 0, "wins": 0, "losses": 0, "ties": 0})
+            t["comparisons"] += n
+            if winner == "tie":
+                t["ties"] += n
+            elif won:
+                t["wins"] += n
+            else:
+                t["losses"] += n
+        if a is not None and b is not None and a != b:
+            first, second = sorted((a, b))
+            cell = pairs.setdefault((first, second), {"first_wins": 0, "second_wins": 0, "ties": 0})
+            if winner == "tie":
+                cell["ties"] += n
+            elif (winner == "a") == (a == first):
+                cell["first_wins"] += n
+            else:
+                cell["second_wins"] += n
+
+    pref_models = []
+    for model_id, t in tally.items():
+        subject = subject_for_model(model_id)
+        if subject is None:
+            continue
+        pref_models.append({
+            "model_id": subject["id"],
+            "label": subject["label"],
+            **t,
+            "win_rate": _rate(t["wins"], t["comparisons"]),
+        })
+    pref_models.sort(key=lambda m: (-(m["win_rate"] or 0), m["label"].lower(), m["model_id"]))
+    pref_pairs = []
+    for (first, second), cell in sorted(pairs.items()):
+        s1, s2 = subject_for_model(first), subject_for_model(second)
+        if s1 is None or s2 is None:
+            continue
+        pref_pairs.append({
+            "model_a": s1["id"], "label_a": s1["label"],
+            "model_b": s2["id"], "label_b": s2["label"],
+            "a_wins": cell["first_wins"], "b_wins": cell["second_wins"], "ties": cell["ties"],
+        })
+
+    return {
+        "likert": {
+            "evaluator_count": evaluators.get("likert", 0),
+            "rating_count": sum(d["n"] for d in dimensions),
+            "scale": LIKERT_SCALE,
+            "dimensions": dimensions,
+        },
+        "preference": {
+            "evaluator_count": evaluators.get("preference", 0),
+            "comparisons": comparisons,
+            "ties": ties,
+            "models": pref_models,
+            "pairs": pref_pairs,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reproducibility: versions and hashes
+# ---------------------------------------------------------------------------
+
+# The parameter snapshots the judge runs of each evaluation config used, per
+# generation model so the samples of a hidden model can be left out.
+_CONFIG_PARAMS_SQL = """
+SELECT COALESCE(te.evaluation_config_id, '') AS config_id, jr.judge_model_id,
+       jr.metric_parameters_snapshot AS parameters, g.model_id, COUNT(*) AS n
+FROM task_evaluations te
+JOIN evaluation_runs r ON r.id = te.evaluation_id
+JOIN evaluation_judge_runs jr ON jr.id = te.judge_run_id
+LEFT JOIN generations g ON g.id = te.generation_id
+WHERE r.project_id = :project_id AND r.status = 'completed'
+GROUP BY 1, 2, 3, 4
+"""
+
+# Completed analysis runs that read this project only: a cross-project run
+# (``inputs.projects``) would publish numbers of another project.
+_ANALYSIS_RUNS_SQL = """
+SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
+       frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at
+FROM analysis_runs
+WHERE project_id = :project_id AND status = 'completed'
+  AND COALESCE(jsonb_array_length(
+        CASE WHEN jsonb_typeof(normalized_spec->'inputs'->'projects') = 'array'
+             THEN normalized_spec->'inputs'->'projects' END), 0) = 0
+ORDER BY completed_at, id
+"""
+
+
+def _parameter_model_ids(parameters: Any) -> set:
+    """The judge model ids a judge run's parameter snapshot names: its
+    ``judge_model`` and each ``judges[].judge_model_id`` (the worker stores
+    the config's ``metric_parameters`` as is)."""
+    if not isinstance(parameters, dict):
+        return set()
+    ids = {parameters.get("judge_model")}
+    judges = parameters.get("judges")
+    if isinstance(judges, list):
+        ids |= {j.get("judge_model_id") for j in judges if isinstance(j, dict)}
+    return {str(m) for m in ids if m}
+
+
+def _platform_versions() -> Dict[str, Any]:
+    from app_version import app_version
+    from core_version import CORE_API_VERSION
+
+    return {"app_version": app_version(), "core_api_version": CORE_API_VERSION}
+
+
+def _build_reproducibility_section(
+    db: Session,
+    params: Dict[str, Any],
+    project: Any,
+    *,
+    models: List[Dict[str, Any]],
+    configs: List[Dict[str, Any]],
+    cfg_entries: Dict[str, Dict[str, Any]],
+    data: Dict[str, Any],
+    generation: Dict[str, Any],
+    model_visible,
+    hidden_judges,
+) -> Dict[str, Any]:
+    label_config = getattr(project, "label_config", None) if project else None
+
+    gen_cfg = (getattr(project, "generation_config", None) or {}) if project else {}
+    defined = gen_cfg.get("prompt_structures") if isinstance(gen_cfg, dict) else None
+    defined = defined if isinstance(defined, dict) else {}
+    structures = []
+    for s in generation["structures"]:
+        key = s["key"]
+        definition = defined.get(key) if key else None
+        structures.append({
+            "key": key,
+            "generations": s["generations"],
+            # The definition as stored now; edited after the run, it differs
+            # from what generated the answers, which the hash makes visible.
+            "definition_sha256": _sha256_json(definition) if definition is not None else None,
+        })
+
+    param_rows = db.execute(text(_CONFIG_PARAMS_SQL), params).mappings().all()
+    hidden = hidden_judges(
+        {r["judge_model_id"] for r in param_rows}
+        | {m for r in param_rows for m in _parameter_model_ids(r["parameters"])}
+    )
+    runs_by_key: Dict[Tuple[str, Optional[str], Optional[str]], Dict[str, Any]] = {}
+    for r in param_rows:
+        # Samples of a hidden model's answers are not counted.
+        if r["model_id"] is not None and not model_visible(r["model_id"]):
+            continue
+        parameters = r["parameters"]
+        digest = _sha256_json(parameters) if parameters is not None else None
+        # A hidden judge is not named (the same rule as ``configs``), and
+        # parameters naming a hidden model keep only their hash.
+        judge = None if r["judge_model_id"] in hidden else r["judge_model_id"]
+        if r["judge_model_id"] in hidden or _parameter_model_ids(parameters) & hidden:
+            parameters = None
+        key = (r["config_id"], judge, digest)
+        run = runs_by_key.setdefault(key, {
+            # Judges are named as in ``configs`` (judge_model, judge_label).
+            "judge_model": judge,
+            "samples": 0,
+            "parameters_sha256": digest,
+            "parameters": parameters,
+        })
+        run["samples"] += int(r["n"])
+    params_by_config: Dict[str, List[Dict[str, Any]]] = {}
+    for (config_id, _judge, _digest), run in runs_by_key.items():
+        params_by_config.setdefault(config_id, []).append(run)
+    evaluation_configs = []
+    seen = set()
+    for c in configs:
+        if c["id"] in seen:
+            continue
+        seen.add(c["id"])
+        entry = cfg_entries.get(c["id"]) or {}
+        runs = sorted(
+            params_by_config.get(c["id"], []),
+            key=lambda p: (-p["samples"], p["judge_model"] or "", p["parameters_sha256"] or ""),
+        )
+        evaluation_configs.append({
+            "id": c["id"],
+            "metric": entry.get("metric") or c["metric"],
+            "name": entry.get("display_name"),
+            "judge_runs": runs,
+        })
+    evaluation_configs.sort(key=lambda c: c["id"])
+
+    analysis_runs = []
+    for r in db.execute(text(_ANALYSIS_RUNS_SQL), params).mappings().all():
+        analysis_runs.append({
+            "id": r["id"],
+            "name": r["name"],
+            "spec_hash": r["spec_hash"],
+            "spec_version": r["spec_version"],
+            "engine_version": r["engine_version"],
+            "frame_hash": r["frame_hash"],
+            "frame_sha256": r["frame_sha256"],
+            "frame_rows": r["frame_rows"],
+            "estimates_count": int(r["estimates_count"] or 0),
+            "library_versions": r["library_versions"],
+            "lockfile_sha256": r["lockfile_sha256"],
+            "seed": int(r["seed"]) if r["seed"] is not None else None,
+            "completed_at": _iso(r["completed_at"]),
+        })
+
+    return {
+        "platform": _platform_versions(),
+        "label_config": {
+            "version": getattr(project, "label_config_version", None) if project else None,
+            "sha256": hashlib.sha256(label_config.encode("utf-8")).hexdigest() if label_config else None,
+        },
+        "models": [
+            {"id": m["id"], "provider": m.get("provider"), "label": m["label"]} for m in models
+        ],
+        "prompt_structures": structures,
+        "evaluation_configs": evaluation_configs,
+        "variant_designs": [
+            {"key": d["key"], "version": d["version"], "status": d["status"],
+             "content_hash": d["content_hash"], "spec_sha256": d["spec_sha256"]}
+            for d in data["variant_designs"]
+        ],
+        "imports": [
+            {"payload_sha256": i["payload_sha256"], "completed_at": i["completed_at"], "no_op": i["no_op"]}
+            for i in data["imports"]
+        ],
+        "analysis_runs": analysis_runs,
+        "snapshot_sha256": None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reader view
+# ---------------------------------------------------------------------------
+
+def _without(doc: Any, key: str) -> Any:
+    return {k: v for k, v in doc.items() if k != key} if isinstance(doc, dict) else doc
+
+
+def _map_list(container: Dict[str, Any], key: str, fn) -> Dict[str, Any]:
+    items = container.get(key)
+    if not isinstance(items, list):
+        return container
+    return {**container, key: [fn(i) if isinstance(i, dict) else i for i in items]}
+
+
+def public_snapshot(snapshot: Any) -> Any:
+    """The snapshot as served to a reader outside the project (a public
+    report read anonymously or by a non-member): judge run parameters,
+    declared import manifests and design provenance keep their SHA-256 but
+    lose their content (custom judge prompts, rubrics, author manifests).
+    The stored snapshot and its ``snapshot_sha256`` stay whole."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    out = dict(snapshot)
+    if isinstance(out.get("data"), dict):
+        data = _map_list(out["data"], "variant_designs",
+                         lambda d: {**d, "provenance": _without(d.get("provenance"), "content")})
+        out["data"] = _map_list(data, "imports",
+                                lambda i: {**i, "declared_manifest": _without(i.get("declared_manifest"), "content")})
+    if isinstance(out.get("reproducibility"), dict):
+        out["reproducibility"] = _map_list(
+            out["reproducibility"], "evaluation_configs",
+            lambda c: _map_list(c, "judge_runs", lambda r: _without(r, "parameters")),
+        )
+    return out
+
+
+def apply_section_visibility(
+    snapshot: Optional[Dict[str, Any]], sections: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """The snapshot as a report with these sections may serve it.
+
+    With ``sections.annotations.show_agreement`` off, the annotator agreement
+    is ``None``. With ``sections.annotations.show_participants`` off, the
+    participant list is empty and the annotator agreement keeps its aggregate
+    numbers but drops the per-pair rows, which name and score individual
+    annotators; ``statistics.participant_count`` stays."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    annotations = (sections or {}).get("annotations") or {}
+    served = dict(snapshot)
+    if annotations.get("show_agreement") is False:
+        served["annotator_agreement"] = None
+    if annotations.get("show_participants") is False:
+        served["participants"] = []
+        agreement = served.get("annotator_agreement")
+        if agreement:
+            controls = [{**c, "pairs": []} for c in agreement.get("controls") or []]
+            served["annotator_agreement"] = {**agreement, "controls": controls}
+    return served
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +1072,8 @@ def build_report_snapshot(
     hidden_models: set = set()
     for r in model_rows:
         is_custom = r["is_official"] is not True and (r["name"] is None or str(r["model_id"]).startswith("custom-"))
-        visible = r["is_official"] is True or r["is_public"] is True or (r["name"] is None and not str(r["model_id"]).startswith("custom-"))
+        catalog_row = None if r["name"] is None else {"is_official": r["is_official"], "is_public": r["is_public"]}
+        visible = model_is_public(r["model_id"], catalog_row)
         if not visible and not include_private_models:
             hidden_models.add(r["model_id"])
             continue
@@ -331,7 +1094,9 @@ def build_report_snapshot(
         label = masked_name(user_id=r["id"], pseudonym=r["pseudonym"])
         human_labels[f"annotator:{r['id']}"] = label
         participants.append({"id": r["id"], "label": label, "annotation_count": int(r["annotation_count"])})
-    participants.sort(key=lambda p: (-p["annotation_count"], p["label"]))
+    # Every list is sorted to a total order, ties broken by id, so a rebuild
+    # over unchanged data gives the same snapshot (and snapshot_sha256).
+    participants.sort(key=lambda p: (-p["annotation_count"], p["label"], p["id"]))
 
     def _subject(kind: str, subject_id: str) -> Optional[Dict[str, Any]]:
         if kind == "model":
@@ -346,6 +1111,20 @@ def build_report_snapshot(
                 model_info[subject_id] = info
             return info
         return {"id": subject_id, "kind": "human", "label": human_labels.get(subject_id, "Teilnehmer:in")}
+
+    def _model_subject(model_id: str) -> Optional[Dict[str, Any]]:
+        """The subject of a model for the sections after the evaluation, or
+        None when the model is hidden; unlike ``_subject`` it never adds a
+        model to the report's model list."""
+        info = model_info.get(model_id)
+        if info is not None:
+            return info
+        if model_id in hidden_models:
+            return None
+        is_custom = str(model_id).startswith("custom-")
+        if is_custom and not include_private_models:
+            return None
+        return {"id": model_id, "kind": "model", "label": _model_label(model_id, None), "provider": None, "is_custom": is_custom}
 
     # ---- series -----------------------------------------------------------
     series_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
@@ -384,7 +1163,7 @@ def build_report_snapshot(
             }
         config_n[(r["config_id"], metric)] = config_n.get((r["config_id"], metric), 0) + int(r["n"])
 
-    series = sorted(series_map.values(), key=lambda s: (s["subject"]["kind"], s["subject"]["label"].lower(), s["config_id"]))
+    series = sorted(series_map.values(), key=lambda s: (s["subject"]["kind"], s["subject"]["label"].lower(), s["subject"]["id"], s["config_id"]))
 
     # ---- methods ------------------------------------------------------------
     methods: List[Dict[str, Any]] = []
@@ -405,14 +1184,20 @@ def build_report_snapshot(
         entry = cfg_entries.get(cid) or {}
         return (entry.get("metric_parameters") or {}).get("judge_model") or run_judges.get(cid)
 
+    def _hidden_judges(ids: Iterable[Optional[str]]) -> set:
+        return set() if include_private_models else hidden_model_ids(db, ids)
+
     judge_ids = sorted({_judge_for(cid) for (cid, _m) in config_n if _judge_for(cid)})
+    hidden_judges = _hidden_judges(judge_ids)
     judge_names: Dict[str, str] = {}
     if judge_ids:
         judge_names = {r["id"]: r["name"] for r in db.execute(text(_JUDGE_NAMES_SQL), {"ids": judge_ids}).mappings().all()}
     configs: List[Dict[str, Any]] = []
-    for (cid, metric), n in sorted(config_n.items(), key=lambda kv: -kv[1]):
+    for (cid, metric), n in sorted(config_n.items(), key=lambda kv: (-kv[1], kv[0][0], kv[0][1])):
         entry = cfg_entries.get(cid) or {}
         judge = _judge_for(cid) if metric.startswith("llm_judge_") else None
+        if judge in hidden_judges:
+            judge = None
         configs.append({
             "id": cid,
             "metric": metric,
@@ -422,7 +1207,7 @@ def build_report_snapshot(
             "n": n,
         })
 
-    primary_metric = next((m for m in _PRIMARY_PREFERENCE if m in metrics_seen), next(iter(metrics_seen), None))
+    primary_metric = next((m for m in _PRIMARY_PREFERENCE if m in metrics_seen), min(metrics_seen) if metrics_seen else None)
     primary_config_id = None
     if primary_metric:
         candidates = [c for c in configs if c["metric"] == primary_metric]
@@ -458,7 +1243,21 @@ def build_report_snapshot(
             d["by_subject"].setdefault(subject["id"], _empty_bins(len(bins)))[b] += n
     distributions = sorted(dist_map.values(), key=lambda d: (d["metric"] != grade_metric, d["metric"] != primary_metric, d["metric"], d["config_id"]))
 
-    return {
+    # ---- data, generation, human evaluation, reproducibility --------------
+    models = sorted(model_info.values(), key=lambda m: (m["label"].lower(), m["id"]))
+    data = _build_data_section(db, params, int(counts["task_count"]))
+    generation = _build_generation_section(db, params, _model_subject)
+    human_evaluations = _build_human_evaluation_section(
+        db, params, _model_subject, lambda model_id: _model_subject(model_id) is not None
+    )
+    reproducibility = _build_reproducibility_section(
+        db, params, project,
+        models=models, configs=configs, cfg_entries=cfg_entries, data=data, generation=generation,
+        model_visible=lambda model_id: _model_subject(model_id) is not None,
+        hidden_judges=_hidden_judges,
+    )
+
+    snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),
         "statistics": {
             "task_count": int(counts["task_count"]),
@@ -466,6 +1265,7 @@ def build_report_snapshot(
             "participant_count": int(counts["participant_count"]),
             "model_count": len(model_info),
             "evaluation_count": int(counts["evaluation_count"]),
+            "analysis_count": int(counts["analysis_count"]),
         },
         "methods": methods,
         "configs": configs,
@@ -475,5 +1275,14 @@ def build_report_snapshot(
         "series": series,
         "distributions": distributions,
         "participants": participants,
-        "models": sorted(model_info.values(), key=lambda m: m["label"].lower()),
+        "models": models,
+        # Inter-annotator agreement per control over tasks with two or more
+        # annotators (``annotator_agreement``); ``None`` without overlap.
+        "annotator_agreement": project_annotator_agreement(db, project_id),
+        "data": data,
+        "generation": generation,
+        "human_evaluations": human_evaluations,
+        "reproducibility": reproducibility,
     }
+    reproducibility["snapshot_sha256"] = snapshot_sha256(snapshot)
+    return snapshot

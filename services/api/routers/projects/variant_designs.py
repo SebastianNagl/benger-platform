@@ -11,7 +11,7 @@ that see ``task.meta`` unblinded; a design tells which tasks are twins, so a
 blinded annotator never reads it). Writing needs project edit rights.
 Refusals carry ``{"detail": {"code", "message", "problems"?}}``.
 
-The unit routes (CORE 2.69, ``variant_unit_views``) page through a design's
+The unit routes (CORE 2.71, ``variant_unit_views``) page through a design's
 units and show one unit with its tasks, declared spans, gold values and
 answers. They need full read access to the project's task content, like
 the frame download of an analysis run (ORG_ADMIN or CONTRIBUTOR, an

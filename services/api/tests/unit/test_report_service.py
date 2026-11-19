@@ -264,6 +264,25 @@ class TestUpdateReportAnnotationsSection(TestReportService):
         assert len(participants) > 0
         assert any(p["id"] == test_user.id for p in participants)
 
+    def test_keeps_the_editors_visibility_switches(
+        self, test_db: Session, setup_project, setup_tasks, setup_annotations, test_user
+    ):
+        """A new annotation must not turn hidden participants or agreement back on."""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from report_service import create_initial_report_draft, update_report_annotations_section
+
+        report = create_initial_report_draft(test_db, setup_project.id, test_user.id)
+        report.content["sections"]["annotations"].update(show_participants=False, show_agreement=False)
+        flag_modified(report, "content")
+        test_db.commit()
+
+        report = update_report_annotations_section(test_db, setup_project.id)
+
+        annotations = report.content["sections"]["annotations"]
+        assert annotations["show_participants"] is False
+        assert annotations["show_agreement"] is False
+
 
 class TestUpdateReportGenerationSection(TestReportService):
     """Tests for update_report_generation_section()"""
@@ -389,10 +408,10 @@ class TestCanPublishReport(TestReportService):
         assert can_publish is False
         assert "tasks" in reason.lower()
 
-    def test_cannot_publish_without_generations(
+    def test_cannot_publish_with_tasks_but_no_results(
         self, test_db: Session, setup_project, setup_tasks, test_user
     ):
-        """Test that report cannot be published without generations"""
+        """Tasks alone are not enough: the report needs a result of any kind"""
         from report_service import can_publish_report, create_initial_report_draft
 
         create_initial_report_draft(test_db, setup_project.id, test_user.id)
@@ -400,20 +419,19 @@ class TestCanPublishReport(TestReportService):
         can_publish, reason = can_publish_report(test_db, setup_project.id)
 
         assert can_publish is False
-        assert "generation" in reason.lower()
+        assert "annotations, generations, evaluations or analyses" in reason
 
-    def test_cannot_publish_without_evaluations(
+    def test_can_publish_with_generations_but_no_evaluations(
         self, test_db: Session, setup_project, setup_tasks, setup_generations, test_user
     ):
-        """Test that report cannot be published without evaluations"""
+        """Generations are a result: the evaluation sections just stay hidden"""
         from report_service import can_publish_report, create_initial_report_draft
 
         create_initial_report_draft(test_db, setup_project.id, test_user.id)
 
-        can_publish, reason = can_publish_report(test_db, setup_project.id)
+        can_publish, _ = can_publish_report(test_db, setup_project.id)
 
-        assert can_publish is False
-        assert "evaluation" in reason.lower()
+        assert can_publish is True
 
     def test_can_publish_with_all_requirements(
         self,

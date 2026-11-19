@@ -60,7 +60,12 @@ export class EvaluationsClient extends BaseApiClient {
     project_count: number
     task_count: number
     annotation_count: number
+    generations_count: number
+    evaluations_count: number
+    analyses_count: number
+    /** @deprecated alias of generations_count */
     projects_with_generations: number
+    /** @deprecated alias of evaluations_count */
     projects_with_evaluations: number
   }> {
     return this.request('/dashboard/stats', { retryUnavailable: false })

@@ -3,7 +3,7 @@
  * provenance, spec and fits; the compliance findings slot only with the
  * overlay flag on; polling of a running run; a failed run; the frame
  * download; the run's own project in the breadcrumb; a missing run; the
- * profile, strength, examples and design views (CORE 2.69).
+ * profile, strength, examples and design views (CORE 2.71).
  */
 
 import '@/test-utils/locationMock'
@@ -327,18 +327,25 @@ describe('AnalysisRunPage', () => {
 
   it('offers a new run from this spec only to editors and superadmins', async () => {
     const reuse = { name: 'New run from this spec' }
+    // The link depends on the run and then the project loading; wait for
+    // both (the project title in the breadcrumb) before asserting it.
+    const renderLoaded = async () => {
+      const view = render(<AnalysisRunPage />)
+      await screen.findByTestId('estimates-table')
+      await waitFor(() =>
+        expect(screen.getByText('Variants')).toBeInTheDocument(),
+      )
+      return view
+    }
+
     mockGetProject.mockResolvedValue(project('ANNOTATOR', false))
-    const first = render(<AnalysisRunPage />)
-    await screen.findByTestId('estimates-table')
-    await waitFor(() =>
-      expect(screen.getByText('Variants')).toBeInTheDocument(),
-    )
+    const first = await renderLoaded()
     expect(screen.queryByRole('link', reuse)).toBeNull()
     first.unmount()
 
     mockGetProject.mockResolvedValue(project('CONTRIBUTOR', true))
-    const second = render(<AnalysisRunPage />)
-    expect(await screen.findByRole('link', reuse)).toHaveAttribute(
+    const second = await renderLoaded()
+    expect(screen.getByRole('link', reuse)).toHaveAttribute(
       'href',
       '/evaluations?projectId=project-1&type=analysis&newRunFrom=run-1',
     )
@@ -346,8 +353,8 @@ describe('AnalysisRunPage', () => {
 
     mockGetProject.mockResolvedValue(project(null, false))
     mockUseAuth.mockReturnValue({ user: { id: 'u0', is_superadmin: true } })
-    render(<AnalysisRunPage />)
-    expect(await screen.findByRole('link', reuse)).toBeInTheDocument()
+    await renderLoaded()
+    expect(screen.getByRole('link', reuse)).toBeInTheDocument()
   })
 
   it('explains a refused frame download', async () => {

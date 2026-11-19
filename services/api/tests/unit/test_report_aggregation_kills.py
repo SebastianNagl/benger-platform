@@ -723,7 +723,7 @@ class TestCanPublishGate:
         assert ok is False
         assert reason == "Project must have tasks"
 
-    def test_no_generations_blocks_with_generation_reason(self, test_db: Session, test_user):
+    def test_tasks_without_any_result_block_with_results_reason(self, test_db: Session, test_user):
         from report_service import can_publish_report, create_initial_report_draft
 
         project = _new_project(test_db, test_user)
@@ -731,33 +731,76 @@ class TestCanPublishGate:
         create_initial_report_draft(test_db, project.id, test_user.id)
         ok, reason = can_publish_report(test_db, project.id)
         assert ok is False
-        assert reason == "Project must have LLM generations"
+        assert reason == "Project must have annotations, generations, evaluations or analyses"
 
-    def test_no_completed_eval_blocks_with_evaluation_reason(
-        self, test_db: Session, test_user
-    ):
+    def test_annotations_alone_allow_publish(self, test_db: Session, test_user):
+        """An annotation study has no generations or evaluations and still
+        gets its report (Data, Annotation and Reproducibility)."""
+        from report_service import can_publish_report, create_initial_report_draft
+
+        project = _new_project(test_db, test_user)
+        t1 = _new_task(test_db, project, 1)
+        _new_annotation(test_db, project, t1, test_user)
+        create_initial_report_draft(test_db, project.id, test_user.id)
+        assert can_publish_report(test_db, project.id) == (True, "All requirements met")
+
+    def test_cancelled_annotation_does_not_satisfy_gate(self, test_db: Session, test_user):
+        from report_service import can_publish_report, create_initial_report_draft
+
+        project = _new_project(test_db, test_user)
+        t1 = _new_task(test_db, project, 1)
+        ann = _new_annotation(test_db, project, t1, test_user)
+        ann.was_cancelled = True
+        test_db.commit()
+        create_initial_report_draft(test_db, project.id, test_user.id)
+        ok, _ = can_publish_report(test_db, project.id)
+        assert ok is False
+
+    def test_generations_alone_allow_publish(self, test_db: Session, test_user):
         from report_service import can_publish_report, create_initial_report_draft
 
         project = _new_project(test_db, test_user)
         t1 = _new_task(test_db, project, 1)
         _new_generation(test_db, project, test_user, t1, "model-a", 0)
         create_initial_report_draft(test_db, project.id, test_user.id)
-        ok, reason = can_publish_report(test_db, project.id)
-        assert ok is False
-        assert reason == "Project must have completed evaluations"
+        assert can_publish_report(test_db, project.id) == (True, "All requirements met")
 
     def test_pending_eval_does_not_satisfy_gate(self, test_db: Session, test_user):
         """A non-completed evaluation run must NOT count toward the gate."""
         from report_service import can_publish_report, create_initial_report_draft
 
         project = _new_project(test_db, test_user)
-        t1 = _new_task(test_db, project, 1)
-        _new_generation(test_db, project, test_user, t1, "model-a", 0)
+        _new_task(test_db, project, 1)
         _new_eval_run(test_db, project, test_user, status="pending")
         create_initial_report_draft(test_db, project.id, test_user.id)
         ok, reason = can_publish_report(test_db, project.id)
         assert ok is False
-        assert reason == "Project must have completed evaluations"
+        assert reason == "Project must have annotations, generations, evaluations or analyses"
+
+    def test_completed_eval_alone_allows_publish(self, test_db: Session, test_user):
+        from report_service import can_publish_report, create_initial_report_draft
+
+        project = _new_project(test_db, test_user)
+        _new_task(test_db, project, 1)
+        _new_eval_run(test_db, project, test_user, status="completed")
+        create_initial_report_draft(test_db, project.id, test_user.id)
+        assert can_publish_report(test_db, project.id)[0] is True
+
+    @pytest.mark.parametrize("status, expected", [("completed", True), ("pending", False), ("failed", False)])
+    def test_analysis_runs_count_only_when_completed(self, test_db: Session, test_user, status, expected):
+        from models import AnalysisRun
+        from report_service import can_publish_report, create_initial_report_draft
+
+        project = _new_project(test_db, test_user)
+        _new_task(test_db, project, 1)
+        test_db.add(AnalysisRun(
+            id=str(uuid.uuid4()), project_id=project.id, created_by=test_user.id, name="run",
+            status=status, spec={}, normalized_spec={}, spec_hash="0" * 64, spec_version=1,
+            engine_version="1.1.0",
+        ))
+        test_db.commit()
+        create_initial_report_draft(test_db, project.id, test_user.id)
+        assert can_publish_report(test_db, project.id)[0] is expected
 
     def test_all_requirements_met_allows_publish(self, test_db: Session, test_user):
         from report_service import can_publish_report, create_initial_report_draft
@@ -890,6 +933,7 @@ class TestChartsAndStatistics:
             "annotation_count": 0,
             "participant_count": 0,
             "model_count": 0,
+            "analysis_count": 0,
         }
 
     def test_statistics_batch_empty_input_returns_empty(self, test_db: Session):

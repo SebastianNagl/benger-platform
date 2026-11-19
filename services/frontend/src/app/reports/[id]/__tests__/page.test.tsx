@@ -90,7 +90,11 @@ jest.mock('react', () => ({
 }))
 
 import { getReportData } from '@/lib/api/reports'
-import { REPORT_SNAPSHOT_FIXTURE } from '@/lib/reports/fixture'
+import {
+  ANNOTATION_ONLY_SNAPSHOT,
+  REPORT_RECORDS_FIXTURE,
+  REPORT_SNAPSHOT_FIXTURE,
+} from '@/lib/reports/fixture'
 import ReportViewerPage, { classifyLoadError } from '../page'
 
 const mockGetReportData = getReportData as jest.Mock
@@ -227,6 +231,8 @@ describe('ReportViewerPage', () => {
     expect(screen.getByTestId('stat-participants')).toHaveTextContent('36')
     expect(screen.getByTestId('stat-models')).toHaveTextContent('4')
     expect(screen.getByTestId('stat-evaluations')).toHaveTextContent('3.626')
+    // The fixture snapshot predates analysis counts: no Analyses tile.
+    expect(screen.queryByTestId('stat-analyses')).not.toBeInTheDocument()
 
     expect(screen.getByTestId('section-data')).toHaveTextContent(
       'Der Datensatz umfasst 15 Aufgaben.',
@@ -256,6 +262,18 @@ describe('ReportViewerPage', () => {
     expect(
       screen.queryByRole('link', { name: 'Bearbeiten' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows an Analyses tile when the snapshot counts analysis runs', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      statistics: { ...REPORT_SNAPSHOT_FIXTURE.statistics, analysis_count: 2 },
+    })
+    await renderPage()
+    expect(screen.getByTestId('stat-analyses')).toHaveTextContent('Analysen2')
+    expect(screen.getByTestId('stat-tiles').className).toContain(
+      'lg:grid-cols-3',
+    )
   })
 
   it('ranks models by mean with badges computed from the sort', async () => {
@@ -361,9 +379,10 @@ describe('ReportViewerPage', () => {
     expect(screen.queryByTestId('data-as-of')).not.toBeInTheDocument()
   })
 
-  it('shows the draft badge and edit link for a superadmin on an unpublished report', async () => {
-    mockAuth = { user: { is_superadmin: true } }
-    mockData(makeReport({ is_published: false, published_at: null }))
+  it('shows the draft badge and edit link for a report author on an unpublished report', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: true }),
+    )
     await renderPage()
     expect(screen.getByTestId('draft-badge')).toHaveTextContent('Entwurf')
     expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute(
@@ -538,5 +557,218 @@ describe('classifyLoadError', () => {
       forbidden: false,
       message: null,
     })
+  })
+})
+
+describe('ReportViewerPage: the report as the project paper', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth = null
+    mockUseResult = { id: 'report-1' }
+  })
+
+  const fullSnapshot = { ...REPORT_SNAPSHOT_FIXTURE, ...REPORT_RECORDS_FIXTURE }
+  const sectionIds = () =>
+    Array.from(document.querySelectorAll('[data-testid^="section-"]')).map(
+      (el) => el.getAttribute('data-testid'),
+    )
+
+  it('shows an annotation-only project with Data, Annotations, Reproducibility and the citation only', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          evaluation: { custom_interpretation: null, conclusions: null },
+        },
+      }),
+      ANNOTATION_ONLY_SNAPSHOT,
+    )
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    // Zero tiles stay out.
+    expect(screen.queryByTestId('stat-models')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('stat-evaluations')).not.toBeInTheDocument()
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+    expect(screen.getByTestId('citation-text')).toHaveTextContent(
+      '7'.repeat(64),
+    )
+  })
+
+  it('renders a stored report whose content holds only project_info', async () => {
+    // Older stored reports and minimal content can lack every section but
+    // project_info; absent sections take their defaults (visible) and the
+    // sections without data hide themselves, as in the editor.
+    const report = makeReport()
+    report.content = {
+      ...report.content,
+      sections: { project_info: report.content.sections.project_info } as any,
+    }
+    mockData(report, ANNOTATION_ONLY_SNAPSHOT)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('stat-tasks')).toHaveTextContent('4')
+  })
+
+  it('renders every record section of a full project', async () => {
+    mockData(makeReport(), fullSnapshot)
+    await renderPage()
+    expect(sectionIds()).toEqual([
+      'section-data',
+      'section-annotations',
+      'section-generation',
+      'section-evaluation',
+      'section-human-evaluation',
+      'section-reproducibility',
+      'section-cite',
+    ])
+    expect(screen.getByTestId('data-provenance')).toBeInTheDocument()
+    expect(screen.getByTestId('generation-details')).toBeInTheDocument()
+    expect(screen.getByTestId('likert')).toBeInTheDocument()
+    expect(screen.getByTestId('preference')).toBeInTheDocument()
+  })
+
+  it('honours the record toggles and the reproducibility visibility', async () => {
+    mockData(
+      makeReport({
+        sections: {
+          data: { show_provenance: false },
+          generation: { show_details: false },
+          evaluation: { show_human_evaluation: false },
+        },
+        content: undefined,
+      }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('data-provenance')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('generation-details')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('section-human-evaluation'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('hides the appendix when the author switched it off and shows the author note otherwise', async () => {
+    const withRepro = (repro: Record<string, unknown>) => {
+      const report = makeReport()
+      report.content = {
+        ...report.content,
+        sections: { ...report.content.sections, reproducibility: repro } as any,
+      }
+      return report
+    }
+    mockData(withRepro({ visible: false }), fullSnapshot)
+    const { unmount } = await renderPage()
+    expect(
+      screen.queryByTestId('section-reproducibility'),
+    ).not.toBeInTheDocument()
+    unmount()
+
+    mockData(
+      withRepro({ visible: true, custom_text: 'Seed 7 throughout.' }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(
+      within(screen.getByTestId('section-reproducibility')).getByText(
+        'Seed 7 throughout.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('offers no citation for a draft and no edit link to a reader', async () => {
+    mockData(
+      makeReport({ is_published: false, published_at: null, can_edit: false }),
+      fullSnapshot,
+    )
+    await renderPage()
+    expect(screen.queryByTestId('section-cite')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Bearbeiten' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('ReportViewerPage annotator agreement', () => {
+  const { AGREEMENT_FIXTURE } = require('@/test-utils/agreementFixture')
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockAuth = null
+    mockUseResult = { id: 'report-1' }
+  })
+
+  it('shows the snapshot agreement in the annotation section', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: AGREEMENT_FIXTURE,
+    })
+    await renderPage()
+    const block = within(screen.getByTestId('section-annotations')).getByTestId(
+      'report-annotator-agreement',
+    )
+    expect(block).toHaveTextContent('Übereinstimmung der Annotierenden')
+    expect(within(block).getByTestId('agreement-fleiss')).toHaveTextContent(
+      '0,33',
+    )
+  })
+
+  it('lists the annotator pairs when participants are shown', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: AGREEMENT_FIXTURE,
+    })
+    await renderPage()
+    const block = screen.getByTestId('report-annotator-agreement')
+    expect(block).toHaveTextContent('Ash · Birch')
+    expect(block).toHaveTextContent('Birch · Cedar')
+  })
+
+  it('keeps the summary but no pair rows when participants are hidden', async () => {
+    mockData(
+      makeReport({ sections: { annotations: { show_participants: false } } }),
+      {
+        ...REPORT_SNAPSHOT_FIXTURE,
+        annotator_agreement: AGREEMENT_FIXTURE,
+      },
+    )
+    await renderPage()
+    const block = screen.getByTestId('report-annotator-agreement')
+    expect(within(block).getByTestId('agreement-fleiss')).toHaveTextContent(
+      '0,33',
+    )
+    for (const name of ['Ash', 'Birch', 'Cedar']) {
+      expect(block).not.toHaveTextContent(name)
+    }
+  })
+
+  it('hides it when the editor switched it off', async () => {
+    mockData(
+      makeReport({ sections: { annotations: { show_agreement: false } } }),
+      {
+        ...REPORT_SNAPSHOT_FIXTURE,
+        annotator_agreement: AGREEMENT_FIXTURE,
+      },
+    )
+    await renderPage()
+    expect(screen.queryByTestId('report-annotator-agreement')).toBeNull()
+  })
+
+  it('hides it without overlap and for snapshots taken before it existed', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      annotator_agreement: null,
+    })
+    await renderPage()
+    expect(screen.queryByTestId('report-annotator-agreement')).toBeNull()
+    expect(screen.getByTestId('section-annotations')).toBeInTheDocument()
   })
 })

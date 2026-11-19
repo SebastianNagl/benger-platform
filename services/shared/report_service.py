@@ -17,9 +17,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from metric_values import coerce_metric_value
-from models import EvaluationRun, EvaluationType, Generation, ResponseGeneration, TaskEvaluation, User
+from models import (
+    AnalysisRun,
+    EvaluationRun,
+    EvaluationType,
+    Generation,
+    ResponseGeneration,
+    TaskEvaluation,
+    User,
+)
 from project_models import Annotation, Project, Task
 from report_models import ProjectReport
+from report_snapshot import hidden_model_ids
 from user_display import masked_name
 
 
@@ -91,10 +100,26 @@ def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[s
     for metrics, annotator_id, pseudonym in ann_rows:
         _add(f"annotator:{masked_name(user_id=annotator_id, pseudonym=pseudonym)}", metrics)
 
+    # The result is stored in the report's content, which a public report
+    # serves whole: hidden (private custom) models stay out, as in the snapshot.
+    hidden = hidden_model_ids(db, (m for m, _ in gen_rows))
     return {
         model_id: {m: sum(vs) / len(vs) for m, vs in metric_lists.items() if vs}
         for model_id, metric_lists in model_values.items()
+        if model_id not in hidden
     }
+
+
+def _run_level_metrics(db: Session, evaluations: List[EvaluationRun]) -> Dict[str, Dict[str, float]]:
+    """Fallback per-model metrics from ``EvaluationRun.model_id`` (direct
+    evaluations without task rows), hidden (private custom) models left out
+    like everywhere else in a report."""
+    hidden = hidden_model_ids(db, (e.model_id for e in evaluations))
+    metrics: Dict[str, Dict[str, float]] = {}
+    for run in evaluations:
+        if run.metrics and run.model_id != "unknown" and run.model_id not in hidden:
+            metrics.setdefault(run.model_id, {}).update(run.metrics)
+    return metrics
 
 
 def create_initial_report_draft(db: Session, project_id: str, user_id: str) -> ProjectReport:
@@ -242,7 +267,8 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
         "participants": participants,
         "custom_text": custom_text,
         "show_count": True,
-        "show_participants": True,
+        "show_participants": existing_annotations.get("show_participants", True),
+        "show_agreement": existing_annotations.get("show_agreement", True),
         "acknowledgment_text": acknowledgment_text,
         "status": "completed",
         "editable": True,
@@ -342,11 +368,7 @@ def update_report_evaluation_section(db: Session, project_id: str) -> Optional[P
         metrics = resolved
     else:
         # Fall back to EvaluationRun.model_id for direct evaluations
-        for eval in evaluations:
-            if eval.metrics and eval.model_id != "unknown":
-                if eval.model_id not in metrics:
-                    metrics[eval.model_id] = {}
-                metrics[eval.model_id].update(eval.metrics)
+        metrics = _run_level_metrics(db, evaluations)
 
     methods = list(set(methods))  # Remove duplicates
 
@@ -401,15 +423,45 @@ def _update_metadata(report: ProjectReport, section_name: str):
     flag_modified(report, "content")
 
 
+# Reasons ``can_publish_report`` gives; the frontend maps them to messages.
+REASON_NO_REPORT = "Report not found"
+REASON_NO_TASKS = "Project must have tasks"
+REASON_NO_RESULTS = "Project must have annotations, generations, evaluations or analyses"
+REASON_OK = "All requirements met"
+
+
+def _has_results(db: Session, project_id: str) -> bool:
+    """Whether the project has anything a report can be about: annotations,
+    generations, completed evaluation runs or completed analysis runs."""
+    from models import AnalysisRun
+
+    checks = (
+        db.query(Annotation.id).filter(
+            Annotation.project_id == project_id, Annotation.was_cancelled == False  # noqa: E712
+        ),
+        db.query(Generation.id)
+        .join(ResponseGeneration, Generation.generation_id == ResponseGeneration.id)
+        .filter(ResponseGeneration.project_id == project_id),
+        db.query(EvaluationRun.id).filter(
+            EvaluationRun.project_id == project_id, EvaluationRun.status == "completed"
+        ),
+        db.query(AnalysisRun.id).filter(
+            AnalysisRun.project_id == project_id, AnalysisRun.status == "completed"
+        ),
+    )
+    return any(db.query(q.exists()).scalar() for q in checks)
+
+
 def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     """
     Check if a project report can be published
 
-    A report can be published if:
-    1. Report exists
-    2. Project has tasks (data section)
-    3. Project has generations
-    4. Project has evaluations
+    A report can be published when it exists, the project has tasks, and the
+    project has at least one result of any kind: annotations, generations,
+    completed evaluation runs or completed analysis runs. So an annotation
+    study, a human evaluation without generations and an analysis-only
+    project can publish too; the report's sections without data hide
+    themselves.
 
     Args:
         db: Database session
@@ -420,34 +472,18 @@ def can_publish_report(db: Session, project_id: str) -> Tuple[bool, str]:
     """
     report = db.query(ProjectReport).filter(ProjectReport.project_id == project_id).first()
     if not report:
-        return False, "Report not found"
+        return False, REASON_NO_REPORT
+    return can_publish_project(db, project_id)
 
-    # Check if project has tasks
-    task_count = db.query(Task).filter(Task.project_id == project_id).count()
-    if task_count == 0:
-        return False, "Project must have tasks"
 
-    # Check if project has generations
-    generation_count = (
-        db.query(Generation)
-        .join(Generation.generation)
-        .filter(Generation.generation.has(project_id=project_id))
-        .count()
-    )
-
-    if generation_count == 0:
-        return False, "Project must have LLM generations"
-
-    # Check if project has evaluations
-    evaluation_count = (
-        db.query(EvaluationRun)
-        .filter(EvaluationRun.project_id == project_id, EvaluationRun.status == "completed")
-        .count()
-    )
-    if evaluation_count == 0:
-        return False, "Project must have completed evaluations"
-
-    return True, "All requirements met"
+def can_publish_project(db: Session, project_id: str) -> Tuple[bool, str]:
+    """The data half of :func:`can_publish_report` (no report row needed)."""
+    has_tasks = db.query(db.query(Task.id).filter(Task.project_id == project_id).exists()).scalar()
+    if not has_tasks:
+        return False, REASON_NO_TASKS
+    if not _has_results(db, project_id):
+        return False, REASON_NO_RESULTS
+    return True, REASON_OK
 
 
 def get_report_statistics(db: Session, project_id: str) -> Dict:
@@ -459,7 +495,8 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
         project_id: ID of the project
 
     Returns:
-        Dict with task_count, annotation_count, participant_count, model_count
+        Dict with task_count, annotation_count, participant_count,
+        model_count and analysis_count (completed analysis runs)
     """
     task_count = db.query(Task).filter(Task.project_id == project_id).count()
 
@@ -484,21 +521,29 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
         .count()
     )
 
+    analysis_count = (
+        db.query(AnalysisRun)
+        .filter(AnalysisRun.project_id == project_id, AnalysisRun.status == "completed")
+        .count()
+    )
+
     return {
         "task_count": task_count,
         "annotation_count": annotation_count,
         "participant_count": participant_count,
         "model_count": model_count,
+        "analysis_count": analysis_count,
     }
 
 
 def get_report_statistics_batch(
     db: Session, project_ids: List[str]
 ) -> Dict[str, Dict[str, int]]:
-    """Per-project statistics for a list of project ids in 4 grouped queries.
+    """Per-project statistics for a list of project ids in 5 grouped queries.
 
-    Replaces the per-project 4-query fan-out used by `list_published_reports`
-    (4 × N round-trips for the list view → 4 round-trips total).
+    Replaces the per-project fan-out used by `list_published_reports`
+    (5 × N round-trips for the list view → 5 round-trips total). Same keys
+    and values as :func:`get_report_statistics`.
     """
     if not project_ids:
         return {}
@@ -508,6 +553,7 @@ def get_report_statistics_batch(
         "annotation_count": 0,
         "participant_count": 0,
         "model_count": 0,
+        "analysis_count": 0,
     }
     out: Dict[str, Dict[str, int]] = {pid: dict(zeros) for pid in project_ids}
 
@@ -559,6 +605,18 @@ def get_report_statistics_batch(
     )
     for pid, c in model_rows:
         out[pid]["model_count"] = int(c or 0)
+
+    analysis_rows = (
+        db.query(AnalysisRun.project_id, func.count(AnalysisRun.id))
+        .filter(
+            AnalysisRun.project_id.in_(project_ids),
+            AnalysisRun.status == "completed",
+        )
+        .group_by(AnalysisRun.project_id)
+        .all()
+    )
+    for pid, c in analysis_rows:
+        out[pid]["analysis_count"] = int(c or 0)
 
     return out
 
@@ -615,7 +673,11 @@ def get_report_models(db: Session, project_id: str) -> List[str]:
         .all()
     )
 
-    return [m[0] for m in models]
+    # Stored in the report's content (public reports serve it whole): no
+    # hidden (private custom) models, as in the snapshot.
+    ids = [m[0] for m in models]
+    hidden = hidden_model_ids(db, ids)
+    return [m for m in ids if m not in hidden]
 
 
 def get_evaluation_charts_data(db: Session, project_id: str) -> Dict:
@@ -837,7 +899,12 @@ def create_or_update_report_from_existing_data(
             .get("annotations", {})
             .get("acknowledgment_text"),
             "show_count": True,
-            "show_participants": True,
+            "show_participants": content.get("sections", {})
+            .get("annotations", {})
+            .get("show_participants", True),
+            "show_agreement": content.get("sections", {})
+            .get("annotations", {})
+            .get("show_agreement", True),
             "status": "completed",
             "editable": True,
             "visible": True,
@@ -891,11 +958,7 @@ def create_or_update_report_from_existing_data(
         if resolved:
             metrics = resolved
         else:
-            for eval in evaluations:
-                if eval.metrics and eval.model_id != "unknown":
-                    if eval.model_id not in metrics:
-                        metrics[eval.model_id] = {}
-                    metrics[eval.model_id].update(eval.metrics)
+            metrics = _run_level_metrics(db, evaluations)
 
         content["sections"]["evaluation"] = {
             "methods": methods,
@@ -923,7 +986,7 @@ def create_or_update_report_from_existing_data(
     content["metadata"] = {
         "last_auto_update": datetime.utcnow().isoformat(),
         "sections_completed": sections_completed,
-        "can_publish": all(s in sections_completed for s in ["data", "generation", "evaluation"]),
+        "can_publish": can_publish_project(db, project_id)[0],
     }
 
     report.content = content

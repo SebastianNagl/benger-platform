@@ -31,8 +31,9 @@ jest.mock('@/lib/api', () => ({
     getDashboardStats: jest.fn().mockResolvedValue({
       project_count: 5,
       task_count: 10,
-      projects_with_generations: 2,
-      projects_with_evaluations: 1,
+      generations_count: 2,
+      evaluations_count: 1,
+      analyses_count: 0,
     }),
   },
 }))

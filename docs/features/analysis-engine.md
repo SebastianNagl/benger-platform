@@ -333,6 +333,30 @@ problem the engine can name (an unknown column, a text outcome) fails the run
 with that message. Runs and their estimates are deleted with the project,
 and the purge removes their stored frames.
 
+### Counts and the run inventory
+
+Completed runs count wherever a project's numbers are shown. The project
+response carries `analysis_count` (detail and list), the project page's
+statistics card shows an Analyses line and the project list a badge once
+there is one, the dashboard overview answers `analyses_count` with an
+Analyses tile, and report statistics, the report snapshot and the published
+report list carry `analysis_count`. A run that reads further projects
+counts for its own project, also for viewers who may not open it: the
+number says only that a run exists. Pending, running and failed runs are
+not counted.
+
+`GET /api/runs?type=analysis` lists runs across projects for the `/runs`
+inventory (its Analyses tab), newest first, with the run's name, project,
+status, frame rows, estimates, spec hash and engine version, filtered by
+`project_id` and `status` and paged with `page` and `page_size`. It leaves
+out the runs the viewer could not open (inaccessible projects, and runs
+reading an input project the viewer may not read), and `total` counts the
+same runs, so the pages add up. A row opens the run page.
+
+The dashboard's older keys `projects_with_generations` and
+`projects_with_evaluations` stay as aliases of `generations_count` and
+`evaluations_count`.
+
 ## Results on the evaluations page
 
 Every result of a project is viewed on `/evaluations`. Its filter bar has a
@@ -400,10 +424,11 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   values and flags and opens the request it sent, with the hash check. The
   units need full read access to the task content (ORG_ADMIN, CONTRIBUTOR).
 
-Members with edit rights (CONTRIBUTOR, ORG_ADMIN) get **Start analysis**: a
-dialog that takes a spec as JSON, validates it against the engine (every
-problem it names is listed) and starts the run, which the view then selects
-and polls. A pending or running run is polled until it finishes.
+Superadmins and members whose project grants edit rights (`can_edit`) get
+**Start analysis**: a dialog that takes a spec as JSON, validates it against
+the engine (every problem it names is listed) and starts the run, which the
+view then selects and polls. A pending or running run is polled until it
+finishes.
 
 `/evaluations/analysis/{analysis_run_id}` is the run page, next to the
 evaluation run page `/evaluations/{id}`. It shows the same status, warnings,
@@ -443,7 +468,7 @@ with their own bounds. Links to result pages use the path helpers in
 
 The generic views take plain props and have a loader beside them, so the
 evaluations page, the run page, the report and overlays render the same
-components (CORE 2.69):
+components (CORE 2.71):
 
 | Component | Draws |
 |---|---|

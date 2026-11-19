@@ -12,11 +12,6 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-let mockUser: any = { id: 'u1', is_superadmin: true }
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser, isLoading: false }),
-}))
-
 jest.mock('@/lib/api/reports', () => ({
   publishReport: jest.fn(),
   unpublishReport: jest.fn(),
@@ -86,11 +81,11 @@ describe('PublicationToggle', () => {
     isPublic: false,
     canPublish: true,
     canPublishReason: '',
+    canEdit: true,
   }
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUser = { id: 'u1', is_superadmin: true }
     mockPublish.mockResolvedValue({ is_published: true, is_public: false })
     mockUnpublish.mockResolvedValue({ is_published: false, is_public: false })
     mockVisibility.mockResolvedValue({ is_published: true, is_public: true })
@@ -108,9 +103,8 @@ describe('PublicationToggle', () => {
       expect(screen.getByText(T.publish)).toBeInTheDocument()
     })
 
-    it('hides the publish button for non-superadmins (status only)', () => {
-      mockUser = { id: 'u2', is_superadmin: false, role: 'ORG_ADMIN' }
-      render(<PublicationToggle {...defaultProps} />)
+    it('hides the publish button for non-authors (status only)', () => {
+      render(<PublicationToggle {...defaultProps} canEdit={false} />)
 
       expect(screen.getByText(T.statusDraft)).toBeInTheDocument()
       expect(screen.queryByText(T.publish)).not.toBeInTheDocument()
@@ -147,8 +141,7 @@ describe('PublicationToggle', () => {
       const reasons = [
         'Report not found',
         'Project must have tasks',
-        'Project must have LLM generations',
-        'Project must have completed evaluations',
+        'Project must have annotations, generations, evaluations or analyses',
         'Report not created yet',
       ]
       for (const reason of reasons) {
@@ -345,9 +338,8 @@ describe('PublicationToggle', () => {
       })
     })
 
-    it('non-superadmins see the status but no actions', () => {
-      mockUser = { id: 'u2', is_superadmin: false, role: 'CONTRIBUTOR' }
-      render(<PublicationToggle {...props} />)
+    it('non-authors see the status but no actions', () => {
+      render(<PublicationToggle {...props} canEdit={false} />)
 
       expect(screen.getByText(T.visibleToOrgs)).toBeInTheDocument()
       expect(screen.queryByText(T.makePublic)).not.toBeInTheDocument()
@@ -428,9 +420,8 @@ describe('PublicationToggle', () => {
       })
     })
 
-    it('non-superadmins see the status and the link but no actions', () => {
-      mockUser = { id: 'u2', is_superadmin: false, role: 'ORG_ADMIN' }
-      render(<PublicationToggle {...props} />)
+    it('non-authors see the status and the link but no actions', () => {
+      render(<PublicationToggle {...props} canEdit={false} />)
 
       expect(screen.getByText(T.visibleToPublic)).toBeInTheDocument()
       expect(screen.getByLabelText(T.publicLink)).toBeInTheDocument()

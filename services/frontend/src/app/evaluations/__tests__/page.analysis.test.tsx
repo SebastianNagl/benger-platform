@@ -307,6 +307,24 @@ describe('Evaluations page, Analyses result type', () => {
     )
   })
 
+  it('keeps chartType=data from the URL over a saved chart preference', async () => {
+    localStorage.setItem('benger-preferred-chart-type', 'table')
+    mockSearch = new URLSearchParams(
+      'projectId=project-1&type=analysis&chartType=data',
+    )
+    const user = userEvent.setup()
+    await renderReady()
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('data'))
+    expect(screen.queryByTestId('interval-table')).toBeNull()
+    expect(screen.queryByTestId('contrast-forest-plot')).toBeNull()
+
+    // Choosing a view here leaves the metrics view's preference alone.
+    await user.click(screen.getByText('Data View'))
+    await user.click(screen.getByText('Bar Chart'))
+    await waitFor(() => expect(lastParams().get('chartType')).toBe('bar'))
+    expect(localStorage.getItem('benger-preferred-chart-type')).toBe('table')
+  })
+
   it('drops URL filters the run does not have', async () => {
     mockSearch = new URLSearchParams(
       'projectId=project-1&type=analysis&systems=nope&family=nope&estimands=role,nope&chartType=radar',
@@ -495,6 +513,29 @@ describe('Evaluations page, Analyses result type', () => {
     await renderReady()
     expect(screen.queryByTestId('analysis-start')).toBeNull()
     expect(screen.queryByTestId('start-analysis-dialog')).toBeNull()
+  })
+
+  it('follows the edit decision, not the role, for run controls', async () => {
+    mockList.mockResolvedValue({
+      items: [project({ effective_role: 'CONTRIBUTOR', can_edit: false })],
+      total: 1,
+    })
+    mockSearch = new URLSearchParams(
+      'projectId=project-1&type=analysis&newRunFrom=run-1',
+    )
+    await renderReady()
+    expect(screen.queryByTestId('analysis-start')).toBeNull()
+    expect(screen.queryByTestId('start-analysis-dialog')).toBeNull()
+  })
+
+  it('offers run controls to superadmins without edit rights', async () => {
+    mockUser = { id: 'u1', is_superadmin: true }
+    mockList.mockResolvedValue({
+      items: [project({ effective_role: 'ANNOTATOR', can_edit: false })],
+      total: 1,
+    })
+    await renderReady()
+    expect(screen.getByTestId('analysis-start')).toBeInTheDocument()
   })
 })
 

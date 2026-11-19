@@ -30,7 +30,7 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import build_report_snapshot
+from report_snapshot import apply_section_visibility, build_report_snapshot, public_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,8 @@ class AnnotationsSection(ReportSection):
     custom_text: Optional[str] = None
     show_count: bool = True
     show_participants: bool = True
+    # Inter-annotator agreement from the snapshot, when tasks overlap.
+    show_agreement: bool = True
     acknowledgment_text: Optional[str] = None
 
 
@@ -121,6 +123,9 @@ class ReportResponse(BaseModel):
     updated_at: Optional[datetime] = None
     can_publish: bool
     can_publish_reason: str
+    # Whether the caller may edit, publish and unpublish this report (see
+    # ``can_edit_report``); the UI shows its editor entry points on this.
+    can_edit: bool = False
 
 
 class ReportUpdateRequest(BaseModel):
@@ -149,6 +154,8 @@ class PublishedReportListItem(BaseModel):
     task_count: int
     annotation_count: int
     model_count: int
+    # Completed analysis runs (as of the snapshot when it records them).
+    analysis_count: int = 0
     organizations: List[Dict[str, str]]
     is_public: bool = False
     # 'public' (anyone) or 'organizations' (members of the project's orgs)
@@ -162,14 +169,65 @@ class ReportDataResponse(BaseModel):
     snapshot: Optional[Dict[str, Any]] = None
 
 
+# Per-model values the report service once wrote into ``content.sections``
+# (before the snapshot existed). No reader uses them, and reports written
+# before hidden models were filtered there may still list a private custom
+# model, so readers who do not author the report never get them.
+_LEGACY_MODEL_FIELDS = (("evaluation", "metrics"), ("generation", "models"))
+
+
+def _reader_content(content: Dict[str, Any], member: bool) -> Dict[str, Any]:
+    """The content as a reader who does not author the report gets it; a
+    reader outside the project (``member`` false) also gets the public view
+    of the snapshot (see ``report_snapshot.public_snapshot``)."""
+    if not member and content.get("snapshot") is not None:
+        content = {**content, "snapshot": public_snapshot(content["snapshot"])}
+    sections = content.get("sections") if isinstance(content.get("sections"), dict) else None
+    if not sections:
+        return content
+    trimmed = dict(sections)
+    for section, field in _LEGACY_MODEL_FIELDS:
+        if isinstance(trimmed.get(section), dict) and field in trimmed[section]:
+            trimmed[section] = {k: v for k, v in trimmed[section].items() if k != field}
+    return {**content, "sections": trimmed}
+
+
+def _served_content(report: ProjectReport) -> Dict[str, Any]:
+    """The stored content as its sections allow it to be served: with
+    participants hidden, no participant list and no per-person snapshot data
+    (see ``apply_section_visibility``). The stored copy stays complete."""
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") or {}
+    annotations = sections.get("annotations") or {}
+    if annotations.get("show_participants") is False and "participants" in annotations:
+        sections = {**sections, "annotations": {**annotations, "participants": []}}
+    return {
+        **content,
+        "sections": sections,
+        "snapshot": apply_section_visibility(content.get("snapshot"), sections),
+    }
+
+
 def _report_response(
-    report: ProjectReport, project_title: str, can_publish: bool, reason: str
+    report: ProjectReport,
+    project_title: str,
+    can_publish: bool,
+    reason: str,
+    can_edit: bool = False,
+    member: bool = False,
 ) -> "ReportResponse":
+    """``member``: the reader has the project's report read rights
+    (``check_report_access``); authors always do. Every reader gets the
+    content as its sections allow it to be served (``_served_content``);
+    a reader who does not author the report gets the reader view on top."""
+    served = _served_content(report)
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
-        content=ReportContent(**report.content),
+        content=ReportContent(
+            **(served if can_edit else _reader_content(served, member))
+        ),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
         published_at=report.published_at,
@@ -179,6 +237,7 @@ def _report_response(
         updated_at=report.updated_at,
         can_publish=can_publish,
         can_publish_reason=reason,
+        can_edit=can_edit,
     )
 
 
@@ -218,6 +277,48 @@ def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
 
 
 # ============= Helper Functions =============
+
+#: 403 detail for callers who may not author a project's report.
+REPORT_AUTHOR_REQUIRED_DETAIL = (
+    "Only the project owner, admins of the project's organizations and "
+    "superadmins can edit or publish this report"
+)
+
+# Org roles that author a project's report besides the project creator.
+REPORT_AUTHOR_ROLES = ("ORG_ADMIN",)
+
+
+async def can_edit_report(db: AsyncSession, user: Optional[User], project_id: str) -> bool:
+    """Who authors a project's report: edit it, publish, unpublish, refresh
+    its snapshot and switch its visibility.
+
+    A superadmin; the project's creator (its owner); an active ORG_ADMIN of
+    an organization the project is attached to through an attachment that
+    counts for them (a grouped attachment only for the group's members and
+    the org's admins, never through a protected LMS link). This is the
+    project edit rule of ``check_user_can_edit_project_async`` narrowed to
+    the ORG_ADMIN role: contributors, annotators and plain members read a
+    published report but do not author it. A soft-deleted project's report
+    is authored by superadmins only.
+    """
+    if user is None:
+        return False
+    if user.is_superadmin:
+        return True
+    from routers.projects.helpers import check_user_can_edit_project_async
+
+    return await check_user_can_edit_project_async(
+        db, user, project_id, allowed_roles=REPORT_AUTHOR_ROLES
+    )
+
+
+async def require_report_author(db: AsyncSession, user: User, project_id: str) -> None:
+    """403 unless :func:`can_edit_report` holds."""
+    if not await can_edit_report(db, user, project_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=REPORT_AUTHOR_REQUIRED_DETAIL
+        )
+
 
 
 async def check_report_access(
@@ -295,10 +396,11 @@ async def get_project_report(
     """
     Get report for a project
 
-    - Superadmins: Can view draft or published reports
-    - Org members: Can view only published reports
+    - Report authors (``can_edit_report``): draft or published reports
+    - Org members: only published reports
 
-    If report doesn't exist, it will be auto-created for superadmins with all existing project data
+    If the report doesn't exist, it is auto-created for report authors with
+    all existing project data.
     """
     # Check if project exists
     project = (
@@ -309,6 +411,8 @@ async def get_project_report(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
         )
 
+    is_author = await can_edit_report(db, current_user, project_id)
+
     # Get report - create if it doesn't exist (retroactive for existing projects)
     report = (
         await db.execute(
@@ -318,7 +422,7 @@ async def get_project_report(
     if not report:
         # Auto-create report for existing projects with all current data
         # This allows existing projects to get reports retroactively
-        if current_user.is_superadmin:
+        if is_author:
             logger.info(
                 f"Auto-creating report for existing project {project_id} with all current data"
             )
@@ -332,7 +436,7 @@ async def get_project_report(
             await db.commit()
             report = await db.get(ProjectReport, new_report_id)
         else:
-            # Non-superadmins can't trigger report creation
+            # Readers can't trigger report creation
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Report not found for project {project_id}",
@@ -340,20 +444,22 @@ async def get_project_report(
 
     # Check if user can view this report
     if not report.is_published:
-        # Only superadmins can view unpublished reports
-        if not current_user.is_superadmin:
+        # Only report authors can view unpublished reports
+        if not is_author:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="This report is not published yet"
             )
 
     # For published reports, check organization access
-    if report.is_published and not current_user.is_superadmin:
+    if report.is_published and not is_author:
         await check_report_access(db, project_id, current_user, require_edit=False)
 
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(
+        report, project.title, can_publish, reason, can_edit=is_author, member=True
+    )
 
 
 @router.post("/projects/{project_id}/report", response_model=ReportResponse)
@@ -364,15 +470,11 @@ async def update_project_report(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Update report content (superadmin only)
+    Update report content (report authors, see ``can_edit_report``)
 
     Allows editing report sections while preserving auto-populated data
     """
-    # Only superadmins can edit reports
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can edit reports"
-        )
+    await require_report_author(db, current_user, project_id)
 
     # Check if project exists
     project = (
@@ -396,11 +498,17 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned and survives a body that omits it.
+    # the computed snapshot and participant list are server-owned, so a
+    # client-sent snapshot is ignored and the stored ones are kept.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
-    if new_content.get("snapshot") is None and existing.get("snapshot"):
+    new_content.pop("snapshot", None)
+    if existing.get("snapshot") is not None:
         new_content["snapshot"] = existing["snapshot"]
+    existing_annotations = (existing.get("sections") or {}).get("annotations") or {}
+    new_annotations = (new_content.get("sections") or {}).get("annotations")
+    if isinstance(new_annotations, dict) and "participants" in existing_annotations:
+        new_annotations["participants"] = existing_annotations["participants"]
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -410,7 +518,7 @@ async def update_project_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(report, project.title, can_publish, reason, can_edit=True)
 
 
 @router.put("/projects/{project_id}/report/publish", response_model=ReportResponse)
@@ -421,17 +529,13 @@ async def publish_report(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Publish a report (superadmin only)
+    Publish a report (report authors, see ``can_edit_report``)
 
     Validates that all requirements are met, computes the report snapshot
     (the numbers a published report shows, frozen at this point) and sets
     the visibility: organizations only (default) or public.
     """
-    # Only superadmins can publish reports
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can publish reports"
-        )
+    await require_report_author(db, current_user, project_id)
 
     # Check if project exists
     project = (
@@ -472,7 +576,7 @@ async def publish_report(
     await db.commit()
     await db.refresh(report)
 
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(report, project.title, can_publish, reason, can_edit=True)
 
 
 @router.put("/projects/{project_id}/report/unpublish", response_model=ReportResponse)
@@ -482,13 +586,9 @@ async def unpublish_report(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Unpublish a report (superadmin only)
+    Unpublish a report (report authors, see ``can_edit_report``)
     """
-    # Only superadmins can unpublish reports
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can unpublish reports"
-        )
+    await require_report_author(db, current_user, project_id)
 
     # Check if project exists
     project = (
@@ -523,7 +623,7 @@ async def unpublish_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(report, project.title, can_publish, reason, can_edit=True)
 
 
 async def _load_project_and_report(db: AsyncSession, project_id: str):
@@ -554,11 +654,8 @@ async def set_report_visibility(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Switch a published report between organizations-only and public (superadmin)."""
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can change report visibility"
-        )
+    """Switch a published report between organizations-only and public (report authors)."""
+    await require_report_author(db, current_user, project_id)
     project, report = await _load_project_and_report(db, project_id)
     if not report.is_published:
         raise HTTPException(
@@ -570,7 +667,7 @@ async def set_report_visibility(
     await db.commit()
     await db.refresh(report)
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(report, project.title, can_publish, reason, can_edit=True)
 
 
 @router.post("/projects/{project_id}/report/refresh", response_model=ReportResponse)
@@ -579,15 +676,12 @@ async def refresh_report_snapshot(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Recompute the report snapshot from current data (superadmin).
+    """Recompute the report snapshot from current data (report authors).
 
     Published reports keep their numbers until this is called explicitly, so
     a benchmark report never changes underneath its readers.
     """
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only superadmins can refresh reports"
-        )
+    await require_report_author(db, current_user, project_id)
     project, report = await _load_project_and_report(db, project_id)
     snapshot = await db.run_sync(_build_snapshot_sync, project_id)
     report.content = {**(report.content or {}), "snapshot": snapshot}
@@ -595,7 +689,7 @@ async def refresh_report_snapshot(
     await db.commit()
     await db.refresh(report)
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
-    return _report_response(report, project.title, can_publish, reason)
+    return _report_response(report, project.title, can_publish, reason, can_edit=True)
 
 
 @router.get("/reports", response_model=List[PublishedReportListItem])
@@ -685,7 +779,13 @@ async def list_published_reports(
     for report in reports:
         stats = dict(stats_map.get(
             report.project_id,
-            {"task_count": 0, "annotation_count": 0, "participant_count": 0, "model_count": 0},
+            {
+                "task_count": 0,
+                "annotation_count": 0,
+                "participant_count": 0,
+                "model_count": 0,
+                "analysis_count": 0,
+            },
         ))
         # A published report shows its frozen snapshot, so the card must count
         # the same way (hidden private models excluded, numbers as of the
@@ -694,7 +794,9 @@ async def list_published_reports(
         snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else None
         if snapshot:
             snap_stats = snapshot.get("statistics") or {}
-            for key in ("task_count", "annotation_count", "model_count"):
+            # A snapshot from before analyses were counted has no
+            # analysis_count; the card then shows the live count.
+            for key in ("task_count", "annotation_count", "model_count", "analysis_count"):
                 if isinstance(snap_stats.get(key), int):
                     stats[key] = snap_stats[key]
         result.append(
@@ -706,6 +808,7 @@ async def list_published_reports(
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
+                analysis_count=stats["analysis_count"],
                 organizations=orgs_by_project.get(report.project_id, []),
                 is_public=bool(report.is_public),
                 visibility="public" if report.is_public else "organizations",
@@ -726,7 +829,8 @@ async def get_report_data(
 
     - Public reports: anyone, signed in or not
     - Published organization reports: members of the project's organizations
-    - Drafts: superadmins only (the snapshot is computed on first view)
+    - Drafts: report authors only (``can_edit_report``; the snapshot is
+      computed on first view)
     """
     report = (
         await db.execute(
@@ -741,24 +845,33 @@ async def get_report_data(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Report {report_id} not found"
         )
 
-    is_superadmin = bool(current_user and current_user.is_superadmin)
+    is_author = await can_edit_report(db, current_user, report.project_id)
+    member = is_author
     if not report.is_published:
-        if not is_superadmin:
+        if not is_author:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN if current_user else status.HTTP_401_UNAUTHORIZED,
                 detail="This report is not published yet",
             )
-    elif not report.is_public and not is_superadmin:
-        if current_user is None:
+    elif not is_author:
+        if not report.is_public and current_user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Sign in to view this report",
             )
-        await check_report_access(db, report.project_id, current_user, require_edit=False)
+        if current_user is not None:
+            try:
+                member = await check_report_access(
+                    db, report.project_id, current_user, require_edit=False
+                )
+            except HTTPException:
+                # A public report stays readable, in its public view.
+                if not report.is_public:
+                    raise
 
     content = report.content if isinstance(report.content, dict) else {}
     snapshot = content.get("snapshot")
-    if snapshot is None and is_superadmin:
+    if snapshot is None and is_author:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
         snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
         report.content = {**content, "snapshot": snapshot}
@@ -767,11 +880,14 @@ async def get_report_data(
 
     can_publish, reason = (
         await db.run_sync(_can_publish_report_sync, report.project_id)
-        if is_superadmin
+        if is_author
         else (report.is_published, "published")
     )
 
-    return ReportDataResponse(
-        report=_report_response(report, report.project.title, can_publish, reason),
-        snapshot=snapshot,
+    response = _report_response(
+        report, report.project.title, can_publish, reason, can_edit=is_author, member=member
     )
+    # The report's content carries the snapshot as this reader may see it
+    # (section visibility, and the public view for a reader outside the
+    # project).
+    return ReportDataResponse(report=response, snapshot=response.content.snapshot)
