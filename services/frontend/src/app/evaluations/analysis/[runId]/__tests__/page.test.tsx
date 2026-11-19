@@ -425,7 +425,12 @@ describe('AnalysisRunPage', () => {
     mockGetRun.mockResolvedValue(makePositionRun())
     mockListEstimates.mockResolvedValue(makePositionEstimates())
     mockListDesigns.mockRejectedValue(httpError(403))
-    mockListUnits.mockResolvedValue({ items: [], total: 0, limit: 12, offset: 0 })
+    mockListUnits.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 12,
+      offset: 0,
+    })
     render(<AnalysisRunPage />)
     await screen.findByTestId('analysis-profile-section')
     await waitFor(() =>

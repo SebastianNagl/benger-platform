@@ -546,48 +546,59 @@ describe('GenerationRunDetailPage', () => {
     ['verified', true, true, 'request-hash-ok'],
     ['mismatch', true, false, 'request-hash-mismatch'],
     ['record_missing', false, null, 'request-hash-unverifiable'],
-  ] as const)('shows the hash check of a trial (%s)', async (state, hasRecord, matches, testId) => {
-    routeGet(
-      {
-        ...baseDetail,
-        children: [
-          {
+  ] as const)(
+    'shows the hash check of a trial (%s)',
+    async (state, hasRecord, matches, testId) => {
+      routeGet(
+        {
+          ...baseDetail,
+          children: [
+            {
+              id: 'child-1',
+              run_index: 0,
+              status: 'completed',
+              has_response: true,
+              has_request_record: hasRecord,
+              request_sha256: 'ab'.repeat(32),
+            },
+          ],
+        },
+        {
+          'child-1': {
             id: 'child-1',
             run_index: 0,
-            status: 'completed',
-            has_response: true,
-            has_request_record: hasRecord,
+            request_record: hasRecord
+              ? {
+                  capture: 'http_body',
+                  messages: [{ role: 'user', content: 'Akte' }],
+                }
+              : null,
             request_sha256: 'ab'.repeat(32),
+            computed_sha256:
+              matches === false
+                ? 'cd'.repeat(32)
+                : hasRecord
+                  ? 'ab'.repeat(32)
+                  : null,
+            hash_matches: matches,
+            hash_check: state,
           },
-        ],
-      },
-      {
-        'child-1': {
-          id: 'child-1',
-          run_index: 0,
-          request_record: hasRecord
-            ? { capture: 'http_body', messages: [{ role: 'user', content: 'Akte' }] }
-            : null,
-          request_sha256: 'ab'.repeat(32),
-          computed_sha256: matches === false ? 'cd'.repeat(32) : hasRecord ? 'ab'.repeat(32) : null,
-          hash_matches: matches,
-          hash_check: state,
         },
-      },
-    )
-    render(
-      <GenerationRunDetailPage
-        params={Promise.resolve({ id: 'gen-run-123' })}
-      />,
-    )
-    const sent = await screen.findByTestId('sent-request')
-    expect(apiClient.get).toHaveBeenCalledWith(
-      '/runs/generations/gen-run-123/trials/child-1/request',
-    )
-    expect(within(sent).getByTestId(testId)).toBeInTheDocument()
-    if (state !== 'mismatch')
-      expect(within(sent).queryByTestId('request-hash-mismatch')).toBeNull()
-  })
+      )
+      render(
+        <GenerationRunDetailPage
+          params={Promise.resolve({ id: 'gen-run-123' })}
+        />,
+      )
+      const sent = await screen.findByTestId('sent-request')
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/runs/generations/gen-run-123/trials/child-1/request',
+      )
+      expect(within(sent).getByTestId(testId)).toBeInTheDocument()
+      if (state !== 'mismatch')
+        expect(within(sent).queryByTestId('request-hash-mismatch')).toBeNull()
+    },
+  )
 
   it('fetches the selected trial only and marks worker calls', async () => {
     const user = userEvent.setup()
