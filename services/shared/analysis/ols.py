@@ -65,6 +65,16 @@ class Fit:
     warnings: List[str] = field(default_factory=list)
     fe_levels: List[int] = field(default_factory=list)
     k_ssc: Optional[int] = None
+    # Iterative estimators: convergence, iterations and estimator-specific
+    # results (log-likelihood, variance components, optimizer) for the fit
+    # summary; parameters a separation check flagged.
+    converged: Optional[bool] = None
+    iterations: Optional[int] = None
+    extra: dict = field(default_factory=dict)
+    separated: List[str] = field(default_factory=list)
+    # The design of the estimation sample, for average marginal effects
+    # (estimators.LogitDesign); None for the other estimators.
+    design: Optional[object] = None
 
     def index(self, name: str) -> int:
         return self.names.index(name)

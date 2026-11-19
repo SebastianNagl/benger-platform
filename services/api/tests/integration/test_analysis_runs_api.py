@@ -108,6 +108,8 @@ async def test_engine_info(async_test_client, async_test_db, world):
     body = r.json()
     assert body["engine_version"] and body["spec_version"] == 1
     assert "fe_ols" in body["estimators"] and "if" in body["expression_functions"]
+    assert {"logit", "mixedlm", "bradley_terry", "plackett_luce", "clogit_rank1", "spearman"} <= set(body["estimators"])
+    assert body["estimator_conventions"]["mixedlm"]["reml"] is True and "slot" in body["frame_units"]
     assert body["spec_schema"]["title"] == "BenGER analysis spec"
     assert body["default_conventions"]["ssc"] == "statsmodels"
 
@@ -341,3 +343,227 @@ async def test_v1_needs_the_scope_and_hides_other_organizations(async_test_clien
     assert r2.status_code == 403
     assert r3.status_code == 404 and r3.json()["error"]["code"] == "analysis_run_not_found"
     assert r4.status_code == 404 and r5.status_code == 404
+
+
+# --------------------------------------------------------------------------- #
+# lookup tables, cross-project inputs
+# --------------------------------------------------------------------------- #
+
+TABLE = {"name": "codes", "description": "a coding", "columns": ["system", "group", "code"],
+         "rows": [["sys_a", "a", 1], {"system": "sys_b", "group": "a", "code": 0}]}
+
+
+async def test_lookup_tables_are_versioned(async_test_client, async_test_db, world):
+    from analysis.lookups import lookup_hash
+
+    pid = world["project"].id
+    base = f"/api/projects/{pid}/analysis-lookups"
+    with v1_auth(async_test_db, session_user=world["member"]):
+        first = await async_test_client.post(base, json=TABLE)
+        second = await async_test_client.post(base, json={**TABLE, "rows": [["sys_a", "a", 2]]})
+        invalid = await async_test_client.post(
+            base, json={"name": "bad name", "columns": ["a", "a"], "rows": [[1, [1]]]}
+        )
+        listed = await async_test_client.get(base)
+        one = await async_test_client.get(f"{base}/codes/versions/1")
+        missing = await async_test_client.get(f"{base}/codes/versions/9")
+    with v1_auth(async_test_db, session_user=world["annotator"]):
+        denied = await async_test_client.post(base, json=TABLE)
+        readable = await async_test_client.get(base)
+    with v1_auth(async_test_db, session_user=world["outsider"]):
+        hidden = await async_test_client.get(base)
+    assert first.status_code == 201, first.text
+    assert first.json()["version"] == 1 and second.json()["version"] == 2
+    assert first.headers["location"] == f"{base}/codes/versions/1"
+    assert first.json()["content_hash"] == lookup_hash(TABLE["columns"], [["sys_a", "a", 1], ["sys_b", "a", 0]])
+    assert first.json()["row_count"] == 2 and "rows" not in first.json()
+    assert invalid.status_code == 422 and invalid.json()["detail"]["code"] == "invalid_lookup_table"
+    errors = " ".join(invalid.json()["detail"]["errors"])
+    assert "/name" in errors and "column names repeat" in errors
+    assert [(i["name"], i["version"]) for i in listed.json()["items"]] == [("codes", 2), ("codes", 1)]
+    assert one.json()["rows"] == [["sys_a", "a", 1], ["sys_b", "a", 0]]
+    assert missing.status_code == 404
+    assert denied.status_code == 403 and readable.status_code == 200
+    assert hidden.status_code in (403, 404)
+
+
+def _lookup_spec(table):
+    return {**SPEC, "lookups": [{"id": "codes", "table": table, "keys": {"system": "system"}, "columns": {"code": "code"}}]}
+
+
+async def test_a_run_checks_its_stored_lookups(async_test_client, async_test_db, world):
+    pid = world["project"].id
+    with v1_auth(async_test_db, session_user=world["member"]), _queued() as send:
+        created = await async_test_client.post(f"/api/projects/{pid}/analysis-lookups", json=TABLE)
+        digest = created.json()["content_hash"]
+        ok = await _start(async_test_client, pid, spec=_lookup_spec({"name": "codes", "version": 1, "content_hash": digest}))
+        missing = await _start(async_test_client, pid, spec=_lookup_spec({"name": "codes", "version": 3}))
+        wrong = await _start(async_test_client, pid, spec=_lookup_spec({"name": "codes", "version": 1, "content_hash": "0" * 64}))
+        bad_col = await _start(
+            async_test_client, pid,
+            spec={**_lookup_spec({"name": "codes", "version": 1}), "lookups": [
+                {"id": "codes", "table": {"name": "codes", "version": 1}, "keys": {"system": "nope"}, "columns": {"code": "code"}}]},
+        )
+    assert ok.status_code == 202, ok.text
+    assert send.call_count == 1
+    assert missing.status_code == 422 and "does not exist" in missing.json()["detail"]["errors"][0]
+    assert wrong.status_code == 422 and "content_hash" in wrong.json()["detail"]["errors"][0]
+    assert bad_col.status_code == 422 and "no column(s) nope" in bad_col.json()["detail"]["errors"][0]
+
+
+async def test_cross_project_inputs_need_content_access(async_test_client, async_test_db, world):
+    db = async_test_db
+    sibling = await make_project(db, world["admin"].id, org_id=world["org"].id, title="sibling")
+    await db.commit()
+    pid = world["project"].id
+
+    def spec_reading(project_id):
+        return {**SPEC, "inputs": {"designs": ["role_swap"], "projects": [{"project_id": project_id, "designs": ["d2"]}]}}
+
+    with _queued() as send:
+        with v1_auth(db, session_user=world["member"]):
+            ok = await _start(async_test_client, pid, spec=spec_reading(sibling.id))
+            foreign = await _start(async_test_client, pid, spec=spec_reading(world["other"]["project"].id))
+            unknown = await _start(async_test_client, pid, spec=spec_reading(str(uuid.uuid4())))
+        restricted = (await svc.create_personal_key(
+            db, world["member"].id, {"name": "k", "scopes": ["evaluations:run"], "project_ids": [pid]}
+        ))[1]
+        # the key gate authenticates keys on the full API (no session override)
+        by_key = await async_test_client.post(
+            f"/api/projects/{pid}/analysis-runs", json={"spec": spec_reading(sibling.id)}, headers=bearer(restricted)
+        )
+        allowed_key = (await svc.create_personal_key(
+            db, world["member"].id, {"name": "k2", "scopes": ["evaluations:run"], "project_ids": [pid, sibling.id]}
+        ))[1]
+        by_wider_key = await async_test_client.post(
+            f"/api/projects/{pid}/analysis-runs", json={"spec": spec_reading(sibling.id)}, headers=bearer(allowed_key)
+        )
+    assert ok.status_code == 202, ok.text
+    for denied in (foreign, unknown, by_key):
+        assert denied.status_code == 403, denied.text
+        assert denied.json()["detail"]["code"] == "analysis_input_forbidden"
+    assert by_wider_key.status_code == 202, by_wider_key.text
+    assert send.call_count == 2
+
+
+def _reading(run, *, inputs=None, lookup_owner=None):
+    spec = dict(run.normalized_spec)
+    if inputs:
+        spec["inputs"] = {"designs": ["role_swap"], "projects": [{"project_id": p, "designs": ["d"]} for p in inputs]}
+    if lookup_owner:
+        spec["lookups"] = [{"id": "codes", "table": {"name": "codes", "version": 1, "project_id": lookup_owner},
+                            "keys": {"system": "system"}, "columns": {"code": "code"}}]
+    run.normalized_spec = spec
+
+
+async def test_the_frame_of_a_cross_project_run_needs_access_to_every_project(async_test_client, async_test_db, world):
+    db = async_test_db
+    sibling = await make_project(db, world["admin"].id, org_id=world["org"].id, title="sibling")
+    foreign = world["other"]["project"].id
+    run = await _completed_run(db, world["project"], world["admin"], frame_key="analysis/2026/11/x.parquet")
+    _reading(run, inputs=[sibling.id])
+    run.resolved_inputs = {"projects": [sibling.id], "lookups": []}
+    via_lookup = await _completed_run(db, world["project"], world["admin"], frame_key="analysis/2026/11/y.parquet")
+    _reading(via_lookup, lookup_owner=foreign)
+    await db.commit()
+    with patch("storage.object_storage.object_storage.get_download_url", return_value="https://storage.example/f"):
+        with v1_auth(db, session_user=world["member"]):
+            own = await async_test_client.get(f"/api/analysis-runs/{run.id}/frame", params={"json": True})
+            detail = await async_test_client.get(f"/api/analysis-runs/{run.id}")
+            lookup_frame = await async_test_client.get(f"/api/analysis-runs/{via_lookup.id}/frame")
+        with v1_auth(db, session_user=world["annotator"]):
+            annotator_frame = await async_test_client.get(f"/api/analysis-runs/{run.id}/frame")
+        with v1_auth(db, session_user=world["superadmin"]):
+            allowed = await async_test_client.get(f"/api/analysis-runs/{via_lookup.id}/frame", params={"json": True})
+    assert own.status_code == 200 and own.json()["url"] == "https://storage.example/f"
+    assert detail.json()["resolved_inputs"]["projects"] == [sibling.id]
+    assert lookup_frame.status_code == 404
+    assert annotator_frame.status_code == 403
+    assert allowed.status_code == 200 and allowed.json()["url"] == "https://storage.example/f"
+
+
+async def test_a_cross_project_run_is_read_only_with_access_to_every_input_project(
+    async_test_client, async_test_db, world
+):
+    db = async_test_db
+    pid = world["project"].id
+    sibling = await make_project(db, world["admin"].id, org_id=world["org"].id, title="sibling")
+    foreign = world["other"]["project"].id
+    plain = await _completed_run(db, world["project"], world["admin"])
+    readable = await _completed_run(db, world["project"], world["admin"])
+    _reading(readable, inputs=[sibling.id], lookup_owner=sibling.id)
+    by_input = await _completed_run(db, world["project"], world["admin"])
+    _reading(by_input, inputs=[sibling.id, foreign])
+    by_lookup = await _completed_run(db, world["project"], world["admin"])
+    _reading(by_lookup, lookup_owner=foreign)
+    await db.commit()
+    key = await _key(db, world, ["results:read"])
+    hidden = (by_input, by_lookup)
+    with v1_auth(db, session_user=world["member"]):
+        listed = (await async_test_client.get(f"/api/projects/{pid}/analysis-runs")).json()
+        paged = (await async_test_client.get(f"/api/projects/{pid}/analysis-runs", params={"limit": 1, "offset": 1})).json()
+        reads = [await async_test_client.get(f"/api/analysis-runs/{r.id}{tail}") for r in hidden for tail in ("", "/estimates")]
+        ok = [await async_test_client.get(f"/api/analysis-runs/{readable.id}{tail}") for tail in ("", "/estimates")]
+    with v1_auth(db):
+        v1_list = (await async_test_client.get(f"/api/v1/projects/{pid}/analysis-runs", headers=bearer(key))).json()
+        v1_reads = [
+            await async_test_client.get(f"/api/v1/analysis-runs/{r.id}{tail}", headers=bearer(key))
+            for r in hidden for tail in ("", "/estimates")
+        ]
+        v1_ok = await async_test_client.get(f"/api/v1/analysis-runs/{readable.id}/estimates", headers=bearer(key))
+    with v1_auth(db, session_user=world["superadmin"]):
+        everything = (await async_test_client.get(f"/api/projects/{pid}/analysis-runs")).json()
+        super_reads = [await async_test_client.get(f"/api/analysis-runs/{r.id}/estimates") for r in hidden]
+    assert sorted(i["id"] for i in listed["items"]) == sorted([plain.id, readable.id]) and listed["total"] == 2
+    assert len(paged["items"]) == 1 and paged["total"] == 2
+    assert [r.status_code for r in reads] == [404] * 4
+    assert [r.status_code for r in ok] == [200, 200] and len(ok[1].json()["items"]) == 3
+    assert sorted(i["id"] for i in v1_list["items"]) == sorted([plain.id, readable.id])
+    assert [r.status_code for r in v1_reads] == [404] * 4
+    assert all(r.json()["error"]["code"] == "analysis_run_not_found" for r in v1_reads)
+    assert v1_ok.status_code == 200 and len(v1_ok.json()["items"]) == 3
+    assert everything["total"] == 4
+    assert [r.status_code for r in super_reads] == [200, 200]
+
+
+async def test_a_run_stays_readable_after_its_input_project_is_purged(async_test_client, async_test_db, world):
+    from datetime import datetime, timezone
+
+    from project_purge import purge_project_data
+
+    db = async_test_db
+    pid = world["project"].id
+    foreign = world["other"]["project"]
+    sibling = await make_project(db, world["admin"].id, org_id=world["org"].id, title="sibling")
+    orphaned = await _completed_run(db, world["project"], world["admin"], frame_key="analysis/2026/11/p.parquet")
+    _reading(orphaned, inputs=[foreign.id], lookup_owner=foreign.id)
+    behind_deleted = await _completed_run(db, world["project"], world["admin"])
+    _reading(behind_deleted, inputs=[sibling.id])
+    now = datetime.now(timezone.utc)
+    foreign.deleted_at = now
+    sibling.deleted_at = now
+    await db.commit()
+    await db.run_sync(lambda s: purge_project_data(s, foreign.id))
+    await db.commit()
+    key = await _key(db, world, ["results:read"])
+    with v1_auth(db, session_user=world["member"]):
+        listed = (await async_test_client.get(f"/api/projects/{pid}/analysis-runs")).json()
+        detail = await async_test_client.get(f"/api/analysis-runs/{orphaned.id}")
+        estimates = await async_test_client.get(f"/api/analysis-runs/{orphaned.id}/estimates")
+        hidden = await async_test_client.get(f"/api/analysis-runs/{behind_deleted.id}")
+    with v1_auth(db):
+        v1_list = (await async_test_client.get(f"/api/v1/projects/{pid}/analysis-runs", headers=bearer(key))).json()
+        v1_detail = await async_test_client.get(f"/api/v1/analysis-runs/{orphaned.id}", headers=bearer(key))
+        v1_hidden = await async_test_client.get(f"/api/v1/analysis-runs/{behind_deleted.id}", headers=bearer(key))
+    with v1_auth(db, session_user=world["superadmin"]):
+        super_hidden = await async_test_client.get(f"/api/analysis-runs/{behind_deleted.id}")
+    warning = f"frame deleted: input project {foreign.id} was purged"
+    assert [i["id"] for i in listed["items"]] == [orphaned.id] and listed["total"] == 1
+    assert detail.status_code == 200 and warning in detail.json()["warnings"]
+    assert detail.json()["frame_available"] is False
+    assert estimates.status_code == 200 and len(estimates.json()["items"]) == 3
+    assert hidden.status_code == 404
+    assert [i["id"] for i in v1_list["items"]] == [orphaned.id]
+    assert v1_detail.status_code == 200 and warning in v1_detail.json()["warnings"]
+    assert v1_hidden.status_code == 404
+    assert super_hidden.status_code == 200

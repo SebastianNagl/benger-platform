@@ -312,6 +312,9 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/projects/{project_id}` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}` | `projects:read` | bound |
 | PATCH | `/api/projects/{project_id}` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/analysis-lookups` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/analysis-lookups` | `evaluations:run` | bound |
+| GET | `/api/projects/{project_id}/analysis-lookups/{name}/versions/{version}` | `results:read` | bound |
 | GET | `/api/projects/{project_id}/analysis-runs` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/analysis-runs` | `evaluations:run` | bound |
 | GET | `/api/projects/{project_id}/annotators` | `projects:read` | bound |

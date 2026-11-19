@@ -1,5 +1,6 @@
 tests/health/test_api_health.py::TestAPIHealth::test_authentication_endpoints
 tests/integration/test_analysis_runs_api.py::test_contributor_starts_a_run
+tests/integration/test_analysis_runs_api.py::test_cross_project_inputs_need_content_access
 tests/integration/test_auth_coverage.py::TestMeContextsDeep::test_contexts_annotator_sees_own_orgs
 tests/integration/test_auth_me_integration.py::TestAuthMeIntegration::test_login_returns_user_data_not_jwt_claims
 tests/integration/test_auth_me_integration.py::TestAuthMeIntegration::test_me_endpoint_fails_without_auth

@@ -15,12 +15,22 @@ always uses the exact quantile, whatever ``ci_critical`` says.
 
 MDE: ``(q(1 - alpha / (2 m)) + q(power)) * se`` for ``m`` tests (a Holm or
 Bonferroni worst case), with normal quantiles.
+
+An average marginal effect (kind ``ame``, logit only) is the mean over the
+estimation sample of the predicted probability with one column set to a
+level minus the same with it set to a reference, with a delta-method SE.
+A joint test (:func:`wald_test`) asks whether several contrasts equal their
+nulls at once (chi2 on the rank of their covariance).
+
+A contrast of a maximum-likelihood fit that depends on a separated parameter
+(:func:`separated_in`) keeps its estimate and interval but has no p-value
+(status ``separation``).
 """
 
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -281,3 +291,172 @@ def ratio_contrast(
     if message:
         row["message"] = message
     return row
+
+
+# --------------------------------------------------------------------------
+# Average marginal effects, separation and joint (Wald) tests
+# --------------------------------------------------------------------------
+
+#: Relative tolerance of the rank of a joint test's covariance (pinv cut-off).
+WALD_RANK_TOLERANCE = 1e-10
+
+
+def ame_value(fit: Fit, contrast: Mapping[str, Any]) -> Tuple[float, np.ndarray]:
+    """``(value, gradient)`` of an average marginal effect: the mean over the
+    estimation sample of ``p(x | column = level) - p(x | column = reference)``
+    times ``scale``, with its gradient in the fit's parameters (delta
+    method)."""
+    from analysis.ml import logit_probabilities
+
+    design = fit.design
+    if design is None:
+        raise ContrastError("average marginal effects need a logit fit")
+    X1 = design.counterfactual(contrast["column"], contrast["level"])
+    X0 = design.counterfactual(contrast["column"], contrast["reference"])
+    p1 = logit_probabilities(X1, fit.beta)
+    p0 = logit_probabilities(X0, fit.beta)
+    m = len(p1)
+    scale = float(contrast.get("scale", 1.0))
+    value = float(np.mean(p1 - p0))
+    grad = (p1 * (1 - p1)) @ X1 / m - (p0 * (1 - p0)) @ X0 / m
+    return scale * value, scale * grad
+
+
+def ame_contrast(fit: Fit, contrast: Mapping[str, Any], conventions: Mapping[str, Any], **_) -> Dict[str, Any]:
+    """Estimate one average marginal effect of a logit."""
+    from analysis.ols import EngineError
+
+    row = _base_row(fit, conventions)
+    row["null_value"] = float(contrast.get("null", 0.0))
+    try:
+        est, grad = ame_value(fit, contrast)
+    except EngineError as exc:
+        row.update(status="not_estimable", message=str(exc))
+        return row
+    se, status, message = _standard_error(float(grad @ fit.vcov @ grad))
+    df = fit.df_t if conventions["inference"] == "t" else None
+    p, stat = _p_value(est, se, row["null_value"], conventions, df)
+    crit = _critical(conventions, df)
+    row.update(
+        estimate=est,
+        std_error=se,
+        statistic=stat,
+        p_value=p,
+        ci_level=float(conventions["ci_level"]),
+        ci_lower=est - crit * se if math.isfinite(se) else None,
+        ci_upper=est + crit * se if math.isfinite(se) else None,
+        status=status,
+    )
+    if message:
+        row["message"] = message
+    if contrast.get("tost"):
+        row["tost"] = [
+            tost(est, se, tuple(t["bounds"]), float(t["level"]), conventions["inference"], df)
+            for t in contrast["tost"]
+        ]
+    if contrast.get("mde"):
+        mm = contrast["mde"]
+        row["mde"] = {
+            "power": float(mm.get("power", 0.8)),
+            "alpha": float(mm.get("alpha", 0.05)),
+            "tests": int(mm.get("tests", 1)),
+            "value": mde(se, float(mm.get("power", 0.8)), float(mm.get("alpha", 0.05)), int(mm.get("tests", 1))),
+        }
+    return row
+
+
+def separated_in(fit: Fit, contrast: Mapping[str, Any]) -> list:
+    """The separated parameters a contrast depends on: those with a nonzero
+    weight (linear, ratio), any separated parameter for a marginal effect."""
+    if not fit.separated:
+        return []
+    kind = contrast.get("kind", "linear")
+    if kind == "ame":
+        return list(fit.separated)
+    weights: Dict[str, float] = {}
+    if kind == "ratio":
+        for part in ("numerator", "denominator"):
+            weights.update(contrast[part]["weights"])
+    else:
+        weights = dict(contrast.get("weights") or {})
+    return [name for name in fit.separated if float(weights.get(name, 0.0)) != 0.0]
+
+
+def mark_separation(row: Dict[str, Any], names, *, joint: bool = False) -> None:
+    """Withhold the p-value (and the equivalence verdicts) of a contrast on
+    separated parameters; the estimate and interval stay as computed. A
+    joint test on separated parameters is marked even when its variance is
+    not usable, since the separation is the reason."""
+    allowed = ("ok", "degenerate", "not_estimable") if joint else ("ok", "degenerate")
+    if not names or row.get("status") not in allowed:
+        return
+    row["status"] = "separation"
+    row["p_value"] = None
+    row["message"] = "separation: " + ", ".join(names) + " (no p-value)"
+    for t in row.get("tost") or []:
+        t.update(p_lower=None, p_upper=None, p_tost=None, equivalent=None)
+
+
+def contrast_vector(
+    fit: Fit, contrast: Mapping[str, Any], *, implied_zero=()
+) -> Tuple[Optional[float], Optional[np.ndarray], float, Optional[str]]:
+    """``(value, gradient, null, reason)`` of a contrast for a joint test;
+    value and gradient are None with the reason when it is not estimable."""
+    kind = contrast.get("kind", "linear")
+    if kind == "ame":
+        from analysis.ols import EngineError
+
+        try:
+            value, grad = ame_value(fit, contrast)
+        except EngineError as exc:
+            return None, None, 0.0, str(exc)
+        return value, grad, float(contrast.get("null", 0.0)), None
+    if kind == "ratio":
+        if contrast.get("null") is None:
+            return None, None, 0.0, f"ratio contrast {contrast['id']!r} has no null to test against"
+        num, den = contrast["numerator"], contrast["denominator"]
+        a, reason_a = weight_vector(fit, num["weights"], implied_zero=implied_zero)
+        c, reason_c = weight_vector(fit, den["weights"], implied_zero=implied_zero)
+        if a is None or c is None:
+            return None, None, 0.0, reason_a or reason_c
+        A = float(a @ fit.beta) + float(num.get("constant", 0.0))
+        B = float(c @ fit.beta) + float(den.get("constant", 0.0))
+        if abs(B) < max(float(contrast.get("min_abs_denominator", 0.0)), 1e-12):
+            return None, None, 0.0, f"the denominator of {contrast['id']!r} is too close to zero"
+        scale = float(contrast.get("scale", 1.0))
+        return scale * A / B, scale * (a / B - c * A / B**2), float(contrast["null"]), None
+    L, reason = weight_vector(fit, contrast["weights"], implied_zero=implied_zero)
+    if L is None:
+        return None, None, 0.0, reason
+    return float(L @ fit.beta), L, float(contrast.get("null", 0.0)), None
+
+
+def wald_test(
+    fit: Fit, rows: Sequence[Tuple[float, np.ndarray, float]], conventions: Mapping[str, Any]
+) -> Dict[str, Any]:
+    """Joint Wald test that every row's value equals its null:
+    ``chi2 = r' pinv(G V G') r`` with ``r`` the values minus the nulls and
+    ``G`` the stacked gradients, on as many degrees of freedom as the rank of
+    ``G V G'`` (singular values below 1e-10 of the largest count as zero, so
+    redundant restrictions do not add degrees of freedom)."""
+    from scipy import stats
+
+    out = _base_row(fit, conventions)
+    out.update(estimate=None, std_error=None, null_value=None, ci_level=None, ci_lower=None, ci_upper=None)
+    r = np.array([v - null for v, _, null in rows], dtype=float)
+    G = np.vstack([g for _, g, _ in rows])
+    V = G @ fit.vcov @ G.T
+    if not np.all(np.isfinite(V)) or not np.all(np.isfinite(r)):
+        out.update(status="not_estimable", message="the restrictions or their variance are not finite",
+                   statistic=None, df=None, p_value=None)
+        return out
+    rank = int(np.linalg.matrix_rank(V, tol=WALD_RANK_TOLERANCE * max(1.0, float(np.abs(V).max()))))
+    if rank == 0:
+        out.update(status="not_estimable", message="the restrictions have no sampling variance",
+                   statistic=None, df=0, p_value=None)
+        return out
+    chi2 = float(r @ np.linalg.pinv(V, rcond=WALD_RANK_TOLERANCE) @ r)
+    out.update(statistic=chi2, df=rank, p_value=float(stats.chi2.sf(chi2, rank)), status="ok")
+    if rank < len(rows):
+        out["message"] = f"rank {rank} of {len(rows)} restrictions"
+    return out

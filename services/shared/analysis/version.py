@@ -10,12 +10,16 @@ engine version give bit-identical estimates on the same machine.
 ``SPEC_VERSION`` is the version of the analysis spec format
 (``schemas/analysis_spec.schema.json``); a spec names it in ``spec_version``.
 
+``FRAME_FORMAT_VERSION`` is the layout of a frame (its base columns and their
+order, which the frame hash covers); 2 added ``project_id`` and, in slot
+frames, ``slot``.
+
 ``EXPRESSION_GRAMMAR_VERSION`` is the version of the measure expression
 language (``expression.py``); it is part of the engine version on purpose, so
 a grammar change is never silent.
 """
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 SPEC_VERSION = 1
 EXPRESSION_GRAMMAR_VERSION = 1
-FRAME_FORMAT_VERSION = 1
+FRAME_FORMAT_VERSION = 2

@@ -173,6 +173,10 @@ class AnalysisRunDetailOut(AnalysisRunOut):
     )
     frame_sha256: Optional[str] = Field(None, description="SHA-256 of the stored Parquet snapshot")
     frame_counts: Optional[Dict[str, Any]] = None
+    resolved_inputs: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Further projects of a cross-project frame and the stored lookup tables read, with their content hashes",
+    )
     library_versions: Optional[Dict[str, Any]] = None
     lockfile_sha256: Optional[str] = None
     seed: Optional[int] = None
@@ -185,12 +189,12 @@ class AnalysisEstimateOut(_Model):
     estimand_id: str
     contrast_id: Optional[str] = None
     estimator: str
-    kind: str = Field(..., description="linear or ratio")
+    kind: str = Field(..., description="linear, ratio, ame (average marginal effect) or wald (joint test)")
     outcome: str
     scope: str = Field(..., description='"pooled" or "<column>=<value>[|...]"')
     scope_values: Optional[Dict[str, Any]] = None
     status: str = Field(
-        ..., description="ok, degenerate, negative_variance, not_estimable or error"
+        ..., description="ok, degenerate, negative_variance, not_estimable, separation (no p-value) or error"
     )
     message: Optional[str] = None
     estimate: Optional[float] = None

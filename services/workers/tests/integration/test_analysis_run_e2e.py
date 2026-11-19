@@ -124,7 +124,8 @@ def test_run_reads_the_design_and_stores_frame_and_estimates(db_conn, seeded):
     assert run.frame_counts["observations"] == len(records)
     assert run.estimates_count == len(estimates) > 20
     assert run.engine_version == ENGINE_VERSION
-    assert set(run.library_versions) == {"python", "numpy", "pandas", "scipy", "pyarrow"}
+    assert set(run.library_versions) == {"python", "numpy", "pandas", "scipy", "statsmodels", "pyarrow"}
+    assert run.resolved_inputs == {"projects": [], "lookups": []}
     assert run.lockfile_sha256 is None or len(run.lockfile_sha256) == 64
     assert run.started_at is not None and run.completed_at is not None
     assert run.timings["total_s"] >= 0 and run.fits
@@ -370,3 +371,193 @@ def test_retried_is_the_generations_format_retry_flag(db_conn, seeded):
 
 def test_missing_run_is_skipped():
     assert tasks.run_analysis.apply(args=[str(uuid.uuid4())]).get()["status"] == "skipped"
+
+
+# --------------------------------------------------------------------------
+# slot frames, stored lookup tables and cross-project frames
+# --------------------------------------------------------------------------
+
+
+def _seed_docket_project(db_conn, make_project, user, records):
+    """A project with the docket design: one task per docket, the per-slot
+    answers as Label Studio results under indexed names (risk_0 ...)."""
+    from estimator_synthetic import docket_design
+    from models import Generation, ResponseGeneration
+    from project_models import Task
+    from variant_design_guard import new_design_row
+
+    project = make_project(created_by=user.id)
+    db_conn.add(new_design_row(project.id, "docket", docket_design(), created_by=user.id))
+    db_conn.commit()
+    task_ids = {}
+    for i, rec in enumerate(records):
+        if rec["task_id"] not in task_ids:
+            task_ids[rec["task_id"]] = str(uuid.uuid4())
+            db_conn.add(Task(id=task_ids[rec["task_id"]], project_id=project.id, data={"cases": [{}] * 6},
+                             meta={"variant": rec["variant"]}, inner_id=len(task_ids)))
+    db_conn.commit()
+    for rec in records:
+        rg = ResponseGeneration(id=str(uuid.uuid4()), project_id=project.id, task_id=task_ids[rec["task_id"]],
+                                model_id=rec["model_id"], status="completed", created_by=user.id, structure_key="default")
+        results = [{"from_name": name, "type": "number", "value": {"number": value}} for name, value in rec["fields"].items()]
+        db_conn.add(rg)
+        db_conn.add(Generation(
+            id=str(uuid.uuid4()), generation_id=rg.id, task_id=rg.task_id, model_id=rec["model_id"],
+            case_data="{}", response_content="...", status="completed", parsed_annotation=results,
+            parse_status="success", finish_reason="stop",
+        ))
+    db_conn.commit()
+    return project
+
+
+def test_a_slot_frame_with_a_stored_lookup_across_two_projects(db_conn, make_project, make_user):
+    from analysis.lookups import validate_table
+    from estimator_synthetic import SECOND_PROJECT_SEED, congruence_lookup, docket_records
+    from models import AnalysisLookupTable
+
+    user = make_user()
+    first_records = docket_records(dockets=30, controls=0)
+    second_records = docket_records(dockets=20, controls=0, seed=SECOND_PROJECT_SEED)
+    first = _seed_docket_project(db_conn, make_project, user, first_records)
+    second = _seed_docket_project(db_conn, make_project, user, second_records)
+    rows = congruence_lookup()
+    table = validate_table({"name": "congruence", "columns": list(rows[0]), "rows": rows})
+    db_conn.add(AnalysisLookupTable(project_id=first.id, name="congruence", version=1, columns=table["columns"],
+                                    rows=table["rows"], row_count=table["row_count"], content_hash=table["content_hash"]))
+    db_conn.commit()
+    lookup = {"keys": {"system": "model", "fact": "fact", "group": "group"}, "columns": {"cong": "cong"}, "fill": {"cong": 0}}
+    spec = {
+        "spec_version": 1,
+        "name": "slots",
+        "inputs": {"designs": ["docket"], "projects": [{"project_id": second.id, "designs": ["docket"]}]},
+        "frame": {"unit": "slot"},
+        "lookups": [{"id": "cong", "table": {"name": "congruence", "version": 1, "content_hash": table["content_hash"]}, **lookup}],
+        "measures": {
+            "rank": {"kind": "field", "field": "rank_{idx}"},
+            "risk": {"kind": "field", "field": "risk_{idx}"},
+            "rank_valid": {"kind": "slot_aggregate", "field": "rank_{idx}", "function": "is_ranking"},
+        },
+        "estimands": [
+            {"id": "pl", "estimator": "plackett_luce", "outcome": "rank", "subset": "rank_valid == 1",
+             "terms": [{"dummies": "group", "reference": "ref"}], "vcov": {"type": "cluster", "by": ["unit"]},
+             "scopes": ["pooled", {"by": ["project_id"]}]},
+            {"id": "ols", "estimator": "fe_ols", "outcome": "risk", "terms": ["cong"],
+             "fixed_effects": [["project_id", "unit", "system"]], "vcov": {"type": "cluster", "by": [["project_id", "unit"]]}},
+        ],
+    }
+    run = _new_run(db_conn, first, user, spec)
+    out = tasks.run_analysis.apply(args=[run.id]).get()
+    assert out["status"] == "completed", out
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "completed", run.error_message
+    assert run.frame_rows == 6 * 3 * (30 + 20)
+    assert run.frame_counts["projects"] == 2 and run.frame_counts["variant_tasks"] == 50
+    assert run.resolved_inputs == {
+        "projects": [second.id],
+        "lookups": [{"id": "cong", "project_id": first.id, "name": "congruence", "version": 1,
+                     "content_hash": table["content_hash"], "row_count": len(rows)}],
+    }
+
+    # the same analysis on the records in memory
+    memory_spec = normalize_spec({**spec, "lookups": [{"id": "cong", "rows": rows, **lookup}]})
+    records = [dict(r, project_id=first.id) for r in first_records] + [
+        dict(r, project_id=second.id, generation_id="b" + r["generation_id"], task_id="b" + r["task_id"])
+        for r in second_records
+    ]
+    built = build_frame(observations_from_records(records), memory_spec, home_project=first.id)
+    expected = run_spec(built.frame, memory_spec).estimates
+    assert [(e.estimand_id, e.contrast_id) for e in estimates] == [(x["estimand_id"], x["contrast_id"]) for x in expected]
+    scopes = {e.scope for e in estimates}
+    assert f"project_id={first.id}" in scopes and f"project_id={second.id}" in scopes
+    for row, ref in zip(estimates, expected):
+        assert row.status == ref["status"] == "ok"
+        assert math.isclose(row.estimate, ref["estimate"], rel_tol=1e-9)
+        assert math.isclose(row.std_error, ref["std_error"], rel_tol=1e-9)
+
+
+def test_a_missing_lookup_table_fails_the_run(db_conn, seeded):
+    project, user, _ = seeded
+    spec = role_swap_spec()
+    spec["lookups"] = [{"id": "x", "table": {"name": "nope", "version": 1}, "keys": {"unit": "u"}, "columns": {"c": "c"}}]
+    run = _new_run(db_conn, project, user, spec)
+    tasks.run_analysis.apply(args=[run.id]).get()
+    run, _ = _reload(db_conn, run.id)
+    assert run.status == "failed" and "'nope' version 1 does not exist" in run.error_message
+
+
+def _cross_project_spec(other_id, *, via_lookup=False):
+    spec = role_swap_spec()
+    if via_lookup:
+        spec["lookups"] = [{"id": "x", "table": {"name": "codes", "version": 1, "project_id": other_id},
+                            "keys": {"unit": "u"}, "columns": {"c": "c"}}]
+    else:
+        spec["inputs"] = {**spec["inputs"], "projects": [{"project_id": other_id, "designs": ["role_swap"]}]}
+    return spec
+
+
+@pytest.mark.parametrize("purged", [True, False], ids=["purged", "soft_deleted"])
+@pytest.mark.parametrize("via_lookup", [False, True], ids=["input_project", "lookup_owner"])
+def test_a_run_whose_input_project_is_gone_fails(db_conn, seeded, make_project, purged, via_lookup):
+    from datetime import datetime, timezone
+
+    import analysis_jobs.service as service
+    from project_purge import purge_project_data
+
+    project, user, _ = seeded
+    other = make_project(created_by=user.id)
+    run = _new_run(db_conn, project, user, _cross_project_spec(other.id, via_lookup=via_lookup))
+    other.deleted_at = datetime.now(timezone.utc)
+    db_conn.commit()
+    if purged:
+        purge_project_data(db_conn, other.id)
+        db_conn.commit()
+    uploads = []
+
+    class RecordingStorage:
+        def upload_file(self, *args, **kwargs):
+            uploads.append(args)
+            raise AssertionError("no frame may be stored")
+
+    assert service.run_analysis_impl(run.id, storage=RecordingStorage())["status"] == "failed"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed" and run.error_message == f"input project {other.id} was deleted; the run cannot read it"
+    assert run.frame_object_key is None and estimates == [] and uploads == []
+
+
+def test_an_input_project_deleted_during_the_run_fails_it_and_leaves_no_frame(db_conn, seeded, make_project, monkeypatch):
+    from datetime import datetime, timezone
+
+    import analysis_jobs.service as service
+    import analysis.runner as runner
+    from project_models import Project
+    from storage.object_storage import object_storage
+
+    project, user, _ = seeded
+    other = make_project(created_by=user.id)
+    run = _new_run(db_conn, project, user, _cross_project_spec(other.id))
+    real_run_spec = runner.run_spec
+
+    def run_spec_then_delete(frame, spec):
+        result = real_run_spec(frame, spec)
+        db_conn.query(Project).filter(Project.id == other.id).update({"deleted_at": datetime.now(timezone.utc)})
+        db_conn.commit()
+        return result
+
+    monkeypatch.setattr(runner, "run_spec", run_spec_then_delete)
+    uploaded = []
+
+    class RecordingStorage:
+        def upload_file(self, *args, **kwargs):
+            stored = object_storage.upload_file(*args, **kwargs)
+            uploaded.append(stored["file_key"])
+            return stored
+
+        def delete_file(self, key):
+            return object_storage.delete_file(key)
+
+    assert service.run_analysis_impl(run.id, storage=RecordingStorage())["status"] == "failed"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed" and f"input project {other.id} was deleted" in run.error_message
+    assert run.frame_object_key is None and estimates == []
+    assert len(uploaded) == 1
+    assert not os.path.exists(os.path.join(object_storage.local_storage_path, uploaded[0]))

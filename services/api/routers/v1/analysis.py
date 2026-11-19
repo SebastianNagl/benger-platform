@@ -4,7 +4,10 @@ Runs are started in the browser or through the full API
 (``POST /api/projects/{project_id}/analysis-runs``); the public API reads
 them back. Every route needs ``results:read`` and full (non-participant)
 access to the run's project; keys get 404 for runs of projects they may not
-see, so run ids cannot be probed. The frame snapshot is not served here
+see, so run ids cannot be probed. A run that reads further projects (its
+input projects and the owners of the lookup tables it joins) also needs
+read access to each of them; otherwise it is 404 and left out of the run
+list. The frame snapshot is not served here
 (it carries task data); use the full API's frame route with a full-data
 role.
 """
@@ -22,7 +25,13 @@ from auth_module.principal import get_principal
 from database import get_async_db
 from models import AnalysisRun
 from project_models import Project
-from routers.analysis import build_select_estimates, serialize_estimate, serialize_run
+from routers.analysis import (
+    build_select_estimates,
+    hidden_runs_filter,
+    may_read_run_inputs,
+    serialize_estimate,
+    serialize_run,
+)
 from routers.projects.deps import ProjectAccess
 from routers.projects.helpers import check_project_accessible_async
 from routers.v1._deps import key_may_see_project, require_scope, v1_project_access
@@ -63,15 +72,20 @@ async def _load_run(db: AsyncSession, request: Request, user, run_id: str) -> An
     project = (await db.execute(select(Project).where(Project.id == run.project_id))).scalar_one_or_none()
     if project is None or (project.deleted_at is not None and not user.is_superadmin):
         raise _not_found()
-    if not await key_may_see_project(db, get_principal(request), project):
+    principal = get_principal(request)
+    if not await key_may_see_project(db, principal, project):
         raise _not_found()
     if not await check_project_accessible_async(db, user, project.id, project=project):
+        raise _not_found()
+    if not await may_read_run_inputs(db, user, run, principal):
         raise _not_found()
     return run
 
 
-def _build_select_runs(project_id: str, after: Optional[Dict[str, Any]], limit: int):
+def _build_select_runs(project_id: str, after: Optional[Dict[str, Any]], limit: int, hidden=None):
     stmt = select(AnalysisRun).where(AnalysisRun.project_id == project_id)
+    if hidden is not None:
+        stmt = stmt.where(hidden)
     if after:
         from datetime import datetime
 
@@ -93,6 +107,7 @@ def _build_select_runs(project_id: str, after: Optional[Dict[str, Any]], limit: 
 )
 async def list_runs(
     project_id: str,
+    request: Request,
     limit: int = limit_param(),
     cursor: Optional[str] = cursor_param(),
     access: ProjectAccess = Depends(v1_project_access(SCOPE, allow_participant=False)),
@@ -102,8 +117,9 @@ async def list_runs(
     position = decode_cursor(_RUNS_KIND, cursor)
     if position is not None and not (isinstance(position.get("c"), str) and isinstance(position.get("id"), str)):
         raise V1Error(400, "invalid_cursor", "The cursor is malformed")
+    hidden = await hidden_runs_filter(db, access.user, project_id, get_principal(request))
     try:
-        rows = (await db.execute(_build_select_runs(project_id, position, limit))).scalars().all()
+        rows = (await db.execute(_build_select_runs(project_id, position, limit, hidden))).scalars().all()
     except ValueError:
         raise V1Error(400, "invalid_cursor", "The cursor is malformed")
     items, next_cursor = page(

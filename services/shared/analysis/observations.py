@@ -6,9 +6,12 @@ design, flattened to what an analysis needs:
 * identity: generation, task, system (the system key ``<model_id>@<parameter
   profile hash>``, or the model id when none was recorded), model id, prompt
   structure and run index;
+* the project it belongs to (frames may stack the observations of several
+  projects);
 * the task's place in its design, read from ``tasks.meta.variant``
-  (``{"design", "unit", "factors": {...}, ...}``, see
-  :func:`variant_of_task_meta`);
+  (``{"design", "unit", "factors": {...}, "slots": [...], ...}``, see
+  :func:`variant_of_task_meta`), including the task's slots: the records
+  inside one answer (one per person or case) with their own factors;
 * the parsed answer as typed values per control name (:func:`typed_field_values`
   over Label Studio results);
 * the task data, from which gold measures read their paths;
@@ -24,7 +27,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,11 @@ class Observation:
     truncated: bool = False
     retried: Optional[bool] = None
     finish_reason: Optional[str] = None
+    project_id: str = ""
+    #: The task's slots, ``({"index": int, "factors": {...}}, ...)`` sorted by
+    #: index (``meta.variant.slots``; the index is the one the per-slot
+    #: control names use, in the design's index base).
+    slots: Tuple[Mapping[str, Any], ...] = ()
 
 
 class ObservationError(ValueError):
@@ -55,9 +63,10 @@ def variant_of_task_meta(meta: Any) -> Optional[Dict[str, Any]]:
     """The ``variant`` block of a task's ``meta``, or None.
 
     The block is ``{"design": str, "unit": str, "factors": {name: value},
-    "slots": [...], "provenance": {...}}``; only ``design``, ``unit`` and
-    ``factors`` are read here. A block without a design or a unit is treated
-    as absent (the task is not part of a design)."""
+    "slots": [{"index": int, "factors": {...}}, ...], "provenance": {...}}``;
+    ``design``, ``unit``, ``factors`` and ``slots`` are read here (see
+    :func:`variant_slots`). A block without a design or a unit is treated as
+    absent (the task is not part of a design)."""
     if not isinstance(meta, Mapping):
         return None
     variant = meta.get("variant")
@@ -71,7 +80,27 @@ def variant_of_task_meta(meta: Any) -> Optional[Dict[str, Any]]:
         "design": design,
         "unit": str(unit),
         "factors": dict(factors) if isinstance(factors, Mapping) else {},
+        "slots": variant_slots(variant.get("slots")),
     }
+
+
+def variant_slots(raw: Any) -> Tuple[Dict[str, Any], ...]:
+    """The slots of a ``meta.variant`` block, ``({"index", "factors"}, ...)``
+    sorted by index. Entries without a whole-number index are skipped and a
+    repeated index keeps its first entry (the design validator refuses
+    both when the task is written)."""
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    out: Dict[int, Dict[str, Any]] = {}
+    for entry in raw:
+        if not isinstance(entry, Mapping):
+            continue
+        index = entry.get("index")
+        if isinstance(index, bool) or not isinstance(index, int) or index in out:
+            continue
+        factors = entry.get("factors")
+        out[index] = {"index": index, "factors": dict(factors) if isinstance(factors, Mapping) else {}}
+    return tuple(out[i] for i in sorted(out))
 
 
 def typed_field_values(results: Any) -> Dict[str, Any]:
@@ -134,8 +163,8 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
     """One plain-dict record -> :class:`Observation`.
 
     Keys: ``generation_id``, ``task_id``, ``model_id`` (and optionally
-    ``system``, defaulting to the model id), ``variant`` (the ``meta.variant``
-    block) or ``design``/``unit``/``factors`` directly, ``fields`` (typed
+    ``system``, defaulting to the model id), ``project_id``, ``variant`` (the
+    ``meta.variant`` block) or ``design``/``unit``/``factors``/``slots`` directly, ``fields`` (typed
     values) or ``parsed_annotation`` (Label Studio results), ``task_data``,
     ``structure_key``, ``run_index``, ``parse_ok``, ``refusal``,
     ``truncated``, ``retried``, ``finish_reason``."""
@@ -146,7 +175,7 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
         variant = variant_of_task_meta({"variant": record.get("variant")})
     elif "design" in record:
         variant = variant_of_task_meta(
-            {"variant": {k: record.get(k) for k in ("design", "unit", "factors")}}
+            {"variant": {k: record.get(k) for k in ("design", "unit", "factors", "slots")}}
         )
     if variant is None:
         raise ObservationError(
@@ -190,6 +219,8 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
         truncated=_bool(record.get("truncated"), False),
         retried=_opt_bool(record.get("retried")),
         finish_reason=record.get("finish_reason"),
+        project_id=str(record.get("project_id") or ""),
+        slots=variant["slots"],
     )
 
 

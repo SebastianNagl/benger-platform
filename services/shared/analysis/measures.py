@@ -15,6 +15,25 @@ Three kinds (spec ``measures``):
     A value from the task data, ``{"kind": "gold", "path": "gold.bench_lo"}``
     (dotted path; a numeric segment indexes a list). Gold lives in the task
     and is never part of what a system answers.
+``slot_factor``
+    A factor of another slot of the same generation (``meta.variant.slots``):
+    ``{"kind": "slot_factor", "factor": "group", "slot": "other"}`` is the
+    partner's group in a two-slot design, ``"slot": 1`` the group of slot 1
+    (in any frame). Its type is ``number`` when every value is a number,
+    else ``text``, unless ``type`` says.
+``slot_aggregate``
+    A summary over every slot of the row's generation of a per-slot field,
+    ``{"kind": "slot_aggregate", "field": "rank_{idx}", "function":
+    "is_ranking"}``: ``mean``, ``sum``, ``min``, ``max``, ``sd`` (n-1) and
+    ``count`` over the values present, ``is_ranking`` 1 when the values are
+    exactly 1..n for the n slots (no value missing, no tie), else 0.
+
+Per-slot fields: a field name with ``{idx}`` (``"risk_{idx}"``) reads the
+control of one slot, ``{idx}`` replaced by the slot index as the task's
+``meta.variant.slots`` and the label config's indexed names use it. Its
+``slot`` says which slot: ``own`` (the row's slot in a slot frame, the
+default there), ``other`` (the generation's other slot when it has exactly
+two) or a slot index.
 
 Coercion (``type``):
 
@@ -124,6 +143,79 @@ def _array(values: Sequence[Any], kind: str) -> np.ndarray:
     return np.array(list(values), dtype=float)
 
 
+IDX = "{idx}"
+
+
+class RowSlots:
+    """The slots a frame row sees: its own slot index (slot frames) and the
+    slots of its generation, ``({"index", "factors"}, ...)``."""
+
+    __slots__ = ("own", "slots", "_by_index")
+
+    def __init__(self, own: Optional[int], slots: Sequence[Mapping[str, Any]]):
+        self.own = own
+        self.slots = tuple(slots)
+        self._by_index = {s["index"]: s for s in self.slots}
+
+    def resolve(self, ref: Any) -> Optional[int]:
+        """The slot index ``ref`` (own, other or an index) names, or None."""
+        if ref == "own":
+            return self.own
+        if ref == "other":
+            if self.own is None or len(self.slots) != 2:
+                return None
+            others = [s["index"] for s in self.slots if s["index"] != self.own]
+            return others[0] if len(others) == 1 else None
+        return int(ref) if ref in self._by_index else None
+
+    def factor(self, index: Optional[int], name: str) -> Any:
+        slot = self._by_index.get(index) if index is not None else None
+        return (slot.get("factors") or {}).get(name) if slot is not None else None
+
+    def indexes(self) -> List[int]:
+        return [s["index"] for s in self.slots]
+
+
+NO_SLOTS = RowSlots(None, ())
+
+
+def slot_field_name(template: str, index: Optional[int]) -> Optional[str]:
+    if IDX not in template:
+        return template
+    return template.replace(IDX, str(index)) if index is not None else None
+
+
+def _infer_kind(values: Sequence[Any]) -> str:
+    present = [v for v in values if v is not None]
+    if present and all(isinstance(v, (int, float, bool)) for v in present):
+        return "number"
+    return "text"
+
+
+def _aggregate(function: str, values: List[float]) -> float:
+    present = [v for v in values if not math.isnan(v)]
+    if function == "is_ranking":
+        if not values or len(present) != len(values):
+            return 0.0 if values else math.nan
+        return 1.0 if sorted(present) == [float(i) for i in range(1, len(values) + 1)] else 0.0
+    if function == "count":
+        return float(len(present)) if values else math.nan
+    if not present:
+        return math.nan
+    arr = np.array(present, dtype=float)
+    if function == "mean":
+        return float(arr.mean())
+    if function == "sum":
+        return float(arr.sum())
+    if function == "min":
+        return float(arr.min())
+    if function == "max":
+        return float(arr.max())
+    if function == "sd":
+        return float(arr.std(ddof=1)) if len(arr) > 1 else math.nan
+    raise MeasureError(f"unknown slot aggregate {function!r}")  # pragma: no cover - schema
+
+
 def evaluate_measures(
     order: Sequence[str],
     measures: Mapping[str, Mapping[str, Any]],
@@ -131,15 +223,37 @@ def evaluate_measures(
     fields: Sequence[Mapping[str, Any]],
     task_data: Sequence[Mapping[str, Any]],
     n: int,
+    row_slots: Optional[Sequence[RowSlots]] = None,
 ) -> Tuple[Dict[str, np.ndarray], List[str]]:
     """Compute every measure in ``order`` into ``columns`` (updated in place
-    and returned) and return warnings."""
+    and returned) and return warnings. ``row_slots`` gives every row's
+    slots (per-slot fields, slot factors and aggregates need it)."""
     warnings: List[str] = []
+    slots = row_slots if row_slots is not None else [NO_SLOTS] * n
     for mid in order:
         m = measures[mid]
         kind = m["kind"]
         ambiguous: List[str] = []
-        if kind == "field":
+        if kind == "field" and "field" in m and IDX in m["field"]:
+            vtype = m.get("type", "number")
+            ref = m.get("slot", "own")
+            values = []
+            unresolved = 0
+            seen_any = False
+            for f, rs in zip(fields, slots):
+                name = slot_field_name(m["field"], rs.resolve(ref))
+                if name is None:
+                    unresolved += 1
+                    values.append(coerce(None, vtype))
+                    continue
+                seen_any = seen_any or name in f
+                values.append(coerce(f.get(name), vtype, ambiguous))
+            if unresolved:
+                warnings.append(f"measure {mid!r}: {unresolved} row(s) have no slot {ref!r}; set to missing")
+            if n and not seen_any:
+                warnings.append(f"measure {mid!r}: no answer has the field {m['field']!r} for its slot")
+            arr = _array(values, "text" if vtype == "text" else "number")
+        elif kind == "field":
             vtype = m.get("type", "number")
             if "field" in m:
                 name = m["field"]
@@ -152,14 +266,41 @@ def evaluate_measures(
                     raise MeasureError(f"measure {mid!r}: unknown column {by!r}")
                 keys = columns[by]
                 mapping = m["fields"]
+                ref = m.get("slot", "own")
                 values = []
-                for f, key in zip(fields, keys):
+                for f, key, rs in zip(fields, keys, slots):
                     text = key if isinstance(key, str) else as_text(
                         None if (isinstance(key, float) and math.isnan(key)) else key
                     )
                     name = mapping.get(text) if text is not None else None
+                    if name is not None and IDX in name:
+                        name = slot_field_name(name, rs.resolve(ref))
                     values.append(coerce(f.get(name), vtype, ambiguous) if name else coerce(None, vtype))
             arr = _array(values, "text" if vtype == "text" else "number")
+        elif kind == "slot_factor":
+            raw = [rs.factor(rs.resolve(m["slot"]), m["factor"]) for rs in slots]
+            vtype = m.get("type") or _infer_kind(raw)
+            unresolved = sum(1 for rs in slots if rs.resolve(m["slot"]) is None)
+            if unresolved:
+                warnings.append(f"measure {mid!r}: {unresolved} row(s) have no slot {m['slot']!r}; set to missing")
+            bad = 0
+            values = []
+            for v in raw:
+                c = coerce(v, vtype)
+                if v is not None and (c is None or (isinstance(c, float) and math.isnan(c))):
+                    bad += 1
+                values.append(c)
+            if bad:
+                warnings.append(f"measure {mid!r}: {bad} value(s) are not {vtype} and were set to missing")
+            arr = _array(values, vtype)
+        elif kind == "slot_aggregate":
+            values = []
+            for f, rs in zip(fields, slots):
+                per_slot = [
+                    coerce(f.get(slot_field_name(m["field"], i)), "number", ambiguous) for i in rs.indexes()
+                ]
+                values.append(_aggregate(m["function"], per_slot))
+            arr = _array(values, "number")
         elif kind == "gold":
             vtype = m.get("type", "number")
             values = [coerce(lookup_path(d, m["path"]), vtype, ambiguous) for d in task_data]

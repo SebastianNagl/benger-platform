@@ -14,6 +14,8 @@ an :class:`~analysis.observations.Observation`:
   so both a JSON object and its text are read;
 * structure: the prompt structure of its generation job; run index;
 * fields: the typed values of ``generations.parsed_annotation``;
+* slots: ``meta.variant.slots`` (index and factors per slot), which slot
+  frames unpivot;
 * quality flags: ``parse_status == "success"``, ``refusal``, ``truncated``,
   ``finish_reason`` and ``retried`` (a format retry, CORE 2.61).
 
@@ -21,7 +23,12 @@ Failed generations are not observations; their number is reported. The
 selection filters on ``meta -> variant -> design`` and on ``inputs.structures``
 in SQL (tasks.meta is plain JSON, cast to JSONB for the operator) and streams
 generations in batches; ``inputs.systems`` is matched in Python against either
-the system key or the model id. Sync session only: the engine runs in the workers.
+the system key or the model id.
+
+A cross-project frame (``inputs.projects``) reads every listed project with
+its own designs (:func:`iter_run_observations`). Stored lookup tables are
+loaded by :func:`load_lookup_tables`. Sync session only: the engine runs in
+the workers.
 """
 
 from __future__ import annotations
@@ -29,6 +36,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
+from analysis.ols import EngineError
 from analysis.observations import Observation, typed_field_values, variant_of_task_meta
 
 TASK_BATCH = 500
@@ -86,19 +94,21 @@ def iter_observations(
     project_id: str,
     inputs: Mapping[str, Any],
     counts: Optional[Dict[str, int]] = None,
+    designs: Optional[Sequence[str]] = None,
 ) -> Iterator[Observation]:
     """Every completed generation of the project's variant tasks in
-    ``inputs["designs"]`` as an observation. ``counts`` (when given)
-    receives ``variant_tasks`` and ``failed_generations``."""
+    ``designs`` (default ``inputs["designs"]``) as an observation. ``counts``
+    (when given) receives ``variant_tasks`` and ``failed_generations``,
+    added to what it holds."""
     from sqlalchemy import select
 
     from models import Generation, ResponseGeneration
 
-    designs = list(inputs["designs"])
+    designs = list(designs if designs is not None else inputs["designs"])
     tasks = select_variant_tasks(db, project_id, designs)
     if counts is not None:
-        counts["variant_tasks"] = len(tasks)
-        counts["failed_generations"] = 0
+        counts["variant_tasks"] = counts.get("variant_tasks", 0) + len(tasks)
+        counts.setdefault("failed_generations", 0)
     by_id = {task_id: (data, variant) for task_id, data, variant in tasks}
     ids = list(by_id)
     systems = set(inputs.get("systems") or [])
@@ -153,4 +163,97 @@ def iter_observations(
                 truncated=bool(row.truncated),
                 retried=bool(row.retried),
                 finish_reason=row.finish_reason,
+                project_id=project_id,
+                slots=variant["slots"],
             )
+
+
+def iter_run_observations(
+    db,
+    project_id: str,
+    inputs: Mapping[str, Any],
+    counts: Optional[Dict[str, int]] = None,
+) -> Iterator[Observation]:
+    """The observations of a run: its own project's ``inputs.designs`` and,
+    for a cross-project frame, every project of ``inputs.projects`` with its
+    designs."""
+    yield from iter_observations(db, project_id, inputs, counts)
+    for other in inputs.get("projects") or []:
+        if other["project_id"] == project_id:
+            continue
+        yield from iter_observations(db, other["project_id"], inputs, counts, designs=other["designs"])
+
+
+def check_input_projects(db, run) -> None:
+    """Every further project the run reads (its input projects and the
+    owners of the stored lookup tables it joins) still exists and is not
+    deleted; the run fails otherwise. The rows stay share-locked until the
+    caller's transaction ends, so a purge waits for the run to be stored."""
+    from sqlalchemy import select
+
+    from models import AnalysisRun
+    from project_models import Project
+
+    further = AnalysisRun.input_projects(run.normalized_spec, run.project_id)
+    if not further:
+        return
+    live = set(
+        db.execute(
+            select(Project.id)
+            .where(Project.id.in_(further), Project.deleted_at.is_(None))
+            .with_for_update(read=True)
+        ).scalars()
+    )
+    for pid in further:
+        if pid not in live:
+            raise EngineError(f"input project {pid} was deleted; the run cannot read it")
+
+
+def load_lookup_tables(
+    db, project_id: str, lookups: Sequence[Mapping[str, Any]]
+) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]:
+    """``(rows by lookup id, resolved records)`` of the spec's stored lookup
+    tables (inline lookups need nothing). A table is looked up in its
+    ``project_id`` (default: the run's project) by name and version; a
+    missing table or a ``content_hash`` that differs from the stored one
+    fails the run."""
+    from sqlalchemy import select
+
+    from models import AnalysisLookupTable
+
+    tables: Dict[str, List[Dict[str, Any]]] = {}
+    resolved: List[Dict[str, Any]] = []
+    for lk in lookups:
+        ref = lk.get("table")
+        if not ref:
+            continue
+        owner = ref.get("project_id") or project_id
+        row = db.execute(
+            select(AnalysisLookupTable)
+            .where(AnalysisLookupTable.project_id == owner)
+            .where(AnalysisLookupTable.name == ref["name"])
+            .where(AnalysisLookupTable.version == int(ref["version"]))
+        ).scalar_one_or_none()
+        if row is None:
+            raise EngineError(
+                f"lookup {lk['id']!r}: table {ref['name']!r} version {ref['version']} does not exist"
+                + ("" if owner == project_id else f" in project {owner}")
+            )
+        if ref.get("content_hash") and ref["content_hash"] != row.content_hash:
+            raise EngineError(
+                f"lookup {lk['id']!r}: table {ref['name']!r} version {ref['version']} has content hash "
+                f"{row.content_hash}, not {ref['content_hash']}"
+            )
+        columns = list(row.columns)
+        tables[lk["id"]] = [dict(zip(columns, values)) for values in row.rows]
+        resolved.append(
+            {
+                "id": lk["id"],
+                "project_id": owner,
+                "name": row.name,
+                "version": row.version,
+                "content_hash": row.content_hash,
+                "row_count": row.row_count,
+            }
+        )
+    return tables, resolved

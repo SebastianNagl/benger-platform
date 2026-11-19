@@ -104,6 +104,7 @@ def purge_project_data(
         "generations": 0,
         "generation_jobs": 0,
         "analysis_runs": 0,
+        "analysis_frames_of_other_projects": 0,
         "projects": 0,
     }
     exists, deleted_at = _locked_deleted_at(db, project_id)
@@ -193,6 +194,25 @@ def purge_project_data(
             )
         ).all()
     ]
+    # A cross-project run of another project read this project's answers
+    # or one of its lookup tables into its frame: the frame goes, the run
+    # and its aggregate estimates stay readable to the readers of its own
+    # project (a purged input project no longer counts for reads) and say
+    # why the frame is gone.
+    readers = db.execute(
+        select(AnalysisRun).where(
+            AnalysisRun.project_id != project_id,
+            AnalysisRun.frame_object_key.isnot(None),
+            AnalysisRun.reads_project(project_id),
+        )
+    ).scalars().all()
+    for run in readers:
+        frame_keys.append(run.frame_object_key)
+        run.frame_object_key = None
+        run.warnings = list(run.warnings or []) + [
+            f"frame deleted: input project {project_id} was purged"
+        ]
+    counts["analysis_frames_of_other_projects"] = len(readers)
     counts["analysis_runs"] = db.execute(
         delete(AnalysisRun).where(AnalysisRun.project_id == project_id)
     ).rowcount

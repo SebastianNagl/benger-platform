@@ -163,3 +163,114 @@ def test_measure_order_follows_dependencies():
         "b": {"kind": "expression", "expr": "a * 2"},
     }
     assert measure_order(measures) == ["a", "b", "c"]
+
+
+def _est(**kw):
+    return dict({"id": "e", "outcome": "y"}, **kw)
+
+
+def test_estimator_extension_rules():
+    spec = _minimal(
+        measures={
+            "y": {"kind": "field", "field": "y"},
+            "t": {"kind": "field", "field": "risk_{idx}"},
+            "o": {"kind": "field", "field": "risk_{idx}", "slot": "other"},
+            "p": {"kind": "slot_factor", "factor": "group", "slot": "own"},
+            "q": {"kind": "field", "field": "plain", "slot": 1},
+            "twice": {"kind": "field", "field": "a_{idx}_{idx}", "slot": 1},
+            "slot": {"kind": "field", "field": "y"},
+        },
+        estimands=[
+            _est(id="a", estimator="logit", terms=["x"], method="within", fixed_effects=[["unit"]],
+                 conventions={"ssc": "fixest", "reml": False}),
+            _est(id="b", estimator="mean_rate", players=["p", "p"]),
+            _est(id="c", estimator="mixedlm", terms=["x"], vcov={"type": "cluster", "by": ["unit"]}),
+            _est(id="d", estimator="spearman", x="x", vcov={"type": "iid"}, joint_tests=[{"id": "j", "parameters": ["*"]}]),
+            _est(id="e", estimator="plackett_luce", terms=["x"], vcov={"type": "hc1"}),
+            _est(id="f", estimator="fe_ols", terms=["x"],
+                 contrasts=[{"id": "m", "kind": "ame", "column": "g", "level": "a", "reference": "b"}],
+                 joint_tests=[{"id": "m", "contrasts": ["zz"]}]),
+            _est(id="g", estimator="bradley_terry", players=["p", "p"], reference="z", levels=["a", "b"]),
+            _est(id="h", estimator="mixedlm", terms=["x"]),
+        ],
+        lookups=[
+            {"id": "l", "rows": [{"k": 1}], "keys": {"g": "k"}, "columns": {"y": "v", "slot": "v"}, "fill": {"zz": 0}},
+            {"id": "l", "rows": [{"k": 1, "v": 1}], "keys": {"g": "k"}, "columns": {"slot": "v"}},
+        ],
+    )
+    text = _errors(spec)
+    for fragment in (
+        "/measures/t: a field with {idx} needs a slot frame",
+        "/measures/o/slot: 'other' needs a slot frame",
+        "/measures/p/slot: 'own' is the row's slot",
+        "/measures/q/slot: 'slot' needs {idx} in the field name",
+        "/measures/twice: 'a_{idx}_{idx}' must contain {idx} once",
+        "/measures/slot: 'slot' is a reserved column name",
+        "/estimands/0/method: logit takes its fixed effects as dummies only",
+        "/estimands/0/conventions/reml: not a convention of logit",
+        "/estimands/0/conventions/ssc: logit takes 'statsmodels' or 'none'",
+        "/estimands/1/players: only for bradley_terry",
+        "/estimands/2/vcov: mixedlm reports the model-based (iid) variance only",
+        "/estimands/2: mixedlm needs 'groups'",
+        "/estimands/3/vcov: spearman has no variance estimator",
+        "/estimands/3/joint_tests: spearman has no parameters to test jointly",
+        "/estimands/4/vcov: plackett_luce takes iid or cluster",
+        "/estimands/4/choice_set: plackett_luce ranks the slots of a generation by default",
+        "/estimands/5/contrasts/0: average marginal effects are for logit only",
+        "/estimands/5/joint_tests/0/id: 'm' is already a contrast or joint test",
+        "/estimands/5/joint_tests/0/contrasts: unknown contrast 'zz'",
+        "/estimands/6/players: the two player columns must differ",
+        "/estimands/6/reference: not one of the levels",
+        "/lookups/0/columns/y: 'y' is already a frame column or measure",
+        "/lookups/0/fill/zz: not one of the lookup's columns",
+        "/lookups/0/rows/0: missing v",
+        "/lookups/1/id: duplicate lookup id 'l'",
+        "/lookups/1/columns/slot: another lookup adds 'slot'",
+        "/estimands/7: mixedlm needs 'groups'",
+    ):
+        assert fragment in text, fragment
+
+
+def test_schema_refuses_a_lookup_with_both_or_neither_source():
+    both = _minimal(lookups=[{"id": "l", "rows": [{"k": 1}], "table": {"name": "t", "version": 1},
+                              "keys": {"g": "k"}, "columns": {"c": "k"}}])
+    assert "/lookups/0" in _errors(both)
+    neither = _minimal(lookups=[{"id": "l", "keys": {"g": "k"}, "columns": {"c": "k"}}])
+    assert "/lookups/0" in _errors(neither)
+
+
+def test_normalization_of_the_extensions():
+    spec = normalize_spec(_minimal(
+        frame={"unit": "slot"},
+        conventions={"reml": False, "ml_max_iter": 50},
+        measures={"y": {"kind": "field", "field": "risk_{idx}"}, "g": {"kind": "slot_factor", "factor": "group", "slot": "other"}},
+        lookups=[{"id": "l", "rows": [{"k": 1, "v": 2}], "keys": {"g": "k"}, "columns": {"c": "v"}}],
+        estimands=[
+            _est(id="ols", estimator="fe_ols", terms=["c"]),
+            _est(id="lg", estimator="logit", terms=["c"], fixed_effects=[["unit"]],
+                 contrasts=[{"id": "m", "kind": "ame", "column": "c", "level": 1, "reference": 0}]),
+            _est(id="mx", estimator="mixedlm", terms=["c"], groups=["unit"]),
+            _est(id="pl", estimator="plackett_luce", terms=["c"]),
+            _est(id="bt", estimator="bradley_terry", players=["g", "g2"], reference="a"),
+            _est(id="sp", estimator="spearman", x="c"),
+        ],
+    ))
+    assert spec["measures"]["y"]["slot"] == "own"
+    assert spec["lookups"][0]["fill"] == {}
+    ols, lg, mx, pl, bt, sp = spec["estimands"]
+    assert set(ols["conventions"]) == set(DEFAULT_CONVENTIONS)
+    assert lg["conventions"]["ml_max_iter"] == 50 and lg["conventions"]["informative_only"] is True
+    assert "reml" not in lg["conventions"] and lg["method"] == "dummies" and lg["intercept"] is False
+    assert lg["contrasts"][0] == {"id": "m", "kind": "ame", "column": "c", "level": 1, "reference": 0, "scale": 1.0, "null": 0.0}
+    assert mx["conventions"]["reml"] is False and mx["intercept"] is True
+    assert mx["conventions"]["mixedlm_optimizers"] == ["lbfgs", "powell", "bfgs"]
+    assert pl["choice_set"] == ["generation_id"] and "stages" not in pl
+    assert bt["link"] == "logit" and bt["fixed_effects"] == [] and bt["terms"] == []
+    assert "vcov" not in sp and sp["contrasts"] == "terms"
+
+
+def test_specs_without_the_extensions_hash_as_before():
+    # the engine's new keys are only added where a spec uses them
+    spec = normalize_spec(role_swap_spec())
+    assert "frame" not in spec and "lookups" not in spec
+    assert all(set(e["conventions"]) == set(DEFAULT_CONVENTIONS) for e in spec["estimands"])

@@ -1320,11 +1320,65 @@ migration).
     page (``{ projectId, run, estimates }``). A registered
     ``ComplianceDashboard`` also adds the Compliance entry to the
     navigation.
+
+2.65 (2026-11-19): estimator extensions, slot frames, cross-project frames and
+lookup tables of the analysis engine (migration 148; ``ENGINE_VERSION`` 1.1.0,
+frame format 2).
+  - Estimators ``logit`` (Newton-Raphson; iid, HC1 and cluster sandwich
+    variances; fixed effects as dummies with ``informative_only``; contrasts
+    of kind ``ame``, the average marginal effect of setting a column to a
+    level; ``separation_bound`` withholds p-values, status ``separation``),
+    ``mixedlm`` (statsmodels ``MixedLM``, random intercept per ``groups``,
+    ``reml``, ``mixedlm_optimizers`` and ``mixedlm_max_se_ratio``; a fit with
+    an infinite log-likelihood or a variance on the boundary is refused),
+    ``bradley_terry`` (``players``, ``reference``, ``link`` logit or linear;
+    parameters ``strength[<level>]``), ``plackett_luce`` (``stages``) and
+    ``clogit_rank1`` over ``choice_set`` (default ``generation_id``), and
+    ``spearman`` (``x``; parameter ``(rho)``). Estimator-only conventions in
+    ``analysis.spec.ESTIMATOR_CONVENTIONS``; estimand keys per estimator in
+    ``ESTIMATOR_KEYS``. Modules ``analysis.ml`` (``newton``, ``fit_logit``,
+    ``fit_plackett_luce``, ``sandwich``) and ``analysis.mixed``.
+  - Every estimand takes ``joint_tests`` (by ``contrasts``, ``parameters``
+    with ``*`` or weight ``rows``): estimate rows of kind ``wald`` with the
+    chi2 statistic, its rank as ``df`` and the p-value
+    (``analysis.inference.wald_test``).
+  - Frames: base column ``project_id``; ``frame: {"unit": "slot"}`` unpivots
+    ``meta.variant.slots`` to one row per generation and slot (column
+    ``slot``, the slot factors as columns; ``Observation.slots``,
+    ``variant_of_task_meta`` returns ``slots``). Measures: field names with
+    ``{idx}`` and ``slot`` (own, other or an index), ``slot_factor`` and
+    ``slot_aggregate`` (mean, sum, min, max, sd, count, is_ranking).
+  - ``inputs.projects`` stacks further projects with their own designs
+    (``analysis.db_source.iter_run_observations``); starting such a run and
+    downloading its frame need the ORG_ADMIN or CONTRIBUTOR role on each of
+    them and, for a project-restricted access key, the key's access to each
+    (403 ``analysis_input_forbidden``). Reading such a run (detail,
+    estimates, the v1 reads) needs read access to each input project and
+    the stored lookup tables' owners, otherwise 404, and the run lists leave
+    it out (``routers.analysis.may_read_run_inputs``, ``hidden_runs_filter``;
+    a purged input project no longer counts). The worker fails a run whose
+    input project was deleted or purged before its results are stored
+    (``analysis.db_source.check_input_projects``). Purging a project removes
+    the frames of other projects' runs that read it.
+  - Lookups (``lookups`` in the spec: inline ``rows`` or a stored ``table``
+    with ``name``, ``version`` and optional ``project_id`` and
+    ``content_hash``) join by key columns before the measures
+    (``analysis.frame.join_lookups``). Table ``analysis_lookup_tables``
+    (``models.AnalysisLookupTable``, immutable versions,
+    ``analysis.lookups.validate_table`` and ``lookup_hash``) and
+    ``analysis_runs.resolved_inputs`` (further projects, stored tables with
+    their hashes); ``analysis.db_source.load_lookup_tables``.
+  - Routes ``POST|GET /api/projects/{project_id}/analysis-lookups`` and
+    ``GET .../analysis-lookups/{name}/versions/{version}``
+    (``routers.analysis``: ``serialize_lookup``, ``check_run_inputs``);
+    ``create_run`` takes the request's access-key principal; runs serialize
+    ``resolved_inputs`` (also in the v1 run detail). ``library_versions``
+    record statsmodels.
 """
 
 import os
 
-CORE_API_VERSION = "2.64"
+CORE_API_VERSION = "2.65"
 
 
 def extended_required() -> bool:

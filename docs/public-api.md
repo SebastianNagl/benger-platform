@@ -218,10 +218,11 @@ Analysis runs of variant experiments (see
 [features/analysis-engine.md](features/analysis-engine.md)) are started in
 the browser or with `POST /api/projects/{project_id}/analysis-runs` of the
 full API and read back here. The routes need full (non-participant) access
-to the project; a key gets `404 analysis_run_not_found` for runs of projects
-it may not see. The frame snapshot a run read is not served on `/api/v1`
-(it carries task data); the full API serves it to the ORG_ADMIN and
-CONTRIBUTOR roles.
+to the project and to every further project the run reads (see
+[several projects in one frame](features/analysis-engine.md#several-projects-in-one-frame));
+a key gets `404 analysis_run_not_found` for runs of projects it may not see.
+The frame snapshot a run read is not served on `/api/v1` (it carries task
+data); the full API serves it to the ORG_ADMIN and CONTRIBUTOR roles.
 
 ## Pagination
 
