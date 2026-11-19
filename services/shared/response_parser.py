@@ -171,7 +171,7 @@ class ResponseParser:
                 values the prompt asked for, read as control names and
                 stored values.
             variant_experiments: Whether the ``variant_experiments`` flag
-                is on for the generation (core 2.74). Off, the parser reads
+                is on for the generation (core 2.75). Off, the parser reads
                 answers as before per-item answers existed: a multi-choice
                 field takes one choice value, a JSON boolean is no choice,
                 and JSON after prose is not looked for. ``<Repeater>``

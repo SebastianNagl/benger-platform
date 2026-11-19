@@ -21,7 +21,9 @@ Routes:
 * ``POST /api/projects/{project_id}/code-validations``: validate a code on a
   coding project (edit rights on it); 202, runs on the ``analysis`` queue.
 * ``GET /api/projects/{project_id}/code-validations``: the coding project's
-  validations, newest first.
+  validations, newest first; with ``?of=answers`` the validations of this
+  project's answers instead (those on the coding projects drawn from it
+  that the caller can open), each with its coding project's title.
 * ``GET /api/code-validations/{code_validation_id}``: one validation with its
   metrics; the per-task codes need full read access to the task content.
 """
@@ -56,7 +58,7 @@ from variant_designs import META_KEY as VARIANT_META_KEY
 
 logger = logging.getLogger(__name__)
 
-# Behind the variant_experiments flag (core 2.74): 404 feature_disabled while off.
+# Behind the variant_experiments flag (core 2.75): 404 feature_disabled while off.
 router = APIRouter(tags=["coding"], dependencies=[Depends(require_variant_experiments)])
 
 MAX_CODING_TASKS = 20000
@@ -573,26 +575,53 @@ async def start_code_validation(
 @router.get("/api/projects/{project_id}/code-validations")
 async def list_code_validations(
     project_id: str,
+    of: str = Query("coding", pattern="^(coding|answers)$"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     access: ProjectAccess = Depends(require_project_access()),
     db: AsyncSession = Depends(get_async_db),
 ):
+    """The validations run on this coding project (``of=coding``, the
+    default), or the validations of this project's answers (``of=answers``):
+    those run on the coding projects drawn from it that the caller can open,
+    each with ``coding_project_title``. Newest first."""
+    titles: Dict[str, str] = {}
+    if of == "answers":
+        drawn = (
+            await db.execute(
+                select(Project)
+                .join(CodingProject, CodingProject.project_id == Project.id)
+                .where(CodingProject.source_project_id == project_id)
+                .where(Project.deleted_at.is_(None))
+            )
+        ).scalars().all()
+        for project in drawn:
+            if await check_project_accessible_async(db, access.user, project.id, project=project):
+                titles[project.id] = project.title
+        if not titles:
+            return {"items": [], "total": 0}
+        where = CodeValidation.project_id.in_(sorted(titles))
+    else:
+        where = CodeValidation.project_id == project_id
     total = (
-        await db.execute(
-            select(func.count()).select_from(CodeValidation).where(CodeValidation.project_id == project_id)
-        )
+        await db.execute(select(func.count()).select_from(CodeValidation).where(where))
     ).scalar_one()
     rows = (
         await db.execute(
             select(CodeValidation)
-            .where(CodeValidation.project_id == project_id)
+            .where(where)
             .order_by(CodeValidation.created_at.desc(), CodeValidation.id.desc())
             .limit(limit)
             .offset(offset)
         )
     ).scalars().all()
-    return {"items": [serialize_validation(v, detail=False) for v in rows], "total": total}
+    items = []
+    for v in rows:
+        item = serialize_validation(v, detail=False)
+        if of == "answers":
+            item["coding_project_title"] = titles.get(v.project_id)
+        items.append(item)
+    return {"items": items, "total": total}
 
 
 async def load_validation_for_read(db: AsyncSession, user, validation_id: str) -> Tuple[CodeValidation, Project]:

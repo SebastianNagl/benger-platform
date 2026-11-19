@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { useTheme } from 'next-themes'
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 
@@ -100,7 +101,6 @@ export function SignificanceHeatmap({
     }
   }, [modelIds, significanceData])
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const plotData = useMemo(() => {
     const customData = modelIds.map((modelA, i) =>
       modelIds.map((modelB, j) => {
@@ -164,7 +164,10 @@ export function SignificanceHeatmap({
           `${t('evaluation.charts.significance.stars')}: %{customdata.stars}<extra></extra>`,
       } as any,
     ]
-  }, [heatmapData, modelIds, significanceData])
+  }, [heatmapData, modelIds, significanceData, t])
+
+  const { resolvedTheme } = useTheme()
+  const dark = resolvedTheme === 'dark'
 
   const layout = useMemo(
     () => ({
@@ -193,8 +196,12 @@ export function SignificanceHeatmap({
       height,
       margin: { l: 150, r: 100, t: 100, b: 150 },
       annotations,
+      // The card shows through, and the text follows the theme.
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { color: dark ? '#e4e4e7' : '#27272a' },
     }),
-    [metric, height, annotations, t],
+    [metric, height, annotations, t, dark],
   )
 
   const config = useMemo(
@@ -221,7 +228,9 @@ export function SignificanceHeatmap({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col items-center">
+      {/* The plot has a fixed size; on narrow screens it scrolls inside
+          its own box instead of widening the page. */}
+      <div className="flex flex-col overflow-x-auto sm:items-center">
         <Plot
           data={plotData}
           layout={layout}
@@ -230,13 +239,13 @@ export function SignificanceHeatmap({
         />
       </div>
 
-      <div className="rounded-lg border bg-zinc-50 p-4">
-        <h4 className="mb-3 font-medium">
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
+        <h4 className="mb-3 font-medium text-zinc-900 dark:text-white">
           {t('evaluation.charts.significance.legend')}
         </h4>
         <div className="space-y-3">
           <div>
-            <h5 className="mb-2 text-sm font-medium text-zinc-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.charts.significance.colorScale')}
             </h5>
             <div className="space-y-1 text-sm">
@@ -272,7 +281,7 @@ export function SignificanceHeatmap({
           </div>
 
           <div>
-            <h5 className="mb-2 text-sm font-medium text-zinc-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.charts.significance.significanceStars')}
             </h5>
             <div className="space-y-1 text-sm">
@@ -297,7 +306,7 @@ export function SignificanceHeatmap({
             </div>
           </div>
 
-          <div className="rounded border-l-4 border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="rounded border-l-4 border-zinc-300 bg-white p-3 text-sm dark:border-zinc-600 dark:bg-zinc-900/60">
             <p className="text-zinc-700 dark:text-zinc-300">
               <strong>{t('evaluation.charts.significance.noteLabel')}:</strong>{' '}
               {t('evaluation.charts.significance.noteText')}

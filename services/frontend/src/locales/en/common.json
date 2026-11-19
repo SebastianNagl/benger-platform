@@ -6459,6 +6459,67 @@
       "pairsTruncated": "Showing the {shown} pairs with the most shared tasks of {total}.",
       "unsupported": "Not scored (no comparable value, such as free text or spans): {controls}.",
       "methodNote": "Only tasks with two or more answers for a control count. Kappa is read on the Landis and Koch scale; ratings are compared as categories (unweighted kappa). Pairs need at least two shared tasks for Cohen's kappa."
+    },
+    "agreementValidity": {
+      "title": "Agreement and validity",
+      "runDescription": "The codes this run read, each with the validation it accepted: the agreement of the code with human codes on a coding project, as stored.",
+      "judgeDescription": "How closely LLM judges agree when they graded the same items.",
+      "runCodes": "Codes of this run ({count})",
+      "validated": "Validated",
+      "notValidated": "Not validated",
+      "notValidatedHint": "The run read this code without a validation, which only an exploratory family allows.",
+      "code": "Code",
+      "hash": "Code hash",
+      "copyHash": "Copy hash",
+      "missingRows": "Missing",
+      "missingOfRows": "{missing} of {rows} rows",
+      "confirmatory": "Confirmatory estimands",
+      "accepted": "Validated on the control {control}: kappa {kappa}, agreement {agreement}, {compared} items compared, as recorded when the run ran.",
+      "openCodingProject": "Open coding project",
+      "loadingDetail": "Loading the validation...",
+      "detailUnavailable": "You cannot open the coding project, so only the numbers the run recorded are shown.",
+      "detailFailed": "The validation could not be loaded, so only the numbers the run recorded are shown.",
+      "kappa": "Cohen's kappa",
+      "observed": "Agreement",
+      "expected": "Chance agreement",
+      "compared": "Compared",
+      "ofItems": "of {items} items",
+      "category": "Category",
+      "support": "Human codes",
+      "precision": "Precision",
+      "recall": "Recall",
+      "ties": "{count} items whose human codes tie have no reference and are left out.",
+      "missingCategory": "{count} items without an automatic code count as the category (missing).",
+      "missingExcluded": "{count} items without an automatic code are left out.",
+      "betweenCoders": "Between the {coders} human coders on {items} items coded by two or more: Fleiss' kappa {kappa}, all coders agree on {agreement}.",
+      "kinds": {
+        "text_pattern": "Text pattern",
+        "coder": "Coder plugin",
+        "judge_code": "Judge code",
+        "other": "Code"
+      },
+      "projectValidations": "Validations of this project's answers ({count})",
+      "projectValidationsHint": "Every validation on a coding project drawn from this project that you can open.",
+      "name": "Validation",
+      "status": "Status",
+      "statuses": {
+        "pending": "Pending",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed"
+      },
+      "usedByRun": "used by this run",
+      "judgeTitle": "Judge agreement",
+      "modelMetric": "Model and metric",
+      "judges": "Judges",
+      "items": "Items",
+      "allAgree": "All judges agree",
+      "judgePairs": "Judge pairs",
+      "tiesOne": "1 item whose human codes tie has no reference and is left out.",
+      "missingCategoryOne": "1 item without an automatic code counts as the category (missing).",
+      "missingExcludedOne": "1 item without an automatic code is left out.",
+      "betweenCodersOne": "Between the {coders} human coders on the 1 item coded by two or more: Fleiss' kappa {kappa}, all coders agree on {agreement}.",
+      "version": "version {version}"
     }
   },
   "about": {
@@ -7634,7 +7695,8 @@
         "memberOnlyHint": "A private model may appear in this run, so only members of the project see it. The report cannot be made public while it holds this run.",
         "memberOnlyPublic": "A private model may appear in this run. The report is public, so readers outside the project do not see this run; members still do.",
         "onlyMemberOnlyLeft": "The remaining runs are members only: a private model may appear in them, so a public report cannot hold them."
-      }
+      },
+      "showCodeValidations": "Show the validations of the analyses' codes"
     },
     "publication": {
       "copied": "Copied",
@@ -7836,6 +7898,17 @@
         "figure": "Figure {n}",
         "table": "Table {n}",
         "openRun": "Open the run"
+      },
+      "codeValidations": {
+        "title": "Validations of the codes",
+        "intro": "The analyses read codes that were validated against human codes on coding projects. Each validation compares the automatic code with the human reference (the human code, or the majority of several).",
+        "code": "Code",
+        "hash": "Code hash",
+        "control": "Control",
+        "usedBy": "Used by",
+        "usedByEntry": "{run} ({measure})",
+        "completed": "Completed",
+        "recordedOnly": "Only the numbers the run recorded are shown: the stored validation is no longer available, or the report's author could not open its coding project."
       }
     },
     "title": "Reports",

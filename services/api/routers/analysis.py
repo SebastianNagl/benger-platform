@@ -65,7 +65,7 @@ from routers.projects.helpers import (
 
 logger = logging.getLogger(__name__)
 
-# Behind the variant_experiments flag (core 2.74): 404 feature_disabled while off.
+# Behind the variant_experiments flag (core 2.75): 404 feature_disabled while off.
 router = APIRouter(tags=["analysis"], dependencies=[Depends(require_variant_experiments)])
 
 FRAME_DOWNLOAD_URL_TTL = 300

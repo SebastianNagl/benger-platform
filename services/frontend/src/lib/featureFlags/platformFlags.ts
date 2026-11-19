@@ -1,5 +1,5 @@
 /**
- * The platform's own feature flags (core 2.74; registered in
+ * The platform's own feature flags (core 2.75; registered in
  * services/shared/feature_flags/registry.py, documented in
  * docs/features/feature-flags.md). Off by default: with a flag off its
  * pages answer as not found and its entry points, panels and counts are

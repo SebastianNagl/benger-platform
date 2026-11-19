@@ -58,7 +58,7 @@ class AnnotatorAgreementResponse(BaseModel):
 @router.get(
     "/projects/{project_id}/annotator-agreement",
     response_model=AnnotatorAgreementResponse,
-    # Annotator agreement belongs to variant_experiments (core 2.74).
+    # Annotator agreement belongs to variant_experiments (core 2.75).
     dependencies=[Depends(require_variant_experiments)],
 )
 async def get_annotator_agreement(

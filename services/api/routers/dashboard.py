@@ -366,7 +366,7 @@ async def get_dashboard_stats(
             status_code=503,
             detail="Dashboard statistics are temporarily unavailable.",
         )
-    # The analyses tile belongs to variant_experiments (core 2.74); the
+    # The analyses tile belongs to variant_experiments (core 2.75); the
     # answer is part of the cache key so a switched flag shows at once.
     from feature_flags.deps import flag_on
     from feature_flags.registry import VARIANT_EXPERIMENTS

@@ -1632,11 +1632,37 @@ API change).
     Bradley-Terry estimands as strength forests and show the profile and
     the examples of a contrast; the run page lists the variant designs the
     run read; the generation page's request view is ``RequestRecordView``.
+2.74 (2026-11-19): agreement and validity views (no migration, additive API
+  changes only).
+  - ``GET /api/projects/{project_id}/code-validations`` takes ``of``:
+    ``coding`` (the default, the coding project's own validations) or
+    ``answers`` (the validations of the project's answers, on every coding
+    project drawn from it the caller can open, each with
+    ``coding_project_title``).
+  - ``report_snapshot.build_report_snapshot`` adds
+    ``analyses.code_validations`` (``_analysis_code_validations``): the
+    validations the Analyses runs' codes accepted, with the stored
+    agreement (only from a coding project ``can_open_project``, the new
+    keyword argument, grants the author building the snapshot), ``used_by``
+    and ``member_only``; ``public_snapshot`` leaves
+    member-only ones out and ``apply_section_visibility`` empties the list
+    for ``sections.annotations.show_code_validations: false``.
+  - Frontend: ``StatisticalResultsPanel`` shows the Agreement and validity
+    block (``@/components/evaluation/statistics/AgreementValidity``:
+    ``RunAgreementBlock`` for a run with codes, ``JudgeAgreementBlock`` for
+    the metrics' ``judge_agreement_by_model_metric``), also on the run
+    page; ``@/components/evaluation/CodeValidationAgreement`` draws one
+    validation's agreement from plain props; ``@/lib/api/coding``
+    (``codingAPI``) reads validations; ``AnalysisRun.codes`` is typed
+    (``AnalysisCodeRecord``); the statistics blocks' layout primitives are
+    ``@/components/evaluation/statistics/blocks``.
 
-2.74 (2026-11-19): the experiment features behind platform feature flags
+
+2.75 (2026-11-19): the experiment features behind platform feature flags
   (migration 151; docs/features/feature-flags.md; 2.71 is taken by the
   Evaluation card's analysis start, 2.72 by the report's Analyses section,
-  2.73 by the shared variant and analysis views).
+  2.73 by the shared variant and analysis views, 2.74 by the agreement and
+  validity views).
   - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
     ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
     owner ``platform``, default ``off``, coupled to no master flag. An
@@ -1644,7 +1670,7 @@ API change).
     for its users: ``compliance_records`` for ``/api/compliance`` and the
     ``/compliance`` shells (besides ``extension.compliance``),
     ``variant_experiments`` for everything else listed below.
-  - Off, the routes of 2.56-2.73 answer 404 ``feature_disabled``
+  - Off, the routes of 2.56-2.74 answer 404 ``feature_disabled``
     (``feature_flags.deps.require_variant_experiments`` /
     ``require_compliance_records``; an organization key's organization
     counts on the v1 analysis routes), the analysis and code-validation
@@ -1668,7 +1694,9 @@ API change).
     while the flag is off for everybody
     (``report_snapshot.EXPERIMENT_SNAPSHOT_KEYS``,
     ``without_experiment_parts``); a report save neither adds nor changes
-    ``sections.analyses`` and an evaluation config write drops
+    ``sections.analyses`` nor adds ``show_agreement`` or
+    ``show_code_validations``, the statistics panel shows no judge
+    agreement, and an evaluation config write drops
     ``analysis_plans`` (``services.analysis_plans.without_analysis_plans``),
     so stored sections and plans stay as they are.
   - Catalog entries can belong to a flag: ``default_config.feature_flag``
@@ -1693,7 +1721,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.74"
+CORE_API_VERSION = "2.75"
 
 
 def extended_required() -> bool:

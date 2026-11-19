@@ -697,7 +697,7 @@ async def create_import_job(
         )
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
-    # Import provenance belongs to variant_experiments (core 2.74): off, the
+    # Import provenance belongs to variant_experiments (core 2.75): off, the
     # manifest and reimport are ignored as before and every import imports.
     provenance = await flag_on(db, current_user, VARIANT_EXPERIMENTS, request)
     source_manifest = _declared_manifest(data.source_manifest) if provenance else None
@@ -897,7 +897,7 @@ async def create_cloud_import_jobs(
             detail=f"At most {_CLOUD_IMPORT_MAX_KEYS} files per cloud import",
         )
 
-    # reimport belongs to import provenance (variant_experiments, core 2.74).
+    # reimport belongs to import provenance (variant_experiments, core 2.75).
     reimport = False
     if await flag_on(db, current_user, VARIANT_EXPERIMENTS, request):
         reimport = data.get("reimport", False)
@@ -1218,7 +1218,7 @@ async def create_full_import_job(
 
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
-    # Import provenance belongs to variant_experiments (core 2.74).
+    # Import provenance belongs to variant_experiments (core 2.75).
     provenance = await flag_on(db, current_user, VARIANT_EXPERIMENTS, request)
     source_manifest = _declared_manifest(data.source_manifest) if provenance else None
 

@@ -52,6 +52,9 @@ export interface AnnotationsSection extends ReportSection {
   show_participants: boolean
   /** Show inter-annotator agreement from the snapshot (default true). */
   show_agreement?: boolean
+  /** Show the validations of the codes the Analyses section's runs read
+   *  (default true). */
+  show_code_validations?: boolean
   acknowledgment_text?: string | null
 }
 

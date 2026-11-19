@@ -578,7 +578,7 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
         # A text pattern code needs a valid pattern set and one of its codes
         # (services/shared/analysis/text_patterns.py); without them every
         # cell would record an error instead of a code.
-        # Only while variant_experiments is on for the caller (core 2.74):
+        # Only while variant_experiments is on for the caller (core 2.75):
         # off, the config is stored as before and never runs.
         if cfg.get("metric") == "text_pattern" and metric_flag_on("text_pattern"):
             _validate_text_pattern_parameters(mp)
@@ -873,7 +873,7 @@ def update_project_evaluation_config(
         # bodies (e.g. only evaluation_configs) without clobbering sibling
         # keys a concurrent eval-defaults PATCH wrote (issue #289 lost-update).
         # Nothing is written before the checks pass.
-        # Analysis plans belong to variant_experiments (core 2.74): off for
+        # Analysis plans belong to variant_experiments (core 2.75): off for
         # the caller, the body's plans are ignored and the stored ones stay.
         if ANALYSIS_PLANS_KEY in config and not flag_on_sync(
             db, current_user, VARIANT_EXPERIMENTS

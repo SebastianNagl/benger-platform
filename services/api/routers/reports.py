@@ -225,7 +225,7 @@ def _served_content(report: ProjectReport) -> Dict[str, Any]:
     if annotations.get("show_participants") is False and "participants" in annotations:
         sections = {**sections, "annotations": {**annotations, "participants": []}}
     snapshot = apply_section_visibility(content.get("snapshot"), sections)
-    # The parts of the variant_experiments flag (core 2.74) are served while
+    # The parts of the variant_experiments flag (core 2.75) are served while
     # it is on for anybody; off for everybody, the report reads as before.
     if not _experiment_parts_served():
         snapshot = without_experiment_parts(snapshot)
@@ -311,10 +311,19 @@ def _analyses_of(report: ProjectReport) -> Any:
     return sections.get("analyses")
 
 
-def _build_snapshot_sync(sync_db, project_id: str, analyses: Any = None):
+def _build_snapshot_sync(sync_db, project_id: str, analyses: Any, author: User):
     """Compute the report snapshot on the bridged sync session (SQL
-    aggregation only — see report_snapshot)."""
-    return build_report_snapshot(sync_db, project_id, analyses=analyses)
+    aggregation only — see report_snapshot). A code validation's detail is
+    copied only from a coding project the author building it can open, the
+    access of ``GET /api/code-validations/{id}``."""
+    from routers.projects.helpers import check_project_accessible
+
+    return build_report_snapshot(
+        sync_db,
+        project_id,
+        analyses=analyses,
+        can_open_project=lambda pid: check_project_accessible(sync_db, author, pid),
+    )
 
 
 def _report_analysis_runs_sync(sync_db, project_id: str):
@@ -368,7 +377,7 @@ async def can_edit_report(db: AsyncSession, user: Optional[User], project_id: st
     if user.is_superadmin:
         return True
     # Authors besides superadmins belong to the report as project paper
-    # (variant_experiments, core 2.74): off, only superadmins author, as before.
+    # (variant_experiments, core 2.75): off, only superadmins author, as before.
     if not await flag_on(db, user, VARIANT_EXPERIMENTS):
         return False
     from routers.projects.helpers import check_user_can_edit_project_async
@@ -582,7 +591,7 @@ async def update_project_report(
     stored_sections = existing.get("sections") or {}
     experiments = await flag_on(db, current_user, VARIANT_EXPERIMENTS)
     if not experiments:
-        # The Analyses section belongs to variant_experiments (core 2.74):
+        # The Analyses section belongs to variant_experiments (core 2.75):
         # with the flag off for the caller it is neither added nor changed,
         # and a stored one stays as it is.
         sections.pop("analyses", None)
@@ -604,14 +613,13 @@ async def update_project_report(
     new_annotations = (new_content.get("sections") or {}).get("annotations")
     if isinstance(new_annotations, dict) and "participants" in existing_annotations:
         new_annotations["participants"] = existing_annotations["participants"]
-    # show_agreement belongs to variant_experiments (core 2.74): with the
-    # flag off for the caller a setting the report does not hold is not added.
-    if (
-        isinstance(new_annotations, dict)
-        and "show_agreement" not in existing_annotations
-        and not experiments
-    ):
-        new_annotations.pop("show_agreement", None)
+    # show_agreement and show_code_validations belong to variant_experiments
+    # (core 2.75): with the flag off for the caller a setting the report does
+    # not hold is not added.
+    if isinstance(new_annotations, dict) and not experiments:
+        for setting in ("show_agreement", "show_code_validations"):
+            if setting not in existing_annotations:
+                new_annotations.pop(setting, None)
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -669,7 +677,9 @@ async def publish_report(
         )
 
     # Freeze the numbers, then publish
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    snapshot = await db.run_sync(
+        _build_snapshot_sync, project_id, _analyses_of(report), current_user
+    )
     if body and body.is_public:
         _refuse_public_member_only(snapshot)
     report.content = {**(report.content or {}), "snapshot": snapshot}
@@ -790,7 +800,9 @@ async def refresh_report_snapshot(
     """
     await require_report_author(db, current_user, project_id, "Only superadmins can refresh reports")
     project, report = await _load_project_and_report(db, project_id)
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    snapshot = await db.run_sync(
+        _build_snapshot_sync, project_id, _analyses_of(report), current_user
+    )
     report.content = {**(report.content or {}), "snapshot": snapshot}
     report.updated_at = datetime.utcnow()
     await db.commit()
@@ -1007,7 +1019,9 @@ async def get_report_data(
     snapshot = content.get("snapshot")
     if snapshot is None and is_author:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
-        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id, _analyses_of(report))
+        snapshot = await db.run_sync(
+            _build_snapshot_sync, report.project_id, _analyses_of(report), current_user
+        )
         report.content = {**content, "snapshot": snapshot}
         await db.commit()
         await db.refresh(report)

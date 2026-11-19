@@ -180,7 +180,7 @@ def serialize_generation(
     the row's job; the "data" mode names it because the import regroups the
     rows into jobs by model and structure.
 
-    Lossless export belongs to the variant_experiments flag (core 2.74):
+    Lossless export belongs to the variant_experiments flag (core 2.75):
     with it off for the job or caller (``feature_flags.scope``) the row has
     the fields it had before, :func:`_serialize_generation_classic`.
     """

@@ -19,7 +19,7 @@ deletes it. The engine validates each spec (``analysis.spec.normalize_spec``);
 a refused save answers 422 ``invalid_analysis_plan`` with every problem,
 each prefixed with the plan's path (``/analysis_plans/<i>/spec/...``).
 
-Plans belong to the platform flag ``variant_experiments`` (CORE 2.74): with
+Plans belong to the platform flag ``variant_experiments`` (CORE 2.75): with
 it off for the caller both writers drop the key from the body
 (:func:`without_analysis_plans`), so stored plans stay as they are and none
 are added, changed or deleted.

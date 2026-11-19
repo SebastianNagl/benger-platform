@@ -53,7 +53,7 @@ from models import (
 )
 from project_models import Project
 
-# Behind the compliance_records flag (core 2.74): 404 feature_disabled while off.
+# Behind the compliance_records flag (core 2.75): 404 feature_disabled while off.
 router = APIRouter(
     prefix="/api/compliance",
     tags=["compliance-records"],

@@ -1,4 +1,4 @@
-"""Catalog entries that belong to a feature flag (core 2.74).
+"""Catalog entries that belong to a feature flag (core 2.75).
 
 ``llm_models.yaml`` marks a model with ``default_config.feature_flag`` (the
 whole model belongs to the flag: the open-weight experiment panel) and a

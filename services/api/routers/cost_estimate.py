@@ -280,7 +280,7 @@ def _is_reasoning_model(
     dc = getattr(llm_model_row, "default_config", None) or {}
     rc = dc.get("reasoning_config") if isinstance(dc, dict) else None
     # A knob that belongs to a feature flag that is off for the caller does
-    # not exist for them (catalog_flags, core 2.74).
+    # not exist for them (catalog_flags, core 2.75).
     rc = reasoning_config_for(rc, scoped_flag)
     if isinstance(rc, dict) and rc.get("parameter") == "enable_thinking":
         value = (model_config or {}).get("enable_thinking")

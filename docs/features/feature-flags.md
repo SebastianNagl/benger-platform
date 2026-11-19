@@ -23,7 +23,9 @@ estimators, frames, lookup tables), codes, text patterns and coding
 validation, analysis plans and the Analyses part of the project's
 Evaluation card, the analysis results views and counts (profiles,
 strengths, examples, the unit and request views), import provenance,
-annotator agreement and the report as the project's paper (authorship of
+annotator agreement, the Agreement and validity block (judge agreement on
+the evaluations page, code validations in runs and reports) and the report
+as the project's paper (authorship of
 project owners and organization admins, the data, generation, human
 evaluation, Analyses and reproducibility parts).
 
@@ -51,8 +53,9 @@ With the flag off:
   Gemma 4 26B is neither shown nor sent; only superadmins author reports,
   a report is published once the project has tasks, LLM generations and
   completed evaluations, new snapshots have none of the paper's parts,
-  saving a report neither adds nor changes its Analyses settings, and an
-  evaluation config write ignores `analysis_plans`;
+  saving a report neither adds nor changes its Analyses settings nor adds
+  the agreement and code validation switches, and an evaluation config
+  write ignores `analysis_plans`;
 - stored data stays as it is: designs, runs, codes, records, options and
   report snapshots are neither deleted nor rewritten, and a project built
   while the flag was on still opens without errors.
@@ -83,7 +86,8 @@ Genuine fixes that shipped together with these features stay on, among them
 the report's participant visibility, the hidden-model filters of reports
 (including the refusal to make a report public while its stored snapshot
 holds an analysis run in which a private model may appear), the labelled
-close button of dialogs,
+close button of dialogs, the significance heatmap's dark mode and phone
+width, the e2e seed's evaluation config ids,
 the `/api/runs` paging and access count, the provider quota fail-fast, the
 JSON fallback prompt of OpenAI, Cohere and Mistral, the code-fence parse fix,
 the Label Studio `to_name` fill on export and the evaluations page's project

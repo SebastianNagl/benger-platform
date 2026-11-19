@@ -67,7 +67,38 @@ export interface AnalysisRun extends AnalysisRunSummary {
   fits: AnalysisFit[] | null
   warnings: string[] | null
   timings: Record<string, number> | null
+  /** One identity record per code measure the frame computed (null without codes). */
+  codes?: AnalysisCodeRecord[] | null
   frame_available: boolean
+}
+
+/** The validation a run accepted for a code measure, as recorded at run time. */
+export interface AnalysisCodeValidationRef {
+  id: string
+  coding_project_id: string
+  control: string
+  kappa: number | null
+  observed_agreement: number | null
+  compared: number | null
+  completed_at: string | null
+}
+
+/**
+ * A code measure of a run (`analysis_runs.codes`): its identity (kind, a
+ * readable ref, version, hash), how many frame rows it left missing and the
+ * validation the run accepted (absent for an exploratory code).
+ */
+export interface AnalysisCodeRecord {
+  measure: string
+  kind: 'text_pattern' | 'coder' | 'judge_code' | string
+  ref: string | null
+  version: string | null
+  hash: string
+  missing?: number | null
+  rows?: number | null
+  confirmatory_estimands?: string[]
+  validation?: AnalysisCodeValidationRef | null
+  [key: string]: unknown
 }
 
 /** One equivalence test (TOST) of a contrast against one bound set. */

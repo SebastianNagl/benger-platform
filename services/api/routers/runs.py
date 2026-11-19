@@ -365,7 +365,7 @@ def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
 @router.get(
     "/generations/{generation_id}/trials/{trial_id}/request",
     response_model=TrialRequest,
-    # The request record belongs to variant_experiments (core 2.74).
+    # The request record belongs to variant_experiments (core 2.75).
     dependencies=[Depends(require_variant_experiments)],
 )
 async def get_generation_trial_request(
@@ -658,7 +658,7 @@ async def list_runs(
         model = EvaluationRun
         to_summary = _evaluation_to_summary
     else:  # type == "analysis"
-        # Analysis runs belong to variant_experiments (core 2.74).
+        # Analysis runs belong to variant_experiments (core 2.75).
         if not await flag_on(db, current_user, VARIANT_EXPERIMENTS, request):
             raise feature_disabled_error(VARIANT_EXPERIMENTS)
         model = AnalysisRun

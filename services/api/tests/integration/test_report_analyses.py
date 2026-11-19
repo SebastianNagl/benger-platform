@@ -759,5 +759,17 @@ async def test_off_saving_neither_adds_nor_changes_the_section(async_test_client
     assert changed.status_code == 200 and dropped.status_code == 200
     await async_test_db.refresh(row)
     assert row.content["sections"]["analyses"] == stored
+
+    # The Annotation card's agreement and code validation settings are not
+    # added either.
+    sections = {k: v for k, v in row.content["sections"].items() if k != "analyses"}
+    sections["annotations"] = {"visible": True, "show_agreement": False, "show_code_validations": False}
+    with _as_user(admin):
+        switched = await async_test_client.post(
+            f"/api/projects/{project.id}/report", json={"content": {**row.content, "sections": sections}}
+        )
+    assert switched.status_code == 200, switched.text
+    await async_test_db.refresh(row)
+    assert row.content["sections"]["annotations"] == {"visible": True}
     # Nor is it served while the flag is off for everybody.
     assert "analyses" not in dropped.json()["content"]["sections"]

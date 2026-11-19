@@ -22,6 +22,8 @@ import { AnnotatorAgreement } from '@/components/evaluation/AnnotatorAgreement'
 import {
   AnalysesSection,
   CitationBlock,
+  CodeValidations,
+  codeValidationsOf,
   DataProvenance,
   EvaluationSection,
   GenerationDetails,
@@ -46,6 +48,7 @@ import { hasAgreement } from '@/lib/api/agreement'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
 import { getReportData, type ReportResponse } from '@/lib/api/reports'
 import { formatCount, type MetricRegistry } from '@/lib/reports/format'
+import { analysisRunPath } from '@/lib/results/paths'
 import type { ReportChartsConfig, ReportSnapshot } from '@/types/report'
 import Link from 'next/link'
 import {
@@ -287,9 +290,22 @@ export default function ReportViewerPage({
   }
 
   const annotationCount = stats?.annotation_count ?? 0
+  // The validations behind the shown analyses' codes; a project whose
+  // codes were validated on coding projects has them without annotations
+  // of its own. Both show only what the served snapshot carries (none
+  // without variant_experiments).
+  const analysesContent = sections.analyses
+  const showAnalyses =
+    analysesContent?.visible !== false && hasAnalyses(snapshot?.analyses)
+  const codeValidations =
+    showAnalyses && sections.annotations.show_code_validations !== false
+      ? codeValidationsOf(snapshot?.analyses)
+      : []
   const showAnnotations =
     sections.annotations.visible !== false &&
-    (annotationCount > 0 || Boolean(sections.annotations.custom_text))
+    (annotationCount > 0 ||
+      Boolean(sections.annotations.custom_text) ||
+      codeValidations.length > 0)
   const models = snapshot?.models ?? []
   // Sections without data hide themselves; a draft without a snapshot keeps
   // the evaluation card with its "no evaluation yet" note.
@@ -297,11 +313,6 @@ export default function ReportViewerPage({
   const showGeneration =
     sections.generation.visible !== false &&
     (!paper || generationModels > 0 || Boolean(sections.generation.custom_text))
-  // The Analyses section shows only what the served snapshot carries (none
-  // without variant_experiments).
-  const analysesContent = sections.analyses
-  const showAnalyses =
-    analysesContent?.visible !== false && hasAnalyses(snapshot?.analyses)
   // With an Analyses section the conclusions follow it, as in a paper.
   const conclusions = sections.evaluation.conclusions
   const conclusionsAfterAnalyses =
@@ -363,16 +374,18 @@ export default function ReportViewerPage({
 
         {showAnnotations && (
           <ReportSection title={t('reports.view.annotations')} id="annotations">
-            <Prose>
-              {sections.annotations.custom_text ||
-                t('reports.view.defaultAnnotationsText', {
-                  annotations: formatCount(annotationCount, locale),
-                  participants: formatCount(
-                    stats?.participant_count ?? 0,
-                    locale,
-                  ),
-                })}
-            </Prose>
+            {(annotationCount > 0 || sections.annotations.custom_text) && (
+              <Prose>
+                {sections.annotations.custom_text ||
+                  t('reports.view.defaultAnnotationsText', {
+                    annotations: formatCount(annotationCount, locale),
+                    participants: formatCount(
+                      stats?.participant_count ?? 0,
+                      locale,
+                    ),
+                  })}
+              </Prose>
+            )}
             {sections.annotations.acknowledgment_text && (
               <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600 italic dark:bg-zinc-800/60 dark:text-zinc-300">
                 {sections.annotations.acknowledgment_text}
@@ -388,6 +401,13 @@ export default function ReportViewerPage({
                   showPairs={showParticipants}
                 />
               </div>
+            )}
+            {codeValidations.length > 0 && (
+              <CodeValidations
+                analyses={snapshot?.analyses}
+                locale={locale}
+                t={t}
+              />
             )}
           </ReportSection>
         )}
@@ -444,11 +464,7 @@ export default function ReportViewerPage({
             content={analysesContent}
             locale={locale}
             t={t}
-            runHref={
-              report.can_edit
-                ? (runId) => `/projects/${report.project_id}/analysis/${runId}`
-                : null
-            }
+            runHref={report.can_edit ? analysisRunPath : null}
           />
         )}
 
