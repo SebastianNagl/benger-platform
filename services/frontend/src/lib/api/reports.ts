@@ -50,6 +50,8 @@ export interface AnnotationsSection extends ReportSection {
   custom_text?: string | null
   show_count: boolean
   show_participants: boolean
+  /** Show inter-annotator agreement from the snapshot (default true). */
+  show_agreement?: boolean
   acknowledgment_text?: string | null
 }
 
@@ -169,6 +171,8 @@ export interface PublishedReportListItem {
   task_count: number
   annotation_count: number
   model_count: number
+  /** Completed analysis runs (absent from APIs before CORE 2.67). */
+  analysis_count?: number
   is_public: boolean
   visibility: ReportVisibility
   organizations: Array<{

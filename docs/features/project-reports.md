@@ -54,12 +54,15 @@ project that reads no other project`.
 Publishing and "Refresh data" compute the snapshot and store it in
 `project_reports.content.snapshot`; the editor's preview computes one on the
 first view of a draft. Nothing else writes it: saving the editor's content
-keeps the stored snapshot and ignores one a client sends. Every number is aggregated in Postgres. Besides the
-metric evaluation (`statistics`, `methods`, `configs`, `series`,
-`distributions`, `participants`, `models`) it holds five sections. Each is
-present for every project and empty when the project has nothing of its
-kind, and the viewer hides a section without data, so an annotation-only
-project gets a report with Data, Annotations and Reproducibility only.
+keeps the stored snapshot and ignores one a client sends. Every number is
+aggregated in Postgres. Besides the metric evaluation (`statistics`,
+`methods`, `configs`, `series`, `distributions`, `participants`, `models`)
+and the inter-annotator agreement (`annotator_agreement`, see
+[inter-annotator agreement](../user-guides/inter-annotator-agreement.md)) it
+holds five sections. Each is present for every project and empty when the
+project has nothing of its kind, and the viewer hides a section without
+data, so an annotation-only project gets a report with Data, Annotations and
+Reproducibility only.
 
 | Key | Contents |
 |---|---|
@@ -73,18 +76,23 @@ A declared manifest or design provenance larger than 16 KB is stored as its
 SHA-256 only. Where an import's payload was stored (object key, file name)
 is never part of a report.
 
-### What a reader outside the project gets
+### What a reader gets
 
-The stored snapshot is whole, but what is served follows the reader. Report
-authors and members of the project's organizations (the report read rights
-of `check_report_access`) get it as stored. A reader outside the project, an
-anonymous or signed-in reader of a public report, gets the public view
-(`public_snapshot` in `report_snapshot.py`), applied on every read path
-(`GET /api/reports/{id}/data`, its `snapshot` and `report.content.snapshot`):
-each judge run's parameters, each declared import manifest and each design
-provenance keep their SHA-256 but lose their content, so custom judge
-prompts, rubric and Bewertungsbogen criteria and author manifests stay
-inside the project, and the Analyses section's `omitted` list is left out.
+The stored snapshot is whole, but what is served follows the section
+switches and the reader. For every reader, `apply_section_visibility` in
+`report_snapshot.py` serves `annotator_agreement` as `null` when
+`annotations.show_agreement` is off, and leaves out the participant lists
+and the agreement's per-pair rows when `annotations.show_participants` is
+off. Report authors and members of the project's organizations (the report
+read rights of `check_report_access`) get nothing else removed. A reader
+outside the project, an anonymous or signed-in reader of a public report,
+also gets the public view (`public_snapshot` in `report_snapshot.py`),
+applied on every read path (`GET /api/reports/{id}/data`, its `snapshot` and
+`report.content.snapshot`): each judge run's parameters, each declared
+import manifest and each design provenance keep their SHA-256 but lose their
+content, so custom judge prompts, rubric and Bewertungsbogen criteria and
+author manifests stay inside the project, and the Analyses section's `omitted`
+list is left out.
 
 ### Hidden models
 
@@ -108,8 +116,9 @@ list sorted to a total order. A rebuild over unchanged data therefore gives
 the same hash, whenever and on whichever build it runs, and any change to a
 number or record changes it. `canonical_snapshot_json` and `snapshot_sha256`
 in `report_snapshot.py` compute it; a reader with the project's read rights
-can recompute it from the JSON the report's data link serves (the public view
-leaves content out, so it carries the hash but cannot reproduce it).
+can recompute it from the JSON the report's data link serves (the public view,
+and a report with agreement or participants switched off, leave content
+out, so they carry the hash but cannot reproduce it).
 
 ## Content sections
 

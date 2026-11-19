@@ -108,6 +108,7 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "openExams": "Open exams",
       "openTasks": "Open tasks",
       "submittedAnswers": "Submitted answers",
@@ -756,6 +757,8 @@
       "attemptedBadge": "Past submission",
       "archivedBadge": "Archived",
       "wizardDraftBadge": "Wizard draft",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analysis",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
@@ -1526,8 +1529,7 @@
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
       "korrektur": "Correction",
-      "members": "Members",
-      "analysis": "Analysis"
+      "members": "Members"
     },
     "billing": {
       "title": "Billing",
@@ -1541,6 +1543,7 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Falllösung grades",
       "correctionsGradesBreakdown": "↳ Grades by graders",
@@ -5489,7 +5492,16 @@
         "selected": "selected",
         "noResults": "(no results)",
         "notRun": "(not run)",
-        "tasks": "tasks"
+        "tasks": "tasks",
+        "searchProjects": "Search projects",
+        "noProjectsFound": "No projects found.",
+        "moreProjects": "Show more ({shown} of {total})",
+        "run": "Run",
+        "runOption": "{name} ({status})",
+        "systems": "Systems",
+        "estimands": "Estimands",
+        "family": "Family",
+        "allFamilies": "All families"
       },
       "params": {
         "configure": "Configure",
@@ -5534,7 +5546,9 @@
           "heatmapNeedsModels": "Requires 2+ models",
           "boxNeedsSampleAggregation": "Select \"Per Sample\" analysis level for box plots",
           "boxComputingScores": "Computing sample scores...",
-          "boxNoSampleData": "No sample data available for this project"
+          "boxNoSampleData": "No sample data available for this project",
+          "forestNeedsModelAggregation": "The forest plot needs the Model analysis level",
+          "forestNoStatistics": "No per-model statistics available yet"
         }
       },
       "results": {
@@ -5581,6 +5595,16 @@
         "mode": "Evaluation Mode",
         "evaluateMissingOnly": "Evaluate Missing/Failed Only",
         "evaluateMissingDescription": "Only evaluates generations that haven't been evaluated yet or had evaluation errors"
+      },
+      "resultType": {
+        "label": "Result",
+        "metrics": "Metrics",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Start analysis",
+        "runDetails": "Run details",
+        "engine": "Engine"
       }
     },
     "export": {
@@ -6078,7 +6102,21 @@
       "strongNegative": "Strong negative",
       "weakNone": "Weak/none",
       "comparisonsAlpha": "{count} comparisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inference",
+        "inferenceDescription": "Multiplicity families with their adjusted p-values, equivalence tests, minimum detectable effects and joint tests, as the spec declares them.",
+        "noInference": "This run declares no families, equivalence bounds, power settings or joint tests.",
+        "familyTitle": "Family {family}: {method}, {size} tests",
+        "contrast": "Contrast",
+        "familyMde": "Minimum detectable effect of the family: {value} (power {power}, α {alpha})",
+        "mdeTitle": "Minimum detectable effects",
+        "mde": "MDE",
+        "power": "Power",
+        "jointTitle": "Joint tests (Wald)",
+        "test": "Test",
+        "fitTitle": "Fit"
+      }
     },
     "scoreDistribution": {
       "title": "Score Distribution",
@@ -6225,7 +6263,10 @@
       "tableChart": "Table + Chart",
       "tableChartDescription": "Data table with chart visualization",
       "tableChartBestFor": "Combined data and visualization view",
-      "selectView": "Select View"
+      "selectView": "Select View",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimates with confidence intervals",
+      "forestPlotBestFor": "Comparing estimates and their uncertainty"
     },
     "statistics": {
       "ci": "95% Confidence Intervals",
@@ -6325,7 +6366,11 @@
         "range90d": "90D",
         "rangeAll": "All",
         "noDataForRange": "No data available for selected date range"
-      }
+      },
+      "intervalAriaLabel": "Estimates with confidence intervals: {series}",
+      "intervalLegend": "Estimate with {level} confidence interval",
+      "pAdjustedShort": "p adj. {p}",
+      "series": "Series"
     },
     "fieldPair": {
       "label": "Field Pairs",
@@ -6374,6 +6419,40 @@
       "invalidPrompt": "Invalid prompt format at index {index}: {error}",
       "failed": "Data upload failed: {error}",
       "failedUnknown": "Data upload failed: unknown error"
+    },
+    "annotatorAgreement": {
+      "title": "Annotator agreement",
+      "description": "How closely annotators agree on tasks that two or more of them annotated, per control.",
+      "summary": "{tasks} tasks were annotated by two or more people ({annotators} annotators).",
+      "controlMeta": "{type} · {tasks} tasks · {annotators} annotators",
+      "types": {
+        "choices": "Choices",
+        "rating": "Rating",
+        "number": "Number",
+        "other": "Other"
+      },
+      "fleissKappa": "Fleiss' kappa",
+      "cohensKappaMean": "Cohen's kappa (mean of pairs)",
+      "percentAgreement": "All annotators agree",
+      "pearsonMean": "Pearson's r (mean of pairs)",
+      "meanAbsoluteDeviation": "Mean absolute deviation",
+      "bands": {
+        "poor": "poor (below chance)",
+        "slight": "slight",
+        "fair": "fair",
+        "moderate": "moderate",
+        "substantial": "substantial",
+        "almostPerfect": "almost perfect"
+      },
+      "multiSelectNote": "Some annotations picked several options: two annotations agree only when they picked the same set.",
+      "pairs": "Annotator pairs ({count})",
+      "pair": "Pair",
+      "sharedTasks": "Shared tasks",
+      "cohensKappa": "Cohen's kappa",
+      "pearson": "Pearson's r",
+      "pairsTruncated": "Showing the {shown} pairs with the most shared tasks of {total}.",
+      "unsupported": "Not scored (no comparable value, such as free text or spans): {controls}.",
+      "methodNote": "Only tasks with two or more answers for a control count. Kappa is read on the Landis and Koch scale; ratings are compared as categories (unweighted kappa). Pairs need at least two shared tasks for Cohen's kappa."
     }
   },
   "about": {
@@ -7453,6 +7532,7 @@
       "showSection": "Show section",
       "showDataCount": "Show task count",
       "showParticipants": "Show participants",
+      "showAgreement": "Show annotator agreement",
       "showModels": "Show models",
       "presentation": "Evaluation presentation",
       "primaryMetric": "Primary metric",
@@ -7757,6 +7837,7 @@
     "tasks": "tasks",
     "annotations": "annotations",
     "models": "models evaluated",
+    "analyses": "analyses",
     "viewReport": "View Report",
     "comingSoon": "Reports Coming Soon",
     "comingSoonDescription": "The reports feature is currently being developed. You will be able to view published evaluation results here.",
@@ -9385,10 +9466,11 @@
   },
   "runs": {
     "title": "Runs",
-    "subtitle": "Inventory of individual generation and evaluation runs. Click a row to see the run's detail.",
+    "subtitle": "Inventory of individual generation, evaluation and analysis runs. Click a row to see the run's detail.",
     "tabs": {
       "evaluation": "Evaluations",
-      "generation": "Generations"
+      "generation": "Generations",
+      "analysis": "Analyses"
     },
     "filterProject": "Project",
     "filterStatus": "Status",
@@ -12038,7 +12120,6 @@
     }
   },
   "analysis": {
-    "title": "Analysis",
     "project": "Project",
     "scope": {
       "pooled": "Pooled"
@@ -12066,8 +12147,6 @@
       "more": "Showing the newest {shown} of {total} runs.",
       "col": {
         "name": "Name",
-        "status": "Status",
-        "created": "Started",
         "rows": "Frame rows",
         "estimates": "Estimates",
         "specHash": "Spec hash"

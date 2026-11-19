@@ -11,6 +11,10 @@
  * their own rows and bands. It draws what it is given and computes nothing
  * statistical.
  *
+ * With `mode="bar"` each estimate is drawn as a bar from 0 instead of a
+ * point, with the interval as a whisker and the null value still dashed:
+ * the bar view of the evaluations page uses it.
+ *
  * The SVG is drawn at the container's measured width (ResizeObserver), so
  * text keeps its size on narrow screens; long row labels are shortened with
  * the full label in a tooltip.
@@ -55,6 +59,8 @@ export interface ForestPlotProps {
   axisLabel?: string
   /** Legend entries for the lines; omitted entries are not shown. */
   legend?: { interval?: string; inner?: string; band?: string }
+  /** `point` (default): a marker per estimate; `bar`: a bar from 0, the null value dashed. */
+  mode?: 'point' | 'bar'
   className?: string
   'data-testid'?: string
 }
@@ -62,7 +68,13 @@ export interface ForestPlotProps {
 const ROW_HEIGHT = 30
 const AXIS_HEIGHT = 34
 const TOP_PAD = 8
-const VALUE_WIDTH = 180
+/** Bounds of the value column, sized to its longest text. */
+const MIN_VALUE_WIDTH = 140
+const MAX_VALUE_WIDTH = 300
+/** Width of one character of the value column (12 px monospace, measured 7.8). */
+const MONO_CHAR_WIDTH = 8
+/** Gap between the plot and the value column's longest text. */
+const VALUE_GAP = 8
 const FALLBACK_WIDTH = 720
 const CHAR_WIDTH = 6.6
 
@@ -94,6 +106,7 @@ export function ForestPlot({
   ariaLabel,
   axisLabel,
   legend,
+  mode = 'point',
   className,
   'data-testid': testId = 'forest-plot',
 }: ForestPlotProps) {
@@ -101,7 +114,22 @@ export function ForestPlot({
   const [containerRef, measured] = useMeasuredWidth()
   const width = measured > 0 ? measured : FALLBACK_WIDTH
   const compact = width < 560
-  const valueWidth = compact ? 0 : VALUE_WIDTH
+  const finite = (v: number | null | undefined): v is number =>
+    typeof v === 'number' && Number.isFinite(v)
+  const valueText = (row: ForestPlotRow) =>
+    finite(row.estimate)
+      ? `${formatNumber(row.estimate, locale)} ${finite(row.lower) && finite(row.upper) ? formatInterval(row.lower, row.upper, locale) : ''}`.trim()
+      : ''
+  const longestValue = Math.max(0, ...rows.map((r) => valueText(r).length))
+  const valueWidth = compact
+    ? 0
+    : Math.min(
+        MAX_VALUE_WIDTH,
+        Math.max(
+          MIN_VALUE_WIDTH,
+          Math.ceil(longestValue * MONO_CHAR_WIDTH) + VALUE_GAP,
+        ),
+      )
   const labelWidth = Math.min(240, Math.max(96, Math.round(width * 0.28)))
   const plotLeft = labelWidth + 8
   const plotRight = width - valueWidth - 12
@@ -117,6 +145,9 @@ export function ForestPlot({
   if (nullValue !== null && nullValue !== undefined)
     domainValues.push(nullValue)
   if (band) domainValues.push(band.lower, band.upper)
+  // Bars start at 0, so it is always on the axis.
+  const barBase = mode === 'bar' ? 0 : null
+  if (barBase !== null) domainValues.push(barBase)
   const { min, max, ticks } = axisTicks(domainValues)
   const x = (value: number) =>
     plotLeft + ((value - min) / (max - min || 1)) * plotWidth
@@ -231,6 +262,26 @@ export function ForestPlot({
                   {label !== row.label && <title>{row.label}</title>}
                   {label}
                 </text>
+                {has && barBase !== null && (
+                  <rect
+                    data-testid="forest-plot-bar"
+                    x={Math.min(
+                      clampX(barBase),
+                      clampX(row.estimate as number),
+                    )}
+                    y={cy - 7}
+                    width={Math.abs(
+                      clampX(row.estimate as number) - clampX(barBase),
+                    )}
+                    height={14}
+                    rx={2}
+                    className={
+                      row.emphasis
+                        ? 'fill-emerald-600/80 dark:fill-emerald-400/80'
+                        : 'fill-emerald-500/50 dark:fill-emerald-400/45'
+                    }
+                  />
+                )}
                 {hasInterval && (
                   <line
                     x1={clampX(row.lower as number)}
@@ -253,7 +304,7 @@ export function ForestPlot({
                     className="stroke-emerald-700/70 dark:stroke-emerald-400/70"
                   />
                 )}
-                {has && (
+                {has && barBase === null && (
                   <rect
                     data-testid="forest-plot-point"
                     x={clampX(row.estimate as number) - (row.emphasis ? 5 : 4)}
@@ -285,9 +336,7 @@ export function ForestPlot({
                     textAnchor="end"
                     className="fill-zinc-700 font-mono dark:fill-zinc-300"
                   >
-                    {has
-                      ? `${formatNumber(row.estimate, locale)} ${hasInterval ? formatInterval(row.lower, row.upper, locale) : ''}`.trim()
-                      : ''}
+                    {valueText(row)}
                   </text>
                 )}
               </g>

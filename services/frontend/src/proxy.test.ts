@@ -25,6 +25,34 @@ function createRequest(pathname: string, host: string): NextRequest {
 }
 
 describe('proxy', () => {
+  describe('old analysis URLs', () => {
+    const redirect = (path: string) => {
+      const res = proxy(createRequest(path, 'benger.localhost:8831'))
+      return [res.status, res.headers.get('location')]
+    }
+
+    it('redirects them permanently to their places under /evaluations', () => {
+      expect(redirect('/projects/p1/analysis')).toEqual([
+        308,
+        'http://benger.localhost:8831/evaluations?projectId=p1&type=analysis',
+      ])
+      expect(redirect('/projects/p1/analysis?from=run-7')).toEqual([
+        308,
+        'http://benger.localhost:8831/evaluations?projectId=p1&type=analysis&newRunFrom=run-7',
+      ])
+      expect(redirect('/projects/p1/analysis/run-7')).toEqual([
+        308,
+        'http://benger.localhost:8831/evaluations/analysis/run-7',
+      ])
+    })
+
+    it('passes the project page through', () => {
+      const res = proxy(createRequest('/projects/p1', 'benger.localhost'))
+      expect(res.status).toBe(200)
+      expect(res.headers.get('location')).toBeNull()
+    })
+  })
+
   describe('MIME type headers', () => {
     it('should set text/css for .css files', () => {
       const res = proxy(createRequest('/styles/app.css', 'benger.localhost'))

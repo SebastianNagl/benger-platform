@@ -108,6 +108,7 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "openExams": "Examens ouverts",
       "openTasks": "Tâches ouvertes",
       "submittedAnswers": "Réponses soumises",
@@ -756,6 +757,8 @@
       "attemptedBadge": "Remise antérieure",
       "archivedBadge": "Archivé",
       "wizardDraftBadge": "Brouillon de l'assistant",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analyse",
       "participantVia": {
         "share": "Rejoint via un lien de partage",
         "entitlement": "Débloqué via « Découvrir »",
@@ -1526,8 +1529,7 @@
       "evaluations": "Évaluations",
       "reviewWorkflow": "Processus de relecture",
       "korrektur": "Correction",
-      "members": "Membres",
-      "analysis": "Analyse"
+      "members": "Membres"
     },
     "billing": {
       "title": "Facturation",
@@ -1541,6 +1543,7 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Notations de résolution de cas",
       "correctionsGradesBreakdown": "↳ Notations par les correcteurs",
@@ -5489,7 +5492,16 @@
         "selected": "sélectionné(s)",
         "noResults": "(aucun résultat)",
         "notRun": "(non exécuté)",
-        "tasks": "tâches"
+        "tasks": "tâches",
+        "searchProjects": "Rechercher des projets",
+        "noProjectsFound": "Aucun projet trouvé.",
+        "moreProjects": "Afficher plus ({shown} sur {total})",
+        "run": "Analyse",
+        "runOption": "{name} ({status})",
+        "systems": "Systèmes",
+        "estimands": "Estimandes",
+        "family": "Famille",
+        "allFamilies": "Toutes les familles"
       },
       "params": {
         "configure": "Configurer",
@@ -5534,7 +5546,9 @@
           "heatmapNeedsModels": "Nécessite au moins 2 modèles",
           "boxNeedsSampleAggregation": "Choisissez le niveau d'analyse « Par échantillon » pour les boîtes à moustaches",
           "boxComputingScores": "Calcul des scores par échantillon...",
-          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet"
+          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet",
+          "forestNeedsModelAggregation": "Le forest plot nécessite le niveau d'analyse Modèle",
+          "forestNoStatistics": "Aucune statistique par modèle disponible pour le moment"
         }
       },
       "results": {
@@ -5581,6 +5595,16 @@
         "mode": "Mode d'évaluation",
         "evaluateMissingOnly": "N'évaluer que les manquantes/en échec",
         "evaluateMissingDescription": "N'évalue que les générations qui n'ont pas encore été évaluées ou dont l'évaluation a échoué"
+      },
+      "resultType": {
+        "label": "Résultat",
+        "metrics": "Métriques",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Lancer une analyse",
+        "runDetails": "Détails de l'analyse",
+        "engine": "Moteur"
       }
     },
     "export": {
@@ -6078,7 +6102,21 @@
       "strongNegative": "Fortement négative",
       "weakNone": "Faible/nulle",
       "comparisonsAlpha": "{count} comparaisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inférence",
+        "inferenceDescription": "Familles de multiplicité avec leurs p-valeurs ajustées, tests d'équivalence, effets minimaux détectables et tests conjoints, tels que la spécification les déclare.",
+        "noInference": "Cette analyse ne déclare ni familles, ni bornes d'équivalence, ni paramètres de puissance, ni tests conjoints.",
+        "familyTitle": "Famille {family} : {method}, {size} tests",
+        "contrast": "Contraste",
+        "familyMde": "Effet minimal détectable de la famille : {value} (puissance {power}, α {alpha})",
+        "mdeTitle": "Effets minimaux détectables",
+        "mde": "MDE",
+        "power": "Puissance",
+        "jointTitle": "Tests conjoints (Wald)",
+        "test": "Test",
+        "fitTitle": "Ajustement"
+      }
     },
     "scoreDistribution": {
       "title": "Distribution des scores",
@@ -6225,7 +6263,10 @@
       "tableChart": "Tableau + graphique",
       "tableChartDescription": "Tableau de données avec visualisation graphique",
       "tableChartBestFor": "Vue combinée des données et de la visualisation",
-      "selectView": "Choisir la vue"
+      "selectView": "Choisir la vue",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimations avec intervalles de confiance",
+      "forestPlotBestFor": "Comparer des estimations et leur incertitude"
     },
     "statistics": {
       "ci": "Intervalles de confiance à 95 %",
@@ -6325,7 +6366,11 @@
         "range90d": "90 j",
         "rangeAll": "Tout",
         "noDataForRange": "Aucune donnée disponible pour la période sélectionnée"
-      }
+      },
+      "intervalAriaLabel": "Estimations avec intervalles de confiance : {series}",
+      "intervalLegend": "Estimation avec intervalle de confiance à {level}",
+      "pAdjustedShort": "p ajust. {p}",
+      "series": "Série"
     },
     "fieldPair": {
       "label": "Paires de champs",
@@ -6374,6 +6419,40 @@
       "invalidPrompt": "Format de prompt non valide à l'index {index} : {error}",
       "failed": "Échec du téléversement des données : {error}",
       "failedUnknown": "Échec du téléversement des données : erreur inconnue"
+    },
+    "annotatorAgreement": {
+      "title": "Accord entre annotateurs",
+      "description": "Dans quelle mesure les annotateurs s'accordent sur les tâches annotées par au moins deux d'entre eux, par champ.",
+      "summary": "{tasks} tâches ont été annotées par au moins deux personnes ({annotators} annotateurs).",
+      "controlMeta": "{type} · {tasks} tâches · {annotators} annotateurs",
+      "types": {
+        "choices": "Choix",
+        "rating": "Note",
+        "number": "Nombre",
+        "other": "Autre"
+      },
+      "fleissKappa": "Kappa de Fleiss",
+      "cohensKappaMean": "Kappa de Cohen (moyenne des paires)",
+      "percentAgreement": "Tous d'accord",
+      "pearsonMean": "r de Pearson (moyenne des paires)",
+      "meanAbsoluteDeviation": "Écart absolu moyen",
+      "bands": {
+        "poor": "faible (sous le hasard)",
+        "slight": "très faible",
+        "fair": "passable",
+        "moderate": "modéré",
+        "substantial": "important",
+        "almostPerfect": "presque parfait"
+      },
+      "multiSelectNote": "Certaines annotations ont choisi plusieurs options : deux annotations ne s'accordent que si elles ont choisi le même ensemble.",
+      "pairs": "Paires d'annotateurs ({count})",
+      "pair": "Paire",
+      "sharedTasks": "Tâches communes",
+      "cohensKappa": "Kappa de Cohen",
+      "pearson": "r de Pearson",
+      "pairsTruncated": "Affichage des {shown} paires ayant le plus de tâches communes sur {total}.",
+      "unsupported": "Non évalués (aucune valeur comparable, comme du texte libre ou des segments) : {controls}.",
+      "methodNote": "Seules comptent les tâches ayant au moins deux réponses pour un champ. Le kappa se lit sur l'échelle de Landis et Koch ; les notes sont comparées comme des catégories (kappa non pondéré). Le kappa de Cohen d'une paire nécessite au moins deux tâches communes."
     }
   },
   "about": {
@@ -7453,6 +7532,7 @@
       "showSection": "Afficher la section",
       "showDataCount": "Afficher le nombre de tâches",
       "showParticipants": "Afficher les participants",
+      "showAgreement": "Afficher l'accord entre annotateurs",
       "showModels": "Afficher les modèles",
       "presentation": "Présentation de l'évaluation",
       "primaryMetric": "Métrique principale",
@@ -7757,6 +7837,7 @@
     "tasks": "Tâches",
     "annotations": "Annotations",
     "models": "Modèles évalués",
+    "analyses": "Analyses",
     "viewReport": "Afficher le rapport",
     "comingSoon": "Rapports bientôt disponibles",
     "comingSoonDescription": "La fonction de rapports est en cours de développement. Vous pourrez consulter ici les résultats d'évaluation publiés.",
@@ -9385,10 +9466,11 @@
   },
   "runs": {
     "title": "Exécutions",
-    "subtitle": "Inventaire des exécutions individuelles de génération et d'évaluation. Cliquez sur une ligne pour afficher les détails de l'exécution.",
+    "subtitle": "Inventaire des exécutions individuelles de génération, d'évaluation et d'analyse. Cliquez sur une ligne pour afficher les détails de l'exécution.",
     "tabs": {
       "evaluation": "Évaluations",
-      "generation": "Générations"
+      "generation": "Générations",
+      "analysis": "Analyses"
     },
     "filterProject": "Projet",
     "filterStatus": "Statut",
@@ -12038,7 +12120,6 @@
     }
   },
   "analysis": {
-    "title": "Analyse",
     "project": "Projet",
     "scope": {
       "pooled": "Global"
@@ -12066,8 +12147,6 @@
       "more": "Les {shown} analyses les plus récentes sur {total}.",
       "col": {
         "name": "Nom",
-        "status": "Statut",
-        "created": "Lancée",
         "rows": "Lignes du frame",
         "estimates": "Estimations",
         "specHash": "Hash de la spécification"

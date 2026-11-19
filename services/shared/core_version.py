@@ -1422,11 +1422,132 @@ frame format 2).
     (cells run once per prediction field, under the field key
     ``<config>|<pred>|``, without a reference value);
     ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
+
+2.67 (2026-11-19): counts and listings reflect analysis runs (no
+  migration, additive response fields only).
+  - ``ProjectResponse.analysis_count``: completed analysis runs of the
+    project, on the detail and, batched in one grouped count, on the list
+    (``routers.projects.helpers.count_analysis_runs_by_project`` and
+    ``count_analysis_runs_by_project_async``, ``build_select_analysis_counts``).
+    A run that reads a further project counts for its own project.
+  - ``GET /api/dashboard/stats`` (overview) adds ``generations_count``,
+    ``evaluations_count`` and ``analyses_count``; ``projects_with_generations``
+    and ``projects_with_evaluations`` stay as aliases with the same values
+    (they always carried the counts, not a number of projects).
+  - ``GET /api/runs`` takes ``type=analysis`` (``RunSummary`` gains ``name``,
+    ``frame_rows``, ``estimates_count``, ``spec_hash``, ``engine_version``).
+    Every type filters the accessible projects in the query, so ``total``
+    and the pages count exactly the listed runs; analysis runs that read a
+    further project the user may not read are left out, as in the
+    per-project run list.
+  - Report statistics (``report_service.get_report_statistics`` and
+    ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
+    published list items carry ``analysis_count``.
+
+2.68 (2026-11-19): inter-annotator agreement per control (no migration,
+  additive only).
+  - ``GET /api/evaluations/projects/{project_id}/annotator-agreement``
+    (access-key scope ``annotations:read``): per control of the labeling
+    interface, Fleiss' kappa, pairwise Cohen's kappa and percent agreement
+    for ``choices`` and ``rating``, Pearson's r and mean absolute deviation
+    for ``number``, over tasks with two or more active annotations;
+    ``available: false`` without overlap. Computed by
+    ``annotator_agreement.project_annotator_agreement`` (shared) with
+    ``bg_statistics.compute_agreement``; annotators are labelled by
+    ``user_display.masked_name``.
+  - The report snapshot gains ``annotator_agreement`` (the same object
+    without ``available``, or ``None``), and the Annotation section the
+    flag ``show_agreement``.
+  - ``report_snapshot.apply_section_visibility`` applies the section flags
+    when a report is served: with ``show_agreement`` off, every read path
+    serves ``annotator_agreement`` as ``None``; with ``show_participants``
+    off, every read path leaves out the agreement pairs and the participant
+    lists of the snapshot and the Annotation section, keeping the aggregates
+    and ``participant_count``. The stored snapshot is not changed.
+
+2.69 (2026-11-19): analysis runs on the evaluations page (no migration, no
+API change).
+  - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
+    (``?type=analysis``) with the URL state ``run``, ``chartType``,
+    ``systems``, ``estimands``, ``family`` and ``newRunFrom`` (opens the
+    start dialog prefilled with that run's spec). The run page moved to
+    ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
+    ``/projects/[id]/analysis?from=<runId>`` and
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308, in the
+    frontend proxy).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)``,
+    ``evaluationsPath({ projectId, type, run, newRunFrom })`` and
+    ``legacyAnalysisPath(pathname, search)``. Overlays link to result pages
+    through them.
+  - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
+    ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
+    ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):
+    one shape for metric statistics and analysis estimates.
+  - ``ChartType`` gains ``forest`` (both result types);
+    ``DynamicChartRenderer`` takes ``intervalRows`` (forest, and bar and
+    table without models); ``ForestPlot`` takes ``mode`` (``point`` or
+    ``bar``); ``EstimatesTable`` takes ``showFilters``;
+    ``StatisticalResultsPanel`` takes ``analysis`` (``{ run, estimates }``)
+    and shows its Inference and Fit blocks
+    (``@/components/evaluation/statistics/AnalysisStatistics``);
+    ``@/components/analysis/StartAnalysisDialog`` wraps the spec form.
+  - The compliance slot ``AnalysisRunFindings`` keeps its name and props
+    (``{ projectId, run, estimates }``) and renders in two hosts: the run
+    page and, for the selected run, inline in the Analyses view of
+    ``/evaluations``. The component must render compact content without a
+    page heading, breadcrumb or full-width layout.
+
+2.70 (2026-11-19): the project report covers the whole project (no
+  migration, additive API changes only).
+  - ``report_snapshot.build_report_snapshot`` adds the ``data``,
+    ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
+    ``reproducibility.snapshot_sha256`` is the SHA-256 of
+    ``report_snapshot.canonical_snapshot_json`` (``snapshot_sha256``).
+    ``report_snapshot.public_snapshot`` is the view served to readers
+    outside the project (judge parameters, import manifests and design
+    provenance as hashes only); ``model_is_public`` and ``hidden_model_ids``
+    hold the hidden-model rule the report applies in every section.
+  - ``report_service.can_publish_report`` and ``can_publish_project`` allow
+    any project with tasks and at least one result (annotations,
+    generations, evaluation or analysis runs); the refusal reasons are
+    ``REASON_NO_TASKS`` and ``REASON_NO_RESULTS``.
+  - ``routers.reports.can_edit_report`` and ``require_report_author``: a
+    superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
+    organization authors the report; ``ReportResponse.can_edit`` carries
+    the answer. Saving report content keeps the server's snapshot. Readers
+    who do not author the report get the section visibility of 2.68 and,
+    outside the project, the public view on top.
+
+2.72 (2026-11-19): the project report's Analyses section (no migration,
+  additive API changes only; 2.71 is taken by the Evaluation card's analysis
+  start).
+  - ``report_snapshot.build_report_snapshot`` takes ``analyses`` and copies
+    the selected completed single-project runs (``report_analysis_runs``,
+    ``analysis_run_problems``) with their metadata and the estimates each
+    exhibit selects; ``parse_analyses_section`` validates the stored section
+    (``AnalysesSectionError``, limits ``MAX_REPORT_ANALYSIS_RUNS``,
+    ``MAX_RUN_EXHIBITS``, ``MAX_REPORT_ESTIMATES_PER_RUN``),
+    ``exhibit_selects`` and ``estimate_systems`` are the exhibit filter
+    rule. A run whose frame holds a hidden model is member-only
+    (``analysis_runs_member_only``, ``has_member_only_analyses``):
+    ``public_snapshot`` withholds it and ``report_service.can_publish_report``
+    refuses it with ``REASON_ANALYSIS_RUNS``.
+  - ``GET /api/projects/{project_id}/report/analysis-runs`` lists the runs a
+    report author can pick. Saving report content answers 422
+    ``invalid_report_analyses`` for an invalid section.
+  - ``analysis.frame.frame_models`` names the models of a frame, which an
+    analysis run records as ``resolved_inputs.models``; each fit summary
+    records the reference level of every categorical term
+    (``references``).
+  - Frontend: ``@/components/analysis/ContrastForestPlot`` exports
+    ``ContrastForest`` (one contrast, a given band, no pickers) and
+    ``EstimatesTable`` takes ``compact``; the report's exhibits are
+    ``@/components/reports/view/AnalysesSection`` and ``AnalysisExhibit``.
 """
 
 import os
 
-CORE_API_VERSION = "2.66"
+CORE_API_VERSION = "2.72"
 
 
 def extended_required() -> bool:

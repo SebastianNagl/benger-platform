@@ -35,6 +35,7 @@ import {
   type EquivalenceBand,
 } from '@/lib/analysis/results'
 import type { AnalysisEstimate } from '@/lib/api/analysis'
+import { contrastLabel } from '@/lib/results/intervalRows'
 import { useMemo, useState } from 'react'
 
 const NO_BAND = 'none'
@@ -50,9 +51,10 @@ export function plottableGroups(
 }
 
 export function groupLabel(group: ContrastGroup): string {
-  return group.contrastId && group.contrastId !== group.estimandId
-    ? `${group.estimandId} · ${group.contrastId}`
-    : group.estimandId
+  return contrastLabel({
+    estimand_id: group.estimandId,
+    contrast_id: group.contrastId,
+  })
 }
 
 /** The bound set of a contrast with `index`, or null (also for null). */

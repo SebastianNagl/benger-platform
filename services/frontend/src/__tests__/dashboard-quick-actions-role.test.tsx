@@ -75,8 +75,9 @@ const OVERVIEW = {
   project_count: 1,
   task_count: 1,
   annotation_count: 0,
-  projects_with_generations: 0,
-  projects_with_evaluations: 0,
+  generations_count: 0,
+  evaluations_count: 0,
+  analyses_count: 0,
 }
 const PERSONAL = {
   scope: 'personal',

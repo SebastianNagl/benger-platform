@@ -211,7 +211,7 @@ async def test_snapshot_builder_normalizes_shapes_and_hides_private_models(async
 
     snap = await async_test_db.run_sync(build_report_snapshot, project.id)
 
-    assert snap["statistics"] == {"task_count": 2, "annotation_count": 1, "participant_count": 1, "model_count": 1, "evaluation_count": 5}
+    assert snap["statistics"] == {"task_count": 2, "annotation_count": 1, "participant_count": 1, "model_count": 1, "evaluation_count": 5, "analysis_count": 0}
     ids = {m["id"] for m in snap["methods"]}
     assert {"llm_judge_falloesung", "llm_judge_falloesung_grade_points", "llm_judge_falloesung_passed", "bleu"} <= ids
     assert "raw_score" not in ids and "llm_judge_lexam_response" not in ids and "llm_judge_falloesung_raw" not in ids

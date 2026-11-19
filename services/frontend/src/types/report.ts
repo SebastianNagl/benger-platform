@@ -8,6 +8,7 @@
  * published benchmark report is stable and cheap to serve.
  */
 
+import type { AnnotatorAgreementSummary } from '@/lib/api/agreement'
 import type { AnalysisEstimate } from '@/lib/api/analysis'
 
 /** Metric scale families the viewer knows how to format. */
@@ -361,6 +362,8 @@ export interface ReportSnapshot {
     participant_count: number
     model_count: number
     evaluation_count: number
+    /** Completed analysis runs; absent in snapshots taken before CORE 2.67. */
+    analysis_count?: number
   }
   methods: ReportMethod[]
   configs: ReportConfigRef[]
@@ -381,6 +384,9 @@ export interface ReportSnapshot {
   /** The runs and exhibits of the Analyses section; absent in older snapshots. */
   analyses?: ReportAnalysesSnapshot
   reproducibility?: ReportReproducibility
+  /** Inter-annotator agreement per control; null (or absent in snapshots
+   *  taken before it existed) when no task has two annotators. */
+  annotator_agreement?: AnnotatorAgreementSummary | null
 }
 
 /** Editor-controlled presentation settings, stored in content.sections.evaluation.charts_config. */

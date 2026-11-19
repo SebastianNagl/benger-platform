@@ -256,12 +256,19 @@ function EstimateDetails({ estimate }: { estimate: AnalysisEstimate }) {
 
 export interface EstimatesTableProps {
   estimates: readonly AnalysisEstimate[]
+  /**
+   * Show the table's own estimand and family filters (default). Hosts that
+   * filter the estimates themselves, like the evaluations page, turn them
+   * off and keep only the count.
+   */
+  showFilters?: boolean
   /** No filters and no count line: the caller already chose the rows. */
   compact?: boolean
 }
 
 export function EstimatesTable({
   estimates,
+  showFilters = true,
   compact = false,
 }: EstimatesTableProps) {
   const { t, locale } = useI18n()
@@ -301,42 +308,19 @@ export function EstimatesTable({
     <div>
       {!compact && (
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <label
-            className="text-xs text-zinc-500"
-            id="estimates-estimand-label"
-          >
-            {t('analysis.estimates.filterEstimand')}
-          </label>
-          <Select value={estimandFilter} onValueChange={setEstimandFilter}>
-            <SelectTrigger
-              className="w-48"
-              aria-labelledby="estimates-estimand-label"
-              data-testid="estimates-estimand-filter"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('analysis.estimates.all')}</SelectItem>
-              {estimandIds.map((id) => (
-                <SelectItem key={id} value={id}>
-                  {id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {families.length > 0 && (
+          {showFilters && (
             <>
               <label
                 className="text-xs text-zinc-500"
-                id="estimates-family-label"
+                id="estimates-estimand-label"
               >
-                {t('analysis.estimates.filterFamily')}
+                {t('analysis.estimates.filterEstimand')}
               </label>
-              <Select value={familyFilter} onValueChange={setFamilyFilter}>
+              <Select value={estimandFilter} onValueChange={setEstimandFilter}>
                 <SelectTrigger
                   className="w-48"
-                  aria-labelledby="estimates-family-label"
-                  data-testid="estimates-family-filter"
+                  aria-labelledby="estimates-estimand-label"
+                  data-testid="estimates-estimand-filter"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -344,13 +328,42 @@ export function EstimatesTable({
                   <SelectItem value={ALL}>
                     {t('analysis.estimates.all')}
                   </SelectItem>
-                  {families.map((id) => (
+                  {estimandIds.map((id) => (
                     <SelectItem key={id} value={id}>
                       {id}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {families.length > 0 && (
+                <>
+                  <label
+                    className="text-xs text-zinc-500"
+                    id="estimates-family-label"
+                  >
+                    {t('analysis.estimates.filterFamily')}
+                  </label>
+                  <Select value={familyFilter} onValueChange={setFamilyFilter}>
+                    <SelectTrigger
+                      className="w-48"
+                      aria-labelledby="estimates-family-label"
+                      data-testid="estimates-family-filter"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>
+                        {t('analysis.estimates.all')}
+                      </SelectItem>
+                      {families.map((id) => (
+                        <SelectItem key={id} value={id}>
+                          {id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
             </>
           )}
           <span className="ml-auto text-xs text-zinc-500">

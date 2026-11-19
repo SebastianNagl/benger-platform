@@ -18,6 +18,7 @@
 
 'use client'
 
+import { AnnotatorAgreement } from '@/components/evaluation/AnnotatorAgreement'
 import {
   AnalysesSection,
   CitationBlock,
@@ -35,11 +36,13 @@ import {
   ReproducibilitySection,
   StatTiles,
   StatusCard,
+  SubHeading,
   type StatTile,
 } from '@/components/reports/view'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
+import { hasAgreement } from '@/lib/api/agreement'
 import { getMetricDefinitions } from '@/lib/api/evaluation-types'
 import { getReportData, type ReportResponse } from '@/lib/api/reports'
 import { formatCount, type MetricRegistry } from '@/lib/reports/format'
@@ -53,6 +56,31 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+
+type StoredSections = ReportResponse['content']['sections']
+type ViewSections = {
+  [K in keyof StoredSections]-?: Partial<NonNullable<StoredSections[K]>>
+}
+
+/**
+ * Older stored reports and minimal content can lack any section, so every
+ * absent section reads as empty settings (its defaults apply) instead of
+ * crashing the page.
+ */
+function readSections(report: ReportResponse | null): ViewSections | null {
+  const stored = report?.content?.sections as
+    Partial<StoredSections> | undefined
+  if (!stored) return null
+  return {
+    project_info: stored.project_info ?? {},
+    data: stored.data ?? {},
+    annotations: stored.annotations ?? {},
+    generation: stored.generation ?? {},
+    evaluation: stored.evaluation ?? {},
+    analyses: stored.analyses ?? {},
+    reproducibility: stored.reproducibility ?? {},
+  }
+}
 
 /** Shape of `GET /api/reports/{id}/data` (snapshot-based contract). */
 export interface ReportViewData {
@@ -128,7 +156,7 @@ export default function ReportViewerPage({
 
   const report = data?.report ?? null
   const snapshot = data?.snapshot ?? null
-  const sections = report?.content.sections
+  const sections = readSections(report)
   const title =
     sections?.project_info.custom_title ||
     report?.project_title ||
@@ -242,6 +270,14 @@ export default function ReportViewerPage({
         value: formatCount(stats.evaluation_count, locale),
       })
     }
+    // Snapshots taken before analyses were counted have no analysis_count.
+    if ((stats.analysis_count ?? 0) > 0) {
+      tiles.push({
+        id: 'analyses',
+        label: t('reports.view.analyses.title'),
+        value: formatCount(stats.analysis_count ?? 0, locale),
+      })
+    }
   }
 
   const annotationCount = stats?.annotation_count ?? 0
@@ -277,11 +313,14 @@ export default function ReportViewerPage({
     hasHumanEvaluations(snapshot?.human_evaluations)
   const reproSection = sections.reproducibility
   const repro = snapshot?.reproducibility
-  const showRepro = Boolean(repro) && reproSection?.visible !== false
+  const showRepro = Boolean(repro) && reproSection.visible !== false
   const reportUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/reports/${id}`
       : `/reports/${id}`
+  const snapshotAgreement = snapshot?.annotator_agreement
+  const agreement = hasAgreement(snapshotAgreement) ? snapshotAgreement : null
+  const showAgreement = sections.annotations.show_agreement !== false
 
   return frame(
     <>
@@ -329,6 +368,17 @@ export default function ReportViewerPage({
               <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600 italic dark:bg-zinc-800/60 dark:text-zinc-300">
                 {sections.annotations.acknowledgment_text}
               </p>
+            )}
+            {showAgreement && agreement && (
+              <div className="mt-6" data-testid="report-annotator-agreement">
+                <SubHeading>
+                  {t('evaluation.annotatorAgreement.title')}
+                </SubHeading>
+                <AnnotatorAgreement
+                  agreement={agreement}
+                  showPairs={showParticipants}
+                />
+              </div>
             )}
           </ReportSection>
         )}
@@ -411,7 +461,7 @@ export default function ReportViewerPage({
           <ReproducibilitySection
             repro={repro}
             generatedAt={snapshot?.generated_at}
-            note={reproSection?.custom_text}
+            note={reproSection.custom_text}
             locale={locale}
             t={t}
           />

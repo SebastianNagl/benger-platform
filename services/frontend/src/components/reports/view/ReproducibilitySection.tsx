@@ -206,7 +206,7 @@ export function ReproducibilitySection({
                   <td
                     className={clsx(
                       TD,
-                      'align-top font-mono text-xs break-all',
+                      'align-top font-mono text-xs break-words',
                     )}
                   >
                     {run?.judge_model ?? MISSING}
