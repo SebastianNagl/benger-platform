@@ -168,7 +168,7 @@ describe('DynamicChartRenderer with interval rows', () => {
 })
 
 describe('ForestPlot bar mode', () => {
-  it('starts bars at the null value and keeps the whisker', () => {
+  it('starts bars at 0 and keeps the whisker and the null line', () => {
     render(
       <ForestPlot
         mode="bar"

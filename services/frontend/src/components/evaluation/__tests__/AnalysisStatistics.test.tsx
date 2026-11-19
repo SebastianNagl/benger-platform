@@ -30,7 +30,7 @@ describe('AnalysisInferenceBlock', () => {
     expect(families).toHaveLength(2)
     // familiesOf sorts the ids: per_system, primary
     expect(
-      within(families[0]).getByText('Family per_system: Holm, 2 tests'),
+      within(families[0]).getByText('Family per_system · role: Holm, 2 tests'),
     ).toBeInTheDocument()
     const members = within(families[0]).getAllByTestId('analysis-family-member')
     expect(members).toHaveLength(2)
@@ -47,6 +47,36 @@ describe('AnalysisInferenceBlock', () => {
         'Minimum detectable effect of the family: 1.6 (power 80%, α 0.05)',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('lists each adjustment group of a split family on its own', () => {
+    const member = (position: number, group: string[], p: number) =>
+      makeEstimate({
+        position,
+        estimand_id: group[0] ?? 'x',
+        family: 'split',
+        adjustments: [
+          { family: 'split', method: 'holm', group, size: 2, p_adjusted: p },
+        ],
+      })
+    render(
+      <AnalysisInferenceBlock
+        estimates={[
+          member(0, ['a'], 0.1),
+          member(1, ['b'], 0.2),
+          member(2, ['a'], 0.3),
+          member(3, ['b'], 0.4),
+        ]}
+      />,
+    )
+    const families = screen.getAllByTestId('analysis-family')
+    expect(families.map((f) => f.querySelector('h4')?.textContent)).toEqual([
+      'Family split · a: Holm, 2 tests',
+      'Family split · b: Holm, 2 tests',
+    ])
+    expect(
+      within(families[1]).getAllByTestId('analysis-family-member'),
+    ).toHaveLength(2)
   })
 
   it('lists every equivalence test with bounds and decision', () => {

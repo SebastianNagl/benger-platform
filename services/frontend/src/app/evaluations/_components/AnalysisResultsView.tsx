@@ -173,6 +173,8 @@ function CheckboxDropdown({
         variant="outline"
         onClick={() => setOpen(!open)}
         className="w-36 justify-between"
+        aria-label={`${label}: ${summary}`}
+        aria-expanded={open}
         data-testid={testId}
       >
         <span className="truncate">{summary}</span>

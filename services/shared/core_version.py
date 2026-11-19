@@ -1431,10 +1431,12 @@ API change).
     start dialog prefilled with that run's spec). The run page moved to
     ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
     ``/projects/[id]/analysis?from=<runId>`` and
-    ``/projects/[id]/analysis/[runId]`` redirect permanently (308).
-  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)`` and
-    ``evaluationsPath({ projectId, type, run, newRunFrom })``. Overlays link
-    to result pages through them.
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308, in the
+    frontend proxy).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)``,
+    ``evaluationsPath({ projectId, type, run, newRunFrom })`` and
+    ``legacyAnalysisPath(pathname, search)``. Overlays link to result pages
+    through them.
   - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
     ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
     ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):

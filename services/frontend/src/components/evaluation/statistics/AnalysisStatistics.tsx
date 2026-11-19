@@ -115,13 +115,16 @@ function useMethodName() {
 function membership(
   estimate: AnalysisEstimate,
   family: string,
-): Pick<AnalysisAdjustment, 'method' | 'size' | 'p_adjusted' | 'mde'> | null {
+): Pick<
+  AnalysisAdjustment,
+  'method' | 'size' | 'p_adjusted' | 'mde' | 'group'
+> | null {
   const adjustment = (estimate.adjustments ?? []).find(
     (a) => a.family === family,
   )
   if (adjustment) return adjustment
   if (estimate.family === family) {
-    return { method: '', size: 0, p_adjusted: estimate.p_adjusted }
+    return { method: '', size: 0, p_adjusted: estimate.p_adjusted, group: [] }
   }
   return null
 }
@@ -130,7 +133,7 @@ function Where({ estimate }: { estimate: AnalysisEstimate }) {
   const { t } = useI18n()
   const scope = scopeDescription(estimate)
   return (
-    <td className={`${td} max-w-[18rem]`}>
+    <td className={`${td} max-w-[18rem] min-w-[9rem]`}>
       <div className="font-medium [overflow-wrap:anywhere]">
         {contrastLabel(estimate)}
       </div>
@@ -141,6 +144,43 @@ function Where({ estimate }: { estimate: AnalysisEstimate }) {
   )
 }
 
+type Member = {
+  e: AnalysisEstimate
+  m: NonNullable<ReturnType<typeof membership>>
+}
+
+/**
+ * The adjustment groups of every family: a family split by columns
+ * (`split_by`) adjusts each group on its own, so each group is listed (and
+ * counted) separately, labelled with its group values.
+ */
+function familyGroups(
+  estimates: readonly AnalysisEstimate[],
+  families: readonly string[],
+): { key: string; label: string; members: Member[] }[] {
+  const out: { key: string; label: string; members: Member[] }[] = []
+  for (const family of families) {
+    const groups = new Map<string, Member[]>()
+    for (const e of estimates) {
+      const m = membership(e, family)
+      if (!m) continue
+      const key = (m.group ?? []).join('\u0000')
+      const list = groups.get(key)
+      if (list) list.push({ e, m })
+      else groups.set(key, [{ e, m }])
+    }
+    for (const [key, members] of groups) {
+      const group = members[0].m.group ?? []
+      out.push({
+        key: `${family}\u0001${key}`,
+        label: group.length > 0 ? `${family} · ${group.join(', ')}` : family,
+        members,
+      })
+    }
+  }
+  return out
+}
+
 function Families({ estimates }: { estimates: readonly AnalysisEstimate[] }) {
   const { t, locale } = useI18n()
   const methodName = useMethodName()
@@ -148,21 +188,15 @@ function Families({ estimates }: { estimates: readonly AnalysisEstimate[] }) {
   if (families.length === 0) return null
   return (
     <div className="space-y-4" data-testid="analysis-families">
-      {families.map((family) => {
-        const members = estimates
-          .map((e) => ({ e, m: membership(e, family) }))
-          .filter(
-            (x): x is { e: AnalysisEstimate; m: NonNullable<typeof x.m> } =>
-              x.m !== null,
-          )
+      {familyGroups(estimates, families).map(({ key, label, members }) => {
         const method = members.find((x) => x.m.method)?.m.method
         const size = members.find((x) => x.m.size)?.m.size ?? members.length
         const mde = members.find((x) => x.m.mde)?.m.mde
         return (
           <SubBlock
-            key={family}
+            key={key}
             title={t('evaluation.statisticalResults.analysis.familyTitle', {
-              family,
+              family: label,
               method: method ? methodName(method) : MISSING,
               size,
             })}

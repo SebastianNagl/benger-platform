@@ -46,3 +46,35 @@ export function evaluationsPath(options: EvaluationsPathOptions = {}): string {
   const query = params.toString()
   return query ? `/evaluations?${query}` : '/evaluations'
 }
+
+const LEGACY_ANALYSIS = /^\/projects\/([^/]+)\/analysis(?:\/([^/]+))?\/?$/
+
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
+/**
+ * Where an old analysis URL now lives, or null for any other path. The
+ * analysis pages moved under /evaluations: `/projects/{id}/analysis` (its
+ * `?from={runId}` becomes `newRunFrom`) and `/projects/{id}/analysis/{runId}`.
+ * The proxy answers these with a permanent redirect, so bookmarks and stored
+ * links keep working.
+ */
+export function legacyAnalysisPath(
+  pathname: string,
+  search: URLSearchParams,
+): string | null {
+  const match = LEGACY_ANALYSIS.exec(pathname)
+  if (!match) return null
+  const [, projectId, runId] = match
+  if (runId) return analysisRunPath(decodeSegment(runId))
+  return evaluationsPath({
+    projectId: decodeSegment(projectId),
+    type: 'analysis',
+    newRunFrom: search.get('from') || null,
+  })
+}

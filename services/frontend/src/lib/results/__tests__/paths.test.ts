@@ -1,4 +1,9 @@
-import { analysisRunPath, evaluationsPath, resultTypeOf } from '../paths'
+import {
+  analysisRunPath,
+  evaluationsPath,
+  legacyAnalysisPath,
+  resultTypeOf,
+} from '../paths'
 
 describe('result paths', () => {
   it('builds the analysis run page path', () => {
@@ -33,5 +38,47 @@ describe('result paths', () => {
     expect(resultTypeOf('analysis')).toBe('analysis')
     expect(resultTypeOf(null)).toBe('metrics')
     expect(resultTypeOf('automated')).toBe('metrics')
+  })
+
+  it('maps the three old analysis URLs to their new places', () => {
+    const none = new URLSearchParams()
+    expect(legacyAnalysisPath('/projects/p1/analysis', none)).toBe(
+      '/evaluations?projectId=p1&type=analysis',
+    )
+    expect(legacyAnalysisPath('/projects/p1/analysis/', none)).toBe(
+      '/evaluations?projectId=p1&type=analysis',
+    )
+    expect(
+      legacyAnalysisPath(
+        '/projects/p1/analysis',
+        new URLSearchParams('from=run-7&x=1'),
+      ),
+    ).toBe('/evaluations?projectId=p1&type=analysis&newRunFrom=run-7')
+    expect(
+      legacyAnalysisPath('/projects/p1/analysis', new URLSearchParams('from=')),
+    ).toBe('/evaluations?projectId=p1&type=analysis')
+    expect(legacyAnalysisPath('/projects/p1/analysis/run-7', none)).toBe(
+      '/evaluations/analysis/run-7',
+    )
+    // Encoded segments are not encoded twice; a malformed one passes as is.
+    expect(legacyAnalysisPath('/projects/p1/analysis/run%207', none)).toBe(
+      '/evaluations/analysis/run%207',
+    )
+    expect(legacyAnalysisPath('/projects/p%2/analysis', none)).toBe(
+      '/evaluations?projectId=p%252&type=analysis',
+    )
+  })
+
+  it('leaves every other path alone', () => {
+    const none = new URLSearchParams()
+    for (const path of [
+      '/projects/p1',
+      '/projects/p1/analysis/run-7/x',
+      '/projects/p1/analysisx',
+      '/evaluations/analysis/run-7',
+      '/analysis',
+    ]) {
+      expect(legacyAnalysisPath(path, none)).toBeNull()
+    }
   })
 })
