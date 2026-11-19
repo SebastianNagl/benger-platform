@@ -124,11 +124,12 @@ out, so they carry the hash but cannot reproduce it).
 ## Content sections
 
 `content.sections` holds the author's prose and switches. Besides the
-existing keys, `data.show_provenance`, `generation.show_details` and
+existing keys, `data.show_provenance`, `generation.show_details`,
 `evaluation.show_human_evaluation` and `annotations.show_code_validations`
-(all default true) switch the new record parts on and off, and
+(all default true) switch the new record parts on and off,
 `sections.reproducibility` (`visible`, default true, and `custom_text` for
-the author's notes on reproduction) controls the appendix, and `sections.analyses` holds the [Analyses section](#analyses).
+the author's notes on reproduction) controls the appendix, and
+`sections.analyses` holds the [Analyses section](#analyses).
 Older reports without these keys show everything.
 
 ## Analyses
@@ -256,21 +257,21 @@ author gets a link to the run page.
 
 ### Validations of the codes
 
-When the Analyses runs read [codes](codes.md), `snapshot.analyses.code_validations`
-holds the validations behind them, one entry per validation in the order the
-runs name them (`_analysis_code_validations`). Each entry copies what the run
-accepted (`analysis_runs.codes`: the code's kind, ref, version and hash, the
-control, kappa, observed agreement, compared items and completion time) and,
-while the stored validation exists and the author building the snapshot (who
+When the Analyses runs read [codes](codes.md),
+`snapshot.analyses.code_validations` holds the validations behind them, one
+entry per validation in the order the runs name them
+(`_analysis_code_validations`). Each entry copies what the run accepted
+(`analysis_runs.codes`: the code's kind, ref, version and hash, the control,
+kappa, observed agreement, compared items and completion time) and, while
+the stored validation exists and the author building the snapshot (who
 publishes or refreshes it, or whose draft preview computes it) can open its
 coding project with the access of `GET /api/code-validations/{id}`
 (`detail`), its name and its agreement from `code_validations.metrics`:
-chance agreement, the item counts (items,
-compared, ties, items without a human code, missing automatic codes and how
-they count), the categories with precision, recall and F1, the confusion
-matrix, and the agreement between the human coders (their number, items,
-Fleiss' kappa and percent agreement). The per-coder rows are not copied,
-because they name coders. `used_by` lists the runs and measures that read the
+chance agreement, the item counts (items, compared, ties, items without a
+human code, missing automatic codes and how they count), the categories
+with precision, recall and F1, the confusion matrix, and the agreement
+between the human coders (their number, items, Fleiss' kappa and percent
+agreement). The per-coder rows are not copied, because they name coders. `used_by` lists the runs and measures that read the
 validation. Codes a run read without a validation are not listed. Without
 `detail` the entry holds only what the run recorded, and the viewer says so.
 
