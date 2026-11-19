@@ -250,7 +250,8 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
         "participants": participants,
         "custom_text": custom_text,
         "show_count": True,
-        "show_participants": True,
+        "show_participants": existing_annotations.get("show_participants", True),
+        "show_agreement": existing_annotations.get("show_agreement", True),
         "acknowledgment_text": acknowledgment_text,
         "status": "completed",
         "editable": True,
@@ -867,7 +868,12 @@ def create_or_update_report_from_existing_data(
             .get("annotations", {})
             .get("acknowledgment_text"),
             "show_count": True,
-            "show_participants": True,
+            "show_participants": content.get("sections", {})
+            .get("annotations", {})
+            .get("show_participants", True),
+            "show_agreement": content.get("sections", {})
+            .get("annotations", {})
+            .get("show_agreement", True),
             "status": "completed",
             "editable": True,
             "visible": True,

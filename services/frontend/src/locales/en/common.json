@@ -6380,6 +6380,40 @@
       "invalidPrompt": "Invalid prompt format at index {index}: {error}",
       "failed": "Data upload failed: {error}",
       "failedUnknown": "Data upload failed: unknown error"
+    },
+    "annotatorAgreement": {
+      "title": "Annotator agreement",
+      "description": "How closely annotators agree on tasks that two or more of them annotated, per control.",
+      "summary": "{tasks} tasks were annotated by two or more people ({annotators} annotators).",
+      "controlMeta": "{type} · {tasks} tasks · {annotators} annotators",
+      "types": {
+        "choices": "Choices",
+        "rating": "Rating",
+        "number": "Number",
+        "other": "Other"
+      },
+      "fleissKappa": "Fleiss' kappa",
+      "cohensKappaMean": "Cohen's kappa (mean of pairs)",
+      "percentAgreement": "All annotators agree",
+      "pearsonMean": "Pearson's r (mean of pairs)",
+      "meanAbsoluteDeviation": "Mean absolute deviation",
+      "bands": {
+        "poor": "poor (below chance)",
+        "slight": "slight",
+        "fair": "fair",
+        "moderate": "moderate",
+        "substantial": "substantial",
+        "almostPerfect": "almost perfect"
+      },
+      "multiSelectNote": "Some annotations picked several options: two annotations agree only when they picked the same set.",
+      "pairs": "Annotator pairs ({count})",
+      "pair": "Pair",
+      "sharedTasks": "Shared tasks",
+      "cohensKappa": "Cohen's kappa",
+      "pearson": "Pearson's r",
+      "pairsTruncated": "Showing the {shown} pairs with the most shared tasks of {total}.",
+      "unsupported": "Not scored (no comparable value, such as free text or spans): {controls}.",
+      "methodNote": "Only tasks with two or more answers for a control count. Kappa is read on the Landis and Koch scale; ratings are compared as categories (unweighted kappa). Pairs need at least two shared tasks for Cohen's kappa."
     }
   },
   "about": {
@@ -7461,6 +7495,7 @@
       "showSection": "Show section",
       "showDataCount": "Show task count",
       "showParticipants": "Show participants",
+      "showAgreement": "Show annotator agreement",
       "showModels": "Show models",
       "presentation": "Evaluation presentation",
       "primaryMetric": "Primary metric",

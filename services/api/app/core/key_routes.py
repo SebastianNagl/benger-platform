@@ -307,6 +307,11 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             "results:read",
             methods="POST",
         ),
+        allow(
+            "/api/evaluations/projects/{project_id}/annotator-agreement",
+            "annotations:read",
+            methods="read",
+        ),
         area(
             "/api/evaluations/human/*",
             ["annotations:read"],
