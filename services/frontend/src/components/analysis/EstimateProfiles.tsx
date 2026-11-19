@@ -14,8 +14,8 @@ import { useI18n } from '@/contexts/I18nContext'
 import {
   defaultProfileColumns,
   profileFromEstimates,
-  scopeColumns,
   profileSlopes,
+  scopeColumns,
   type ProfileColumns,
 } from '@/lib/analysis/profile'
 import { groupByContrast } from '@/lib/analysis/results'
@@ -81,18 +81,21 @@ export function EstimateProfiles({
   const outcome = group?.estimates[0]?.outcome ?? null
   const slopes =
     group && cols
-      ? profileSlopes(run, allEstimates ?? estimates, group.estimates, cols).map(
-          ({ line, estimate }) => ({
-            slope: estimate.estimate as number,
-            lower: estimate.ci_lower,
-            upper: estimate.ci_upper,
-            label:
-              line === null
-                ? contrastLabel(estimate)
-                : `${cols.series} = ${line} · ${contrastLabel(estimate)}`,
-            ...(line === null ? {} : { line }),
-          }),
-        )
+      ? profileSlopes(
+          run,
+          allEstimates ?? estimates,
+          group.estimates,
+          cols,
+        ).map(({ line, estimate }) => ({
+          slope: estimate.estimate as number,
+          lower: estimate.ci_lower,
+          upper: estimate.ci_upper,
+          label:
+            line === null
+              ? contrastLabel(estimate)
+              : `${cols.series} = ${line} · ${contrastLabel(estimate)}`,
+          ...(line === null ? {} : { line }),
+        }))
       : []
 
   if (!group || !cols || !data) {

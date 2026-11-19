@@ -285,13 +285,22 @@ function linearContrasts(
     }))
 }
 
-type SpecTerm = string | { dummies?: unknown; by?: unknown; reference?: unknown; levels?: unknown; interact?: unknown }
+type SpecTerm =
+  | string
+  | {
+      dummies?: unknown
+      by?: unknown
+      reference?: unknown
+      levels?: unknown
+      interact?: unknown
+    }
 
 function termReads(term: unknown, column: string): boolean {
   if (typeof term === 'string') return term === column
   if (!term || typeof term !== 'object') return false
   const t = term as Exclude<SpecTerm, string>
-  if (Array.isArray(t.interact)) return t.interact.some((s) => termReads(s, column))
+  if (Array.isArray(t.interact))
+    return t.interact.some((s) => termReads(s, column))
   return t.dummies === column || t.by === column
 }
 
@@ -307,8 +316,7 @@ function slopeInteraction(
   const parts = (term as { interact?: unknown }).interact
   if (!Array.isArray(parts) || parts.length !== 2) return null
   const dummies = parts.find((p) => p !== column) as
-    | Exclude<SpecTerm, string>
-    | undefined
+    Exclude<SpecTerm, string> | undefined
   if (
     !parts.includes(column) ||
     !dummies ||
@@ -360,7 +368,10 @@ export function profileSlopes(
     const others = terms.filter((t) => t !== x && termReads(t, x))
     const interaction =
       others.length === 1 ? slopeInteraction(others[0], x) : null
-    if (others.length > 0 && (!interaction || interaction.factor !== columns.series))
+    if (
+      others.length > 0 &&
+      (!interaction || interaction.factor !== columns.series)
+    )
       continue
     const pooled = (contrastId: string) =>
       estimates.find(

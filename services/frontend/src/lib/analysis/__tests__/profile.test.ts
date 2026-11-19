@@ -18,8 +18,8 @@ import {
 import {
   defaultProfileColumns,
   profileFromEstimates,
-  scopeColumns,
   profileSlopes,
+  scopeColumns,
   specDesigns,
   specEstimands,
 } from '../profile'
@@ -177,7 +177,11 @@ describe('the run spec', () => {
     ])
     // Without the interacted factor as the series no line has one slope.
     expect(
-      profileSlopes(run, all, levels, { x: 'pos', series: null, facet: 'party' }),
+      profileSlopes(run, all, levels, {
+        x: 'pos',
+        series: null,
+        facet: 'party',
+      }),
     ).toEqual([])
   })
 
