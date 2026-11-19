@@ -56,6 +56,7 @@ export default function ProjectAnalysisPage() {
   const [runs, setRuns] = useState<AnalysisRunSummary[] | null>(null)
   const [total, setTotal] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [failedRefreshes, setFailedRefreshes] = useState(0)
   const [designKeys, setDesignKeys] = useState<string[]>([])
   const [showForm, setShowForm] = useState(Boolean(fromRunId))
   const [prefill, setPrefill] = useState<{ spec: string; name: string } | null>(
@@ -63,13 +64,17 @@ export default function ProjectAnalysisPage() {
   )
   const [prefillError, setPrefillError] = useState<string | null>(null)
 
-  const loadRuns = useCallback(async () => {
+  const loadRuns = useCallback(async (isRefresh = false) => {
     try {
       const page = await analysisAPI.listRuns(projectId)
       setRuns(page.items)
       setTotal(page.total)
       setError(null)
     } catch (err) {
+      if (isRefresh) {
+        setFailedRefreshes((n) => n + 1)
+        return
+      }
       setError(
         statusOf(err) === 404 || statusOf(err) === 403
           ? 'forbidden'
@@ -95,9 +100,9 @@ export default function ProjectAnalysisPage() {
   const anyActive = runs?.some((r) => isRunActive(r.status)) ?? false
   useEffect(() => {
     if (!anyActive) return
-    const timer = window.setTimeout(() => void loadRuns(), LIST_POLL_MS)
+    const timer = window.setTimeout(() => void loadRuns(true), LIST_POLL_MS)
     return () => window.clearTimeout(timer)
-  }, [anyActive, runs, loadRuns])
+  }, [anyActive, runs, failedRefreshes, loadRuns])
 
   useEffect(() => {
     if (!fromRunId) return

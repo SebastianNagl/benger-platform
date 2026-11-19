@@ -5,7 +5,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import ProjectAnalysisPage from '@/app/projects/[id]/analysis/page'
@@ -204,6 +204,41 @@ describe('ProjectAnalysisPage', () => {
     render(<ProjectAnalysisPage />)
     await screen.findAllByTestId('analysis-run-row')
     expect(screen.queryByTestId('analysis-new-run')).toBeNull()
+  })
+
+  it('keeps the runs on screen when a refresh fails and refreshes again', async () => {
+    jest.useFakeTimers()
+    try {
+      mockListRuns
+        .mockResolvedValueOnce({
+          items: [summary({ status: 'running', completed_at: null })],
+          total: 1,
+        })
+        .mockRejectedValueOnce(new Error('HTTP 502'))
+        .mockResolvedValue({ items: [summary()], total: 1 })
+      render(<ProjectAnalysisPage />)
+      const row = await screen.findByTestId('analysis-run-row')
+      expect(within(row).getByText('Running')).toBeInTheDocument()
+
+      await act(async () => {
+        jest.advanceTimersByTime(4000)
+      })
+      await waitFor(() => expect(mockListRuns).toHaveBeenCalledTimes(2))
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(screen.getByTestId('analysis-run-row')).toHaveTextContent('Running')
+
+      await act(async () => {
+        jest.advanceTimersByTime(4000)
+      })
+      await waitFor(() => expect(mockListRuns).toHaveBeenCalledTimes(3))
+      expect(
+        await within(screen.getByTestId('analysis-run-row')).findByText(
+          'Completed',
+        ),
+      ).toBeInTheDocument()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('explains a refused list', async () => {

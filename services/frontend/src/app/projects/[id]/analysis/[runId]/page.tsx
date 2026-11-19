@@ -101,6 +101,7 @@ export default function AnalysisRunPage() {
   const [estimatesError, setEstimatesError] = useState<string | null>(null)
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   const [projectRole, setProjectRole] = useState<string | null>(null)
+  const [projectCanEdit, setProjectCanEdit] = useState(false)
   const [failedPolls, setFailedPolls] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -144,6 +145,7 @@ export default function AnalysisRunPage() {
         if (cancelled) return
         setProjectTitle(project?.title ?? null)
         setProjectRole(project?.effective_role ?? null)
+        setProjectCanEdit(project?.can_edit === true)
       })
       .catch(() => {
         // The breadcrumb falls back to a generic label.
@@ -185,6 +187,7 @@ export default function AnalysisRunPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, runId])
 
+  const mayStartRun = !!user?.is_superadmin || projectCanEdit
   const mayDownloadFrame =
     !!user?.is_superadmin ||
     projectRole === 'ORG_ADMIN' ||
@@ -276,13 +279,15 @@ export default function AnalysisRunPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            href={`/projects/${projectId}/analysis?from=${encodeURIComponent(r.id)}`}
-          >
-            <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
-            {t('analysis.run.reuseSpec')}
-          </Button>
+          {mayStartRun && (
+            <Button
+              variant="outline"
+              href={`/projects/${projectId}/analysis?from=${encodeURIComponent(r.id)}`}
+            >
+              <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
+              {t('analysis.run.reuseSpec')}
+            </Button>
+          )}
           {r.frame_available && mayDownloadFrame && (
             <Button
               variant="primary"

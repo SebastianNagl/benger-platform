@@ -57,8 +57,13 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
-function project(effectiveRole: string | null) {
-  return { id: 'project-1', title: 'Variants', effective_role: effectiveRole }
+function project(effectiveRole: string | null, canEdit = true) {
+  return {
+    id: 'project-1',
+    title: 'Variants',
+    effective_role: effectiveRole,
+    can_edit: canEdit,
+  }
 }
 
 function httpError(status: number) {
@@ -293,6 +298,29 @@ describe('AnalysisRunPage', () => {
     expect(
       await screen.findByTestId('analysis-frame-download'),
     ).toBeInTheDocument()
+  })
+
+  it('offers a new run from this spec only to editors and superadmins', async () => {
+    const reuse = { name: 'New run from this spec' }
+    mockGetProject.mockResolvedValue(project('ANNOTATOR', false))
+    const first = render(<AnalysisRunPage />)
+    await screen.findByTestId('estimates-table')
+    await waitFor(() => expect(screen.getByText('Variants')).toBeInTheDocument())
+    expect(screen.queryByRole('link', reuse)).toBeNull()
+    first.unmount()
+
+    mockGetProject.mockResolvedValue(project('CONTRIBUTOR', true))
+    const second = render(<AnalysisRunPage />)
+    expect(await screen.findByRole('link', reuse)).toHaveAttribute(
+      'href',
+      '/projects/project-1/analysis?from=run-1',
+    )
+    second.unmount()
+
+    mockGetProject.mockResolvedValue(project(null, false))
+    mockUseAuth.mockReturnValue({ user: { id: 'u0', is_superadmin: true } })
+    render(<AnalysisRunPage />)
+    expect(await screen.findByRole('link', reuse)).toBeInTheDocument()
   })
 
   it('explains a refused frame download', async () => {
