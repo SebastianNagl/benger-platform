@@ -28,6 +28,7 @@ from models import AnalysisRun, EvaluationRun, ResponseGeneration
 from project_models import Project
 from routers.projects.helpers import (
     check_project_accessible_async,
+    get_accessible_project_ids_async,
 )
 
 
@@ -479,14 +480,26 @@ async def _readable_project_ids(
     may list (:func:`check_project_accessible_async`, as the run detail
     pages decide), or None for a superadmin, who may list every run.
 
-    The check runs once per project that has such runs, so the filter goes
-    into the SQL and the total and the pages count only the runs the user
-    sees."""
+    The check runs once per project that has such runs and that the user's
+    project list, their own projects or the public ones hold (every project
+    the check may pass), so the filter goes into the SQL and the total and
+    the pages count only the runs the user sees."""
     if user.is_superadmin:
         return None
+    accessible = await get_accessible_project_ids_async(db, user) or []
     pids = (
         await db.execute(
-            select(model.project_id).where(model.project_id.isnot(None), *where).distinct()
+            select(model.project_id)
+            .join(Project, Project.id == model.project_id)
+            .where(
+                *where,
+                or_(
+                    Project.id.in_(accessible),
+                    Project.created_by == str(user.id),
+                    Project.is_public == True,  # noqa: E712
+                ),
+            )
+            .distinct()
         )
     ).scalars().all()
     return [pid for pid in pids if await check_project_accessible_async(db, user, pid)]

@@ -102,9 +102,10 @@ async def _seed_generation(db, project, *, model_id="gpt-4o", status="completed"
 
 class TestListRunsPermissionFilter:
     @pytest.mark.asyncio
+    @patch("routers.runs.get_accessible_project_ids_async")
     @patch("routers.runs.check_project_accessible_async")
     async def test_evaluation_tab_filters_inaccessible_projects(
-        self, mock_access, async_test_db
+        self, mock_access, mock_listed, async_test_db
     ):
         """Non-superadmin must not see runs from projects they can't access."""
         from routers.runs import list_runs
@@ -140,10 +141,14 @@ class TestListRunsPermissionFilter:
         async_test_db.add_all([er_a, er_b])
         await async_test_db.commit()
 
-        # User can access proj_a; proj_b is forbidden.
+        # Both are listed for the user, but the check forbids proj_b.
+        async def _listed(db, user):
+            return [proj_a.id, proj_b.id]
+
         async def _access(db, user, pid):
             return pid == proj_a.id
 
+        mock_listed.side_effect = _listed
         mock_access.side_effect = _access
 
         resp = await list_runs(
@@ -164,9 +169,10 @@ class TestListRunsPermissionFilter:
         assert resp.total == len(resp.items)
 
     @pytest.mark.asyncio
+    @patch("routers.runs.get_accessible_project_ids_async")
     @patch("routers.runs.check_project_accessible_async")
     async def test_generation_tab_filters_inaccessible_projects(
-        self, mock_access, async_test_db
+        self, mock_access, mock_listed, async_test_db
     ):
         from routers.runs import list_runs
 
@@ -178,9 +184,13 @@ class TestListRunsPermissionFilter:
         gen_b = await _seed_generation(async_test_db, proj_b)
         await async_test_db.commit()
 
+        async def _listed(db, user):
+            return [proj_a.id, proj_b.id]
+
         async def _access(db, user, pid):
             return pid == proj_a.id
 
+        mock_listed.side_effect = _listed
         mock_access.side_effect = _access
 
         resp = await list_runs(
@@ -197,6 +207,49 @@ class TestListRunsPermissionFilter:
         item_ids = {it.id for it in resp.items}
         assert gen_a.id in item_ids
         assert gen_b.id not in item_ids
+
+    @pytest.mark.asyncio
+    @patch("routers.runs.check_project_accessible_async")
+    async def test_checks_only_projects_the_user_may_reach(
+        self, mock_access, async_test_db
+    ):
+        """A member is checked only on the projects they may reach (their own,
+        the public ones, their listed ones), not on every project with runs."""
+        from routers.runs import list_runs
+
+        member = await _seed_user(async_test_db)
+        stranger = await _seed_user(async_test_db)
+        own = await _seed_project(async_test_db, member)
+        public = await _seed_project(async_test_db, stranger)
+        public.is_public = True
+        public.public_role = "ANNOTATOR"
+        others = [await _seed_project(async_test_db, stranger) for _ in range(3)]
+        own_gen = await _seed_generation(async_test_db, own)
+        public_gen = await _seed_generation(async_test_db, public)
+        for p in others:
+            await _seed_generation(async_test_db, p)
+        await async_test_db.commit()
+
+        async def _access(db, user, pid):
+            return True
+
+        mock_access.side_effect = _access
+
+        resp = await list_runs(
+            request=_make_request(),
+            type="generation",
+            project_id=None,
+            status_filter=None,
+            page=1,
+            page_size=200,
+            current_user=_auth_user(is_superadmin=False, user_id=member.id),
+            db=async_test_db,
+        )
+
+        checked = {c.args[2] for c in mock_access.call_args_list}
+        assert checked == {own.id, public.id}
+        assert {it.id for it in resp.items} == {own_gen.id, public_gen.id}
+        assert resp.total == 2
 
 
 # ---------------------------------------------------------------------------
