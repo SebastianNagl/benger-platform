@@ -469,6 +469,50 @@ describe('ImportDataModal', () => {
       )
     })
 
+    it('says a file the project already imported added nothing', async () => {
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        duplicate_of_job_id: 'job-1',
+        result: {
+          project_id: 'test-project-123',
+          no_op: true,
+          duplicate_of: {
+            job_id: 'job-1',
+            completed_at: '2026-11-19T08:00:00+00:00',
+            payload_sha256: 'a'.repeat(64),
+          },
+        },
+      })
+      const user = userEvent.setup()
+      render(<ImportDataModal {...defaultProps} />)
+
+      const file = new File(['text\nhello'], 'test.csv', { type: 'text/csv' })
+      const input = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement
+      await userEvent.upload(input, file)
+      await waitFor(() => screen.getByText('Selected: test.csv'))
+      await user.click(screen.getByRole('button', { name: /Import Data/i }))
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'This file was already imported into this project on',
+          ),
+          'info',
+        )
+      })
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.stringContaining('Nothing was added.'),
+        'info',
+      )
+      expect(mockAddToast).not.toHaveBeenCalledWith(
+        'Data imported successfully',
+        'success',
+      )
+    })
+
     it('imports plain text successfully', async () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)

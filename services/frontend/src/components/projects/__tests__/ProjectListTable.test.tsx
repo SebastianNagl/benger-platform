@@ -1223,6 +1223,55 @@ describe('ProjectListTable', () => {
       })
     })
 
+    it('opens the earlier project when the file was already imported', async () => {
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        project_id: 'imported-1',
+        duplicate_of_job_id: 'job-1',
+        result: {
+          project_id: 'imported-1',
+          project_title: 'Imported Project',
+          project_url: '/projects/imported-1',
+          no_op: true,
+          duplicate_of: {
+            job_id: 'job-1',
+            completed_at: '2026-11-19T08:00:00+00:00',
+            payload_sha256: 'a'.repeat(64),
+          },
+        },
+      })
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+
+      render(<ProjectListTable />)
+
+      fireEvent.click(screen.getByTestId('projects-more-button'))
+      fireEvent.click(screen.getByTestId('projects-import-button'))
+      await userEvent.upload(
+        screen.getByTestId('project-import-file-input'),
+        new File(['{}'], 'project.json', { type: 'application/json' }),
+      )
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'This file was already imported as "Imported Project" on',
+          ),
+          'info',
+        )
+      })
+      expect(mockAddToast).not.toHaveBeenCalledWith(
+        expect.stringContaining('Successfully imported'),
+        'success',
+      )
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/projects/imported-1')
+      })
+    })
+
     it('warns when the completed import could not store every answer', async () => {
       // The job completes although answers were dropped (authors unknown on
       // this deployment collapse onto the importer). A bare success toast

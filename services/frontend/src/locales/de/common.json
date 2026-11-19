@@ -681,6 +681,7 @@
       "import": "Daten importieren",
       "export": "Daten exportieren",
       "importSuccess": "Daten erfolgreich importiert",
+      "importAlreadyImported": "Diese Datei wurde am {date} bereits in dieses Projekt importiert. Es wurde nichts hinzugefügt.",
       "importFailed": "Fehler beim Importieren der Daten",
       "importLinkedExamSingleTask": "Diese Klausur ist als Ganzes mit einer Aktivität einer Lernplattform verknüpft und hat daher genau eine Aufgabe. Verknüpfe die Aktivität zuerst mit der Aufgabe der Klausur, danach kannst du weitere Aufgaben importieren.",
       "exportSuccess": "Daten erfolgreich exportiert",
@@ -730,6 +731,7 @@
       "importStats": " - {tasks} Aufgaben, {annotations} Annotationen, {generations} Generierungen, {evaluations} Evaluationsläufe, {rows} bewertete Zeilen",
       "importSkippedAnnotations": "{count} Antworten wurden nicht importiert: Ihre Verfasser sind hier unbekannt und wurden deinem Konto zugeordnet, das pro Aufgabe nur eine aktive Antwort halten kann. Lege die Nutzer vor dem Import mit derselben E-Mail-Adresse an.",
       "importSuccess": "\"{title}\" erfolgreich importiert{stats} ({time}s)",
+      "importAlreadyImported": "Diese Datei wurde am {date} bereits als „{title}“ importiert. Es wurde kein neues Projekt angelegt; das vorhandene wird geöffnet.",
       "importFailed": "Import des Projekts fehlgeschlagen",
       "invalidJsonFormat": "Ungültiges JSON-Format in Datei",
       "unsupportedFileFormat": "Nicht unterstützte Dateiformatversion",
@@ -1026,6 +1028,8 @@
       "submit": "Zusammenführen",
       "running": "Wird zusammengeführt...",
       "success": "Ergebnisse zusammengeführt",
+      "alreadyMerged": "Diese Ergebnisse wurden am {date} bereits in dieses Projekt zusammengeführt. Es wurde nichts hinzugefügt.",
+      "alreadyMergedToast": "Diese Ergebnisse wurden bereits zusammengeführt. Es wurde nichts hinzugefügt.",
       "failed": "Das Zusammenführen ist fehlgeschlagen",
       "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führe eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importiere sie als neues Projekt.",
       "summaryAdded": "{tasks} Aufgaben zugeordnet und {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzugefügt.",
@@ -9175,6 +9179,7 @@
       "nextTaskFailed": "Nächste Aufgabe konnte nicht geladen werden",
       "allTasksCompletedRestart": "Alle Aufgaben abgeschlossen! Beginne von vorne...",
       "imported": "{count} Aufgaben erfolgreich importiert",
+      "alreadyImported": "Diese Daten wurden bereits in das Projekt importiert. Es wurde nichts hinzugefügt.",
       "importFailed": "Daten konnten nicht importiert werden",
       "allTasksAnnotated": "Alle Aufgaben erfolgreich annotiert",
       "annotationSaved": "Annotation gespeichert",
@@ -11339,6 +11344,8 @@
       "importing": "Importiere…",
       "importingFiles": "{count} Datei(en) werden importiert…",
       "importSuccess": "Cloud-Import abgeschlossen",
+      "importAllAlreadyImported": "Diese Dateien wurden bereits in dieses Projekt importiert. Es wurde nichts hinzugefügt.",
+      "importSomeAlreadyImported": "{count} Datei(en) wurden bereits in dieses Projekt importiert und übersprungen.",
       "importFailed": "Cloud-Import fehlgeschlagen",
       "importFailedWithReason": "Cloud-Import fehlgeschlagen: {reason}",
       "historyTitle": "Bisherige Cloud-Importe",
@@ -11350,7 +11357,8 @@
         "pending": "Wartet",
         "running": "Läuft",
         "completed": "Abgeschlossen",
-        "failed": "Fehlgeschlagen"
+        "failed": "Fehlgeschlagen",
+        "alreadyImported": "Bereits importiert"
       }
     }
   },

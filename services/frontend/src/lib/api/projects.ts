@@ -64,6 +64,13 @@ export interface ImportJobResult {
   created_tasks?: number
   created_annotations?: number
   total_items?: number
+  // A no-op repeat of an earlier import (see ImportJobStatus.duplicate_of_job_id):
+  no_op?: boolean
+  duplicate_of?: {
+    job_id: string
+    completed_at: string | null
+    payload_sha256: string
+  }
   [key: string]: any
 }
 
@@ -80,6 +87,15 @@ export interface ImportJobStatus {
   /** Stable token of a refused import, e.g. `merge_task_mismatch`, `merge_unknown_models`. */
   error_code?: string | null
   result: ImportJobResult | null
+  /** SHA-256 (hex) of the imported file, set once the worker downloaded it. */
+  payload_sha256?: string | null
+  /** What was imported: payload, source, target, import options, declared manifest. */
+  source_manifest?: Record<string, any> | null
+  /**
+   * Set when the job was a no-op: the same file had already been imported
+   * into the same target with the same options, so nothing was written.
+   */
+  duplicate_of_job_id?: string | null
   created_at: string | null
   updated_at: string | null
   expires_at: string | null

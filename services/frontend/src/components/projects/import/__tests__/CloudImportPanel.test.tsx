@@ -427,6 +427,80 @@ describe('CloudImportPanel — immediate mode', () => {
     ).toHaveTextContent('count=0')
   })
 
+  const repeatedStatus = (jobId: string) => ({
+    job_id: jobId,
+    project_id: 'proj-1',
+    format: 'nested',
+    status: 'completed',
+    progress: 100,
+    byte_size: 10,
+    error_message: null,
+    duplicate_of_job_id: 'job-earlier',
+    result: { project_id: 'proj-1', no_op: true },
+    created_at: null,
+    updated_at: null,
+    expires_at: null,
+  })
+
+  async function importTasksJson() {
+    render(<CloudImportPanel mode="immediate" projectId="proj-1" />)
+    await selectOrgAndConnection()
+    const jsonRow = await screen.findByTestId('cloud-import-object-tasks.json')
+    fireEvent.click(jsonRow.querySelector('input')!)
+    fireEvent.click(screen.getByTestId('cloud-import-import-button'))
+  }
+
+  it('says nothing was added when every file was already imported', async () => {
+    mockRunCloudImportJobs.mockResolvedValue([repeatedStatus('job-9')])
+    await importTasksJson()
+
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'dataImport.cloud.importAllAlreadyImported',
+        'info',
+      ),
+    )
+    expect(mockAddToast).not.toHaveBeenCalledWith(
+      'dataImport.cloud.importSuccess',
+      'success',
+    )
+  })
+
+  it('counts the files that were already imported next to the success', async () => {
+    mockRunCloudImportJobs.mockResolvedValue([
+      repeatedStatus('job-9'),
+      { ...repeatedStatus('job-10'), duplicate_of_job_id: null },
+    ])
+    await importTasksJson()
+
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'dataImport.cloud.importSuccess',
+        'success',
+      ),
+    )
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'dataImport.cloud.importSomeAlreadyImported count=1',
+      'info',
+    )
+  })
+
+  it('labels a history row that repeated an earlier import', async () => {
+    mockListCloudImports.mockResolvedValue([
+      {
+        ...repeatedStatus('job-3'),
+        object_key: 'imports/tasks.json',
+        connection_name: 'Chair bucket',
+        created_at: '2026-08-30T10:00:00Z',
+      },
+    ])
+    render(<CloudImportPanel mode="immediate" projectId="proj-1" />)
+    await selectOrgAndConnection()
+
+    const badge = await screen.findByTestId('cloud-import-status-job-3')
+    expect(badge).toHaveTextContent('dataImport.cloud.status.alreadyImported')
+  })
+
   it('disables the import button without a selection', async () => {
     render(<CloudImportPanel mode="immediate" projectId="proj-1" />)
     await selectOrgAndConnection()

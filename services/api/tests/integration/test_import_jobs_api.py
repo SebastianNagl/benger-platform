@@ -793,3 +793,148 @@ class TestCreateImportJobMergeMode:
         resp, mock_send = await self._post(async_test_client, admin, project, body)
         assert resp.status_code == 400, resp.text
         mock_send.assert_not_called()
+
+
+@pytest.mark.integration
+class TestImportProvenanceOptions:
+    """The provenance options of the import job requests (migration 147):
+    a declared ``source_manifest`` is stored on the job under ``declared``,
+    ``reimport`` travels to the worker, and the status returns the payload
+    hash, the manifest and the job a no-op repeated."""
+
+    @staticmethod
+    async def _post_nested(client, admin, project, body_extra):
+        body = {"object_key": _valid_key(project.id), **body_extra}
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-prov"),
+        ) as mock_send:
+            resp = await client.post(f"/api/projects/{project.id}/imports", json=body)
+        return resp, mock_send
+
+    @staticmethod
+    async def _post_full(client, user, body_extra):
+        body = {"object_key": f"imports/2026/11/{user.id}/20261119_120000_full.ndjson"}
+        body.update(body_extra)
+        with _as_user(user), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-prov-full"),
+        ) as mock_send:
+            resp = await client.post("/api/projects/project-imports", json=body)
+        return resp, mock_send
+
+    @pytest.mark.asyncio
+    async def test_declared_manifest_is_stored_and_reimport_travels(
+        self, async_test_client, async_test_db
+    ):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        declared = {
+            "converter": "synthetic-converter@1",
+            "files": [{"path": "jobs.jsonl", "sha256": "ab" * 32}],
+        }
+        resp, mock_send = await self._post_nested(
+            async_test_client, admin, project,
+            {"source_manifest": declared, "reimport": True},
+        )
+        assert resp.status_code == 202, resp.text
+        assert mock_send.call_args.kwargs["kwargs"] == {"reimport": True}
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        await async_test_db.refresh(job)
+        assert job.source_manifest == {"declared": declared}
+
+    @pytest.mark.asyncio
+    async def test_no_options_store_no_manifest(self, async_test_client, async_test_db):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, mock_send = await self._post_nested(async_test_client, admin, project, {})
+        assert resp.status_code == 202, resp.text
+        assert "kwargs" not in mock_send.call_args.kwargs
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        assert job.source_manifest is None
+
+    @pytest.mark.asyncio
+    async def test_full_import_takes_both_options(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, name="Provenance")
+        await async_test_db.commit()
+        resp, mock_send = await self._post_full(
+            async_test_client, user,
+            {"source_manifest": {"origin": "synthetic"}, "reimport": True},
+        )
+        assert resp.status_code == 202, resp.text
+        assert mock_send.call_args.kwargs["kwargs"] == {"reimport": True}
+        job = await _get_job(async_test_db, resp.json()["job_id"])
+        assert job.source_manifest == {"declared": {"origin": "synthetic"}}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            ["not", "an", "object"],
+            "text",
+            {"blob": "x" * (64 * 1024)},
+        ],
+    )
+    async def test_invalid_manifest_400_and_no_job(
+        self, async_test_client, async_test_db, bad
+    ):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, mock_send = await self._post_nested(
+            async_test_client, admin, project, {"source_manifest": bad}
+        )
+        assert resp.status_code == 400, resp.text
+        mock_send.assert_not_called()
+        jobs = (
+            await async_test_db.execute(
+                select(ImportJob).where(ImportJob.project_id == project.id)
+            )
+        ).scalars().all()
+        assert jobs == []
+
+    @pytest.mark.asyncio
+    async def test_oversized_manifest_has_a_code(self, async_test_client, async_test_db):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        resp, _send = await self._post_nested(
+            async_test_client, admin, project,
+            {"source_manifest": {"blob": "x" * (64 * 1024)}},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["code"] == "invalid_source_manifest"
+
+    @pytest.mark.asyncio
+    async def test_status_returns_provenance_fields(
+        self, async_test_client, async_test_db
+    ):
+        admin, _c, _a, _org, project = await _seed_world(async_test_db)
+        first = await _make_job(
+            async_test_db, project.id, admin.id,
+            status=JobStatus.COMPLETED.value, progress=100,
+            payload_sha256="cd" * 32, idempotency_key="ef" * 32,
+            source_manifest={"version": 1, "payload": {"sha256": "cd" * 32}},
+        )
+        repeat = await _make_job(
+            async_test_db, project.id, admin.id,
+            status=JobStatus.COMPLETED.value, progress=100,
+            payload_sha256="cd" * 32, idempotency_key="ef" * 32,
+            duplicate_of_job_id=first.id,
+            result={"no_op": True, "project_id": project.id},
+        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{repeat.id}",
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["payload_sha256"] == "cd" * 32
+        assert body["duplicate_of_job_id"] == first.id
+        assert body["result"]["no_op"] is True
+        assert "idempotency_key" not in body
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{first.id}",
+            )
+        assert resp.json()["source_manifest"] == {
+            "version": 1,
+            "payload": {"sha256": "cd" * 32},
+        }
+        assert resp.json()["duplicate_of_job_id"] is None

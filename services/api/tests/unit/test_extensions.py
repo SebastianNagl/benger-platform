@@ -179,7 +179,9 @@ class TestExtensionLoader:
         # (request_capture, generation_fidelity, provider continuation).
         # 2.62 adds the analysis engine (shared/analysis, analysis_runs,
         # analysis_estimates, the analysis queue and routes).
-        assert CORE_API_VERSION == "2.62"
+        # 2.63 adds import provenance and idempotent re-import
+        # (import_provenance, the import_jobs provenance columns).
+        assert CORE_API_VERSION == "2.63"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

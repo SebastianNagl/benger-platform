@@ -186,6 +186,64 @@ class TestCreateCloudImports:
         assert all(r.celery_task_id == "celery-task-1" for r in rows)
 
     @pytest.mark.asyncio
+    async def test_reimport_travels_with_every_job(
+        self, async_test_client, async_test_db
+    ):
+        org = await _seed_org(async_test_db)
+        conn = await _seed_connection(async_test_db, org, prefix="in/")
+        owner = await _seed_actor(async_test_db, member_of=[org])
+        project = await _seed_project(async_test_db, owner)
+
+        with _as_user(owner), _enqueue_ok() as mock_send:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/cloud-imports",
+                json={
+                    "connection_id": conn.id,
+                    "object_keys": ["in/a.json", "in/b.csv"],
+                    "reimport": True,
+                },
+            )
+        assert response.status_code == 202, response.text
+        assert [c.kwargs["kwargs"] for c in mock_send.call_args_list] == [
+            {"reimport": True},
+            {"reimport": True},
+        ]
+
+    @pytest.mark.asyncio
+    async def test_without_reimport_no_kwargs(self, async_test_client, async_test_db):
+        org = await _seed_org(async_test_db)
+        conn = await _seed_connection(async_test_db, org, prefix="in/")
+        owner = await _seed_actor(async_test_db, member_of=[org])
+        project = await _seed_project(async_test_db, owner)
+
+        with _as_user(owner), _enqueue_ok() as mock_send:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/cloud-imports",
+                json={"connection_id": conn.id, "object_keys": ["in/a.json"]},
+            )
+        assert response.status_code == 202, response.text
+        assert "kwargs" not in mock_send.call_args.kwargs
+
+    @pytest.mark.asyncio
+    async def test_non_boolean_reimport_400(self, async_test_client, async_test_db):
+        org = await _seed_org(async_test_db)
+        conn = await _seed_connection(async_test_db, org, prefix="in/")
+        owner = await _seed_actor(async_test_db, member_of=[org])
+        project = await _seed_project(async_test_db, owner)
+
+        with _as_user(owner), _enqueue_ok() as mock_send:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/cloud-imports",
+                json={
+                    "connection_id": conn.id,
+                    "object_keys": ["in/a.json"],
+                    "reimport": "yes",
+                },
+            )
+        assert response.status_code == 400
+        mock_send.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_write_access_gate(self, async_test_client, async_test_db):
         """A member of the connection's org WITHOUT project write access is
         rejected before any job is created."""
