@@ -85,14 +85,15 @@ export function RunFits({ fits }: { fits: readonly AnalysisFit[] }) {
           <tr>
             <th className={th}>{t('analysis.estimates.estimand')}</th>
             <th className={th}>{t('analysis.estimates.scope')}</th>
-            <th className={th}>{t('analysis.fits.rows')}</th>
+            <th className={`${th} text-right`}>{t('analysis.fits.rows')}</th>
+            <th className={`${th} text-right`}>{t('analysis.fits.missing')}</th>
             <th className={th}>{t('analysis.fits.parameters')}</th>
             <th className={th}>{t('analysis.fits.clusters')}</th>
             <th className={th}>{t('analysis.fits.fixedEffects')}</th>
             <th className={th}>{t('analysis.fits.notes')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+        <tbody className="divide-y divide-zinc-100 bg-white text-zinc-900 dark:divide-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
           {fits.map((fit, i) => {
             const notes = [
               ...(Array.isArray(fit.dropped) && fit.dropped.length > 0
@@ -111,18 +112,14 @@ export function RunFits({ fits }: { fits: readonly AnalysisFit[] }) {
                 className="align-top"
               >
                 <td className={td}>{fit.estimand}</td>
-                <td className={`${td} break-all`}>{fit.scope}</td>
-                <td className={td}>
+                <td className={`${td} whitespace-nowrap`}>{fit.scope}</td>
+                <td className={`${td} text-right`}>
                   {fit.n ?? fit.rows ?? MISSING}
-                  {typeof fit.rows_dropped_missing === 'number' &&
-                    fit.rows_dropped_missing > 0 && (
-                      <span className="text-zinc-500">
-                        {' '}
-                        {t('analysis.fits.missingRows', {
-                          count: fit.rows_dropped_missing,
-                        })}
-                      </span>
-                    )}
+                </td>
+                <td className={`${td} text-right`}>
+                  {typeof fit.rows_dropped_missing === 'number'
+                    ? fit.rows_dropped_missing
+                    : MISSING}
                 </td>
                 <td className={td}>
                   {Array.isArray(fit.parameters)

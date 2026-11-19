@@ -72,7 +72,6 @@ import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import {
-  ChartBarIcon,
   CheckCircleIcon,
   DocumentChartBarIcon,
   DocumentTextIcon,
@@ -3140,7 +3139,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   className="w-full"
                   data-testid="project-analysis"
                 >
-                  <ChartBarIcon className="mr-2 h-4 w-4" />
                   {t('project.quickActions.analysis')}
                 </Button>
               )}

@@ -11953,8 +11953,8 @@
       "equivalence": "Equivalence",
       "equivalent": "Equivalent",
       "notEquivalent": "Not established",
-      "moreBoundSets": "(+{count} more)",
-      "moreFamilies": "(+{count} more)",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
       "n": "n",
       "clusters": "clusters {clusters}",
       "detail": {
@@ -11977,7 +11977,8 @@
         "size": "Tests",
         "familyMde": "MDE",
         "conventions": "Conventions"
-      }
+      },
+      "clustersHeader": "clusters"
     },
     "provenance": {
       "title": "Provenance",
@@ -12016,7 +12017,7 @@
       "fixedEffects": "Fixed-effect levels",
       "notes": "Notes",
       "dropped": "dropped {columns}",
-      "missingRows": "({count} with missing values left out)"
+      "missing": "Left out (missing)"
     }
   }
 }

@@ -33,7 +33,7 @@ describe('EstimatesTable', () => {
     expect(pooled.getByText('Holm')).toBeInTheDocument()
     expect(pooled.getByText('0.020')).toBeInTheDocument()
     expect(pooled.getByText('Not established')).toBeInTheDocument()
-    expect(pooled.getByText(/\[-3, 3\] \(\+1 more\)/)).toBeInTheDocument()
+    expect(pooled.getByText(/\[-3, 3\] \(\+1\)/)).toBeInTheDocument()
 
     const sysA = within(rowAt(1))
     expect(sysA.getByText('system = sys_a')).toBeInTheDocument()

@@ -367,7 +367,7 @@ export default function RunsPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+          <tbody className="divide-y divide-zinc-100 bg-white text-zinc-900 dark:divide-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
             {loading && (
               <tr>
                 <td

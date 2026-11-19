@@ -55,7 +55,7 @@ function EquivalenceCell({ estimate }: { estimate: AnalysisEstimate }) {
   const bounds = formatInterval(first.lower, first.upper, locale, 3)
   const more = (estimate.tost?.length ?? 0) - 1
   return (
-    <span className="inline-flex flex-col items-start gap-0.5">
+    <span className="inline-flex flex-col items-start gap-0.5 whitespace-nowrap">
       {first.equivalent === true ? (
         <Badge variant="success">{t('analysis.estimates.equivalent')}</Badge>
       ) : first.equivalent === false ? (
@@ -287,7 +287,8 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
 
   const th =
     'px-3 py-2 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400'
-  const num = 'px-3 py-2 text-right font-mono text-xs whitespace-nowrap'
+  const num =
+    'px-3 py-2 text-right font-mono text-xs whitespace-nowrap text-zinc-800 dark:text-zinc-200'
 
   return (
     <div>
@@ -356,38 +357,36 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
         >
           <thead className="bg-zinc-50 dark:bg-zinc-900/40">
             <tr>
-              <th className="w-8 px-2 py-2">
-                <span className="sr-only">
-                  {t('analysis.estimates.details')}
-                </span>
-              </th>
               <th className={th}>{t('analysis.estimates.estimand')}</th>
               <th className={th}>{t('analysis.estimates.scope')}</th>
               <th className={`${th} text-right`}>
-                {t('analysis.estimates.estimate')}
-              </th>
-              <th className={`${th} text-right`}>
-                {t('analysis.estimates.se')}
+                {t('analysis.estimates.estimate')} ({t('analysis.estimates.se')}
+                )
               </th>
               <th className={`${th} text-right`}>
                 {t('analysis.estimates.ci')}
               </th>
               <th className={`${th} text-right`}>p</th>
-              <th className={th}>{t('analysis.estimates.family')}</th>
               <th className={`${th} text-right`}>
                 {t('analysis.estimates.pAdjusted')}
+                <span className="block font-normal normal-case">
+                  {t('analysis.estimates.family')}
+                </span>
               </th>
               <th className={th}>{t('analysis.estimates.equivalence')}</th>
               <th className={`${th} text-right`}>
                 {t('analysis.estimates.n')}
+                <span className="block font-normal normal-case">
+                  {t('analysis.estimates.clustersHeader')}
+                </span>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+          <tbody className="divide-y divide-zinc-100 bg-white text-zinc-900 dark:divide-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
             {visible.length === 0 && (
               <tr>
                 <td
-                  colSpan={11}
+                  colSpan={8}
                   className="px-3 py-6 text-center text-xs text-zinc-500"
                 >
                   {t('analysis.estimates.empty')}
@@ -407,54 +406,66 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
                     data-testid="estimate-row"
                     data-position={e.position}
                   >
-                    <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        aria-expanded={open}
-                        aria-label={t('analysis.estimates.details')}
-                        className="rounded p-0.5 text-zinc-500 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:text-white"
-                        onClick={(ev) => {
-                          ev.stopPropagation()
-                          toggle(e.position)
-                        }}
-                      >
-                        {open ? (
-                          <ChevronDownIcon className="h-4 w-4" />
-                        ) : (
-                          <ChevronRightIcon className="h-4 w-4" />
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-zinc-900 dark:text-white">
-                        {e.estimand_id}
-                      </div>
-                      {e.contrast_id && e.contrast_id !== e.estimand_id && (
-                        <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                          {e.contrast_id}
-                        </div>
-                      )}
-                      {failed && (
-                        <Badge
-                          variant={
-                            e.status === 'error' ? 'destructive' : 'warning'
-                          }
-                          className="mt-1"
+                    <td className="max-w-[14rem] px-3 py-2">
+                      <div className="flex items-start gap-1.5">
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={t('analysis.estimates.details')}
+                          className="-ml-1 rounded p-0.5 text-zinc-500 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:text-white"
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            toggle(e.position)
+                          }}
                         >
-                          {KNOWN_STATUSES.has(e.status)
-                            ? t(`analysis.estimateStatus.${e.status}`)
-                            : e.status}
-                        </Badge>
-                      )}
+                          {open ? (
+                            <ChevronDownIcon className="h-4 w-4" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                        <div className="min-w-0">
+                          <div className="font-medium text-zinc-900 dark:text-white">
+                            {e.estimand_id}
+                          </div>
+                          {e.contrast_id && e.contrast_id !== e.estimand_id && (
+                            <div className="font-mono text-xs [overflow-wrap:anywhere] text-zinc-500 dark:text-zinc-400">
+                              {e.contrast_id}
+                            </div>
+                          )}
+                          {failed && (
+                            <Badge
+                              variant={
+                                e.status === 'error' ? 'destructive' : 'warning'
+                              }
+                              className="mt-1"
+                            >
+                              {KNOWN_STATUSES.has(e.status)
+                                ? t(`analysis.estimateStatus.${e.status}`)
+                                : e.status}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="max-w-[16rem] px-3 py-2 text-xs break-words text-zinc-700 dark:text-zinc-300">
+                    <td
+                      className="max-w-[11rem] truncate px-3 py-2 text-xs whitespace-nowrap text-zinc-700 dark:text-zinc-300"
+                      title={scope ?? undefined}
+                    >
                       {scope ?? t('analysis.scope.pooled')}
                     </td>
-                    <td className={num} title={exact(e.estimate)}>
-                      {formatNumber(e.estimate, locale)}
-                    </td>
-                    <td className={num} title={exact(e.std_error)}>
-                      {formatNumber(e.std_error, locale)}
+                    <td className={num}>
+                      <div title={exact(e.estimate)}>
+                        {formatNumber(e.estimate, locale)}
+                      </div>
+                      {e.std_error !== null && e.std_error !== undefined && (
+                        <div
+                          className="text-zinc-500 dark:text-zinc-400"
+                          title={exact(e.std_error)}
+                        >
+                          ({formatNumber(e.std_error, locale)})
+                        </div>
+                      )}
                     </td>
                     <td
                       className={num}
@@ -467,30 +478,33 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
                     <td className={num} title={exact(e.p_value)}>
                       {formatP(e.p_value, locale)}
                     </td>
-                    <td className="px-3 py-2 text-xs whitespace-nowrap">
-                      {e.family ? (
-                        <span className="inline-flex flex-col">
-                          <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                    <td className={num}>
+                      <div title={exact(e.p_adjusted)}>
+                        {formatP(e.p_adjusted, locale)}
+                      </div>
+                      {e.family && (
+                        <div className="font-sans text-zinc-500 dark:text-zinc-400">
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">
                             {e.family}
                           </span>
-                          <span className="text-zinc-500 dark:text-zinc-400">
-                            {e.adjustments?.[0]
-                              ? KNOWN_METHODS.has(e.adjustments[0].method)
-                                ? t(
-                                    `analysis.methods.${e.adjustments[0].method}`,
-                                  )
-                                : e.adjustments[0].method
-                              : ''}
-                            {extraFamilies > 0 &&
-                              ` ${t('analysis.estimates.moreFamilies', { count: extraFamilies })}`}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400">{MISSING}</span>
+                          {e.adjustments?.[0] && (
+                            <>
+                              <br />
+                              <span>
+                                {e.adjustments?.[0]
+                                  ? KNOWN_METHODS.has(e.adjustments[0].method)
+                                    ? t(
+                                        `analysis.methods.${e.adjustments[0].method}`,
+                                      )
+                                    : e.adjustments[0].method
+                                  : null}
+                              </span>
+                            </>
+                          )}
+                          {extraFamilies > 0 &&
+                            ` ${t('analysis.estimates.moreFamilies', { count: extraFamilies })}`}
+                        </div>
                       )}
-                    </td>
-                    <td className={num} title={exact(e.p_adjusted)}>
-                      {formatP(e.p_adjusted, locale)}
                     </td>
                     <td className="px-3 py-2">
                       <EquivalenceCell estimate={e} />
@@ -498,18 +512,20 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
                     <td className={num}>
                       {e.n_obs ?? MISSING}
                       {e.n_clusters && e.n_clusters.length > 0 && (
-                        <div className="text-zinc-500 dark:text-zinc-400">
-                          {t('analysis.estimates.clusters', {
+                        <div
+                          className="text-zinc-500 dark:text-zinc-400"
+                          title={t('analysis.estimates.clusters', {
                             clusters: e.n_clusters.join(' × '),
                           })}
+                        >
+                          {e.n_clusters.join(' × ')}
                         </div>
                       )}
                     </td>
                   </tr>
                   {open && (
                     <tr className="bg-zinc-50/60 dark:bg-zinc-900/30">
-                      <td />
-                      <td colSpan={10} className="px-3 pt-2 pb-4">
+                      <td colSpan={8} className="px-3 pt-2 pb-4 pl-9">
                         <EstimateDetails estimate={e} />
                       </td>
                     </tr>

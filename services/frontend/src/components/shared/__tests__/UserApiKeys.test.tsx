@@ -3,7 +3,7 @@
  */
 
 import apiClient from '@/lib/api'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import UserApiKeys from '../UserApiKeys'
 
@@ -1477,8 +1477,14 @@ describe('UserApiKeys Component', () => {
         },
         available_providers: ['openai'],
       })
+      // The removal stays pending until the assertions ran: a timer-based
+      // delay could finish before a loaded machine renders the busy state.
+      let finishRemoval: (value?: unknown) => void = () => undefined
       mockApiClient.removeUserApiKey.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () =>
+          new Promise((resolve) => {
+            finishRemoval = resolve
+          }),
       )
 
       render(<UserApiKeys />)
@@ -1493,6 +1499,9 @@ describe('UserApiKeys Component', () => {
       const removingButton = await screen.findByText('Removing...')
       expect(removingButton).toBeInTheDocument()
       expect(removingButton).toBeDisabled()
+      await act(async () => {
+        finishRemoval()
+      })
     })
 
     it('disables buttons during test operation', async () => {
