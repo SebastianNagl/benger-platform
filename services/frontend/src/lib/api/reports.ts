@@ -45,6 +45,8 @@ export interface AnnotationsSection extends ReportSection {
   custom_text?: string | null
   show_count: boolean
   show_participants: boolean
+  /** Show inter-annotator agreement from the snapshot (default true). */
+  show_agreement?: boolean
   acknowledgment_text?: string | null
 }
 

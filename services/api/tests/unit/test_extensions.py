@@ -189,10 +189,12 @@ class TestExtensionLoader:
         # sets, coding projects and code validations, the text_pattern metric).
         # 2.67 adds analysis_count on projects, reports and the dashboard,
         # the dashboard's corrected count keys and GET /api/runs?type=analysis.
+        # 2.68 adds inter-annotator agreement per control (the
+        # annotator-agreement route, the snapshot's annotator_agreement and
+        # show_agreement, section visibility applied on read).
         # 2.69 adds the report's data, generation, human evaluation and
         # reproducibility sections, snapshot_sha256 and report authorship
-        # for project owners and org admins (2.68 is reserved for the
-        # analysis start change).
+        # for project owners and org admins.
         assert CORE_API_VERSION == "2.69"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):

@@ -264,6 +264,25 @@ class TestUpdateReportAnnotationsSection(TestReportService):
         assert len(participants) > 0
         assert any(p["id"] == test_user.id for p in participants)
 
+    def test_keeps_the_editors_visibility_switches(
+        self, test_db: Session, setup_project, setup_tasks, setup_annotations, test_user
+    ):
+        """A new annotation must not turn hidden participants or agreement back on."""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from report_service import create_initial_report_draft, update_report_annotations_section
+
+        report = create_initial_report_draft(test_db, setup_project.id, test_user.id)
+        report.content["sections"]["annotations"].update(show_participants=False, show_agreement=False)
+        flag_modified(report, "content")
+        test_db.commit()
+
+        report = update_report_annotations_section(test_db, setup_project.id)
+
+        annotations = report.content["sections"]["annotations"]
+        assert annotations["show_participants"] is False
+        assert annotations["show_agreement"] is False
+
 
 class TestUpdateReportGenerationSection(TestReportService):
     """Tests for update_report_generation_section()"""

@@ -1444,9 +1444,29 @@ frame format 2).
     ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
     published list items carry ``analysis_count``.
 
+2.68 (2026-11-19): inter-annotator agreement per control (no migration,
+  additive only).
+  - ``GET /api/evaluations/projects/{project_id}/annotator-agreement``
+    (access-key scope ``annotations:read``): per control of the labeling
+    interface, Fleiss' kappa, pairwise Cohen's kappa and percent agreement
+    for ``choices`` and ``rating``, Pearson's r and mean absolute deviation
+    for ``number``, over tasks with two or more active annotations;
+    ``available: false`` without overlap. Computed by
+    ``annotator_agreement.project_annotator_agreement`` (shared) with
+    ``bg_statistics.compute_agreement``; annotators are labelled by
+    ``user_display.masked_name``.
+  - The report snapshot gains ``annotator_agreement`` (the same object
+    without ``available``, or ``None``), and the Annotation section the
+    flag ``show_agreement``.
+  - ``report_snapshot.apply_section_visibility`` applies the section flags
+    when a report is served: with ``show_agreement`` off, every read path
+    serves ``annotator_agreement`` as ``None``; with ``show_participants``
+    off, every read path leaves out the agreement pairs and the participant
+    lists of the snapshot and the Annotation section, keeping the aggregates
+    and ``participant_count``. The stored snapshot is not changed.
+
 2.69 (2026-11-19): the project report covers the whole project (no
-  migration, additive API changes only; 2.68 is reserved for the analysis
-  start change).
+  migration, additive API changes only).
   - ``report_snapshot.build_report_snapshot`` adds the ``data``,
     ``generation``, ``human_evaluations`` and ``reproducibility`` sections;
     ``reproducibility.snapshot_sha256`` is the SHA-256 of
@@ -1462,7 +1482,9 @@ frame format 2).
   - ``routers.reports.can_edit_report`` and ``require_report_author``: a
     superadmin, the project's creator or an ``ORG_ADMIN`` of an attached
     organization authors the report; ``ReportResponse.can_edit`` carries
-    the answer. Saving report content keeps the server's snapshot.
+    the answer. Saving report content keeps the server's snapshot. Readers
+    who do not author the report get the section visibility of 2.68 and,
+    outside the project, the public view on top.
 """
 
 import os

@@ -30,7 +30,7 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import build_report_snapshot, public_snapshot
+from report_snapshot import apply_section_visibility, build_report_snapshot, public_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,8 @@ class AnnotationsSection(ReportSection):
     custom_text: Optional[str] = None
     show_count: bool = True
     show_participants: bool = True
+    # Inter-annotator agreement from the snapshot, when tasks overlap.
+    show_agreement: bool = True
     acknowledgment_text: Optional[str] = None
 
 
@@ -190,6 +192,22 @@ def _reader_content(content: Dict[str, Any], member: bool) -> Dict[str, Any]:
     return {**content, "sections": trimmed}
 
 
+def _served_content(report: ProjectReport) -> Dict[str, Any]:
+    """The stored content as its sections allow it to be served: with
+    participants hidden, no participant list and no per-person snapshot data
+    (see ``apply_section_visibility``). The stored copy stays complete."""
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") or {}
+    annotations = sections.get("annotations") or {}
+    if annotations.get("show_participants") is False and "participants" in annotations:
+        sections = {**sections, "annotations": {**annotations, "participants": []}}
+    return {
+        **content,
+        "sections": sections,
+        "snapshot": apply_section_visibility(content.get("snapshot"), sections),
+    }
+
+
 def _report_response(
     report: ProjectReport,
     project_title: str,
@@ -199,17 +217,16 @@ def _report_response(
     member: bool = False,
 ) -> "ReportResponse":
     """``member``: the reader has the project's report read rights
-    (``check_report_access``); authors always do."""
+    (``check_report_access``); authors always do. Every reader gets the
+    content as its sections allow it to be served (``_served_content``);
+    a reader who does not author the report gets the reader view on top."""
+    served = _served_content(report)
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
         content=ReportContent(
-            **(
-                report.content
-                if can_edit
-                else _reader_content(report.content or {}, member)
-            )
+            **(served if can_edit else _reader_content(served, member))
         ),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
@@ -481,12 +498,17 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned, so a client-sent one is ignored.
+    # the computed snapshot and participant list are server-owned, so a
+    # client-sent snapshot is ignored and the stored ones are kept.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
     new_content.pop("snapshot", None)
     if existing.get("snapshot") is not None:
         new_content["snapshot"] = existing["snapshot"]
+    existing_annotations = (existing.get("sections") or {}).get("annotations") or {}
+    new_annotations = (new_content.get("sections") or {}).get("annotations")
+    if isinstance(new_annotations, dict) and "participants" in existing_annotations:
+        new_annotations["participants"] = existing_annotations["participants"]
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -862,9 +884,10 @@ async def get_report_data(
         else (report.is_published, "published")
     )
 
-    return ReportDataResponse(
-        report=_report_response(
-            report, report.project.title, can_publish, reason, can_edit=is_author, member=member
-        ),
-        snapshot=snapshot if member else public_snapshot(snapshot),
+    response = _report_response(
+        report, report.project.title, can_publish, reason, can_edit=is_author, member=member
     )
+    # The report's content carries the snapshot as this reader may see it
+    # (section visibility, and the public view for a reader outside the
+    # project).
+    return ReportDataResponse(report=response, snapshot=response.content.snapshot)

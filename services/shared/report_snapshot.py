@@ -62,6 +62,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from annotator_agreement import project_annotator_agreement
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -1019,6 +1020,31 @@ def public_snapshot(snapshot: Any) -> Any:
     return out
 
 
+def apply_section_visibility(
+    snapshot: Optional[Dict[str, Any]], sections: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """The snapshot as a report with these sections may serve it.
+
+    With ``sections.annotations.show_agreement`` off, the annotator agreement
+    is ``None``. With ``sections.annotations.show_participants`` off, the
+    participant list is empty and the annotator agreement keeps its aggregate
+    numbers but drops the per-pair rows, which name and score individual
+    annotators; ``statistics.participant_count`` stays."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    annotations = (sections or {}).get("annotations") or {}
+    served = dict(snapshot)
+    if annotations.get("show_agreement") is False:
+        served["annotator_agreement"] = None
+    if annotations.get("show_participants") is False:
+        served["participants"] = []
+        agreement = served.get("annotator_agreement")
+        if agreement:
+            controls = [{**c, "pairs": []} for c in agreement.get("controls") or []]
+            served["annotator_agreement"] = {**agreement, "controls": controls}
+    return served
+
+
 # ---------------------------------------------------------------------------
 # Builder
 # ---------------------------------------------------------------------------
@@ -1250,6 +1276,9 @@ def build_report_snapshot(
         "distributions": distributions,
         "participants": participants,
         "models": models,
+        # Inter-annotator agreement per control over tasks with two or more
+        # annotators (``annotator_agreement``); ``None`` without overlap.
+        "annotator_agreement": project_annotator_agreement(db, project_id),
         "data": data,
         "generation": generation,
         "human_evaluations": human_evaluations,

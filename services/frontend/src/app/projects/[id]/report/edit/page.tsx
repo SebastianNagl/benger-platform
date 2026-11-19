@@ -102,6 +102,7 @@ interface EditorState {
   showDataCount: boolean
   showProvenance: boolean
   showParticipants: boolean
+  showAgreement: boolean
   showModels: boolean
   showGenerationDetails: boolean
   showHumanEvaluation: boolean
@@ -210,6 +211,7 @@ function deriveEditorState(report: ReportResponse): EditorState {
     showDataCount: sections.data?.show_count !== false,
     showProvenance: sections.data?.show_provenance !== false,
     showParticipants: sections.annotations?.show_participants !== false,
+    showAgreement: sections.annotations?.show_agreement !== false,
     showModels: sections.generation?.show_models !== false,
     showGenerationDetails: sections.generation?.show_details !== false,
     showHumanEvaluation: sections.evaluation?.show_human_evaluation !== false,
@@ -457,6 +459,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ...sections.annotations,
           visible: state.sectionVisible.annotations,
           show_participants: state.showParticipants,
+          show_agreement: state.showAgreement,
           custom_text: state.annotationsText || null,
           acknowledgment_text: state.acknowledgment || null,
         },
@@ -807,6 +810,11 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               enabled={state.showParticipants}
               onChange={(enabled) => update({ showParticipants: enabled })}
               label={t('reports.editor.showParticipants')}
+            />
+            <ToggleSwitch
+              enabled={state.showAgreement}
+              onChange={(enabled) => update({ showAgreement: enabled })}
+              label={t('reports.editor.showAgreement')}
             />
           </div>
         </div>

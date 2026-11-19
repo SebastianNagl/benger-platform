@@ -6376,6 +6376,40 @@
       "invalidPrompt": "Format de prompt non valide à l'index {index} : {error}",
       "failed": "Échec du téléversement des données : {error}",
       "failedUnknown": "Échec du téléversement des données : erreur inconnue"
+    },
+    "annotatorAgreement": {
+      "title": "Accord entre annotateurs",
+      "description": "Dans quelle mesure les annotateurs s'accordent sur les tâches annotées par au moins deux d'entre eux, par champ.",
+      "summary": "{tasks} tâches ont été annotées par au moins deux personnes ({annotators} annotateurs).",
+      "controlMeta": "{type} · {tasks} tâches · {annotators} annotateurs",
+      "types": {
+        "choices": "Choix",
+        "rating": "Note",
+        "number": "Nombre",
+        "other": "Autre"
+      },
+      "fleissKappa": "Kappa de Fleiss",
+      "cohensKappaMean": "Kappa de Cohen (moyenne des paires)",
+      "percentAgreement": "Tous d'accord",
+      "pearsonMean": "r de Pearson (moyenne des paires)",
+      "meanAbsoluteDeviation": "Écart absolu moyen",
+      "bands": {
+        "poor": "faible (sous le hasard)",
+        "slight": "très faible",
+        "fair": "passable",
+        "moderate": "modéré",
+        "substantial": "important",
+        "almostPerfect": "presque parfait"
+      },
+      "multiSelectNote": "Certaines annotations ont choisi plusieurs options : deux annotations ne s'accordent que si elles ont choisi le même ensemble.",
+      "pairs": "Paires d'annotateurs ({count})",
+      "pair": "Paire",
+      "sharedTasks": "Tâches communes",
+      "cohensKappa": "Kappa de Cohen",
+      "pearson": "r de Pearson",
+      "pairsTruncated": "Affichage des {shown} paires ayant le plus de tâches communes sur {total}.",
+      "unsupported": "Non évalués (aucune valeur comparable, comme du texte libre ou des segments) : {controls}.",
+      "methodNote": "Seules comptent les tâches ayant au moins deux réponses pour un champ. Le kappa se lit sur l'échelle de Landis et Koch ; les notes sont comparées comme des catégories (kappa non pondéré). Le kappa de Cohen d'une paire nécessite au moins deux tâches communes."
     }
   },
   "about": {
@@ -7455,6 +7489,7 @@
       "showSection": "Afficher la section",
       "showDataCount": "Afficher le nombre de tâches",
       "showParticipants": "Afficher les participants",
+      "showAgreement": "Afficher l'accord entre annotateurs",
       "showModels": "Afficher les modèles",
       "presentation": "Présentation de l'évaluation",
       "primaryMetric": "Métrique principale",
