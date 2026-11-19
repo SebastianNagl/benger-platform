@@ -70,6 +70,7 @@ from routers.projects.helpers import (
     calculate_project_stats_batch,
     check_user_can_edit_project_async,
     check_user_can_manage_shares_async,
+    count_analysis_runs_by_project_async,
     get_accessible_project_ids_async,
     get_attempted_project_ids_async,
     get_effective_project_role_async,
@@ -418,6 +419,9 @@ async def list_projects(
         # Batch fetch statistics for all projects (avoids N+1 query problem)
         project_ids = [project.id for project in projects]
         stats_map = await run_in_threadpool(_calculate_project_stats_batch_sync, project_ids)
+        # Completed analysis runs, one grouped count on this session (the
+        # same statement as the detail's count).
+        analysis_counts = await count_analysis_runs_by_project_async(db, project_ids)
         gen_stats_map = await run_in_threadpool(
             _calculate_generation_stats_batch_sync, projects
         )
@@ -471,7 +475,6 @@ async def list_projects(
                     'annotation_count': 0,
                     'evaluation_count': 0,
                     'evaluations_completed_count': 0,
-                    'analysis_count': 0,
                 },
             )
             response.task_count = stats['task_count']
@@ -479,7 +482,7 @@ async def list_projects(
             response.annotation_count = stats['annotation_count']
             response.evaluation_count = stats['evaluation_count']
             response.evaluations_completed_count = stats['evaluations_completed_count']
-            response.analysis_count = stats['analysis_count']
+            response.analysis_count = analysis_counts.get(project.id, 0)
             # Mirror to legacy aliases (see calculate_project_stats note).
             response.num_tasks = response.task_count
             response.num_annotations = response.annotation_count

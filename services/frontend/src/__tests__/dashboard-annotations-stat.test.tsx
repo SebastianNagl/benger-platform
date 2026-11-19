@@ -66,6 +66,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'dashboard.stats.annotations': 'Annotations',
         'dashboard.stats.generations': 'Generations',
         'dashboard.stats.evaluations': 'Evaluations',
+        'dashboard.stats.analyses': 'Analyses',
         'dashboard.recentProjects.title': 'Recent Projects',
         'dashboard.recentProjects.viewAll': 'View All',
         'dashboard.recentProjects.noProjects': 'No projects created yet',
@@ -100,8 +101,9 @@ jest.mock('@/lib/api', () => ({
       project_count: 12,
       task_count: 296,
       annotation_count: 850,
-      projects_with_generations: 0,
-      projects_with_evaluations: 0,
+      generations_count: 0,
+      evaluations_count: 0,
+      analyses_count: 0,
     }),
   },
 }))
@@ -206,8 +208,9 @@ describe('Dashboard Annotations Stat Box', () => {
       project_count: 5,
       task_count: 10,
       annotation_count: 0,
-      projects_with_generations: 0,
-      projects_with_evaluations: 0,
+      generations_count: 0,
+      evaluations_count: 0,
+      analyses_count: 0,
     })
 
     render(<DashboardPage />)
@@ -222,5 +225,40 @@ describe('Dashboard Annotations Stat Box', () => {
     // There should be at least one '0' for annotations (might be more for other stats)
     expect(zeroValues.length).toBeGreaterThan(0)
     expect(screen.getByText('Annotations')).toBeInTheDocument()
+  })
+
+  it('shows an Analyses tile in a sixth column once there is an analysis run', async () => {
+    const api = require('@/lib/api').default
+    api.getDashboardStats.mockResolvedValueOnce({
+      project_count: 5,
+      task_count: 10,
+      annotation_count: 0,
+      generations_count: 0,
+      evaluations_count: 0,
+      analyses_count: 3,
+      // The aliases are ignored by the page.
+      projects_with_generations: 99,
+      projects_with_evaluations: 98,
+    })
+
+    render(<DashboardPage />)
+
+    // The label shows while loading too; wait for the value.
+    await waitFor(() => {
+      expect(screen.getByText('Analyses').closest('dl')).toHaveTextContent(
+        'Analyses3',
+      )
+    })
+    expect(document.querySelector('.lg\\:grid-cols-6')).toBeInTheDocument()
+    expect(screen.queryByText('99')).not.toBeInTheDocument()
+  })
+
+  it('hides the Analyses tile while there is none', async () => {
+    render(<DashboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('850')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Analyses')).not.toBeInTheDocument()
   })
 })

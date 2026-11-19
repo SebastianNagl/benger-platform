@@ -182,6 +182,7 @@ def test_calculate_project_stats_zero_tasks():
     db = Mock()
     # Force `read_project_summary` to return None → live fallback path.
     db.execute.return_value.scalar_one_or_none.return_value = None
+    db.execute.return_value.all.return_value = []  # no analysis runs
     response = Mock()
 
     # task / annotation / completed_tasks all return 0 (no tasks: the live
@@ -211,6 +212,7 @@ def test_calculate_project_stats_zero_tasks_ignores_stale_summary():
     summary = Mock()
     summary.evaluation_pairs_count = 7
     db.execute.return_value.scalar_one_or_none.return_value = summary
+    db.execute.return_value.all.return_value = []  # no analysis runs
 
     count_query = Mock()
     count_query.filter.return_value.count.return_value = 0

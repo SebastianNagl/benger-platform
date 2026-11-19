@@ -39,6 +39,7 @@ def _auth_user(is_superadmin: bool = False, user_id: str = "u1"):
 def _make_request():
     request = Mock()
     request.state.organization_context = "private"
+    request.state.principal = None
     return request
 
 
@@ -146,6 +147,7 @@ class TestListRunsPermissionFilter:
         mock_access.side_effect = _access
 
         resp = await list_runs(
+            request=_make_request(),
             type="evaluation",
             project_id=None,
             status_filter=None,
@@ -158,6 +160,8 @@ class TestListRunsPermissionFilter:
         item_ids = {it.id for it in resp.items}
         assert er_a.id in item_ids
         assert er_b.id not in item_ids
+        # The filter is part of the query: total counts the listed runs only.
+        assert resp.total == len(resp.items)
 
     @pytest.mark.asyncio
     @patch("routers.runs.check_project_accessible_async")
@@ -180,6 +184,7 @@ class TestListRunsPermissionFilter:
         mock_access.side_effect = _access
 
         resp = await list_runs(
+            request=_make_request(),
             type="generation",
             project_id=None,
             status_filter=None,

@@ -461,9 +461,9 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
 
     Returns: Dict mapping project_id to stats dict with keys
     `task_count`, `completed_tasks_count`, `annotation_count`,
-    `evaluation_count`, `evaluations_completed_count`, `analysis_count`.
-    The analysis count is always live (one grouped count for the whole
-    list, :func:`count_analysis_runs_by_project`), as on the detail.
+    `evaluation_count`, `evaluations_completed_count`. The list adds
+    `analysis_count` on its own async session
+    (:func:`count_analysis_runs_by_project_async`, one grouped count).
     """
     from models import ProjectSummary
     from sqlalchemy import select as sa_select
@@ -493,7 +493,6 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             'annotation_count': int(ann or 0),
             'evaluation_count': int(eval_pairs or 0),
             'evaluations_completed_count': int(eval_pairs or 0),
-            'analysis_count': 0,
         }
 
     missing_summary_ids = [pid for pid in project_ids if pid not in stats_map]
@@ -505,7 +504,6 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
                 'annotation_count': 0,
                 'evaluation_count': 0,
                 'evaluations_completed_count': 0,
-                'analysis_count': 0,
             }
 
         task_stats = (
@@ -550,9 +548,6 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         for pid, count in count_eval_pairs_by_project(db, missing_summary_ids).items():
             stats_map[pid]['evaluation_count'] = count
             stats_map[pid]['evaluations_completed_count'] = count
-
-    for pid, count in count_analysis_runs_by_project(db, list(stats_map)).items():
-        stats_map[pid]['analysis_count'] = count
 
     return stats_map
 

@@ -227,6 +227,8 @@ describe('ReportViewerPage', () => {
     expect(screen.getByTestId('stat-participants')).toHaveTextContent('36')
     expect(screen.getByTestId('stat-models')).toHaveTextContent('4')
     expect(screen.getByTestId('stat-evaluations')).toHaveTextContent('3.626')
+    // The fixture snapshot predates analysis counts: no Analyses tile.
+    expect(screen.queryByTestId('stat-analyses')).not.toBeInTheDocument()
 
     expect(screen.getByTestId('section-data')).toHaveTextContent(
       'Der Datensatz umfasst 15 Aufgaben.',
@@ -256,6 +258,18 @@ describe('ReportViewerPage', () => {
     expect(
       screen.queryByRole('link', { name: 'Bearbeiten' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows an Analyses tile when the snapshot counts analysis runs', async () => {
+    mockData(makeReport(), {
+      ...REPORT_SNAPSHOT_FIXTURE,
+      statistics: { ...REPORT_SNAPSHOT_FIXTURE.statistics, analysis_count: 2 },
+    })
+    await renderPage()
+    expect(screen.getByTestId('stat-analyses')).toHaveTextContent('Analysen2')
+    expect(screen.getByTestId('stat-tiles').className).toContain(
+      'lg:grid-cols-6',
+    )
   })
 
   it('ranks models by mean with badges computed from the sort', async () => {
