@@ -63,7 +63,7 @@ describe('RequestRecordView', () => {
     expect(screen.getByText('cd'.repeat(32))).toBeInTheDocument()
   })
 
-  it('flags a record with malformed messages without breaking', () => {
+  it('flags a record with malformed fields without breaking', () => {
     render(
       <RequestRecordView
         view={makeTrialRequest({
@@ -71,6 +71,9 @@ describe('RequestRecordView', () => {
             messages: 'x',
             parameters: 'y',
             requests: 'z',
+            model: {},
+            provider: { name: 'acme' },
+            api: ['x'],
           } as unknown as NonNullable<
             ReturnType<typeof makeTrialRequest>['request_record']
           >,

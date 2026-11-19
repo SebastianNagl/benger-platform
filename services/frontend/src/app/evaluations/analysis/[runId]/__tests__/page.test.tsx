@@ -414,6 +414,19 @@ describe('AnalysisRunPage', () => {
     ).toHaveTextContent('roster')
   })
 
+  it('leaves out the designs section for viewers who may not read designs', async () => {
+    mockGetRun.mockResolvedValue(makePositionRun())
+    mockListEstimates.mockResolvedValue(makePositionEstimates())
+    mockListDesigns.mockRejectedValue(httpError(403))
+    mockListUnits.mockResolvedValue({ items: [], total: 0, limit: 12, offset: 0 })
+    render(<AnalysisRunPage />)
+    await screen.findByTestId('analysis-profile-section')
+    await waitFor(() =>
+      expect(screen.queryByTestId('analysis-designs-section')).toBeNull(),
+    )
+    expect(mockListDesigns).toHaveBeenCalled()
+  })
+
   it('draws Bradley-Terry strengths in the forest section', async () => {
     mockGetRun.mockResolvedValue(makeStrengthRun())
     mockListEstimates.mockResolvedValue(makeStrengthEstimates())

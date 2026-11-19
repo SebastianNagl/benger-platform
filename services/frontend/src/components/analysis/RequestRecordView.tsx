@@ -14,7 +14,11 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { MISSING } from '@/lib/analysis/results'
-import { variantViewsAPI, type TrialRequestView } from '@/lib/api/variantViews'
+import {
+  variantViewsAPI,
+  type RequestRecord,
+  type TrialRequestView,
+} from '@/lib/api/variantViews'
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -88,14 +92,40 @@ export function RequestHashStatus({ view }: { view: TrialRequestView }) {
   )
 }
 
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === 'object' && !Array.isArray(v)
+const text = (v: unknown) => (typeof v === 'string' ? v : null)
+
+/**
+ * The fields of a stored record in the shape the view renders, so no field
+ * of a record of any other shape (e.g. a tampered one) can break it.
+ */
+function safeRecord(raw: unknown): RequestRecord | null {
+  if (!isObject(raw)) return null
+  return {
+    provider: text(raw.provider),
+    api: text(raw.api),
+    capture: text(raw.capture),
+    model: text(raw.model),
+    messages: Array.isArray(raw.messages)
+      ? raw.messages
+          .filter(isObject)
+          .map((m) => ({ role: text(m.role) ?? undefined, content: m.content }))
+      : [],
+    response_format: raw.response_format,
+    parameters: isObject(raw.parameters) ? raw.parameters : null,
+    requests: Array.isArray(raw.requests)
+      ? (raw.requests as RequestRecord['requests'])
+      : [],
+  }
+}
+
 /** A request record with its hash check, from its data (no fetching). */
 export function RequestRecordView({ view }: { view: TrialRequestView }) {
   const { t } = useI18n()
   const [showRaw, setShowRaw] = useState(false)
-  const record = view.request_record
-  const requestCount = Array.isArray(record?.requests)
-    ? record.requests.length
-    : 0
+  const record = safeRecord(view.request_record)
+  const requestCount = record?.requests?.length ?? 0
   return (
     <div className="min-w-0 space-y-3" data-testid="request-record-view">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
@@ -157,14 +187,7 @@ export function RequestRecordView({ view }: { view: TrialRequestView }) {
               {t('generations.detail.request.workerCall')}
             </Notice>
           )}
-          {(Array.isArray(record.messages) ? record.messages : [])
-            .filter(
-              (message) =>
-                !!message &&
-                typeof message === 'object' &&
-                !Array.isArray(message),
-            )
-            .map((message, i) => (
+          {(record.messages ?? []).map((message, i) => (
             <div key={i} className="min-w-0">
               <p className={LABEL}>
                 {message.role === 'system'

@@ -26,7 +26,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/20/solid'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Field, Notice, ShortHash, ViewPanel } from './viewParts'
 
 /** Most levels a factor lists before it says how many there are. */
@@ -306,9 +306,12 @@ export function VariantDesignPanel({
 export function VariantDesignsLoader({
   projectId,
   keys,
+  frame = (content) => content,
 }: {
   projectId: string
   keys?: readonly string[]
+  /** Wraps what is shown (e.g. a titled section); never called when hidden. */
+  frame?: (content: ReactNode) => ReactNode
 }) {
   const { t } = useI18n()
   const keyList = (keys ?? []).join('\u0000')
@@ -350,21 +353,24 @@ export function VariantDesignsLoader({
     }
   }, [projectId, keyList])
 
+  const show = (content: ReactNode) => <>{frame(content)}</>
   if (state === 'hidden') return null
   if (state === 'error') {
-    return <Notice tone="error">{t('analysis.views.design.loadFailed')}</Notice>
+    return show(
+      <Notice tone="error">{t('analysis.views.design.loadFailed')}</Notice>,
+    )
   }
   if (state === 'loading' || !designs) {
-    return (
+    return show(
       <p className="text-sm text-zinc-500 dark:text-zinc-400" role="status">
         {t('analysis.views.design.loading')}
-      </p>
+      </p>,
     )
   }
   if (designs.length === 0) {
-    return <Notice>{t('analysis.views.design.none')}</Notice>
+    return show(<Notice>{t('analysis.views.design.none')}</Notice>)
   }
-  return (
+  return show(
     <div className="space-y-3" data-testid="variant-designs">
       {designs.map((d) => (
         <VariantDesignPanel
@@ -373,6 +379,6 @@ export function VariantDesignsLoader({
           onCheck={() => variantViewsAPI.checkDesign(projectId, d.key)}
         />
       ))}
-    </div>
+    </div>,
   )
 }

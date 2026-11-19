@@ -446,13 +446,19 @@ export default function AnalysisRunPage() {
       </Section>
 
       {specDesigns(r).length > 0 && (
-        <Section
-          title={t('analysis.views.design.title')}
-          description={t('analysis.views.design.description')}
-          testId="analysis-designs-section"
-        >
-          <VariantDesignsLoader projectId={projectId} keys={specDesigns(r)} />
-        </Section>
+        <VariantDesignsLoader
+          projectId={projectId}
+          keys={specDesigns(r)}
+          frame={(content) => (
+            <Section
+              title={t('analysis.views.design.title')}
+              description={t('analysis.views.design.description')}
+              testId="analysis-designs-section"
+            >
+              {content}
+            </Section>
+          )}
+        />
       )}
 
       <Section title={t('analysis.spec.title')} testId="analysis-spec-section">
