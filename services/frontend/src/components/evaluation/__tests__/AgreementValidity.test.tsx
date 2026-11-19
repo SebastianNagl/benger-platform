@@ -202,9 +202,9 @@ describe('RunAgreementBlock', () => {
     expect(
       within(list).getByText("Validations of this project's answers (203)"),
     ).toBeInTheDocument()
-    expect(
-      within(list).getAllByTestId('project-code-validation'),
-    ).toHaveLength(203)
+    expect(within(list).getAllByTestId('project-code-validation')).toHaveLength(
+      203,
+    )
   })
 
   it('lists the validations of the project answers and marks the ones the run used', async () => {

@@ -126,9 +126,9 @@ out, so they carry the hash but cannot reproduce it).
 `content.sections` holds the author's prose and switches. Besides the
 existing keys, `data.show_provenance`, `generation.show_details` and
 `evaluation.show_human_evaluation` and `annotations.show_code_validations`
-(all default true) switch the new record parts on and off, and `sections.reproducibility` (`visible`, default true,
-and `custom_text` for the author's notes on reproduction) controls the
-appendix, and `sections.analyses` holds the [Analyses section](#analyses).
+(all default true) switch the new record parts on and off, and
+`sections.reproducibility` (`visible`, default true, and `custom_text` for
+the author's notes on reproduction) controls the appendix, and `sections.analyses` holds the [Analyses section](#analyses).
 Older reports without these keys show everything.
 
 ## Analyses
