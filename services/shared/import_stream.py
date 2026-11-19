@@ -32,10 +32,10 @@ Variant designs (CORE 2.59) travel with the files that can carry them: the
 ``variant_design`` records of NDJSON. They are created before the tasks (as
 drafts) and frozen again before the commit when the file says they were
 frozen, which re-runs the checks and must reproduce the recorded content
-hash. Each task's ``meta.variant`` is checked by the flush guard
+hash. Each task's ``meta.benger_variant`` is checked by the flush guard
 (``variant_design_guard``); its refusals, and those of the database's own
 variant guards, reach the caller as ``ImportValidationError``. A flat row (a
-CSV column, or a row without ``data``) may carry ``meta.variant`` as JSON text
+CSV column, or a row without ``data``) may carry ``meta.benger_variant`` as JSON text
 in a column of that name.
 
 All take a seekable binary file object already filled with the upload body
@@ -965,7 +965,7 @@ def run_nested_import(
                 review_events_to_import = item["rubric_review_events"]
         else:
             # A flat row (a parsed CSV line) may carry its variant assignment
-            # as JSON text in a "meta.variant" column.
+            # as JSON text in a "meta.benger_variant" column.
             task_data, flat_meta = lift_flat_meta(item)
             if flat_meta:
                 task_meta = {**task_meta, **flat_meta}
@@ -1649,7 +1649,7 @@ def run_tabular_import(
                     for idx, header in enumerate(headers)
                     if header
                 }
-                # A "meta.variant" column holds the row's variant assignment.
+                # A "meta.benger_variant" column holds the row's variant assignment.
                 data, flat_meta = lift_flat_meta(data)
                 db.add(
                     Task(
@@ -4181,7 +4181,7 @@ class _MergeState:
         self.tasks_by_id: Set[str] = set()
         self.tasks_by_source: Dict[str, List[str]] = {}
         self.tasks_by_data: Dict[str, List[str]] = {}
-        # Canonical meta.variant per task holding one: a merged task must sit
+        # Canonical meta.benger_variant per task holding one: a merged task must sit
         # in the same cell of the same design as the task it lands on.
         self.variants: Dict[str, str] = {}
         self.variant_mismatch: List[str] = []

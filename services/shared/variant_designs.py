@@ -9,7 +9,7 @@ of truth each:
   together, optional per-answer slots, outcome, gold and invariance bindings)
   is a first-class ``variant_designs`` row whose ``spec`` follows
   ``schemas/variant_design.schema.json``. It can be frozen and is then hashed.
-- Each task's place in the design stays in ``task.meta.variant``
+- Each task's place in the design stays in ``task.meta.benger_variant``
   (``schemas/task_variant.schema.json``), so Label Studio import, export and
   project cloning carry it unchanged. The database derives three columns from
   it (``tasks.variant_design``, ``variant_unit``, ``variant_cell``) and a unique
@@ -34,12 +34,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
-#: Key of a design inside its project (also ``meta.variant.design``).
+#: Key of a design inside its project (also ``meta.benger_variant.design``).
 DESIGN_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 
 #: The key of ``task.meta`` that holds the assignment. Reserved: no other
-#: feature may store anything else under it.
-META_KEY = "variant"
+#: feature may store anything else under it. Namespaced (core 2.69; it was
+#: ``variant`` before), so a ``meta.variant`` a user stores is plain data.
+META_KEY = "benger_variant"
 
 #: Version of the content hash recipe (see :func:`content_hash`).
 HASH_VERSION = 1
@@ -475,7 +476,7 @@ class DesignView:
 def validate_task_variant(
     view: DesignView, variant: Any, data: Any
 ) -> List[Dict[str, str]]:
-    """Every problem of one task's ``meta.variant`` against its design."""
+    """Every problem of one task's ``meta.benger_variant`` against its design."""
     base = "/meta/variant"
     problems = _schema_problems("task_variant", variant, base)
     if problems:

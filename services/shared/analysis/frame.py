@@ -8,7 +8,7 @@ in a canonical order.
   quality flags (``parse_ok``, ``refusal``, ``truncated`` as 1/0,
   ``retried`` as 1/0 or missing, ``finish_reason``);
 * in a slot frame (``frame.unit = slot``), the slot index ``slot``: one row
-  per slot of the task's ``meta.variant.slots`` (the unpivot of per-slot
+  per slot of the task's ``meta.benger_variant.slots`` (the unpivot of per-slot
   answers such as Label Studio Repeater results ``risk_0``, ``risk_1``, ...),
   a generation whose task has no slots contributes no row;
 * one column per design factor found in the observations' ``factors``

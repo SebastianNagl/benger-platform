@@ -1,4 +1,4 @@
-"""Analysis runs end to end: tasks with ``meta.variant`` and generations in the
+"""Analysis runs end to end: tasks with ``meta.benger_variant`` and generations in the
 test database, ``tasks.run_analysis`` (eager), the stored frame and estimates.
 """
 
@@ -57,7 +57,7 @@ def seeded(db_conn, make_project, make_user):
             tid = str(uuid.uuid4())
             task_ids[rec["task_id"]] = tid
             rows.append(Task(id=tid, project_id=project.id, data=rec["task_data"],
-                             meta={"variant": rec["variant"], "tags": ["x"]}, inner_id=inner))
+                             meta={"benger_variant": rec["variant"], "tags": ["x"]}, inner_id=inner))
     outside = Task(id=str(uuid.uuid4()), project_id=project.id, data={"text": "x"}, meta={"tags": []}, inner_id=inner + 1)
     rows.append(outside)
     db_conn.add_all(rows)
@@ -394,7 +394,7 @@ def _seed_docket_project(db_conn, make_project, user, records):
         if rec["task_id"] not in task_ids:
             task_ids[rec["task_id"]] = str(uuid.uuid4())
             db_conn.add(Task(id=task_ids[rec["task_id"]], project_id=project.id, data={"cases": [{}] * 6},
-                             meta={"variant": rec["variant"]}, inner_id=len(task_ids)))
+                             meta={"benger_variant": rec["variant"]}, inner_id=len(task_ids)))
     db_conn.commit()
     for rec in records:
         rg = ResponseGeneration(id=str(uuid.uuid4()), project_id=project.id, task_id=task_ids[rec["task_id"]],

@@ -172,7 +172,7 @@ class TestExtensionLoader:
         # 2.58 adds metadata.retryable on every provider's error response
         # (base_service.classify_retryable).
         # 2.59 adds variant designs (variant_designs, the derived task
-        # columns and their guards, meta.variant as a reserved key).
+        # columns and their guards, meta.benger_variant as a reserved key).
         # 2.60 adds per-slot label configs (<Repeater>, label_config_repeater,
         # task_data on the response parser and the schema generator).
         # 2.61 adds the generation request record and answer-format options

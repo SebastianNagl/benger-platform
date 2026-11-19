@@ -99,7 +99,7 @@ def coded(db_conn, make_project, make_user):
     for i, text in enumerate(ANSWERS):
         tid = str(uuid.uuid4())
         rows.append(Task(id=tid, project_id=source.id, data={"text": f"case {i}"}, inner_id=i + 1,
-                         meta={"variant": {"design": "d", "unit": f"u{i}", "factors": {"swap": 0}}}))
+                         meta={"benger_variant": {"design": "d", "unit": f"u{i}", "factors": {"swap": 0}}}))
         rg = ResponseGeneration(id=str(uuid.uuid4()), project_id=source.id, task_id=tid, model_id="sys_a",
                                 status="completed", created_by=owner.id, structure_key="default")
         gid = str(uuid.uuid4())

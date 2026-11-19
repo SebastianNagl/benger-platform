@@ -106,7 +106,7 @@ one answer into one row per item.
 ## Analysing per-item answers
 
 An analysis with `"frame": {"unit": "slot"}` turns each answer into one row
-per item: the items are the task's `meta.variant.slots` (index and factors
+per item: the items are the task's `meta.benger_variant.slots` (index and factors
 per item), and a measure such as `{"kind": "field", "field": "risk_{idx}"}`
 reads the item's own control, `{idx}` replaced by the slot index as the
 names above use it (0-based for a `<Repeater>`, the number in the name for

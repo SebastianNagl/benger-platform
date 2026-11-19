@@ -176,12 +176,12 @@ def test_typed_field_values_keep_types():
 
 
 def test_variant_of_task_meta():
-    assert variant_of_task_meta({"variant": {"design": "d", "unit": 3, "factors": {"a": 1}}}) == {
+    assert variant_of_task_meta({"benger_variant": {"design": "d", "unit": 3, "factors": {"a": 1}}}) == {
         "design": "d", "unit": "3", "factors": {"a": 1}, "slots": ()}
-    assert variant_of_task_meta({"variant": {"design": "d"}}) is None
+    assert variant_of_task_meta({"benger_variant": {"design": "d"}}) is None
     assert variant_of_task_meta({"tags": []}) is None
     assert variant_of_task_meta(None) is None
-    assert variant_of_task_meta({"variant": {"design": "d", "unit": "u", "factors": "x"}})["factors"] == {}
+    assert variant_of_task_meta({"benger_variant": {"design": "d", "unit": "u", "factors": "x"}})["factors"] == {}
 
 
 def test_observation_records_are_checked():

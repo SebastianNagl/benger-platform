@@ -1,6 +1,6 @@
 """Variant designs through export and import (CORE 2.59).
 
-Every import path validates ``meta.variant`` (nested JSON, a flat CSV-style
+Every import path validates ``meta.benger_variant`` (nested JSON, a flat CSV-style
 row, the tabular CSV import, the full project import or clone in both
 serializations, the merge import), refuses a duplicate cell also with
 reordered factor keys, refuses new tasks in a frozen design, and an export
@@ -57,7 +57,7 @@ def item(unit, role, order, *, design="swap", facts=None, factors=None):
     return {
         "data": {"facts": facts},
         "meta": {
-            "variant": {
+            "benger_variant": {
                 "design": design,
                 "unit": unit,
                 "factors": factors if factors is not None else {"role": role, "order": order},
@@ -115,7 +115,7 @@ def _assignments(test_db, project_id):
         Task.project_id == project_id
     )
     return sorted(
-        (json.dumps(meta["variant"], sort_keys=True), design, unit) for meta, design, unit in rows
+        (json.dumps(meta["benger_variant"], sort_keys=True), design, unit) for meta, design, unit in rows
     )
 
 
@@ -145,14 +145,14 @@ class TestImportValidation:
     )
     def test_nested_import_rejects_invalid_assignments(self, test_db, world, mutate, status):
         items = full_items()
-        mutate(items[3]["meta"]["variant"])
+        mutate(items[3]["meta"]["benger_variant"])
         error = _refused(test_db, _nested, test_db, world["project"], world["admin"], items)
         assert error.status_code == status
-        assert "variant" in error.detail
+        assert "benger_variant" in error.detail
         assert test_db.query(Task).filter(Task.project_id == world["project"].id).count() == 0
 
     def test_global_meta_counts_too(self, test_db, world):
-        payload = {"meta": {"variant": "not an object"}, "data": [{"data": {"facts": "x"}}]}
+        payload = {"meta": {"benger_variant": "not an object"}, "data": [{"data": {"facts": "x"}}]}
         error = _refused(
             test_db,
             run_nested_import,
@@ -166,12 +166,12 @@ class TestImportValidation:
     def test_flat_rows_carry_the_assignment_as_json(self, test_db, world):
         rows = []
         for it in full_items(("u1",)):
-            rows.append({**it["data"], "meta.variant": json.dumps(it["meta"]["variant"])})
+            rows.append({**it["data"], "meta.benger_variant": json.dumps(it["meta"]["benger_variant"])})
         _nested(test_db, world["project"], world["admin"], rows)
         tasks = test_db.query(Task).filter(Task.project_id == world["project"].id).all()
         assert len(tasks) == 4
-        assert all("meta.variant" not in t.data and t.variant_design == "swap" for t in tasks)
-        bad = [{"facts": "x", "meta.variant": json.dumps({"design": "swap"})}]
+        assert all("meta.benger_variant" not in t.data and t.variant_design == "swap" for t in tasks)
+        bad = [{"facts": "x", "meta.benger_variant": json.dumps({"design": "swap"})}]
         error = _refused(test_db, _nested, test_db, world["project"], world["admin"], bad)
         assert error.status_code == 422
 
@@ -181,9 +181,9 @@ class TestImportValidation:
         def body(items):
             out = io.StringIO()
             writer = csv.writer(out)
-            writer.writerow(["facts", "meta.variant"])
+            writer.writerow(["facts", "meta.benger_variant"])
             for it in items:
-                writer.writerow([it["data"]["facts"], json.dumps(it["meta"]["variant"])])
+                writer.writerow([it["data"]["facts"], json.dumps(it["meta"]["benger_variant"])])
             return io.BytesIO(out.getvalue().encode("utf-8"))
 
         result = run_tabular_import(
@@ -192,7 +192,7 @@ class TestImportValidation:
         assert result["created_tasks"] == 4
         assert len(_assignments(test_db, world["project"].id)) == 4
         broken = full_items(("u2",))
-        broken[0]["meta"]["variant"]["factors"]["order"] = "c"
+        broken[0]["meta"]["benger_variant"]["factors"]["order"] = "c"
         error = _refused(
             test_db,
             run_tabular_import,
@@ -319,7 +319,7 @@ class TestRoundTrip:
 
     def test_full_import_rejects_an_invalid_assignment(self, test_db, world, frozen):
         doc = json.loads("".join(stream_comprehensive_project_data_json(test_db, world["project"].id)))
-        doc["tasks"][0]["meta"]["variant"]["factors"]["role"] = "judge"
+        doc["tasks"][0]["meta"]["benger_variant"]["factors"]["role"] = "judge"
         error = _refused(
             test_db,
             run_full_project_import,
@@ -379,7 +379,7 @@ class TestMerge:
         _nested(test_db, world["project"], world["admin"], full_items(("u1",)))
         pid = world["project"].id
         doc = json.loads("".join(stream_comprehensive_project_data_json(test_db, pid)))
-        doc["tasks"][0]["meta"]["variant"]["unit"] = "u9"
+        doc["tasks"][0]["meta"]["benger_variant"]["unit"] = "u9"
         error = _refused(
             test_db,
             run_merge_import,

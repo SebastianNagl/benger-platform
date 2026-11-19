@@ -2,7 +2,7 @@
  * Analysis runs of variant experiments (services/api/routers/analysis.py).
  *
  * A run computes the estimands of an analysis spec on a project whose tasks
- * carry `meta.variant`; the engine runs in the workers, the API validates
+ * carry `meta.benger_variant`; the engine runs in the workers, the API validates
  * specs, starts runs and reads runs, estimates and the frame snapshot.
  * Reads of a run that is still pending or running bypass the 30 s GET
  * cache so polling sees the status change.

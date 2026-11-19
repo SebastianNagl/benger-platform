@@ -5,7 +5,7 @@ Python keeps stable across versions), as observation records
 (:func:`analysis.observations.observation_from_record`):
 
 * :func:`docket_records`: a docket design. Every unit is one docket of six
-  cases, each case a slot (``meta.variant.slots``, index 0-5 as a Label
+  cases, each case a slot (``meta.benger_variant.slots``, index 0-5 as a Label
   Studio Repeater names its controls ``risk_0`` ... ``risk_5``) with its own
   factors (position, offence, group, name); the answer gives a risk, a
   probation probability, a sentence and a priority rank per case. A few

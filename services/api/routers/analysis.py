@@ -1,6 +1,6 @@
 """Analysis runs of variant experiments (the full API).
 
-A project whose tasks carry ``meta.variant`` can be analysed as a factorial
+A project whose tasks carry ``meta.benger_variant`` can be analysed as a factorial
 experiment: a spec (``services/shared/analysis/schemas/analysis_spec.schema.json``)
 names designs, measures, estimands, contrasts, equivalence bounds and
 multiplicity families, and an analysis run computes it on the ``analysis``

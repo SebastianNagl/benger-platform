@@ -69,6 +69,19 @@ class FlagDefinition:
 
 PUBLIC_API = "public_api"
 
+#: Controlled variant experiments and their analyses (core 2.69): variant
+#: designs, per-item answers, generation fidelity, panel models and the
+#: system key, analysis runs, codes and coding validation, the results
+#: views, annotator agreement and the project report as paper. Off: the
+#: routes answer 404 ``feature_disabled``, the jobs do not run, the views
+#: and counts are gone, and every changed behaviour follows the platform
+#: as it was before (docs/features/feature-flags.md).
+VARIANT_EXPERIMENTS = "variant_experiments"
+
+#: The generic compliance records (assessments, suite runs, findings under
+#: ``/api/compliance``) and the ``/compliance`` route shells (core 2.69).
+COMPLIANCE_RECORDS = "compliance_records"
+
 
 # ---------------------------------------------------------------------------
 # Multi-owner registry
@@ -273,6 +286,25 @@ def platform_flags() -> Tuple[FlagDefinition, ...]:
             "antworten mit 404. Für Organisations-Schlüssel zählt die Freigabe "
             "der Organisation, für persönliche die der Person.",
             _public_api_default(),
+        ),
+        FlagDefinition(
+            VARIANT_EXPERIMENTS,
+            "Variantenexperimente und Analysen: Variantendesigns, Antworten pro "
+            "Element, Generierungsprotokoll mit Antwortformat-Optionen und "
+            "Formatwiederholung, Panel-Modelle, Analyseläufe, Codes und "
+            "Codiervalidierung, Annotator-Übereinstimmung und der Projektbericht "
+            "als Paper. Aus: Routen antworten mit 404, Jobs laufen nicht, "
+            "Ansichten und Zähler fehlen, alles verhält sich wie zuvor; "
+            "gespeicherte Daten bleiben erhalten.",
+            STATE_OFF,
+        ),
+        FlagDefinition(
+            COMPLIANCE_RECORDS,
+            "Compliance-Datensätze: Bewertungen, Suite-Läufe und Befunde unter "
+            "/api/compliance sowie die Seiten unter /compliance. Aus: Routen "
+            "antworten mit 404, Navigation und Seiten fehlen. Die Oberfläche "
+            "des Compliance-Pakets braucht zusätzlich extension.compliance.",
+            STATE_OFF,
         ),
     )
 

@@ -17,7 +17,7 @@ numeric stack.
 
 ## Where the data comes from
 
-A task belongs to a design through its `meta.variant` block:
+A task belongs to a design through its `meta.benger_variant` block:
 
 ```json
 {"variant": {"design": "role_swap", "unit": "case_017",
@@ -45,7 +45,7 @@ that does not depend on the Parquet writer.
 ### Slot frames: one row per item of an answer
 
 When a task asks the same questions once per item (per case of a docket,
-per person in a judgment), its `meta.variant.slots` lists the items with
+per person in a judgment), its `meta.benger_variant.slots` lists the items with
 their own factors, and the answers sit under indexed control names, as a
 Label Studio `<Repeater>` stores them (`risk_0`, `risk_1`, ...; see
 [per-item answers](../user-guides/per-item-answers.md)):

@@ -51,6 +51,7 @@ from routers.projects.helpers import (
     can_read_all_task_content_async,
     check_project_accessible_async,
 )
+from variant_designs import META_KEY as VARIANT_META_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,9 @@ async def _candidates(db: AsyncSession, project_id: str, filters: Mapping[str, L
         .where(Generation.status == "completed")
     )
     if filters.get("designs"):
-        stmt = stmt.where(cast(Task.meta, JSONB)["variant"]["design"].astext.in_(filters["designs"]))
+        stmt = stmt.where(
+            cast(Task.meta, JSONB)[VARIANT_META_KEY]["design"].astext.in_(filters["designs"])
+        )
     if filters.get("structures"):
         stmt = stmt.where(ResponseGeneration.structure_key.in_(filters["structures"]))
     systems = set(filters.get("systems") or [])

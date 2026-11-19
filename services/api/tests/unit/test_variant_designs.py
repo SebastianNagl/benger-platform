@@ -356,7 +356,7 @@ class TestFlatRows:
         row = {"facts": "f", FLAT_META_COLUMN: json.dumps(variant)}
         data, meta = lift_flat_meta(row)
         assert data == {"facts": "f"}
-        assert meta == {"variant": variant}
+        assert meta == {"benger_variant": variant}
 
     def test_empty_cell_and_missing_column(self):
         assert lift_flat_meta({"facts": "f", FLAT_META_COLUMN: " "}) == ({"facts": "f"}, None)

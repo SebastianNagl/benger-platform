@@ -1,10 +1,12 @@
 """FastAPI dependencies that close endpoints while a flag is off (core 2.42).
 
-``require_feature_flag(name)``
+``require_feature_flag(name, key_organization=False)``
     ``Depends(require_feature_flag(RUBRIC_GENERATION))``: a signed-in caller
     for whom the flag is off gets ``404 {"detail": {"code":
     "feature_disabled", "flag": "<name>"}}``. Unauthenticated requests get
-    the usual 401 from ``require_user`` first.
+    the usual 401 from ``require_user`` first. ``key_organization=True``
+    lets an organization key's organization count (platform flags on routes
+    keys reach).
 
 ``require_extension_active(package, ungated=())``
     The gate the platform puts on every router of an extension package
@@ -46,14 +48,29 @@ def feature_disabled_error(name: str) -> HTTPException:
     return HTTPException(status_code=404, detail=feature_disabled_detail(name))
 
 
-def require_feature_flag(name: str):
-    """Dependency factory: 404 ``feature_disabled`` unless ``name`` is on."""
+def require_feature_flag(name: str, *, key_organization: bool = False):
+    """Dependency factory: 404 ``feature_disabled`` unless ``name`` is on.
+
+    ``key_organization=True``: for an organization access key, the key's
+    organization counts like a membership of the caller (the rule
+    ``public_api`` follows), so allowlisting an organization opens the
+    feature to its keys too."""
 
     async def _require_feature_flag(
+        request: Request,
         current_user=Depends(require_user),
         db: AsyncSession = Depends(get_async_db),
     ):
-        if not await service.is_enabled_for(db, current_user, name):
+        organization_id = None
+        if key_organization:
+            from auth_module.principal import get_principal
+
+            principal = get_principal(request)
+            if principal is not None and principal.is_api_key:
+                organization_id = principal.organization_id
+        if not await service.is_enabled_for_caller(
+            db, current_user, name, organization_id=organization_id
+        ):
             raise feature_disabled_error(name)
         return current_user
 

@@ -144,7 +144,7 @@ Standard data files (CSV, JSON, TXT, etc.) are processed normally:
 
 ### Variant experiments
 
-Projects that run variant experiments (counterfactual and robustness tests) keep each task's place in the experiment in `meta.variant` and the experiment itself as a variant design. Exports carry the designs with the tasks, every import checks each task's `meta.variant` against its design, and a CSV file may hold the assignment as JSON in a column named `meta.variant`. See [Variant Designs](variant-designs.md).
+Projects that run variant experiments (counterfactual and robustness tests) keep each task's place in the experiment in `meta.benger_variant` and the experiment itself as a variant design. Exports carry the designs with the tasks, every import checks each task's `meta.benger_variant` against its design, and a CSV file may hold the assignment as JSON in a column named `meta.benger_variant`. See [Variant Designs](variant-designs.md).
 
 ## Use Cases
 

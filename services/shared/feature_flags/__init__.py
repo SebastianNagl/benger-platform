@@ -16,6 +16,7 @@ from pkgutil import extend_path
 __path__ = extend_path(__path__, __name__)
 
 from .registry import (  # noqa: E402,F401
+    COMPLIANCE_RECORDS,
     FEATURE_DISABLED,
     FEATURE_DISABLED_MESSAGE,
     MASTER_PREFIX,
@@ -25,6 +26,7 @@ from .registry import (  # noqa: E402,F401
     STATE_EVERYONE,
     STATE_OFF,
     STATES,
+    VARIANT_EXPERIMENTS,
     FlagDefinition,
     all_flags,
     flag,
