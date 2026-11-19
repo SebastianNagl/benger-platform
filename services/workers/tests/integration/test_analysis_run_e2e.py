@@ -483,3 +483,81 @@ def test_a_missing_lookup_table_fails_the_run(db_conn, seeded):
     tasks.run_analysis.apply(args=[run.id]).get()
     run, _ = _reload(db_conn, run.id)
     assert run.status == "failed" and "'nope' version 1 does not exist" in run.error_message
+
+
+def _cross_project_spec(other_id, *, via_lookup=False):
+    spec = role_swap_spec()
+    if via_lookup:
+        spec["lookups"] = [{"id": "x", "table": {"name": "codes", "version": 1, "project_id": other_id},
+                            "keys": {"unit": "u"}, "columns": {"c": "c"}}]
+    else:
+        spec["inputs"] = {**spec["inputs"], "projects": [{"project_id": other_id, "designs": ["role_swap"]}]}
+    return spec
+
+
+@pytest.mark.parametrize("purged", [True, False], ids=["purged", "soft_deleted"])
+@pytest.mark.parametrize("via_lookup", [False, True], ids=["input_project", "lookup_owner"])
+def test_a_run_whose_input_project_is_gone_fails(db_conn, seeded, make_project, purged, via_lookup):
+    from datetime import datetime, timezone
+
+    import analysis_jobs.service as service
+    from project_purge import purge_project_data
+
+    project, user, _ = seeded
+    other = make_project(created_by=user.id)
+    run = _new_run(db_conn, project, user, _cross_project_spec(other.id, via_lookup=via_lookup))
+    other.deleted_at = datetime.now(timezone.utc)
+    db_conn.commit()
+    if purged:
+        purge_project_data(db_conn, other.id)
+        db_conn.commit()
+    uploads = []
+
+    class RecordingStorage:
+        def upload_file(self, *args, **kwargs):
+            uploads.append(args)
+            raise AssertionError("no frame may be stored")
+
+    assert service.run_analysis_impl(run.id, storage=RecordingStorage())["status"] == "failed"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed" and run.error_message == f"input project {other.id} was deleted; the run cannot read it"
+    assert run.frame_object_key is None and estimates == [] and uploads == []
+
+
+def test_an_input_project_deleted_during_the_run_fails_it_and_leaves_no_frame(db_conn, seeded, make_project, monkeypatch):
+    from datetime import datetime, timezone
+
+    import analysis_jobs.service as service
+    import analysis.runner as runner
+    from project_models import Project
+    from storage.object_storage import object_storage
+
+    project, user, _ = seeded
+    other = make_project(created_by=user.id)
+    run = _new_run(db_conn, project, user, _cross_project_spec(other.id))
+    real_run_spec = runner.run_spec
+
+    def run_spec_then_delete(frame, spec):
+        result = real_run_spec(frame, spec)
+        db_conn.query(Project).filter(Project.id == other.id).update({"deleted_at": datetime.now(timezone.utc)})
+        db_conn.commit()
+        return result
+
+    monkeypatch.setattr(runner, "run_spec", run_spec_then_delete)
+    uploaded = []
+
+    class RecordingStorage:
+        def upload_file(self, *args, **kwargs):
+            stored = object_storage.upload_file(*args, **kwargs)
+            uploaded.append(stored["file_key"])
+            return stored
+
+        def delete_file(self, key):
+            return object_storage.delete_file(key)
+
+    assert service.run_analysis_impl(run.id, storage=RecordingStorage())["status"] == "failed"
+    run, estimates = _reload(db_conn, run.id)
+    assert run.status == "failed" and f"input project {other.id} was deleted" in run.error_message
+    assert run.frame_object_key is None and estimates == []
+    assert len(uploaded) == 1
+    assert not os.path.exists(os.path.join(object_storage.local_storage_path, uploaded[0]))

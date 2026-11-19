@@ -4,7 +4,10 @@
 
 1. claim the run (``pending`` or a ``running`` row left by a dead worker;
    a finished run is left alone, so a redelivered message is a no-op);
-2. read the observations of the run's project and spec, and of every
+2. check that every further project of the run (input projects, owners of
+   stored lookup tables) still exists and is not deleted, here and again
+   before the results are stored, so a purge in between fails the run;
+   read the observations of the run's project and spec, and of every
    further project of a cross-project frame
    (:func:`analysis.db_source.iter_run_observations`), load the stored
    lookup tables the spec names (:func:`analysis.db_source.load_lookup_tables`)
@@ -154,7 +157,7 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
 
 
 def _execute(db, run, storage) -> Dict[str, Any]:
-    from analysis.db_source import iter_run_observations, load_lookup_tables
+    from analysis.db_source import check_input_projects, iter_run_observations, load_lookup_tables
     from analysis.frame import build_frame, frame_sha256, to_parquet
     from analysis.runner import run_spec
     from analysis.version import ENGINE_VERSION
@@ -163,6 +166,8 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     t0 = time.perf_counter()
     spec = run.normalized_spec
     source_counts: Dict[str, int] = {}
+    check_input_projects(db, run)
+    db.commit()
     observations = list(iter_run_observations(db, run.project_id, spec["inputs"], source_counts))
     lookup_tables, resolved_lookups = load_lookup_tables(db, run.project_id, spec.get("lookups") or [])
     t_read = time.perf_counter()
@@ -189,6 +194,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     t_store = time.perf_counter()
 
     try:
+        check_input_projects(db, run)
         db.query(AnalysisEstimate).filter(AnalysisEstimate.run_id == run.id).delete(
             synchronize_session=False
         )

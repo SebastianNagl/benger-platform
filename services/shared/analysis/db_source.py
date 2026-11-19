@@ -184,6 +184,31 @@ def iter_run_observations(
         yield from iter_observations(db, other["project_id"], inputs, counts, designs=other["designs"])
 
 
+def check_input_projects(db, run) -> None:
+    """Every further project the run reads (its input projects and the
+    owners of the stored lookup tables it joins) still exists and is not
+    deleted; the run fails otherwise. The rows stay share-locked until the
+    caller's transaction ends, so a purge waits for the run to be stored."""
+    from sqlalchemy import select
+
+    from models import AnalysisRun
+    from project_models import Project
+
+    further = AnalysisRun.input_projects(run.normalized_spec, run.project_id)
+    if not further:
+        return
+    live = set(
+        db.execute(
+            select(Project.id)
+            .where(Project.id.in_(further), Project.deleted_at.is_(None))
+            .with_for_update(read=True)
+        ).scalars()
+    )
+    for pid in further:
+        if pid not in live:
+            raise EngineError(f"input project {pid} was deleted; the run cannot read it")
+
+
 def load_lookup_tables(
     db, project_id: str, lookups: Sequence[Mapping[str, Any]]
 ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]:
