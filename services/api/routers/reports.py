@@ -32,7 +32,9 @@ from report_service import (
 )
 from report_snapshot import (
     AnalysesSectionError,
+    analysis_runs_member_only,
     build_report_snapshot,
+    has_member_only_analyses,
     parse_analyses_section,
     public_snapshot,
     report_analysis_runs,
@@ -268,7 +270,9 @@ def _build_snapshot_sync(sync_db, project_id: str, analyses: Any = None):
 
 
 def _report_analysis_runs_sync(sync_db, project_id: str):
-    return report_analysis_runs(sync_db, project_id)
+    runs = report_analysis_runs(sync_db, project_id)
+    member_only = analysis_runs_member_only(sync_db, runs)
+    return [{**r, "member_only": member_only[r["id"]]} for r in runs]
 
 
 def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
@@ -276,6 +280,17 @@ def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
 
 
 # ============= Helper Functions =============
+
+#: 400 detail when a report that would be public holds a member-only
+#: analysis run (``report_snapshot.analysis_runs_member_only``).
+PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL = (
+    "A public report cannot show an analysis run in which a private model may appear"
+)
+
+
+def _refuse_public_member_only(snapshot: Any) -> None:
+    if has_member_only_analyses(snapshot):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL)
 
 #: 403 detail for callers who may not author a project's report.
 REPORT_AUTHOR_REQUIRED_DETAIL = (
@@ -570,6 +585,8 @@ async def publish_report(
 
     # Freeze the numbers, then publish
     snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    if body and body.is_public:
+        _refuse_public_member_only(snapshot)
     report.content = {**(report.content or {}), "snapshot": snapshot}
     report.is_published = True
     report.is_public = bool(body.is_public) if body else False
@@ -665,6 +682,8 @@ async def set_report_visibility(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Publish the report before changing its visibility",
         )
+    if body.is_public:
+        _refuse_public_member_only((report.content or {}).get("snapshot"))
     report.is_public = bool(body.is_public)
     report.updated_at = datetime.utcnow()
     await db.commit()
@@ -703,12 +722,14 @@ async def list_report_analysis_runs(
 ):
     """The analysis runs the report's Analyses section can show (report
     authors): the project's completed runs that read no further project,
-    newest first. A cross-project run is never offered, because a report
-    must not publish another project's numbers."""
+    newest first, each saying whether it is member-only (a private model
+    may appear in it, so a public report cannot show it). A cross-project
+    run is never offered, because a report must not publish another
+    project's numbers."""
     await require_report_author(db, current_user, project_id)
     await _load_project_and_report(db, project_id)
     runs = await db.run_sync(_report_analysis_runs_sync, project_id)
-    fields = ("id", "name", "spec_hash", "engine_version", "frame_rows", "estimates_count")
+    fields = ("id", "name", "spec_hash", "engine_version", "frame_rows", "estimates_count", "member_only")
     items = [
         {**{k: r[k] for k in fields}, "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None}
         for r in reversed(runs)

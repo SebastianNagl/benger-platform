@@ -29,7 +29,9 @@ public are excluded unless ``include_private_models`` is set — same rule as
 the LLM leaderboard, so a published report cannot leak a private endpoint.
 The same rule drops a hidden model from every other section: its generation
 counts, the human ratings of its answers and every preference comparison it
-took part in.
+took part in. The Analyses section applies it per run instead: a run in
+which a hidden model may appear is copied whole but marked member-only, and
+the public view leaves it out.
 
 Beyond the metric evaluation, the snapshot holds what a paper about the
 project reports (each section is present for every project and stays empty
@@ -46,7 +48,8 @@ when the project has nothing of its kind, so the viewer hides it):
   * ``analyses``: the completed single-project analysis runs the author
     put in the report's Analyses section, each with its metadata, the
     estimates its exhibits select (copied, so a published report keeps its
-    numbers) and the exhibits (forest or table) with their filters.
+    numbers), whether it is member-only, and the exhibits (forest or table)
+    with their filters.
   * ``reproducibility``: platform versions, label config version and hash,
     prompt structure hashes, models, evaluation configs with the parameter
     snapshots their judge runs used, variant design and import hashes, the
@@ -982,7 +985,7 @@ def _build_reproducibility_section(
 _ANALYSIS_RUNS_SQL = """
 SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
        frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at,
-       warnings, normalized_spec, fits
+       warnings, normalized_spec, fits, resolved_inputs
 FROM analysis_runs
 WHERE project_id = :project_id AND status = 'completed'
 ORDER BY completed_at, id
@@ -1344,14 +1347,59 @@ def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]], sys
     return True
 
 
-def _system_model_id(system: str) -> str:
-    """The model id of a system key (``<model_id>@<parameter profile hash>``,
-    or the bare model id of answers generated before CORE 2.56)."""
-    return system.split("@", 1)[0]
+_RUN_SCOPE_VALUES_SQL = """
+SELECT DISTINCT run_id, scope_values FROM analysis_estimates
+WHERE run_id = ANY(:ids) AND scope_values IS NOT NULL
+"""
 
 
-def _names_hidden(value: Any, hidden: set) -> bool:
-    return isinstance(value, str) and any(h in value for h in hidden)
+def _run_model_ids(run: Dict[str, Any], scope_values: Iterable[Any]) -> Optional[set]:
+    """Every model id that may appear in a run: the models of its frame
+    (``resolved_inputs.models``, the ``model_id`` values and the model part
+    of every system key), every level its fits name (parameters,
+    ``references``, Bradley-Terry ``players``) and every scope value of its
+    estimates, each as the part before ``@``. None when the run does not
+    record its frame's models (runs made before it did)."""
+    resolved = run.get("resolved_inputs")
+    models = resolved.get("models") if isinstance(resolved, dict) else None
+    if not isinstance(models, list):
+        return None
+    values: set = {str(m) for m in models if m is not None}
+    for fit in run.get("fits") if isinstance(run.get("fits"), list) else []:
+        if not isinstance(fit, dict):
+            continue
+        values |= {level for _, level in _parameter_levels(fit.get("parameters") or [])}
+        if isinstance(fit.get("references"), dict):
+            values |= {str(v) for v in fit["references"].values() if v is not None}
+        values |= {str(p) for p in fit.get("players") or [] if p is not None}
+    for scope in scope_values:
+        if isinstance(scope, dict):
+            values |= {str(v) for v in scope.values() if v is not None}
+    return {v.split("@", 1)[0] for v in values}
+
+
+def analysis_runs_member_only(db: Session, runs: Iterable[Dict[str, Any]]) -> Dict[str, bool]:
+    """For each run (rows of :func:`report_analysis_runs`), whether it is
+    member-only: a hidden model (:func:`model_is_public`) may appear in it
+    (:func:`_run_model_ids`), or which models do cannot be established. A
+    public report never shows a member-only run."""
+    runs = list(runs)
+    if not runs:
+        return {}
+    scopes: Dict[str, List[Any]] = {}
+    for row in db.execute(text(_RUN_SCOPE_VALUES_SQL), {"ids": [r["id"] for r in runs]}).mappings().all():
+        scopes.setdefault(row["run_id"], []).append(row["scope_values"])
+    ids = {r["id"]: _run_model_ids(r, scopes.get(r["id"], [])) for r in runs}
+    hidden = hidden_model_ids(db, {m for models in ids.values() if models for m in models})
+    return {run_id: models is None or bool(models & hidden) for run_id, models in ids.items()}
+
+
+def has_member_only_analyses(snapshot: Any) -> bool:
+    """Whether a snapshot's Analyses section holds a member-only run, which
+    a public report must not show."""
+    analyses = snapshot.get("analyses") if isinstance(snapshot, dict) else None
+    runs = analyses.get("runs") if isinstance(analyses, dict) else None
+    return any(isinstance(r, dict) and r.get("member_only") is not False for r in runs or [])
 
 
 def _finite(value: Any) -> Any:
@@ -1393,33 +1441,21 @@ def _build_analyses_section(
     db: Session,
     project_id: str,
     config: Dict[str, Any],
-    *,
-    hidden_models: set,
-    hidden_ids,
 ) -> Dict[str, Any]:
     """The runs the Analyses section names, in the author's order, each with
-    its metadata, the estimates its exhibits select and every exhibit with
-    the positions of its estimates. Estimates are copied, so the published
-    report keeps its numbers whatever happens to the live tables. A run the
-    report cannot show is listed in ``omitted`` with the reason."""
+    its metadata, whether it is member-only
+    (:func:`analysis_runs_member_only`), the estimates its exhibits select
+    and every exhibit with the positions of its estimates. Estimates are
+    copied whole, so the published report keeps its numbers whatever
+    happens to the live tables; the public view leaves member-only runs out
+    (:func:`public_snapshot`). A run the report cannot show is listed in
+    ``omitted`` with the reason."""
     if not config["runs"]:
         return {"runs": [], "omitted": []}
     eligible = {r["id"]: r for r in report_analysis_runs(db, project_id)}
     problems = analysis_run_problems(db, project_id, [rc["run_id"] for rc in config["runs"] if rc["run_id"] not in eligible])
 
-    loaded: Dict[str, List[Tuple[Dict[str, Any], set]]] = {}
-    candidates: set = set()
-    for rc in config["runs"]:
-        run = eligible.get(rc["run_id"])
-        if run is not None:
-            loaded[rc["run_id"]] = [
-                (e, estimate_systems(e, run["normalized_spec"], run["fits"])) for e in _run_estimates(db, rc["run_id"])
-            ]
-            candidates |= {_system_model_id(s) for _, systems in loaded[rc["run_id"]] for s in systems}
-    # The hidden-model rule: an estimate involving a hidden model's system,
-    # or whose contrast names one, is left out, and so is a warning naming
-    # one or about the fit of a left-out estimate.
-    hidden = set(hidden_models) | hidden_ids(candidates)
+    member_only = analysis_runs_member_only(db, [eligible[rc["run_id"]] for rc in config["runs"] if rc["run_id"] in eligible])
 
     runs: List[Dict[str, Any]] = []
     omitted: List[Dict[str, Any]] = []
@@ -1428,13 +1464,7 @@ def _build_analyses_section(
         if run is None:
             omitted.append({"run_id": rc["run_id"], "reason": problems.get(rc["run_id"], RUN_NOT_FOUND)})
             continue
-        shown: List[Tuple[Dict[str, Any], set]] = []
-        left_out: set = set()
-        for e, systems in loaded[rc["run_id"]]:
-            if {_system_model_id(s) for s in systems} & hidden or _names_hidden(e.get("contrast_id"), hidden):
-                left_out.add(f"{e.get('estimand_id')} [{e.get('scope')}]: ")
-                continue
-            shown.append(({**e, "message": None} if _names_hidden(e.get("message"), hidden) else e, systems))
+        shown = [(e, estimate_systems(e, run["normalized_spec"], run["fits"])) for e in _run_estimates(db, run["id"])]
         exhibits = []
         selected: set = set()
         for ex in rc["exhibits"]:
@@ -1464,10 +1494,8 @@ def _build_analyses_section(
             "frame_rows": run["frame_rows"],
             "estimates_count": int(run["estimates_count"] or 0),
             "completed_at": _iso(run["completed_at"]),
-            "warnings": [
-                str(w) for w in warnings
-                if not _names_hidden(str(w), hidden) and not str(w).startswith(tuple(left_out))
-            ],
+            "member_only": member_only[run["id"]],
+            "warnings": [str(w) for w in warnings],
             "families": _families(rows),
             "truncated": len(selected) > MAX_REPORT_ESTIMATES_PER_RUN,
             "estimates": rows,
@@ -1496,8 +1524,9 @@ def public_snapshot(snapshot: Any) -> Any:
     report read anonymously or by a non-member): judge run parameters,
     declared import manifests and design provenance keep their SHA-256 but
     lose their content (custom judge prompts, rubrics, author manifests),
-    and the Analyses section's list of runs it could not show (the author's
-    note to fix) is left out. The stored snapshot and its
+    and the Analyses section leaves out its member-only runs
+    (:func:`analysis_runs_member_only`) and its list of runs it could not
+    show (the author's note to fix). The stored snapshot and its
     ``snapshot_sha256`` stay whole."""
     if not isinstance(snapshot, dict):
         return snapshot
@@ -1513,7 +1542,10 @@ def public_snapshot(snapshot: Any) -> Any:
             lambda c: _map_list(c, "judge_runs", lambda r: _without(r, "parameters")),
         )
     if isinstance(out.get("analyses"), dict):
-        out["analyses"] = _without(out["analyses"], "omitted")
+        analyses = _without(out["analyses"], "omitted")
+        if isinstance(analyses.get("runs"), list):
+            analyses["runs"] = [r for r in analyses["runs"] if isinstance(r, dict) and r.get("member_only") is False]
+        out["analyses"] = analyses
     return out
 
 
@@ -1734,10 +1766,7 @@ def build_report_snapshot(
         hidden_judges=_hidden_judges,
     )
 
-    analyses_section = _build_analyses_section(
-        db, project_id, parse_analyses_section(analyses),
-        hidden_models=hidden_models, hidden_ids=_hidden_judges,
-    )
+    analyses_section = _build_analyses_section(db, project_id, parse_analyses_section(analyses))
 
     snapshot = {
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),

@@ -8,8 +8,9 @@ and three scopes (pooled, an open system and a private BYOM system), plus runs a
 cross-project, reading another project's lookup table, another project's
 run). Then checks that exhibit filters select exactly the intended rows,
 that a published report keeps its numbers when the live data changes, that
-cross-project runs are neither offered nor copied nor publishable, that
-estimates of a hidden model never reach a snapshot, and the save validation.
+cross-project runs are neither offered nor copied nor publishable, that a
+run in which a hidden model may appear is member-only (left out of every
+public payload, never published as public), and the save validation.
 """
 
 import copy
@@ -61,13 +62,19 @@ async def _project(db, creator, *, title="Analyses Bench"):
     return project, task, report
 
 
-def _run(project_id, creator_id, *, name="main", status="completed", spec=None, warnings=None, fits=None):
+PUBLIC_MODELS = ["open-model", "other-model"]
+
+
+def _run(project_id, creator_id, *, name="main", status="completed", spec=None, warnings=None, fits=None,
+         models=PUBLIC_MODELS):
     spec = spec if spec is not None else {"inputs": {"designs": ["framing"]}}
+    resolved = None if models is None else {"projects": [], "lookups": [], "models": models}
     return AnalysisRun(
         id=_uid(), project_id=project_id, created_by=creator_id, name=name, status=status,
         spec=spec, normalized_spec=spec, spec_hash="a" * 64, spec_version=1, engine_version="1.1.0",
         frame_hash="b" * 64, frame_sha256="c" * 64, frame_rows=48, estimates_count=0,
         library_versions={"numpy": "2.0.0"}, lockfile_sha256="d" * 64, seed=11, warnings=warnings, fits=fits,
+        resolved_inputs=resolved,
         completed_at=datetime(2026, 11, 1, tzinfo=timezone.utc) if status == "completed" else None,
     )
 
@@ -144,7 +151,7 @@ def _estimate(run_id, position, estimand, contrast, scope_values, families, kind
 
 
 async def _seed_runs(db, project, admin, *, other_project_id=None):
-    main = _run(project.id, admin.id, spec=SPEC, fits=FITS,
+    main = _run(project.id, admin.id, spec=SPEC, fits=FITS, models=PUBLIC_MODELS + ["custom-secret-model"],
                 warnings=["fit converged", f"system {SECRET} has one cluster", "model_gap [pooled]: one cluster"])
     pending = _run(project.id, admin.id, name="pending", status="pending")
     cross = _run(project.id, admin.id, name="cross",
@@ -162,6 +169,20 @@ async def _seed_runs(db, project, admin, *, other_project_id=None):
     main.estimates_count = len(ROWS)
     await db.flush()
     return {"main": main, "pending": pending, "cross": cross, "lookup": lookup, "own_lookup": own_lookup}
+
+
+async def _public_run(db, project, admin, *, name="open"):
+    """A run of public models only: the rows of ROWS without the private
+    system."""
+    run = _run(project.id, admin.id, name=name, spec=SPEC)
+    db.add(run)
+    await db.flush()
+    rows = [r for r in ROWS if r[0] != 2]
+    for row in rows:
+        db.add(_estimate(run.id, *row))
+    run.estimates_count = len(rows)
+    await db.flush()
+    return run
 
 
 def _section(run_id, exhibits, **run):
@@ -338,48 +359,106 @@ async def test_snapshot_copies_run_metadata_and_selected_estimates(async_test_db
     assert (run["frame_hash"], run["frame_sha256"], run["frame_rows"], run["estimates_count"]) == ("b" * 64, "c" * 64, 48, 11)
     assert run["completed_at"].startswith("2026-11-01") and run["truncated"] is False
     forest, length, empty = run["exhibits"]
-    # The private system's estimate (2) is left out under the hidden-model
-    # rule.
     assert forest == {"id": "forest-primary", "type": "forest", "filters": {"families": ["primary"]},
-                      "band": None, "row_count": 3, "positions": [0, 1, 3]}
+                      "band": None, "row_count": 4, "positions": [0, 1, 2, 3]}
     assert length["positions"] == [6] and length["band"] is None and length["row_count"] == 1
     assert empty["positions"] == [] and empty["row_count"] == 0
     # The run carries the union of its exhibits' estimates, in engine order,
     # with every engine field and no database row id.
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 6]
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 2, 3, 6]
     first = run["estimates"][0]
     assert "id" not in first and "run_id" not in first
     assert (first["estimand_id"], first["contrast_id"], first["estimate"]) == ("framing_effect", "loaded_vs_neutral", 0.1)
     assert first["tost"][0]["upper"] == 0.2 and first["adjustments"][0]["family"] == "primary"
     assert run["families"] == [{"family": "primary", "method": "holm", "size": 4},
                                {"family": "secondary", "method": "holm", "size": 4}]
-    # The warning naming the private model and the one about the fit of the
-    # left-out model_gap estimates are left out.
-    assert run["warnings"] == ["fit converged"]
+    # The stored snapshot is whole: a private model is in this run, so it is
+    # member-only rather than filtered.
+    assert run["member_only"] is True
+    assert run["warnings"] == ["fit converged", f"system {SECRET} has one cluster", "model_gap [pooled]: one cluster"]
     assert snap["reproducibility"]["snapshot_sha256"] == snapshot_sha256(snap)
 
 
+# Runs of public models only, each with one place a private model may hide.
+HIDDEN = "custom-secret-model"
+MEMBER_ONLY_CASES = {
+    "public": dict(fits=[{"estimand": "e", "scope": "pooled", "parameters": [f"system[{OPEN}]"],
+                          "references": {"system": "other-model@p3"}}]),
+    "hidden system": dict(models=PUBLIC_MODELS + [HIDDEN]),
+    "hidden reference": dict(fits=[{"estimand": "e", "scope": "pooled", "parameters": [f"system[{OPEN}]"],
+                                    "references": {"system": SECRET}}]),
+    "hidden player": dict(fits=[{"estimand": "bt", "scope": "pooled", "parameters": ["strength[open-model@p1]"],
+                                 "references": {"strength": "ref"}, "players": ["ref", OPEN, SECRET],
+                                 "players_are_systems": False}]),
+    "neutral-label contrast": dict(fits=[{"estimand": "e", "scope": "pooled",
+                                          "parameters": ["(intercept)", f"framing[loaded]:system[{SECRET}]"]}]),
+    "hidden scope": dict(scope={"opponent": SECRET}),
+    "models not recorded": dict(models=None),
+}
+
+
 @pytest.mark.asyncio
-async def test_private_model_rows_never_reach_a_snapshot(async_test_db):
+async def test_a_run_is_member_only_when_a_hidden_model_may_appear_in_it(async_test_client, async_test_db):
     admin = await _user(async_test_db, is_superadmin=True)
     project, _, _ = await _project(async_test_db, admin)
+    for name, case in MEMBER_ONLY_CASES.items():
+        run = _run(project.id, admin.id, name=name, fits=case.get("fits"), models=case.get("models", PUBLIC_MODELS))
+        async_test_db.add(run)
+        await async_test_db.flush()
+        async_test_db.add(_estimate(run.id, 0, "e", "c", case.get("scope"), [], "linear"))
+    await async_test_db.flush()
+
+    with _as_user(admin):
+        offered = (await async_test_client.get(f"/api/projects/{project.id}/report/analysis-runs")).json()["items"]
+    assert {r["name"]: r["member_only"] for r in offered} == {
+        "public": False, "hidden system": True, "hidden reference": True, "hidden player": True,
+        "neutral-label contrast": True, "hidden scope": True, "models not recorded": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_member_only_runs_are_left_out_of_public_payloads(async_test_client, async_test_db):
+    admin = await _user(async_test_db, is_superadmin=True)
+    project, _, report = await _project(async_test_db, admin)
     main = (await _seed_runs(async_test_db, project, admin))["main"]
-    analyses = _section(main.id, [{"id": "all", "type": "table"}])
+    public = await _public_run(async_test_db, project, admin)
+    analyses = {"runs": [{"run_id": main.id, "exhibits": [{"id": "all", "type": "table"}]},
+                         {"run_id": public.id, "exhibits": [{"id": "all", "type": "table"}]}]}
+    await _set_analyses(async_test_db, report, analyses)
 
-    snap = await _snapshot(async_test_db, project.id, analyses)
-    [run] = snap["analyses"]["runs"]
-    # Left out: the private system's estimate (2), the terms contrasts
-    # measured against it as the recorded reference (7, 8), the
-    # neutral-label contrast weighting it (9) and the joint test over it (10).
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 4, 5, 6]
-    assert "custom-secret-model" not in str(snap["analyses"])
-    assert {"secret_vs_ref", "any_system"}.isdisjoint(e["contrast_id"] for e in run["estimates"])
+    with _as_user(admin):
+        # A report holding a member-only run cannot be published as public...
+        refused = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
+        assert refused.status_code == 400
+        assert refused.json()["detail"] == (
+            "A public report cannot show an analysis run in which a private model may appear")
+        # ...nor switched to public once published for the organizations.
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish")
+        assert published.status_code == 200, published.text
+        switched = await async_test_client.put(f"/api/projects/{project.id}/report/visibility",
+                                               json={"is_public": True})
+        assert switched.status_code == 400
+    row = (await async_test_db.execute(select(ProjectReport).where(ProjectReport.id == report.id))).scalar_one()
+    await async_test_db.refresh(row)
+    assert row.is_public is False
 
-    # The private-model rule of the leaderboard: kept only on request.
-    with_private = await _snapshot(async_test_db, project.id, analyses, include_private_models=True)
-    [run] = with_private["analyses"]["runs"]
-    assert [e["position"] for e in run["estimates"]] == list(range(11))
-    assert len(run["warnings"]) == 3
+    # A report already public (made so before the run was added) withholds
+    # the member-only run from every public payload; members see all.
+    row.is_public = True
+    await async_test_db.flush()
+    with _as_user(None):
+        anonymous = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
+    with _as_user(admin):
+        author = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
+    public_runs = anonymous["snapshot"]["analyses"]["runs"]
+    assert [r["id"] for r in public_runs] == [public.id]
+    assert "custom-secret-model" not in str(anonymous["snapshot"]["analyses"])
+    assert "custom-secret-model" not in str(anonymous["report"]["content"]["snapshot"]["analyses"])
+    # The public run is served unchanged.
+    stored = {r["id"]: r for r in author["snapshot"]["analyses"]["runs"]}
+    assert public_runs[0] == stored[public.id] and stored[public.id]["member_only"] is False
+    assert stored[main.id]["member_only"] is True
+    assert [e["position"] for e in stored[main.id]["estimates"]] == list(range(11))
 
 
 @pytest.mark.asyncio
@@ -400,6 +479,7 @@ async def test_cross_project_runs_are_not_offered_copied_or_publishable(async_te
     assert {r["name"] for r in offered.json()["items"]} == {"main", "own lookup"}
     item = next(r for r in offered.json()["items"] if r["name"] == "main")
     assert item["spec_hash"] == "a" * 64 and item["estimates_count"] == 11 and item["completed_at"]
+    assert item["member_only"] is True
 
     # The reproducibility appendix follows the same rule.
     snap = await _snapshot(async_test_db, project.id, None)
@@ -432,7 +512,7 @@ async def test_cross_project_runs_are_not_offered_copied_or_publishable(async_te
 async def test_published_report_keeps_its_analyses_when_live_data_changes(async_test_client, async_test_db):
     admin = await _user(async_test_db, is_superadmin=True)
     project, task, report = await _project(async_test_db, admin)
-    main = (await _seed_runs(async_test_db, project, admin))["main"]
+    main = await _public_run(async_test_db, project, admin, name="main")
     analyses = _section(main.id, [{"id": "forest", "type": "forest", "filters": {"contrasts": ["loaded_vs_neutral"]}},
                                   {"id": "table", "type": "table", "filters": {"estimands": ["length_effect"]}}],
                         title="Framing", text="What the run shows.")
@@ -481,6 +561,7 @@ async def test_public_view_leaves_out_omitted_runs(async_test_client, async_test
     admin = await _user(async_test_db, is_superadmin=True)
     project, _, report = await _project(async_test_db, admin)
     runs = await _seed_runs(async_test_db, project, admin)
+    runs["main"] = await _public_run(async_test_db, project, admin)
     await _set_analyses(async_test_db, report, {"runs": [{"run_id": runs["main"].id, "exhibits": []},
                                                          {"run_id": runs["pending"].id, "exhibits": []}]})
     snap = await _snapshot(async_test_db, project.id, report.content["sections"]["analyses"])
@@ -513,10 +594,10 @@ async def test_runs_are_truncated_beyond_the_limit(async_test_db, monkeypatch):
     ]))
     [run] = snap["analyses"]["runs"]
     assert run["truncated"] is True
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 5]
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 2]
     a, b = run["exhibits"]
-    assert (a["row_count"], a["positions"]) == (2, [5])
-    assert (b["row_count"], b["positions"]) == (2, [0, 1])
+    assert (a["row_count"], a["positions"]) == (4, [])
+    assert (b["row_count"], b["positions"]) == (3, [0, 1, 2])
 
 
 @pytest.mark.asyncio

@@ -1583,7 +1583,8 @@
         "mustHaveTasks": "Project must have tasks",
         "notCreatedYet": "Report not created yet",
         "mustHaveResults": "Project must have annotations, generations, evaluations or analyses",
-        "analysisRuns": "Every run in the Analyses section must be a completed analysis run of this project that reads no other project"
+        "analysisRuns": "Every run in the Analyses section must be a completed analysis run of this project that reads no other project",
+        "publicMemberOnlyAnalyses": "A public report cannot show an analysis run in which a private model may appear. Remove those runs or keep the report visible to the project's organizations."
       },
       "editor": {
         "title": "Edit Report",
@@ -7540,7 +7541,10 @@
         "runOption": "{name} ({date})",
         "addRun": "Add run",
         "singleProjectOnly": "Only completed runs that read no other project are offered, because a report must not publish another project's numbers.",
-        "invalid": "The Analyses section could not be saved: {errors}"
+        "invalid": "The Analyses section could not be saved: {errors}",
+        "memberOnly": "Members only",
+        "memberOnlyHint": "A private model may appear in this run, so only members of the project see it. The report cannot be made public while it holds this run.",
+        "memberOnlyPublic": "A private model may appear in this run. The report is public, so readers outside the project do not see this run; members still do."
       }
     },
     "publication": {

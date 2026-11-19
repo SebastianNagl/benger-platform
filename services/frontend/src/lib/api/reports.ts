@@ -109,6 +109,9 @@ export interface ReportAnalysisRunOption {
   frame_rows: number | null
   estimates_count: number | null
   completed_at: string | null
+  /** A private model may appear in it: only members see it, and a public
+   *  report cannot show it. */
+  member_only: boolean
 }
 
 /** Reproducibility appendix; visible unless the author switched it off. */

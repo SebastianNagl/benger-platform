@@ -1583,7 +1583,8 @@
         "mustHaveTasks": "Le projet doit contenir des tâches",
         "notCreatedYet": "Rapport pas encore créé",
         "mustHaveResults": "Le projet doit contenir des annotations, des générations, des évaluations ou des analyses",
-        "analysisRuns": "Chaque exécution de la section Analyses doit être une exécution d'analyse terminée de ce projet qui ne lit aucun autre projet"
+        "analysisRuns": "Chaque exécution de la section Analyses doit être une exécution d'analyse terminée de ce projet qui ne lit aucun autre projet",
+        "publicMemberOnlyAnalyses": "Un rapport public ne peut pas montrer une exécution d'analyse dans laquelle un modèle privé peut apparaître. Retirez ces exécutions ou gardez le rapport visible pour les organisations du projet."
       },
       "editor": {
         "title": "Modifier le rapport",
@@ -7540,7 +7541,10 @@
         "runOption": "{name} ({date})",
         "addRun": "Ajouter l'exécution",
         "singleProjectOnly": "Seules les exécutions terminées qui ne lisent aucun autre projet sont proposées, car un rapport ne doit pas publier les chiffres d'un autre projet.",
-        "invalid": "La section Analyses n'a pas pu être enregistrée : {errors}"
+        "invalid": "La section Analyses n'a pas pu être enregistrée : {errors}",
+        "memberOnly": "Membres uniquement",
+        "memberOnlyHint": "Un modèle privé peut apparaître dans cette exécution, seuls les membres du projet la voient donc. Le rapport ne peut pas devenir public tant qu'il contient cette exécution.",
+        "memberOnlyPublic": "Un modèle privé peut apparaître dans cette exécution. Le rapport est public, les lecteurs extérieurs au projet ne voient donc pas cette exécution ; les membres la voient toujours."
       }
     },
     "publication": {

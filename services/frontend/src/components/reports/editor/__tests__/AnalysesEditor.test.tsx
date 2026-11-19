@@ -47,6 +47,7 @@ const RUN_OPTION = {
   frame_rows: 288,
   estimates_count: 4,
   completed_at: '2026-11-19T08:18:00Z',
+  member_only: false,
 }
 
 let lastRuns: AnalysisRunContent[] = []
@@ -55,9 +56,11 @@ let lastText = ''
 function Harness({
   initial = [],
   snapshot = null,
+  isPublic = false,
 }: {
   initial?: AnalysisRunContent[]
   snapshot?: ReportAnalysesSnapshot | null
+  isPublic?: boolean
 }) {
   const [runs, setRuns] = useState(initial)
   const [text, setText] = useState('')
@@ -73,6 +76,7 @@ function Harness({
       onCustomTextChange={setText}
       onRunsChange={setRuns}
       snapshot={snapshot}
+      isPublic={isPublic}
     />
   )
 }
@@ -108,6 +112,40 @@ describe('AnalysesEditor', () => {
       screen.getByText(/because a report must not publish another project/),
     ).toBeVisible()
     expect(mockRuns).toHaveBeenCalledWith('project-1')
+  })
+
+  it('marks member-only runs and offers them only for a non-public report', async () => {
+    const secret = {
+      ...RUN_OPTION,
+      id: 'run-2',
+      name: 'With a private model',
+      member_only: true,
+    }
+    mockRuns.mockResolvedValue([RUN_OPTION, secret])
+    const { unmount } = render(
+      <Harness initial={[{ ...forestRun(), run_id: 'run-2' }]} />,
+    )
+    expect(
+      await screen.findByTestId('analysis-run-member-only'),
+    ).toHaveTextContent('Members only')
+    expect(screen.getByTestId('analysis-run-member-only')).toHaveTextContent(
+      'cannot be made public while it holds this run',
+    )
+    unmount()
+
+    render(<Harness isPublic />)
+    const picker = await screen.findByTestId('analysis-run-add')
+    expect(
+      Array.from((picker as HTMLSelectElement).options).map((o) => o.value),
+    ).not.toContain('run-2')
+  })
+
+  it('says a member-only run of a public report is withheld from readers outside the project', async () => {
+    mockRuns.mockResolvedValue([{ ...RUN_OPTION, member_only: true }])
+    render(<Harness initial={[forestRun()]} isPublic />)
+    expect(
+      await screen.findByTestId('analysis-run-member-only'),
+    ).toHaveTextContent('readers outside the project do not see this run')
   })
 
   it('reports a failed run list', async () => {

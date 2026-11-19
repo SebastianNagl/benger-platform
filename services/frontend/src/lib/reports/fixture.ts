@@ -779,6 +779,7 @@ export const REPORT_ANALYSES_FIXTURE: ReportAnalysesSnapshot = {
       frame_rows: 48,
       estimates_count: 6,
       completed_at: '2026-11-01T10:00:00Z',
+      member_only: false,
       warnings: ['one cluster has a single unit'],
       families: [{ family: 'primary', method: 'holm', size: 2 }],
       truncated: false,

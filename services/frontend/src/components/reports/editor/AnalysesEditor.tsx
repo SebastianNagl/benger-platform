@@ -412,6 +412,8 @@ export interface AnalysesEditorProps {
   onRunsChange: (runs: AnalysisRunContent[]) => void
   /** The stored snapshot's Analyses section (what the report shows now). */
   snapshot: ReportAnalysesSnapshot | null | undefined
+  /** The report is published as public: member-only runs are not offered. */
+  isPublic?: boolean
 }
 
 export function AnalysesEditor({
@@ -421,6 +423,7 @@ export function AnalysesEditor({
   onCustomTextChange,
   onRunsChange,
   snapshot,
+  isPublic = false,
 }: AnalysesEditorProps) {
   const { t, locale } = useI18n()
   const [options, setOptions] = useState<ReportAnalysisRunOption[] | null>(null)
@@ -473,7 +476,9 @@ export function AnalysesEditor({
   }, [runIds, options, offered])
 
   const used = new Set(runs.map((r) => r.run_id))
-  const addable = (options ?? []).filter((o) => !used.has(o.id))
+  const addable = (options ?? []).filter(
+    (o) => !used.has(o.id) && !(isPublic && o.member_only),
+  )
   const omitted = new Map(
     (snapshot?.omitted ?? []).map((o) => [o.run_id, o.reason]),
   )
@@ -541,6 +546,7 @@ export function AnalysesEditor({
         const name = option?.name ?? stored?.name ?? run.run_id
         const unavailable =
           (options !== null && !option) || omitted.has(run.run_id)
+        const memberOnly = option?.member_only ?? stored?.member_only ?? false
         // A run the API does not offer has no live estimates to preview.
         const state: EstimatesState =
           options !== null && !option
@@ -607,6 +613,21 @@ export function AnalysesEditor({
                 </IconButton>
               </div>
             </div>
+
+            {memberOnly && (
+              <p
+                className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200"
+                data-testid="analysis-run-member-only"
+              >
+                <span className="font-semibold">
+                  {t('reports.editor.analyses.memberOnly')}
+                </span>
+                {': '}
+                {isPublic
+                  ? t('reports.editor.analyses.memberOnlyPublic')
+                  : t('reports.editor.analyses.memberOnlyHint')}
+              </p>
+            )}
 
             {unavailable && (
               <p
@@ -762,6 +783,8 @@ export function AnalysesEditor({
                         name: o.name,
                         date: formatDate(o.completed_at, locale) || '–',
                       })}
+                      {o.member_only &&
+                        ` · ${t('reports.editor.analyses.memberOnly')}`}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -221,13 +221,24 @@ matched by run and exhibit id. A run the section names but the report
 cannot show (not a run of this project, not completed, or reading another
 project) is listed in `omitted` with the reason and blocks publishing.
 
-The hidden-model rule holds here too: an estimate that involves a system of
-a hidden model (the model id is the part of the system key before `@`),
-whatever its label, an estimate whose contrast id names a hidden model, an
-engine message or run warning naming one and a run warning about the fit of
-a left-out estimate (prefixed `<estimand> [<scope>]:`) are left out, unless
-the builder is called with `include_private_models`. The frame is never
-linked, and only a report author gets a link to the run page.
+The hidden-model rule applies per run here. A run is member-only when a
+hidden model (`model_is_public`) may appear anywhere in it: among the
+models of its frame (`resolved_inputs.models`, recorded by the worker: every
+`model_id` and the model part of every system key), among the levels its
+fits name (parameters, recorded `references`, Bradley-Terry `players`) or
+among the scope values of its estimates. A run that does not record its
+frame's models (made before the worker did) counts as member-only. The
+snapshot copies a member-only run whole and marks it `member_only`;
+members of the project see it, while the public view (`public_snapshot`,
+served to every reader outside the project) leaves it out. The run list
+of the editor says per run whether it is member-only: the editor marks
+such a run and does not offer it while the report is public. Publishing
+as public, or switching a published report to public, is refused while
+the snapshot holds a member-only run ("A public report cannot show an
+analysis run in which a private model may appear"). A report that was
+already public when such a run was added keeps it out of its public view,
+and the editor says so. The frame is never linked, and only a report
+author gets a link to the run page.
 
 ## Reading and citing a report
 

@@ -339,6 +339,25 @@ describe('PublicationToggle', () => {
       })
     })
 
+    it('explains why a report with a member-only analysis run cannot be public', async () => {
+      // The detail the API sends (routers/reports.py,
+      // PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL).
+      mockVisibility.mockRejectedValue(
+        new Error(
+          'A public report cannot show an analysis run in which a private model may appear',
+        ),
+      )
+      render(<PublicationToggle {...props} />)
+
+      fireEvent.click(screen.getByText(T.makePublic))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('project.report.reasons.publicMemberOnlyAnalyses'),
+        ).toBeInTheDocument()
+      })
+    })
+
     it('non-authors see the status but no actions', () => {
       render(<PublicationToggle {...props} canEdit={false} />)
 

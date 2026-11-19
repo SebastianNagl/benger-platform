@@ -1230,6 +1230,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             onCustomTextChange={(text) => update({ analysesText: text })}
             onRunsChange={(runs) => update({ analysesRuns: runs })}
             snapshot={snapshot?.analyses}
+            isPublic={Boolean(report?.is_published && report?.is_public)}
           />
         </div>
 

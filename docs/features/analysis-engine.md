@@ -121,7 +121,10 @@ of a name (rows as lists in column order or objects), and versions never
 change. `table` takes `name`, `version`, optionally `project_id` (a table of
 another project, which needs the same access as an input project) and
 `content_hash`, which the run checks. The run records every table it read
-with its content hash in `resolved_inputs`.
+with its content hash in `resolved_inputs`, together with `models`: the
+models whose answers are in the frame (every `model_id` and the model part
+of every system key), so a report can tell whether a private model may
+appear in the run.
 
 ## The spec
 

@@ -125,7 +125,8 @@ def test_run_reads_the_design_and_stores_frame_and_estimates(db_conn, seeded):
     assert run.estimates_count == len(estimates) > 20
     assert run.engine_version == ENGINE_VERSION
     assert set(run.library_versions) == {"python", "numpy", "pandas", "scipy", "statsmodels", "pyarrow"}
-    assert run.resolved_inputs == {"projects": [], "lookups": []}
+    assert run.resolved_inputs == {"projects": [], "lookups": [],
+                                   "models": sorted({r["model_id"] for r in records})}
     assert run.lockfile_sha256 is None or len(run.lockfile_sha256) == 64
     assert run.started_at is not None and run.completed_at is not None
     assert run.timings["total_s"] >= 0 and run.fits
@@ -456,6 +457,7 @@ def test_a_slot_frame_with_a_stored_lookup_across_two_projects(db_conn, make_pro
         "projects": [second.id],
         "lookups": [{"id": "cong", "project_id": first.id, "name": "congruence", "version": 1,
                      "content_hash": table["content_hash"], "row_count": len(rows)}],
+        "models": sorted({r["model_id"] for r in first_records + second_records}),
     }
 
     # the same analysis on the records in memory

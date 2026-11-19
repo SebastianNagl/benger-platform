@@ -292,6 +292,8 @@ export interface ReportAnalysisRun {
     method: string | null
     size: number | null
   }>
+  /** A private model may appear in it; the public view leaves it out. */
+  member_only?: boolean
   /** More estimates were selected than a report keeps per run. */
   truncated: boolean
   /** The union of its exhibits' estimates, in engine order. */
