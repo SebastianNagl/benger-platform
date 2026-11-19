@@ -139,7 +139,7 @@ def list_units(db, project_id: str, design_key: str, limit: int = 100, offset: i
 def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[str] = None) -> Dict[str, Any]:
     """Every task and answer of one unit (see the module doc): the queries;
     :func:`shape_unit_view` builds the answer."""
-    from sqlalchemy import func, select
+    from sqlalchemy import and_, case, func, select
     from sqlalchemy.dialects.postgresql import JSONB
 
     from models import Generation, ResponseGeneration
@@ -157,6 +157,7 @@ def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[
             "variant_unit_not_found", f"No unit {unit!r} in the variant design {design_key!r}."
         )
     task_ids = [r[0] for r in rows[:MAX_UNIT_TASKS]]
+    first_request = func.jsonb_extract_path(Generation.request_record, "requests", "0", type_=JSONB)
     generations = db.execute(
         select(
             Generation.id,
@@ -175,9 +176,17 @@ def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[
             Generation.response_metadata,
             Generation.request_sha256,
             func.jsonb_typeof(Generation.request_record).label("record_type"),
-            func.jsonb_extract_path(Generation.request_record, "requests", "0", type_=JSONB).label(
-                "first_request"
-            ),
+            case(
+                (
+                    and_(
+                        func.jsonb_typeof(func.jsonb_extract_path(Generation.request_record, "requests"))
+                        == "array",
+                        func.jsonb_typeof(first_request) == "object",
+                    ),
+                    first_request,
+                ),
+                else_=None,
+            ).label("first_request"),
             Generation.created_at,
             ResponseGeneration.structure_key,
         )

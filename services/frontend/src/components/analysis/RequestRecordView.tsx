@@ -93,7 +93,9 @@ export function RequestRecordView({ view }: { view: TrialRequestView }) {
   const { t } = useI18n()
   const [showRaw, setShowRaw] = useState(false)
   const record = view.request_record
-  const requestCount = record?.requests?.length ?? 0
+  const requestCount = Array.isArray(record?.requests)
+    ? record.requests.length
+    : 0
   return (
     <div className="min-w-0 space-y-3" data-testid="request-record-view">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">

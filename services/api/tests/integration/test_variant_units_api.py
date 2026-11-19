@@ -320,6 +320,36 @@ class TestUnitView:
         assert req.status_code == 200, req.text
         assert req.json()["hash_matches"] is True
 
+    async def test_a_malformed_record_is_a_mismatch_not_an_error(
+        self, async_test_client, async_test_db, world
+    ):
+        """A record whose ``requests`` is not a list starting with an object
+        is flagged as a mismatch by the unit view and the request route, with
+        a 200 for the whole unit."""
+        url = f"/api/projects/{world['project']}/variant-designs/swap/units/u1"
+        view = (
+            await _get(async_test_client, async_test_db, world["admin"], url, system="sim-model")
+        ).json()
+        trial = view["tasks"][0]["generations"][0]["id"]
+        for malformed in [
+            {"requests": [1]},
+            {"requests": [None]},
+            {"requests": "x"},
+            {"requests": {"0": {"body": {"model": "sim-model"}}}},
+        ]:
+            row = await async_test_db.get(Generation, trial)
+            row.request_record = malformed
+            await async_test_db.commit()
+            unit = await _get(async_test_client, async_test_db, world["admin"], url, system="sim-model")
+            assert unit.status_code == 200, (malformed, unit.text)
+            answer = unit.json()["tasks"][0]["generations"][0]
+            assert answer["id"] == trial and answer["hash_check"] == "mismatch", malformed
+            req = await _get(
+                async_test_client, async_test_db, world["admin"], f"/api/runs/trials/{trial}/request"
+            )
+            assert req.status_code == 200, (malformed, req.text)
+            assert (req.json()["hash_check"], req.json()["hash_matches"]) == ("mismatch", False)
+
     async def test_unknown_unit_is_404(self, async_test_client, async_test_db, world):
         resp = await _get(
             async_test_client,

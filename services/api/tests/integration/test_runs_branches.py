@@ -749,6 +749,19 @@ class TestGetGenerationRun:
         assert emptied["hash_matches"] is False
         assert emptied["hash_check"] == "mismatch"
 
+        for malformed in [
+            {"requests": [1]},
+            {"requests": [None]},
+            {"requests": "x"},
+            {"requests": {"0": {"body": {"model": "acme/model"}}}},
+        ]:
+            child.request_record = malformed
+            await async_test_db.commit()
+            with _as_user(admin):
+                resp = await async_test_client.get(url)
+            assert resp.status_code == 200, (malformed, resp.text)
+            assert (resp.json()["hash_check"], resp.json()["hash_matches"]) == ("mismatch", False)
+
         child.request_record = ["not", "an", "object"]
         await async_test_db.commit()
         with _as_user(admin):

@@ -157,6 +157,27 @@ def test_unit_view_gives_each_answer_the_hash_check_of_the_request_route():
     }
 
 
+def test_hash_check_pins_well_formed_hashes_and_flags_malformed_requests():
+    """The hash of a well-formed record is the SHA-256 of its first request's
+    body in canonical JSON (sorted keys, no whitespace); the constant is that
+    digest of '{"messages":[],"model":"sim-a"}' taken with sha256sum. A
+    record whose requests are not a list starting with an object has no
+    hash and is a mismatch, never an error."""
+    from ai_services.request_capture import hash_check
+
+    known = "6e1e489a9e44a8a43d7f8971ba5d576844010e11ac9c43057a135a88e69e071e"
+    assert request_sha256(RECORD) == known
+    assert hash_check(RECORD, known) == ("verified", known)
+    for malformed in [
+            {"requests": [1]},
+            {"requests": [None]},
+            {"requests": "x"},
+            {"requests": {"0": {"body": {"model": "sim-model"}}}},
+        ]:
+        assert request_sha256(malformed) is None
+        assert hash_check(malformed, known) == ("mismatch", None)
+
+
 def test_unit_view_reports_the_unit_check_and_caps_what_it_returns(monkeypatch):
     rows = [
         task("ta", "A", "Ada", note="x"),
