@@ -40,6 +40,7 @@ import {
   MAX_RUN_EXHIBITS,
   newExhibitId,
   selectEstimates,
+  type AnalysisRunDefinition,
   type ExhibitFilterKey,
 } from '@/lib/reports/analyses'
 import { formatCount, formatDate } from '@/lib/reports/format'
@@ -57,7 +58,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 type EstimatesState =
   | { status: 'loading' }
   | { status: 'error' }
-  | { status: 'ready'; estimates: AnalysisEstimate[] }
+  | {
+      status: 'ready'
+      estimates: AnalysisEstimate[]
+      run: AnalysisRunDefinition
+    }
 
 const NO_BAND = 'none'
 
@@ -85,7 +90,12 @@ function inSnapshot(
   const run = snapshot?.runs.find((r) => r.id === runId)
   const stored = run?.exhibits.find((e) => e.id === exhibit.id)
   if (!stored) return false
-  const band = exhibit.type === 'forest' ? (exhibit.band ?? null) : null
+  const band =
+    exhibit.type === 'forest'
+      ? exhibit.band === undefined
+        ? 0
+        : exhibit.band
+      : null
   return (
     stored.type === exhibit.type &&
     (stored.band ?? null) === band &&
@@ -190,11 +200,15 @@ function ExhibitEditor({
     () => (estimates.status === 'ready' ? estimates.estimates : []),
     [estimates],
   )
-  const options = useMemo(() => exhibitFilterOptions(live), [live])
+  const definition = estimates.status === 'ready' ? estimates.run : null
+  const options = useMemo(
+    () => exhibitFilterOptions(live, definition),
+    [live, definition],
+  )
   const filters = exhibit.filters ?? {}
   const selected = useMemo(
-    () => selectEstimates(live, exhibit.filters),
-    [live, exhibit.filters],
+    () => selectEstimates(live, exhibit.filters, definition),
+    [live, exhibit.filters, definition],
   )
   // Bound sets the selected estimates declare, labelled by their first bounds.
   const bands = useMemo(() => {
@@ -441,12 +455,15 @@ export function AnalysesEditor({
     for (const runId of runIds ? runIds.split('\u0000') : []) {
       if (!offered.has(runId) || requested.current.has(runId)) continue
       requested.current.add(runId)
-      analysisAPI
-        .listEstimates(runId)
-        .then((items) =>
+      Promise.all([analysisAPI.listEstimates(runId), analysisAPI.getRun(runId)])
+        .then(([items, run]) =>
           setEstimates((p) => ({
             ...p,
-            [runId]: { status: 'ready', estimates: items },
+            [runId]: {
+              status: 'ready',
+              estimates: items,
+              run: { normalized_spec: run.normalized_spec, fits: run.fits },
+            },
           })),
         )
         .catch(() =>
@@ -532,7 +549,11 @@ export function AnalysesEditor({
         const union = new Set<number>()
         if (state.status === 'ready') {
           for (const ex of run.exhibits) {
-            for (const e of selectEstimates(state.estimates, ex.filters))
+            for (const e of selectEstimates(
+              state.estimates,
+              ex.filters,
+              state.run,
+            ))
               union.add(e.position)
           }
         }

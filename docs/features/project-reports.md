@@ -181,8 +181,22 @@ restrict. An estimate is shown when every given filter holds
 - `contrasts`: its `contrast_id` is listed;
 - `families`: a family it belongs to (`family` or an `adjustments` entry) is
   listed;
-- `systems`: its `system` (or `model_id`) scope value is listed; an
-  estimate not scoped to a system, a pooled one for instance, is kept.
+- `systems`: it involves at least one system and every system it involves
+  is listed, so a fully pooled estimate that involves no system shows only
+  in an exhibit without a systems filter, and a pooled contrast of system B
+  against the reference does not show in an exhibit filtered to system A.
+
+The systems an estimate involves (`estimate_systems`, mirrored by
+`estimateSystems`) are the one it is scoped to (its `system` or `model_id`
+scope value) plus every system level its definition in the run's normalized
+spec names as a parameter `system[<level>]` or `model_id[<level>]`: the
+weight keys of a listed contrast (numerator and denominator of a ratio; the
+level and reference of an average marginal effect over a system column),
+the contrast id itself when the spec lists no such contrast (as for
+`terms`), the rows, parameters (matched against the fit's parameters) or
+contrasts of a joint test, and the level and reference of a paired
+treatment over a system column. The editor reads the run's normalized spec
+and fits for its preview, so it selects the rows the snapshot copies.
 
 Publishing and "Refresh data" copy into `snapshot.analyses.runs`, per run:
 id, name, spec hash and version, engine version, frame hash and SHA-256,
@@ -200,11 +214,12 @@ matched by run and exhibit id. A run the section names but the report
 cannot show (not a run of this project, not completed, or reading another
 project) is listed in `omitted` with the reason and blocks publishing.
 
-The hidden-model rule holds here too: an estimate scoped to a system of a
-hidden model (the model id is the part of the system key before `@`), an
-estimate whose contrast names a hidden model, and an engine message or run
-warning naming one are left out, unless the builder is called with
-`include_private_models`. The frame is never linked, and only a report
+The hidden-model rule holds here too: an estimate that involves a system of
+a hidden model (the model id is the part of the system key before `@`),
+whatever its label, an estimate whose contrast id names a hidden model, an
+engine message or run warning naming one and a run warning about the fit of
+a left-out estimate (prefixed `<estimand> [<scope>]:`) are left out, unless
+the builder is called with `include_private_models`. The frame is never linked, and only a report
 author gets a link to the run page.
 
 ## Reading and citing a report

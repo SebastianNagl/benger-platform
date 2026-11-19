@@ -9,7 +9,7 @@
  */
 
 import { familiesOf } from '@/lib/analysis/results'
-import type { AnalysisEstimate } from '@/lib/api/analysis'
+import type { AnalysisEstimate, AnalysisRun } from '@/lib/api/analysis'
 import type {
   ReportAnalysisRun,
   ReportExhibitFilters,
@@ -38,8 +38,32 @@ export const MAX_RUN_EXHIBITS = 12
 
 type EstimateLike = Pick<
   AnalysisEstimate,
-  'estimand_id' | 'contrast_id' | 'scope_values' | 'family' | 'adjustments'
+  | 'estimand_id'
+  | 'contrast_id'
+  | 'kind'
+  | 'scope'
+  | 'scope_values'
+  | 'family'
+  | 'adjustments'
 >
+
+/** What `estimateSystems` reads of a run: its normalized spec and fits. */
+export type AnalysisRunDefinition = Pick<
+  AnalysisRun,
+  'normalized_spec' | 'fits'
+>
+
+/** The frame columns holding a system key (or the bare model id). */
+const SYSTEM_COLUMNS = ['system', 'model_id']
+const SYSTEM_PARAMETER = /(?:^|:)(?:system|model_id)\[([^[\]]*)\]/g
+
+type Json = Record<string, unknown>
+
+const isObject = (value: unknown): value is Json =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const asList = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : []
 
 /**
  * The system an estimate is scoped to: its `system` (or `model_id`) scope
@@ -50,7 +74,7 @@ export function estimateSystem(
 ): string | null {
   const values = estimate.scope_values
   if (values && typeof values === 'object') {
-    for (const column of ['system', 'model_id']) {
+    for (const column of SYSTEM_COLUMNS) {
       const value = (values as Record<string, unknown>)[column]
       if (value !== null && value !== undefined) return String(value)
     }
@@ -58,17 +82,123 @@ export function estimateSystem(
   return null
 }
 
+function levelsOf(source: Json, keys: string[]): string[] {
+  return keys
+    .map((k) => source[k])
+    .filter((v) => v !== null && v !== undefined)
+    .map(String)
+}
+
+/** (parameter names, system levels) a spec contrast refers to. */
+function weightKeys(contrast: Json): [string[], string[]] {
+  if (contrast.kind === 'ame') {
+    return SYSTEM_COLUMNS.includes(contrast.column as string)
+      ? [[], levelsOf(contrast, ['level', 'reference'])]
+      : [[], []]
+  }
+  const parts =
+    contrast.kind === 'ratio'
+      ? [contrast.numerator, contrast.denominator]
+      : [contrast]
+  return [
+    parts.flatMap((part) =>
+      isObject(part) && isObject(part.weights) ? Object.keys(part.weights) : [],
+    ),
+    [],
+  ]
+}
+
+function globPattern(pattern: string): RegExp {
+  const escape = (part: string) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp('^' + pattern.split('*').map(escape).join('.*') + '$')
+}
+
+/**
+ * The systems an estimate involves: the one it is scoped to plus every
+ * system level its contrast or joint test names in the run's normalized
+ * spec (`system[<level>]` or `model_id[<level>]` parameters). The editor's
+ * copy of `estimate_systems` in services/shared/report_snapshot.py.
+ */
+export function estimateSystems(
+  estimate: EstimateLike,
+  run: AnalysisRunDefinition | null | undefined,
+): Set<string> {
+  const systems = new Set<string>()
+  const scoped = estimateSystem(estimate)
+  if (scoped !== null) systems.add(scoped)
+  const spec = run?.normalized_spec
+  const est =
+    (asList(isObject(spec) ? spec.estimands : undefined).find(
+      (e) => isObject(e) && e.id === estimate.estimand_id,
+    ) as Json | undefined) ?? {}
+  const treat = est.treatment
+  if (isObject(treat) && SYSTEM_COLUMNS.includes(treat.factor as string)) {
+    for (const level of levelsOf(treat, ['level', 'reference']))
+      systems.add(level)
+  }
+  const byId = new Map<unknown, Json>()
+  for (const c of asList(est.contrasts)) if (isObject(c)) byId.set(c.id, c)
+  const cid = estimate.contrast_id
+  const names: unknown[] = []
+  const contrasts: Json[] = []
+  const test =
+    estimate.kind === 'wald'
+      ? (asList(est.joint_tests).find((t) => isObject(t) && t.id === cid) as
+          Json | undefined)
+      : undefined
+  if (!test) {
+    const listed = byId.get(cid)
+    if (listed) contrasts.push(listed)
+    else names.push(cid)
+  } else if (Array.isArray(test.rows)) {
+    for (const row of test.rows)
+      if (isObject(row)) names.push(...Object.keys(row))
+  } else if (Array.isArray(test.parameters)) {
+    const patterns = test.parameters.filter(
+      (p): p is string => typeof p === 'string',
+    )
+    names.push(...patterns.filter((p) => !p.includes('*')))
+    const compiled = patterns.map(globPattern)
+    for (const fit of run?.fits ?? []) {
+      if (fit.estimand !== estimate.estimand_id || fit.scope !== estimate.scope)
+        continue
+      for (const n of fit.parameters ?? [])
+        if (typeof n === 'string' && compiled.some((c) => c.test(n)))
+          names.push(n)
+    }
+  } else {
+    for (const ref of asList(test.contrasts)) {
+      const listed = byId.get(ref)
+      if (listed) contrasts.push(listed)
+      else names.push(ref)
+    }
+  }
+  for (const contrast of contrasts) {
+    const [keys, levels] = weightKeys(contrast)
+    names.push(...keys)
+    for (const level of levels) systems.add(level)
+  }
+  for (const name of names) {
+    if (typeof name !== 'string') continue
+    for (const m of name.matchAll(SYSTEM_PARAMETER)) systems.add(m[1])
+  }
+  return systems
+}
+
 const restricts = (values: string[] | undefined): values is string[] =>
   Array.isArray(values) && values.length > 0
 
 /**
- * Whether an exhibit with `filters` shows `estimate`: every given filter
- * holds. A systems filter keeps the listed systems and every estimate that
- * is not scoped to a system (pooled ones).
+ * Whether an exhibit with `filters` shows `estimate`, whose involved
+ * systems (`estimateSystems`) are `systems`: every given filter holds. A
+ * systems filter keeps an estimate exactly when it involves at least one
+ * system and all of them are listed, so a pooled estimate involving no
+ * system shows only without a systems filter.
  */
 export function exhibitSelects(
   estimate: EstimateLike,
   filters: ReportExhibitFilters | undefined,
+  systems: ReadonlySet<string>,
 ): boolean {
   if (!filters) return true
   if (
@@ -91,8 +221,9 @@ export function exhibitSelects(
     if (!filters.families.some((f) => member.has(f))) return false
   }
   if (restricts(filters.systems)) {
-    const system = estimateSystem(estimate)
-    if (system !== null && !filters.systems.includes(system)) return false
+    const allowed = filters.systems
+    if (systems.size === 0 || [...systems].some((s) => !allowed.includes(s)))
+      return false
   }
   return true
 }
@@ -101,9 +232,10 @@ export function exhibitSelects(
 export function selectEstimates<T extends EstimateLike & { position: number }>(
   estimates: readonly T[],
   filters: ReportExhibitFilters | undefined,
+  run: AnalysisRunDefinition | null | undefined,
 ): T[] {
   return [...estimates]
-    .filter((e) => exhibitSelects(e, filters))
+    .filter((e) => exhibitSelects(e, filters, estimateSystems(e, run)))
     .sort((a, b) => a.position - b.position)
 }
 
@@ -112,6 +244,7 @@ export type ExhibitFilterOptions = Record<ExhibitFilterKey, string[]>
 
 export function exhibitFilterOptions(
   estimates: readonly AnalysisEstimate[],
+  run: AnalysisRunDefinition | null | undefined,
 ): ExhibitFilterOptions {
   const sorted = [...estimates].sort((a, b) => a.position - b.position)
   const unique = (values: (string | null)[]) => [
@@ -121,7 +254,7 @@ export function exhibitFilterOptions(
     estimands: unique(sorted.map((e) => e.estimand_id)),
     contrasts: unique(sorted.map((e) => e.contrast_id)),
     families: familiesOf(sorted),
-    systems: unique(sorted.map(estimateSystem)).sort(),
+    systems: unique(sorted.flatMap((e) => [...estimateSystems(e, run)])).sort(),
   }
 }
 

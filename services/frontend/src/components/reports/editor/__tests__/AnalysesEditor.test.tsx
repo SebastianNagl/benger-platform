@@ -15,7 +15,11 @@ import {
   listReportAnalysisRuns,
   type AnalysisRunContent,
 } from '@/lib/api/reports'
-import { makeEstimate, makeEstimates } from '@/test-utils/analysisFixtures'
+import {
+  makeEstimate,
+  makeEstimates,
+  makeRun,
+} from '@/test-utils/analysisFixtures'
 import type { ReportAnalysesSnapshot } from '@/types/report'
 
 jest.mock('@/contexts/I18nContext', () =>
@@ -28,11 +32,12 @@ jest.mock('@/lib/api/reports', () => ({
 
 jest.mock('@/lib/api/analysis', () => ({
   ...jest.requireActual('@/lib/api/analysis'),
-  analysisAPI: { listEstimates: jest.fn() },
+  analysisAPI: { listEstimates: jest.fn(), getRun: jest.fn() },
 }))
 
 const mockRuns = listReportAnalysisRuns as jest.Mock
 const mockEstimates = analysisAPI.listEstimates as jest.Mock
+const mockGetRun = analysisAPI.getRun as jest.Mock
 
 const RUN_OPTION = {
   id: 'run-1',
@@ -85,6 +90,9 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockRuns.mockResolvedValue([RUN_OPTION])
   mockEstimates.mockResolvedValue(makeEstimates())
+  mockGetRun.mockResolvedValue(
+    makeRun({ normalized_spec: { estimands: [] }, fits: [] }),
+  )
 })
 
 describe('AnalysesEditor', () => {
@@ -181,6 +189,34 @@ describe('AnalysesEditor', () => {
     expect(
       within(card).getByText('No estimates match this exhibit.'),
     ).toBeVisible()
+  })
+
+  it('selects by the systems the run spec says an estimate involves', async () => {
+    // The pooled did estimate weights a parameter of sys_a, so a filter on
+    // sys_a shows it next to the sys_a estimate.
+    mockGetRun.mockResolvedValue(
+      makeRun({
+        normalized_spec: {
+          estimands: [
+            {
+              id: 'by_system',
+              contrasts: [
+                { id: 'did sys_a', weights: { 'x_p:system[sys_a]': 1 } },
+              ],
+            },
+          ],
+        },
+        fits: [],
+      }),
+    )
+    render(<Harness initial={[forestRun({ systems: ['sys_a'] })]} />)
+    const card = await screen.findByTestId('analysis-run-editor')
+    await waitFor(() =>
+      expect(
+        within(card).getByTestId('exhibit-preview-count'),
+      ).toHaveTextContent('2 of 4'),
+    )
+    expect(mockGetRun).toHaveBeenCalledWith('run-1')
   })
 
   it('switches the type, edits texts, adds, moves and removes exhibits and runs', async () => {
@@ -313,6 +349,47 @@ describe('AnalysesEditor', () => {
         'Enters the report on the next publish or refresh',
       ),
     ).toBeVisible()
+  })
+
+  it('reads a stored forest exhibit without a band as the first bound set', async () => {
+    const snapshot: ReportAnalysesSnapshot = {
+      runs: [
+        {
+          id: 'run-1',
+          name: 'Role swap',
+          spec_hash: 'e'.repeat(64),
+          spec_version: 1,
+          engine_version: '1.1.0',
+          frame_hash: null,
+          frame_sha256: null,
+          frame_rows: 288,
+          estimates_count: 4,
+          completed_at: null,
+          warnings: [],
+          families: [],
+          truncated: false,
+          estimates: [],
+          exhibits: [
+            {
+              id: 'exhibit-1',
+              type: 'forest',
+              filters: {},
+              band: 0,
+              row_count: 4,
+              positions: [0, 1, 2, 3],
+            },
+          ],
+        },
+      ],
+    }
+    const stored: AnalysisRunContent = {
+      run_id: 'run-1',
+      title: null,
+      text: null,
+      exhibits: [{ id: 'exhibit-1', type: 'forest', filters: {} }],
+    }
+    render(<Harness initial={[stored]} snapshot={snapshot} />)
+    expect(await screen.findByText('In the current snapshot')).toBeVisible()
   })
 
   it('warns about a run the report cannot show and has no preview for it', async () => {

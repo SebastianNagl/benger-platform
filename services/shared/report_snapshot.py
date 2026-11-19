@@ -982,7 +982,7 @@ def _build_reproducibility_section(
 _ANALYSIS_RUNS_SQL = """
 SELECT id, name, spec_hash, spec_version, engine_version, frame_hash, frame_sha256,
        frame_rows, estimates_count, library_versions, lockfile_sha256, seed, completed_at,
-       warnings, normalized_spec
+       warnings, normalized_spec, fits
 FROM analysis_runs
 WHERE project_id = :project_id AND status = 'completed'
 ORDER BY completed_at, id
@@ -994,6 +994,9 @@ SELECT id, project_id, status, normalized_spec FROM analysis_runs WHERE id = ANY
 
 ANALYSIS_EXHIBIT_TYPES = ("forest", "table")
 EXHIBIT_FILTER_KEYS = ("estimands", "contrasts", "families", "systems")
+# The frame columns holding a system key (or the bare model id).
+SYSTEM_COLUMNS = ("system", "model_id")
+_SYSTEM_PARAMETER = re.compile(r"(?:^|:)(?:system|model_id)\[([^\[\]]*)\]")
 MAX_REPORT_ANALYSIS_RUNS = 10
 MAX_RUN_EXHIBITS = 12
 MAX_FILTER_VALUES = 500
@@ -1207,19 +1210,94 @@ def estimate_system(estimate: Dict[str, Any]) -> Optional[str]:
     scope value, or None for a pooled estimate or another scope."""
     values = estimate.get("scope_values")
     if isinstance(values, dict):
-        for column in ("system", "model_id"):
+        for column in SYSTEM_COLUMNS:
             value = values.get(column)
             if value is not None:
                 return str(value)
     return None
 
 
-def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]]) -> bool:
-    """Whether an exhibit with ``filters`` shows ``estimate``: every given
-    filter holds. Estimands and contrasts match ``estimand_id`` and
+def _parameter_systems(names: Iterable[Any]) -> set:
+    """The system levels the parameter names ``system[<level>]`` (or
+    ``model_id[<level>]``, also inside an interaction ``a[x]:b[y]``) name."""
+    return {m.group(1) for n in names if isinstance(n, str) for m in _SYSTEM_PARAMETER.finditer(n)}
+
+
+def _weight_keys(contrast: Dict[str, Any]) -> Tuple[List[str], set]:
+    """(parameter names, system levels) a spec contrast refers to: the keys
+    of its weights (of numerator and denominator for a ratio), and for an
+    average marginal effect over a system column its level and reference."""
+    if contrast.get("kind") == "ame":
+        if contrast.get("column") in SYSTEM_COLUMNS:
+            return [], {str(contrast[k]) for k in ("level", "reference") if contrast.get(k) is not None}
+        return [], set()
+    parts = [contrast.get("numerator"), contrast.get("denominator")] if contrast.get("kind") == "ratio" else [contrast]
+    return [k for part in parts if isinstance(part, dict) and isinstance(part.get("weights"), dict)
+            for k in part["weights"]], set()
+
+
+def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> set:
+    """The systems an estimate involves: the one it is scoped to plus every
+    system level its contrast or joint test names in the run's normalized
+    ``spec``: the weight keys of a listed contrast (the contrast id itself
+    when the spec lists none, as for ``terms``), the rows, parameters (as
+    matched against its fit's parameters in ``fits``) or contrasts of a
+    joint test, and the level and reference of a paired treatment over a
+    system column. The editor's preview applies the same rule
+    (``estimateSystems`` in ``services/frontend/src/lib/reports/analyses.ts``)."""
+    systems: set = set()
+    scoped = estimate_system(estimate)
+    if scoped is not None:
+        systems.add(scoped)
+    estimands = spec.get("estimands") if isinstance(spec, dict) else None
+    est = next((e for e in estimands or [] if isinstance(e, dict) and e.get("id") == estimate.get("estimand_id")), {})
+    treat = est.get("treatment")
+    if isinstance(treat, dict) and treat.get("factor") in SYSTEM_COLUMNS:
+        systems |= {str(treat[k]) for k in ("level", "reference") if treat.get(k) is not None}
+    listed = est.get("contrasts") if isinstance(est.get("contrasts"), list) else []
+    by_id = {c.get("id"): c for c in listed if isinstance(c, dict)}
+    cid = estimate.get("contrast_id")
+    names: List[Any] = []
+    contrasts: List[Dict[str, Any]] = []
+    test = None
+    if estimate.get("kind") == "wald":
+        test = next((t for t in est.get("joint_tests") or [] if isinstance(t, dict) and t.get("id") == cid), None)
+    if test is None:
+        if cid in by_id:
+            contrasts.append(by_id[cid])
+        else:
+            names.append(cid)
+    elif isinstance(test.get("rows"), list):
+        names += [k for row in test["rows"] if isinstance(row, dict) for k in row]
+    elif isinstance(test.get("parameters"), list):
+        patterns = [p for p in test["parameters"] if isinstance(p, str)]
+        names += [p for p in patterns if "*" not in p]
+        compiled = [re.compile(".*".join(re.escape(part) for part in p.split("*")) + r"\Z") for p in patterns]
+        for fit in fits if isinstance(fits, list) else []:
+            if isinstance(fit, dict) and fit.get("estimand") == estimate.get("estimand_id") \
+                    and fit.get("scope") == estimate.get("scope"):
+                names += [n for n in fit.get("parameters") or [] if isinstance(n, str) and any(c.match(n) for c in compiled)]
+    else:
+        for ref in test.get("contrasts") or []:
+            if ref in by_id:
+                contrasts.append(by_id[ref])
+            else:
+                names.append(ref)
+    for contrast in contrasts:
+        keys, levels = _weight_keys(contrast)
+        names += keys
+        systems |= levels
+    return systems | _parameter_systems(names)
+
+
+def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]], systems: Iterable[str]) -> bool:
+    """Whether an exhibit with ``filters`` shows ``estimate``, whose involved
+    systems (:func:`estimate_systems`) are ``systems``: every given filter
+    holds. Estimands and contrasts match ``estimand_id`` and
     ``contrast_id``; families match any family the estimate belongs to; a
-    systems filter keeps the estimates of the listed systems and every
-    estimate not scoped to a system (pooled ones). The editor's preview
+    systems filter keeps an estimate exactly when it involves at least one
+    system and all of them are listed, so a pooled estimate involving no
+    system shows only without a systems filter. The editor's preview
     applies the same rule (``exhibitSelects`` in
     ``services/frontend/src/lib/reports/analyses.ts``)."""
     estimands = filters.get("estimands")
@@ -1235,10 +1313,10 @@ def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]]) -> 
         }
         if not member & set(families):
             return False
-    systems = filters.get("systems")
-    if systems:
-        system = estimate_system(estimate)
-        if system is not None and system not in systems:
+    allowed = filters.get("systems")
+    if allowed:
+        involved = set(systems)
+        if not involved or not involved <= set(allowed):
             return False
     return True
 
@@ -1247,13 +1325,6 @@ def _system_model_id(system: str) -> str:
     """The model id of a system key (``<model_id>@<parameter profile hash>``,
     or the bare model id of answers generated before CORE 2.56)."""
     return system.split("@", 1)[0]
-
-
-def _estimate_model_ids(estimate: Dict[str, Any]) -> set:
-    values = estimate.get("scope_values")
-    if not isinstance(values, dict):
-        return set()
-    return {_system_model_id(str(values[c])) for c in ("system", "model_id") if values.get(c) is not None}
 
 
 def _names_hidden(value: Any, hidden: set) -> bool:
@@ -1313,14 +1384,18 @@ def _build_analyses_section(
     eligible = {r["id"]: r for r in report_analysis_runs(db, project_id)}
     problems = analysis_run_problems(db, project_id, [rc["run_id"] for rc in config["runs"] if rc["run_id"] not in eligible])
 
-    loaded: Dict[str, List[Dict[str, Any]]] = {}
+    loaded: Dict[str, List[Tuple[Dict[str, Any], set]]] = {}
     candidates: set = set()
     for rc in config["runs"]:
-        if rc["run_id"] in eligible:
-            loaded[rc["run_id"]] = _run_estimates(db, rc["run_id"])
-            candidates |= {m for e in loaded[rc["run_id"]] for m in _estimate_model_ids(e)}
-    # The hidden-model rule: an estimate of a hidden model's system, or a
-    # contrast naming one, is left out, and so is a warning naming one.
+        run = eligible.get(rc["run_id"])
+        if run is not None:
+            loaded[rc["run_id"]] = [
+                (e, estimate_systems(e, run["normalized_spec"], run["fits"])) for e in _run_estimates(db, rc["run_id"])
+            ]
+            candidates |= {_system_model_id(s) for _, systems in loaded[rc["run_id"]] for s in systems}
+    # The hidden-model rule: an estimate involving a hidden model's system,
+    # or whose contrast names one, is left out, and so is a warning naming
+    # one or about the fit of a left-out estimate.
     hidden = set(hidden_models) | hidden_ids(candidates)
 
     runs: List[Dict[str, Any]] = []
@@ -1330,15 +1405,17 @@ def _build_analyses_section(
         if run is None:
             omitted.append({"run_id": rc["run_id"], "reason": problems.get(rc["run_id"], RUN_NOT_FOUND)})
             continue
-        shown = [
-            {**e, "message": None} if _names_hidden(e.get("message"), hidden) else e
-            for e in loaded[rc["run_id"]]
-            if not (_estimate_model_ids(e) & hidden) and not _names_hidden(e.get("contrast_id"), hidden)
-        ]
+        shown: List[Tuple[Dict[str, Any], set]] = []
+        left_out: set = set()
+        for e, systems in loaded[rc["run_id"]]:
+            if {_system_model_id(s) for s in systems} & hidden or _names_hidden(e.get("contrast_id"), hidden):
+                left_out.add(f"{e.get('estimand_id')} [{e.get('scope')}]: ")
+                continue
+            shown.append(({**e, "message": None} if _names_hidden(e.get("message"), hidden) else e, systems))
         exhibits = []
         selected: set = set()
         for ex in rc["exhibits"]:
-            positions = [e["position"] for e in shown if exhibit_selects(e, ex["filters"])]
+            positions = [e["position"] for e, systems in shown if exhibit_selects(e, ex["filters"], systems)]
             selected.update(positions)
             exhibits.append({
                 "id": ex["id"],
@@ -1351,7 +1428,7 @@ def _build_analyses_section(
         kept = set(sorted(selected)[:MAX_REPORT_ESTIMATES_PER_RUN])
         for ex in exhibits:
             ex["positions"] = [p for p in ex["positions"] if p in kept]
-        rows = [e for e in shown if e["position"] in kept]
+        rows = [e for e, _ in shown if e["position"] in kept]
         warnings = run.get("warnings") if isinstance(run.get("warnings"), list) else []
         runs.append({
             "id": run["id"],
@@ -1364,7 +1441,10 @@ def _build_analyses_section(
             "frame_rows": run["frame_rows"],
             "estimates_count": int(run["estimates_count"] or 0),
             "completed_at": _iso(run["completed_at"]),
-            "warnings": [str(w) for w in warnings if not _names_hidden(str(w), hidden)],
+            "warnings": [
+                str(w) for w in warnings
+                if not _names_hidden(str(w), hidden) and not str(w).startswith(tuple(left_out))
+            ],
             "families": _families(rows),
             "truncated": len(selected) > MAX_REPORT_ESTIMATES_PER_RUN,
             "estimates": rows,

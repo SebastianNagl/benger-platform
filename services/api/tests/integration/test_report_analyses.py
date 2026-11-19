@@ -3,8 +3,8 @@ The report's Analyses section (shared/report_snapshot.py: parse_analyses_section
 exhibit_selects, _build_analyses_section; routers/reports.py).
 
 Seeds a synthetic project with completed analysis runs whose estimates cover
-two estimands, two contrasts, two families and three scopes (pooled, an open
-system and a private BYOM system), plus runs a report must not show (pending,
+three estimands, listed and ``terms`` contrasts, a joint test, two families
+and three scopes (pooled, an open system and a private BYOM system), plus runs a report must not show (pending,
 cross-project, reading another project's lookup table, another project's
 run). Then checks that exhibit filters select exactly the intended rows,
 that a published report keeps its numbers when the live data changes, that
@@ -26,6 +26,7 @@ from report_models import ProjectReport
 from report_service import REASON_ANALYSIS_RUNS, can_publish_report
 from report_snapshot import (
     build_report_snapshot,
+    estimate_systems,
     exhibit_selects,
     parse_analyses_section,
     snapshot_sha256,
@@ -59,13 +60,13 @@ async def _project(db, creator, *, title="Analyses Bench"):
     return project, task, report
 
 
-def _run(project_id, creator_id, *, name="main", status="completed", spec=None, warnings=None):
+def _run(project_id, creator_id, *, name="main", status="completed", spec=None, warnings=None, fits=None):
     spec = spec if spec is not None else {"inputs": {"designs": ["framing"]}}
     return AnalysisRun(
         id=_uid(), project_id=project_id, created_by=creator_id, name=name, status=status,
         spec=spec, normalized_spec=spec, spec_hash="a" * 64, spec_version=1, engine_version="1.1.0",
         frame_hash="b" * 64, frame_sha256="c" * 64, frame_rows=48, estimates_count=0,
-        library_versions={"numpy": "2.0.0"}, lockfile_sha256="d" * 64, seed=11, warnings=warnings,
+        library_versions={"numpy": "2.0.0"}, lockfile_sha256="d" * 64, seed=11, warnings=warnings, fits=fits,
         completed_at=datetime(2026, 11, 1, tzinfo=timezone.utc) if status == "completed" else None,
     )
 
@@ -74,25 +75,55 @@ def _adjustment(family, p):
     return {"family": family, "method": "holm", "group": [], "size": 4, "p_adjusted": p}
 
 
-# Position -> (estimand, contrast, scope values, families). Families are the
-# estimate's first ``family`` plus every ``adjustments`` membership.
+# The main run's normalized spec and fits. ``model_gap`` has a contrast with
+# a neutral label that weights the private system and a joint test whose
+# parameter pattern matches both systems of its fit. The frontend test of
+# the same rule (services/frontend/src/lib/reports/__tests__/analyses.test.ts)
+# uses the same spec, fits, rows and cases.
+SPEC = {
+    "inputs": {"designs": ["framing"]},
+    "estimands": [
+        {"id": "framing_effect", "contrasts": [
+            {"id": "loaded_vs_neutral", "kind": "linear", "weights": {"framing[loaded]": 1}},
+            {"id": "order_effect", "kind": "linear", "weights": {"order[second]": 1}},
+        ]},
+        {"id": "length_effect", "contrasts": "terms"},
+        {"id": "model_gap",
+         "contrasts": [{"id": "secret_vs_ref", "kind": "linear", "weights": {f"system[{SECRET}]": 1}}],
+         "joint_tests": [{"id": "any_system", "parameters": ["system[*]"]}]},
+    ],
+}
+FITS = [{"estimand": "model_gap", "scope": "pooled",
+         "parameters": ["(intercept)", f"system[{OPEN}]", f"system[{SECRET}]"]}]
+
+# Position -> (estimand, contrast, scope values, families, kind). Families
+# are the estimate's first ``family`` plus every ``adjustments`` membership.
+# Involved systems: none for 0, 3, 5; OPEN for 1, 4, 6, 8 (8: a ``terms``
+# contrast of OPEN against the reference); SECRET for 2, 7, 9 (9 through its
+# weights only); both for the joint test 10.
 ROWS = [
-    (0, "framing_effect", "loaded_vs_neutral", None, ["primary"]),
-    (1, "framing_effect", "loaded_vs_neutral", {"system": OPEN}, ["primary"]),
-    (2, "framing_effect", "loaded_vs_neutral", {"system": SECRET}, ["primary"]),
-    (3, "framing_effect", "order_effect", None, ["primary", "secondary"]),
-    (4, "framing_effect", "order_effect", {"system": OPEN}, ["secondary"]),
-    (5, "length_effect", "long_vs_short", None, []),
-    (6, "length_effect", "long_vs_short", {"system": OPEN}, ["secondary"]),
-    (7, "length_effect", f"system[T.{SECRET}]", None, []),
+    (0, "framing_effect", "loaded_vs_neutral", None, ["primary"], "linear"),
+    (1, "framing_effect", "loaded_vs_neutral", {"system": OPEN}, ["primary"], "linear"),
+    (2, "framing_effect", "loaded_vs_neutral", {"system": SECRET}, ["primary"], "linear"),
+    (3, "framing_effect", "order_effect", None, ["primary", "secondary"], "linear"),
+    (4, "framing_effect", "order_effect", {"system": OPEN}, ["secondary"], "linear"),
+    (5, "length_effect", "long_vs_short", None, [], "linear"),
+    (6, "length_effect", "long_vs_short", {"system": OPEN}, ["secondary"], "linear"),
+    (7, "length_effect", f"system[{SECRET}]", None, [], "linear"),
+    (8, "length_effect", f"system[{OPEN}]", None, [], "linear"),
+    (9, "model_gap", "secret_vs_ref", None, [], "linear"),
+    (10, "model_gap", "any_system", None, [], "wald"),
 ]
 
 
-def _estimate(run_id, position, estimand, contrast, scope_values, families):
-    scope = "pooled" if scope_values is None else ",".join(f"{k}={v}" for k, v in scope_values.items())
+def _scope(scope_values):
+    return "pooled" if scope_values is None else ",".join(f"{k}={v}" for k, v in scope_values.items())
+
+
+def _estimate(run_id, position, estimand, contrast, scope_values, families, kind):
     return AnalysisEstimate(
         run_id=run_id, position=position, estimand_id=estimand, contrast_id=contrast, estimator="ols",
-        kind="linear", outcome="score", scope=scope, scope_values=scope_values, status="ok",
+        kind=kind, outcome="score", scope=_scope(scope_values), scope_values=scope_values, status="ok",
         estimate=0.1 * (position + 1), std_error=0.05, statistic=2.0, df=40, p_value=0.04,
         null_value=0.0, ci_level=0.95, ci_lower=0.1 * position - 0.05, ci_upper=0.1 * position + 0.25,
         tost=[{"lower": -0.2, "upper": 0.2, "level": 0.9, "ci_lower": 0.0, "ci_upper": 0.3,
@@ -105,7 +136,8 @@ def _estimate(run_id, position, estimand, contrast, scope_values, families):
 
 
 async def _seed_runs(db, project, admin, *, other_project_id=None):
-    main = _run(project.id, admin.id, warnings=["fit converged", f"system {SECRET} has one cluster"])
+    main = _run(project.id, admin.id, spec=SPEC, fits=FITS,
+                warnings=["fit converged", f"system {SECRET} has one cluster", "model_gap [pooled]: one cluster"])
     pending = _run(project.id, admin.id, name="pending", status="pending")
     cross = _run(project.id, admin.id, name="cross",
                  spec={"inputs": {"designs": ["framing"], "projects": [{"project_id": _uid(), "designs": ["x"]}]}})
@@ -143,35 +175,69 @@ async def _set_analyses(db, report, analyses):
 # filters
 # ---------------------------------------------------------------------------
 
-def _row_dict(position, estimand, contrast, scope_values, families):
-    return {"position": position, "estimand_id": estimand, "contrast_id": contrast,
-            "scope_values": scope_values, "family": families[0] if families else None,
+def _row_dict(position, estimand, contrast, scope_values, families, kind):
+    return {"position": position, "estimand_id": estimand, "contrast_id": contrast, "kind": kind,
+            "scope": _scope(scope_values), "scope_values": scope_values,
+            "family": families[0] if families else None,
             "adjustments": [_adjustment(f, 0.1) for f in families] or None}
 
 
 @pytest.mark.parametrize("filters,expected", [
-    ({}, [0, 1, 2, 3, 4, 5, 6, 7]),
-    ({"estimands": ["length_effect"]}, [5, 6, 7]),
+    ({}, list(range(11))),
+    ({"estimands": ["length_effect"]}, [5, 6, 7, 8]),
     ({"contrasts": ["order_effect"]}, [3, 4]),
     ({"estimands": ["framing_effect"], "contrasts": ["long_vs_short"]}, []),
     # A family matches any membership, not only the first one.
     ({"families": ["secondary"]}, [3, 4, 6]),
     ({"families": ["primary", "secondary"]}, [0, 1, 2, 3, 4, 6]),
-    # A systems filter keeps the listed systems and every estimate not
-    # scoped to a system.
-    ({"systems": [OPEN]}, [0, 1, 3, 4, 5, 6, 7]),
-    ({"systems": ["nobody"]}, [0, 3, 5, 7]),
-    ({"estimands": ["framing_effect"], "systems": [OPEN], "families": ["primary"]}, [0, 1, 3]),
+    # A systems filter keeps the estimates whose involved systems are all
+    # listed: no pooled estimate involving no system, no contrast of the
+    # other system against the reference (7), no joint test over both (10).
+    ({"systems": [OPEN]}, [1, 4, 6, 8]),
+    ({"systems": [OPEN, SECRET]}, [1, 2, 4, 6, 7, 8, 9, 10]),
+    ({"systems": ["nobody"]}, []),
+    ({"estimands": ["framing_effect"], "systems": [OPEN], "families": ["primary"]}, [1]),
+    ({"estimands": ["model_gap"]}, [9, 10]),
 ])
 def test_exhibit_selects_exactly_the_filtered_rows(filters, expected):
     rows = [_row_dict(*r) for r in ROWS]
-    assert [r["position"] for r in rows if exhibit_selects(r, filters)] == expected
+    assert [r["position"] for r in rows if exhibit_selects(r, filters, estimate_systems(r, SPEC, FITS))] == expected
 
 
 def test_exhibit_selects_model_id_scope_as_system():
     row = {"position": 0, "estimand_id": "e", "contrast_id": "c", "scope_values": {"model_id": "m1"}}
-    assert exhibit_selects(row, {"systems": ["m1"]}) is True
-    assert exhibit_selects(row, {"systems": ["m2"]}) is False
+    systems = estimate_systems(row, {})
+    assert systems == {"m1"}
+    assert exhibit_selects(row, {"systems": ["m1"]}, systems) is True
+    assert exhibit_selects(row, {"systems": ["m2"]}, systems) is False
+
+
+@pytest.mark.parametrize("estimand,row,expected", [
+    # Joint test rows name their weight keys, also inside an interaction.
+    ({"id": "e", "contrasts": [], "joint_tests": [{"id": "j", "rows": [{"system[a@1]": 1}, {"x[1]:system[b@2]": 1}]}]},
+     {"contrast_id": "j", "kind": "wald"}, {"a@1", "b@2"}),
+    # A joint test over listed contrasts takes their weights.
+    ({"id": "e", "contrasts": [{"id": "c1", "weights": {"model_id[m]": 1}}],
+      "joint_tests": [{"id": "j", "contrasts": ["c1"]}]},
+     {"contrast_id": "j", "kind": "wald"}, {"m"}),
+    # A literal parameter pattern counts even without a matching fit.
+    ({"id": "e", "contrasts": "terms", "joint_tests": [{"id": "j", "parameters": ["system[a@1]"]}]},
+     {"contrast_id": "j", "kind": "wald"}, {"a@1"}),
+    # Ratio numerator and denominator, and the levels of a marginal effect.
+    ({"id": "e", "contrasts": [{"id": "r", "kind": "ratio", "numerator": {"weights": {"system[a@1]": 1}},
+                                "denominator": {"weights": {"system[b@2]": 1}}}]},
+     {"contrast_id": "r", "kind": "ratio"}, {"a@1", "b@2"}),
+    ({"id": "e", "contrasts": [{"id": "m", "kind": "ame", "column": "system", "level": "a@1", "reference": "b@2"}]},
+     {"contrast_id": "m", "kind": "ame"}, {"a@1", "b@2"}),
+    ({"id": "e", "contrasts": [{"id": "m", "kind": "ame", "column": "framing", "level": "x", "reference": "y"}]},
+     {"contrast_id": "m", "kind": "ame"}, set()),
+    # A paired treatment over the system column involves both of its levels.
+    ({"id": "e", "treatment": {"factor": "system", "level": "a@1", "reference": "b@2"}, "contrasts": "terms"},
+     {"contrast_id": "(difference)", "kind": "linear"}, {"a@1", "b@2"}),
+])
+def test_estimate_systems_reads_the_spec(estimand, row, expected):
+    estimate = {"estimand_id": "e", "scope": "pooled", "scope_values": None, **row}
+    assert estimate_systems(estimate, {"estimands": [estimand]}) == expected
 
 
 def test_parse_normalizes_and_reports_every_problem():
@@ -231,25 +297,26 @@ async def test_snapshot_copies_run_metadata_and_selected_estimates(async_test_db
     [run] = snap["analyses"]["runs"]
     assert snap["analyses"]["omitted"] == []
     assert (run["id"], run["name"], run["spec_hash"], run["engine_version"]) == (main.id, "main", "a" * 64, "1.1.0")
-    assert (run["frame_hash"], run["frame_sha256"], run["frame_rows"], run["estimates_count"]) == ("b" * 64, "c" * 64, 48, 8)
+    assert (run["frame_hash"], run["frame_sha256"], run["frame_rows"], run["estimates_count"]) == ("b" * 64, "c" * 64, 48, 11)
     assert run["completed_at"].startswith("2026-11-01") and run["truncated"] is False
     forest, length, empty = run["exhibits"]
-    # The private system's estimate (2) and the contrast naming it (7) are
-    # left out under the hidden-model rule.
+    # The private system's estimate (2) is left out under the hidden-model
+    # rule.
     assert forest == {"id": "forest-primary", "type": "forest", "filters": {"families": ["primary"]},
                       "band": None, "row_count": 3, "positions": [0, 1, 3]}
-    assert length["positions"] == [5, 6] and length["band"] is None and length["row_count"] == 2
+    assert length["positions"] == [6, 8] and length["band"] is None and length["row_count"] == 2
     assert empty["positions"] == [] and empty["row_count"] == 0
     # The run carries the union of its exhibits' estimates, in engine order,
     # with every engine field and no database row id.
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 5, 6]
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 6, 8]
     first = run["estimates"][0]
     assert "id" not in first and "run_id" not in first
     assert (first["estimand_id"], first["contrast_id"], first["estimate"]) == ("framing_effect", "loaded_vs_neutral", 0.1)
     assert first["tost"][0]["upper"] == 0.2 and first["adjustments"][0]["family"] == "primary"
     assert run["families"] == [{"family": "primary", "method": "holm", "size": 4},
                                {"family": "secondary", "method": "holm", "size": 4}]
-    # The warning naming the private model is left out.
+    # The warning naming the private model and the one about the fit of the
+    # left-out model_gap estimates are left out.
     assert run["warnings"] == ["fit converged"]
     assert snap["reproducibility"]["snapshot_sha256"] == snapshot_sha256(snap)
 
@@ -263,14 +330,18 @@ async def test_private_model_rows_never_reach_a_snapshot(async_test_db):
 
     snap = await _snapshot(async_test_db, project.id, analyses)
     [run] = snap["analyses"]["runs"]
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 4, 5, 6]
+    # Left out: the private system's estimate (2), the contrast naming it
+    # (7), the neutral-label contrast weighting it (9) and the joint test
+    # over it (10).
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 4, 5, 6, 8]
     assert "custom-secret-model" not in str(snap["analyses"])
+    assert {"secret_vs_ref", "any_system"}.isdisjoint(e["contrast_id"] for e in run["estimates"])
 
     # The private-model rule of the leaderboard: kept only on request.
     with_private = await _snapshot(async_test_db, project.id, analyses, include_private_models=True)
     [run] = with_private["analyses"]["runs"]
-    assert [e["position"] for e in run["estimates"]] == list(range(8))
-    assert len(run["warnings"]) == 2
+    assert [e["position"] for e in run["estimates"]] == list(range(11))
+    assert len(run["warnings"]) == 3
 
 
 @pytest.mark.asyncio
@@ -290,7 +361,7 @@ async def test_cross_project_runs_are_not_offered_copied_or_publishable(async_te
     # project itself does not make a run cross-project.
     assert {r["name"] for r in offered.json()["items"]} == {"main", "own lookup"}
     item = next(r for r in offered.json()["items"] if r["name"] == "main")
-    assert item["spec_hash"] == "a" * 64 and item["estimates_count"] == 8 and item["completed_at"]
+    assert item["spec_hash"] == "a" * 64 and item["estimates_count"] == 11 and item["completed_at"]
 
     # The reproducibility appendix follows the same rule.
     snap = await _snapshot(async_test_db, project.id, None)
@@ -406,7 +477,7 @@ async def test_runs_are_truncated_beyond_the_limit(async_test_db, monkeypatch):
     assert run["truncated"] is True
     assert [e["position"] for e in run["estimates"]] == [0, 1, 5]
     a, b = run["exhibits"]
-    assert (a["row_count"], a["positions"]) == (2, [5])
+    assert (a["row_count"], a["positions"]) == (3, [5])
     assert (b["row_count"], b["positions"]) == (2, [0, 1])
 
 
