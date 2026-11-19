@@ -165,6 +165,18 @@ function Answer({
             {t('generations.detail.request.hashUnverifiable')}
           </span>
         )}
+        {g.hash_check === 'mismatch' && (
+          <span
+            className="inline-flex min-w-0 items-center gap-1 font-medium text-red-700 dark:text-red-400"
+            data-testid="unit-answer-hash-mismatch"
+          >
+            <ExclamationTriangleIcon
+              className="h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            {t('generations.detail.request.hashMismatch')}
+          </span>
+        )}
       </div>
       {showText && (
         <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-zinc-50 p-2 font-mono text-xs break-words whitespace-pre-wrap text-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-200">

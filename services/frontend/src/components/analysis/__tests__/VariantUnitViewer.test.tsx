@@ -231,6 +231,38 @@ describe('VariantUnitViewer', () => {
     },
   )
 
+  it.each([
+    ['verified', null],
+    ['mismatch', 'unit-answer-hash-mismatch'],
+    ['record_missing', 'unit-answer-hash-unverifiable'],
+  ] as const)(
+    'marks the hash check of an answer in its row (%s)',
+    (state, marker) => {
+      const view = makeUnitView()
+      view.tasks[0].generations = [
+        makeGeneration({
+          id: 'g1',
+          has_request_record: state !== 'record_missing',
+          hash_check: state,
+        }),
+      ]
+      render(<VariantUnitViewer view={view} requestView={() => null} />)
+      const reference = screen.getByTestId('unit-reference')
+      for (const id of [
+        'unit-answer-hash-mismatch',
+        'unit-answer-hash-unverifiable',
+      ]) {
+        const node = within(reference).queryByTestId(id)
+        if (id === marker) expect(node).toBeInTheDocument()
+        else expect(node).toBeNull()
+      }
+      if (marker === 'unit-answer-hash-mismatch')
+        expect(within(reference).getByTestId(marker)).toHaveTextContent(
+          'The stored hash does not match the record',
+        )
+    },
+  )
+
   it('disables the request of an answer without a record and shows no values', () => {
     const view = makeUnitView()
     view.tasks[1].generations = [
