@@ -1118,7 +1118,7 @@
           "kind": {
             "type": "string",
             "title": "Kind",
-            "description": "linear or ratio"
+            "description": "linear, ratio, ame (average marginal effect) or wald (joint test)"
           },
           "outcome": {
             "type": "string",
@@ -1144,7 +1144,7 @@
           "status": {
             "type": "string",
             "title": "Status",
-            "description": "ok, degenerate, negative_variance, not_estimable or error"
+            "description": "ok, degenerate, negative_variance, not_estimable, separation (no p-value) or error"
           },
           "message": {
             "anyOf": [
@@ -1539,6 +1539,19 @@
               }
             ],
             "title": "Frame Counts"
+          },
+          "resolved_inputs": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Inputs",
+            "description": "Further projects of a cross-project frame and the stored lookup tables read, with their content hashes"
           },
           "library_versions": {
             "anyOf": [

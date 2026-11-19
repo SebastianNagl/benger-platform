@@ -102,3 +102,15 @@ which control names hold which item's answers: one group per `<Repeater>`
 `pattern=months_{idx}&pattern=credibility_{idx}`, one group for hand-written
 indexed names (slot index = the number in the name). Analyses use it to turn
 one answer into one row per item.
+
+## Analysing per-item answers
+
+An analysis with `"frame": {"unit": "slot"}` turns each answer into one row
+per item: the items are the task's `meta.variant.slots` (index and factors
+per item), and a measure such as `{"kind": "field", "field": "risk_{idx}"}`
+reads the item's own control, `{idx}` replaced by the slot index as the
+names above use it (0-based for a `<Repeater>`, the number in the name for
+hand-written fields, so the design's slots use the same index base). See
+[the analysis engine](../features/analysis-engine.md#slot-frames-one-row-per-item-of-an-answer)
+for the other item's answers, cross-item summaries such as rank validity,
+and rank-ordered models over the items of an answer.

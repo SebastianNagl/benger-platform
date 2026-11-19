@@ -183,7 +183,9 @@ class TestExtensionLoader:
         # (import_provenance, the import_jobs provenance columns).
         # 2.64 adds the analysis results page and the compliance slots
         # (ComplianceDashboard, AssessmentDetail, AnalysisRunFindings).
-        assert CORE_API_VERSION == "2.64"
+        # 2.65 adds the analysis estimator extensions, slot and cross-project
+        # frames and lookup tables (analysis_lookup_tables, resolved_inputs).
+        assert CORE_API_VERSION == "2.65"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

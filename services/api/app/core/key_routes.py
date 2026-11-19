@@ -375,6 +375,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         allow("/api/projects/{project_id}/generations/reparse", "admin:platform", methods="POST"),
         allow("/api/projects/{project_id}/generations/*", "runs:read", methods="read"),
         area("/api/projects/{project_id}/analysis-runs", ["results:read"], ["evaluations:run"]),
+        area("/api/projects/{project_id}/analysis-lookups*", ["results:read"], ["evaluations:run"]),
         allow("/api/projects/{project_id}/cohort-leaderboard", "results:read", methods="read"),
         allow("/api/projects/{project_id}/completion-stats", "results:read", methods="read"),
         allow("/api/projects/{project_id}/grading-feedback/*", "results:read", methods="read"),

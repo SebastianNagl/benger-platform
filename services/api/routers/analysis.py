@@ -25,9 +25,16 @@ Routes:
 * ``GET /api/analysis-runs/{analysis_run_id}/frame``: the frame snapshot (Parquet) as a
   short-lived download URL; needs full read access to task content, because
   the frame carries task data paths (gold) and parsed answers.
+* ``POST /api/projects/{project_id}/analysis-lookups``: store the next
+  version of a named lookup table (edit rights); ``GET`` lists the project's
+  tables (newest version first), ``GET .../analysis-lookups/{name}/versions/
+  {version}`` returns one with its rows.
 
 Reads need full (non-participant) access to the project; participants of an
-exam never see analyses.
+exam never see analyses. A run whose frame reads further projects
+(``inputs.projects``) or a lookup table of another project needs, at start,
+the ORG_ADMIN or CONTRIBUTOR role on each of those projects (their task
+content enters the frame); its frame download needs the same.
 """
 
 from __future__ import annotations
@@ -43,7 +50,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth_module import require_user
 from celery_client import send_task_safe
 from database import get_async_db
-from models import AnalysisEstimate, AnalysisRun
+from models import AnalysisEstimate, AnalysisLookupTable, AnalysisRun
 from project_models import Project
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
@@ -88,6 +95,7 @@ def serialize_run(run: AnalysisRun, *, detail: bool = True) -> Dict[str, Any]:
             frame_sha256=run.frame_sha256,
             frame_bytes=run.frame_bytes,
             frame_counts=run.frame_counts,
+            resolved_inputs=run.resolved_inputs,
             library_versions=run.library_versions,
             lockfile_sha256=run.lockfile_sha256,
             seed=run.seed,
@@ -135,7 +143,7 @@ def normalize_or_422(spec: Any) -> Dict[str, Any]:
 
 def engine_info() -> Dict[str, Any]:
     from analysis.expression import FUNCTIONS
-    from analysis.spec import DEFAULT_CONVENTIONS, spec_schema
+    from analysis.spec import DEFAULT_CONVENTIONS, ESTIMATOR_CONVENTIONS, spec_schema
     from analysis.version import (
         ENGINE_VERSION,
         EXPRESSION_GRAMMAR_VERSION,
@@ -148,12 +156,19 @@ def engine_info() -> Dict[str, Any]:
         "spec_version": SPEC_VERSION,
         "expression_grammar_version": EXPRESSION_GRAMMAR_VERSION,
         "frame_format_version": FRAME_FORMAT_VERSION,
-        "estimators": ["fe_ols", "mean_rate", "paired_within"],
+        "estimators": [
+            "fe_ols", "mean_rate", "paired_within", "logit", "mixedlm", "bradley_terry",
+            "plackett_luce", "clogit_rank1", "spearman",
+        ],
+        "estimator_conventions": {k: dict(v) for k, v in ESTIMATOR_CONVENTIONS.items()},
+        "contrast_kinds": ["linear", "ratio", "ame"],
+        "joint_tests": ["contrasts", "parameters", "rows"],
+        "frame_units": ["generation", "slot"],
         "variance_estimators": ["iid", "hc1", "cluster"],
         "small_sample_corrections": ["statsmodels", "fixest", "none"],
         "inference": ["normal", "t"],
         "adjustments": ["holm", "bonferroni", "bh"],
-        "measure_kinds": ["field", "expression", "gold"],
+        "measure_kinds": ["field", "expression", "gold", "slot_factor", "slot_aggregate"],
         "expression_functions": sorted(FUNCTIONS),
         "default_conventions": dict(DEFAULT_CONVENTIONS),
         "spec_schema": spec_schema(),
@@ -187,12 +202,81 @@ async def validate_analysis_spec(
     }
 
 
-async def create_run(db: AsyncSession, project: Project, user, spec: Any, name: Optional[str]) -> AnalysisRun:
-    """Validate ``spec``, insert a pending run and queue it."""
+async def _content_project_or_403(db: AsyncSession, user, project_id: str, what: str, principal=None) -> Project:
+    """A further project a run reads: it must exist (not deleted), the user
+    must be allowed to read all of its task content and an access key that
+    is limited to some projects must include it; 403 otherwise (without
+    saying which failed)."""
+    project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one_or_none()
+    allowed = (
+        project is not None
+        and project.deleted_at is None
+        and await check_project_accessible_async(db, user, project.id, project=project)
+        and await can_read_all_task_content_async(db, user, project)
+    )
+    if allowed and principal is not None:
+        from routers.v1._deps import key_may_see_project
+
+        allowed = await key_may_see_project(db, principal, project)
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "analysis_input_forbidden",
+                "message": f"{what} {project_id} needs the ORG_ADMIN or CONTRIBUTOR role on that project",
+            },
+        )
+    return project
+
+
+async def check_run_inputs(
+    db: AsyncSession, project: Project, user, normalized: Dict[str, Any], principal=None
+) -> None:
+    """Access to every further project of the spec and existence of every
+    stored lookup table it names (422 ``invalid_analysis_spec`` for a
+    missing table or a content hash that differs)."""
+    for other in normalized["inputs"].get("projects") or []:
+        if other["project_id"] != project.id:
+            await _content_project_or_403(db, user, other["project_id"], "The input project", principal)
+    errors: List[str] = []
+    for i, lk in enumerate(normalized.get("lookups") or []):
+        ref = lk.get("table")
+        if not ref:
+            continue
+        owner = ref.get("project_id") or project.id
+        if owner != project.id:
+            await _content_project_or_403(db, user, owner, "The lookup table's project", principal)
+        row = (
+            await db.execute(
+                select(AnalysisLookupTable)
+                .where(AnalysisLookupTable.project_id == owner)
+                .where(AnalysisLookupTable.name == ref["name"])
+                .where(AnalysisLookupTable.version == int(ref["version"]))
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            errors.append(f"/lookups/{i}/table: {ref['name']!r} version {ref['version']} does not exist")
+        elif ref.get("content_hash") and ref["content_hash"] != row.content_hash:
+            errors.append(f"/lookups/{i}/table/content_hash: the stored version has {row.content_hash}")
+        else:
+            wanted = set(lk["keys"].values()) | set(lk["columns"].values())
+            missing = sorted(wanted - set(row.columns))
+            if missing:
+                errors.append(f"/lookups/{i}: the table has no column(s) {', '.join(missing)}")
+    if errors:
+        raise _spec_error(errors)
+
+
+async def create_run(
+    db: AsyncSession, project: Project, user, spec: Any, name: Optional[str], principal=None
+) -> AnalysisRun:
+    """Validate ``spec`` and its inputs, insert a pending run and queue it.
+    ``principal`` is the access key of a key-authenticated request."""
     from analysis.spec import spec_hash
     from analysis.version import ENGINE_VERSION, SPEC_VERSION
 
     normalized = normalize_or_422(spec)
+    await check_run_inputs(db, project, user, normalized, principal)
     run = AnalysisRun(
         project_id=project.id,
         created_by=user.id,
@@ -227,6 +311,7 @@ async def create_run(db: AsyncSession, project: Project, user, spec: Any, name: 
 @router.post("/api/projects/{project_id}/analysis-runs", status_code=202)
 async def start_analysis_run(
     project_id: str,
+    request: Request,
     body: Dict[str, Any] = Body(...),
     access: ProjectAccess = Depends(require_project_access(min_role="edit")),
     db: AsyncSession = Depends(get_async_db),
@@ -237,7 +322,8 @@ async def start_analysis_run(
     name = body.get("name")
     if name is not None and (not isinstance(name, str) or not name.strip()):
         raise HTTPException(status_code=422, detail="name must be a non-empty string")
-    run = await create_run(db, access.project, access.user, body["spec"], name)
+    principal = getattr(request.state, "principal", None)
+    run = await create_run(db, access.project, access.user, body["spec"], name, principal)
     return JSONResponse(
         status_code=202,
         content=serialize_run(run, detail=True),
@@ -367,6 +453,12 @@ async def download_analysis_frame(
             status_code=403,
             detail="The frame needs the ORG_ADMIN or CONTRIBUTOR role on the project",
         )
+    for other in (run.normalized_spec or {}).get("inputs", {}).get("projects") or []:
+        if other["project_id"] != project.id:
+            await _content_project_or_403(
+                db, current_user, other["project_id"], "The frame reads project",
+                getattr(request.state, "principal", None),
+            )
     if not run.frame_object_key:
         raise HTTPException(status_code=404, detail="The frame of this run is not stored (yet)")
     from storage.object_storage import object_storage
@@ -380,3 +472,119 @@ async def download_analysis_frame(
     if json:
         return {"url": url, "frame_hash": run.frame_hash, "frame_sha256": run.frame_sha256}
     return RedirectResponse(url=url, status_code=302)
+
+
+# --------------------------------------------------------------------------
+# Lookup tables
+# --------------------------------------------------------------------------
+
+
+def serialize_lookup(row: AnalysisLookupTable, *, rows: bool = False) -> Dict[str, Any]:
+    out: Dict[str, Any] = {
+        "id": row.id,
+        "project_id": row.project_id,
+        "name": row.name,
+        "version": row.version,
+        "description": row.description,
+        "columns": row.columns,
+        "row_count": row.row_count,
+        "content_hash": row.content_hash,
+        "created_by": row.created_by,
+        "created_at": _iso(row.created_at),
+    }
+    if rows:
+        out["rows"] = row.rows
+    return out
+
+
+@router.post("/api/projects/{project_id}/analysis-lookups", status_code=201)
+async def create_lookup_table(
+    project_id: str,
+    body: Dict[str, Any] = Body(...),
+    access: ProjectAccess = Depends(require_project_access(min_role="edit")),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Store ``{"name", "columns", "rows", "description"?}`` as the next
+    version of the named table (201). Rows are lists in column order or
+    objects by column name. Versions are immutable."""
+    from sqlalchemy.exc import IntegrityError
+
+    from analysis.lookups import LookupTableError, validate_table
+
+    try:
+        table = validate_table(body)
+    except LookupTableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "invalid_lookup_table", "message": "The lookup table is invalid", "errors": exc.errors},
+        )
+    for _ in range(3):
+        latest = (
+            await db.execute(
+                select(func.max(AnalysisLookupTable.version))
+                .where(AnalysisLookupTable.project_id == project_id)
+                .where(AnalysisLookupTable.name == table["name"])
+            )
+        ).scalar_one()
+        row = AnalysisLookupTable(
+            project_id=project_id,
+            name=table["name"],
+            version=(latest or 0) + 1,
+            description=table["description"],
+            columns=table["columns"],
+            rows=table["rows"],
+            row_count=table["row_count"],
+            content_hash=table["content_hash"],
+            created_by=access.user.id,
+        )
+        db.add(row)
+        try:
+            await db.commit()
+        except IntegrityError:  # a concurrent upload took this version
+            await db.rollback()
+            continue
+        await db.refresh(row)
+        return JSONResponse(
+            status_code=201,
+            content=serialize_lookup(row),
+            headers={"Location": f"/api/projects/{project_id}/analysis-lookups/{row.name}/versions/{row.version}"},
+        )
+    raise HTTPException(status_code=409, detail="Concurrent uploads of this table; try again")
+
+
+@router.get("/api/projects/{project_id}/analysis-lookups")
+async def list_lookup_tables(
+    project_id: str,
+    name: Optional[str] = Query(None, max_length=100),
+    access: ProjectAccess = Depends(require_project_access()),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The project's lookup tables without their rows, by name and newest
+    version first."""
+    stmt = select(AnalysisLookupTable).where(AnalysisLookupTable.project_id == project_id)
+    if name is not None:
+        stmt = stmt.where(AnalysisLookupTable.name == name)
+    stmt = stmt.order_by(AnalysisLookupTable.name, AnalysisLookupTable.version.desc())
+    rows = (await db.execute(stmt)).scalars().all()
+    return {"items": [serialize_lookup(r) for r in rows]}
+
+
+@router.get("/api/projects/{project_id}/analysis-lookups/{name}/versions/{version}")
+async def get_lookup_table(
+    project_id: str,
+    name: str,
+    version: int,
+    access: ProjectAccess = Depends(require_project_access()),
+    db: AsyncSession = Depends(get_async_db),
+):
+    row = (
+        await db.execute(
+            select(AnalysisLookupTable)
+            .where(AnalysisLookupTable.project_id == project_id)
+            .where(AnalysisLookupTable.name == name)
+            .where(AnalysisLookupTable.version == version)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Lookup table not found")
+    return serialize_lookup(row, rows=True)

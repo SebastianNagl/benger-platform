@@ -155,7 +155,7 @@ async def test_purge_job_removes_generations_and_generation_jobs(async_test_clie
         assert done["status"] == "completed" and done["progress"] == 100
         assert done["result"] == {
             "tasks": 5, "task_evaluations": 5, "generations": 6,
-            "generation_jobs": 6, "analysis_runs": 0, "projects": 1,
+            "generation_jobs": 6, "analysis_runs": 0, "analysis_frames_of_other_projects": 0, "projects": 1,
         }
 
     await _assert_gone(db, p.id, task_ids)
@@ -210,6 +210,43 @@ async def test_purge_removes_analysis_runs_and_their_stored_frames(async_test_db
     assert await _count(db, AnalysisRun, AnalysisRun.project_id == p.id) == 0
     assert await _count(db, AnalysisEstimate, AnalysisEstimate.run_id == runs[0].id) == 0
     assert object_storage.get_file_info(key) is None
+
+
+async def test_purge_removes_the_frames_other_projects_read_from_it(async_test_db):
+    from models import AnalysisLookupTable, AnalysisRun
+    from storage.object_storage import object_storage
+
+    db = async_test_db
+    owner = await _user(db)
+    p, _ = await _seed_generated_project(db, owner, tasks=1, deleted=True)
+    reader, _ = await _seed_generated_project(db, owner, tasks=1)
+    bystander, _ = await _seed_generated_project(db, owner, tasks=1)
+    db.add(AnalysisLookupTable(project_id=p.id, name="codes", version=1, columns=["k"], rows=[["a"]],
+                               row_count=1, content_hash="c" * 64))
+    keys = {}
+    for project, inputs in ((reader, [{"project_id": p.id, "designs": ["d"]}]), (bystander, [])):
+        key = object_storage.upload_file(b"PAR1 frame", filename="frame.parquet", file_type="analysis")["file_key"]
+        spec = {"inputs": {"designs": ["d"], **({"projects": inputs} if inputs else {})}}
+        run = AnalysisRun(
+            id=str(uuid.uuid4()), project_id=project.id, created_by=owner.id, name="a", status="completed",
+            spec=spec, normalized_spec=spec, spec_hash="h" * 64, spec_version=1, engine_version="1.1.0",
+            frame_object_key=key, warnings=[],
+        )
+        db.add(run)
+        keys[project.id] = (run, key)
+    await db.flush()
+
+    counts = await db.run_sync(lambda s: purge_project_data(s, p.id))
+    assert counts["analysis_frames_of_other_projects"] == 1
+    assert await _count(db, AnalysisLookupTable, AnalysisLookupTable.project_id == p.id) == 0
+    run, key = keys[reader.id]
+    await db.refresh(run)
+    assert run.frame_object_key is None and run.status == "completed"
+    assert run.warnings == [f"frame deleted: input project {p.id} was purged"]
+    assert object_storage.get_file_info(key) is None
+    run, key = keys[bystander.id]
+    await db.refresh(run)
+    assert run.frame_object_key == key and object_storage.get_file_info(key) is not None
 
 
 async def test_deleting_analysis_frames_is_best_effort():

@@ -4,14 +4,18 @@
 
 1. claim the run (``pending`` or a ``running`` row left by a dead worker;
    a finished run is left alone, so a redelivered message is a no-op);
-2. read the observations of the run's project and spec
-   (:func:`analysis.db_source.iter_observations`) and build the frame;
+2. read the observations of the run's project and spec, and of every
+   further project of a cross-project frame
+   (:func:`analysis.db_source.iter_run_observations`), load the stored
+   lookup tables the spec names (:func:`analysis.db_source.load_lookup_tables`)
+   and build the frame;
 3. fit every estimand (:func:`analysis.runner.run_spec`);
 4. store the frame as Parquet under ``analysis/`` with its content hash and
    write one ``analysis_estimates`` row per estimate, replacing any rows a
    dead worker left;
 5. record versions (engine, numeric libraries, the workers' lockfile hash),
-   counts, per-fit summaries, warnings and timings, and mark the run
+   the resolved inputs (further projects, lookup tables with their content
+   hashes), counts, per-fit summaries, warnings and timings, and mark the run
    ``completed``.
 
 A spec or data problem the engine can name (an unknown column, a text
@@ -53,12 +57,14 @@ def library_versions() -> Dict[str, str]:
     import pandas
     import pyarrow
     import scipy
+    import statsmodels
 
     return {
         "python": platform.python_version(),
         "numpy": numpy.__version__,
         "pandas": pandas.__version__,
         "scipy": scipy.__version__,
+        "statsmodels": statsmodels.__version__,
         "pyarrow": pyarrow.__version__,
     }
 
@@ -148,7 +154,7 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
 
 
 def _execute(db, run, storage) -> Dict[str, Any]:
-    from analysis.db_source import iter_observations
+    from analysis.db_source import iter_run_observations, load_lookup_tables
     from analysis.frame import build_frame, frame_sha256, to_parquet
     from analysis.runner import run_spec
     from analysis.version import ENGINE_VERSION
@@ -157,9 +163,10 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     t0 = time.perf_counter()
     spec = run.normalized_spec
     source_counts: Dict[str, int] = {}
-    observations = list(iter_observations(db, run.project_id, spec["inputs"], source_counts))
+    observations = list(iter_run_observations(db, run.project_id, spec["inputs"], source_counts))
+    lookup_tables, resolved_lookups = load_lookup_tables(db, run.project_id, spec.get("lookups") or [])
     t_read = time.perf_counter()
-    built = build_frame(observations, spec)
+    built = build_frame(observations, spec, lookup_tables=lookup_tables, home_project=run.project_id)
     frame = built.frame
     frame_hash = built.hash
     parquet = to_parquet(
@@ -198,6 +205,10 @@ def _execute(db, run, storage) -> Dict[str, Any]:
         run.engine_version = ENGINE_VERSION
         run.library_versions = library_versions()
         run.lockfile_sha256 = lockfile_sha256()
+        run.resolved_inputs = {
+            "projects": [p["project_id"] for p in spec["inputs"].get("projects") or []],
+            "lookups": resolved_lookups,
+        }
         run.fits = result.fits
         run.warnings = built.warnings + result.warnings
         run.estimates_count = len(result.estimates)

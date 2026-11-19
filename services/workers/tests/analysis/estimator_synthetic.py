@@ -269,3 +269,31 @@ def congruence_pooled(seed: int = 20261125) -> List[Dict[str, Any]]:
         for offence in OFFENCES
         for group in DOCKET_GROUPS[1:]
     ]
+
+
+def docket_design() -> Dict[str, Any]:
+    """The variant design (``variant_designs`` spec) of :func:`docket_records`
+    without control tasks: six slots indexed 0-5 like Repeater controls."""
+    names = [f"{g}_{i}" for g in DOCKET_GROUPS for i in range(4)]
+    return {
+        "schema_version": 1,
+        "title": "Docket",
+        "unit": {"name": "docket"},
+        "factors": [
+            {"name": "kind", "type": "nominal", "levels": ["docket", "control"], "varies": "between_units"},
+            {"name": "gender", "type": "nominal", "levels": ["f", "m"], "varies": "between_units"},
+        ],
+        "slots": {
+            "count": 6,
+            "index_base": 0,
+            "factors": [
+                {"name": "pos", "type": "numeric", "minimum": 1, "maximum": 6},
+                {"name": "fact", "type": "nominal", "levels": list(OFFENCES)},
+                {"name": "group", "type": "nominal", "levels": list(DOCKET_GROUPS)},
+                {"name": "name_id", "type": "nominal", "levels": names, "role": "nuisance"},
+            ],
+        },
+        "outcomes": [
+            {"name": name, "control": f"{name}_{{idx}}", "per_slot": True} for name in ("risk", "prob", "months", "rank")
+        ],
+    }
