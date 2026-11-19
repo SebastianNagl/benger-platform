@@ -469,6 +469,40 @@ async def test_member_only_runs_are_left_out_of_public_payloads(async_test_clien
 
 
 @pytest.mark.asyncio
+async def test_member_only_runs_are_left_out_of_the_public_reproducibility_list(async_test_client, async_test_db):
+    # The reproducibility list names every run of the project, also runs the
+    # Analyses section does not show; a member-only run's name and hashes
+    # stay inside the project even when the author named it after the
+    # private model.
+    admin = await _user(async_test_db, is_superadmin=True)
+    project, _, report = await _project(async_test_db, admin)
+    hidden = _run(project.id, admin.id, name=f"{SECRET} only", models=["custom-secret-model"])
+    async_test_db.add(hidden)
+    await async_test_db.flush()
+    public = await _public_run(async_test_db, project, admin)
+    await _set_analyses(async_test_db, report, {"runs": [
+        {"run_id": public.id, "title": "Open models", "exhibits": [{"id": "all", "type": "table"}]}]})
+
+    with _as_user(admin):
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish",
+                                                json={"is_public": True})
+        assert published.status_code == 200, published.text
+        author = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
+    with _as_user(None):
+        anonymous = (await async_test_client.get(f"/api/reports/{report.id}/data")).json()
+
+    stored = {r["name"]: r["member_only"] for r in author["snapshot"]["reproducibility"]["analysis_runs"]}
+    assert stored == {f"{SECRET} only": True, "open": False}
+    public_list = anonymous["snapshot"]["reproducibility"]["analysis_runs"]
+    assert [r["id"] for r in public_list] == [public.id]
+    assert "custom-secret-model" not in str(anonymous)
+    assert hidden.id not in str(anonymous)
+    # The stored snapshot and its hash stay whole.
+    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] == (
+        author["snapshot"]["reproducibility"]["snapshot_sha256"])
+
+
+@pytest.mark.asyncio
 async def test_cross_project_runs_are_not_offered_copied_or_publishable(async_test_client, async_test_db):
     admin = await _user(async_test_db, is_superadmin=True)
     project, _, report = await _project(async_test_db, admin)

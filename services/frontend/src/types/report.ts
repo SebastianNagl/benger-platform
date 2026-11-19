@@ -244,6 +244,11 @@ export interface ReportAnalysisRunRecord {
   lockfile_sha256: string | null
   seed: number | null
   completed_at: string | null
+  /**
+   * A hidden model may appear in the run; readers outside the project never
+   * get such a run (absent in snapshots taken before it was recorded).
+   */
+  member_only?: boolean
 }
 
 /** One estimate as a report copies it: the engine's fields, no row id. */

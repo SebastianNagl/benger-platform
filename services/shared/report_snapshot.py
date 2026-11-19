@@ -936,7 +936,9 @@ def _build_reproducibility_section(
     evaluation_configs.sort(key=lambda c: c["id"])
 
     analysis_runs = []
-    for r in report_analysis_runs(db, params["project_id"]):
+    eligible_runs = report_analysis_runs(db, params["project_id"])
+    member_only = analysis_runs_member_only(db, eligible_runs)
+    for r in eligible_runs:
         analysis_runs.append({
             "id": r["id"],
             "name": r["name"],
@@ -951,6 +953,7 @@ def _build_reproducibility_section(
             "lockfile_sha256": r["lockfile_sha256"],
             "seed": int(r["seed"]) if r["seed"] is not None else None,
             "completed_at": _iso(r["completed_at"]),
+            "member_only": member_only[r["id"]],
         })
 
     return {
@@ -1526,9 +1529,10 @@ def public_snapshot(snapshot: Any) -> Any:
     report read anonymously or by a non-member): judge run parameters,
     declared import manifests and design provenance keep their SHA-256 but
     lose their content (custom judge prompts, rubrics, author manifests),
-    and the Analyses section leaves out its member-only runs
-    (:func:`analysis_runs_member_only`) and its list of runs it could not
-    show (the author's note to fix). The stored snapshot and its
+    the reproducibility list and the Analyses section leave out every
+    member-only run (:func:`analysis_runs_member_only`; a run not marked
+    public counts as one), and the Analyses section its list of runs it
+    could not show (the author's note to fix). The stored snapshot and its
     ``snapshot_sha256`` stay whole."""
     if not isinstance(snapshot, dict):
         return snapshot
@@ -1539,10 +1543,17 @@ def public_snapshot(snapshot: Any) -> Any:
         out["data"] = _map_list(data, "imports",
                                 lambda i: {**i, "declared_manifest": _without(i.get("declared_manifest"), "content")})
     if isinstance(out.get("reproducibility"), dict):
-        out["reproducibility"] = _map_list(
+        reproducibility = _map_list(
             out["reproducibility"], "evaluation_configs",
             lambda c: _map_list(c, "judge_runs", lambda r: _without(r, "parameters")),
         )
+        if isinstance(reproducibility.get("analysis_runs"), list):
+            reproducibility = {
+                **reproducibility,
+                "analysis_runs": [r for r in reproducibility["analysis_runs"]
+                                  if isinstance(r, dict) and r.get("member_only") is False],
+            }
+        out["reproducibility"] = reproducibility
     if isinstance(out.get("analyses"), dict):
         analyses = _without(out["analyses"], "omitted")
         if isinstance(analyses.get("runs"), list):

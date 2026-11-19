@@ -91,8 +91,9 @@ applied on every read path (`GET /api/reports/{id}/data`, its `snapshot` and
 `report.content.snapshot`): each judge run's parameters, each declared
 import manifest and each design provenance keep their SHA-256 but lose their
 content, so custom judge prompts, rubric and Bewertungsbogen criteria and
-author manifests stay inside the project, and the Analyses section's `omitted`
-list is left out.
+author manifests stay inside the project. The reproducibility list and the
+Analyses section leave out every member-only analysis run (see
+[Analyses](#analyses)), and the Analyses section its `omitted` list.
 
 ### Hidden models
 
@@ -144,7 +145,9 @@ project's completed runs that read no further project, neither through
 `inputs.projects` nor through a stored lookup table of another project
 (`report_analysis_runs` in `report_snapshot.py`), because a report must not
 publish another project's numbers. The reproducibility appendix lists the
-same runs. Per exhibit the author picks the type (forest plot or table) and
+same runs, each marked `member_only` by the rule below, so the public view
+leaves out a member-only run there too, even one the Analyses section does
+not show. Per exhibit the author picks the type (forest plot or table) and
 the filters, and the card previews the run's live estimates with the
 components the report draws (`ContrastForest` and the compact
 `EstimatesTable` of `components/analysis`).
