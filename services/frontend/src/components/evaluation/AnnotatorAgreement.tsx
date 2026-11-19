@@ -27,10 +27,10 @@ export type KappaBand =
 
 export function kappaBand(kappa: number): KappaBand {
   if (kappa < 0) return 'poor'
-  if (kappa < 0.2) return 'slight'
-  if (kappa < 0.4) return 'fair'
-  if (kappa < 0.6) return 'moderate'
-  if (kappa < 0.8) return 'substantial'
+  if (kappa <= 0.2) return 'slight'
+  if (kappa <= 0.4) return 'fair'
+  if (kappa <= 0.6) return 'moderate'
+  if (kappa <= 0.8) return 'substantial'
   return 'almostPerfect'
 }
 

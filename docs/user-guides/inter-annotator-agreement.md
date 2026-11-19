@@ -39,8 +39,9 @@ one active annotation per person and task.
 Free text, spans and other controls have no comparable value and are listed
 as not scored.
 
-The block reads kappa on the Landis and Koch scale (below 0 poor, then
-slight, fair, moderate, substantial and almost perfect at 0.2 steps). A pair
+The block reads kappa on the Landis and Koch scale: below 0 poor, 0 to
+0.20 slight, up to 0.40 fair, up to 0.60 moderate, up to 0.80 substantial
+and above 0.80 almost perfect, each upper limit included in its band. A pair
 of annotators needs at least two shared tasks for a Cohen's kappa. With many
 annotators the pair table shows the 50 pairs with the most shared tasks and
 says how many there are in total; the summary numbers always cover all

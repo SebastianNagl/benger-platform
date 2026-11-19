@@ -39,10 +39,12 @@ describe('kappaBand', () => {
   it.each([
     [-0.1, 'poor'],
     [0, 'slight'],
-    [0.2, 'fair'],
-    [0.4, 'moderate'],
-    [0.6, 'substantial'],
-    [0.8, 'almostPerfect'],
+    [0.2, 'slight'],
+    [0.2001, 'fair'],
+    [0.4, 'fair'],
+    [0.6, 'moderate'],
+    [0.8, 'substantial'],
+    [0.8001, 'almostPerfect'],
     [1, 'almostPerfect'],
   ])('%s is %s', (kappa, band) => {
     expect(kappaBand(kappa)).toBe(band)
@@ -61,7 +63,7 @@ describe('AnnotatorAgreement', () => {
       "Fleiss' kappa0.33fair",
     )
     expect(within(label).getByTestId('agreement-cohen')).toHaveTextContent(
-      '0.40moderate',
+      '0.40fair',
     )
     expect(within(label).getByTestId('agreement-percent')).toHaveTextContent(
       '50.0 %',
