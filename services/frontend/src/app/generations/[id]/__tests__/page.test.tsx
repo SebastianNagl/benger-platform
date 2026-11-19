@@ -170,8 +170,12 @@ describe('GenerationRunDetailPage', () => {
     expect(screen.getByText('1/1')).toBeInTheDocument()
     // project title appears in subtitle and breadcrumb context
     expect(screen.getAllByText(/My Project/).length).toBeGreaterThan(0)
-    // status badge
-    expect(screen.getByTestId('badge')).toHaveTextContent('completed')
+    // status badge: translated label, coloured by status
+    expect(screen.getByTestId('badge')).toHaveTextContent('Abgeschlossen')
+    expect(screen.getByTestId('badge')).toHaveAttribute(
+      'data-variant',
+      'success',
+    )
   })
 
   it('shows run-failed count suffix when runs_failed > 0', async () => {

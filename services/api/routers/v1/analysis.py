@@ -171,5 +171,5 @@ async def list_estimates(
         )
     ).scalars().all()
     items, next_cursor = page(_ESTIMATES_KIND, rows, limit, lambda r: {"p": r.position})
-    out: List[Dict[str, Any]] = [serialize_estimate(r) for r in items]
+    out: List[Dict[str, Any]] = [serialize_estimate(r, with_id=False) for r in items]
     return {"items": out, "next_cursor": next_cursor}

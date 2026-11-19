@@ -50,6 +50,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
+import { analysisAPI } from '@/lib/api/analysis'
 import { apiClient } from '@/lib/api/client'
 import { isExamNotReadyError } from '@/lib/api/errors'
 import type {
@@ -71,6 +72,7 @@ import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import {
+  ChartBarIcon,
   CheckCircleIcon,
   DocumentChartBarIcon,
   DocumentTextIcon,
@@ -893,6 +895,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       case 'feedback':
       case 'generation':
       case 'evaluations':
+      case 'analysis':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
       case 'editorActions':
         // Extended editor actions; their endpoints check edit rights too.
@@ -903,6 +906,34 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         return true
     }
   }
+
+  // Analysis runs of variant experiments: the quick action shows once the
+  // project declares a variant design (a run needs one). Only fetched for
+  // the viewers who may see the action.
+  const mayOpenAnalysis = accessTierKnown && canSeeQuickAction('analysis')
+  const [variantDesigns, setVariantDesigns] = useState<{
+    projectId: string
+    any: boolean
+  } | null>(null)
+  useEffect(() => {
+    if (!projectId || !mayOpenAnalysis) return
+    let cancelled = false
+    analysisAPI
+      .listDesignKeys(projectId)
+      .then((keys) => {
+        if (!cancelled) setVariantDesigns({ projectId, any: keys.length > 0 })
+      })
+      .catch(() => {
+        // No designs readable: the action stays hidden.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, mayOpenAnalysis])
+  const hasVariantDesigns =
+    mayOpenAnalysis &&
+    variantDesigns?.projectId === projectId &&
+    variantDesigns.any
 
   const handleStartLabeling = () => {
     if (projectId) {
@@ -3099,6 +3130,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   className="w-full"
                 >
                   {t('project.quickActions.evaluations')}
+                </Button>
+              )}
+
+              {hasVariantDesigns && (
+                <Button
+                  href={`/projects/${projectId}/analysis`}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="project-analysis"
+                >
+                  <ChartBarIcon className="mr-2 h-4 w-4" />
+                  {t('project.quickActions.analysis')}
                 </Button>
               )}
 

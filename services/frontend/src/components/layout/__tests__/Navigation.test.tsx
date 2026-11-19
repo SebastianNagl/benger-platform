@@ -2,7 +2,13 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from '@testing-library/react'
+import {
+  _resetActiveExtensionsForTests,
+  setActiveExtensions,
+} from '@/lib/extensions/active'
+import { setRegistrationOwner } from '@/lib/extensions/owner'
+import { registerSlot } from '@/lib/extensions/slots'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Navigation } from '../Navigation'
 
@@ -945,6 +951,29 @@ describe('Navigation', () => {
       visibleSections = ['activity']
       rerender(<Navigation />)
       expect(highlight()?.style.top).toBe('64px')
+    })
+  })
+
+  describe('Compliance entry', () => {
+    afterEach(() => {
+      _resetActiveExtensionsForTests()
+    })
+
+    it('shows /compliance only while the compliance overlay is active', () => {
+      setRegistrationOwner('compliance')
+      registerSlot('ComplianceDashboard', () => null)
+      setRegistrationOwner(null)
+
+      render(<Navigation />)
+      expect(screen.queryByText('navigation.compliance')).toBeNull()
+
+      act(() => setActiveExtensions(['compliance']))
+      expect(
+        screen.getByText('navigation.compliance').closest('a'),
+      ).toHaveAttribute('href', '/compliance')
+
+      act(() => setActiveExtensions([]))
+      expect(screen.queryByText('navigation.compliance')).toBeNull()
     })
   })
 })

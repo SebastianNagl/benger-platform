@@ -6,7 +6,8 @@ interface BadgeProps extends Omit<
   'onClick' | 'children' | 'className'
 > {
   children: ReactNode
-  variant?: 'default' | 'secondary' | 'destructive' | 'outline'
+  variant?:
+    'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning'
   className?: string
   onClick?: () => void
   'aria-label'?: string
@@ -40,6 +41,10 @@ export function Badge({
             variant === 'destructive',
           'border border-zinc-200 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400':
             variant === 'outline',
+          'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-900/30 dark:text-emerald-300':
+            variant === 'success',
+          'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300':
+            variant === 'warning',
         },
         interactiveClasses,
         className,

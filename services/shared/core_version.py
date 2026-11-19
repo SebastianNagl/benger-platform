@@ -1274,11 +1274,38 @@ migration).
     ``GET /api/v1/analysis-runs/{analysis_run_id}`` and ``.../estimates``
     (scope ``results:read``). The key gate binds ``analysis_run_id`` to its
     project.
+
+2.63 (2026-11-19): analysis results page and the /compliance route shells
+  (no migration).
+  - ``GET /api/analysis-runs/{analysis_run_id}/estimates`` items carry their
+    row ``id`` (``serialize_estimate(row, with_id=True)``), the value a
+    compliance finding's ``analysis_estimate_id`` cites; the v1 estimates
+    keep their schema without it.
+  - Pages ``/projects/[id]/analysis`` (the project's runs; editors start a
+    run from a spec, ``?from=<runId>`` prefills one) and
+    ``/projects/[id]/analysis/[runId]`` (status, forest plot, estimates with
+    families and adjusted p-values, provenance, spec, fits, frame download).
+  - Reusable components for overlays: ``@/components/analysis/ForestPlot``
+    (``ForestPlot`` with ``rows``, ``nullValue``, an optional shaded
+    ``band`` and inner intervals), ``ContrastForestPlot``,
+    ``EstimatesTable``, ``RunProvenance``; ``@/lib/api/analysis``
+    (``analysisAPI`` and the run and estimate types) and
+    ``@/lib/analysis/results`` (formatting and grouping helpers).
+  - Compliance slots, rendered only while the master flag
+    ``extension.compliance`` is on for the viewer
+    (``@/components/compliance/ComplianceSlot``: ``useComplianceSlot``,
+    ``ComplianceRouteShell``, ``ComplianceInlineSlot``):
+    ``ComplianceDashboard`` on ``/compliance`` (no props),
+    ``AssessmentDetail`` on ``/compliance/assessments/[assessmentId]``
+    (``{ assessmentId }``) and ``AnalysisRunFindings`` on the analysis run
+    page (``{ projectId, run, estimates }``). A registered
+    ``ComplianceDashboard`` also adds the Compliance entry to the
+    navigation.
 """
 
 import os
 
-CORE_API_VERSION = "2.62"
+CORE_API_VERSION = "2.63"
 
 
 def extended_required() -> bool:
