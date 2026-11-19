@@ -75,7 +75,7 @@ describe('AnnotatorAgreement', () => {
     fireEvent.click(within(label).getByText('Annotator pairs (3)'))
     const rows = within(label).getAllByRole('row')
     expect(rows).toHaveLength(4) // header + 3 pairs
-    expect(rows[2]).toHaveTextContent('AshCedar40.20')
+    expect(rows[2]).toHaveTextContent('Ash · Cedar40.20')
   })
 
   it('shows Pearson and mean absolute deviation for a number control', () => {

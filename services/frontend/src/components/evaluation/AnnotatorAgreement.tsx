@@ -159,10 +159,7 @@ function ControlBlock({ control }: { control: ControlAgreement }) {
               <thead>
                 <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                   <th className="py-1.5 pr-3 font-medium">
-                    {t('evaluation.annotatorAgreement.annotatorA')}
-                  </th>
-                  <th className="py-1.5 pr-3 font-medium">
-                    {t('evaluation.annotatorAgreement.annotatorB')}
+                    {t('evaluation.annotatorAgreement.pair')}
                   </th>
                   <th className="py-1.5 pr-3 text-right font-medium">
                     {t('evaluation.annotatorAgreement.sharedTasks')}
@@ -180,11 +177,8 @@ function ControlBlock({ control }: { control: ControlAgreement }) {
                     key={`${p.annotator_a}|${p.annotator_b}`}
                     className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
                   >
-                    <td className="py-1.5 pr-3 text-zinc-800 dark:text-zinc-200">
-                      {p.annotator_a}
-                    </td>
-                    <td className="py-1.5 pr-3 text-zinc-800 dark:text-zinc-200">
-                      {p.annotator_b}
+                    <td className="py-1.5 pr-3 break-words text-zinc-800 dark:text-zinc-200">
+                      {p.annotator_a} · {p.annotator_b}
                     </td>
                     <td className="py-1.5 pr-3 text-right text-zinc-600 tabular-nums dark:text-zinc-400">
                       {formatCount(p.n_items, locale)}
