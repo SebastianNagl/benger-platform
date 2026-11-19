@@ -187,10 +187,12 @@ class TestExtensionLoader:
         # frames and lookup tables (analysis_lookup_tables, resolved_inputs).
         # 2.66 adds codes (coder plugins via register_coders, text pattern
         # sets, coding projects and code validations, the text_pattern metric).
-        # 2.67 moves analysis runs onto the evaluations page (result type,
+        # 2.67 adds analysis_count on projects, reports and the dashboard,
+        # the dashboard's corrected count keys and GET /api/runs?type=analysis.
+        # 2.68 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        assert CORE_API_VERSION == "2.67"
+        assert CORE_API_VERSION == "2.68"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

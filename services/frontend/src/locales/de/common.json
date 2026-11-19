@@ -108,6 +108,7 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "evaluations": "Evaluierungen",
+      "analyses": "Analysen",
       "openExams": "Offene Klausuren",
       "openTasks": "Offene Aufgaben",
       "submittedAnswers": "Abgegebene Antworten",
@@ -756,6 +757,8 @@
       "attemptedBadge": "Frühere Abgabe",
       "archivedBadge": "Archiviert",
       "wizardDraftBadge": "Assistenten-Entwurf",
+      "analysesBadge": "{count} Analysen",
+      "analysesBadgeOne": "1 Analyse",
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
@@ -1541,6 +1544,7 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "evaluations": "Evaluierungen",
+      "analyses": "Analysen",
       "corrections": "Korrekturen",
       "correctionsFalloesungBreakdown": "↳ Falllösung-Bewertungen",
       "correctionsGradesBreakdown": "↳ Bewertungen durch Korrigierende",
@@ -7561,6 +7565,7 @@
       "participants": "Teilnehmende",
       "modelsEvaluated": "Evaluierte Modelle",
       "evaluations": "Bewertungen",
+      "analyses": "Analysen",
       "data": "Daten",
       "defaultDataText": "Der Datensatz umfasst {count} Aufgaben.",
       "annotations": "Abgaben",
@@ -7624,6 +7629,7 @@
     "tasks": "Aufgaben",
     "annotations": "Annotationen",
     "models": "Modelle evaluiert",
+    "analyses": "Analysen",
     "viewReport": "Bericht anzeigen",
     "comingSoon": "Berichte in Kürze verfügbar",
     "comingSoonDescription": "Die Berichtsfunktion wird derzeit entwickelt. Hier kannst du später veröffentlichte Evaluierungsergebnisse einsehen.",
@@ -9252,10 +9258,11 @@
   },
   "runs": {
     "title": "Läufe",
-    "subtitle": "Inventar einzelner Generierungs- und Evaluierungsläufe. Klicke eine Zeile an, um die Details des Laufs zu sehen.",
+    "subtitle": "Inventar einzelner Generierungs-, Evaluierungs- und Analyseläufe. Klicke eine Zeile an, um die Details des Laufs zu sehen.",
     "tabs": {
       "evaluation": "Evaluierungen",
-      "generation": "Generierungen"
+      "generation": "Generierungen",
+      "analysis": "Analysen"
     },
     "filterProject": "Projekt",
     "filterStatus": "Status",

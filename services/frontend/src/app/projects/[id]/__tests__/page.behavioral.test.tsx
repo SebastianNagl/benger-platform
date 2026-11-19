@@ -677,6 +677,24 @@ describe('ProjectDetailPage — statistics + completion rate', () => {
     expect(screen.getByText('0%')).toBeInTheDocument()
   })
 
+  it('shows an Analyses line with the completed analysis runs, and none without', async () => {
+    setStore({ currentProject: { ...baseProject, analysis_count: 4 } })
+    const { unmount } = render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(screen.getByTestId('project-statistics-analyses')).toHaveTextContent(
+      '4',
+    )
+    expect(screen.getByText('project.statistics.analyses')).toBeInTheDocument()
+    unmount()
+
+    setStore({ currentProject: { ...baseProject, analysis_count: 0 } })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    expect(
+      screen.queryByTestId('project-statistics-analyses'),
+    ).not.toBeInTheDocument()
+  })
+
   it('renders the no-tasks recent-activity empty state with an import CTA', async () => {
     setStore({ currentProject: { ...baseProject, task_count: 0 } })
     render(<ProjectDetailPage params={params()} />)

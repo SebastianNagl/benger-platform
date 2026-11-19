@@ -220,6 +220,14 @@ export default function ReportViewerPage({
       label: t('reports.view.evaluations'),
       value: formatCount(stats.evaluation_count, locale),
     })
+    // Snapshots taken before analyses were counted have no analysis_count.
+    if ((stats.analysis_count ?? 0) > 0) {
+      tiles.push({
+        id: 'analyses',
+        label: t('reports.view.analyses'),
+        value: formatCount(stats.analysis_count ?? 0, locale),
+      })
+    }
   }
 
   const annotationCount = stats?.annotation_count ?? 0

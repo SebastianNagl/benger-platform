@@ -83,6 +83,7 @@ const mockReports = [
     task_count: 100,
     annotation_count: 300,
     model_count: 3,
+    analysis_count: 2,
     is_public: true,
     visibility: 'public',
     organizations: [{ id: 'org-1', name: 'TUM' }],
@@ -217,6 +218,13 @@ describe('Reports Listing Page', () => {
       expect(screen.getByText('300 annotations')).toBeInTheDocument()
       expect(screen.getByText('3 models evaluated')).toBeInTheDocument()
       expect(screen.getByText('2 models evaluated')).toBeInTheDocument()
+      // Analysis runs show only where there are some.
+      expect(
+        screen.getByTestId('report-analysis-count-report-1'),
+      ).toHaveTextContent('2 Analysen')
+      expect(
+        screen.queryByTestId('report-analysis-count-report-2'),
+      ).not.toBeInTheDocument()
       expect(screen.getAllByText('TUM').length).toBe(2)
     })
 

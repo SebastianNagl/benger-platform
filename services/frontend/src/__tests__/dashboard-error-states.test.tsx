@@ -56,16 +56,18 @@ const STAT_KEYS = [
   'project_count',
   'task_count',
   'annotation_count',
-  'projects_with_generations',
-  'projects_with_evaluations',
+  'generations_count',
+  'evaluations_count',
+  'analyses_count',
 ]
 
 const stats = {
   project_count: 48,
   task_count: 1200,
   annotation_count: 530,
-  projects_with_generations: 86000,
-  projects_with_evaluations: 250,
+  generations_count: 86000,
+  evaluations_count: 250,
+  analyses_count: 0,
 }
 
 const projectPage = {
@@ -240,7 +242,7 @@ describe('Dashboard error states', () => {
   it('still shows real zero counts as 0', async () => {
     ;(api.getDashboardStats as jest.Mock).mockResolvedValue({
       ...stats,
-      projects_with_evaluations: 0,
+      evaluations_count: 0,
     })
 
     renderDashboard()

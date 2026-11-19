@@ -523,6 +523,9 @@ class ProjectResponse(ProjectBase):
     # contribute to progress_percentage when enable_evaluation is true.
     evaluation_count: int = 0
     evaluations_completed_count: int = 0
+    # Completed analysis runs of the project (routers.projects.helpers.
+    # count_analysis_runs_by_project) — the Statistiken "Analyses" tile.
+    analysis_count: int = 0
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None
@@ -601,7 +604,7 @@ class ProjectResponse(ProjectBase):
     annotator_step_detail_after_submit: Optional[bool] = None
     allow_external_paste: bool = True
     allow_solution_upload: bool = True
-    handwriting_ocr_enabled: bool = False
+    handwriting_ocr_enabled: bool = True
     handwriting_ocr_model: Optional[str] = None
     enable_annotation: bool = True
     enable_generation: bool = True

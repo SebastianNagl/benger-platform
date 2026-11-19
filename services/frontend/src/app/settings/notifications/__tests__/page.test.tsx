@@ -760,8 +760,15 @@ describe('NotificationSettingsPage', () => {
 
     it('shows saving state during save', async () => {
       const user = userEvent.setup()
+      // The save stays pending until the test has seen the saving state; a
+      // timer-resolved save could finish before the assertion on a loaded
+      // runner.
+      let finishSave: (value?: unknown) => void = () => {}
       ;(api.updateNotificationPreferences as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
+        () =>
+          new Promise((resolve) => {
+            finishSave = resolve
+          }),
       )
 
       render(<NotificationSettingsPage />)
@@ -779,6 +786,9 @@ describe('NotificationSettingsPage', () => {
 
       expect(screen.getByText('Saving...')).toBeInTheDocument()
       expect(saveButton).toBeDisabled()
+
+      finishSave()
+      await waitFor(() => expect(saveButton).not.toBeDisabled())
     })
 
     it('handles save error', async () => {
