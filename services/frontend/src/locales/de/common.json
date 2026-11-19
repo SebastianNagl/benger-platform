@@ -11938,6 +11938,7 @@
       "prefillFailed": "Die Spezifikation dieses Laufs konnte nicht geladen werden.",
       "more": "Die neuesten {shown} von {total} Läufen.",
       "col": {
+        "name": "Name",
         "rows": "Zeilen im Frame",
         "estimates": "Schätzungen",
         "specHash": "Spec-Hash"

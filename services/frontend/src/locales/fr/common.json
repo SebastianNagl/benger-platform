@@ -11938,6 +11938,7 @@
       "prefillFailed": "La spécification de cette analyse n'a pas pu être chargée.",
       "more": "Les {shown} analyses les plus récentes sur {total}.",
       "col": {
+        "name": "Nom",
         "rows": "Lignes du frame",
         "estimates": "Estimations",
         "specHash": "Hash de la spécification"

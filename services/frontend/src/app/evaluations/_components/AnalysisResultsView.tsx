@@ -240,7 +240,7 @@ export interface AnalysisResultsViewProps {
   filterBarLead: ReactNode
   /** URL parameters to restore the view from, read once on mount. */
   initialParams: InitialParams | null
-  /** Whether the viewer may start runs (CONTRIBUTOR, ORG_ADMIN, superadmin). */
+  /** Whether the viewer may start runs (superadmin or the project's can_edit). */
   canStart: boolean
 }
 

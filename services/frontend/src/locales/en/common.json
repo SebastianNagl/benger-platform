@@ -11938,6 +11938,7 @@
       "prefillFailed": "The spec of that run could not be loaded.",
       "more": "Showing the newest {shown} of {total} runs.",
       "col": {
+        "name": "Name",
         "rows": "Frame rows",
         "estimates": "Estimates",
         "specHash": "Spec hash"

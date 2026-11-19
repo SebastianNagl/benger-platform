@@ -290,6 +290,10 @@ describe('RunsPage', () => {
       'true',
     )
     expect(screen.getByText('Analysen')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'Name' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('analysis.list.col.name')).toBeNull()
     expect(screen.getByText('480')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByTitle('abcdef0123456789abcdef')).toHaveTextContent(
