@@ -10,9 +10,10 @@ numbers appear in two places:
 - in the project report, at the end of the Annotation section, frozen into
   the report snapshot when the report is published or refreshed. The report
   editor's Annotation card has a switch to hide the block. When the card's
-  participant switch is off, the report keeps the summary numbers but drops
-  the annotator pair table, both on screen and in the stored snapshot (until
-  a refresh after the switch is turned back on).
+  participant switch is off, the report keeps the summary numbers but every
+  API response that carries the report or its snapshot leaves out the
+  annotator pairs. The stored snapshot stays complete, so switching
+  participants back on shows the frozen pair table again without a refresh.
 
 Both places hide the block when no task has two annotators, or when none of
 the overlapping controls can be scored.

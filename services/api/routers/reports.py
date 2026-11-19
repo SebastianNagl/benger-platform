@@ -164,14 +164,21 @@ class ReportDataResponse(BaseModel):
     snapshot: Optional[Dict[str, Any]] = None
 
 
+def _served_snapshot(content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The stored snapshot as the report's sections allow it to be served
+    (see ``apply_section_visibility``); the stored copy stays complete."""
+    return apply_section_visibility(content.get("snapshot"), content.get("sections"))
+
+
 def _report_response(
     report: ProjectReport, project_title: str, can_publish: bool, reason: str
 ) -> "ReportResponse":
+    content = report.content if isinstance(report.content, dict) else {}
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
-        content=ReportContent(**report.content),
+        content=ReportContent(**{**content, "snapshot": _served_snapshot(content)}),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
         published_at=report.published_at,
@@ -213,13 +220,6 @@ def _build_snapshot_sync(sync_db, project_id: str):
     """Compute the report snapshot on the bridged sync session (SQL
     aggregation only — see report_snapshot)."""
     return build_report_snapshot(sync_db, project_id)
-
-
-def _with_snapshot(content: Optional[Dict[str, Any]], snapshot: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Report content carrying ``snapshot`` as its sections allow it to be
-    stored and served (see ``apply_section_visibility``)."""
-    content = content or {}
-    return {**content, "snapshot": apply_section_visibility(snapshot, content.get("sections"))}
 
 
 def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
@@ -405,13 +405,11 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned and survives a body that omits it.
+    # the computed snapshot is server-owned, so the stored one is kept.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
-    snapshot = new_content.get("snapshot")
-    if snapshot is None:
-        snapshot = existing.get("snapshot")
-    report.content = _with_snapshot(new_content, snapshot)
+    new_content["snapshot"] = existing.get("snapshot")
+    report.content = new_content
     report.updated_at = datetime.utcnow()
 
     await db.commit()
@@ -473,7 +471,7 @@ async def publish_report(
 
     # Freeze the numbers, then publish
     snapshot = await db.run_sync(_build_snapshot_sync, project_id)
-    report.content = _with_snapshot(report.content, snapshot)
+    report.content = {**(report.content or {}), "snapshot": snapshot}
     report.is_published = True
     report.is_public = bool(body.is_public) if body else False
     report.published_at = datetime.utcnow()
@@ -600,7 +598,7 @@ async def refresh_report_snapshot(
         )
     project, report = await _load_project_and_report(db, project_id)
     snapshot = await db.run_sync(_build_snapshot_sync, project_id)
-    report.content = _with_snapshot(report.content, snapshot)
+    report.content = {**(report.content or {}), "snapshot": snapshot}
     report.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(report)
@@ -767,15 +765,12 @@ async def get_report_data(
         await check_report_access(db, report.project_id, current_user, require_edit=False)
 
     content = report.content if isinstance(report.content, dict) else {}
-    snapshot = content.get("snapshot")
-    if snapshot is None and is_superadmin:
+    if content.get("snapshot") is None and is_superadmin:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
-        report.content = _with_snapshot(
-            content, await db.run_sync(_build_snapshot_sync, report.project_id)
-        )
+        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
+        report.content = {**content, "snapshot": snapshot}
         await db.commit()
         await db.refresh(report)
-        snapshot = report.content.get("snapshot")
 
     can_publish, reason = (
         await db.run_sync(_can_publish_report_sync, report.project_id)
@@ -785,5 +780,5 @@ async def get_report_data(
 
     return ReportDataResponse(
         report=_report_response(report, report.project.title, can_publish, reason),
-        snapshot=snapshot,
+        snapshot=_served_snapshot(report.content if isinstance(report.content, dict) else {}),
     )

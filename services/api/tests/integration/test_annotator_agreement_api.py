@@ -261,8 +261,6 @@ async def test_report_agreement_pairs_follow_show_participants(
         public.json()["snapshot"],
         public.json()["report"]["content"]["snapshot"],
     ]
-    await async_test_db.refresh(report)
-    payloads.append(report.content["snapshot"])
     for snap in payloads:
         agreement = snap["annotator_agreement"]
         (label,) = agreement["controls"]
@@ -271,25 +269,53 @@ async def test_report_agreement_pairs_follow_show_participants(
         assert label["percent_agreement"] == pytest.approx(0.5)
         assert agreement["annotator_count"] == 3
         assert _pair_names(agreement) == expected_names
+    await async_test_db.refresh(report)
+    assert _pair_names(report.content["snapshot"]["annotator_agreement"]) == {"Ash", "Birch", "Cedar"}
 
 
 @pytest.mark.asyncio
-async def test_hiding_participants_after_publish_drops_stored_pairs(async_test_client, async_test_db, publishable):
+async def test_participant_switch_hides_and_restores_frozen_pairs(async_test_client, async_test_db, publishable):
     admin, project = await _seed_overlap(async_test_db)
     report = await _report(async_test_db, project, admin, show_participants=True)
+    all_names = {"Ash", "Birch", "Cedar"}
+
+    async def save(show_participants):
+        with _as_user(admin):
+            editor = await async_test_client.get(f"/api/projects/{project.id}/report")
+            content = editor.json()["content"]
+            content["sections"]["annotations"]["show_participants"] = show_participants
+            return await async_test_client.post(f"/api/projects/{project.id}/report", json={"content": content})
+
+    async def served():
+        with _as_user(admin):
+            editor = await async_test_client.get(f"/api/projects/{project.id}/report")
+            visibility = await async_test_client.put(
+                f"/api/projects/{project.id}/report/visibility", json={"is_public": True}
+            )
+        with _as_user(None):
+            public = await async_test_client.get(f"/api/reports/{report.id}/data")
+        for r in (editor, visibility, public):
+            assert r.status_code == 200, r.text
+        return [
+            editor.json()["content"]["snapshot"],
+            visibility.json()["content"]["snapshot"],
+            public.json()["snapshot"],
+            public.json()["report"]["content"]["snapshot"],
+        ]
 
     with _as_user(admin):
         published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
-        assert _pair_names(published.json()["content"]["snapshot"]["annotator_agreement"]) == {"Ash", "Birch", "Cedar"}
-        content = published.json()["content"]
-        content.pop("snapshot")
-        content["sections"]["annotations"]["show_participants"] = False
-        saved = await async_test_client.post(f"/api/projects/{project.id}/report", json={"content": content})
-    assert saved.status_code == 200, saved.text
-    with _as_user(None):
-        public = await async_test_client.get(f"/api/reports/{report.id}/data")
+    frozen_at = published.json()["content"]["snapshot"]["generated_at"]
+    assert _pair_names(published.json()["content"]["snapshot"]["annotator_agreement"]) == all_names
 
-    assert public.status_code == 200
-    agreement = public.json()["snapshot"]["annotator_agreement"]
-    assert agreement["controls"][0]["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
-    assert _pair_names(agreement) == set()
+    hidden = await save(False)
+    assert hidden.status_code == 200, hidden.text
+    for snap in [hidden.json()["content"]["snapshot"], *await served()]:
+        assert snap["annotator_agreement"]["controls"][0]["fleiss_kappa"] == pytest.approx(1 / 3, abs=1e-4)
+        assert _pair_names(snap["annotator_agreement"]) == set()
+
+    shown = await save(True)
+    assert shown.status_code == 200, shown.text
+    for snap in [shown.json()["content"]["snapshot"], *await served()]:
+        assert snap["generated_at"] == frozen_at
+        assert _pair_names(snap["annotator_agreement"]) == all_names

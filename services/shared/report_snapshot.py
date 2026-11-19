@@ -287,7 +287,7 @@ def _empty_bins(n: int) -> List[int]:
 def apply_section_visibility(
     snapshot: Optional[Dict[str, Any]], sections: Optional[Dict[str, Any]]
 ) -> Optional[Dict[str, Any]]:
-    """The snapshot as a report with these sections may store and serve it.
+    """The snapshot as a report with these sections may serve it.
 
     With ``sections.annotations.show_participants`` off, the annotator
     agreement keeps its aggregate numbers but drops the per-pair rows, which
