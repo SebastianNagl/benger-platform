@@ -131,7 +131,10 @@ def fake_http(monkeypatch):
     for p in patchers:
         p.start()
     yield _serve
-    for p in patchers:
+    # The three targets are one attribute (the services share the aiohttp
+    # module): undo in reverse order, or the last stop restores the fake and
+    # it leaks into every later test that uses real aiohttp.
+    for p in reversed(patchers):
         p.stop()
 
 

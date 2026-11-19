@@ -19,7 +19,7 @@ from analysis.observations import observations_from_records  # noqa: E402
 from analysis.runner import run_spec  # noqa: E402
 from analysis.spec import normalize_spec, spec_hash  # noqa: E402
 from analysis.version import ENGINE_VERSION, SPEC_VERSION  # noqa: E402
-from analysis_synthetic import role_swap_records, role_swap_spec  # noqa: E402
+from analysis_synthetic import role_swap_design, role_swap_records, role_swap_spec  # noqa: E402
 
 UNITS = 12
 
@@ -40,9 +40,12 @@ def seeded(db_conn, make_project, make_user):
     failed generation."""
     from models import Generation, ResponseGeneration
     from project_models import Task
+    from variant_design_guard import new_design_row
 
     user = make_user()
     project = make_project(created_by=user.id)
+    db_conn.add(new_design_row(project.id, "role_swap", role_swap_design(), created_by=user.id))
+    db_conn.commit()
     records = role_swap_records(units=UNITS)
     task_ids = {}
     rows = []

@@ -691,6 +691,29 @@ async def get_all_default_configs(
 
 
 # Exception handlers
+from sqlalchemy.exc import DBAPIError  # noqa: E402
+
+from variant_design_guard import VariantDesignError, error_from_db  # noqa: E402
+
+
+@app.exception_handler(VariantDesignError)
+async def variant_design_error_handler(request, exc: VariantDesignError):
+    """A refused variant-design write (invalid ``meta.variant``, unknown or
+    frozen design), raised by the flush guard or the design routes."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(DBAPIError)
+async def variant_design_db_error_handler(request, exc: DBAPIError):
+    """The database's own variant guards (frozen-design trigger, one task per
+    cell, design key) become their 409/422; any other database error goes on
+    to the global handler unchanged."""
+    mapped = error_from_db(exc)
+    if mapped is None:
+        raise exc
+    return JSONResponse(status_code=mapped.status_code, content={"detail": mapped.detail})
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """Global exception handler for unhandled errors"""

@@ -45,7 +45,15 @@ async def get_available_fields(
 
         # Extract human annotation fields directly from label_config (most reliable source)
         if project.label_config:
-            label_config_fields = LabelConfigParser.extract_field_names(project.label_config)
+            from services.label_config.project_expansion import (
+                expanded_project_label_config_async,
+            )
+
+            # A <Repeater> contributes its indexed fields (risk_0, risk_1, ...)
+            label_config_for_fields, _ = await expanded_project_label_config_async(
+                db, project_id, project.label_config
+            )
+            label_config_fields = LabelConfigParser.extract_field_names(label_config_for_fields)
             human_fields.update(label_config_fields)
 
         # Also check evaluation_config for reference fields (to_name mappings)

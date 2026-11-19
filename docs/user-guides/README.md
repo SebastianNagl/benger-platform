@@ -27,6 +27,7 @@ Welcome to the BenGER user documentation. This section contains guides tailored 
 ## Feature Guides
 
 - **[Data Import & Export](data-import-export.md)** - Complete guide to data import/export including BenGER JSON format
+- **[Variant Designs](variant-designs.md)** - Declaring, checking and freezing variant experiments (counterfactual and robustness tests)
 - **[Evaluation System](evaluation.md)** - Running model evaluations
 - **[Public API](../public-api.md)** - Using the BenGER API with per-organisation access keys (ships with the next release)
 - **[Export & Integration](export.md)** - Exporting data and integrations

@@ -14,6 +14,7 @@ This module aggregates all project-related endpoints into sub-routers:
 - generation_reparse: re-parse stored generations (superadmin)
 - label_config_versions: Label config version management
 - wizard_drafts: creation-wizard draft projects (CORE 2.55)
+- variant_designs: variant experiment designs, checks and freeze (CORE 2.59)
 """
 
 from fastapi import APIRouter
@@ -34,6 +35,7 @@ from routers.projects import (
     shares,
     srs,
     tasks,
+    variant_designs,
     wizard_drafts,
 )
 
@@ -62,6 +64,7 @@ router.include_router(generation_reparse.router)
 router.include_router(drafts.router)
 router.include_router(questionnaire.router)
 router.include_router(label_config_versions.router)
+router.include_router(variant_designs.router)
 # Student experience (issue #35): read-only SRS + project-scoped share ops.
 # shares also exposes a token-scoped router mounted at the app level in main.py.
 router.include_router(srs.router)

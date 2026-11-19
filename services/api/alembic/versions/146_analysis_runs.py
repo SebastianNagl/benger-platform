@@ -25,7 +25,7 @@ Idempotent: every step is guarded, so a database built from the models (the
 test DB) runs it as a no-op.
 
 Revision ID: 146_analysis_runs
-Revises: 145_compliance_findings
+Revises: 143_generation_request_record
 Create Date: 2026-11-18
 """
 
@@ -36,7 +36,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "146_analysis_runs"
-down_revision = "145_compliance_findings"
+down_revision = "143_generation_request_record"
 branch_labels = None
 depends_on = None
 

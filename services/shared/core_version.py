@@ -1077,7 +1077,165 @@ migration).
     ``is_transient_upstream_error``, the DeepInfra / Custom backoff
     predicate.
 
-2.59 (2026-11-18): the analysis engine for variant experiments (migration 146).
+2.59 (2026-11-18): variant designs, the declared and freezable design of a
+  variant experiment (counterfactual and robustness tests), migration 142.
+  - Table ``variant_designs`` (``project_models.VariantDesign``: ``key``
+    unique per project, ``spec`` JSONB, ``version``, ``status``
+    draft|frozen, ``content_hash``, ``frozen_at/by``, ``provenance``). The
+    spec follows ``shared/schemas/variant_design.schema.json`` (factors with
+    typed levels, ``role`` and ``source`` task|structure|system|run, the
+    unit, optional slots, outcome, gold and invariance bindings).
+  - ``task.meta.variant`` is a reserved key (``variant_designs.META_KEY``,
+    ``shared/schemas/task_variant.schema.json``: ``design``, ``unit``,
+    ``factors``, ``slots``, ``spans``, ``provenance``) and the single source
+    of each task's place in a design. ``tasks.variant_design`` /
+    ``variant_unit`` / ``variant_cell`` are derived from it by the trigger
+    ``trg_tasks_variant_sync`` (``project_models.TASKS_VARIANT_DDL``); never
+    write them. ``variant_cell`` is the design cell (the within-unit task
+    factors of the assignment), and ``uq_tasks_variant_cell`` allows one
+    task per cell and unit,
+    ``fk_tasks_variant_design`` requires the design (a writer flushes a
+    new design before its tasks).
+  - Every ORM flush validates the ``meta.variant`` it writes against its
+    design (``variant_design_guard.check_session_tasks``, a ``before_flush``
+    listener on every Session). Refusals raise
+    ``variant_design_guard.VariantDesignError`` (``status_code``, ``code``,
+    ``detail``); the API answers them, and the database guards'
+    errors (``error_from_db``), with 422/409 ``{"detail": {"code",
+    "message", "problems"?}}``; the importers raise ``ImportValidationError``.
+  - A frozen design makes its tasks' ``data`` and ``meta.variant``
+    read-only and takes no new tasks (the trigger; SQLSTATE 23001, message
+    ``variant_design_frozen``), and their bulk delete answers 409. An
+    overlay that writes task data must expect that refusal.
+  - Pure rules in ``variant_designs`` (``validate_spec``, ``DesignView``,
+    ``validate_task_variant``, ``DesignCheck``/``check_design`` for the
+    assignment, balance and span-invariance checks, ``content_hash``);
+    service functions in ``variant_design_guard`` (``run_checks``,
+    ``freeze_design``, ``update_design_spec``, ``serialize_design``,
+    ``export_document``, ``iter_design_records``).
+  - Routes under ``/api/projects/{id}/variant-designs`` (list, create,
+    ``import``, get, ``export``, PUT spec, DELETE draft, ``check``,
+    ``freeze``); reads need the full-data tier, writes edit rights.
+  - Exports carry ``variant_designs`` (JSON and comprehensive, only when
+    the project has any) and ``variant_design`` records (NDJSON); every
+    importer creates them before the tasks and freezes them again (same
+    content hash) before its commit. A flat import row may carry
+    ``meta.variant`` as JSON in a column of that name. The v1 task reads
+    never carry ``meta.variant``.
+
+2.60 (2026-11-19): per-slot label configs (Label Studio ``<Repeater>``; no
+migration).
+  - Label configs may contain ``<Repeater on="$array" indexFlag="{{idx}}">``.
+    It is expanded against each task's data exactly as Label Studio's
+    ``Tree.tsx`` expands it (children once per array element, the index flag
+    replaced by the 0-based element index in every attribute, the Repeater
+    becoming a ``<View>``), so results are stored under plain indexed control
+    names (``risk_0``, ``risk_1``, ...). BenGER attributes ``answerKey`` and
+    ``answerKeyStart`` (default 1) name the key that identifies an item in an
+    array answer. Rules (``label_config_repeater.repeater_errors``, enforced
+    by ``LabelConfigValidator``): ``on`` is a ``$`` binding (looked up
+    exactly, case-sensitive), no nesting, every named control carries the
+    flag in its name, at most once per attribute, no expanded name equals an
+    outside control's name or another template's expansion, and answer keys
+    are unique.
+  - ``shared/label_config_repeater.py``: ``expand_repeaters(config,
+    task_data)`` (a config without a Repeater comes back unchanged),
+    ``expand_repeaters_with_counts`` (to given counts, e.g. the longest
+    array), ``repeater_blocks`` (``RepeaterBlock`` / ``RepeaterControl``
+    with ``answer_property``, ``item_key``, ``item_count``),
+    ``map_array_answers`` (``ArrayAnswerError``), ``repeater_answer_schema``,
+    ``repeater_answer_example``, ``derive_slot_map(config, task_data,
+    patterns)`` (slot index to control names, from a Repeater or from
+    ``{idx}`` name patterns for hand-written indexed controls) and
+    ``control_targets``.
+  - ``ResponseParser.parse(..., task_data=None)``: required for a Repeater
+    config; an array answer (top-level list for the only block, or an object
+    keyed by ``answer_property``) is mapped onto the indexed names, by
+    ``answerKey`` or by position, and a misfitting array is a
+    ``validation_error``; only blocks with answer controls take array
+    answers. ``generate_json_schema_from_label_config(...,
+    task_data=None)`` and ``generate_format_instructions(...,
+    task_data=None)`` describe a Repeater block as one array of objects,
+    pinned to the task's item count when ``task_data`` is given. The
+    generation worker and the reparse route pass the task's data.
+  - ``LabelConfigParser.extract_fields``: a field inside a Repeater keeps
+    its template name with a ``repeater`` entry (expand the config first for
+    indexed names); ``bound_data_fields`` includes a Repeater's ``on`` array
+    instead of the bindings into its items, and blinding reads ``$a[i].b``
+    as the top-level key ``a``.
+  - ``services/label_config/project_expansion.expanded_project_label_config_async``
+    (longest array per Repeater, one SQL aggregate each), used by evaluation
+    field detection, the multi-field field list and the ``answer_fields`` of
+    the v1 project view (``serialize_project_public`` takes
+    ``expanded_label_config``). The stored evaluation config of a Repeater
+    project keeps the ``repeater_item_counts`` it was expanded to and is
+    regenerated on read when the tasks' counts change.
+  - ``ResponseParser`` JSON extraction: a JSON boolean answering a Choices
+    field with "true"/"false" choices is stored as that choice; a closing
+    code fence may follow the JSON directly; when neither a fenced block nor
+    the whole text decodes, the last JSON object or array in the text is
+    read; a ``<Choices choice="multiple">`` (or ``"multiple-dropdown"``)
+    answer may be a list of choices, stored as ``value.choices``; the
+    structured-output schema asks for a list of the choice values there,
+    also inside a Repeater block.
+  - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
+    expanded for Label Studio, with ``item_counts``) and ``GET
+    /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).
+  - The Label Studio task export fills a result's missing or dangling
+    ``to_name`` from its control's ``toName`` in the task's expanded config
+    (``convert_to_label_studio_format(results, targets)``); stored results are
+    unchanged.
+  - Frontend: ``parseLabelConfig(xml, taskData?)`` expands Repeaters
+    (``@/lib/labelConfig/repeater``, exact path lookup like the backend),
+    data bindings resolve ``[n]`` indexes, and
+    ``extractFieldsFromLabelConfig(xml, tasksData)`` (project creation
+    wizard) lists a Repeater's indexed names to the longest array of the
+    imported tasks, none without data.
+
+2.61 (2026-11-19): generation fidelity (migration 143).
+  - ``generations.request_record`` (JSONB), ``request_sha256``,
+    ``first_response_content`` and ``retried`` (``models.Generation``). The
+    record holds every request the provider client sent for the generation
+    (``ai_services.request_capture``: ``capture_requests()`` scope,
+    ``record_request(provider, api, body, capture=...)`` called by every
+    provider service right before its send, ``build_request_record``,
+    ``request_sha256``, ``normalized_view``); for SDK clients the body is
+    replaced by the JSON the SDK hands to httpx / httpx2 inside the scope
+    (``capture: "http_body"``, with ``path``). A provider service added by
+    an overlay records its requests the same way, or the worker stores the
+    call it made marked ``capture: "worker_call"``.
+  - Provider services take ``continuation=[{role, content}, ...]`` on
+    ``generate`` / ``generate_structured``: turns sent after the first user
+    prompt (``base_service.continuation_turns``).
+  - Prompt structures take ``append_schema_instruction``,
+    ``structured_output`` (``auto`` / ``off``), ``format_retry``,
+    ``answer_schema`` and ``refusal_heuristic`` (``generation_fidelity``:
+    ``answer_format(structure)``, ``answer_skeleton(label_config,
+    task_data, answer_keys)`` and ``schema_instruction``,
+    ``render_answer_schema`` / ``AnswerKeys``, ``refusal_matches``,
+    ``MAX_GENERATION_RUNS_PER_TASK`` = 100). The appended skeleton lists the
+    flat answer fields under their rendered answer keys plus one example
+    object per item for each Repeater block; a config without a Repeater
+    appends the same text as before. ``ResponseParser`` takes
+    ``answer_keys`` (kept by the per-task Repeater parser);
+    ``ParseResult.mapped_values``; ``answer_controls(task_data)`` names the
+    indexed controls the format retry checks a parse against.
+  - ``GET /api/runs/generations/{id}`` children carry
+    ``has_request_record``, ``request_sha256``, ``retried`` and
+    ``first_response_preview``; ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` returns one trial's ``request_record`` and
+    ``request_sha256`` (same access rules, 404 for a trial of another run).
+  - Exports carry every generation column in both modes (``data`` also
+    names the job's ``structure_key``); the task-level import keeps them,
+    groups jobs by model and structure and keeps each row's ``run_index``.
+  - The ``system`` block's ``parameter_profile`` is read from the first
+    request the client sent (``system_profile.parameters_sent(entry)``, per
+    API: chat.completions, openai.responses, anthropic.messages,
+    google.generate_content, mistral.chat, cohere.chat), so filled-in and
+    coerced values count; a ``worker_call`` entry or a body without those
+    parameters falls back to the run config as in 2.56.
+
+2.62 (2026-11-19): the analysis engine for variant experiments (migration 146).
   - ``services/shared/analysis`` (``import analysis``; importing the package
     pulls in no numeric library): ``analysis.spec`` (``validate_spec``,
     ``normalize_spec``, ``spec_hash``, ``SpecError``, ``DEFAULT_CONVENTIONS``,
@@ -1088,7 +1246,9 @@ migration).
     ``analysis.db_source.iter_observations(db, project_id, inputs, counts)``
     (the seam to ``tasks.meta.variant``; the frame's ``system`` column is
     the generation's system key ``response_metadata.system.key``, see 2.56,
-    and falls back to the model id for answers generated before 2.56),
+    read from the metadata as stored (a JSON object or its JSON text), and
+    falls back to the model id for answers generated before 2.56; its
+    ``retried`` column is ``generations.retried``, see 2.61),
     ``analysis.frame``
     (``build_frame``, ``frame_hash``, ``to_parquet``, ``from_parquet``),
     ``analysis.runner.run_spec(frame, spec)`` (estimates in a fixed order with
@@ -1118,7 +1278,7 @@ migration).
 
 import os
 
-CORE_API_VERSION = "2.59"
+CORE_API_VERSION = "2.62"
 
 
 def extended_required() -> bool:

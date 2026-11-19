@@ -58,6 +58,7 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
+import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
@@ -2430,7 +2431,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <Input
                             type="number"
                             min={1}
-                            max={25}
+                            max={MAX_GENERATION_RUNS_PER_TASK}
                             step={1}
                             value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"

@@ -22,8 +22,16 @@ import re
 
 import tasks
 from typing import Any, Dict, Optional
+from ai_services.request_capture import build_request_record, request_sha256
+from generation_fidelity import (
+    answer_format,
+    answer_skeleton,
+    refusal_matches,
+    render_answer_schema,
+    schema_instruction,
+)
 from response_parser import find_prompt_structure, prompt_structure_keys
-from system_profile import system_record
+from system_profile import parameters_sent, system_record
 
 
 def _resolve_seed(seed: Any, provenance: Dict[str, Dict[str, Any]]) -> int:
@@ -84,6 +92,156 @@ def _reasoning_only_note(response_data: Dict[str, Any]) -> str:
     if isinstance(reasoning, str) and reasoning.strip():
         return f"; the model returned only reasoning ({len(reasoning)} chars)"
     return ""
+
+
+def _call_provider(ai_service: Any, structured: bool, call_kwargs: Dict[str, Any]):
+    """One provider call; returns ``(response_data, captured_requests)``.
+
+    The call runs inside a request-capture scope, so ``captured_requests``
+    holds exactly what the provider client sent (see
+    ``ai_services.request_capture``); empty for a client that reports
+    nothing, such as a test double.
+    """
+    import asyncio
+
+    from ai_services.request_capture import capture_requests
+
+    fn = ai_service.generate_structured if structured else ai_service.generate
+    with capture_requests() as captured:
+        if asyncio.iscoroutinefunction(fn):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                response_data = loop.run_until_complete(fn(**call_kwargs))
+            finally:
+                loop.close()
+        else:
+            response_data = fn(**call_kwargs)
+    return response_data, list(captured)
+
+
+def _worker_call_entry(
+    provider: str, api_model_name: str, call_kwargs: Dict[str, Any], structured: bool
+) -> Dict[str, Any]:
+    """What the worker asked the client to send, for a client that reported
+    no request of its own (recorded as ``capture: "worker_call"``)."""
+    messages = [
+        {"role": "system", "content": call_kwargs.get("system_prompt") or ""},
+        {"role": "user", "content": call_kwargs.get("prompt") or ""},
+        *(call_kwargs.get("continuation") or []),
+    ]
+    body: Dict[str, Any] = {"model": api_model_name, "messages": messages}
+    if structured:
+        body["response_format"] = {"json_schema": call_kwargs.get("json_schema")}
+    for key in ("temperature", "max_tokens", "seed", "reasoning_effort",
+                "thinking_budget", "prompt_mode", "thinking_token_budget"):
+        if call_kwargs.get(key) is not None:
+            body[key] = call_kwargs[key]
+    return {"provider": provider, "api": "worker_call", "capture": "worker_call", "sends": 0, "body": body}
+
+
+def _extract_response(
+    response_data: Dict[str, Any],
+    *,
+    model: Any,
+    model_id: str,
+    ai_service: Any,
+    base_metadata: Dict[str, Any],
+):
+    """``(text, usage, metadata)`` of one successful provider response.
+
+    Raises on a provider error and on an empty answer, like the trial did
+    inline before format retries needed it twice.
+    """
+    if not response_data.get("success", True):
+        raw_error = response_data.get("error", "Unknown AI service error")
+        # Try to extract the human-readable message from API error JSON
+        match = re.search(r"'message':\s*'([^']+)'", str(raw_error))
+        error_msg = match.group(1) if match else str(raw_error)
+        raise Exception(error_msg + _reasoning_only_note(response_data))
+
+    audit = {
+        # Phase 6.1+6.2+6.5: merge the AI-service-side audit trail
+        # (requested/actual temperature, retry history, provider route,
+        # billed user/org). It can't override the worker-set keys.
+        **{
+            k: v
+            for k, v in (response_data.get("metadata") or {}).items()
+            if k not in {"prompt_id", "prompt_name", "system_prompt", "instruction_prompt"}
+        },
+        # Issue #82: stamp the key-resolution audit fields directly off the
+        # service so every provider (not just openai) lands them.
+        "key_resolution_route": getattr(ai_service, "_key_resolution_route", None),
+        "provider_name": getattr(ai_service, "_provider_name", None),
+        "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
+        "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
+        "invocation_project_id": getattr(ai_service, "_invocation_project_id", None),
+    }
+    if "response_text" in response_data:
+        response_text = response_data["response_text"]
+        usage_stats = {
+            "prompt_tokens": response_data.get("prompt_tokens", 0),
+            "completion_tokens": response_data.get("completion_tokens", 0),
+            "total_tokens": response_data.get("total_tokens", 0),
+            "cost_usd": response_data.get("cost_usd", 0.0),
+        }
+        provider = response_data.get("provider", model.provider)
+    elif "content" in response_data:
+        # OpenAI format
+        response_text = response_data["content"]
+        usage_stats = response_data.get("usage", {})
+        provider = model.provider
+    else:
+        tasks.logger.error(
+            f"❌ Unexpected response format - available keys: {list(response_data.keys())}"
+        )
+        raise Exception(f"Unexpected response format: {response_data}")
+
+    metadata = {
+        **base_metadata,
+        "temperature": response_data.get("temperature", 0.0),
+        "provider": provider,
+        **audit,
+    }
+
+    # Reject empty responses from any provider
+    if not response_text or not response_text.strip():
+        reasoning_note = _reasoning_only_note(response_data)
+        if reasoning_note:
+            raise Exception(
+                f"AI service returned an empty answer for {model_id}{reasoning_note}"
+            )
+        raise Exception(f"AI service returned empty response for {model_id}")
+    return response_text, usage_stats, metadata
+
+
+def _answer_fields_parsed(parse_result: Any, answer_controls: Any) -> bool:
+    """Whether a parse read at least one of the parser's answer controls.
+
+    The parser's pattern fallback reports success for any text, filing it
+    under ``__response__``; for a format retry that is an unparsed answer.
+    """
+    if parse_result is None or getattr(parse_result, "status", None) != "success":
+        return False
+    names = set(answer_controls or ())
+    for item in getattr(parse_result, "parsed_annotation", None) or []:
+        if isinstance(item, dict) and item.get("from_name") in names:
+            return True
+    return False
+
+
+def _add_usage(total: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
+    """Token and cost totals of two calls of one generation."""
+    if not isinstance(total, dict):
+        return dict(extra) if isinstance(extra, dict) else total
+    if not isinstance(extra, dict):
+        return total
+    merged = dict(total)
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens", "cost_usd"):
+        a, b = total.get(key), extra.get(key)
+        if isinstance(a, (int, float)) or isinstance(b, (int, float)):
+            merged[key] = (a or 0) + (b or 0)
+    return merged
 
 
 def _notify_generation_failed(
@@ -372,7 +530,6 @@ def generate_llm_responses_impl(
 
     try:
         # Import additional modules needed for generation
-        import asyncio
         import json
         import uuid
         from datetime import datetime
@@ -661,6 +818,20 @@ def generate_llm_responses_impl(
                 "system_prompt": _template_of(generation_structure.get("system_prompt")),
                 "instruction_prompt": _template_of(generation_structure.get("instruction_prompt")),
             }
+            # Answer-format options change what is sent, so they are part of
+            # the prompt provenance; only options that differ from the
+            # default are added, which keeps the stored provenance of every
+            # structure without them unchanged (no regeneration of answers
+            # that are still current).
+            _format_record = answer_format(generation_structure).as_record()
+            _format_defaults = answer_format({}).as_record()
+            _captured_prompt_templates.update(
+                {
+                    k: v
+                    for k, v in _format_record.items()
+                    if v != _format_defaults[k]
+                }
+            )
             _captured_prompt_json = json.dumps(
                 _captured_prompt_templates, ensure_ascii=False, sort_keys=True
             )
@@ -758,17 +929,17 @@ def generate_llm_responses_impl(
                         tasks.logger.info(
                             f"🔒 Using generation structure '{structure_key}' for task {task_data['id']}"
                         )
-                        parser = tasks.GenerationStructureParser()
+                        structure_parser = tasks.GenerationStructureParser()
                         # V2 returns (prompts_dict, filtered_data)
-                        prompts, _filtered_data = parser.process_generation_structure(
+                        prompts, _filtered_data = structure_parser.process_generation_structure(
                             task_data=task_content,
                             generation_structure=generation_structure,
                         )
                         # The task fields the prompt draws on; recorded in the
                         # generation's case_data instead of the whole task
                         # (which carries the reference solution).
-                        prompt_inputs: Dict[str, Any] = parser.prompt_input_fields(
-                            task_content, parser.parse_structure(generation_structure)
+                        prompt_inputs: Dict[str, Any] = structure_parser.prompt_input_fields(
+                            task_content, structure_parser.parse_structure(generation_structure)
                         )
                         system_prompt = prompts.get("system_prompt") or ""
                         user_prompt = prompts.get("instruction_prompt") or ""
@@ -1049,16 +1220,33 @@ def generate_llm_responses_impl(
                         # Update last request time after the delay
                         last_request_time = time.time()
 
+                        # Answer format of the structure (generation_fidelity):
+                        # whether the label-config instruction is appended,
+                        # whether structured output is requested, a format
+                        # retry, task-dependent answer keys, and a refusal
+                        # heuristic. A structure without these options keeps
+                        # the defaults (append, structured output on).
+                        fmt = answer_format(generation_structure)
+                        answer_keys = render_answer_schema(
+                            fmt.answer_schema,
+                            task_content,
+                            is_sensitive=structure_parser.is_sensitive_path,
+                        )
+
                         # Generate JSON schema from label_config for structured output
                         json_schema = None
                         use_structured_output = False
-                        if project.label_config:
+                        if project.label_config and fmt.structured_output == "auto":
                             try:
                                 from ai_services import generate_json_schema_from_label_config
 
+                                # task_data: a <Repeater> block asks for one
+                                # object per item of this task's array.
                                 json_schema = generate_json_schema_from_label_config(
-                                    project.label_config
+                                    project.label_config, task_data=task_content
                                 )
+                                if answer_keys is not None:
+                                    json_schema = answer_keys.rename_schema(json_schema)
                                 if json_schema.get("properties"):
                                     use_structured_output = True
                                     tasks.logger.info(
@@ -1066,202 +1254,73 @@ def generate_llm_responses_impl(
                                     )
                             except Exception as schema_error:
                                 tasks.logger.warning(f"⚠️ Could not generate JSON schema: {schema_error}")
+                        use_structured_output = use_structured_output and hasattr(
+                            ai_service, 'generate_structured'
+                        )
 
-                        # Extract field names from label_config and append output schema to prompt
-                        # This ensures LLM produces fields matching annotation field names
-                        if project.label_config:
-                            output_fields = tasks.extract_label_config_fields(project.label_config)
-                            if output_fields:
-                                output_schema = {
-                                    field: "<your response>" for field in output_fields
-                                }
-                                schema_instruction = (
-                                    "\n\n---\n"
-                                    "IMPORTANT: Respond ONLY with valid JSON using these exact field names:\n"
-                                    f"```json\n{json.dumps(output_schema, indent=2)}\n```"
-                                )
-                                user_prompt = user_prompt + schema_instruction
-                                tasks.logger.info(
-                                    f"📋 Appended output schema instruction with fields: {output_fields}"
-                                )
-
-                        # Generate response using appropriate AI service
-                        if use_structured_output and hasattr(ai_service, 'generate_structured'):
-                            # Use structured output for guaranteed JSON responses
+                        # Append the label-config fields as a JSON skeleton to
+                        # the user prompt, so the answer uses the annotation
+                        # field names (or the structure's answer keys); a
+                        # <Repeater> block asks for one object per item of
+                        # this task.
+                        schema_instruction_appended = False
+                        output_schema = (
+                            answer_skeleton(project.label_config, task_content, answer_keys)
+                            if project.label_config
+                            else {}
+                        )
+                        if fmt.append_schema_instruction and output_schema:
+                            output_fields = list(output_schema)
+                            user_prompt = user_prompt + schema_instruction(output_schema)
+                            schema_instruction_appended = True
                             tasks.logger.info(
-                                f"🔧 Using structured output generation for {model.provider}"
+                                f"📋 Appended output schema instruction with fields: {output_fields}"
                             )
 
-                            # Use user_prompt directly - it already contains interpolated fields from prompt structure
-                            # DO NOT append task_content here as it contains sensitive fields (binary_solution, reasoning)
-                            final_prompt = user_prompt
+                        # Use user_prompt directly - it already contains interpolated
+                        # fields from the prompt structure. DO NOT append task_content
+                        # here: it holds sensitive fields (binary_solution, reasoning).
+                        call_kwargs: Dict[str, Any] = {
+                            "prompt": user_prompt,
+                            "system_prompt": system_prompt,
+                            "model_name": api_model_name,
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                            **reasoning_kwargs,
+                        }
+                        if use_structured_output:
+                            call_kwargs["json_schema"] = json_schema
+                        tasks.logger.info(
+                            f"🔧 Using {'structured output' if use_structured_output else 'standard'} "
+                            f"generation for {model.provider}"
+                        )
+                        response_data, captured = _call_provider(
+                            ai_service, use_structured_output, call_kwargs
+                        )
+                        sent_requests = captured or [
+                            _worker_call_entry(
+                                model.provider, api_model_name, call_kwargs, use_structured_output
+                            )
+                        ]
 
-                            # Check if service has async or sync generate_structured
-                            if asyncio.iscoroutinefunction(ai_service.generate_structured):
-
-                                async def generate_structured_response():
-                                    return await ai_service.generate_structured(
-                                        prompt=final_prompt,
-                                        system_prompt=system_prompt,
-                                        json_schema=json_schema,
-                                        model_name=api_model_name,
-                                        temperature=temperature,
-                                        max_tokens=max_tokens,
-                                        **reasoning_kwargs,
-                                    )
-
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                try:
-                                    response_data = loop.run_until_complete(
-                                        generate_structured_response()
-                                    )
-                                finally:
-                                    loop.close()
-                            else:
-                                # Sync version
-                                response_data = ai_service.generate_structured(
-                                    prompt=final_prompt,
-                                    system_prompt=system_prompt,
-                                    json_schema=json_schema,
-                                    model_name=api_model_name,
-                                    temperature=temperature,
-                                    max_tokens=max_tokens,
-                                    **reasoning_kwargs,
-                                )
-                        else:
-                            # Standard text generation (no structured output)
-                            tasks.logger.info(f"🔧 Using standard generate for {model.provider}")
-
-                            if asyncio.iscoroutinefunction(ai_service.generate):
-
-                                async def generate_response():
-                                    return await ai_service.generate(
-                                        prompt=user_prompt,
-                                        system_prompt=system_prompt,
-                                        model_name=api_model_name,
-                                        temperature=temperature,
-                                        max_tokens=max_tokens,
-                                        **reasoning_kwargs,
-                                    )
-
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                try:
-                                    response_data = loop.run_until_complete(
-                                        generate_response()
-                                    )
-                                finally:
-                                    loop.close()
-                            else:
-                                response_data = ai_service.generate(
-                                    prompt=user_prompt,
-                                    system_prompt=system_prompt,
-                                    model_name=api_model_name,
-                                    temperature=temperature,
-                                    max_tokens=max_tokens,
-                                    **reasoning_kwargs,
-                                )
-
-                        # Extract response content and metadata
                         tasks.logger.info(f"🔍 Raw response_data keys: {list(response_data.keys())}")
-                        tasks.logger.info(f"🔍 Raw response_data: {response_data}")
 
-                        # Check if AI service reported an error (e.g., 503, rate limit, safety block)
-                        if not response_data.get("success", True):
-                            raw_error = response_data.get("error", "Unknown AI service error")
-                            # Try to extract the human-readable message from API error JSON
-                            match = re.search(r"'message':\s*'([^']+)'", str(raw_error))
-                            error_msg = match.group(1) if match else str(raw_error)
-                            raise Exception(error_msg + _reasoning_only_note(response_data))
-
-                        if "response_text" in response_data:
-                            response_text = response_data["response_text"]
-                            usage_stats = {
-                                "prompt_tokens": response_data.get("prompt_tokens", 0),
-                                "completion_tokens": response_data.get("completion_tokens", 0),
-                                "total_tokens": response_data.get("total_tokens", 0),
-                                "cost_usd": response_data.get("cost_usd", 0.0),
-                            }
-                            metadata = {
-                                "prompt_id": prompt_id,
-                                "prompt_name": prompt_name,
-                                "temperature": response_data.get("temperature", 0.0),
-                                "provider": response_data.get("provider", model.provider),
-                                "system_prompt": system_prompt,
-                                "instruction_prompt": user_prompt,
-                                # Phase 6.1+6.2+6.5: merge AI-service-side audit
-                                # trail (requested/actual temperature, retry
-                                # history, provider route, billed user/org)
-                                # so it lands on Generation rows alongside
-                                # the worker-side metadata. The service-side
-                                # dict can't override worker-set keys above.
-                                **{
-                                    k: v
-                                    for k, v in (response_data.get("metadata") or {}).items()
-                                    if k not in {
-                                        "prompt_id", "prompt_name",
-                                        "system_prompt", "instruction_prompt",
-                                    }
-                                },
-                                # Issue #82: stamp the key-resolution audit
-                                # fields directly off the service so every
-                                # provider (not just openai) lands them.
-                                "key_resolution_route": getattr(ai_service, "_key_resolution_route", None),
-                                "provider_name": getattr(ai_service, "_provider_name", None),
-                                "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
-                                "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
-                                "invocation_project_id": getattr(ai_service, "_invocation_project_id", None),
-                            }
-                            tasks.logger.info(
-                                f"✅ Using response_text format, content length: {len(response_text)}"
-                            )
-                        elif "content" in response_data:
-                            # OpenAI format
-                            response_text = response_data["content"]
-                            usage_stats = response_data.get("usage", {})
-                            metadata = {
-                                "prompt_id": prompt_id,
-                                "prompt_name": prompt_name,
-                                "temperature": response_data.get("temperature", 0.0),
-                                "provider": model.provider,
-                                "system_prompt": system_prompt,
-                                "instruction_prompt": user_prompt,
-                                # Same merge as above (Phase 6 audit trail).
-                                **{
-                                    k: v
-                                    for k, v in (response_data.get("metadata") or {}).items()
-                                    if k not in {
-                                        "prompt_id", "prompt_name",
-                                        "system_prompt", "instruction_prompt",
-                                    }
-                                },
-                                # Issue #82: same key-resolution audit fields.
-                                "key_resolution_route": getattr(ai_service, "_key_resolution_route", None),
-                                "provider_name": getattr(ai_service, "_provider_name", None),
-                                "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
-                                "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
-                                "invocation_project_id": getattr(ai_service, "_invocation_project_id", None),
-                            }
-                            tasks.logger.info(
-                                f"✅ Using content format, content length: {len(response_text)}"
-                            )
-                        else:
-                            tasks.logger.error(
-                                f"❌ Unexpected response format - available keys: {list(response_data.keys())}"
-                            )
-                            raise Exception(f"Unexpected response format: {response_data}")
-
-                        # Reject empty responses from any provider
-                        if not response_text or not response_text.strip():
-                            reasoning_note = _reasoning_only_note(response_data)
-                            if reasoning_note:
-                                raise Exception(
-                                    f"AI service returned an empty answer for {model_id}{reasoning_note}"
-                                )
-                            raise Exception(
-                                f"AI service returned empty response for {model_id}"
-                            )
+                        base_metadata = {
+                            "prompt_id": prompt_id,
+                            "prompt_name": prompt_name,
+                            "system_prompt": system_prompt,
+                            "instruction_prompt": user_prompt,
+                        }
+                        response_text, usage_stats, metadata = _extract_response(
+                            response_data,
+                            model=model,
+                            model_id=model_id,
+                            ai_service=ai_service,
+                            base_metadata=base_metadata,
+                        )
+                        tasks.logger.info(
+                            f"✅ Response received, content length: {len(response_text)}"
+                        )
 
                         # A requested seed the provider was not sent is recorded,
                         # never dropped silently (Kolibri-1 benchmark, K3), and
@@ -1288,9 +1347,11 @@ def generate_llm_responses_impl(
                         # System identity: model id plus a hash of the
                         # parameter profile that was sent. A reasoning arm of
                         # the same model is a system of its own; seeds and run
-                        # indexes are not part of the profile. Reasoning knobs
-                        # come from what the service reports as sent when it
-                        # reports it (DeepInfra), else from the run config.
+                        # indexes are not part of the profile. The profile is
+                        # read from the first request the client sent; for a
+                        # worker call or an unrecognised body it comes from
+                        # the run config (and the reasoning knobs DeepInfra
+                        # reports as sent).
                         _profile_params: Dict[str, Any] = {
                             "temperature": temperature,
                             "max_tokens": max_tokens,
@@ -1304,6 +1365,7 @@ def generate_llm_responses_impl(
                             _profile_params.update(
                                 {k: v for k, v in reasoning_kwargs.items() if k != "seed"}
                             )
+                        _profile_params = parameters_sent(sent_requests[0]) or _profile_params
                         _system = system_record(
                             model_id,
                             _profile_params,
@@ -1343,40 +1405,156 @@ def generate_llm_responses_impl(
 
                         MAX_PARSE_RETRIES = 3
 
-                        # Attempt parsing if we have label_config (structured output responses are JSON)
-                        # generation_structure is optional - ResponseParser can auto-derive schema from label_config
-                        if project.label_config:
+                        # Pass source text for span position calculation (Issue #964)
+                        source_text = task_content.get("text") if task_content else None
+
+                        def _parser():
+                            # generation_structure is optional - ResponseParser
+                            # auto-derives the schema from label_config.
+                            return tasks.ResponseParser(
+                                generation_structure=generation_structure or {},
+                                label_config=project.label_config,
+                                answer_keys=answer_keys,
+                            )
+
+                        def _parse(text: str):
+                            """(parse_result, status, error) of one answer."""
                             try:
                                 tasks.logger.info(f"🔍 Parsing LLM response for task {task_data['id']}")
-                                # Use empty dict if no generation_structure (parser auto-derives from label_config)
-                                parser = tasks.ResponseParser(
-                                    generation_structure=generation_structure or {},
-                                    label_config=project.label_config,
+                                result = _parser().parse(
+                                    text, source_text=source_text, task_data=task_content
                                 )
-                                # Pass source text for span position calculation (Issue #964)
-                                source_text = task_content.get("text") if task_content else None
-                                parse_result = parser.parse(response_text, source_text=source_text)
-
-                                parse_status = parse_result.status
-                                parse_error = parse_result.error
-                                parsed_annotation = parse_result.parsed_annotation
-
-                                tasks.logger.info(f"📋 Parse status: {parse_status}")
-                                if parse_status == "success":
-                                    tasks.logger.info(
-                                        f"✅ Successfully parsed response with {len(parsed_annotation)} fields"
-                                    )
-                                else:
-                                    tasks.logger.warning(f"⚠️ Parse failed: {parse_error}")
-
+                                tasks.logger.info(f"📋 Parse status: {result.status}")
+                                if result.status != "success":
+                                    tasks.logger.warning(f"⚠️ Parse failed: {result.error}")
+                                return result, result.status, result.error
                             except Exception as e:
                                 tasks.logger.error(f"❌ Error during parsing: {str(e)}")
-                                parse_status = "failed"
-                                parse_error = f"Parser exception: {str(e)}"
+                                return None, "failed", f"Parser exception: {str(e)}"
+
+                        first_response_content = None
+                        first_provider_refusal = False
+                        retry_record: Optional[Dict[str, Any]] = None
+                        if project.label_config:
+                            parse_result, parse_status, parse_error = _parse(response_text)
+                            answer_controls = (
+                                _parser().answer_controls(task_content)
+                                if parse_result is not None
+                                else ()
+                            )
+
+                            # Format retry: an answer that yields no answer
+                            # field is asked once again in the same
+                            # conversation, the answer as the assistant turn
+                            # and the structure's retry message as the user
+                            # turn. The first answer is kept beside the final one.
+                            if fmt.format_retry is not None and not _answer_fields_parsed(
+                                parse_result, answer_controls
+                            ):
+                                first_response_content = response_text
+                                first_provider_refusal = bool(metadata.get("refusal", False))
+                                retry_record = {"attempts": 1, "error": None}
+                                retry_kwargs = {
+                                    **call_kwargs,
+                                    "continuation": [
+                                        {"role": "assistant", "content": response_text},
+                                        {"role": "user", "content": fmt.format_retry.message},
+                                    ],
+                                }
+                                tasks.logger.info(f"🔁 Format retry for task {task_data['id']}")
+                                retry_data, retry_captured = _call_provider(
+                                    ai_service, use_structured_output, retry_kwargs
+                                )
+                                sent_requests.extend(
+                                    retry_captured
+                                    or [
+                                        _worker_call_entry(
+                                            model.provider,
+                                            api_model_name,
+                                            retry_kwargs,
+                                            use_structured_output,
+                                        )
+                                    ]
+                                )
+                                try:
+                                    retry_text, retry_usage, retry_metadata = _extract_response(
+                                        retry_data,
+                                        model=model,
+                                        model_id=model_id,
+                                        ai_service=ai_service,
+                                        base_metadata=base_metadata,
+                                    )
+                                except Exception as retry_error:
+                                    # The retry call failed: the first answer
+                                    # stays the generation's answer.
+                                    retry_record["error"] = str(retry_error)
+                                    usage_stats = _add_usage(
+                                        usage_stats, retry_data.get("usage") or {}
+                                    )
+                                else:
+                                    usage_stats = _add_usage(usage_stats, retry_usage)
+                                    latency = (metadata.get("response_time_ms") or 0) + (
+                                        retry_metadata.get("response_time_ms") or 0
+                                    )
+                                    # The retry sends the same parameters: keep the
+                                    # first call's seed and system identity.
+                                    first_call_keys = {
+                                        k: metadata[k]
+                                        for k in ("seed", "seed_not_sent", "system")
+                                        if k in metadata
+                                    }
+                                    metadata = {**retry_metadata, **first_call_keys, "response_time_ms": latency}
+                                    response_text = retry_text
+                                    response_data = {
+                                        **retry_data,
+                                        "reasoning": "\n---\n".join(
+                                            r
+                                            for r in (
+                                                response_data.get("reasoning"),
+                                                retry_data.get("reasoning"),
+                                            )
+                                            if isinstance(r, str) and r.strip()
+                                        ) or None,
+                                    }
+                                    parse_result, parse_status, parse_error = _parse(response_text)
+                                metadata["format_retry"] = retry_record
+
+                            parsed_annotation = (
+                                parse_result.parsed_annotation if parse_result is not None else None
+                            )
+                            if parse_status == "success":
+                                tasks.logger.info(
+                                    f"✅ Successfully parsed response with {len(parsed_annotation or [])} fields"
+                                )
                         else:
                             tasks.logger.info(
                                 "ℹ️ Skipping parsing - no label_config configured for project"
                             )
+
+                        # Refusal: the provider's own signal, or the
+                        # structure's heuristic on the opening of the answer
+                        # (and of the first answer of a format retry).
+                        provider_refusal = first_provider_refusal or bool(
+                            metadata.get("refusal", False)
+                        )
+                        heuristic_refusal = refusal_matches(
+                            fmt.refusal_heuristic, response_text, first_response_content
+                        )
+                        if fmt.refusal_heuristic is not None:
+                            metadata["refusal_sources"] = {
+                                "provider": provider_refusal,
+                                "heuristic": heuristic_refusal,
+                            }
+                        metadata["refusal"] = provider_refusal or heuristic_refusal
+                        metadata["answer_format"] = {
+                            **fmt.as_record(),
+                            "schema_instruction_appended": schema_instruction_appended,
+                            "structured_output_requested": use_structured_output,
+                        }
+
+                        # What the provider clients sent for this generation
+                        # (the first request, then any format retry).
+                        request_record = build_request_record(sent_requests)
 
                         # Determine final status based on parse result and retry count
                         if parse_status != "success" and existing_attempts >= MAX_PARSE_RETRIES:
@@ -1399,11 +1577,16 @@ def generate_llm_responses_impl(
                             "max_retries_reached": existing_attempts >= MAX_PARSE_RETRIES,
                         }
                         # Answer keys the parser read as a schema field of
-                        # another name ({"answer": "kurzantwort"}), so the
-                        # stored annotation can be traced to the raw answer.
+                        # another name ({"answer": "kurzantwort"}, or a key the
+                        # structure's answer_schema rendered for this task),
+                        # so the stored annotation can be traced to the raw
+                        # answer; likewise mapped choice values.
                         mapped_keys = getattr(parse_result, "mapped_keys", None)
                         if isinstance(mapped_keys, dict) and mapped_keys:
                             parse_metadata["mapped_keys"] = dict(mapped_keys)
+                        mapped_values = getattr(parse_result, "mapped_values", None)
+                        if isinstance(mapped_values, dict) and mapped_values:
+                            parse_metadata["mapped_values"] = dict(mapped_values)
 
                         # Save response to database. The record carries the
                         # task fields the prompt drew on (prompt_inputs), not
@@ -1441,6 +1624,12 @@ def generate_llm_responses_impl(
                             response_metadata=json.dumps(metadata),
                             # Migration 041: trial index within parent fan-out
                             run_index=run_index,
+                            # Migration 143: what the provider clients sent
+                            # and the first answer of a format retry.
+                            request_record=request_record,
+                            request_sha256=request_sha256(request_record),
+                            first_response_content=first_response_content,
+                            retried=first_response_content is not None,
                             # Phase 6.6 columns.
                             seed=metadata.get("seed"),
                             finish_reason=metadata.get("finish_reason"),

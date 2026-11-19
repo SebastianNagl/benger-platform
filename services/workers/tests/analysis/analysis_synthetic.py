@@ -29,6 +29,24 @@ def _normal(rng: random.Random) -> float:
     return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
 
 
+def role_swap_design() -> Dict[str, Any]:
+    """The variant design (``variant_designs`` spec) the records are assigned to."""
+    return {
+        "schema_version": 1,
+        "title": "Role swap",
+        "unit": {"name": "case"},
+        "factors": [
+            {"name": "x_role", "type": "nominal", "levels": ["P", "D"]},
+            {"name": "first", "type": "nominal", "levels": ["P", "D"], "role": "counterbalanced"},
+            {"name": "level", "type": "numeric", "minimum": 0, "maximum": 100, "varies": "between_units"},
+            {"name": "scenario", "type": "nominal", "levels": [f"sc_{i}" for i in range(6)],
+             "role": "blocking", "varies": "between_units"},
+            {"name": "name_id", "type": "nominal", "levels": [f"name_{i:02d}" for i in range(11)],
+             "role": "nuisance", "varies": "between_units"},
+        ],
+    }
+
+
 def role_swap_records(units: int = 48, seed: int = 20261118, systems=SYSTEMS) -> List[Dict[str, Any]]:
     rng = random.Random(seed)
     names = [f"name_{i:02d}" for i in range(11)]

@@ -207,10 +207,15 @@ targeted_fix.py
 !services/workers/tests/contracts/*.json
 # Unignore the recorded provider response fixtures (reasoning capture tests)
 !services/workers/tests/fixtures/provider_reasoning/*.json
+# Unignore the label-config fixtures (existing-config corpus, Repeater cases)
+!services/api/tests/fixtures/label_config/*.json
 
 # Unignore the prompts of the requirement-level rubric judge, written from the
 # worker code (services/workers/scripts/write_rubric_requirement_prompts.py)
 !services/shared/rubric_requirement_prompts.json
+
+# Unignore the JSON schemas of variant designs (services/shared/variant_designs.py)
+!services/shared/schemas/*.json
 
 # Unignore the analysis spec schema and the analysis golden and reference files
 !services/shared/analysis/schemas/*.json

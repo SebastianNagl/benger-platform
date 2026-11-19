@@ -23,6 +23,7 @@ from models import LLMModel as DBLLMModel
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
+from generation_fidelity import MAX_GENERATION_RUNS_PER_TASK
 from utils.json_merge import deep_merge_dicts
 from services.usage_limits import check_active_runs
 from services.generation_planning import (
@@ -151,7 +152,7 @@ class GenerationRequest(BaseModel):
     # Multi-run override: when set, this trigger generates N trials per
     # (task, model, structure) regardless of the project default. None falls
     # back to project.generation_config.runs_per_task (or 1 if unset).
-    runs_per_task: Optional[int] = Field(default=None, ge=1, le=25)
+    runs_per_task: Optional[int] = Field(default=None, ge=1, le=MAX_GENERATION_RUNS_PER_TASK)
     # The org whose keys pay for this run ("billed to"); must be one of the
     # caller's billing options for the project. None = the default rule.
     billing_organization_id: Optional[str] = None
@@ -1026,7 +1027,8 @@ async def start_generation(
         )
 
     # Resolve runs-per-task: per-trigger override → project default → 1.
-    # Capped at 25 by the request schema; project default is also bounded
+    # Capped at MAX_GENERATION_RUNS_PER_TASK by the request schema; project
+    # default is also bounded
     # in the project-config router. The chosen value is stored on the
     # parent ResponseGeneration so retries and dashboard counters use the
     # value that was active when the trigger fired, not whatever the project
@@ -1035,7 +1037,7 @@ async def start_generation(
         runs_per_task = request.runs_per_task
     else:
         runs_per_task = int(generation_config.get("runs_per_task", 1) or 1)
-        runs_per_task = max(1, min(25, runs_per_task))
+        runs_per_task = max(1, min(MAX_GENERATION_RUNS_PER_TASK, runs_per_task))
 
     # Always use parallel processing for better performance
     # Queue generation jobs

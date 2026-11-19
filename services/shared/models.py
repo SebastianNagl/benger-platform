@@ -2405,6 +2405,14 @@ class Generation(Base):
     # the parent ResponseGeneration. Unique on (generation_id, run_index).
     run_index = Column(Integer, nullable=False, server_default=text("0"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Migration 143: the requests the provider client sent for this
+    # generation, as sent (ai_services.request_capture), and the SHA-256 of
+    # the first one in canonical JSON. A format retry keeps the first answer
+    # in first_response_content and sets retried.
+    request_record = Column(JSONB, nullable=True)
+    request_sha256 = Column(String(64), nullable=True, index=True)
+    first_response_content = Column(Text, nullable=True)
+    retried = Column(Boolean, nullable=False, server_default=text("false"))
 
     # Parsing support for LLM response structure
     parsed_annotation = Column(JSONB, nullable=True)  # Structured Label Studio format

@@ -164,6 +164,16 @@ async def update_task_data(
 
     except Exception as e:
         await db.rollback()
+        from variant_design_guard import VariantDesignError, error_from_db
+
+        # A frozen variant design (the trigger) or a changed text that no
+        # longer fits the task's spans (the flush guard) is the caller's
+        # conflict, not a server fault.
+        if isinstance(e, VariantDesignError):
+            raise
+        mapped = error_from_db(e)
+        if mapped is not None:
+            raise mapped
         raise HTTPException(status_code=500, detail=f"Failed to update task data: {str(e)}")
 
 
@@ -187,6 +197,37 @@ async def bulk_delete_tasks(
     # 403 "Access denied" on read, 403 "Permission denied" on edit — the
     # same three checks (in the same order) the inline preamble ran via
     # check_project_accessible_async + check_user_can_edit_project_async.
+
+    # Tasks of a frozen variant design stay: the design's balance and its
+    # content hash cover every one of them.
+    from variant_design_guard import VariantDesignError
+    from project_models import VariantDesign
+
+    if task_ids:
+        frozen = (
+            await db.execute(
+                select(Task.variant_design, func.count(Task.id))
+                .join(
+                    VariantDesign,
+                    (VariantDesign.project_id == Task.project_id)
+                    & (VariantDesign.key == Task.variant_design),
+                )
+                .where(
+                    Task.project_id == project_id,
+                    Task.id.in_(list(task_ids)),
+                    VariantDesign.status == "frozen",
+                )
+                .group_by(Task.variant_design)
+            )
+        ).all()
+        if frozen:
+            raise VariantDesignError(
+                409,
+                "variant_design_frozen",
+                "Tasks of a frozen variant design cannot be deleted ("
+                + ", ".join(f"{count} of {key!r}" for key, count in frozen)
+                + "); nothing was deleted.",
+            )
 
     deleted_count = 0
 

@@ -264,6 +264,11 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- generation ------------------------------------------------------ #
         allow("/api/runs", "runs:read", methods="read", bind=("query:project_id",)),
         allow("/api/runs/generations/{generation_id}", "runs:read", methods="read"),
+        allow(
+            "/api/runs/generations/{generation_id}/trials/{trial_id}/request",
+            "runs:read",
+            methods="read",
+        ),
         allow("/api/generation/parse-metrics", "runs:read", methods="read"),
         allow("/api/generation/status/{generation_id}", "runs:read", methods="read"),
         area("/api/generation/{generation_id}*", ["runs:read"], ["runs:write"]),
@@ -376,6 +381,10 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/projects/{project_id}/report*", ["results:read"], ["projects:write"]),
         area("/api/projects/{project_id}/shares*", ["projects:read"], ["projects:write"]),
         area("/api/projects/{project_id}/task-rubrics*", [REF], ["tasks:write"]),
+        # A variant design tells which tasks are twins: reading it needs the
+        # reference scope, like the full task content. The check only reads.
+        allow("/api/projects/{project_id}/variant-designs/{key}/check", REF, methods="POST"),
+        area("/api/projects/{project_id}/variant-designs*", [REF], ["projects:write"]),
         area("/api/projects/{project_id}/srs/*", ["annotations:read"], ["annotations:write"]),
         allow(
             "/api/projects/{project_id}/questionnaire-responses",

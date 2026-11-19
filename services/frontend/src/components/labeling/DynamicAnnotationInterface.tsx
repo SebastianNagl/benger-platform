@@ -236,7 +236,8 @@ export function DynamicAnnotationInterface({
 
   // Parse label configuration - returns config and errors together
   const { parsedConfig, configErrors } = useMemo(() => {
-    const parsed = parseLabelConfig(labelConfig)
+    // taskData expands every <Repeater> into the task's indexed controls
+    const parsed = parseLabelConfig(labelConfig, taskData || {})
 
     if ('message' in parsed) {
       return { parsedConfig: null, configErrors: [parsed.message] }

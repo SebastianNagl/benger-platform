@@ -1185,7 +1185,7 @@
       "description": "Description (Optional)",
       "descriptionPlaceholder": "Describe what this structure is used for...",
       "structureConfiguration": "Structure Configuration",
-      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt",
+      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt. Answer format: append_schema_instruction (true/false), structured_output (auto/off), and optionally format_retry, answer_schema and refusal_heuristic",
       "cancel": "Cancel",
       "saving": "Saving...",
       "createStructure": "Create Structure",
@@ -1196,7 +1196,18 @@
       "delete": "Delete",
       "loadingStructures": "Loading prompt structures...",
       "onlyCreatorCanManage": "Only the project creator can manage prompt structures",
-      "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts."
+      "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts.",
+      "format": {
+        "instructionAppended": "Appends answer fields to the prompt",
+        "instructionNotAppended": "Prompt sent as written",
+        "structuredAuto": "Structured output: auto",
+        "structuredOff": "Structured output: off",
+        "retry": "Format retry",
+        "answerKeys": "Answer keys from task data",
+        "refusalHeuristic": "Refusal heuristic",
+        "appendedText": "Appended to the instruction prompt",
+        "retryMessage": "Format retry message"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -1329,7 +1340,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
       "defaultRunsPerTask": "Default runs per task",
-      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 25."
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 100."
     },
     "settings": {
       "title": "Settings",
@@ -9230,11 +9241,27 @@
       "runIndex": "Run #",
       "preview": "Response (preview)",
       "response": "Response",
-      "prompt": "Prompt used",
+      "prompt": "Prompt templates",
       "linkedEvaluations": "Linked evaluations",
       "metric": "Metric",
       "scoredSamples": "Samples scored",
-      "loadFailed": "Failed to load generation run"
+      "loadFailed": "Failed to load generation run",
+      "request": {
+        "title": "Request sent to the model",
+        "help": "Exactly what the provider client sent, including every block the platform added to the prompts.",
+        "none": "No request record (generated before it was recorded).",
+        "model": "Model id",
+        "workerCall": "The provider client reported no request; this is the call the generation worker made.",
+        "roleSystem": "System",
+        "roleUser": "User",
+        "roleAssistant": "Assistant",
+        "responseFormat": "Response format",
+        "parameters": "Request parameters",
+        "retried": "Format retry: {count} requests sent",
+        "firstAnswer": "First answer",
+        "loading": "Loading the request…",
+        "loadFailed": "The request could not be loaded."
+      }
     }
   },
   "customModels": {

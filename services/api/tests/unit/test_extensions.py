@@ -171,9 +171,15 @@ class TestExtensionLoader:
         # findings, migration 145, shared compliance_records).
         # 2.58 adds metadata.retryable on every provider's error response
         # (base_service.classify_retryable).
-        # 2.59 adds the analysis engine (shared/analysis, analysis_runs,
+        # 2.59 adds variant designs (variant_designs, the derived task
+        # columns and their guards, meta.variant as a reserved key).
+        # 2.60 adds per-slot label configs (<Repeater>, label_config_repeater,
+        # task_data on the response parser and the schema generator).
+        # 2.61 adds the generation request record and answer-format options
+        # (request_capture, generation_fidelity, provider continuation).
+        # 2.62 adds the analysis engine (shared/analysis, analysis_runs,
         # analysis_estimates, the analysis queue and routes).
-        assert CORE_API_VERSION == "2.59"
+        assert CORE_API_VERSION == "2.62"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

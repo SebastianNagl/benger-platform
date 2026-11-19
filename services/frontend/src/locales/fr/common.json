@@ -1185,7 +1185,7 @@
       "description": "Description (facultative)",
       "descriptionPlaceholder": "Décrivez à quoi sert cette structure...",
       "structureConfiguration": "Configuration de la structure",
-      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt",
+      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt. Format de réponse : append_schema_instruction (true/false), structured_output (auto/off) et, en option, format_retry, answer_schema et refusal_heuristic",
       "cancel": "Annuler",
       "saving": "Enregistrement...",
       "createStructure": "Créer la structure",
@@ -1196,7 +1196,18 @@
       "delete": "Supprimer",
       "loadingStructures": "Chargement des structures de prompt...",
       "onlyCreatorCanManage": "Seul le créateur du projet peut gérer les structures de prompt",
-      "fieldReferenceHelp": "Utilisez la syntaxe $nomduchamp ou $chemin.imbrique pour référencer les champs des données de tâche dans vos prompts."
+      "fieldReferenceHelp": "Utilisez la syntaxe $nomduchamp ou $chemin.imbrique pour référencer les champs des données de tâche dans vos prompts.",
+      "format": {
+        "instructionAppended": "Ajoute les champs de réponse au prompt",
+        "instructionNotAppended": "Prompt envoyé tel quel",
+        "structuredAuto": "Sortie structurée : auto",
+        "structuredOff": "Sortie structurée : désactivée",
+        "retry": "Nouvelle demande de format",
+        "answerKeys": "Clés de réponse issues des données de la tâche",
+        "refusalHeuristic": "Heuristique de refus",
+        "appendedText": "Ajouté au prompt d’instruction",
+        "retryMessage": "Message de nouvelle demande de format"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -1329,7 +1340,7 @@
       "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque combinaison tâche-modèle doit être générée. Les coûts sont multipliés en conséquence.",
       "defaultRunsPerTask": "Nombre d'exécutions par tâche par défaut",
-      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 25."
+      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 100."
     },
     "settings": {
       "title": "Paramètres",
@@ -9230,11 +9241,27 @@
       "runIndex": "Exécution n°",
       "preview": "Réponse (aperçu)",
       "response": "Réponse",
-      "prompt": "Prompt utilisé",
+      "prompt": "Modèles de prompt",
       "linkedEvaluations": "Évaluations liées",
       "metric": "Métrique",
       "scoredSamples": "Échantillons notés",
-      "loadFailed": "Impossible de charger l'exécution de génération"
+      "loadFailed": "Impossible de charger l'exécution de génération",
+      "request": {
+        "title": "Requête envoyée au modèle",
+        "help": "Exactement ce que le client du fournisseur a envoyé, y compris chaque bloc ajouté aux prompts par la plateforme.",
+        "none": "Aucune requête enregistrée (générée avant son enregistrement).",
+        "model": "Identifiant du modèle",
+        "workerCall": "Le client du fournisseur n’a signalé aucune requête ; voici l’appel effectué par le worker de génération.",
+        "roleSystem": "Système",
+        "roleUser": "Utilisateur",
+        "roleAssistant": "Assistant",
+        "responseFormat": "Format de réponse",
+        "parameters": "Paramètres de la requête",
+        "retried": "Nouvelle demande de format : {count} requêtes envoyées",
+        "firstAnswer": "Première réponse",
+        "loading": "Chargement de la requête…",
+        "loadFailed": "La requête n’a pas pu être chargée."
+      }
     }
   },
   "customModels": {

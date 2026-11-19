@@ -8,7 +8,7 @@ import re
 import socket
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,23 @@ def classify_error_type(exc: BaseException) -> str:
     return "api_error"
 
 
+def continuation_turns(kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Conversation turns a caller asks to send after the first user prompt.
+
+    ``generate(..., continuation=[{"role": "assistant", "content": ...},
+    {"role": "user", "content": ...}])`` continues the conversation of the
+    system prompt and the user prompt, which is how a format retry re-asks in
+    the same conversation. Only ``user`` and ``assistant`` turns are kept;
+    each provider maps the roles onto its own message format.
+    """
+    turns = kwargs.get("continuation") or []
+    return [
+        {"role": turn["role"], "content": turn.get("content") or ""}
+        for turn in turns
+        if isinstance(turn, dict) and turn.get("role") in ("user", "assistant")
+    ]
+
+
 class RetryableUpstreamError(Exception):
     """Transient upstream failure (HTTP 429/5xx). The async retry decorator
     backs off and re-attempts these; other exceptions fail fast."""
@@ -148,9 +165,10 @@ def is_transient_upstream_error(exc: BaseException) -> bool:
     failure by minutes. The caller's own job-level retry still covers a
     resolver that was briefly down.
 
-    This is the predicate the DeepInfra / Custom endpoint retry decorator
-    backs off on. :func:`classify_retryable` builds the uniform
-    ``metadata.retryable`` flag of every provider on top of it."""
+    This is the rule the DeepInfra / Custom endpoint retry decorator backs
+    off on, with :func:`classify_retryable` as a veto. That classifier
+    builds the uniform ``metadata.retryable`` flag of every provider on top
+    of it."""
     if isinstance(exc, RetryableUpstreamError):
         return True
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
@@ -259,8 +277,9 @@ def classify_retryable(exc: BaseException) -> bool:
     raise a plain ValueError), the url_guard rejection of an unreachable or
     private host (``url_guard.UNREACHABLE_HOST_MESSAGE``) and our own bugs.
 
-    It only describes the error: each provider's retry decorator keeps its
-    own rule for when it backs off.
+    Every provider's retry decorator consults it too: the decorator backs
+    off only on an error that both its own rule matches and this function
+    deems retryable, so an exhausted quota fails on the first attempt.
     """
     if _is_exhausted_quota(exc):
         return False

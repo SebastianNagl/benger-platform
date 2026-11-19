@@ -339,6 +339,8 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/imports/upload-url` | `projects:write`, `tasks:write` | bound |
 | GET | `/api/projects/{project_id}/imports/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/compare/{version1}/{version2}` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/label-studio` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/slots` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions/{version}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/members` | `projects:read` | bound |
@@ -388,6 +390,15 @@ project (`any`) or only for its own projects (`bound`).
 | PUT | `/api/projects/{project_id}/tasks/{task_id}/draft` | `annotations:write` | bound |
 | POST | `/api/projects/{project_id}/tasks/{task_id}/questionnaire-response` | `annotations:write` | bound |
 | POST | `/api/projects/{project_id}/tasks/{task_id}/skip` | `annotations:write` | bound |
+| GET | `/api/projects/{project_id}/variant-designs` | `tasks:read_reference` | bound |
+| POST | `/api/projects/{project_id}/variant-designs` | `projects:write` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/import` | `projects:write` | bound |
+| DELETE | `/api/projects/{project_id}/variant-designs/{key}` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}` | `tasks:read_reference` | bound |
+| PUT | `/api/projects/{project_id}/variant-designs/{key}` | `projects:write` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/{key}/check` | `tasks:read_reference` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}/export` | `tasks:read_reference` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/{key}/freeze` | `projects:write` | bound |
 | PATCH | `/api/projects/{project_id}/visibility` | `projects:write` | bound |
 | DELETE | `/api/projects/{project_id}/wizard-draft` | never |  |
 | GET | `/api/projects/{project_id}/wizard-draft` | never |  |
@@ -399,6 +410,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/reports/{report_id}/data` | `results:read` | bound |
 | GET | `/api/runs` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}` | `runs:read` | bound |
+| GET | `/api/runs/generations/{generation_id}/trials/{trial_id}/request` | `runs:read` | bound |
 | GET | `/api/shares/discover` | `projects:read` | any |
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |

@@ -146,6 +146,7 @@ OPENAI_CASES = [
     ("content filter 400", lambda: _openai_status(openai.BadRequestError, 400, "Your request was rejected by our content filter", "content_filter"), False, "content_filter"),
     ("rate limit 429", lambda: _openai_status(openai.RateLimitError, 429, "Rate limit reached for requests", "rate_limit_exceeded"), True, "rate_limit"),
     ("exhausted quota 429", lambda: _openai_status(openai.RateLimitError, 429, "You exceeded your current quota, please check your plan and billing details.", "insufficient_quota"), False, "rate_limit"),
+    ("billing hard limit 429", lambda: _openai_status(openai.RateLimitError, 429, "Billing hard limit has been reached", "billing_hard_limit_reached"), False, "rate_limit"),
     ("server error 500", lambda: _openai_status(openai.InternalServerError, 500, "The server had an error"), True, "api_error"),
     ("timeout", lambda: openai.APITimeoutError(request=_openai_request()), True, "timeout"),
     ("connection error", lambda: openai.APIConnectionError(request=_openai_request()), True, "api_error"),
@@ -235,44 +236,61 @@ def _instant_sync_backoff(monkeypatch):
             monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
 
 
-def _run_openai(exc, monkeypatch):
+def _failing(exc, calls):
+    """A provider call that records itself in ``calls`` and raises ``exc``."""
+
+    def _call(*args, **kwargs):
+        calls.append(1)
+        raise exc
+
+    return _call
+
+
+def _run_openai(exc, monkeypatch, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
     svc = openai_mod.OpenAIService(api_key="sk-test")
     svc.client = MagicMock()
-    svc.client.chat.completions.create.side_effect = exc
-    svc.client.responses.create.side_effect = exc
+    svc.client.chat.completions.create.side_effect = fail
+    svc.client.responses.create.side_effect = fail
     return svc.generate("q", "s", model_name="gpt-4o")
 
 
-def _run_anthropic(exc, monkeypatch):
+def _run_anthropic(exc, monkeypatch, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
     svc = anthropic_mod.AnthropicService(api_key="sk-ant-test")
     svc.client = MagicMock()
-    svc.client.messages.create.side_effect = exc
-    svc.client.messages.stream.side_effect = exc
+    svc.client.messages.create.side_effect = fail
+    svc.client.messages.stream.side_effect = fail
     return svc.generate("q", "s", model_name="claude-sonnet-4-5")
 
 
-def _run_google(exc, monkeypatch):
+def _run_google(exc, monkeypatch, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
     svc = google_mod.GoogleService(api_key="google-test")
     svc.client = MagicMock()
-    svc.client.models.generate_content.side_effect = exc
+    svc.client.models.generate_content.side_effect = fail
     return svc.generate("q", "s", model_name="gemini-2.5-flash")
 
 
-def _run_mistral(exc, monkeypatch):
+def _run_mistral(exc, monkeypatch, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
     svc = mistral_mod.MistralService(api_key="mistral-test")
     svc.client = MagicMock()
-    svc.client.chat.complete.side_effect = exc
+    svc.client.chat.complete.side_effect = fail
     return svc.generate("q", "s", model_name="mistral-large-latest")
 
 
-def _run_cohere(exc, monkeypatch):
+def _run_cohere(exc, monkeypatch, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
     svc = cohere_mod.CohereService(api_key="cohere-test")
     svc.client = MagicMock()
-    svc.client.chat.side_effect = exc
+    svc.client.chat.side_effect = fail
     return svc.generate("q", "s", model_name="command-r-plus")
 
 
-def _raising_aiohttp(exc):
+def _raising_aiohttp(exc, calls=None):
+    fail = _failing(exc, [] if calls is None else calls)
+
     class _Session:
         def __init__(self, *args, **kwargs):
             pass
@@ -284,7 +302,7 @@ def _raising_aiohttp(exc):
             return False
 
         def post(self, *args, **kwargs):
-            raise exc
+            fail()
 
     fake = types.SimpleNamespace(
         ClientSession=_Session,
@@ -294,25 +312,25 @@ def _raising_aiohttp(exc):
     return fake
 
 
-def _run_grok(exc, monkeypatch):
-    monkeypatch.setattr(grok_mod, "aiohttp", _raising_aiohttp(exc))
+def _run_grok(exc, monkeypatch, calls=None):
+    monkeypatch.setattr(grok_mod, "aiohttp", _raising_aiohttp(exc, calls))
     svc = grok_mod.GrokService(api_key="xai-test")
     return svc.generate("q", "s", model_name="grok-3")
 
 
-def _run_deepinfra(exc, monkeypatch):
-    monkeypatch.setattr(di_mod, "aiohttp", _raising_aiohttp(exc))
+def _run_deepinfra(exc, monkeypatch, calls=None):
+    monkeypatch.setattr(di_mod, "aiohttp", _raising_aiohttp(exc, calls))
     svc = di_mod.DeepInfraService(api_key="deepinfra-test")
     return svc.generate("q", "s", model_name="meta-llama/Llama-3.3-70B-Instruct")
 
 
-def _run_custom(exc, monkeypatch):
+def _run_custom(exc, monkeypatch, calls=None):
     import url_guard
 
     if isinstance(exc, ValueError):
         # The pre-flight itself rejects the host.
         def _reject(url, **kwargs):
-            raise exc
+            _failing(exc, [] if calls is None else calls)()
 
         monkeypatch.setattr(url_guard, "resolve_and_validate", _reject)
     else:
@@ -320,7 +338,7 @@ def _run_custom(exc, monkeypatch):
             url_guard, "resolve_and_validate", lambda u, **k: (u, ["203.0.113.7"])
         )
         monkeypatch.setattr(url_guard, "pinned_connector", lambda ips: object())
-        monkeypatch.setattr(ocs_mod, "aiohttp", _raising_aiohttp(exc))
+        monkeypatch.setattr(ocs_mod, "aiohttp", _raising_aiohttp(exc, calls))
     svc = ocs_mod.OpenAICompatibleService(
         base_url="https://models.example.org/v1",
         api_key="ck-test",
@@ -362,6 +380,124 @@ def test_error_response_carries_retryable_flag(run, factory, retryable, error_ty
     assert result["success"] is False
     assert result["metadata"]["retryable"] is retryable
     assert result["metadata"]["error_type"] == error_type
+
+
+@pytest.fixture
+def recorded_backoff(monkeypatch):
+    """Every backoff sleep, sync (``time.sleep``) and async (the DeepInfra
+    ``_sleep`` seam the Custom endpoint shares), recorded instead of slept."""
+    delays: list = []
+    monkeypatch.setattr(openai_mod.time, "sleep", lambda delay: delays.append(delay))
+
+    async def _record(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(di_mod, "_sleep", _record)
+    return delays
+
+
+NON_RETRYABLE_PARAMS = [
+    pytest.param(run, factory, id=f"{name}-{label}")
+    for name, run, cases in PROVIDERS
+    for label, factory, retryable, _ in cases
+    if not retryable
+]
+
+
+@pytest.mark.parametrize("run, factory", NON_RETRYABLE_PARAMS)
+def test_non_retryable_error_is_not_backed_off(run, factory, monkeypatch, recorded_backoff):
+    # An error no retry can fix (an exhausted quota above all, which the
+    # provider sends as HTTP 429) ends the call at once: one provider call,
+    # no backoff sleep, retryable=False. Backing off on it only made the
+    # teacher wait about a minute for the same error.
+    calls: list = []
+
+    result = run(factory(), monkeypatch, calls)
+
+    assert result["success"] is False
+    assert result["metadata"]["retryable"] is False
+    assert len(calls) == 1
+    assert recorded_backoff == []
+
+
+def _plain_429(cases):
+    return next(f for label, f, _, _ in cases if label in ("rate limit 429", "resource exhausted 429"))
+
+
+def _exhausted_quota_429():
+    # The message the OpenAI SDK builds from the response: it names the
+    # status, so every decorator's own rate-limit rule matches it.
+    return _openai_status(
+        openai.RateLimitError,
+        429,
+        "Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check "
+        "your plan and billing details.', 'type': 'insufficient_quota', 'code': 'insufficient_quota'}}",
+        "insufficient_quota",
+    )
+
+
+# The sync providers' decorators wrap generate(), which turns every
+# exception into an error dict itself, so the end-to-end tests above cannot
+# reach their backoff. Drive each decorator directly with the exception a
+# failing attempt raises.
+SYNC_DECORATORS = [
+    ("openai", openai_mod, OPENAI_CASES),
+    ("anthropic", anthropic_mod, ANTHROPIC_CASES),
+    ("google", google_mod, GOOGLE_CASES),
+    ("mistral", mistral_mod, MISTRAL_CASES),
+    ("cohere", cohere_mod, COHERE_CASES),
+    ("grok", grok_mod, GROK_CASES),
+]
+
+
+def _drive_sync_decorator(mod, exc):
+    calls: list = []
+
+    @mod.retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
+    def attempt():
+        calls.append(1)
+        raise exc
+
+    with pytest.raises(type(exc)):
+        attempt()
+    return calls
+
+
+@pytest.mark.parametrize("mod", [pytest.param(mod, id=name) for name, mod, _ in SYNC_DECORATORS])
+def test_sync_decorator_fails_fast_on_exhausted_quota(mod, recorded_backoff):
+    assert _drive_sync_decorator(mod, _exhausted_quota_429()) == [1]
+    assert recorded_backoff == []
+
+
+@pytest.mark.parametrize(
+    "mod, factory",
+    [pytest.param(mod, _plain_429(cases), id=name) for name, mod, cases in SYNC_DECORATORS],
+)
+def test_sync_decorator_keeps_backoff_on_plain_rate_limit(mod, factory, recorded_backoff):
+    # A per-minute rate limit clears by waiting: 1 call plus 5 retries.
+    assert len(_drive_sync_decorator(mod, factory())) == 6
+    assert len(recorded_backoff) == 5
+
+
+@pytest.mark.parametrize(
+    "run, factory",
+    [
+        pytest.param(run, factory, id=f"{name}-{label}")
+        for name, run in (("deepinfra", _run_deepinfra), ("custom", _run_custom))
+        for label, factory, retryable, _ in HTTP_PATH_CASES
+        if retryable
+    ],
+)
+def test_http_path_transient_errors_keep_backoff(run, factory, monkeypatch, recorded_backoff):
+    # DeepInfra and Custom endpoints back off on a plain 429, 5xx, timeouts
+    # and dropped connections: 1 call plus 5 retries.
+    calls: list = []
+
+    result = run(factory(), monkeypatch, calls)
+
+    assert result["metadata"]["retryable"] is True
+    assert len(calls) == 6
+    assert len(recorded_backoff) == 5
 
 
 class TestClassifierRules:
@@ -417,13 +553,6 @@ class TestClassifierRules:
         invalid = _anthropic_status(anthropic.APIStatusError, status, "bad input", "invalid_request_error")
         assert classify_retryable(overloaded) is True
         assert classify_retryable(invalid) is False
-
-    def test_deepinfra_decorator_still_retries_exhausted_quota(self):
-        # The flag only describes the error: DeepInfra's backoff predicate
-        # keeps backing off on every 429, as before.
-        exc = RetryableUpstreamError('HTTP 429: {"error":{"code":"insufficient_quota"}}', status=429)
-        assert di_mod._is_retryable_error(exc) is True
-        assert classify_retryable(exc) is False
 
 
 class TestGoogleEmptyResponse:
