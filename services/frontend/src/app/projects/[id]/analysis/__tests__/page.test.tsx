@@ -225,7 +225,9 @@ describe('ProjectAnalysisPage', () => {
       })
       await waitFor(() => expect(mockListRuns).toHaveBeenCalledTimes(2))
       expect(screen.queryByRole('alert')).toBeNull()
-      expect(screen.getByTestId('analysis-run-row')).toHaveTextContent('Running')
+      expect(screen.getByTestId('analysis-run-row')).toHaveTextContent(
+        'Running',
+      )
 
       await act(async () => {
         jest.advanceTimersByTime(4000)

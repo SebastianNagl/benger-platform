@@ -64,24 +64,27 @@ export default function ProjectAnalysisPage() {
   )
   const [prefillError, setPrefillError] = useState<string | null>(null)
 
-  const loadRuns = useCallback(async (isRefresh = false) => {
-    try {
-      const page = await analysisAPI.listRuns(projectId)
-      setRuns(page.items)
-      setTotal(page.total)
-      setError(null)
-    } catch (err) {
-      if (isRefresh) {
-        setFailedRefreshes((n) => n + 1)
-        return
+  const loadRuns = useCallback(
+    async (isRefresh = false) => {
+      try {
+        const page = await analysisAPI.listRuns(projectId)
+        setRuns(page.items)
+        setTotal(page.total)
+        setError(null)
+      } catch (err) {
+        if (isRefresh) {
+          setFailedRefreshes((n) => n + 1)
+          return
+        }
+        setError(
+          statusOf(err) === 404 || statusOf(err) === 403
+            ? 'forbidden'
+            : (err as Error)?.message || 'failed',
+        )
       }
-      setError(
-        statusOf(err) === 404 || statusOf(err) === 403
-          ? 'forbidden'
-          : (err as Error)?.message || 'failed',
-      )
-    }
-  }, [projectId])
+    },
+    [projectId],
+  )
 
   useEffect(() => {
     if (!projectId) return

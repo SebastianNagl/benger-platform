@@ -203,9 +203,7 @@ describe('AnalysisRunPage', () => {
   it('keeps the run on screen when a poll fails and polls again', async () => {
     jest.useFakeTimers()
     mockGetRun
-      .mockResolvedValueOnce(
-        makeRun({ status: 'running', completed_at: null }),
-      )
+      .mockResolvedValueOnce(makeRun({ status: 'running', completed_at: null }))
       .mockRejectedValueOnce(httpError(502))
       .mockResolvedValue(makeRun())
     render(<AnalysisRunPage />)
@@ -216,7 +214,9 @@ describe('AnalysisRunPage', () => {
     })
     await waitFor(() => expect(mockGetRun).toHaveBeenCalledTimes(2))
     expect(screen.queryByTestId('analysis-run-error')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Role swap' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Role swap' }),
+    ).toBeInTheDocument()
     expect(screen.getByTestId('analysis-run-active')).toBeInTheDocument()
 
     await act(async () => {
@@ -305,7 +305,9 @@ describe('AnalysisRunPage', () => {
     mockGetProject.mockResolvedValue(project('ANNOTATOR', false))
     const first = render(<AnalysisRunPage />)
     await screen.findByTestId('estimates-table')
-    await waitFor(() => expect(screen.getByText('Variants')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Variants')).toBeInTheDocument(),
+    )
     expect(screen.queryByRole('link', reuse)).toBeNull()
     first.unmount()
 

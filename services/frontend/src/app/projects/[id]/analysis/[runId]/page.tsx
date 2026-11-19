@@ -106,31 +106,34 @@ export default function AnalysisRunPage() {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  const loadRun = useCallback(async (isPoll = false) => {
-    try {
-      const run = await analysisAPI.getRun(runId)
-      if (run.project_id !== projectId) {
-        setState({ kind: 'notFound' })
+  const loadRun = useCallback(
+    async (isPoll = false) => {
+      try {
+        const run = await analysisAPI.getRun(runId)
+        if (run.project_id !== projectId) {
+          setState({ kind: 'notFound' })
+          return null
+        }
+        setState({ kind: 'ready', run })
+        return run
+      } catch (error) {
+        if (isPoll && statusOf(error) !== 404) {
+          setFailedPolls((n) => n + 1)
+          return null
+        }
+        if (statusOf(error) === 404) setState({ kind: 'notFound' })
+        else
+          setState({
+            kind: 'error',
+            message: (error as Error)?.message || t('analysis.run.loadFailed'),
+          })
         return null
       }
-      setState({ kind: 'ready', run })
-      return run
-    } catch (error) {
-      if (isPoll && statusOf(error) !== 404) {
-        setFailedPolls((n) => n + 1)
-        return null
-      }
-      if (statusOf(error) === 404) setState({ kind: 'notFound' })
-      else
-        setState({
-          kind: 'error',
-          message: (error as Error)?.message || t('analysis.run.loadFailed'),
-        })
-      return null
-    }
+    },
     // t is stable per locale; a locale switch need not reload the run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, projectId])
+    [runId, projectId],
+  )
 
   useEffect(() => {
     if (runId) void loadRun()
