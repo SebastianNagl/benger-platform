@@ -205,6 +205,11 @@ export default function ReportsPage() {
                   <div>
                     {report.model_count} {t('reports.models')}
                   </div>
+                  {(report.analysis_count ?? 0) > 0 && (
+                    <div data-testid={`report-analysis-count-${report.id}`}>
+                      {report.analysis_count} {t('reports.analyses')}
+                    </div>
+                  )}
                   <div className="text-xs text-zinc-500 dark:text-zinc-500">
                     {t('reports.published')}{' '}
                     {new Date(report.published_at).toLocaleDateString(

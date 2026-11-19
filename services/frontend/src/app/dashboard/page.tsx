@@ -33,8 +33,12 @@ type OverviewStats = {
   project_count: number
   task_count: number
   annotation_count: number
-  projects_with_generations: number
-  projects_with_evaluations: number
+  generations_count: number
+  evaluations_count: number
+  analyses_count: number
+  // Older names of generations_count and evaluations_count, still sent.
+  projects_with_generations?: number
+  projects_with_evaluations?: number
 }
 
 type PersonalStats = {
@@ -55,7 +59,9 @@ type StatTileBase = {
   hideWhenZero?: boolean
 }
 
-type StatTile<T> = StatTileBase & { key: Exclude<keyof T, 'scope'> & string }
+type StatTile<T> = StatTileBase & {
+  key: Exclude<keyof T, 'scope' | `projects_with_${string}`> & string
+}
 
 const ICON_FOLDER =
   'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'
@@ -67,6 +73,8 @@ const ICON_SPARKLES =
   'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
 const ICON_CHART =
   'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+const ICON_PRESENTATION_CHART =
+  'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z'
 const ICON_DOCUMENT =
   'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
 const ICON_CHECK_BADGE =
@@ -86,14 +94,20 @@ const OVERVIEW_TILES: StatTile<OverviewStats>[] = [
     icon: ICON_PENCIL,
   },
   {
-    key: 'projects_with_generations',
+    key: 'generations_count',
     label: 'dashboard.stats.generations',
     icon: ICON_SPARKLES,
   },
   {
-    key: 'projects_with_evaluations',
+    key: 'evaluations_count',
     label: 'dashboard.stats.evaluations',
     icon: ICON_CHART,
+  },
+  {
+    key: 'analyses_count',
+    label: 'dashboard.stats.analyses',
+    icon: ICON_PRESENTATION_CHART,
+    hideWhenZero: true,
   },
 ]
 
@@ -128,6 +142,7 @@ const TILE_GRID_COLUMNS: Record<number, string> = {
   3: 'md:grid-cols-3',
   4: 'md:grid-cols-2 lg:grid-cols-4',
   5: 'md:grid-cols-3 lg:grid-cols-5',
+  6: 'md:grid-cols-3 lg:grid-cols-6',
 }
 
 export default function DashboardPage() {

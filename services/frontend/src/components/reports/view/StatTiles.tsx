@@ -6,12 +6,18 @@ export interface StatTile {
   value: string
 }
 
+// Six tiles (with analyses) fill one wide row instead of wrapping one tile
+// onto a second. Literal class names: Tailwind only emits classes it finds
+// in the source.
+const wideColumns = (count: number) =>
+  count === 6 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+
 /** Headline numbers of the report (tasks, submissions, models, ...). */
 export function StatTiles({ tiles }: { tiles: StatTile[] }) {
   if (tiles.length === 0) return null
   return (
     <div
-      className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
+      className={`mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 ${wideColumns(tiles.length)}`}
       data-testid="stat-tiles"
     >
       {tiles.map((tile) => (

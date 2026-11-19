@@ -1,10 +1,11 @@
 """Single-run inventory endpoint.
 
-`/api/runs` returns a paginated list of individual generation and evaluation
-runs (NOT the cell-by-cell aggregates that `/evaluations/results/*` and
-`/generation-tasks/*/task-status` already serve). The frontend `/runs` page
-is the canonical "find a run" inventory; clicking a row deep-links into
-`/evaluations/{id}` or `/generations/{id}`.
+`/api/runs` returns a paginated list of individual generation, evaluation
+and analysis runs (NOT the cell-by-cell aggregates that
+`/evaluations/results/*` and `/generation-tasks/*/task-status` already
+serve). The frontend `/runs` page is the canonical "find a run" inventory;
+clicking a row deep-links into `/evaluations/{id}`, `/generations/{id}` or
+the analysis run page.
 
 Notification routing also points here — when an `evaluation_completed` /
 `llm_generation_completed` notification fires, the dropdown navigates to
@@ -14,16 +15,16 @@ the per-run detail page surfaced by this listing.
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import defer
+from sqlalchemy.orm import defer, load_only
 
 from auth_module import User, require_user
 from database import get_async_db
 from evaluation_run_models import run_evaluated_model_ids
-from models import EvaluationRun, ResponseGeneration
+from models import AnalysisRun, EvaluationRun, ResponseGeneration
 from project_models import Project
 from routers.projects.helpers import (
     check_project_accessible_async,
@@ -42,7 +43,7 @@ class RunSummary(BaseModel):
     """
 
     id: str
-    type: Literal["generation", "evaluation"]
+    type: Literal["generation", "evaluation", "analysis"]
     project_id: Optional[str] = None
     project_title: Optional[str] = None
     status: Optional[str] = None
@@ -66,6 +67,15 @@ class RunSummary(BaseModel):
     judge_models: Optional[List[str]] = None
     samples_evaluated: Optional[int] = None
     metrics: Optional[List[str]] = None
+
+    # Analysis-specific: the run's name, the rows of the frame it read, the
+    # estimates it stored, the hash of its normalized spec and the engine
+    # version (the full run is GET /api/analysis-runs/{id}).
+    name: Optional[str] = None
+    frame_rows: Optional[int] = None
+    estimates_count: Optional[int] = None
+    spec_hash: Optional[str] = None
+    engine_version: Optional[str] = None
 
 
 class PaginatedRunsResponse(BaseModel):
@@ -160,6 +170,43 @@ def _evaluation_to_summary(row: EvaluationRun, project_titles: Dict[str, str]) -
         judge_models=_extract_judge_models(row.eval_metadata),
         metrics=_extract_metric_names(row.eval_metadata),
     )
+
+
+def _analysis_to_summary(row: AnalysisRun, project_titles: Dict[str, str]) -> RunSummary:
+    return RunSummary(
+        id=row.id,
+        type="analysis",
+        project_id=row.project_id,
+        project_title=project_titles.get(row.project_id or ""),
+        status=row.status,
+        created_at=row.created_at,
+        completed_at=row.completed_at,
+        created_by=row.created_by,
+        error_message=row.error_message,
+        name=row.name,
+        frame_rows=row.frame_rows,
+        estimates_count=row.estimates_count,
+        spec_hash=row.spec_hash,
+        engine_version=row.engine_version,
+    )
+
+
+# The columns an analysis row of the inventory reads: the specs, fits,
+# warnings and timings of a run can be large and stay unloaded.
+_ANALYSIS_SUMMARY_COLUMNS = (
+    AnalysisRun.id,
+    AnalysisRun.project_id,
+    AnalysisRun.name,
+    AnalysisRun.status,
+    AnalysisRun.created_at,
+    AnalysisRun.completed_at,
+    AnalysisRun.created_by,
+    AnalysisRun.error_message,
+    AnalysisRun.frame_rows,
+    AnalysisRun.estimates_count,
+    AnalysisRun.spec_hash,
+    AnalysisRun.engine_version,
+)
 
 
 class ChildGeneration(BaseModel):
@@ -425,11 +472,60 @@ async def get_generation_run(
     )
 
 
+async def _readable_project_ids(
+    db: AsyncSession, user: User, model, where: list
+) -> Optional[List[str]]:
+    """The projects among the runs matching ``where`` whose runs ``user``
+    may list (:func:`check_project_accessible_async`, as the run detail
+    pages decide), or None for a superadmin, who may list every run.
+
+    The check runs once per project that has such runs, so the filter goes
+    into the SQL and the total and the pages count only the runs the user
+    sees."""
+    if user.is_superadmin:
+        return None
+    pids = (
+        await db.execute(
+            select(model.project_id).where(model.project_id.isnot(None), *where).distinct()
+        )
+    ).scalars().all()
+    return [pid for pid in pids if await check_project_accessible_async(db, user, pid)]
+
+
+async def _hidden_analysis_runs_filter(db: AsyncSession, user: User, where: list, principal=None):
+    """SQL condition that leaves out the analysis runs matching ``where``
+    that read a further project the user may not read (the condition the
+    per-project run list applies, ``routers.analysis.hidden_runs_filter``,
+    over every project of the inventory); None when there is none."""
+    from routers.analysis import may_read_project
+
+    spec = AnalysisRun.normalized_spec
+    reads = (
+        await db.execute(
+            select(AnalysisRun.project_id, spec["inputs"]["projects"], spec["lookups"])
+            .where(*where)
+            .where(or_(spec["inputs"]["projects"].isnot(None), spec["lookups"].isnot(None)))
+        )
+    ).all()
+    further = {
+        pid: None
+        for project_id, projects, lookups in reads
+        for pid in AnalysisRun.input_projects(
+            {"inputs": {"projects": projects}, "lookups": lookups}, project_id
+        )
+    }
+    hidden = [pid for pid in further if not await may_read_project(db, user, pid, principal)]
+    if not hidden:
+        return None
+    return ~or_(*[AnalysisRun.reads_project(pid) for pid in hidden])
+
+
 @router.get("", response_model=PaginatedRunsResponse)
 async def list_runs(
-    type: Literal["generation", "evaluation"] = Query(
+    request: Request,
+    type: Literal["generation", "evaluation", "analysis"] = Query(
         ...,
-        description="Run type to list. The two types have different shapes; pick one tab at a time.",
+        description="Run type to list. The types have different shapes; pick one tab at a time.",
     ),
     project_id: Optional[str] = Query(None, description="Filter to a single project"),
     status_filter: Optional[str] = Query(
@@ -442,44 +538,54 @@ async def list_runs(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> PaginatedRunsResponse:
-    """Paginated inventory of single runs (generation or evaluation).
+    """Paginated inventory of single runs (generation, evaluation or analysis).
 
-    Accessible-project filter is applied per-row: the user only sees runs in
-    projects they can access. Sorted newest-first by `created_at`.
+    The user sees only the runs of projects they can access, and analysis
+    runs only when they may also read every further project the run reads
+    (as on the run page). Both conditions are part of the query, so
+    ``total`` and the pages count exactly the listed runs. Sorted
+    newest-first by ``created_at``.
     """
 
     if type == "generation":
         model = ResponseGeneration
         to_summary = _generation_to_summary
-    else:  # type == "evaluation"
+    elif type == "evaluation":
         model = EvaluationRun
         to_summary = _evaluation_to_summary
+    else:  # type == "analysis"
+        model = AnalysisRun
+        to_summary = _analysis_to_summary
 
-    stmt = select(model)
-    count_stmt = select(func.count()).select_from(model)
+    where = [model.project_id.isnot(None)]
     if project_id:
-        stmt = stmt.where(model.project_id == project_id)
-        count_stmt = count_stmt.where(model.project_id == project_id)
+        where.append(model.project_id == project_id)
     if status_filter:
-        stmt = stmt.where(model.status == status_filter)
-        count_stmt = count_stmt.where(model.status == status_filter)
-    stmt = stmt.order_by(model.created_at.desc())
+        where.append(model.status == status_filter)
 
-    total = int((await db.execute(count_stmt)).scalar() or 0)
-    rows_result = await db.execute(
-        stmt.offset((page - 1) * page_size).limit(page_size)
+    readable = await _readable_project_ids(db, current_user, model, where)
+    if readable is not None:
+        where.append(model.project_id.in_(readable))
+    if type == "analysis":
+        hidden = await _hidden_analysis_runs_filter(
+            db, current_user, where, getattr(request.state, "principal", None)
+        )
+        if hidden is not None:
+            where.append(hidden)
+
+    condition = and_(*where)
+    total = int(
+        (await db.execute(select(func.count()).select_from(model).where(condition))).scalar()
+        or 0
     )
-    rows = rows_result.scalars().all()
+    stmt = select(model).where(condition)
+    if type == "analysis":
+        stmt = stmt.options(load_only(*_ANALYSIS_SUMMARY_COLUMNS))
+    stmt = stmt.order_by(model.created_at.desc(), model.id.desc())
+    rows = (
+        await db.execute(stmt.offset((page - 1) * page_size).limit(page_size))
+    ).scalars().all()
 
-    # Permission filter: keep only rows whose project the user can see.
-    # Done after fetch since check_project_accessible takes one project at a
-    # time; for typical inventory page sizes (≤200) the overhead is negligible
-    # compared to the upstream query.
-    accessible_ids = set()
-    for pid in {row.project_id for row in rows if row.project_id}:
-        if await check_project_accessible_async(db, current_user, pid):
-            accessible_ids.add(pid)
-    rows = [r for r in rows if r.project_id in accessible_ids]
-    titles = await _project_titles_map(db, list(accessible_ids))
+    titles = await _project_titles_map(db, list({r.project_id for r in rows}))
     items = [to_summary(r, titles) for r in rows]
     return PaginatedRunsResponse(items=items, total=total, page=page, page_size=page_size)

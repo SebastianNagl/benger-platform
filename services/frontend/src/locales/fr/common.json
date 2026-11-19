@@ -108,6 +108,7 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "openExams": "Examens ouverts",
       "openTasks": "Tâches ouvertes",
       "submittedAnswers": "Réponses soumises",
@@ -756,6 +757,8 @@
       "attemptedBadge": "Remise antérieure",
       "archivedBadge": "Archivé",
       "wizardDraftBadge": "Brouillon de l'assistant",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analyse",
       "participantVia": {
         "share": "Rejoint via un lien de partage",
         "entitlement": "Débloqué via « Découvrir »",
@@ -1542,6 +1545,7 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Notations de résolution de cas",
       "correctionsGradesBreakdown": "↳ Notations par les correcteurs",
@@ -7507,6 +7511,7 @@
       "participants": "Participants",
       "modelsEvaluated": "Modèles évalués",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "data": "Données",
       "defaultDataText": "Le jeu de données comprend {count} tâches.",
       "annotations": "Remises",
@@ -7570,6 +7575,7 @@
     "tasks": "Tâches",
     "annotations": "Annotations",
     "models": "Modèles évalués",
+    "analyses": "Analyses",
     "viewReport": "Afficher le rapport",
     "comingSoon": "Rapports bientôt disponibles",
     "comingSoonDescription": "La fonction de rapports est en cours de développement. Vous pourrez consulter ici les résultats d'évaluation publiés.",
@@ -9198,10 +9204,11 @@
   },
   "runs": {
     "title": "Exécutions",
-    "subtitle": "Inventaire des exécutions individuelles de génération et d'évaluation. Cliquez sur une ligne pour afficher les détails de l'exécution.",
+    "subtitle": "Inventaire des exécutions individuelles de génération, d'évaluation et d'analyse. Cliquez sur une ligne pour afficher les détails de l'exécution.",
     "tabs": {
       "evaluation": "Évaluations",
-      "generation": "Générations"
+      "generation": "Générations",
+      "analysis": "Analyses"
     },
     "filterProject": "Projet",
     "filterStatus": "Statut",

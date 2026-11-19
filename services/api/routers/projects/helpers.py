@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from models import (
+    AnalysisRun,
     Generation,
     LtiPlatformRegistration,
     LtiResourceLink,
@@ -202,6 +203,47 @@ def _progress_parts(
     return parts
 
 
+def build_select_analysis_counts(project_ids: List[str]):
+    """Completed analysis runs per project of ``project_ids``: one grouped
+    count over ``ix_analysis_runs_project_created``.
+
+    The count of a project includes its runs that read further projects,
+    also when a viewer may not open such a run: the number reveals only
+    that a run exists, never its estimates. Pending, running and failed runs
+    are not counted, like the evaluation count reads completed runs only.
+    """
+    return (
+        select(AnalysisRun.project_id, func.count(AnalysisRun.id))
+        .where(
+            AnalysisRun.project_id.in_(project_ids),
+            AnalysisRun.status == "completed",
+        )
+        .group_by(AnalysisRun.project_id)
+    )
+
+
+def count_analysis_runs_by_project(db: Session, project_ids: List[str]) -> Dict[str, int]:
+    """``{project_id: completed analysis runs}`` for every id of
+    ``project_ids`` (0 for a project without one)."""
+    counts = {pid: 0 for pid in project_ids}
+    if project_ids:
+        for pid, n in db.execute(build_select_analysis_counts(project_ids)).all():
+            counts[pid] = int(n or 0)
+    return counts
+
+
+async def count_analysis_runs_by_project_async(
+    db: AsyncSession, project_ids: List[str]
+) -> Dict[str, int]:
+    """Async equivalent of :func:`count_analysis_runs_by_project`."""
+    counts = {pid: 0 for pid in project_ids}
+    if project_ids:
+        rows = (await db.execute(build_select_analysis_counts(project_ids))).all()
+        for pid, n in rows:
+            counts[pid] = int(n or 0)
+    return counts
+
+
 def apply_mixed_progress(
     project: Project,
     response: ProjectResponse,
@@ -292,6 +334,7 @@ def calculate_project_stats(
             project_id
         ]
     response.evaluations_completed_count = response.evaluation_count
+    response.analysis_count = count_analysis_runs_by_project(db, [project_id])[project_id]
 
     # Mirror to the legacy aliases so frontends reading either name see the
     # same value (the labeling page reads num_tasks for the "Task X of Y"
@@ -396,6 +439,9 @@ async def calculate_project_stats_async(
             await count_eval_pairs_by_project_async(db, [project_id])
         )[project_id]
     response.evaluations_completed_count = response.evaluation_count
+    response.analysis_count = (
+        await count_analysis_runs_by_project_async(db, [project_id])
+    )[project_id]
 
     response.num_tasks = response.task_count
     response.num_annotations = response.annotation_count
@@ -415,7 +461,9 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
 
     Returns: Dict mapping project_id to stats dict with keys
     `task_count`, `completed_tasks_count`, `annotation_count`,
-    `evaluation_count`, `evaluations_completed_count`.
+    `evaluation_count`, `evaluations_completed_count`, `analysis_count`.
+    The analysis count is always live (one grouped count for the whole
+    list, :func:`count_analysis_runs_by_project`), as on the detail.
     """
     from models import ProjectSummary
     from sqlalchemy import select as sa_select
@@ -445,6 +493,7 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             'annotation_count': int(ann or 0),
             'evaluation_count': int(eval_pairs or 0),
             'evaluations_completed_count': int(eval_pairs or 0),
+            'analysis_count': 0,
         }
 
     missing_summary_ids = [pid for pid in project_ids if pid not in stats_map]
@@ -456,6 +505,7 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
                 'annotation_count': 0,
                 'evaluation_count': 0,
                 'evaluations_completed_count': 0,
+                'analysis_count': 0,
             }
 
         task_stats = (
@@ -500,6 +550,9 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         for pid, count in count_eval_pairs_by_project(db, missing_summary_ids).items():
             stats_map[pid]['evaluation_count'] = count
             stats_map[pid]['evaluations_completed_count'] = count
+
+    for pid, count in count_analysis_runs_by_project(db, list(stats_map)).items():
+        stats_map[pid]['analysis_count'] = count
 
     return stats_map
 

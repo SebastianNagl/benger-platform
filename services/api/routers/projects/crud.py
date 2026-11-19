@@ -471,6 +471,7 @@ async def list_projects(
                     'annotation_count': 0,
                     'evaluation_count': 0,
                     'evaluations_completed_count': 0,
+                    'analysis_count': 0,
                 },
             )
             response.task_count = stats['task_count']
@@ -478,6 +479,7 @@ async def list_projects(
             response.annotation_count = stats['annotation_count']
             response.evaluation_count = stats['evaluation_count']
             response.evaluations_completed_count = stats['evaluations_completed_count']
+            response.analysis_count = stats['analysis_count']
             # Mirror to legacy aliases (see calculate_project_stats note).
             response.num_tasks = response.task_count
             response.num_annotations = response.annotation_count

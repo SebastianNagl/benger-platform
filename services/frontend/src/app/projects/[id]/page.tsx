@@ -3250,6 +3250,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dd>
                 </div>
               )}
+              {(currentProject.analysis_count ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.analyses')}
+                  </dt>
+                  <dd
+                    className="text-sm font-medium text-zinc-900 dark:text-white"
+                    data-testid="project-statistics-analyses"
+                  >
+                    {currentProject.analysis_count}
+                  </dd>
+                </div>
+              )}
               {ProjectStatisticsExtended && (
                 <ProjectStatisticsExtended project={currentProject} />
               )}
