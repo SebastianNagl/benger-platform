@@ -6421,6 +6421,40 @@
       "invalidPrompt": "Ungültiges Prompt-Format an Position {index}: {error}",
       "failed": "Datenupload fehlgeschlagen: {error}",
       "failedUnknown": "Datenupload fehlgeschlagen: unbekannter Fehler"
+    },
+    "annotatorAgreement": {
+      "title": "Übereinstimmung der Annotierenden",
+      "description": "Wie gut die Annotierenden bei Aufgaben übereinstimmen, die mindestens zwei von ihnen annotiert haben, je Feld.",
+      "summary": "{tasks} Aufgaben wurden von mindestens zwei Personen annotiert ({annotators} Annotierende).",
+      "controlMeta": "{type} · {tasks} Aufgaben · {annotators} Annotierende",
+      "types": {
+        "choices": "Auswahl",
+        "rating": "Bewertung",
+        "number": "Zahl",
+        "other": "Sonstiges"
+      },
+      "fleissKappa": "Fleiss-Kappa",
+      "cohensKappaMean": "Cohens Kappa (Mittel der Paare)",
+      "percentAgreement": "Alle stimmen überein",
+      "pearsonMean": "Pearson-r (Mittel der Paare)",
+      "meanAbsoluteDeviation": "Mittlere absolute Abweichung",
+      "bands": {
+        "poor": "schlecht (unter Zufall)",
+        "slight": "gering",
+        "fair": "ausreichend",
+        "moderate": "mittelmäßig",
+        "substantial": "beachtlich",
+        "almostPerfect": "fast vollständig"
+      },
+      "multiSelectNote": "Manche Annotationen haben mehrere Optionen gewählt: Zwei Annotationen stimmen nur überein, wenn sie dieselbe Auswahl getroffen haben.",
+      "pairs": "Paare von Annotierenden ({count})",
+      "pair": "Paar",
+      "sharedTasks": "Gemeinsame Aufgaben",
+      "cohensKappa": "Cohens Kappa",
+      "pearson": "Pearson-r",
+      "pairsTruncated": "Angezeigt werden die {shown} Paare mit den meisten gemeinsamen Aufgaben von {total}.",
+      "unsupported": "Nicht bewertet (kein vergleichbarer Wert, etwa Freitext oder Markierungen): {controls}.",
+      "methodNote": "Es zählen nur Aufgaben mit mindestens zwei Antworten im jeweiligen Feld. Kappa wird nach der Skala von Landis und Koch gelesen; Bewertungen werden als Kategorien verglichen (ungewichtetes Kappa). Für Cohens Kappa braucht ein Paar mindestens zwei gemeinsame Aufgaben."
     }
   },
   "about": {
@@ -7502,6 +7536,7 @@
       "showSection": "Abschnitt anzeigen",
       "showDataCount": "Anzahl der Aufgaben anzeigen",
       "showParticipants": "Teilnehmende anzeigen",
+      "showAgreement": "Übereinstimmung der Annotierenden anzeigen",
       "showModels": "Modelle anzeigen",
       "presentation": "Darstellung der Evaluation",
       "primaryMetric": "Primäre Metrik",

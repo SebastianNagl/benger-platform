@@ -189,12 +189,15 @@ class TestExtensionLoader:
         # sets, coding projects and code validations, the text_pattern metric).
         # 2.67 adds analysis_count on projects, reports and the dashboard,
         # the dashboard's corrected count keys and GET /api/runs?type=analysis.
-        # 2.68 moves analysis runs onto the evaluations page (result type,
+        # 2.68 adds inter-annotator agreement per control (the
+        # annotator-agreement route, the snapshot's annotator_agreement and
+        # show_agreement, section visibility applied on read).
+        # 2.69 moves analysis runs onto the evaluations page (result type,
         # /evaluations/analysis/[runId], path helpers, interval rows) and
         # renders AnalysisRunFindings in two hosts.
-        # 2.69 adds analysis plans (evaluation_config.analysis_plans, checked
+        # 2.70 adds analysis plans (evaluation_config.analysis_plans, checked
         # and hashed on save) and the Analyses part of the Evaluation card.
-        assert CORE_API_VERSION == "2.69"
+        assert CORE_API_VERSION == "2.70"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

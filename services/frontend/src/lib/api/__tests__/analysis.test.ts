@@ -1,7 +1,8 @@
 /**
  * Tests for the analysis-run API client (lib/api/analysis): the request
  * paths and bodies, estimate paging, the design-key list, the analysis
- * plans and the error helpers the run pages use.
+ * plans read from and saved to the evaluation config, and the error helpers
+ * the run pages use.
  */
 
 import {
@@ -107,62 +108,7 @@ describe('analysisAPI', () => {
       spec,
     })
   })
-})
 
-describe('helpers', () => {
-  it('isRunActive is true for pending and running only', () => {
-    expect(isRunActive('pending')).toBe(true)
-    expect(isRunActive('running')).toBe(true)
-    expect(isRunActive('completed')).toBe(false)
-    expect(isRunActive('failed')).toBe(false)
-  })
-
-  it('specErrorsOf reads the engine messages of a 422 spec rejection', () => {
-    const rejected = {
-      response: {
-        status: 422,
-        data: {
-          detail: { code: 'invalid_analysis_spec', errors: ['a', 2] },
-        },
-      },
-    }
-    expect(specErrorsOf(rejected)).toEqual(['a', '2'])
-    expect(
-      specErrorsOf({ response: { status: 422, data: { detail: 'x' } } }),
-    ).toBeNull()
-    expect(
-      specErrorsOf({
-        response: { status: 422, data: { detail: { code: 'other' } } },
-      }),
-    ).toBeNull()
-    expect(specErrorsOf({ response: { status: 500 } })).toBeNull()
-    expect(specErrorsOf(null)).toBeNull()
-  })
-
-  it('reads the problems of a rejected analysis plan', () => {
-    expect(
-      specErrorsOf({
-        response: {
-          status: 422,
-          data: {
-            detail: {
-              code: 'invalid_analysis_plan',
-              errors: ['/analysis_plans/0/name: must be a non-empty string'],
-            },
-          },
-        },
-      }),
-    ).toEqual(['/analysis_plans/0/name: must be a non-empty string'])
-  })
-
-  it('statusOf reads the HTTP status when there is one', () => {
-    expect(statusOf({ response: { status: 403 } })).toBe(403)
-    expect(statusOf(new Error('x'))).toBeUndefined()
-    expect(statusOf(null)).toBeUndefined()
-  })
-})
-
-describe('analysis plans', () => {
   it('reads the saved plans from the evaluation config, uncached', async () => {
     const plan = {
       id: 'p1',
@@ -215,5 +161,58 @@ describe('analysis plans', () => {
     expect(result).toEqual(stored)
     mockPut.mockResolvedValue(undefined)
     expect(await analysisAPI.savePlans('p1', [])).toEqual([])
+  })
+})
+
+describe('helpers', () => {
+  it('isRunActive is true for pending and running only', () => {
+    expect(isRunActive('pending')).toBe(true)
+    expect(isRunActive('running')).toBe(true)
+    expect(isRunActive('completed')).toBe(false)
+    expect(isRunActive('failed')).toBe(false)
+  })
+
+  it('specErrorsOf reads the engine messages of a 422 spec rejection', () => {
+    const rejected = {
+      response: {
+        status: 422,
+        data: {
+          detail: { code: 'invalid_analysis_spec', errors: ['a', 2] },
+        },
+      },
+    }
+    expect(specErrorsOf(rejected)).toEqual(['a', '2'])
+    expect(
+      specErrorsOf({ response: { status: 422, data: { detail: 'x' } } }),
+    ).toBeNull()
+    expect(
+      specErrorsOf({
+        response: { status: 422, data: { detail: { code: 'other' } } },
+      }),
+    ).toBeNull()
+    expect(specErrorsOf({ response: { status: 500 } })).toBeNull()
+    expect(specErrorsOf(null)).toBeNull()
+  })
+
+  it('specErrorsOf reads the problems of a rejected analysis plan', () => {
+    expect(
+      specErrorsOf({
+        response: {
+          status: 422,
+          data: {
+            detail: {
+              code: 'invalid_analysis_plan',
+              errors: ['/analysis_plans/0/name: must be a non-empty string'],
+            },
+          },
+        },
+      }),
+    ).toEqual(['/analysis_plans/0/name: must be a non-empty string'])
+  })
+
+  it('statusOf reads the HTTP status when there is one', () => {
+    expect(statusOf({ response: { status: 403 } })).toBe(403)
+    expect(statusOf(new Error('x'))).toBeUndefined()
+    expect(statusOf(null)).toBeUndefined()
   })
 })

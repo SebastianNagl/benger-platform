@@ -1,5 +1,5 @@
 """Analysis plans: named analysis specs saved with a project's evaluation
-configuration (``evaluation_config.analysis_plans``, CORE 2.69).
+configuration (``evaluation_config.analysis_plans``, CORE 2.70).
 
 A plan is ``{id, name, spec, spec_hash, saved_at, saved_by}``. ``spec`` is
 the spec as its author wrote it; ``spec_hash`` is the hash of its normalized
