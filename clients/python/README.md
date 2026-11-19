@@ -175,9 +175,10 @@ Notes:
   items is wrapped for you. Every import job records the file's SHA-256
   (`payload_sha256`) and a `source_manifest`; importing the same bytes into
   the same project again completes as a no-op (`duplicate_of_job_id` names
-  the earlier job) while every task the earlier import wrote still exists. Pass `source_manifest={...}` to `upload` or
-  `create_project` to record your own description of the source, and
-  `reimport=True` to import the same file again on purpose.
+  the earlier job) while every task the earlier import wrote still exists.
+  Pass `source_manifest={...}` to `upload` or `create_project` to record
+  your own description of the source, and `reimport=True` to import the
+  same file again on purpose.
 * **Generation config**: `generation.configure` patches the project, which
   deep-merges `generation_config` (nested objects merge, lists replace, an
   explicit `null` deletes a key). `PUT /api/projects/{id}/generation-config`
