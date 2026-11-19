@@ -363,6 +363,7 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/recalculate-stats` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}/report` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/report` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/report/analysis-runs` | `results:read` | bound |
 | PUT | `/api/projects/{project_id}/report/publish` | `projects:write` | bound |
 | POST | `/api/projects/{project_id}/report/refresh` | `projects:write` | bound |
 | PUT | `/api/projects/{project_id}/report/unpublish` | `projects:write` | bound |
