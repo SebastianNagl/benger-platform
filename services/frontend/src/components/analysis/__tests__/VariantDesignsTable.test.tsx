@@ -1,6 +1,6 @@
 /**
- * The variant design table: rows with status, version, tasks and the frozen
- * content hash; Check and Freeze show exactly what the routes answered
+ * The variant design table: rows with status, version, units, cells, tasks
+ * and the frozen content hash; Check and Freeze show exactly what the routes answered
  * (report, units, cells, the hash, a refusal with its report); the list is
  * read back after a freeze; import posts the chosen export document.
  */

@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * The project's variant designs as a table: key, status, version, tasks and
- * the frozen content hash, with the actions Check (assignments, balance and
+ * The project's variant designs as a table: key, status, version, the
+ * counts of units, cells and tasks, and the frozen content hash, with the actions Check (assignments, balance and
  * span invariance, without changing anything) and Freeze (records the
  * content hash and makes the tasks read-only), and the import of an exported
  * design document as a new draft. Every number shown after an action is the

@@ -110,7 +110,7 @@ export function variantDesignRefusalOf(
 }
 
 export const variantDesignsAPI = {
-  /** The project's designs with their task counts, by key. */
+  /** The project's designs by key, with their task, unit and cell counts. */
   list: async (projectId: string): Promise<VariantDesign[]> => {
     const page = (await apiClient.get(base(projectId), NO_STORE)) as {
       items?: VariantDesign[]

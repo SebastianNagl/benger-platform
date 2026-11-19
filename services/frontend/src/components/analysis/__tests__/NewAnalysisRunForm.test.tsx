@@ -106,9 +106,10 @@ describe('AnalysisSpecForm', () => {
       target: { value: 'Main' },
     })
     fireEvent.click(screen.getByText('Insert a starting spec'))
-    expect(JSON.parse(specBox().value)).toEqual(
-      JSON.parse(starterSpec(['role_swap', 'docket'], 'Main')),
-    )
+    const inserted = JSON.parse(specBox().value)
+    expect(inserted.spec_version).toBe(1)
+    expect(inserted.name).toBe('Main')
+    expect(inserted.inputs.designs).toEqual(['role_swap', 'docket'])
   })
 
   it('submits the parsed spec and the trimmed name', async () => {
