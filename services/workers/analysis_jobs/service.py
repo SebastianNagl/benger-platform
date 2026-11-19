@@ -159,7 +159,7 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
         if run is None:
             logger.info("run_analysis: run %s is missing or finished; nothing to do", run_id)
             return {"run_id": run_id, "status": "skipped"}
-        # Analyses belong to variant_experiments (core 2.69): a run whose
+        # Analyses belong to variant_experiments (core 2.70): a run whose
         # owner has the flag off is not computed; it ends failed with the
         # platform's feature-disabled message, its spec stays stored.
         from feature_flags import FEATURE_DISABLED_MESSAGE, VARIANT_EXPERIMENTS

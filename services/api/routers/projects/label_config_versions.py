@@ -44,7 +44,7 @@ async def _viewable_project(project_id: str, db: AsyncSession, current_user: Use
     return project
 
 
-# Per-item answers (variant_experiments, core 2.69): 404 feature_disabled while off.
+# Per-item answers (variant_experiments, core 2.70): 404 feature_disabled while off.
 @router.get(
     "/{project_id}/label-config/label-studio",
     dependencies=[Depends(require_variant_experiments)],

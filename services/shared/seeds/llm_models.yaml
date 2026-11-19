@@ -2013,7 +2013,7 @@ models:
     output_cost_per_million: 2.5
     default_config:
       reasoning_config:
-        # Experiment panel knob (variant_experiments flag, core 2.69).
+        # Experiment panel knob (variant_experiments flag, core 2.70).
         feature_flag: variant_experiments
         parameter: enable_thinking
         type: select
@@ -2765,7 +2765,7 @@ models:
     output_cost_per_million: 0.16
     default_config:
       reasoning_config:
-        # Experiment panel knob (variant_experiments flag, core 2.69).
+        # Experiment panel knob (variant_experiments flag, core 2.70).
         feature_flag: variant_experiments
         parameter: enable_thinking
         type: select
@@ -2888,7 +2888,7 @@ models:
     output_cost_per_million: 0.34
     default_config:
       reasoning_config:
-        # Experiment panel knob (variant_experiments flag, core 2.69).
+        # Experiment panel knob (variant_experiments flag, core 2.70).
         feature_flag: variant_experiments
         parameter: enable_thinking
         type: select
@@ -2991,7 +2991,7 @@ models:
     input_cost_per_million: 0.03
     output_cost_per_million: 0.14
     default_config:
-      # Experiment panel model (variant_experiments flag, core 2.69).
+      # Experiment panel model (variant_experiments flag, core 2.70).
       feature_flag: variant_experiments
       reasoning_config:
         parameter: reasoning_effort
@@ -3019,7 +3019,7 @@ models:
     input_cost_per_million: 0.07
     output_cost_per_million: 0.14
     default_config:
-      # Experiment panel model (variant_experiments flag, core 2.69).
+      # Experiment panel model (variant_experiments flag, core 2.70).
       feature_flag: variant_experiments
     recommended_parameters:
       default:
@@ -3041,7 +3041,7 @@ models:
     input_cost_per_million: 0.075
     output_cost_per_million: 0.2
     default_config:
-      # Experiment panel model (variant_experiments flag, core 2.69).
+      # Experiment panel model (variant_experiments flag, core 2.70).
       feature_flag: variant_experiments
     recommended_parameters:
       default:
@@ -3063,7 +3063,7 @@ models:
     input_cost_per_million: 0.02
     output_cost_per_million: 0.04
     default_config:
-      # Experiment panel model (variant_experiments flag, core 2.69).
+      # Experiment panel model (variant_experiments flag, core 2.70).
       feature_flag: variant_experiments
     recommended_parameters:
       default:

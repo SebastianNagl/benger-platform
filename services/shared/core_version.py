@@ -1465,7 +1465,7 @@ frame format 2).
     lists of the snapshot and the Annotation section, keeping the aggregates
     and ``participant_count``. The stored snapshot is not changed.
 
-2.69 (2026-11-19): the experiment features behind platform feature flags
+2.70 (2026-11-19): the experiment features behind platform feature flags
   (migration 151; docs/features/feature-flags.md).
   - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
     ``variant_experiments``, ``COMPLIANCE_RECORDS`` = ``compliance_records``),
@@ -1514,7 +1514,7 @@ frame format 2).
 
 import os
 
-CORE_API_VERSION = "2.69"
+CORE_API_VERSION = "2.70"
 
 
 def extended_required() -> bool:

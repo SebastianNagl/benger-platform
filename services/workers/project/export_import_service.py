@@ -229,7 +229,7 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
             viewer=requester,
         )
 
-        # Lossless export (variant_experiments, core 2.69) is decided for the
+        # Lossless export (variant_experiments, core 2.70) is decided for the
         # requester; the generator reads the answer from this scope while it
         # is drained (serializers.serialize_generation).
         from feature_flags import VARIANT_EXPERIMENTS
@@ -472,7 +472,7 @@ def import_project_impl(
                 )
             else:
                 object_storage.download_to_fileobj(object_key, spooled)
-            # Import provenance belongs to variant_experiments (core 2.69):
+            # Import provenance belongs to variant_experiments (core 2.70):
             # off for the requester, nothing is recorded and every import
             # imports, as before.
             from feature_flags import VARIANT_EXPERIMENTS

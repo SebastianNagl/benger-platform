@@ -1759,7 +1759,7 @@ export function isMetricImmediateEligible(key: string): boolean {
  * groups and metrics of active owners are listed (lib/extensions/active.ts).
  */
 /**
- * Platform metrics that belong to a feature flag (core 2.69; mirrors
+ * Platform metrics that belong to a feature flag (core 2.70; mirrors
  * metric_filters.FLAGGED_METRICS): offered only while the flag is on.
  */
 export const FLAGGED_METRICS: Readonly<Record<string, string>> = {

@@ -42,6 +42,9 @@ from ai_services import deepinfra_service as di_mod  # noqa: E402
 from ai_services import provider_capabilities as pc  # noqa: E402
 from seeds.llm_models_loader import load_catalog  # noqa: E402
 
+# The feature is behind a platform flag (off by default in the suite).
+pytestmark = pytest.mark.flags_on("variant_experiments")
+
 GPT_OSS_20B = "openai/gpt-oss-20b"
 QWEN_27B = "Qwen/Qwen3.8-27B"
 GEMMA_26B = "google/gemma-4-26B-A4B-it"
@@ -267,11 +270,16 @@ class TestCatalogEntries:
             "values": ["off", "on"],
             "default": default,
             "label": "Thinking",
+            # The knob belongs to variant_experiments (catalog_flags).
+            "feature_flag": "variant_experiments",
         }
 
     @pytest.mark.parametrize("model_id", [LLAMA_8B_TURBO, MISTRAL_SMALL, PHI_4])
     def test_models_without_thinking_declare_no_knob(self, model_id):
-        assert "default_config" not in _catalog_by_id()[model_id]
+        # The panel models carry only their flag mark (catalog_flags).
+        assert _catalog_by_id()[model_id]["default_config"] == {
+            "feature_flag": "variant_experiments"
+        }
         pc.reload_capability_caches()
         assert pc.model_reasoning_config(model_id) is None
 

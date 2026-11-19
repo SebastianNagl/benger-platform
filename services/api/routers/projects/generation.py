@@ -99,7 +99,7 @@ async def update_generation_config(
     # Validate runs_per_task — bounded so a fat-finger entry can't queue
     # thousands of trial jobs by accident.
     if "runs_per_task" in config:
-        # Above 25 only with variant_experiments (core 2.69).
+        # Above 25 only with variant_experiments (core 2.70).
         runs_cap = max_runs_per_task(await flag_on(db, current_user, VARIANT_EXPERIMENTS))
         runs_per_task = config["runs_per_task"]
         if (

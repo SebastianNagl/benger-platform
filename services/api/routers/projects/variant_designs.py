@@ -36,7 +36,7 @@ from variant_design_guard import (
     update_design_spec,
 )
 
-# Behind the variant_experiments flag (core 2.69): 404 feature_disabled while off.
+# Behind the variant_experiments flag (core 2.70): 404 feature_disabled while off.
 router = APIRouter(dependencies=[Depends(require_variant_experiments)])
 
 _BASE = "/{project_id}/variant-designs"

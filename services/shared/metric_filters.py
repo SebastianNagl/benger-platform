@@ -149,7 +149,7 @@ def is_immediate_eligible(metric_name: Optional[str]) -> bool:
 # attribute, so an overlay's handler can declare it.
 REFERENCE_FREE_METRICS = frozenset({"text_pattern"})
 
-#: Platform metrics that belong to a feature flag (core 2.69): with the flag
+#: Platform metrics that belong to a feature flag (core 2.70): with the flag
 #: off for the caller or the run's owner they are neither offered nor run;
 #: stored configs naming them stay as they are.
 FLAGGED_METRICS = {"text_pattern": "variant_experiments"}

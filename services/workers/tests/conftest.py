@@ -179,7 +179,7 @@ def _instant_ai_backoff_sleep(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _platform_flags_on(request, monkeypatch):
-    """Platform feature flags (core 2.69) are off by default, as in a fresh
+    """Platform feature flags (core 2.70) are off by default, as in a fresh
     deployment; tests of a flagged feature opt in with
     ``@pytest.mark.flags_on("variant_experiments", ...)`` (or a module-level
     ``pytestmark``), and the named flags then evaluate as ``everyone`` for
@@ -204,6 +204,20 @@ def _platform_flags_on(request, monkeypatch):
         return real_entry_of(snapshot, name)
 
     monkeypatch.setattr(flag_service, "entry_of", entry_of)
+
+    # A test that hands a job a fake session cannot read the flag rows; the
+    # registered defaults stand in, so the named flags still answer on.
+    from feature_flags import worker as flag_worker
+
+    real_snapshot = flag_worker.worker_snapshot
+
+    def worker_snapshot(db):
+        try:
+            return real_snapshot(db)
+        except Exception:
+            return flag_service.defaults_snapshot()
+
+    monkeypatch.setattr(flag_worker, "worker_snapshot", worker_snapshot)
     yield
 
 

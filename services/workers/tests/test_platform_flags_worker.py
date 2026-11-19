@@ -1,5 +1,5 @@
 """Worker-side behaviour of the platform flag ``variant_experiments``
-(core 2.69): with it off, generation and export run as before the
+(core 2.70): with it off, generation and export run as before the
 experiment features; with it on, they run the new way. The jobs open a
 ``feature_flags.scope`` with the answer for their owner, so these tests set
 the scope directly.
@@ -82,21 +82,30 @@ def _parser(on: bool):
     return ResponseParser({}, MULTI, variant_experiments=on)
 
 
-def test_parser_reads_answers_as_before_while_off():
-    # A list for a multi-choice field was a validation error before.
-    assert _parser(False).parse('{"tags": ["a", "b"], "ok": "true"}').status == "validation_error"
-    assert _parser(True).parse('{"tags": ["a", "b"], "ok": "true"}').status == "success"
-    # A JSON boolean is no choice value while off.
-    assert _parser(False).parse('{"tags": "a", "ok": true}').status == "validation_error"
-    assert _parser(True).parse('{"tags": "a", "ok": true}').status == "success"
-    # JSON after prose is not looked for while off: the JSON decode fails
-    # and only the old pattern fallback runs.
-    prose = 'Here is my answer.\n{"tags": "a", "ok": "false"}'
-    on = _parser(True).parse(prose)
+RAW = "__response__"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        # a list for a multi-choice field
+        '{"tags": ["a", "b"], "ok": "true"}',
+        # a JSON boolean for a "true"/"false" choice
+        '{"tags": "a", "ok": true}',
+        # JSON after prose
+        'Here is my answer.\n{"tags": "a", "ok": "false"}',
+    ],
+)
+def test_parser_reads_answers_as_before_while_off(answer):
+    """Off, these answers parse as they did before per-item answers: the
+    schema check fails and the raw text is kept (``__response__``); on, the
+    choices are read."""
+    off = _parser(False).parse(answer)
+    assert off.status == "success"
+    assert [r["from_name"] for r in off.parsed_annotation] == [RAW]
+    on = _parser(True).parse(answer)
     assert on.status == "success"
     assert {r["from_name"] for r in on.parsed_annotation} == {"tags", "ok"}
-    off = _parser(False).parse(prose)
-    assert (off.status, off.parsed_annotation) != (on.status, on.parsed_annotation)
 
 
 def test_parser_reads_the_same_single_values_either_way():
@@ -184,6 +193,7 @@ class _Service:
 
 
 def test_provider_call_captures_nothing_while_off():
+    import tasks  # noqa: F401  (the generation service imports through tasks)
     from generation.llm_generation_service import _call_provider
 
     service = _Service()

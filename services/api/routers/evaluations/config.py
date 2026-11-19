@@ -570,7 +570,7 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
         # A text pattern code needs a valid pattern set and one of its codes
         # (services/shared/analysis/text_patterns.py); without them every
         # cell would record an error instead of a code.
-        # Only while variant_experiments is on for the caller (core 2.69):
+        # Only while variant_experiments is on for the caller (core 2.70):
         # off, the config is stored as before and never runs.
         if cfg.get("metric") == "text_pattern" and metric_flag_on("text_pattern"):
             _validate_text_pattern_parameters(mp)

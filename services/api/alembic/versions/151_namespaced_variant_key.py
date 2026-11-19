@@ -4,7 +4,7 @@ The first version of migration 142 reserved ``task.meta.variant`` for the
 variant assignment of a task and moved every value users had stored there to
 ``meta.variant_legacy``. A key that plain names could already hold is the
 wrong place for a reserved one, so the assignment now lives in
-``meta.benger_variant`` and ``meta.variant`` is plain data again (CORE 2.69);
+``meta.benger_variant`` and ``meta.variant`` is plain data again (CORE 2.70);
 migration 142 itself was changed to reserve the new key and to rewrite
 nothing.
 

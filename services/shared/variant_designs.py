@@ -38,7 +38,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tupl
 DESIGN_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 
 #: The key of ``task.meta`` that holds the assignment. Reserved: no other
-#: feature may store anything else under it. Namespaced (core 2.69; it was
+#: feature may store anything else under it. Namespaced (core 2.70; it was
 #: ``variant`` before), so a ``meta.variant`` a user stores is plain data.
 META_KEY = "benger_variant"
 
