@@ -19,7 +19,6 @@
 
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
-import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   publishReport,
@@ -43,9 +42,8 @@ interface PublicationToggleProps {
   isPublic?: boolean
   canPublish: boolean
   canPublishReason: string
-  /** The viewer authors the report (the API's `can_edit`); defaults to
-   *  superadmins for callers that do not know it. */
-  canEdit?: boolean
+  /** The viewer authors the report (the API's `can_edit`). */
+  canEdit: boolean
   /** Legacy callback: published flag only. */
   onToggle?: (published: boolean) => void
   /** Full publication state after any successful change. */
@@ -78,8 +76,6 @@ export function PublicationToggle({
   onChange,
 }: PublicationToggleProps) {
   const { t } = useI18n()
-  const { user } = useAuth()
-  const isAuthor = canEdit ?? Boolean(user?.is_superadmin)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -243,7 +239,7 @@ export function PublicationToggle({
           </p>
         )}
 
-        {isAuthor && !isPublished && (
+        {canEdit && !isPublished && (
           <Button
             onClick={() => {
               setPublishPublic(false)
@@ -259,7 +255,7 @@ export function PublicationToggle({
           </Button>
         )}
 
-        {isAuthor && isPublished && (
+        {canEdit && isPublished && (
           <div className="flex flex-col gap-2">
             {effectivePublic ? (
               <Button

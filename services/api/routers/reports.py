@@ -30,7 +30,7 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import build_report_snapshot
+from report_snapshot import build_report_snapshot, public_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +172,12 @@ class ReportDataResponse(BaseModel):
 _LEGACY_MODEL_FIELDS = (("evaluation", "metrics"), ("generation", "models"))
 
 
-def _reader_content(content: Dict[str, Any]) -> Dict[str, Any]:
+def _reader_content(content: Dict[str, Any], member: bool) -> Dict[str, Any]:
+    """The content as a reader who does not author the report gets it; a
+    reader outside the project (``member`` false) also gets the public view
+    of the snapshot (see ``report_snapshot.public_snapshot``)."""
+    if not member and content.get("snapshot") is not None:
+        content = {**content, "snapshot": public_snapshot(content["snapshot"])}
     sections = content.get("sections") if isinstance(content.get("sections"), dict) else None
     if not sections:
         return content
@@ -189,13 +194,20 @@ def _report_response(
     can_publish: bool,
     reason: str,
     can_edit: bool = False,
+    member: bool = False,
 ) -> "ReportResponse":
+    """``member``: the reader has the project's report read rights
+    (``check_report_access``); authors always do."""
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
         content=ReportContent(
-            **(report.content if can_edit else _reader_content(report.content or {}))
+            **(
+                report.content
+                if can_edit
+                else _reader_content(report.content or {}, member)
+            )
         ),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
@@ -426,7 +438,9 @@ async def get_project_report(
     # Check if report can be published
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
 
-    return _report_response(report, project.title, can_publish, reason, can_edit=is_author)
+    return _report_response(
+        report, project.title, can_publish, reason, can_edit=is_author, member=True
+    )
 
 
 @router.post("/projects/{project_id}/report", response_model=ReportResponse)
@@ -465,10 +479,11 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned and survives a body that omits it.
+    # the computed snapshot is server-owned, so a client-sent one is ignored.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
-    if new_content.get("snapshot") is None and existing.get("snapshot"):
+    new_content.pop("snapshot", None)
+    if existing.get("snapshot") is not None:
         new_content["snapshot"] = existing["snapshot"]
     report.content = new_content
     report.updated_at = datetime.utcnow()
@@ -798,19 +813,28 @@ async def get_report_data(
         )
 
     is_author = await can_edit_report(db, current_user, report.project_id)
+    member = is_author
     if not report.is_published:
         if not is_author:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN if current_user else status.HTTP_401_UNAUTHORIZED,
                 detail="This report is not published yet",
             )
-    elif not report.is_public and not is_author:
-        if current_user is None:
+    elif not is_author:
+        if not report.is_public and current_user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Sign in to view this report",
             )
-        await check_report_access(db, report.project_id, current_user, require_edit=False)
+        if current_user is not None:
+            try:
+                member = await check_report_access(
+                    db, report.project_id, current_user, require_edit=False
+                )
+            except HTTPException:
+                # A public report stays readable, in its public view.
+                if not report.is_public:
+                    raise
 
     content = report.content if isinstance(report.content, dict) else {}
     snapshot = content.get("snapshot")
@@ -829,7 +853,7 @@ async def get_report_data(
 
     return ReportDataResponse(
         report=_report_response(
-            report, report.project.title, can_publish, reason, can_edit=is_author
+            report, report.project.title, can_publish, reason, can_edit=is_author, member=member
         ),
-        snapshot=snapshot,
+        snapshot=snapshot if member else public_snapshot(snapshot),
     )

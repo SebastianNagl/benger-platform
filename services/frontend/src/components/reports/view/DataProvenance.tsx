@@ -225,6 +225,14 @@ export function DataProvenance({
                       <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                         {t('reports.view.records.manifestTooLarge')}
                       </div>
+                    ) : imp.declared_manifest.content === undefined ? (
+                      <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        <div>{t('reports.view.records.declaredManifest')}</div>
+                        <HashValue
+                          value={imp.declared_manifest.sha256}
+                          label={t('reports.view.records.copyHash')}
+                        />
+                      </div>
                     ) : (
                       <JsonDetails
                         summary={t('reports.view.records.declaredManifest')}

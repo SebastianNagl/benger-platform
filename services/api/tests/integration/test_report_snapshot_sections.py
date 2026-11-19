@@ -662,3 +662,143 @@ async def test_readers_never_get_the_legacy_per_model_fields(async_test_client, 
     assert sections["evaluation"]["conclusions"] == "kept"
     assert "metrics" not in sections["evaluation"] and "models" not in sections["generation"]
     assert own.json()["report"]["content"]["sections"]["generation"]["models"] == ["official-model", "custom-private"]
+
+
+# ---------------------------------------------------------------------------
+# the snapshot is server-owned (POST /projects/{id}/report)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_posted_snapshot_is_ignored(async_test_client, async_test_db):
+    owner = await _user(async_test_db)
+    ann = await _user(async_test_db)
+    project, report = await _seed_benchmark(async_test_db, owner, ann)
+    forged = {"statistics": {"task_count": 999}, "series": [],
+              "reproducibility": {"snapshot_sha256": "0" * 64}}
+
+    with _as_user(owner):
+        # No snapshot stored yet: a posted one is not stored either.
+        content = (await async_test_client.get(f"/api/projects/{project.id}/report")).json()["content"]
+        first = await async_test_client.post(f"/api/projects/{project.id}/report",
+                                             json={"content": {**content, "snapshot": forged}})
+        assert first.status_code == 200 and first.json()["content"]["snapshot"] is None
+
+        stored = (await async_test_client.post(f"/api/projects/{project.id}/report/refresh")).json()
+        stored_snapshot = stored["content"]["snapshot"]
+        updated = await async_test_client.post(
+            f"/api/projects/{project.id}/report",
+            json={"content": {**stored["content"], "snapshot": forged,
+                              "sections": {**stored["content"]["sections"], "data": {"custom_text": "edited"}}}},
+        )
+        # A body without a snapshot keeps the stored one too.
+        omitted = await async_test_client.post(
+            f"/api/projects/{project.id}/report",
+            json={"content": {k: v for k, v in stored["content"].items() if k != "snapshot"}},
+        )
+
+    assert updated.status_code == 200
+    assert updated.json()["content"]["sections"]["data"]["custom_text"] == "edited"
+    assert updated.json()["content"]["snapshot"] == stored_snapshot
+    assert omitted.json()["content"]["snapshot"] == stored_snapshot
+    await async_test_db.refresh(report)
+    assert report.content["snapshot"] == stored_snapshot
+    assert stored_snapshot["reproducibility"]["snapshot_sha256"] != "0" * 64
+
+
+# ---------------------------------------------------------------------------
+# what a reader outside the project gets (report_snapshot.public_snapshot)
+# ---------------------------------------------------------------------------
+
+_JUDGE_PROMPT = "SYNTHETIC-JUDGE-PROMPT: grade the answer"
+_RUBRIC_TEXT = "SYNTHETIC-RUBRIC-CRITERION: names the legal basis"
+
+
+async def _seed_private_judge_and_parameters(db, project):
+    """Parameters on the benchmark's judge run, plus a second config judged by
+    a hidden (private custom) judge model."""
+    from models import EvaluationJudgeRun, LLMModel, TaskEvaluation
+
+    jr = (await db.execute(select(EvaluationJudgeRun).where(EvaluationJudgeRun.judge_model_id == "judge-model")
+                           .join(TaskEvaluation, TaskEvaluation.judge_run_id == EvaluationJudgeRun.id)
+                           .where(TaskEvaluation.evaluation_config_id == "cfg-judge"))).scalars().first()
+    jr.metric_parameters_snapshot = {"custom_prompt": _JUDGE_PROMPT, "rubric": [_RUBRIC_TEXT], "temperature": 0}
+    db.add(LLMModel(id="custom-judge-secret", name="Secret Judge", provider="openai", model_type="chat",
+                    capabilities=[], is_active=True, is_official=False, is_public=False, is_private=True,
+                    base_url="https://example.invalid/v1", endpoint_model_name="secret-judge"))
+    await db.flush()
+    hidden_run = EvaluationJudgeRun(id=_uid(), evaluation_id=jr.evaluation_id, judge_model_id="custom-judge-secret",
+                                    run_index=1, status="completed",
+                                    metric_parameters_snapshot={"custom_prompt": _JUDGE_PROMPT})
+    db.add(hidden_run)
+    await db.flush()
+    gen = (await db.execute(select(Generation).join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
+                            .where(ResponseGeneration.project_id == project.id,
+                                   Generation.model_id == "official-model"))).scalars().first()
+    db.add(TaskEvaluation(id=_uid(), evaluation_id=jr.evaluation_id, judge_run_id=hidden_run.id, task_id=gen.task_id,
+                          generation_id=gen.id, field_name="loesung", answer_type="long_text",
+                          ground_truth={"value": "ref"}, prediction={"value": "pred"}, passed=True,
+                          evaluation_config_id="cfg-private-judge",
+                          metrics={"llm_judge_falloesung": {"value": 0.8, "details": {}}}))
+    await db.flush()
+
+
+def _judge_runs(snapshot):
+    return {c["id"]: c["judge_runs"] for c in snapshot["reproducibility"]["evaluation_configs"]}
+
+
+@pytest.mark.asyncio
+async def test_public_readers_get_hashes_members_get_parameters(async_test_client, async_test_db):
+    owner = await _user(async_test_db)
+    member = await _user(async_test_db)
+    outsider = await _user(async_test_db)
+    org = await _org_with(async_test_db, [(owner, "CONTRIBUTOR"), (member, "ANNOTATOR")])
+    project, report = await _seed_benchmark(async_test_db, owner, member, org=org)
+    await _seed_data(async_test_db, project, owner)
+    await _seed_private_judge_and_parameters(async_test_db, project)
+
+    with _as_user(owner):
+        published = await async_test_client.put(f"/api/projects/{project.id}/report/publish", json={"is_public": True})
+    assert published.status_code == 200
+    with _as_user(None):
+        anon = await async_test_client.get(f"/api/reports/{report.id}/data")
+    with _as_user(outsider):
+        outside = await async_test_client.get(f"/api/reports/{report.id}/data")
+    with _as_user(member):
+        inside = await async_test_client.get(f"/api/reports/{report.id}/data")
+        inside_project = await async_test_client.get(f"/api/projects/{project.id}/report")
+
+    assert {anon.status_code, outside.status_code, inside.status_code, inside_project.status_code} == {200}
+    full = inside.json()["snapshot"]
+
+    # A hidden judge is named nowhere, for any reader.
+    for response in (anon, outside, inside, inside_project, published):
+        assert "custom-judge-secret" not in response.text and "Secret Judge" not in response.text
+    assert next(c for c in full["configs"] if c["id"] == "cfg-private-judge")["judge_model"] is None
+    assert [r["judge_model"] for r in _judge_runs(full)["cfg-private-judge"]] == [None]
+
+    # Members see the full parameters and manifest bodies.
+    [visible_run] = _judge_runs(full)["cfg-judge"]
+    assert visible_run["judge_model"] == "judge-model"
+    assert visible_run["parameters"]["custom_prompt"] == _JUDGE_PROMPT
+    assert full["data"]["imports"][0]["declared_manifest"]["content"] == {"files": [{"name": "cases.csv", "sha256": "d" * 64}]}
+    assert full["data"]["variant_designs"][0]["provenance"]["content"] == {"generator": "synthetic", "version": "1"}
+    assert inside_project.json()["content"]["snapshot"] == full
+
+    for response in (anon, outside):
+        body = response.json()
+        assert _JUDGE_PROMPT not in response.text and _RUBRIC_TEXT not in response.text
+        assert '"generator"' not in response.text and "cases.csv" not in response.text
+        for snapshot in (body["snapshot"], body["report"]["content"]["snapshot"]):
+            runs = _judge_runs(snapshot)
+            assert runs["cfg-judge"] == [{k: v for k, v in visible_run.items() if k != "parameters"}]
+            assert len(runs["cfg-judge"][0]["parameters_sha256"]) == 64
+            manifest = snapshot["data"]["imports"][0]["declared_manifest"]
+            assert manifest == {"sha256": full["data"]["imports"][0]["declared_manifest"]["sha256"]}
+            provenance = snapshot["data"]["variant_designs"][0]["provenance"]
+            assert provenance == {"sha256": full["data"]["variant_designs"][0]["provenance"]["sha256"]}
+            assert snapshot["reproducibility"]["snapshot_sha256"] == full["reproducibility"]["snapshot_sha256"]
+            assert snapshot["series"] == full["series"]
+
+    # The stored snapshot stays whole.
+    await async_test_db.refresh(report)
+    assert report.content["snapshot"] == full

@@ -548,7 +548,7 @@ describe('ReportEditorPage', () => {
   })
 
   describe('save', () => {
-    it('round-trips the whole content and overlays edited fields', async () => {
+    it('round-trips the content without the snapshot and overlays edited fields', async () => {
       const user = await renderLoaded()
 
       // Edit a text, hide a section, flip flags, adjust presentation.
@@ -596,8 +596,9 @@ describe('ReportEditorPage', () => {
       const [projectId, content] = mockUpdate.mock.calls[0]
       expect(projectId).toBe('proj-1')
 
-      // Snapshot + metadata + auto-populated fields survive.
-      expect(content.snapshot).toEqual(snapshot)
+      // The snapshot is server-owned and not sent; metadata and
+      // auto-populated fields survive.
+      expect(content).not.toHaveProperty('snapshot')
       expect(content.metadata).toEqual(baseReport.content.metadata)
       expect(content.sections.project_info.title).toBe('Test Project')
       expect(content.sections.project_info.status).toBe('completed')
@@ -700,7 +701,7 @@ describe('ReportEditorPage', () => {
 
       await waitFor(() => expect(mockUpdate).toHaveBeenCalled())
       const content = mockUpdate.mock.calls[0][1]
-      expect(content.snapshot).toBeNull()
+      expect(content).not.toHaveProperty('snapshot')
       const cfg = content.sections.evaluation.charts_config
       expect(cfg.visible_metrics).toEqual(['bleu'])
       expect(cfg.visible_configs).toEqual(['cfg-bleu'])

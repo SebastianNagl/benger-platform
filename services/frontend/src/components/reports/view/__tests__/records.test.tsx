@@ -49,6 +49,31 @@ describe('DataProvenance', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows only the manifest hash when the public view leaves the content out', () => {
+    const [first, ...rest] = REC.data.imports
+    render(
+      <DataProvenance
+        data={{
+          ...REC.data,
+          imports: [
+            {
+              ...first,
+              declared_manifest: { sha256: 'd'.repeat(64) },
+            },
+            ...rest,
+          ],
+        }}
+        locale="de"
+        t={t}
+      />,
+    )
+    const [row] = screen.getAllByTestId('import-row')
+    expect(row).toHaveTextContent('Angegebenes Manifest')
+    expect(row).toHaveTextContent('d'.repeat(64))
+    expect(row).not.toHaveTextContent('cases.csv')
+    expect(row).not.toHaveTextContent('zu groß')
+  })
+
   it('renders nothing without designs and imports or for an old snapshot', () => {
     const { container, rerender } = render(
       <DataProvenance

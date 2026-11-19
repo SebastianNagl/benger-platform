@@ -83,7 +83,8 @@ export interface ReportDistribution {
 }
 
 /** A free-form JSON document (manifest, provenance) with its hash; the
- *  content is left out (`truncated`) when it is too large for a report. */
+ *  content is left out (`truncated`) when it is too large for a report,
+ *  and is never served to a reader outside the project. */
 export interface ReportFreeJson {
   sha256: string
   content?: unknown
@@ -260,7 +261,8 @@ export interface ReportReproducibility {
       judge_model: string | null
       samples: number
       parameters_sha256: string | null
-      parameters: unknown
+      /** Absent for a reader outside the project (hash only). */
+      parameters?: unknown
     }>
   }>
   variant_designs: Array<{

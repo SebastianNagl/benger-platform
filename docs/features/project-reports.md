@@ -50,7 +50,8 @@ generations, evaluations or analyses`.
 
 Publishing and "Refresh data" compute the snapshot and store it in
 `project_reports.content.snapshot`; the editor's preview computes one on the
-first view of a draft. Every number is aggregated in Postgres. Besides the
+first view of a draft. Nothing else writes it: saving the editor's content
+keeps the stored snapshot and ignores one a client sends. Every number is aggregated in Postgres. Besides the
 metric evaluation (`statistics`, `methods`, `configs`, `series`,
 `distributions`, `participants`, `models`) it holds four sections. Each is
 present for every project and empty when the project has nothing of its
@@ -68,6 +69,19 @@ A declared manifest or design provenance larger than 16 KB is stored as its
 SHA-256 only. Where an import's payload was stored (object key, file name)
 is never part of a report.
 
+### What a reader outside the project gets
+
+The stored snapshot is whole, but what is served follows the reader. Report
+authors and members of the project's organizations (the report read rights
+of `check_report_access`) get it as stored. A reader outside the project, an
+anonymous or signed-in reader of a public report, gets the public view
+(`public_snapshot` in `report_snapshot.py`), applied on every read path
+(`GET /api/reports/{id}/data`, its `snapshot` and `report.content.snapshot`):
+each judge run's parameters, each declared import manifest and each design
+provenance keep their SHA-256 but lose their content, so custom judge
+prompts, rubric and Bewertungsbogen criteria and author manifests stay
+inside the project.
+
 ### Hidden models
 
 A custom (BYOM) model that is neither official nor public is left out of a
@@ -75,7 +89,9 @@ report unless the builder is called with `include_private_models`, like on
 the LLM leaderboard. The rule holds in every section: its metric rows, its
 generation counts and rates, the ratings of its answers, and every
 preference comparison it took part in (dropped whole, since its opponent's
-record would otherwise tell how it did).
+record would otherwise tell how it did). A hidden judge model is not named
+either: its config's `judge_model` and the judge runs in the reproducibility
+appendix show no id.
 
 ### `snapshot_sha256`
 
@@ -85,8 +101,9 @@ sorted, no whitespace, floats rounded to 12 significant digits, and every
 list sorted to a total order. A rebuild over unchanged data therefore gives
 the same hash, whenever and on whichever build it runs, and any change to a
 number or record changes it. `canonical_snapshot_json` and `snapshot_sha256`
-in `report_snapshot.py` compute it; a reader can recompute it from the JSON
-the report's data link serves.
+in `report_snapshot.py` compute it; a reader with the project's read rights
+can recompute it from the JSON the report's data link serves (the public view
+leaves content out, so it carries the hash but cannot reproduce it).
 
 ## Content sections
 

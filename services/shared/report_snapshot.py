@@ -858,6 +858,7 @@ def _build_reproducibility_section(
     data: Dict[str, Any],
     generation: Dict[str, Any],
     model_visible,
+    hidden_judges,
 ) -> Dict[str, Any]:
     label_config = getattr(project, "label_config", None) if project else None
 
@@ -876,17 +877,21 @@ def _build_reproducibility_section(
             "definition_sha256": _sha256_json(definition) if definition is not None else None,
         })
 
+    param_rows = db.execute(text(_CONFIG_PARAMS_SQL), params).mappings().all()
+    hidden = hidden_judges(r["judge_model_id"] for r in param_rows)
     runs_by_key: Dict[Tuple[str, Optional[str], Optional[str]], Dict[str, Any]] = {}
-    for r in db.execute(text(_CONFIG_PARAMS_SQL), params).mappings().all():
+    for r in param_rows:
         # Samples of a hidden model's answers are not counted.
         if r["model_id"] is not None and not model_visible(r["model_id"]):
             continue
         parameters = r["parameters"]
         digest = _sha256_json(parameters) if parameters is not None else None
-        key = (r["config_id"], r["judge_model_id"], digest)
+        # A hidden judge is not named (the same rule as ``configs``).
+        judge = None if r["judge_model_id"] in hidden else r["judge_model_id"]
+        key = (r["config_id"], judge, digest)
         run = runs_by_key.setdefault(key, {
             # Judges are named as in ``configs`` (judge_model, judge_label).
-            "judge_model": r["judge_model_id"],
+            "judge_model": judge,
             "samples": 0,
             "parameters_sha256": digest,
             "parameters": parameters,
@@ -955,6 +960,43 @@ def _build_reproducibility_section(
         "analysis_runs": analysis_runs,
         "snapshot_sha256": None,
     }
+
+
+# ---------------------------------------------------------------------------
+# Reader view
+# ---------------------------------------------------------------------------
+
+def _without(doc: Any, key: str) -> Any:
+    return {k: v for k, v in doc.items() if k != key} if isinstance(doc, dict) else doc
+
+
+def _map_list(container: Dict[str, Any], key: str, fn) -> Dict[str, Any]:
+    items = container.get(key)
+    if not isinstance(items, list):
+        return container
+    return {**container, key: [fn(i) if isinstance(i, dict) else i for i in items]}
+
+
+def public_snapshot(snapshot: Any) -> Any:
+    """The snapshot as served to a reader outside the project (a public
+    report read anonymously or by a non-member): judge run parameters,
+    declared import manifests and design provenance keep their SHA-256 but
+    lose their content (custom judge prompts, rubrics, author manifests).
+    The stored snapshot and its ``snapshot_sha256`` stay whole."""
+    if not isinstance(snapshot, dict):
+        return snapshot
+    out = dict(snapshot)
+    if isinstance(out.get("data"), dict):
+        data = _map_list(out["data"], "variant_designs",
+                         lambda d: {**d, "provenance": _without(d.get("provenance"), "content")})
+        out["data"] = _map_list(data, "imports",
+                                lambda i: {**i, "declared_manifest": _without(i.get("declared_manifest"), "content")})
+    if isinstance(out.get("reproducibility"), dict):
+        out["reproducibility"] = _map_list(
+            out["reproducibility"], "evaluation_configs",
+            lambda c: _map_list(c, "judge_runs", lambda r: _without(r, "parameters")),
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1096,7 +1138,11 @@ def build_report_snapshot(
         entry = cfg_entries.get(cid) or {}
         return (entry.get("metric_parameters") or {}).get("judge_model") or run_judges.get(cid)
 
+    def _hidden_judges(ids: Iterable[Optional[str]]) -> set:
+        return set() if include_private_models else hidden_model_ids(db, ids)
+
     judge_ids = sorted({_judge_for(cid) for (cid, _m) in config_n if _judge_for(cid)})
+    hidden_judges = _hidden_judges(judge_ids)
     judge_names: Dict[str, str] = {}
     if judge_ids:
         judge_names = {r["id"]: r["name"] for r in db.execute(text(_JUDGE_NAMES_SQL), {"ids": judge_ids}).mappings().all()}
@@ -1104,6 +1150,8 @@ def build_report_snapshot(
     for (cid, metric), n in sorted(config_n.items(), key=lambda kv: (-kv[1], kv[0][0], kv[0][1])):
         entry = cfg_entries.get(cid) or {}
         judge = _judge_for(cid) if metric.startswith("llm_judge_") else None
+        if judge in hidden_judges:
+            judge = None
         configs.append({
             "id": cid,
             "metric": metric,
@@ -1160,6 +1208,7 @@ def build_report_snapshot(
         db, params, project,
         models=models, configs=configs, cfg_entries=cfg_entries, data=data, generation=generation,
         model_visible=lambda model_id: _model_subject(model_id) is not None,
+        hidden_judges=_hidden_judges,
     )
 
     snapshot = {

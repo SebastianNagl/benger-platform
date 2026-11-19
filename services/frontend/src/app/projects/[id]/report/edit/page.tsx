@@ -11,8 +11,9 @@
  * options come from the server-computed `content.snapshot`; "Refresh data"
  * recomputes it.
  *
- * Saving round-trips the whole `content` (spread the loaded content, overlay
- * only the edited fields) so `snapshot` and auto-populated data survive.
+ * Saving round-trips the loaded `content` without `snapshot` (spread it,
+ * overlay only the edited fields) so auto-populated data survives; the
+ * server keeps the stored snapshot and ignores one sent by a client.
  *
  * Issue #770: Project Reports Publishing System
  */
@@ -410,7 +411,8 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
 
   const buildContent = (): ReportContent | null => {
     if (!report || !state) return null
-    const base = (report.content ?? {}) as Partial<ReportContent>
+    const { snapshot: _snapshot, ...base } = (report.content ??
+      {}) as Partial<ReportContent>
     const sections = getSections(report)
     const cfg = getChartsConfig(report)
     const metricIds = metrics.map((m) => m.id)
