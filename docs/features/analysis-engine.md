@@ -24,8 +24,8 @@ numeric stack.
 A task belongs to a design through its `meta.benger_variant` block:
 
 ```json
-{"variant": {"design": "role_swap", "unit": "case_017",
-             "factors": {"x_role": "P", "first": "D", "level": 75}}}
+{"benger_variant": {"design": "role_swap", "unit": "case_017",
+                    "factors": {"x_role": "P", "first": "D", "level": 75}}}
 ```
 
 `design` names the design, `unit` ties the variants of one case together
@@ -55,9 +55,9 @@ Label Studio `<Repeater>` stores them (`risk_0`, `risk_1`, ...; see
 [per-item answers](../user-guides/per-item-answers.md)):
 
 ```json
-{"variant": {"design": "docket", "unit": "docket_017", "factors": {"gender": "f"},
-             "slots": [{"index": 0, "factors": {"pos": 1, "group": "a", "fact": "f2"}},
-                       {"index": 1, "factors": {"pos": 2, "group": "ref", "fact": "f0"}}]}}
+{"benger_variant": {"design": "docket", "unit": "docket_017", "factors": {"gender": "f"},
+                    "slots": [{"index": 0, "factors": {"pos": 1, "group": "a", "fact": "f2"}},
+                              {"index": 1, "factors": {"pos": 2, "group": "ref", "fact": "f0"}}]}}
 ```
 
 With `"frame": {"unit": "slot"}` the frame has one row per generation and
