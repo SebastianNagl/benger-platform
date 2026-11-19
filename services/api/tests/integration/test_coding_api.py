@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from models import CodeValidation, CodingProject, Generation, OrganizationRole, ResponseGeneration
 from project_models import Project, ProjectOrganization, Task
@@ -339,6 +340,17 @@ async def test_the_validations_of_a_projects_answers_are_listed(async_test_clien
                     json={"code": code, "control": "side", "name": name},
                 )
                 assert r.status_code == 202, r.text
+        # The test shares one transaction, so server_default now() gives all
+        # three the same created_at and the id tie-break would order them at
+        # random; spread the timestamps so "newest first" is defined.
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for minutes, name in ((0, "one"), (1, "two"), (2, "three")):
+            await async_test_db.execute(
+                update(CodeValidation)
+                .where(CodeValidation.name == name, CodeValidation.project_id.in_([first, second]))
+                .values(created_at=base + timedelta(minutes=minutes))
+            )
+        await async_test_db.commit()
         answers = await async_test_client.get(f"/api/projects/{project.id}/code-validations?of=answers")
         paged = await async_test_client.get(
             f"/api/projects/{project.id}/code-validations?of=answers&limit=1&offset=1"
