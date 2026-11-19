@@ -449,7 +449,7 @@ components (CORE 2.69):
 |---|---|
 | `EstimateProfileChart` (data from `@/lib/analysis/profile`) | estimates over an ordered or numeric x, series, facets, a fitted and a reference slope, a band |
 | `ValueDistributionChart` | a distribution of values (exact values or bins) with a reference line, the mean and a summary |
-| `StrengthForestPlot`, `EstimatesForest` | Bradley-Terry strengths against the reference per scope |
+| `StrengthForestPlot`, `EstimatesForest` | Bradley-Terry strengths (`strength[<level>]`) against the reference per scope; term coefficients and user contrasts of the estimand stay in the contrast forest |
 | `VariantUnitViewer`, `VariantUnitLoader` | the tasks of a unit, twins side by side with their spans highlighted, answers and requests |
 | `RequestRecordView`, `RequestRecordLoader` | a request record with its hash check (also the generation page's request view) |
 | `VariantDesignPanel`, `VariantDesignsLoader` | a design's factor tree, status, hashes and checks |

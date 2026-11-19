@@ -1,9 +1,11 @@
 'use client'
 
 /**
- * The forest view of a run's estimates: Bradley-Terry estimands as strength
- * forests (players against the reference, per scope), every other estimate
- * in the contrast forest plot (one contrast across its scopes).
+ * The forest view of a run's estimates: the player strengths of
+ * Bradley-Terry estimands as strength forests (players against the
+ * reference, per scope), every other estimate (also a Bradley-Terry term
+ * coefficient or user contrast) in the contrast forest plot (one contrast
+ * across its scopes).
  */
 
 import { useI18n } from '@/contexts/I18nContext'
@@ -12,7 +14,7 @@ import { MISSING } from '@/lib/analysis/results'
 import type { AnalysisEstimate, AnalysisRun } from '@/lib/api/analysis'
 import { useMemo } from 'react'
 import { ContrastForestPlot } from './ContrastForestPlot'
-import { StrengthForestPlot } from './StrengthForestPlot'
+import { isStrength, StrengthForestPlot } from './StrengthForestPlot'
 
 const BRADLEY_TERRY = 'bradley_terry'
 
@@ -29,11 +31,15 @@ export function EstimatesForest({
     [run],
   )
   const strengthIds = new Set(strengths.map((e) => e.id))
-  const others = estimates.filter((e) => !strengthIds.has(e.estimand_id))
+  const inStrengths = (e: AnalysisEstimate) =>
+    strengthIds.has(e.estimand_id) && isStrength(e)
+  const others = estimates.filter((e) => !inStrengths(e))
   const shown = strengths
     .map((estimand) => ({
       estimand,
-      rows: estimates.filter((e) => e.estimand_id === estimand.id),
+      rows: estimates.filter(
+        (e) => e.estimand_id === estimand.id && isStrength(e),
+      ),
     }))
     .filter((s) => s.rows.length > 0)
   return (

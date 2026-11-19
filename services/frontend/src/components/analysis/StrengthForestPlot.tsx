@@ -24,6 +24,10 @@ export function strengthLevel(contrastId: string | null): string | null {
   return contrastId?.match(STRENGTH)?.[1] ?? null
 }
 
+/** Whether an estimate is a player strength (not a term or a contrast). */
+export const isStrength = (e: Pick<AnalysisEstimate, 'contrast_id' | 'kind'>) =>
+  e.kind !== 'wald' && strengthLevel(e.contrast_id) !== null
+
 export function StrengthForestPlot({
   estimand,
   estimates,
@@ -33,7 +37,7 @@ export function StrengthForestPlot({
   estimates: readonly AnalysisEstimate[]
 }) {
   const { t, locale } = useI18n()
-  const rows = estimates.filter((e) => e.kind !== 'wald')
+  const rows = estimates.filter(isStrength)
   const scopes = [...new Set(rows.map((e) => e.scope))]
   const [picked, setPicked] = useState<string | null>(null)
   const scope =
@@ -64,7 +68,7 @@ export function StrengthForestPlot({
       : []),
     ...shown.map((e) => ({
       id: String(e.id ?? e.position),
-      label: strengthLevel(e.contrast_id) ?? e.contrast_id ?? e.estimand_id,
+      label: strengthLevel(e.contrast_id) ?? '',
       estimate: e.estimate,
       lower: e.ci_lower,
       upper: e.ci_upper,

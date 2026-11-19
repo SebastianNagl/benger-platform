@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { makeEstimates } from '@/test-utils/analysisFixtures'
 import {
   makeStrengthEstimates,
+  makeStrengthEstimatesWithTerm,
   makeStrengthRun,
   SYSTEM_A,
 } from '@/test-utils/variantViewFixtures'
@@ -116,6 +117,22 @@ describe('EstimatesForest', () => {
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('Contrast')).toBeNull()
+  })
+
+  it('keeps term coefficients and contrasts of a Bradley-Terry estimand out of the strengths', () => {
+    render(
+      <EstimatesForest
+        run={makeStrengthRun()}
+        estimates={makeStrengthEstimatesWithTerm()}
+      />,
+    )
+    const strengths = screen.getByTestId('strength-forest-plot')
+    // The reference a and the players b and c, nothing else.
+    expect(within(strengths).getAllByTestId('forest-plot-row')).toHaveLength(3)
+    expect(within(strengths).queryByText('first_shown')).toBeNull()
+    expect(within(strengths).queryByText('b vs c')).toBeNull()
+    // The other rows go to the contrast forest, which only shows up for them.
+    expect(screen.getByTestId('contrast-forest-plot')).toBeInTheDocument()
   })
 
   it('keeps every other estimate in the contrast forest', () => {

@@ -426,6 +426,35 @@ export function makeStrengthEstimates(): AnalysisEstimate[] {
   return rows
 }
 
+/**
+ * The strengths plus what a Bradley-Terry estimand with a term and a user
+ * contrast also stores: the term's coefficient (`first_shown`) and the
+ * contrast b against c, pooled. Neither is a player strength.
+ */
+export function makeStrengthEstimatesWithTerm(): AnalysisEstimate[] {
+  const rows = makeStrengthEstimates()
+  for (const [contrast, estimate] of [
+    ['first_shown', 0.25],
+    ['b vs c', 1.2],
+  ] as const) {
+    rows.push(
+      makeEstimate({
+        position: rows.length,
+        estimand_id: 'pairs',
+        contrast_id: contrast,
+        estimator: 'bradley_terry',
+        outcome: 'won',
+        scope: 'pooled',
+        scope_values: {},
+        estimate,
+        ci_lower: estimate - 0.1,
+        ci_upper: estimate + 0.1,
+      }),
+    )
+  }
+  return rows
+}
+
 export function makeStrengthRun(): AnalysisRun {
   return makeRun({
     normalized_spec: {
