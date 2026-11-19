@@ -180,14 +180,19 @@ describe('VariantUnitViewer', () => {
   it.each([
     ['verified', true, true, 'request-hash-ok'],
     ['mismatch', true, false, 'request-hash-mismatch'],
+    ['mismatch', false, false, 'request-hash-mismatch'],
     ['record_missing', false, null, 'request-hash-unverifiable'],
   ] as const)(
-    'opens the hash check of an answer (%s)',
+    'opens the hash check of an answer (%s, object record: %s)',
     async (state, hasRecord, matches, testId) => {
       const user = userEvent.setup()
       const view = makeUnitView()
       view.tasks[0].generations = [
-        makeGeneration({ id: 'g1', has_request_record: hasRecord }),
+        makeGeneration({
+          id: 'g1',
+          has_request_record: hasRecord,
+          hash_check: state,
+        }),
       ]
       const record = makeTrialRequest().request_record
       render(
@@ -211,8 +216,10 @@ describe('VariantUnitViewer', () => {
       const note = within(reference).queryByTestId(
         'unit-answer-hash-unverifiable',
       )
-      if (hasRecord) expect(note).toBeNull()
-      else expect(note).toBeInTheDocument()
+      // Only a hash without any record is not checkable; a stored record
+      // that is not an object is a mismatch, never labelled neutral.
+      if (state === 'record_missing') expect(note).toBeInTheDocument()
+      else expect(note).toBeNull()
       const button = within(reference).getByTestId('unit-answer-request')
       expect(button).toBeEnabled()
       await user.click(button)

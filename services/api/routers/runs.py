@@ -280,18 +280,12 @@ async def _accessible_generation(
 
 def trial_request_view(trial, parent: ResponseGeneration) -> TrialRequest:
     """The request view of one trial with its hash check."""
-    from ai_services.request_capture import request_sha256
+    from ai_services.request_capture import hash_check
     from analysis.observations import response_metadata_object, system_key
 
     record = trial.request_record if isinstance(trial.request_record, dict) else None
-    computed = request_sha256(record) if record is not None else None
     stored = trial.request_sha256
-    if not stored:
-        check = "no_hash"
-    elif trial.request_record is None:
-        check = "record_missing"
-    else:
-        check = "verified" if computed == stored else "mismatch"
+    check, computed = hash_check(trial.request_record, stored)
     first = trial.first_response_content
     if first is not None and not isinstance(first, str):
         first = str(first)

@@ -296,12 +296,14 @@ class TestUnitView:
         assert answer["system_key"] == "sim-model@aaaaaa" and answer["fields"] == {"share": 40}
         assert answer["has_request_record"] is True
         assert answer["request_sha256"] == request_sha256(_record("first"))
+        assert answer["hash_check"] == "verified"
         assert [g["model_id"] for g in second["generations"]] == ["sim-model"]
 
         # By model id, the system without a recorded key.
         other = await _get(async_test_client, async_test_db, world["admin"], url, system="sim-other")
         assert [g["model_id"] for g in other.json()["tasks"][0]["generations"]] == ["sim-other"]
         assert other.json()["tasks"][0]["generations"][0]["has_request_record"] is False
+        assert other.json()["tasks"][0]["generations"][0]["hash_check"] == "no_hash"
         # Without a system, every answer.
         every = await _get(async_test_client, async_test_db, world["admin"], url)
         assert len(every.json()["tasks"][0]["generations"]) == 2

@@ -112,6 +112,8 @@ export interface UnitGeneration {
   retried: boolean
   has_request_record: boolean
   request_sha256: string | null
+  /** The hash check the request route reports for this answer. */
+  hash_check?: TrialRequestView['hash_check']
   created_at: string | null
 }
 

@@ -140,6 +140,7 @@ def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[
     """Every task and answer of one unit (see the module doc): the queries;
     :func:`shape_unit_view` builds the answer."""
     from sqlalchemy import func, select
+    from sqlalchemy.dialects.postgresql import JSONB
 
     from models import Generation, ResponseGeneration
     from project_models import Task
@@ -173,7 +174,10 @@ def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[
             Generation.retried,
             Generation.response_metadata,
             Generation.request_sha256,
-            (func.jsonb_typeof(Generation.request_record) == "object").label("has_record"),
+            func.jsonb_typeof(Generation.request_record).label("record_type"),
+            func.jsonb_extract_path(Generation.request_record, "requests", "0", type_=JSONB).label(
+                "first_request"
+            ),
             Generation.created_at,
             ResponseGeneration.structure_key,
         )
@@ -182,6 +186,18 @@ def unit_view(db, project_id: str, design_key: str, unit: str, system: Optional[
         .order_by(Generation.task_id, ResponseGeneration.structure_key, Generation.run_index, Generation.id)
     ).all()
     return shape_unit_view(project_id, design, rows, generations, unit, system)
+
+
+def _record_for_check(record_type: Optional[str], first_request: Any) -> Any:
+    """What the hash check needs of a stored record, from its JSON type and
+    its first request: None without a record, a record holding only the
+    first request (the one the hash covers) for an object, and a non-object
+    stand-in for anything else."""
+    if record_type in (None, "null"):
+        return None
+    if record_type != "object":
+        return []
+    return {"requests": [first_request]} if first_request is not None else {}
 
 
 def shape_unit_view(
@@ -200,6 +216,7 @@ def shape_unit_view(
     carry the attributes the query of :func:`unit_view` selects, in task and
     run order. ``system`` keeps the answers of one system (its key or its
     model id); ``systems`` lists every system that answered the unit."""
+    from ai_services.request_capture import hash_check
     from analysis.observations import response_metadata_object, system_key, typed_field_values
 
     truncated = len(task_rows) > MAX_UNIT_TASKS
@@ -254,8 +271,11 @@ def shape_unit_view(
                 "truncated": bool(g.truncated),
                 "finish_reason": g.finish_reason,
                 "retried": bool(g.retried),
-                "has_request_record": bool(g.has_record),
+                "has_request_record": g.record_type == "object",
                 "request_sha256": g.request_sha256,
+                "hash_check": hash_check(
+                    _record_for_check(g.record_type, g.first_request), g.request_sha256
+                )[0],
                 "created_at": g.created_at.isoformat() if g.created_at else None,
             }
         )

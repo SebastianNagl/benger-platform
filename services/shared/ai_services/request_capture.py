@@ -33,7 +33,7 @@ import copy
 import hashlib
 import json
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 #: Version of the ``request_record`` document. Bump on a shape change.
 REQUEST_RECORD_VERSION = 1
@@ -353,3 +353,18 @@ def request_sha256(record: Optional[Dict[str, Any]]) -> Optional[str]:
     if not record or not record.get("requests"):
         return None
     return sha256_of(record["requests"][0].get("body"))
+
+
+def hash_check(record: Any, stored: Optional[str]) -> Tuple[str, Optional[str]]:
+    """The hash check of a stored record against its stored hash, as
+    ``(state, computed hash)``. ``verified``: the record's hash equals the
+    stored one; ``mismatch``: a record is stored and its hash differs, also
+    when it holds no request to hash or is not an object; ``record_missing``:
+    a hash without any record (e.g. imported without it), which cannot be
+    checked; ``no_hash``: no hash was stored."""
+    computed = request_sha256(record) if isinstance(record, dict) else None
+    if not stored:
+        return "no_hash", computed
+    if record is None:
+        return "record_missing", computed
+    return ("verified" if computed == stored else "mismatch"), computed

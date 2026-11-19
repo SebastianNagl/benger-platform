@@ -157,7 +157,7 @@ function Answer({
             SHA-256 <ShortHash value={g.request_sha256} />
           </span>
         )}
-        {g.request_sha256 && !g.has_request_record && (
+        {g.hash_check === 'record_missing' && (
           <span
             className="min-w-0 text-zinc-500 dark:text-zinc-400"
             data-testid="unit-answer-hash-unverifiable"

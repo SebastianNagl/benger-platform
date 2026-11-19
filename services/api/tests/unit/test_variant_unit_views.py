@@ -10,6 +10,9 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import variant_unit_views as units
+from ai_services.request_capture import request_sha256
+
+RECORD = {"version": 1, "requests": [{"body": {"model": "sim-a", "messages": []}}]}
 
 SPEC = {
     "schema_version": 1,
@@ -44,7 +47,19 @@ def task(task_id, party, name, *, note="n"):
     )
 
 
-def gen(gen_id, task_id, *, model="sim-a", system=SYS, run=0, record=False, metadata="json"):
+def gen(
+    gen_id,
+    task_id,
+    *,
+    model="sim-a",
+    system=SYS,
+    run=0,
+    record=False,
+    metadata="json",
+    record_type=None,
+    first_request=None,
+    sha=None,
+):
     meta = {"system": {"key": system}} if system else None
     return SimpleNamespace(
         id=gen_id,
@@ -61,8 +76,9 @@ def gen(gen_id, task_id, *, model="sim-a", system=SYS, run=0, record=False, meta
         finish_reason="stop",
         retried=False,
         response_metadata=json.dumps(meta) if metadata == "json" and meta else meta,
-        request_sha256="h" if record else None,
-        has_record=record,
+        request_sha256=request_sha256(RECORD) if record else sha,
+        record_type="object" if record else record_type,
+        first_request=RECORD["requests"][0] if record else first_request,
         created_at=datetime(2026, 11, 19, tzinfo=timezone.utc),
         structure_key="default",
     )
@@ -111,6 +127,34 @@ def test_unit_view_shapes_tasks_spans_gold_answers_and_check():
     assert view["tasks"][1]["generations"] == []
     by_model = units.shape_unit_view("p", design(), rows, gens, "u1", "sim-b")
     assert [g["id"] for g in by_model["tasks"][1]["generations"]] == ["g3"]
+
+
+def test_unit_view_gives_each_answer_the_hash_check_of_the_request_route():
+    """Each answer carries the state the request route reports for it: a
+    tampered or non-object record is a mismatch, only a hash without any
+    record is not checkable."""
+    digest = request_sha256(RECORD)
+    first = RECORD["requests"][0]
+    gens = [
+        gen("ok", "ta", record=True),
+        gen("changed", "ta", record_type="object", first_request={"body": {"model": "x"}}, sha=digest),
+        gen("emptied", "ta", record_type="object", first_request=None, sha=digest),
+        gen("listed", "ta", record_type="array", sha=digest),
+        gen("sql_null", "ta", sha=digest),
+        gen("json_null", "ta", record_type="null", sha=digest),
+        gen("unhashed", "ta", record_type="object", first_request=first),
+    ]
+    view = units.shape_unit_view("p", design(), [task("ta", "A", "Ada")], gens, "u1")
+    states = {g["id"]: (g["hash_check"], g["has_request_record"]) for g in view["tasks"][0]["generations"]}
+    assert states == {
+        "ok": ("verified", True),
+        "changed": ("mismatch", True),
+        "emptied": ("mismatch", True),
+        "listed": ("mismatch", False),
+        "sql_null": ("record_missing", False),
+        "json_null": ("record_missing", False),
+        "unhashed": ("no_hash", True),
+    }
 
 
 def test_unit_view_reports_the_unit_check_and_caps_what_it_returns(monkeypatch):
