@@ -748,7 +748,7 @@ describe('ReportViewerPage: the report as the project paper', () => {
       await renderPage()
       expect(screen.getByText('Lauf öffnen')).toHaveAttribute(
         'href',
-        '/projects/project-1/analysis/run-1',
+        '/evaluations/analysis/run-1',
       )
     })
 
@@ -795,6 +795,69 @@ describe('ReportViewerPage: the report as the project paper', () => {
         'section-reproducibility',
         'section-cite',
       ])
+    })
+
+    describe('validations of the codes', () => {
+      const { makeReportValidation } = require('@/test-utils/codingFixtures')
+      // An analysis-only project: no annotations of its own, its codes were
+      // validated on coding projects.
+      const codedSnapshot = {
+        ...ANNOTATION_ONLY_SNAPSHOT,
+        statistics: {
+          ...ANNOTATION_ONLY_SNAPSHOT.statistics,
+          annotation_count: 0,
+          participant_count: 0,
+        },
+        participants: [],
+        annotator_agreement: null,
+        analyses: {
+          ...REPORT_ANALYSES_FIXTURE,
+          code_validations: [makeReportValidation()],
+        },
+      }
+
+      it('shows them in the Annotation section of an analysis-only project', async () => {
+        mockData(withAnalyses({}), codedSnapshot)
+        await renderPage()
+        expect(sectionIds()).toContain('section-annotations')
+        const section = screen.getByTestId('section-annotations')
+        // No annotation count sentence without annotations.
+        expect(section).not.toHaveTextContent('Abgaben von')
+        const block = within(section).getByTestId('report-code-validations')
+        expect(
+          within(block).getByText('Validierungen der Codes'),
+        ).toBeInTheDocument()
+        const entry = within(block).getByTestId('report-code-validation')
+        expect(within(entry).getByText('blame pattern')).toBeInTheDocument()
+        expect(entry).toHaveTextContent('framing main (blames_claimant)')
+        expect(within(entry).getByTestId('validation-kappa')).toHaveTextContent(
+          '0,59',
+        )
+        expect(
+          within(entry).getAllByTestId('validation-category-row'),
+        ).toHaveLength(3)
+      })
+
+      it('hides them with the switch off or without a shown Analyses section', async () => {
+        const report = withAnalyses({})
+        report.content.sections.annotations = {
+          ...report.content.sections.annotations,
+          show_code_validations: false,
+        } as any
+        mockData(report, codedSnapshot)
+        const { unmount } = await renderPage()
+        expect(
+          screen.queryByTestId('report-code-validations'),
+        ).not.toBeInTheDocument()
+        expect(sectionIds()).not.toContain('section-annotations')
+        unmount()
+
+        mockData(withAnalyses({ visible: false }), codedSnapshot)
+        await renderPage()
+        expect(
+          screen.queryByTestId('report-code-validations'),
+        ).not.toBeInTheDocument()
+      })
     })
   })
 

@@ -6456,6 +6456,61 @@
       "pairsTruncated": "Angezeigt werden die {shown} Paare mit den meisten gemeinsamen Aufgaben von {total}.",
       "unsupported": "Nicht bewertet (kein vergleichbarer Wert, etwa Freitext oder Markierungen): {controls}.",
       "methodNote": "Es zählen nur Aufgaben mit mindestens zwei Antworten im jeweiligen Feld. Kappa wird nach der Skala von Landis und Koch gelesen; Bewertungen werden als Kategorien verglichen (ungewichtetes Kappa). Für Cohens Kappa braucht ein Paar mindestens zwei gemeinsame Aufgaben."
+    },
+    "agreementValidity": {
+      "title": "Übereinstimmung und Validität",
+      "runDescription": "Die Codes, die dieser Lauf gelesen hat, jeweils mit der Validierung, die er akzeptiert hat: die gespeicherte Übereinstimmung des Codes mit menschlichen Codes in einem Kodierprojekt.",
+      "judgeDescription": "Wie stark LLM-Bewerter übereinstimmen, wenn sie dieselben Einträge bewertet haben.",
+      "runCodes": "Codes dieses Laufs ({count})",
+      "validated": "Validiert",
+      "notValidated": "Nicht validiert",
+      "notValidatedHint": "Der Lauf hat diesen Code ohne Validierung gelesen, was nur eine explorative Familie erlaubt.",
+      "code": "Code",
+      "hash": "Code-Hash",
+      "copyHash": "Hash kopieren",
+      "missingRows": "Fehlend",
+      "missingOfRows": "{missing} von {rows} Zeilen",
+      "confirmatory": "Konfirmatorische Schätzgrößen",
+      "accepted": "Validiert am Steuerelement {control}: Kappa {kappa}, Übereinstimmung {agreement}, {compared} Einträge verglichen, wie beim Lauf festgehalten.",
+      "openCodingProject": "Kodierprojekt öffnen",
+      "loadingDetail": "Validierung wird geladen...",
+      "detailUnavailable": "Sie können das Kodierprojekt nicht öffnen, daher sind nur die vom Lauf festgehaltenen Werte zu sehen.",
+      "kappa": "Cohens Kappa",
+      "observed": "Übereinstimmung",
+      "expected": "Zufallsübereinstimmung",
+      "compared": "Verglichen",
+      "ofItems": "von {items} Einträgen",
+      "category": "Kategorie",
+      "support": "Menschliche Codes",
+      "precision": "Precision",
+      "recall": "Recall",
+      "ties": "{count} Einträge mit gleich vielen Stimmen der menschlichen Codes haben keine Referenz und bleiben außen vor.",
+      "missingCategory": "{count} Einträge ohne automatischen Code zählen als Kategorie (missing).",
+      "missingExcluded": "{count} Einträge ohne automatischen Code bleiben außen vor.",
+      "betweenCoders": "Zwischen den {coders} menschlichen Kodierenden auf {items} mehrfach kodierten Einträgen: Fleiss' Kappa {kappa}, alle Kodierenden stimmen bei {agreement} überein.",
+      "kinds": {
+        "text_pattern": "Textmuster",
+        "coder": "Coder-Plugin",
+        "judge_code": "Bewerter-Code",
+        "other": "Code"
+      },
+      "projectValidations": "Validierungen der Antworten dieses Projekts ({count})",
+      "projectValidationsHint": "Alle Validierungen in Kodierprojekten aus diesem Projekt, die Sie öffnen können.",
+      "name": "Validierung",
+      "status": "Status",
+      "statuses": {
+        "pending": "Ausstehend",
+        "running": "Läuft",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      },
+      "usedByRun": "von diesem Lauf genutzt",
+      "judgeTitle": "Übereinstimmung der Bewerter",
+      "modelMetric": "Modell und Metrik",
+      "judges": "Bewerter",
+      "items": "Einträge",
+      "allAgree": "Alle Bewerter einig",
+      "judgePairs": "Bewerterpaare"
     }
   },
   "about": {
@@ -7629,7 +7684,8 @@
         "memberOnlyHint": "In diesem Lauf kann ein privates Modell vorkommen, deshalb sehen ihn nur Mitglieder des Projekts. Solange der Bericht diesen Lauf enthält, kann er nicht öffentlich gemacht werden.",
         "memberOnlyPublic": "In diesem Lauf kann ein privates Modell vorkommen. Der Bericht ist öffentlich, deshalb sehen Leser außerhalb des Projekts diesen Lauf nicht; Mitglieder sehen ihn weiterhin.",
         "onlyMemberOnlyLeft": "Die übrigen Läufe sind nur für Mitglieder: In ihnen kann ein privates Modell vorkommen, deshalb kann ein öffentlicher Bericht sie nicht enthalten."
-      }
+      },
+      "showCodeValidations": "Validierungen der Codes der Analysen anzeigen"
     },
     "publication": {
       "copied": "Kopiert",
@@ -7831,6 +7887,17 @@
         "figure": "Abbildung {n}",
         "table": "Tabelle {n}",
         "openRun": "Lauf öffnen"
+      },
+      "codeValidations": {
+        "title": "Validierungen der Codes",
+        "intro": "Die Analysen lesen Codes, die in Kodierprojekten an menschlichen Codes validiert wurden. Jede Validierung vergleicht den automatischen Code mit der menschlichen Referenz (dem menschlichen Code oder der Mehrheit mehrerer).",
+        "code": "Code",
+        "hash": "Code-Hash",
+        "control": "Steuerelement",
+        "usedBy": "Genutzt von",
+        "usedByEntry": "{run} ({measure})",
+        "completed": "Abgeschlossen",
+        "recordedOnly": "Die gespeicherte Validierung ist nicht mehr verfügbar; die Werte sind die vom Lauf festgehaltenen."
       }
     },
     "title": "Berichte",

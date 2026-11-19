@@ -111,6 +111,7 @@ interface EditorState {
   showProvenance: boolean
   showParticipants: boolean
   showAgreement: boolean
+  showCodeValidations: boolean
   showModels: boolean
   showGenerationDetails: boolean
   showHumanEvaluation: boolean
@@ -224,6 +225,7 @@ function deriveEditorState(report: ReportResponse): EditorState {
     showProvenance: sections.data?.show_provenance !== false,
     showParticipants: sections.annotations?.show_participants !== false,
     showAgreement: sections.annotations?.show_agreement !== false,
+    showCodeValidations: sections.annotations?.show_code_validations !== false,
     showModels: sections.generation?.show_models !== false,
     showGenerationDetails: sections.generation?.show_details !== false,
     showHumanEvaluation: sections.evaluation?.show_human_evaluation !== false,
@@ -472,6 +474,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           visible: state.sectionVisible.annotations,
           show_participants: state.showParticipants,
           show_agreement: state.showAgreement,
+          show_code_validations: state.showCodeValidations,
           custom_text: state.annotationsText || null,
           acknowledgment_text: state.acknowledgment || null,
         },
@@ -859,6 +862,11 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               enabled={state.showAgreement}
               onChange={(enabled) => update({ showAgreement: enabled })}
               label={t('reports.editor.showAgreement')}
+            />
+            <ToggleSwitch
+              enabled={state.showCodeValidations}
+              onChange={(enabled) => update({ showCodeValidations: enabled })}
+              label={t('reports.editor.showCodeValidations')}
             />
           </div>
         </div>

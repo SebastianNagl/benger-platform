@@ -246,6 +246,10 @@ structure and run index.
 
 `GET /api/projects/{coding_project_id}/code-validations` lists them and
 `GET /api/code-validations/{code_validation_id}` returns one.
+`GET /api/projects/{project_id}/code-validations?of=answers` lists the
+validations of a project's answers instead: those on every coding project
+drawn from it that the caller can open, newest first, each with
+`coding_project_title`.
 
 ## Confirmatory analyses need validated codes
 
@@ -271,3 +275,20 @@ Every run records each code measure in `codes`: kind, ref, version, hash,
 the coder's hash and owner or the pattern set's hash, the coding counts of a
 judge, the missing count, the confirmatory estimands and the accepted
 validation.
+
+## Where validations are shown
+
+The Analyses view of the evaluations page and the analysis run page show an
+**Agreement and validity** block for a run that read codes (a run without
+codes shows none). It lists each code of the run with its kind, ref, version
+and hash, the missing count and, for a validated code, what the run recorded
+(control, kappa, agreement, compared items) and the stored validation's
+agreement: Cohen's kappa with its Landis and Koch band, observed and chance
+agreement, precision, recall and F1 per category and the agreement between
+the human coders. A reader who cannot open the coding project sees only the
+numbers the run recorded. Below the codes the block lists the validations
+of the project's answers (`of=answers`), marking those the run used.
+
+A project report shows the validations behind the codes of its Analyses
+runs in its Annotation section (see
+[Project reports](project-reports.md#validations-of-the-codes)).

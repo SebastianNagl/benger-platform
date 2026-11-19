@@ -1632,11 +1632,33 @@ API change).
     Bradley-Terry estimands as strength forests and show the profile and
     the examples of a contrast; the run page lists the variant designs the
     run read; the generation page's request view is ``RequestRecordView``.
+2.74 (2026-11-19): agreement and validity views (no migration, additive API
+  changes only).
+  - ``GET /api/projects/{project_id}/code-validations`` takes ``of``:
+    ``coding`` (the default, the coding project's own validations) or
+    ``answers`` (the validations of the project's answers, on every coding
+    project drawn from it the caller can open, each with
+    ``coding_project_title``).
+  - ``report_snapshot.build_report_snapshot`` adds
+    ``analyses.code_validations`` (``_analysis_code_validations``): the
+    validations the Analyses runs' codes accepted, with the stored
+    agreement, ``used_by`` and ``member_only``; ``public_snapshot`` leaves
+    member-only ones out and ``apply_section_visibility`` empties the list
+    for ``sections.annotations.show_code_validations: false``.
+  - Frontend: ``StatisticalResultsPanel`` shows the Agreement and validity
+    block (``@/components/evaluation/statistics/AgreementValidity``:
+    ``RunAgreementBlock`` for a run with codes, ``JudgeAgreementBlock`` for
+    the metrics' ``judge_agreement_by_model_metric``), also on the run
+    page; ``@/components/evaluation/CodeValidationAgreement`` draws one
+    validation's agreement from plain props; ``@/lib/api/coding``
+    (``codingAPI``) reads validations; ``AnalysisRun.codes`` is typed
+    (``AnalysisCodeRecord``); the statistics blocks' layout primitives are
+    ``@/components/evaluation/statistics/blocks``.
 """
 
 import os
 
-CORE_API_VERSION = "2.73"
+CORE_API_VERSION = "2.74"
 
 
 def extended_required() -> bool:

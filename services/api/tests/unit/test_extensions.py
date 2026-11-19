@@ -205,7 +205,9 @@ class TestExtensionLoader:
         # 2.73 adds the shared variant and analysis views (variant unit
         # routes, the request hash check, profile, distribution, strength,
         # unit, request and design components).
-        assert CORE_API_VERSION == "2.73"
+        # 2.74 adds the agreement and validity views (code validations of a
+        # project's answers, the snapshot's analyses.code_validations).
+        assert CORE_API_VERSION == "2.74"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
