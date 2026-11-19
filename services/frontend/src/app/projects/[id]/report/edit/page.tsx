@@ -7,7 +7,8 @@
  * presentation of the evaluation (primary metric / judge configuration,
  * visible metrics + configurations, hidden models/participants,
  * distribution + human rows), the record parts of the Data, Generation and
- * Evaluation sections, and the Reproducibility appendix. The editable
+ * Evaluation sections, the Analyses section (analysis runs and their
+ * exhibits, see AnalysesEditor) and the Reproducibility appendix. The editable
  * options come from the server-computed `content.snapshot`; "Refresh data"
  * recomputes it.
  *
@@ -20,6 +21,7 @@
 
 'use client'
 
+import { AnalysesEditor } from '@/components/reports/editor/AnalysesEditor'
 import { hasHumanEvaluations } from '@/components/reports/view'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
@@ -42,10 +44,12 @@ import {
   getProjectReport,
   refreshReport,
   updateProjectReport,
+  type AnalysisRunContent,
   type ReportContent,
   type ReportResponse,
 } from '@/lib/api/reports'
 import { intlTag } from '@/lib/i18n/locales'
+import { cleanFilters } from '@/lib/reports/analyses'
 import { formatCount, formatRate } from '@/lib/reports/format'
 import type {
   ReportChartsConfig,
@@ -74,6 +78,7 @@ type SectionKey =
   | 'annotations'
   | 'generation'
   | 'evaluation'
+  | 'analyses'
   | 'reproducibility'
 
 const SECTION_KEYS: SectionKey[] = [
@@ -82,6 +87,7 @@ const SECTION_KEYS: SectionKey[] = [
   'annotations',
   'generation',
   'evaluation',
+  'analyses',
   'reproducibility',
 ]
 
@@ -98,6 +104,8 @@ interface EditorState {
   interpretation: string
   conclusions: string
   reproducibilityText: string
+  analysesText: string
+  analysesRuns: AnalysisRunContent[]
   sectionVisible: Record<SectionKey, boolean>
   showDataCount: boolean
   showProvenance: boolean
@@ -207,6 +215,10 @@ function deriveEditorState(report: ReportResponse): EditorState {
     interpretation: sections.evaluation?.custom_interpretation || '',
     conclusions: sections.evaluation?.conclusions || '',
     reproducibilityText: sections.reproducibility?.custom_text || '',
+    analysesText: sections.analyses?.custom_text || '',
+    analysesRuns: Array.isArray(sections.analyses?.runs)
+      ? (sections.analyses.runs as AnalysisRunContent[])
+      : [],
     sectionVisible,
     showDataCount: sections.data?.show_count !== false,
     showProvenance: sections.data?.show_provenance !== false,
@@ -478,6 +490,22 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           show_human_evaluation: state.showHumanEvaluation,
           charts_config: chartsConfig,
         },
+        analyses: {
+          ...sections.analyses,
+          visible: state.sectionVisible.analyses,
+          custom_text: state.analysesText || null,
+          runs: state.analysesRuns.map((run) => ({
+            ...run,
+            title: run.title || null,
+            text: run.text || null,
+            exhibits: run.exhibits.map((exhibit) => ({
+              ...exhibit,
+              title: exhibit.title || null,
+              caption: exhibit.caption || null,
+              filters: cleanFilters(exhibit.filters),
+            })),
+          })),
+        },
         reproducibility: {
           ...sections.reproducibility,
           visible: state.sectionVisible.reproducibility,
@@ -508,7 +536,23 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       addToast(t('project.report.editor.savedSuccessfully'), 'success')
     } catch (error) {
       console.error('Failed to save report:', error)
-      addToast(t('project.report.editor.failedToSave'), 'error')
+      const response = (
+        error as { response?: { status?: number; data?: any } } | null
+      )?.response
+      const detail = response?.data?.detail
+      if (
+        response?.status === 422 &&
+        detail?.code === 'invalid_report_analyses'
+      ) {
+        addToast(
+          t('reports.editor.analyses.invalid', {
+            errors: (detail.errors ?? []).join('; '),
+          }),
+          'error',
+        )
+      } else {
+        addToast(t('project.report.editor.failedToSave'), 'error')
+      }
     } finally {
       setSaving(false)
     }
@@ -1182,6 +1226,20 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Analyses Section */}
+        <div className={cardClass} data-testid="section-analyses">
+          {sectionHeader('analyses', t('reports.editor.analyses.title'))}
+          <AnalysesEditor
+            projectId={projectId}
+            customText={state.analysesText}
+            runs={state.analysesRuns}
+            onCustomTextChange={(text) => update({ analysesText: text })}
+            onRunsChange={(runs) => update({ analysesRuns: runs })}
+            snapshot={snapshot?.analyses}
+            isPublic={Boolean(report?.is_published && report?.is_public)}
+          />
         </div>
 
         {/* Reproducibility Section */}

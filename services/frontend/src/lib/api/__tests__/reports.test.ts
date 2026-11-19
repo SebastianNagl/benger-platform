@@ -7,6 +7,7 @@ import {
   getProjectReport,
   getReportData,
   listPublishedReports,
+  listReportAnalysisRuns,
   publishReport,
   refreshReport,
   setReportVisibility,
@@ -204,6 +205,26 @@ describe('Report API', () => {
 
       expect(mockPost).toHaveBeenCalledWith('/projects/p1/report/refresh')
       expect(result).toEqual(mockResponse)
+    })
+  })
+
+  describe('listReportAnalysisRuns', () => {
+    it('GETs the runs the Analyses section can show, uncached', async () => {
+      const items = [{ id: 'run-1', name: 'main' }]
+      mockGet.mockResolvedValue({ items })
+
+      const result = await listReportAnalysisRuns('p1')
+
+      expect(mockGet).toHaveBeenCalledWith(
+        '/projects/p1/report/analysis-runs',
+        { cache: 'no-store' },
+      )
+      expect(result).toEqual(items)
+    })
+
+    it('returns an empty list for an empty answer', async () => {
+      mockGet.mockResolvedValue(null)
+      expect(await listReportAnalysisRuns('p1')).toEqual([])
     })
   })
 

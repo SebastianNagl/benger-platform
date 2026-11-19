@@ -1,5 +1,5 @@
 /**
- * Reads behind the variant and request views (CORE 2.71): the variant
+ * Reads behind the variant and request views (CORE 2.73): the variant
  * designs of a project, the units of a design and one unit with its tasks,
  * declared spans and answers (services/api/routers/projects/variant_designs.py),
  * and the request record of one generation trial with its hash check
@@ -171,7 +171,7 @@ export interface RequestRecord {
 
 /**
  * One trial's request record with the hash check. The fields after
- * `request_sha256` arrived with CORE 2.71 and are optional for older APIs.
+ * `request_sha256` arrived with CORE 2.73 and are optional for older APIs.
  */
 export interface TrialRequestView {
   id: string

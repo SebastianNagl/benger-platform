@@ -1,3 +1,5 @@
+export { AnalysesSection, hasAnalyses } from './AnalysesSection'
+export { AnalysisExhibit } from './AnalysisExhibit'
 export type { TranslateFn } from './chartTheme'
 export { ChartLegend, ChartTooltipBox } from './ChartTooltip'
 export { CitationBlock, buildBibtex } from './CitationBlock'

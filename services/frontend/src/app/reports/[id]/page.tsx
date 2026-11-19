@@ -9,8 +9,9 @@
  *
  * The report reads as the project's paper: Data (with variant designs and
  * import provenance), Annotation, Generation (with per-model outcome rates),
- * Evaluation, Human evaluation, the Reproducibility appendix and a citation
- * block. Sections without data hide themselves, so an annotation-only
+ * Evaluation, Human evaluation, Analyses (the analysis runs and exhibits the
+ * author chose; the conclusions follow them), the Reproducibility appendix
+ * and a citation block. Sections without data hide themselves, so an annotation-only
  * project gets a short, complete report. The page prints as a document
  * (see the print rules in styles/tailwind.css).
  */
@@ -19,10 +20,12 @@
 
 import { AnnotatorAgreement } from '@/components/evaluation/AnnotatorAgreement'
 import {
+  AnalysesSection,
   CitationBlock,
   DataProvenance,
   EvaluationSection,
   GenerationDetails,
+  hasAnalyses,
   hasHumanEvaluations,
   HumanEvaluationSection,
   ModelChips,
@@ -74,6 +77,7 @@ function readSections(report: ReportResponse | null): ViewSections | null {
     annotations: stored.annotations ?? {},
     generation: stored.generation ?? {},
     evaluation: stored.evaluation ?? {},
+    analyses: stored.analyses ?? {},
     reproducibility: stored.reproducibility ?? {},
   }
 }
@@ -270,7 +274,7 @@ export default function ReportViewerPage({
     if ((stats.analysis_count ?? 0) > 0) {
       tiles.push({
         id: 'analyses',
-        label: t('reports.view.analyses'),
+        label: t('reports.view.analyses.title'),
         value: formatCount(stats.analysis_count ?? 0, locale),
       })
     }
@@ -287,12 +291,21 @@ export default function ReportViewerPage({
   const showGeneration =
     sections.generation.visible !== false &&
     (generationModels > 0 || Boolean(sections.generation.custom_text))
+  const analysesContent = sections.analyses
+  const showAnalyses =
+    analysesContent?.visible !== false && hasAnalyses(snapshot?.analyses)
+  // With an Analyses section the conclusions follow it, as in a paper.
+  const conclusions = sections.evaluation.conclusions
+  const conclusionsAfterAnalyses =
+    showAnalyses &&
+    sections.evaluation.visible !== false &&
+    Boolean(conclusions)
   const hasEvaluation =
     !snapshot ||
     snapshot.series.length > 0 ||
     snapshot.methods.length > 0 ||
     Boolean(sections.evaluation.custom_interpretation) ||
-    Boolean(sections.evaluation.conclusions)
+    (Boolean(conclusions) && !conclusionsAfterAnalyses)
   const showEvaluation = sections.evaluation.visible !== false && hasEvaluation
   const showHuman =
     sections.evaluation.visible !== false &&
@@ -401,7 +414,7 @@ export default function ReportViewerPage({
             snapshot={snapshot}
             chartsConfig={chartsConfig}
             interpretation={sections.evaluation.custom_interpretation}
-            conclusions={sections.evaluation.conclusions}
+            conclusions={conclusionsAfterAnalyses ? null : conclusions}
             registry={registry}
             locale={locale}
             t={t}
@@ -414,6 +427,26 @@ export default function ReportViewerPage({
             locale={locale}
             t={t}
           />
+        )}
+
+        {showAnalyses && (
+          <AnalysesSection
+            analyses={snapshot?.analyses}
+            content={analysesContent}
+            locale={locale}
+            t={t}
+            runHref={
+              report.can_edit
+                ? (runId) => `/projects/${report.project_id}/analysis/${runId}`
+                : null
+            }
+          />
+        )}
+
+        {conclusionsAfterAnalyses && (
+          <ReportSection title={t('reports.view.conclusions')} id="conclusions">
+            <Prose>{conclusions}</Prose>
+          </ReportSection>
         )}
 
         {showParticipants && snapshot && (

@@ -182,7 +182,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
         load_judge_values,
         load_lookup_tables,
     )
-    from analysis.frame import build_frame, frame_sha256, to_parquet
+    from analysis.frame import build_frame, frame_models, frame_sha256, to_parquet
     from analysis.runner import run_spec
     from analysis.version import ENGINE_VERSION
     from analysis_jobs.coding import check_code_validations
@@ -252,6 +252,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
         run.resolved_inputs = {
             "projects": [p["project_id"] for p in spec["inputs"].get("projects") or []],
             "lookups": resolved_lookups,
+            "models": frame_models(frame),
         }
         run.fits = result.fits
         run.codes = codes or None

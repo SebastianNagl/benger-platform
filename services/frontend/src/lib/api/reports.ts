@@ -10,7 +10,12 @@
  * - Get complete report data (report + snapshot)
  */
 
-import type { ReportChartsConfig, ReportSnapshot } from '@/types/report'
+import type {
+  ReportChartsConfig,
+  ReportExhibitFilters,
+  ReportExhibitType,
+  ReportSnapshot,
+} from '@/types/report'
 import { apiClient } from './client'
 
 // Types matching backend schema
@@ -69,6 +74,48 @@ export interface EvaluationSection extends ReportSection {
   show_human_evaluation?: boolean
 }
 
+/** One exhibit of an Analyses run: how it draws which estimates. */
+export interface AnalysisExhibitContent {
+  /** 1 to 64 letters, digits, '-' or '_', unique within the run. */
+  id: string
+  type: ReportExhibitType
+  title?: string | null
+  caption?: string | null
+  filters?: ReportExhibitFilters
+  /** Equivalence bound set a forest draws (default the first), null none. */
+  band?: number | null
+}
+
+/** One run of the Analyses section with the author's text and exhibits. */
+export interface AnalysisRunContent {
+  run_id: string
+  title?: string | null
+  text?: string | null
+  exhibits: AnalysisExhibitContent[]
+}
+
+/** The Analyses section: completed single-project runs the author picked;
+ *  the snapshot copies the estimates their exhibits select. */
+export interface AnalysesSection {
+  visible?: boolean
+  custom_text?: string | null
+  runs?: AnalysisRunContent[]
+}
+
+/** An analysis run the Analyses section can show. */
+export interface ReportAnalysisRunOption {
+  id: string
+  name: string
+  spec_hash: string
+  engine_version: string
+  frame_rows: number | null
+  estimates_count: number | null
+  completed_at: string | null
+  /** A private model may appear in it: only members see it, and a public
+   *  report cannot show it. */
+  member_only: boolean
+}
+
 /** Reproducibility appendix; visible unless the author switched it off. */
 export interface ReproducibilitySection {
   visible?: boolean
@@ -82,6 +129,7 @@ export interface ReportContent {
     annotations: AnnotationsSection
     generation: GenerationSection
     evaluation: EvaluationSection
+    analyses?: AnalysesSection
     reproducibility?: ReproducibilitySection
   }
   metadata: {
@@ -258,6 +306,21 @@ export async function refreshReport(
   projectId: string,
 ): Promise<ReportResponse> {
   return await apiClient.post(`/projects/${projectId}/report/refresh`)
+}
+
+/**
+ * The analysis runs the report's Analyses section can show (report authors
+ * only): completed runs of the project that read no other project, newest
+ * first.
+ */
+export async function listReportAnalysisRuns(
+  projectId: string,
+): Promise<ReportAnalysisRunOption[]> {
+  const page = (await apiClient.get(
+    `/projects/${projectId}/report/analysis-runs`,
+    { cache: 'no-store' },
+  )) as { items?: ReportAnalysisRunOption[] }
+  return page?.items ?? []
 }
 
 /**

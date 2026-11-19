@@ -30,7 +30,16 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import apply_section_visibility, build_report_snapshot, public_snapshot
+from report_snapshot import (
+    AnalysesSectionError,
+    analysis_runs_member_only,
+    apply_section_visibility,
+    build_report_snapshot,
+    has_member_only_analyses,
+    parse_analyses_section,
+    public_snapshot,
+    report_analysis_runs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -179,13 +188,24 @@ _LEGACY_MODEL_FIELDS = (("evaluation", "metrics"), ("generation", "models"))
 def _reader_content(content: Dict[str, Any], member: bool) -> Dict[str, Any]:
     """The content as a reader who does not author the report gets it; a
     reader outside the project (``member`` false) also gets the public view
-    of the snapshot (see ``report_snapshot.public_snapshot``)."""
+    of the snapshot (see ``report_snapshot.public_snapshot``) and the
+    Analyses section's prose and exhibits only for the runs that view
+    shows."""
     if not member and content.get("snapshot") is not None:
         content = {**content, "snapshot": public_snapshot(content["snapshot"])}
     sections = content.get("sections") if isinstance(content.get("sections"), dict) else None
     if not sections:
         return content
     trimmed = dict(sections)
+    analyses = trimmed.get("analyses")
+    if not member and isinstance(analyses, dict) and isinstance(analyses.get("runs"), list):
+        snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else {}
+        shown_section = snapshot.get("analyses") if isinstance(snapshot.get("analyses"), dict) else {}
+        shown = {r.get("id") for r in shown_section.get("runs") or [] if isinstance(r, dict)}
+        trimmed["analyses"] = {
+            **analyses,
+            "runs": [r for r in analyses["runs"] if isinstance(r, dict) and r.get("run_id") in shown],
+        }
     for section, field in _LEGACY_MODEL_FIELDS:
         if isinstance(trimmed.get(section), dict) and field in trimmed[section]:
             trimmed[section] = {k: v for k, v in trimmed[section].items() if k != field}
@@ -266,10 +286,24 @@ def _create_or_update_report_sync(sync_db, project_id: str, user_id: str):
     return report.id
 
 
-def _build_snapshot_sync(sync_db, project_id: str):
+def _analyses_of(report: ProjectReport) -> Any:
+    """The report's ``content.sections.analyses`` (the runs and exhibits the
+    snapshot copies), or None."""
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") if isinstance(content.get("sections"), dict) else {}
+    return sections.get("analyses")
+
+
+def _build_snapshot_sync(sync_db, project_id: str, analyses: Any = None):
     """Compute the report snapshot on the bridged sync session (SQL
     aggregation only — see report_snapshot)."""
-    return build_report_snapshot(sync_db, project_id)
+    return build_report_snapshot(sync_db, project_id, analyses=analyses)
+
+
+def _report_analysis_runs_sync(sync_db, project_id: str):
+    runs = report_analysis_runs(sync_db, project_id)
+    member_only = analysis_runs_member_only(sync_db, runs)
+    return [{**r, "member_only": member_only[r["id"]]} for r in runs]
 
 
 def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
@@ -277,6 +311,17 @@ def _report_statistics_batch_sync(sync_db, project_ids: List[str]):
 
 
 # ============= Helper Functions =============
+
+#: 400 detail when a report that would be public holds a member-only
+#: analysis run (``report_snapshot.analysis_runs_member_only``).
+PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL = (
+    "A public report cannot show an analysis run in which a private model may appear"
+)
+
+
+def _refuse_public_member_only(snapshot: Any) -> None:
+    if has_member_only_analyses(snapshot):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=PUBLIC_MEMBER_ONLY_ANALYSES_DETAIL)
 
 #: 403 detail for callers who may not author a project's report.
 REPORT_AUTHOR_REQUIRED_DETAIL = (
@@ -501,6 +546,15 @@ async def update_project_report(
     # the computed snapshot and participant list are server-owned, so a
     # client-sent snapshot is ignored and the stored ones are kept.
     new_content = update_request.content.model_dump()
+    sections = new_content.get("sections") or {}
+    if "analyses" in sections:
+        try:
+            sections["analyses"] = parse_analyses_section(sections["analyses"], strict=True)
+        except AnalysesSectionError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "invalid_report_analyses", "errors": exc.errors},
+            )
     existing = report.content if isinstance(report.content, dict) else {}
     new_content.pop("snapshot", None)
     if existing.get("snapshot") is not None:
@@ -566,7 +620,9 @@ async def publish_report(
         )
 
     # Freeze the numbers, then publish
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id)
+    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
+    if body and body.is_public:
+        _refuse_public_member_only(snapshot)
     report.content = {**(report.content or {}), "snapshot": snapshot}
     report.is_published = True
     report.is_public = bool(body.is_public) if body else False
@@ -662,6 +718,8 @@ async def set_report_visibility(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Publish the report before changing its visibility",
         )
+    if body.is_public:
+        _refuse_public_member_only((report.content or {}).get("snapshot"))
     report.is_public = bool(body.is_public)
     report.updated_at = datetime.utcnow()
     await db.commit()
@@ -683,13 +741,36 @@ async def refresh_report_snapshot(
     """
     await require_report_author(db, current_user, project_id)
     project, report = await _load_project_and_report(db, project_id)
-    snapshot = await db.run_sync(_build_snapshot_sync, project_id)
+    snapshot = await db.run_sync(_build_snapshot_sync, project_id, _analyses_of(report))
     report.content = {**(report.content or {}), "snapshot": snapshot}
     report.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(report)
     can_publish, reason = await db.run_sync(_can_publish_report_sync, project_id)
     return _report_response(report, project.title, can_publish, reason, can_edit=True)
+
+
+@router.get("/projects/{project_id}/report/analysis-runs")
+async def list_report_analysis_runs(
+    project_id: str,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The analysis runs the report's Analyses section can show (report
+    authors): the project's completed runs that read no further project,
+    newest first, each saying whether it is member-only (a private model
+    may appear in it, so a public report cannot show it). A cross-project
+    run is never offered, because a report must not publish another
+    project's numbers."""
+    await require_report_author(db, current_user, project_id)
+    await _load_project_and_report(db, project_id)
+    runs = await db.run_sync(_report_analysis_runs_sync, project_id)
+    fields = ("id", "name", "spec_hash", "engine_version", "frame_rows", "estimates_count", "member_only")
+    items = [
+        {**{k: r[k] for k in fields}, "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None}
+        for r in reversed(runs)
+    ]
+    return {"items": items}
 
 
 @router.get("/reports", response_model=List[PublishedReportListItem])
@@ -873,7 +954,7 @@ async def get_report_data(
     snapshot = content.get("snapshot")
     if snapshot is None and is_author:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
-        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
+        snapshot = await db.run_sync(_build_snapshot_sync, report.project_id, _analyses_of(report))
         report.content = {**content, "snapshot": snapshot}
         await db.commit()
         await db.refresh(report)

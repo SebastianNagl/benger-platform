@@ -3,7 +3,7 @@
  * provenance, spec and fits; the compliance findings slot only with the
  * overlay flag on; polling of a running run; a failed run; the frame
  * download; the run's own project in the breadcrumb; a missing run; the
- * profile, strength, examples and design views (CORE 2.71).
+ * profile, strength, examples and design views (CORE 2.73).
  */
 
 import '@/test-utils/locationMock'
