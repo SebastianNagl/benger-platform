@@ -357,10 +357,18 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   spec declares equivalence bounds for the contrast, the first bound set is
   shaded as a band and every row also draws the TOST interval (the
   `tost_level`, 90 % by default) that the equivalence decision uses; the band
-  can be switched to another bound set or off. `bar` draws the estimates of
-  each contrast as bars from 0, with the null value as a dashed line,
-  `table` lists the contrasts against their scopes, `data` shows only the
-  estimates table.
+  can be switched to another bound set or off. A Bradley-Terry estimand is
+  drawn as a strength forest instead: each player level against the
+  reference level (fixed at 0), one plot per scope chosen with a row of
+  chips. `profile` draws the estimates of one contrast along an ordered or
+  numeric scope column (a position of a per-slot frame, a numeric factor, a
+  level), one line per series column (the system by default) and one panel
+  per facet column, with their intervals; where the run also estimated a
+  linear contrast whose only weight is on that column for the same outcome,
+  its pooled estimate is drawn as the fitted slope. `bar` draws the
+  estimates of each contrast as bars from 0, with the null value as a dashed
+  line, `table` lists the contrasts against their scopes, `data` shows only
+  the estimates table.
 - The estimates table: every estimate in engine order with its standard
   error, confidence interval, p-value, first family with its method and
   adjusted p-value, the first equivalence test and the sample and cluster
@@ -372,6 +380,17 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   bounds and decisions, the minimum detectable effects and the joint Wald
   tests) and **Fit** (the run's warnings and the per-fit summaries).
 
+- **Examples**, for a run that reads variant designs: the units of the
+  design, paged, and one unit opened in the unit viewer with the answers of
+  the chosen system. Along the factor the chosen contrast compares (read
+  from the spec: an `ame` contrast's column, a dummy term `factor[level]`,
+  or an expression measure that reads one factor, such as
+  `1 * (role == 'A')`), twin tasks stand side by side, the reference level
+  on the left, with the spans the design lets differ highlighted; the
+  reader can pick another factor and levels. Each answer shows its parsed
+  values and flags and opens the request it sent, with the hash check. The
+  units need full read access to the task content (ORG_ADMIN, CONTRIBUTOR).
+
 Members with edit rights (CONTRIBUTOR, ORG_ADMIN) get **Start analysis**: a
 dialog that takes a spec as JSON, validates it against the engine (every
 problem it names is listed) and starts the run, which the view then selects
@@ -382,7 +401,11 @@ evaluation run page `/evaluations/{id}`. It shows the same status, warnings,
 forest plot and estimates, plus the run's provenance (spec hash, frame hash,
 the SHA-256 of the stored frame file and its size, the lockfile hash, engine,
 spec format and library versions, the seed, the frame counts and the
-timings), the spec (normalized, or as submitted) and the per-fit summaries.
+timings), the variant designs the run read (factor tree, status, content
+and spec hashes, and the assignment, balance and invariance checks on
+request), the spec (normalized, or as submitted) and the per-fit summaries.
+It also shows the profile of a contrast that varies over an ordered scope
+and the examples.
 "New run from this spec" opens the start dialog prefilled with that run's
 spec (`&newRunFrom={analysis_run_id}`). The frame download button (ORG_ADMIN
 and CONTRIBUTOR) fetches the short-lived URL of the Parquet snapshot.
@@ -408,6 +431,22 @@ optional band and a `mode` (`point` or `bar`), so overlay views can reuse it
 with their own bounds. Links to result pages use the path helpers in
 `@/lib/results/paths` (`analysisRunPath(runId)`,
 `evaluationsPath({ projectId, type, run, newRunFrom })`).
+
+The generic views take plain props and have a loader beside them, so the
+evaluations page, the run page, the report and overlays render the same
+components (CORE 2.68):
+
+| Component | Draws |
+|---|---|
+| `EstimateProfileChart` (data from `@/lib/analysis/profile`) | estimates over an ordered or numeric x, series, facets, a fitted and a reference slope, a band |
+| `ValueDistributionChart` | a distribution of values (exact values or bins) with a reference line, the mean and a summary |
+| `StrengthForestPlot`, `EstimatesForest` | Bradley-Terry strengths against the reference per scope |
+| `VariantUnitViewer`, `VariantUnitLoader` | the tasks of a unit, twins side by side with their spans highlighted, answers and requests |
+| `RequestRecordView`, `RequestRecordLoader` | a request record with its hash check (also the generation page's request view) |
+| `VariantDesignPanel`, `VariantDesignsLoader` | a design's factor tree, status, hashes and checks |
+| `ExamplesPanel` | the units behind a contrast |
+
+`@/lib/api/variantViews` reads the units, designs and request records.
 
 ## Compliance overlay slots
 

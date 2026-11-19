@@ -442,8 +442,9 @@ export function EstimatesTable({
                             <ChevronRightIcon className="h-4 w-4" />
                           )}
                         </button>
-                        <div className="min-w-0">
-                          <div className="font-medium text-zinc-900 dark:text-white">
+                        {/* Wide enough that short ids such as strength[a] stay whole. */}
+                        <div className="min-w-[8rem]">
+                          <div className="font-medium [overflow-wrap:anywhere] text-zinc-900 dark:text-white">
                             {e.estimand_id}
                           </div>
                           {e.contrast_id && e.contrast_id !== e.estimand_id && (

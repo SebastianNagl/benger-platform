@@ -4,7 +4,9 @@
  * Dropdown for selecting between different chart visualization types.
  * Includes a 'data' view that shows only the data table without charts.
  * `forest` draws interval rows (estimate and confidence interval) for both
- * result types; callers pass `availableTypes` per result type.
+ * result types; callers pass `availableTypes` per result type. `profile`
+ * (estimates over an ordered scope column) exists for analyses only and is
+ * left out unless `availableTypes` names it.
  */
 
 'use client'
@@ -16,6 +18,7 @@ import {
   ChartBarIcon,
   ChartPieIcon,
   ChevronDownIcon,
+  PresentationChartLineIcon,
   Square3Stack3DIcon,
   Squares2X2Icon,
   TableCellsIcon,
@@ -23,7 +26,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type ChartType =
-  'data' | 'forest' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
+  'data' | 'forest' | 'profile' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
 
 interface ChartTypeConfig {
   type: ChartType
@@ -33,6 +36,8 @@ interface ChartTypeConfig {
   bestFor: string
   requiresMultipleModels?: boolean
   requiresDistributionData?: boolean
+  /** Offered only where `availableTypes` names it (the analysis view). */
+  analysisOnly?: boolean
 }
 
 function getChartTypes(t: (key: string) => string): ChartTypeConfig[] {
@@ -50,6 +55,14 @@ function getChartTypes(t: (key: string) => string): ChartTypeConfig[] {
       description: t('evaluation.chartType.forestPlotDescription'),
       icon: AdjustmentsHorizontalIcon,
       bestFor: t('evaluation.chartType.forestPlotBestFor'),
+    },
+    {
+      type: 'profile',
+      label: t('evaluation.chartType.profileChart'),
+      description: t('evaluation.chartType.profileChartDescription'),
+      icon: PresentationChartLineIcon,
+      bestFor: t('evaluation.chartType.profileChartBestFor'),
+      analysisOnly: true,
     },
     {
       type: 'bar',
@@ -120,6 +133,9 @@ export function ChartTypeSelector({
   const hasLoadedPreference = useRef(false)
 
   const CHART_TYPES = useMemo(() => getChartTypes(t), [t])
+  const offered = availableTypes
+    ? CHART_TYPES.filter((ct) => availableTypes.includes(ct.type))
+    : CHART_TYPES.filter((ct) => !ct.analysisOnly)
 
   // Load preference from localStorage after hydration
   // Only apply if current selection is the default (no URL override)
@@ -135,11 +151,12 @@ export function ChartTypeSelector({
       const savedType = saved as ChartType
       if (
         !disabledTypes.includes(savedType) &&
-        (!availableTypes || availableTypes.includes(savedType))
+        offered.some((ct) => ct.type === savedType)
       ) {
         onChange(savedType)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offered follows availableTypes
   }, [mounted, availableTypes, disabledTypes, onChange, selectedType])
 
   // Close dropdown when clicking outside
@@ -165,9 +182,7 @@ export function ChartTypeSelector({
     }
   }
 
-  const filteredTypes = availableTypes
-    ? CHART_TYPES.filter((ct) => availableTypes.includes(ct.type))
-    : CHART_TYPES
+  const filteredTypes = offered
 
   const selectedConfig = CHART_TYPES.find((ct) => ct.type === selectedType)
 

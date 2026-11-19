@@ -1454,11 +1454,59 @@ API change).
     page and, for the selected run, inline in the Analyses view of
     ``/evaluations``. The component must render compact content without a
     page heading, breadcrumb or full-width layout.
+
+2.68 (2026-11-19): shared variant and analysis views (no migration).
+  - Routes ``GET /api/projects/{project_id}/variant-designs/{key}/units``
+    (the design's units in name order with their task counts, ``limit`` up
+    to 500 and ``offset``) and ``GET .../units/{unit}?system=`` (every task
+    of one unit with its factors, the texts the design lets vary with their
+    declared spans, gold values, the answers of one system with parsed
+    values, flags and request hashes, and the unit's assignment, balance and
+    invariance check). Both need full read access to the project's task
+    content, like the frame download (403 ``variant_unit_forbidden``), and
+    answer 404 ``variant_design_not_found`` or ``variant_unit_not_found``.
+    Read models in ``variant_unit_views`` (``list_units``, ``unit_view``,
+    ``shape_unit_view``); access keys need ``tasks:read_reference`` and
+    ``results:read``.
+  - The trial request route ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` gains the hash check (``computed_sha256``, the hash
+    of the stored record by ``request_capture.request_sha256``, and
+    ``hash_matches``) and ``parent_id``, ``task_id``, ``model_id``,
+    ``system_key``, ``structure_key``, ``retried``, ``first_response`` and
+    ``first_response_truncated``; ``GET /api/runs/trials/{trial_id}/request``
+    answers the same by the trial id alone (``routers.runs.trial_request_view``;
+    path parameter ``trial_id`` binds access keys to the trial's project).
+  - ``analysis.observations.system_key`` and ``response_metadata_object``
+    (moved from ``analysis.db_source``, which still exports the latter).
+  - Components for overlays, all fed by plain props with a loader beside
+    them: ``@/components/analysis/EstimateProfileChart`` (estimates over an
+    ordered or numeric scope, series, facets, fitted and reference slopes,
+    a band; data from ``@/lib/analysis/profile``: ``profileFromEstimates``,
+    ``scopeColumns``, ``defaultProfileColumns``, ``slopeEstimate``,
+    ``specEstimands``, ``specDesigns``), ``EstimateProfiles`` (the profile
+    view of a run), ``ValueDistributionChart`` (exact values or bins, a
+    reference line, the mean), ``StrengthForestPlot`` (Bradley-Terry
+    strengths against the reference per scope) and ``EstimatesForest``,
+    ``VariantUnitViewer`` and ``VariantUnitLoader`` (twin tasks of a unit
+    with their spans highlighted, answers and requests; ``@/lib/analysis/
+    units``: ``segments``, ``twinPairs``, ``resolveFocus``,
+    ``focusForContrast``), ``RequestRecordView`` and ``RequestRecordLoader``
+    (a request record with its hash check), ``VariantDesignPanel`` and
+    ``VariantDesignsLoader`` (factor tree, hashes, checks), ``ExamplesPanel``
+    (the units behind a contrast); ``@/lib/api/variantViews``
+    (``variantViewsAPI`` and the unit, request and design types) and
+    ``@/lib/analysis/labels`` (``systemParts``, ``systemLabels``,
+    ``shortenLabel``, ``levelText``).
+  - ``ChartType`` gains ``profile``, offered only where ``availableTypes``
+    names it (the Analyses view). The Analyses view and the run page draw
+    Bradley-Terry estimands as strength forests and show the profile and
+    the examples of a contrast; the run page lists the variant designs the
+    run read; the generation page's request view is ``RequestRecordView``.
 """
 
 import os
 
-CORE_API_VERSION = "2.67"
+CORE_API_VERSION = "2.68"
 
 
 def extended_required() -> bool:

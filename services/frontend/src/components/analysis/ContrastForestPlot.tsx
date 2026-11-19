@@ -116,9 +116,9 @@ export function ContrastForestPlot({
   return (
     <div data-testid="contrast-forest-plot">
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500" id="forest-contrast-label">
+        <span className="text-xs text-zinc-500" id="forest-contrast-label">
           {t('analysis.forest.contrast')}
-        </label>
+        </span>
         <Select value={group.key} onValueChange={setSelected}>
           <SelectTrigger
             className="w-72 max-w-full"
@@ -137,9 +137,9 @@ export function ContrastForestPlot({
         </Select>
         {bands.length > 0 && (
           <>
-            <label className="text-xs text-zinc-500" id="forest-band-label">
+            <span className="text-xs text-zinc-500" id="forest-band-label">
               {t('analysis.forest.band')}
-            </label>
+            </span>
             <Select
               value={choice}
               onValueChange={(value) =>

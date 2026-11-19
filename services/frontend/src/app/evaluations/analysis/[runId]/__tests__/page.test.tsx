@@ -2,7 +2,8 @@
  * The analysis run page: a completed run with forest plot, estimates,
  * provenance, spec and fits; the compliance findings slot only with the
  * overlay flag on; polling of a running run; a failed run; the frame
- * download; the run's own project in the breadcrumb; a missing run.
+ * download; the run's own project in the breadcrumb; a missing run; the
+ * profile, strength, examples and design views (CORE 2.68).
  */
 
 import '@/test-utils/locationMock'
@@ -18,6 +19,14 @@ import {
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
 import { makeEstimates, makeRun } from '@/test-utils/analysisFixtures'
+import {
+  makeDesignRow,
+  makePositionEstimates,
+  makePositionRun,
+  makeStrengthEstimates,
+  makeStrengthRun,
+  makeUnitView,
+} from '@/test-utils/variantViewFixtures'
 
 jest.mock('@/contexts/I18nContext', () =>
   require('@/test-utils/i18nMock').i18nMock('en'),
@@ -46,6 +55,19 @@ jest.mock('@/lib/api/analysis', () => ({
 }))
 
 const mockGetProject = jest.fn()
+const mockListDesigns = jest.fn()
+const mockListUnits = jest.fn()
+const mockGetUnit = jest.fn()
+jest.mock('@/lib/api/variantViews', () => ({
+  variantViewsAPI: {
+    listDesigns: (...a: unknown[]) => mockListDesigns(...a),
+    listUnits: (...a: unknown[]) => mockListUnits(...a),
+    getUnit: (...a: unknown[]) => mockGetUnit(...a),
+    checkDesign: jest.fn(),
+    getTrialRequest: jest.fn(),
+  },
+}))
+
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     get: (...a: unknown[]) => mockGetProject(...a),
@@ -99,6 +121,9 @@ beforeEach(() => {
   mockListEstimates.mockResolvedValue(makeEstimates())
   mockGetProject.mockResolvedValue(project('CONTRIBUTOR'))
   mockUseAuth.mockReturnValue({ user: { id: 'u1', is_superadmin: false } })
+  mockListDesigns.mockResolvedValue([])
+  mockListUnits.mockResolvedValue({ items: [], total: 0, limit: 12, offset: 0 })
+  mockGetUnit.mockResolvedValue(makeUnitView())
 })
 
 afterEach(() => {
@@ -357,5 +382,48 @@ describe('AnalysisRunPage', () => {
     expect(await screen.findByTestId('analysis-run-error')).toHaveTextContent(
       'This analysis run does not exist',
     )
+  })
+
+  it('shows the profile, examples and designs of a slot-frame run', async () => {
+    mockGetRun.mockResolvedValue(makePositionRun())
+    mockListEstimates.mockResolvedValue(makePositionEstimates())
+    mockListDesigns.mockResolvedValue([makeDesignRow({ key: 'roster' })])
+    mockListUnits.mockResolvedValue({
+      items: [{ unit: 'roster_001', task_count: 1 }],
+      total: 1,
+      limit: 12,
+      offset: 0,
+    })
+    render(<AnalysisRunPage />)
+    const profile = await screen.findByTestId('analysis-profile-section')
+    expect(within(profile).getAllByTestId('profile-panel')).toHaveLength(2)
+    expect(within(profile).getAllByTestId('profile-slope')).toHaveLength(2)
+    const examples = screen.getByTestId('analysis-examples-section')
+    expect(
+      await within(examples).findByTestId('variant-unit-viewer'),
+    ).toBeInTheDocument()
+    expect(mockGetUnit).toHaveBeenCalledWith(
+      'project-1',
+      'roster',
+      'roster_001',
+      null,
+    )
+    const designs = screen.getByTestId('analysis-designs-section')
+    expect(
+      await within(designs).findByTestId('variant-design-panel'),
+    ).toHaveTextContent('roster')
+  })
+
+  it('draws Bradley-Terry strengths in the forest section', async () => {
+    mockGetRun.mockResolvedValue(makeStrengthRun())
+    mockListEstimates.mockResolvedValue(makeStrengthEstimates())
+    render(<AnalysisRunPage />)
+    const forest = await screen.findByTestId('analysis-forest-section')
+    expect(
+      await within(forest).findByTestId('strength-forest-plot'),
+    ).toBeInTheDocument()
+    expect(within(forest).getByText('a')).toBeInTheDocument()
+    // Strengths over the system alone draw no profile.
+    expect(screen.queryByTestId('analysis-profile-section')).toBeNull()
   })
 })
