@@ -10,16 +10,20 @@
    read the observations of the run's project and spec, and of every
    further project of a cross-project frame
    (:func:`analysis.db_source.iter_run_observations`), load the stored
-   lookup tables the spec names (:func:`analysis.db_source.load_lookup_tables`)
-   and build the frame;
+   lookup tables the spec names (:func:`analysis.db_source.load_lookup_tables`),
+   with the answers' texts and the coding projects' judge codes when code
+   measures need them (the overlays' coder plugins are loaded first), and
+   build the frame; every code measure's validation is checked (a
+   confirmatory family needs one per code it reads,
+   :func:`analysis_jobs.coding.check_code_validations`);
 3. fit every estimand (:func:`analysis.runner.run_spec`);
 4. store the frame as Parquet under ``analysis/`` with its content hash and
    write one ``analysis_estimates`` row per estimate, replacing any rows a
    dead worker left;
 5. record versions (engine, numeric libraries, the workers' lockfile hash),
    the resolved inputs (further projects, lookup tables with their content
-   hashes), counts, per-fit summaries, warnings and timings, and mark the run
-   ``completed``.
+   hashes), the identity of every code measure (``codes``), counts, per-fit
+   summaries, warnings and timings, and mark the run ``completed``.
 
 A spec or data problem the engine can name (an unknown column, a text
 outcome, a measure that does not evaluate) fails the run with that message.
@@ -75,12 +79,19 @@ def library_versions() -> Dict[str, str]:
 def public_error(exc: BaseException, run_id: str) -> str:
     """What the run reports: the engine's own message for problems of the
     spec or the data, a pointer to the log for everything else."""
+    from analysis.codes import CodeError
+    from analysis.coders import CoderError
+    from analysis.coding import CodingError
     from analysis.frame import FrameError
     from analysis.measures import MeasureError
     from analysis.ols import EngineError
     from analysis.spec import SpecError
+    from analysis_jobs.coding import CodeValidationError
 
-    if isinstance(exc, (EngineError, FrameError, MeasureError, SpecError)):
+    if isinstance(
+        exc,
+        (CodeError, CoderError, CodingError, CodeValidationError, EngineError, FrameError, MeasureError, SpecError),
+    ):
         return str(exc)[:4000]
     return (
         "The analysis failed because of an internal error. The server log has "
@@ -157,10 +168,19 @@ def run_analysis_impl(run_id: str, *, session_factory=None, storage=None) -> Dic
 
 
 def _execute(db, run, storage) -> Dict[str, Any]:
-    from analysis.db_source import check_input_projects, iter_run_observations, load_lookup_tables
+    from analysis.codes import CodeInputs
+    from analysis.coders import coder_registry, load_overlay_coders
+    from analysis.db_source import (
+        check_input_projects,
+        code_needs,
+        iter_run_observations,
+        load_judge_values,
+        load_lookup_tables,
+    )
     from analysis.frame import build_frame, frame_sha256, to_parquet
     from analysis.runner import run_spec
     from analysis.version import ENGINE_VERSION
+    from analysis_jobs.coding import check_code_validations
     from models import AnalysisEstimate
 
     t0 = time.perf_counter()
@@ -168,10 +188,23 @@ def _execute(db, run, storage) -> Dict[str, Any]:
     source_counts: Dict[str, int] = {}
     check_input_projects(db, run)
     db.commit()
-    observations = list(iter_run_observations(db, run.project_id, spec["inputs"], source_counts))
+    with_text, judges = code_needs(spec)
+    if any(m.get("kind") == "coder" for m in (spec.get("measures") or {}).values()):
+        load_overlay_coders()
+    observations = list(
+        iter_run_observations(db, run.project_id, spec["inputs"], source_counts, with_text=with_text)
+    )
     lookup_tables, resolved_lookups = load_lookup_tables(db, run.project_id, spec.get("lookups") or [])
+    judge_values, judge_stats = load_judge_values(db, run.project_id, judges)
     t_read = time.perf_counter()
-    built = build_frame(observations, spec, lookup_tables=lookup_tables, home_project=run.project_id)
+    built = build_frame(
+        observations,
+        spec,
+        lookup_tables=lookup_tables,
+        home_project=run.project_id,
+        codes=CodeInputs(judge_values=judge_values, judge_stats=judge_stats, coders=coder_registry),
+    )
+    codes = check_code_validations(db, run.project_id, spec, built.codes)
     frame = built.frame
     frame_hash = built.hash
     parquet = to_parquet(
@@ -216,6 +249,7 @@ def _execute(db, run, storage) -> Dict[str, Any]:
             "lookups": resolved_lookups,
         }
         run.fits = result.fits
+        run.codes = codes or None
         run.warnings = built.warnings + result.warnings
         run.estimates_count = len(result.estimates)
         run.timings = {

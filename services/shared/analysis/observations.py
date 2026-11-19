@@ -16,7 +16,8 @@ design, flattened to what an analysis needs:
   over Label Studio results);
 * the task data, from which gold measures read their paths;
 * quality flags (parse status, refusal, truncation, format retry, finish
-  reason).
+  reason);
+* the full answer text, when a code measure reads it.
 
 Sources produce observations; :mod:`analysis.frame` never touches the
 database. :func:`observations_from_records` reads plain dicts (test fixtures,
@@ -53,6 +54,9 @@ class Observation:
     #: index (``meta.variant.slots``; the index is the one the per-slot
     #: control names use, in the design's index base).
     slots: Tuple[Mapping[str, Any], ...] = ()
+    #: The full answer text (``generations.response_content``), read only
+    #: when a code measure codes the full answer.
+    answer_text: Optional[str] = None
 
 
 class ObservationError(ValueError):
@@ -159,6 +163,14 @@ def _opt_bool(value: Any) -> Optional[bool]:
     return bool(value)
 
 
+def _opt_text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ObservationError("'answer_text' must be a string")
+    return value
+
+
 def observation_from_record(record: Mapping[str, Any]) -> Observation:
     """One plain-dict record -> :class:`Observation`.
 
@@ -167,7 +179,7 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
     ``meta.variant`` block) or ``design``/``unit``/``factors``/``slots`` directly, ``fields`` (typed
     values) or ``parsed_annotation`` (Label Studio results), ``task_data``,
     ``structure_key``, ``run_index``, ``parse_ok``, ``refusal``,
-    ``truncated``, ``retried``, ``finish_reason``."""
+    ``truncated``, ``retried``, ``finish_reason``, ``answer_text``."""
     if not isinstance(record, Mapping):
         raise ObservationError("an observation record must be an object")
     variant = None
@@ -221,6 +233,7 @@ def observation_from_record(record: Mapping[str, Any]) -> Observation:
         finish_reason=record.get("finish_reason"),
         project_id=str(record.get("project_id") or ""),
         slots=variant["slots"],
+        answer_text=_opt_text(record.get("answer_text")),
     )
 
 

@@ -17,7 +17,12 @@ an :class:`~analysis.observations.Observation`:
 * slots: ``meta.variant.slots`` (index and factors per slot), which slot
   frames unpivot;
 * quality flags: ``parse_status == "success"``, ``refusal``, ``truncated``,
-  ``finish_reason`` and ``retried`` (a format retry, CORE 2.61).
+  ``finish_reason`` and ``retried`` (a format retry, CORE 2.61);
+* the full answer text (``response_content``) when a code measure reads it.
+
+Judge codes come from coding projects (:func:`load_judge_values`): a coding
+task's ``meta.coding.source_generation_id`` names the answer it shows, and the
+coding system's generation on that task holds the code.
 
 Failed generations are not observations; their number is reported. The
 selection filters on ``meta -> variant -> design`` and on ``inputs.structures``
@@ -95,11 +100,14 @@ def iter_observations(
     inputs: Mapping[str, Any],
     counts: Optional[Dict[str, int]] = None,
     designs: Optional[Sequence[str]] = None,
+    *,
+    with_text: bool = False,
 ) -> Iterator[Observation]:
     """Every completed generation of the project's variant tasks in
     ``designs`` (default ``inputs["designs"]``) as an observation. ``counts``
     (when given) receives ``variant_tasks`` and ``failed_generations``,
-    added to what it holds."""
+    added to what it holds. ``with_text`` reads the full answer text too
+    (code measures on the answer need it)."""
     from sqlalchemy import select
 
     from models import Generation, ResponseGeneration
@@ -130,6 +138,7 @@ def iter_observations(
                 Generation.response_metadata,
                 Generation.retried,
                 ResponseGeneration.structure_key,
+                *((Generation.response_content,) if with_text else ()),
             )
             .join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
             .where(Generation.task_id.in_(batch))
@@ -165,6 +174,7 @@ def iter_observations(
                 finish_reason=row.finish_reason,
                 project_id=project_id,
                 slots=variant["slots"],
+                answer_text=row.response_content if with_text else None,
             )
 
 
@@ -173,15 +183,19 @@ def iter_run_observations(
     project_id: str,
     inputs: Mapping[str, Any],
     counts: Optional[Dict[str, int]] = None,
+    *,
+    with_text: bool = False,
 ) -> Iterator[Observation]:
     """The observations of a run: its own project's ``inputs.designs`` and,
     for a cross-project frame, every project of ``inputs.projects`` with its
     designs."""
-    yield from iter_observations(db, project_id, inputs, counts)
+    yield from iter_observations(db, project_id, inputs, counts, with_text=with_text)
     for other in inputs.get("projects") or []:
         if other["project_id"] == project_id:
             continue
-        yield from iter_observations(db, other["project_id"], inputs, counts, designs=other["designs"])
+        yield from iter_observations(
+            db, other["project_id"], inputs, counts, designs=other["designs"], with_text=with_text
+        )
 
 
 def check_input_projects(db, run) -> None:
@@ -257,3 +271,128 @@ def load_lookup_tables(
             }
         )
     return tables, resolved
+
+
+def code_needs(spec: Mapping[str, Any]) -> Tuple[bool, Dict[str, Mapping[str, Any]]]:
+    """``(with_text, judge_measures)`` of a normalized spec: whether a code
+    measure reads the full answer, and the ``judge_code`` measures by id."""
+    with_text = False
+    judges: Dict[str, Mapping[str, Any]] = {}
+    for mid, m in (spec.get("measures") or {}).items():
+        kind = m.get("kind")
+        if kind in ("text_pattern", "coder") and m.get("input", "answer") == "answer":
+            with_text = True
+        elif kind == "judge_code":
+            judges[mid] = m
+    return with_text, judges
+
+
+def coding_task_sources(db, coding_project_id: str, source_project_id: str) -> Dict[str, str]:
+    """``{coding task id: source generation id}`` of a coding project's
+    tasks that were drawn from ``source_project_id`` (``tasks.meta.coding``)."""
+    from sqlalchemy import cast, select
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    from project_models import Task
+
+    coding = cast(Task.meta, JSONB)["coding"]
+    rows = db.execute(
+        select(Task.id, Task.meta)
+        .where(Task.project_id == coding_project_id)
+        .where(coding["source_project_id"].astext == source_project_id)
+        .order_by(Task.id)
+    ).all()
+    out: Dict[str, str] = {}
+    for task_id, meta in rows:
+        block = meta.get("coding") if isinstance(meta, Mapping) else None
+        gid = block.get("source_generation_id") if isinstance(block, Mapping) else None
+        if isinstance(gid, str) and gid:
+            out[task_id] = gid
+    return out
+
+
+def coding_generation_values(
+    db,
+    task_ids: Sequence[str],
+    *,
+    field: str,
+    system: str,
+    structure: Optional[str] = None,
+    run_index: int = 0,
+) -> Tuple[Dict[str, Any], Dict[str, int]]:
+    """The coding answers of one system on coding tasks: ``({task id:
+    typed value of field}, stats)``. A task's answer is its completed
+    generation by ``system`` (a system key or a model id), in ``structure``
+    when given, with ``run_index``. Stats count ``matched``, ``ambiguous``
+    (more than one such generation; the value is missing), ``unparsed`` (the
+    answer did not parse) and ``no_answer``."""
+    from sqlalchemy import select
+
+    from models import Generation, ResponseGeneration
+
+    candidates: Dict[str, List[Tuple[Any, Any]]] = {}
+    ids = list(task_ids)
+    for start in range(0, len(ids), TASK_BATCH):
+        batch = ids[start : start + TASK_BATCH]
+        stmt = (
+            select(
+                Generation.task_id,
+                Generation.model_id,
+                Generation.response_metadata,
+                Generation.parsed_annotation,
+                Generation.parse_status,
+            )
+            .join(ResponseGeneration, ResponseGeneration.id == Generation.generation_id)
+            .where(Generation.task_id.in_(batch))
+            .where(Generation.status == "completed")
+            .where(Generation.run_index == run_index)
+            .order_by(Generation.task_id, Generation.id)
+        )
+        if structure is not None:
+            stmt = stmt.where(ResponseGeneration.structure_key == structure)
+        for row in db.execute(stmt):
+            key = _system(row.model_id, response_metadata_object(row.response_metadata))
+            if system != key and system != row.model_id:
+                continue
+            candidates.setdefault(row.task_id, []).append((row.parsed_annotation, row.parse_status))
+    values: Dict[str, Any] = {}
+    stats = {"coding_tasks": len(ids), "matched": 0, "ambiguous": 0, "unparsed": 0, "no_answer": 0}
+    for task_id in ids:
+        found = candidates.get(task_id) or []
+        if not found:
+            stats["no_answer"] += 1
+            continue
+        if len(found) > 1:
+            stats["ambiguous"] += 1
+            continue
+        parsed, status = found[0]
+        if status != "success":
+            stats["unparsed"] += 1
+            continue
+        stats["matched"] += 1
+        values[task_id] = typed_field_values(parsed).get(field)
+    return values, stats
+
+
+def load_judge_values(
+    db, project_id: str, judges: Mapping[str, Mapping[str, Any]]
+) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, int]]]:
+    """``(judge_values, judge_stats)`` for :class:`analysis.codes.CodeInputs`:
+    per ``judge_code`` measure, the coding system's value of ``field`` by
+    source generation id, read from the coding project's tasks drawn from
+    this project."""
+    judge_values: Dict[str, Dict[str, Any]] = {}
+    judge_stats: Dict[str, Dict[str, int]] = {}
+    for mid, m in judges.items():
+        sources = coding_task_sources(db, m["coding_project"], project_id)
+        values, stats = coding_generation_values(
+            db,
+            list(sources),
+            field=m["field"],
+            system=m["system"],
+            structure=m.get("structure"),
+            run_index=int(m.get("run_index", 0)),
+        )
+        judge_values[mid] = {sources[t]: v for t, v in values.items()}
+        judge_stats[mid] = stats
+    return judge_values, judge_stats

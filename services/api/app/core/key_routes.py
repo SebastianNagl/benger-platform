@@ -59,6 +59,7 @@ PROJECT_PARAMS: Dict[str, str] = {
     "generation_id": "response_generation",
     "report_id": "report",
     "analysis_run_id": "analysis_run",
+    "code_validation_id": "code_validation",
 }
 
 
@@ -334,6 +335,13 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             note="the frame carries task data (gold) and parsed answers",
         ),
         allow("/api/analysis-runs/{analysis_run_id}*", "results:read", methods="read"),
+        # -- codes: coding projects and code validations --------------------- #
+        allow(
+            "/api/code-validations/{code_validation_id}",
+            "results:read",
+            methods="read",
+            note="per-task codes only with full read access to the task content",
+        ),
         # -- legacy data API (tasks.py) -------------------------------------- #
         allow("/api/data/export", "exports:read", REF, methods="POST"),
         allow("/api/data/", REF, methods="read"),
@@ -376,6 +384,14 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         allow("/api/projects/{project_id}/generations/*", "runs:read", methods="read"),
         area("/api/projects/{project_id}/analysis-runs", ["results:read"], ["evaluations:run"]),
         area("/api/projects/{project_id}/analysis-lookups*", ["results:read"], ["evaluations:run"]),
+        # A coding project copies answers into a new project.
+        area(
+            "/api/projects/{project_id}/coding-projects",
+            ["projects:read"],
+            ["projects:write", "tasks:write", REF],
+        ),
+        allow("/api/projects/{project_id}/coding", "projects:read", methods="read"),
+        area("/api/projects/{project_id}/code-validations", ["results:read"], ["evaluations:run"]),
         allow("/api/projects/{project_id}/cohort-leaderboard", "results:read", methods="read"),
         allow("/api/projects/{project_id}/completion-stats", "results:read", methods="read"),
         allow("/api/projects/{project_id}/grading-feedback/*", "results:read", methods="read"),

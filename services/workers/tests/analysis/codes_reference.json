@@ -1,0 +1,81 @@
+{
+  "description": "Invented answers, an invented pattern set and their codes, coded by hand (each expected value was worked out from the text, not from the implementation). null is a missing code.",
+  "pattern_set": {
+    "name": "legal_signals",
+    "version": "1",
+    "description": "Signals in invented liability answers",
+    "flags": ["IGNORECASE"],
+    "codes": {
+      "cites_norm": {"mode": "any", "patterns": ["§\\s?\\d+"]},
+      "n_norms": {"mode": "count", "patterns": ["§\\s?\\d+"]},
+      "hedge": {"mode": "any", "patterns": ["möglicherweise|unter umständen|eventuell"]},
+      "structured": {"mode": "all", "patterns": ["\\bsachverhalt\\b", "\\bergebnis\\b"]},
+      "own_ref": {"mode": "any", "patterns": ["{{task.case_ref|spaces}}"]},
+      "party_name": {"mode": "count", "patterns": ["\\b{{task.parties}}\\b"], "flags": []},
+      "verdict": {
+        "mode": "first",
+        "default": "unclear",
+        "rules": [
+          {"value": "not_liable", "patterns": ["haftet nicht", "keine haftung"]},
+          {"value": "liable", "patterns": ["haftet", "haftung des beklagten"]}
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "c1",
+      "text": "Sachverhalt: Der Beklagte Meier haftet nicht. Ergebnis: keine Haftung nach § 823 BGB.",
+      "task_data": {"case_ref": "AZ 12/26", "parties": ["Meier", "Schulz"]},
+      "expected": {"cites_norm": 1, "n_norms": 1, "hedge": 0, "structured": 1, "own_ref": 0, "party_name": 1, "verdict": "not_liable"}
+    },
+    {
+      "id": "c2",
+      "text": "Im Verfahren AZ12/26 haftet Schulz möglicherweise nach §823 und § 831. Schulz bestreitet.",
+      "task_data": {"case_ref": "AZ 12/26", "parties": ["Meier", "Schulz"]},
+      "expected": {"cites_norm": 1, "n_norms": 2, "hedge": 1, "structured": 0, "own_ref": 1, "party_name": 2, "verdict": "liable"}
+    },
+    {
+      "id": "c3",
+      "text": "Unter Umständen kommt eine Haftung in Betracht; das Ergebnis bleibt offen.",
+      "task_data": {"case_ref": "B 7", "parties": ["Weber"]},
+      "expected": {"cites_norm": 0, "n_norms": 0, "hedge": 1, "structured": 0, "own_ref": 0, "party_name": 0, "verdict": "unclear"}
+    },
+    {
+      "id": "c4_empty_answer",
+      "text": "",
+      "task_data": {"case_ref": "B 7", "parties": ["Weber"]},
+      "expected": {"cites_norm": 0, "n_norms": 0, "hedge": 0, "structured": 0, "own_ref": 0, "party_name": 0, "verdict": "unclear"}
+    },
+    {
+      "id": "c5_no_answer",
+      "text": null,
+      "task_data": {"case_ref": "B 7", "parties": ["Weber"]},
+      "expected": {"cites_norm": null, "n_norms": null, "hedge": null, "structured": null, "own_ref": null, "party_name": null, "verdict": null}
+    },
+    {
+      "id": "c6_empty_literal_list",
+      "text": "Az. 12 / 26: Die Beklagte haftet. Sachverhalt und Ergebnis siehe oben.",
+      "task_data": {"case_ref": "AZ 12/26", "parties": []},
+      "expected": {"cites_norm": 0, "n_norms": 0, "hedge": 0, "structured": 1, "own_ref": 0, "party_name": null, "verdict": "liable"}
+    },
+    {
+      "id": "c7_rule_order",
+      "text": "AZ 12/26: keine Haftung des Beklagten.",
+      "task_data": {"case_ref": "AZ 12/26", "parties": ["Meier"]},
+      "expected": {"cites_norm": 0, "n_norms": 0, "hedge": 0, "structured": 0, "own_ref": 1, "party_name": 0, "verdict": "not_liable"}
+    },
+    {
+      "id": "c8_missing_literal",
+      "text": "Meier haftet nach § 1 und § 2 und § 3.",
+      "task_data": {"parties": ["Meier"]},
+      "expected": {"cites_norm": 1, "n_norms": 3, "hedge": 0, "structured": 0, "own_ref": null, "party_name": 1, "verdict": "liable"}
+    },
+    {
+      "id": "c9_case_sensitive_literal",
+      "text": "Gegen MEIER und meier wird nichts festgestellt.",
+      "task_data": {"case_ref": "C 1", "parties": ["Meier"]},
+      "expected": {"cites_norm": 0, "n_norms": 0, "hedge": 0, "structured": 0, "own_ref": 0, "party_name": 0, "verdict": "unclear"}
+    }
+  ]
+}

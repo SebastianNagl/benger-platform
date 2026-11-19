@@ -490,6 +490,31 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
     return warnings
 
 
+def _validate_text_pattern_parameters(mp: dict) -> None:
+    from analysis.text_patterns import PatternSetError, normalize_pattern_set
+
+    try:
+        normalized = normalize_pattern_set(mp.get("pattern_set"), "/metric_parameters/pattern_set")
+    except PatternSetError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_pattern_set",
+                "message": "text_pattern needs a valid metric_parameters.pattern_set",
+                "errors": exc.errors,
+            },
+        )
+    code = mp.get("code")
+    if code not in normalized["codes"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "text_pattern needs metric_parameters.code naming a code of the pattern set "
+                f"(one of {', '.join(sorted(normalized['codes']))})"
+            ),
+        )
+
+
 def validate_evaluation_config_entries(eval_configs_list) -> None:
     """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
 
@@ -535,6 +560,12 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         status_code=422,
                         detail="judges[].runs must be an integer between 1 and 25",
                     )
+
+        # A text pattern code needs a valid pattern set and one of its codes
+        # (services/shared/analysis/text_patterns.py); without them every
+        # cell would record an error instead of a code.
+        if cfg.get("metric") == "text_pattern":
+            _validate_text_pattern_parameters(mp)
 
         # Phase 7 consolidation guard: Falllösung's prompt template
         # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).

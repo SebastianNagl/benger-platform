@@ -104,6 +104,7 @@ def serialize_run(run: AnalysisRun, *, detail: bool = True) -> Dict[str, Any]:
             lockfile_sha256=run.lockfile_sha256,
             seed=run.seed,
             fits=run.fits,
+            codes=run.codes,
             warnings=run.warnings,
             timings=run.timings,
             frame_available=bool(run.frame_object_key),
@@ -146,8 +147,12 @@ def normalize_or_422(spec: Any) -> Dict[str, Any]:
 
 
 def engine_info() -> Dict[str, Any]:
+    from analysis.codes import CODE_IDENTITY_VERSION
+    from analysis.coding import CODING_VERSION
     from analysis.expression import FUNCTIONS
+    from analysis.list_measures import STATISTICS
     from analysis.spec import DEFAULT_CONVENTIONS, ESTIMATOR_CONVENTIONS, spec_schema
+    from analysis.text_patterns import TEXT_PATTERN_FORMAT_VERSION, pattern_set_schema
     from analysis.version import (
         ENGINE_VERSION,
         EXPRESSION_GRAMMAR_VERSION,
@@ -172,10 +177,25 @@ def engine_info() -> Dict[str, Any]:
         "small_sample_corrections": ["statsmodels", "fixest", "none"],
         "inference": ["normal", "t"],
         "adjustments": ["holm", "bonferroni", "bh"],
-        "measure_kinds": ["field", "expression", "gold", "slot_factor", "slot_aggregate"],
+        "measure_kinds": [
+            "field",
+            "expression",
+            "gold",
+            "slot_factor",
+            "slot_aggregate",
+            "list",
+            "text_pattern",
+            "coder",
+            "judge_code",
+        ],
+        "list_statistics": list(STATISTICS),
         "expression_functions": sorted(FUNCTIONS),
         "default_conventions": dict(DEFAULT_CONVENTIONS),
         "spec_schema": spec_schema(),
+        "text_pattern_format_version": TEXT_PATTERN_FORMAT_VERSION,
+        "text_pattern_set_schema": pattern_set_schema(),
+        "code_identity_version": CODE_IDENTITY_VERSION,
+        "coding_version": CODING_VERSION,
     }
 
 
@@ -278,6 +298,11 @@ async def create_run(
 
     normalized = normalize_or_422(spec)
     await check_run_inputs(db, project, user, normalized, principal)
+    from routers.coding import check_spec_code_references
+
+    problems = await check_spec_code_references(db, user, project.id, normalized)
+    if problems:
+        raise _spec_error(problems)
     run = AnalysisRun(
         project_id=project.id,
         created_by=user.id,

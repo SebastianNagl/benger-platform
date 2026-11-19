@@ -39,6 +39,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 
 from analysis.canonical import sha256_hex
+from analysis.codes import CodeInputs
 from analysis.measures import MeasureError, RowSlots, as_text, coerce, evaluate_measures
 from analysis.observations import Observation
 from analysis.spec import BASE_COLUMNS, SLOT_COLUMN, measure_order
@@ -65,6 +66,9 @@ class FrameResult:
     measures: List[str]
     warnings: List[str] = field(default_factory=list)
     counts: Dict[str, int] = field(default_factory=dict)
+    #: One identity record per code measure (:func:`analysis.codes.code_identity`
+    #: plus the measure id and its missing count).
+    codes: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def hash(self) -> str:
@@ -200,12 +204,16 @@ def build_frame(
     *,
     lookup_tables: Optional[Mapping[str, Sequence[Mapping[str, Any]]]] = None,
     home_project: Optional[str] = None,
+    codes: Optional[CodeInputs] = None,
 ) -> FrameResult:
     """The frame of ``spec`` (normalized) over ``observations``.
 
     ``lookup_tables`` maps the id of every lookup that names a stored
     ``table`` to its rows (dicts by column name); inline lookups carry their
-    rows in the spec."""
+    rows in the spec. ``codes`` supplies what code measures read beyond the
+    observations: the judge codes of coding projects (``judge_values``) and
+    the coder registry; the answers' texts, factors and generation ids are
+    filled in from the observations."""
     import pandas as pd
 
     inputs = spec["inputs"]
@@ -298,6 +306,12 @@ def build_frame(
 
     order = measure_order(measures)
     row_slots = [RowSlots(s["index"] if s is not None else None, o.slots) for o, s in rows]
+    code_inputs = codes if codes is not None else CodeInputs()
+    code_inputs.texts = [o.answer_text for o in obs_list]
+    code_inputs.factors = [o.factors for o in obs_list]
+    code_inputs.generation_ids = [o.generation_id for o in obs_list]
+    code_inputs.pattern_sets = spec.get("pattern_sets") or {}
+    code_inputs.report = []
     try:
         _, measure_warnings = evaluate_measures(
             order,
@@ -307,6 +321,7 @@ def build_frame(
             [o.task_data for o in obs_list],
             n,
             row_slots,
+            codes=code_inputs,
         )
     except MeasureError as exc:
         raise FrameError(str(exc)) from None
@@ -343,6 +358,7 @@ def build_frame(
         measures=list(measures),
         warnings=warnings,
         counts=counts,
+        codes=list(code_inputs.report),
     )
 
 

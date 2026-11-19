@@ -4347,6 +4347,11 @@ class AnalysisRun(Base):
     fits = Column(JSONB, nullable=True)
     warnings = Column(JSONB, nullable=True)
     timings = Column(JSONB, nullable=True)
+    # One identity record per code measure the frame computed (migration
+    # 149): kind, ref, version, hash (and the coder's code hash and owner,
+    # the pattern set hash, the coding project and system of a judge code),
+    # the missing count and the recorded validation the run accepted.
+    codes = Column(JSONB, nullable=True)
     estimates_count = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)
     celery_task_id = Column(String, nullable=True)
@@ -4500,4 +4505,120 @@ class AnalysisLookupTable(Base):
         return (
             f"<AnalysisLookupTable(project={self.project_id}, name={self.name}, "
             f"version={self.version})>"
+        )
+
+
+class CodingProject(Base):
+    """A project made from a sample of another project's answers so they can
+    be coded (migration 149).
+
+    The coding project itself is an ordinary project: each task shows one
+    answer (``data.answer``) and context copied from its task, the label
+    config is the coding scheme, annotations are human codes and a judge
+    system's generations are automatic codes. Each task records its source
+    in ``tasks.meta.coding``; this row records how the sample was drawn
+    (seed, size, filters, candidate count and the hash of the drawn
+    generation ids), what text the tasks show and which task data keys were
+    copied. ``project_id`` is the coding project and cascades with it; the
+    source link is cleared when the source project goes.
+    """
+
+    __tablename__ = "coding_projects"
+
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # "answer" (the full response) or {"field": "<control name>"}
+    answer_source = Column(JSONB, nullable=False)
+    context_fields = Column(JSONB, nullable=False)
+    # {"seed", "size", "filters": {...}, "candidates", "drawn", "hash"}
+    sample = Column(JSONB, nullable=False)
+    coding_version = Column(Integer, nullable=False)
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self):
+        return (
+            f"<CodingProject(project={self.project_id}, "
+            f"source={self.source_project_id})>"
+        )
+
+
+class CodeValidation(Base):
+    """Agreement of one code with the human codes of a coding project
+    (migration 149).
+
+    The worker computes the automatic code of every coding task (a text
+    pattern code, a coder plugin, or a judge system's generations on the
+    coding project), compares it with the human codes of ``control`` and
+    stores the agreement in ``metrics`` (Cohen's kappa, observed and chance
+    agreement, precision, recall and F1 per category, the confusion matrix,
+    agreement per coder and between coders) and the per-task codes in
+    ``items``. ``code_hash`` is the identity hash of the validated code
+    (``analysis.codes.code_identity``); an analysis run accepts a code
+    measure's validation only for that hash. ``kappa`` and the counts are
+    copied out of ``metrics`` for listings. Rows cascade with the coding
+    project; nothing edits a finished validation.
+    """
+
+    __tablename__ = "code_validations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending")
+    control = Column(String(200), nullable=False)
+    code = Column(JSONB, nullable=False)
+    normalized_code = Column(JSONB, nullable=False)
+    code_kind = Column(String(20), nullable=False)
+    # Filled by the worker (a coder's hash is only known where it runs).
+    code_ref = Column(String(300), nullable=True)
+    code_version = Column(String(100), nullable=True)
+    code_hash = Column(String(64), nullable=True, index=True)
+    identity = Column(JSONB, nullable=True)
+    # {"value_map": {...}, "missing": "category" | "exclude"}
+    options = Column(JSONB, nullable=False)
+    coding_version = Column(Integer, nullable=False)
+    metrics = Column(JSONB, nullable=True)
+    items = Column(JSONB, nullable=True)
+    n_items = Column(Integer, nullable=True)
+    n_compared = Column(Integer, nullable=True)
+    kappa = Column(Float, nullable=True)
+    observed_agreement = Column(Float, nullable=True)
+    warnings = Column(JSONB, nullable=True)
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_code_validations_status",
+        ),
+        Index("ix_code_validations_project_created", "project_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<CodeValidation(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
         )

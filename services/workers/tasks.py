@@ -5329,6 +5329,25 @@ def run_analysis(self, run_id: str) -> Dict[str, Any]:
         return fail_escaped_run(run_id, exc, session_factory=SessionLocal)
 
 
+# A code validation (analysis_jobs.coding): the automatic codes of a coding
+# project's tasks against its human codes. Idempotent like run_analysis.
+@app.task(
+    name="tasks.run_code_validation",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def run_code_validation(self, validation_id: str) -> Dict[str, Any]:
+    try:
+        from analysis_jobs.coding import run_code_validation_impl
+
+        return run_code_validation_impl(validation_id, session_factory=SessionLocal)
+    except Exception as exc:
+        from analysis_jobs.coding import fail_escaped_validation
+
+        return fail_escaped_validation(validation_id, exc, session_factory=SessionLocal)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Extracted implementations (structural decomposition of this module).
 #

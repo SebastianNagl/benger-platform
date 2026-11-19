@@ -233,6 +233,7 @@ class SampleEvaluator:
         annotation_id: Optional[str] = None,
         parse_status: Optional[str] = None,
         allow_unparsed: bool = False,
+        task_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate a single sample and return detailed results.
@@ -249,6 +250,8 @@ class SampleEvaluator:
             parse_status: Optional parse status of the generation (for LLM responses)
             allow_unparsed: If True, allows evaluation of generations with failed parse status
                 (useful when using raw response_content for LLM Judge evaluations)
+            task_data: The task's data, for handlers that read it
+                (``uses_task_data``, e.g. text pattern literals)
 
         Returns:
             Dictionary containing per-sample results ready for database storage
@@ -294,6 +297,7 @@ class SampleEvaluator:
                         prediction,
                         answer_type,
                         metric_params,
+                        task_data=task_data,
                     )
                     sample_metrics[metric_name] = metric_result
 
@@ -405,6 +409,8 @@ class SampleEvaluator:
             # task's caller/project is not run (raises ExtensionInactive,
             # which the cell turns into an error result).
             metric_registry.ensure_owner_active(metric_name)
+            if getattr(_handler, "wants_raw_values", False):
+                gt, pred = ground_truth, prediction
             try:
                 _result = _handler.compute(gt, pred, answer_type, parameters)
                 _value = extract_value(_result)
@@ -610,6 +616,7 @@ class SampleEvaluator:
         prediction: Any,
         answer_type: str,
         parameters: Optional[Dict[str, Any]] = None,
+        task_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         if parameters is None:
             parameters = {}
@@ -628,6 +635,13 @@ class SampleEvaluator:
             if disabled is not None:
                 disabled["method"] = metric_name
                 return disabled
+            # A handler that sets ``wants_raw_values`` sees the values as
+            # stored (a regex code must not see lower-cased text); one that
+            # sets ``uses_task_data`` also receives the task's data.
+            if getattr(handler, "wants_raw_values", False):
+                gt, pred = ground_truth, prediction
+            if getattr(handler, "uses_task_data", False):
+                return handler.compute(gt, pred, answer_type, parameters, task_data=task_data)
             return handler.compute(gt, pred, answer_type, parameters)
 
         # 2. Korrektur metrics are human-graded; never compute in worker.

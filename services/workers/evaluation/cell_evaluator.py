@@ -283,6 +283,16 @@ def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
     return {name: str(value or "") for name, value in pairs if name in params}
 
 
+def _reference_free(metric: str) -> bool:
+    """Whether ``metric``'s handler needs no reference value (a code such
+    as ``text_pattern``): its cells run even when the reference field is
+    missing for the task."""
+    from ml_evaluation import metric_registry
+
+    handler = metric_registry.get(metric)
+    return bool(getattr(handler, "reference_free", False))
+
+
 def _end_read_transaction(db) -> None:
     """End the cell session's open transaction before slow non-DB work.
 
@@ -496,7 +506,7 @@ def evaluate_generation_cell_impl(
                             ground_truth = task.data.get(ref_field)
                     else:
                         ground_truth = task.data.get(ref_field) if task.data else None
-                    if ground_truth is None:
+                    if ground_truth is None and not _reference_free(metric):
                         logger.warning(
                             f"Evaluation skip: reference field '{ref_field}' not found "
                             f"for task {task.id} (config {config_id})"
@@ -937,6 +947,7 @@ def evaluate_generation_cell_impl(
                             generation_id=gen.id,
                             parse_status=gen.parse_status,
                             allow_unparsed=allow_unparsed,
+                            task_data=task.data,
                         )
                         if isinstance(sample_result, dict):
                             sample_result["judge_run_id"] = default_judge_run_id
@@ -1217,7 +1228,7 @@ def evaluate_annotation_cell_impl(
                             else:
                                 gt_cache[gt_key] = task.data.get(ref_field) if task.data else None
                         ground_truth = gt_cache[gt_key]
-                        if ground_truth is None:
+                        if ground_truth is None and not _reference_free(metric):
                             continue
 
                         try:
@@ -1601,6 +1612,7 @@ def evaluate_annotation_cell_impl(
                                 prediction=prediction,
                                 metrics_to_compute=[metric],
                                 annotation_id=annotation.id,
+                                task_data=task.data,
                             )
                             annotation_result["annotation_id"] = annotation.id
                             annotation_result["generation_id"] = None
