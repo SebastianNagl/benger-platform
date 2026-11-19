@@ -493,10 +493,13 @@ from routers.cost_estimate import router as cost_estimate_router  # noqa: E402
 from routers.generation_task_list import router as generation_task_list_router  # noqa: E402
 from routers.health import router as health_router  # noqa: E402
 from routers.leaderboards import router as leaderboards_router  # noqa: E402
+from routers.analysis import router as analysis_router  # noqa: E402
+from routers.coding import router as coding_router  # noqa: E402
 
 # Legacy routers
 from routers.legacy.debug import router as debug_router  # noqa: E402
 from routers.llm_models import router as llm_models_router  # noqa: E402
+from routers.compliance_records import router as compliance_records_router  # noqa: E402
 from routers.marketplace import admin_router as marketplace_admin_router  # noqa: E402
 from routers.marketplace import router as marketplace_router  # noqa: E402
 from routers.notifications import router as notifications_router  # noqa: E402
@@ -572,10 +575,13 @@ app.include_router(file_upload_router)  # File uploads
 app.include_router(projects_router)  # Projects API
 app.include_router(share_token_router)  # Student exam sharing: /api/shares/{token} (issue #35)
 app.include_router(student_dashboard_router)  # Student dashboard reads: /api/student/* (issue #35)
+app.include_router(compliance_records_router)  # Compliance assessments, suite runs, findings (generic CRUD)
 app.include_router(marketplace_router)  # Vendor marketplace: /api/marketplace/* generic reads + listing CRUD
 app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api/admin/vendors
 app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedback export (/api/admin/grading-feedback)
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
+app.include_router(analysis_router)  # Analysis runs of variant experiments (/api/analysis*, project runs)
+app.include_router(coding_router)  # Coding projects and code validations (/api/projects/{id}/coding*, /api/code-validations)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 # Feature flags (core 2.42): /api/feature-flags, plus the pre-2.42 extended
 # path for one release. Included before the extension routers so the
@@ -687,6 +693,29 @@ async def get_all_default_configs(
 
 
 # Exception handlers
+from sqlalchemy.exc import DBAPIError  # noqa: E402
+
+from variant_design_guard import VariantDesignError, error_from_db  # noqa: E402
+
+
+@app.exception_handler(VariantDesignError)
+async def variant_design_error_handler(request, exc: VariantDesignError):
+    """A refused variant-design write (invalid ``meta.variant``, unknown or
+    frozen design), raised by the flush guard or the design routes."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(DBAPIError)
+async def variant_design_db_error_handler(request, exc: DBAPIError):
+    """The database's own variant guards (frozen-design trigger, one task per
+    cell, design key) become their 409/422; any other database error goes on
+    to the global handler unchanged."""
+    mapped = error_from_db(exc)
+    if mapped is None:
+        raise exc
+    return JSONResponse(status_code=mapped.status_code, content={"detail": mapped.detail})
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """Global exception handler for unhandled errors"""

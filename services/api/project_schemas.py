@@ -10,6 +10,8 @@ from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+import generation_fidelity
+
 PublicRole = Literal["ANNOTATOR", "CONTRIBUTOR"]
 
 T = TypeVar("T")
@@ -71,6 +73,61 @@ class PromptStructureBase(BaseModel):
             "win."
         ),
     )
+    # Answer-format options (generation_fidelity). The defaults keep the
+    # behaviour of a structure that predates them.
+    append_schema_instruction: bool = Field(
+        True,
+        description=(
+            "Append the label config's answer fields as a JSON skeleton to "
+            "the user prompt. Off, the user prompt is sent as the structure "
+            "renders it."
+        ),
+    )
+    structured_output: Literal["auto", "off"] = Field(
+        "auto",
+        description=(
+            "auto: request provider structured output with a JSON schema "
+            "derived from the label config; off: plain text request, the "
+            "answer is parsed from free text."
+        ),
+    )
+    format_retry: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "{message}: ask once again in the same conversation when the "
+            "answer yields no answer field; the first answer is kept."
+        ),
+    )
+    answer_schema: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "{fields: {control: {key: template, values: {template: stored}}}}: "
+            "answer keys and choice values built from task data with "
+            "{{path}} placeholders."
+        ),
+    )
+    refusal_heuristic: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "{pattern, flags?: 'i', window?: 1500}: mark an answer as a "
+            "refusal when the pattern matches its opening."
+        ),
+    )
+
+    @field_validator('format_retry')
+    @classmethod
+    def validate_format_retry(cls, v):
+        return generation_fidelity.validate_format_retry(v)
+
+    @field_validator('answer_schema')
+    @classmethod
+    def validate_answer_schema(cls, v):
+        return generation_fidelity.validate_answer_schema(v)
+
+    @field_validator('refusal_heuristic')
+    @classmethod
+    def validate_refusal_heuristic(cls, v):
+        return generation_fidelity.validate_refusal_heuristic(v)
 
     @field_validator('system_prompt', 'instruction_prompt', 'evaluation_prompt')
     @classmethod
@@ -115,12 +172,25 @@ class PromptStructureUpdate(BaseModel):
     judge_instruction_prompt: Optional[str] = None
     judge_criteria: Optional[List[str]] = None
     exclude_from_generation: Optional[bool] = None
+    append_schema_instruction: Optional[bool] = None
+    structured_output: Optional[Literal["auto", "off"]] = None
+    format_retry: Optional[Dict[str, Any]] = None
+    answer_schema: Optional[Dict[str, Any]] = None
+    refusal_heuristic: Optional[Dict[str, Any]] = None
 
 
 class PromptStructureResponse(PromptStructureBase):
     """Schema for prompt structure responses"""
 
     key: str = Field(..., description="Unique key for this structure within the project")
+    schema_instruction_preview: Optional[str] = Field(
+        None,
+        description=(
+            "Read-only: the text a generation with this structure appends to "
+            "the user prompt (the label config's answer fields), or null when "
+            "it appends nothing."
+        ),
+    )
 
 
 class GenerationConfigStructures(BaseModel):
@@ -453,6 +523,9 @@ class ProjectResponse(ProjectBase):
     # contribute to progress_percentage when enable_evaluation is true.
     evaluation_count: int = 0
     evaluations_completed_count: int = 0
+    # Completed analysis runs of the project (routers.projects.helpers.
+    # count_analysis_runs_by_project) — the Statistiken "Analyses" tile.
+    analysis_count: int = 0
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None
@@ -531,7 +604,7 @@ class ProjectResponse(ProjectBase):
     annotator_step_detail_after_submit: Optional[bool] = None
     allow_external_paste: bool = True
     allow_solution_upload: bool = True
-    handwriting_ocr_enabled: bool = False
+    handwriting_ocr_enabled: bool = True
     handwriting_ocr_model: Optional[str] = None
     enable_annotation: bool = True
     enable_generation: bool = True

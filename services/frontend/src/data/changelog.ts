@@ -9,6 +9,66 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-19-analyses-on-evaluations-page',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-annotator-agreement',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-analysis-counts',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-codes-and-coding-validation',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-analysis-estimators-slots',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-analysis-results-page',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-19-import-provenance',
+    date: '2026-11-19',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-18-variant-experiment-analysis',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-18-generation-request-record',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-18-per-item-answers',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-18-personal-dashboard-for-students',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
+    id: '2026-11-18-open-weight-models-thinking',
+    date: '2026-11-18',
+    audience: 'benger',
+  },
+  {
     id: '2026-11-17-wizard-drafts',
     date: '2026-11-17',
     audience: 'benger',

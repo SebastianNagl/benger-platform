@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+import compliance_records
 from database import DATABASE_URL, Base
 
 # SQLite test engines have no JSONB; key off the URL database.py actually
@@ -2404,6 +2405,14 @@ class Generation(Base):
     # the parent ResponseGeneration. Unique on (generation_id, run_index).
     run_index = Column(Integer, nullable=False, server_default=text("0"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Migration 143: the requests the provider client sent for this
+    # generation, as sent (ai_services.request_capture), and the SHA-256 of
+    # the first one in canonical JSON. A format retry keeps the first answer
+    # in first_response_content and sets retried.
+    request_record = Column(JSONB, nullable=True)
+    request_sha256 = Column(String(64), nullable=True, index=True)
+    first_response_content = Column(Text, nullable=True)
+    retried = Column(Boolean, nullable=False, server_default=text("false"))
 
     # Parsing support for LLM response structure
     parsed_annotation = Column(JSONB, nullable=True)  # Structured Label Studio format
@@ -3943,6 +3952,24 @@ class ImportJob(Base):
         nullable=False,
     )
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Import provenance (migration 147, ``shared/import_provenance.py``).
+    # SHA-256 of the payload bytes the worker downloaded, hex.
+    payload_sha256 = Column(String(64), nullable=True, index=True)
+    # Where the payload came from and what it was imported as: payload hash
+    # and size, source (upload or storage connection, object key, file
+    # name), target, import options, and the caller's declared manifest.
+    source_manifest = Column(JSONB, nullable=True)
+    # SHA-256 over payload hash, target and the options that shape the
+    # result; equal keys mean the same import. NULL for a merge preview,
+    # which writes nothing and is never matched.
+    idempotency_key = Column(String(64), nullable=True, index=True)
+    # Set when this job was a no-op: an identical import (same
+    # idempotency_key) had already completed, so nothing was written.
+    duplicate_of_job_id = Column(
+        String,
+        ForeignKey("import_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -3960,6 +3987,24 @@ class ImportJob(Base):
             f"<ImportJob(id={self.id}, project={self.project_id}, "
             f"status={self.status})>"
         )
+
+
+class ImportJobTask(Base):
+    """A task an import job wrote: one it created or one it added rows to
+    (migration 147, ``shared/import_provenance.py``). A repeated import is a
+    no-op only while every task linked to the earlier import still exists,
+    so the link deliberately has no foreign key to ``tasks``: deleting a
+    task leaves its link behind, and that missing task makes the repeat
+    import again."""
+
+    __tablename__ = "import_job_tasks"
+
+    import_job_id = Column(
+        String,
+        ForeignKey("import_jobs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    task_id = Column(String, primary_key=True)
 
 
 class ProjectPurgeJob(Base):
@@ -4011,5 +4056,569 @@ class ProjectPurgeJob(Base):
     def __repr__(self):
         return (
             f"<ProjectPurgeJob(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Compliance records (migration 145, core 2.57)
+#
+# Persistence and generic CRUD are platform (``routers/compliance_records.py``,
+# rules in ``compliance_records``); what a suite, threshold or verdict means,
+# the assessment workflow and the scoring belong to the overlay that writes the
+# rows. Findings reference analysis runs and estimates by id only: those tables
+# are not part of this migration, so the columns carry no foreign key yet.
+# --------------------------------------------------------------------------- #
+
+
+def _sql_in(column: str, values) -> str:
+    return f"{column} IN (" + ", ".join(f"'{v}'" for v in values) + ")"
+
+
+class ComplianceAssessment(Base):
+    """One assessment of a system (or of a project's systems) under a
+    requirement catalog version.
+
+    ``suites`` and ``thresholds`` (default and chosen per requirement) are
+    whatever the catalog says; the platform only stores them, fixes them at
+    the registration (``compliance_records.REGISTRATION_LOCKED_FIELDS``) and
+    records ``thresholds_hash``. The target is ``system_model_id`` (a system
+    under test), ``project_id`` (a project whose generations are assessed)
+    and/or ``release_id`` (a benchmark release; no foreign key until that
+    table exists). Assessments are evidence: after the registration they are
+    withdrawn, not deleted.
+    """
+
+    __tablename__ = "compliance_assessments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title = Column(String(300), nullable=False)
+    status = Column(
+        String(32),
+        nullable=False,
+        default=compliance_records.ASSESSMENT_DRAFT,
+        server_default=compliance_records.ASSESSMENT_DRAFT,
+    )
+    catalog_version = Column(String(64), nullable=True)
+    suites = Column(JSONB, nullable=False, default=list, server_default=text("'[]'"))
+    thresholds = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    thresholds_hash = Column(String(64), nullable=True)
+    system_model_id = Column(
+        String, ForeignKey("llm_models.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Benchmark release; plain id until the releases table exists.
+    release_id = Column(String, nullable=True, index=True)
+    supersedes_id = Column(
+        String,
+        ForeignKey("compliance_assessments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contamination_suspected = Column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    limitations_text = Column(Text, nullable=True)
+    registered_at = Column(DateTime(timezone=True), nullable=True)
+    attested_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_key_id = Column(
+        String, ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            _sql_in("status", compliance_records.ASSESSMENT_STATUSES),
+            name="ck_compliance_assessments_status",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceAssessment(id={self.id}, status={self.status})>"
+
+
+class ComplianceSuiteRun(Base):
+    """One execution of one suite (id and version) for an assessment.
+
+    Records what went in (``submission_ids``, ``evaluation_run_ids``,
+    ``analysis_run_ids``, ``parameters`` and their hashes) and how it ran.
+    A finished run (``succeeded``, ``failed``, ``cancelled``) and its findings
+    are read-only.
+    """
+
+    __tablename__ = "compliance_suite_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    assessment_id = Column(
+        String,
+        ForeignKey("compliance_assessments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    suite_id = Column(String(100), nullable=False)
+    suite_version = Column(String(64), nullable=True)
+    status = Column(
+        String(32),
+        nullable=False,
+        default=compliance_records.SUITE_RUN_QUEUED,
+        server_default=compliance_records.SUITE_RUN_QUEUED,
+    )
+    parameters = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    submission_ids = Column(JSONB, nullable=False, default=list, server_default=text("'[]'"))
+    evaluation_run_ids = Column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'")
+    )
+    # Analysis runs (statistics engine); ids only, no foreign key yet.
+    analysis_run_ids = Column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'")
+    )
+    inputs_hash = Column(String(128), nullable=True)
+    judge_config_hash = Column(String(128), nullable=True)
+    code_version = Column(String(128), nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    log_object_key = Column(String(1024), nullable=True)
+    error = Column(Text, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            _sql_in("status", compliance_records.SUITE_RUN_STATUSES),
+            name="ck_compliance_suite_runs_status",
+        ),
+        # Target of the findings' composite key, so a finding's
+        # assessment_id always equals its suite run's.
+        UniqueConstraint("id", "assessment_id", name="uq_compliance_suite_runs_id_assessment"),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceSuiteRun(id={self.id}, suite={self.suite_id}, status={self.status})>"
+
+
+class ComplianceFinding(Base):
+    """One result of a suite run: a requirement, a metric (or contrast), its
+    scope, the figure with its interval, the threshold it was judged against
+    and the verdict.
+
+    ``value``, ``ci_low`` and ``ci_high`` are double precision, so an estimate
+    is stored exactly as computed. ``analysis_run_id`` and
+    ``analysis_estimate_id`` name the analysis run and the estimate the
+    finding was derived from (ids only, no foreign key yet); ``system_key``
+    names the system the finding is about when a run covers several.
+    ``assessment_id`` is denormalised for listing and is tied to the suite
+    run's by a composite foreign key.
+    """
+
+    __tablename__ = "compliance_findings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    suite_run_id = Column(String, nullable=False, index=True)
+    # Indexed through ix_compliance_findings_assessment_requirement.
+    assessment_id = Column(String, nullable=False)
+    requirement_ref = Column(String(200), nullable=False)
+    metric = Column(String(200), nullable=False)
+    system_key = Column(String(255), nullable=True)
+    scope = Column(JSONB, nullable=False, default=dict, server_default=text("'{}'"))
+    n_tasks = Column(Integer, nullable=True)
+    n_runs = Column(Integer, nullable=True)
+    value = Column(Float(precision=53), nullable=True)
+    ci_low = Column(Float(precision=53), nullable=True)
+    ci_high = Column(Float(precision=53), nullable=True)
+    ci_level = Column(Float(precision=53), nullable=True)
+    ci_method = Column(String(64), nullable=True)
+    threshold = Column(JSONB, nullable=True)
+    verdict = Column(String(32), nullable=False)
+    baseline = Column(JSONB, nullable=True)
+    details = Column(JSONB, nullable=True)
+    analysis_run_id = Column(String, nullable=True, index=True)
+    analysis_estimate_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["suite_run_id", "assessment_id"],
+            ["compliance_suite_runs.id", "compliance_suite_runs.assessment_id"],
+            ondelete="CASCADE",
+            name="fk_compliance_findings_suite_run",
+        ),
+        CheckConstraint(
+            _sql_in("verdict", compliance_records.VERDICTS),
+            name="ck_compliance_findings_verdict",
+        ),
+        CheckConstraint(
+            "ci_level IS NULL OR (ci_level > 0 AND ci_level < 1)",
+            name="ck_compliance_findings_ci_level",
+        ),
+        CheckConstraint(
+            "ci_low IS NULL OR ci_high IS NULL OR ci_low <= ci_high",
+            name="ck_compliance_findings_ci_order",
+        ),
+        CheckConstraint(
+            "(n_tasks IS NULL OR n_tasks >= 0) AND (n_runs IS NULL OR n_runs >= 0)",
+            name="ck_compliance_findings_counts",
+        ),
+        Index(
+            "ix_compliance_findings_assessment_requirement",
+            "assessment_id",
+            "requirement_ref",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceFinding(id={self.id}, metric={self.metric}, verdict={self.verdict})>"
+
+
+class AnalysisRun(Base):
+    """One run of the analysis engine over a project (migration 146).
+
+    A run is the audit record of a statistical analysis of a variant
+    experiment: the spec as submitted and normalized (every inference
+    convention filled in) with its hash, the frame snapshot it read (content
+    hash, the Parquet object in storage under ``analysis/``, its SHA-256 and
+    size), the engine version, the numeric library versions and the workers'
+    lockfile hash, and what happened (status, per-fit summaries, warnings,
+    timings). Its estimates are the ``analysis_estimates`` rows. Same frame,
+    same normalized spec and same engine version give bit-identical
+    estimates. Rows cascade with the project; nothing edits a finished run.
+    """
+
+    __tablename__ = "analysis_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending")
+    spec = Column(JSONB, nullable=False)
+    normalized_spec = Column(JSONB, nullable=False)
+    spec_hash = Column(String(64), nullable=False, index=True)
+    spec_version = Column(Integer, nullable=False)
+    engine_version = Column(String(32), nullable=False)
+    # Filled by the worker.
+    frame_hash = Column(String(64), nullable=True)
+    frame_object_key = Column(String, nullable=True)
+    frame_sha256 = Column(String(64), nullable=True)
+    frame_bytes = Column(BigInteger, nullable=True)
+    frame_rows = Column(Integer, nullable=True)
+    # {"observations", "designs", "units", "tasks", "systems", "parse_failures",
+    # "rows_in_filter"}
+    frame_counts = Column(JSONB, nullable=True)
+    # {"python", "numpy", "pandas", "scipy", "statsmodels", "pyarrow"}
+    library_versions = Column(JSONB, nullable=True)
+    lockfile_sha256 = Column(String(64), nullable=True)
+    # Reserved for resampling estimators; None for the closed-form ones.
+    seed = Column(BigInteger, nullable=True)
+    # What the run read besides its own project (migration 148), resolved by
+    # the worker: {"projects": [ids of a cross-project frame], "lookups":
+    # [{"id", "project_id", "name", "version", "content_hash", "row_count"}]}
+    resolved_inputs = Column(JSONB, nullable=True)
+    fits = Column(JSONB, nullable=True)
+    warnings = Column(JSONB, nullable=True)
+    timings = Column(JSONB, nullable=True)
+    # One identity record per code measure the frame computed (migration
+    # 149): kind, ref, version, hash (and the coder's code hash and owner,
+    # the pattern set hash, the coding project and system of a judge code),
+    # the missing count and the recorded validation the run accepted.
+    codes = Column(JSONB, nullable=True)
+    estimates_count = Column(Integer, nullable=False, server_default=text("0"))
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_analysis_runs_status",
+        ),
+        Index("ix_analysis_runs_project_created", "project_id", "created_at"),
+    )
+
+    @staticmethod
+    def input_projects(normalized_spec, project_id: str) -> list:
+        """The further projects a run of ``project_id`` reads, in spec
+        order: those of ``inputs.projects`` and the owners of the stored
+        lookup tables it joins, without ``project_id`` itself."""
+        spec = normalized_spec or {}
+        ids = [p["project_id"] for p in (spec.get("inputs") or {}).get("projects") or []]
+        ids += [
+            lk["table"]["project_id"]
+            for lk in spec.get("lookups") or []
+            if (lk.get("table") or {}).get("project_id")
+        ]
+        return [pid for pid in dict.fromkeys(ids) if pid != project_id]
+
+    @classmethod
+    def reads_project(cls, project_id: str):
+        """SQL condition: the run's spec reads ``project_id`` as an input
+        project or through one of its lookup tables."""
+        return sa.or_(
+            cls.normalized_spec.contains({"inputs": {"projects": [{"project_id": project_id}]}}),
+            cls.normalized_spec.contains({"lookups": [{"table": {"project_id": project_id}}]}),
+        )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisRun(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
+        )
+
+
+class AnalysisEstimate(Base):
+    """One estimate of an analysis run (migration 146): a contrast of an
+    estimand in one scope (pooled, or one level of the ``by`` columns), with
+    its interval, p-value, equivalence tests, multiplicity adjustments and
+    the conventions it was computed under. ``position`` is the engine's
+    deterministic output order."""
+
+    __tablename__ = "analysis_estimates"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    run_id = Column(
+        String, ForeignKey("analysis_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    position = Column(Integer, nullable=False)
+    estimand_id = Column(String(200), nullable=False)
+    contrast_id = Column(Text, nullable=True)
+    estimator = Column(String(32), nullable=False)
+    kind = Column(String(16), nullable=False, server_default="linear")
+    outcome = Column(String(100), nullable=False)
+    scope = Column(Text, nullable=False)
+    scope_values = Column(JSONB, nullable=True)
+    # ok | degenerate | negative_variance | not_estimable | error
+    status = Column(String(32), nullable=False)
+    message = Column(Text, nullable=True)
+    estimate = Column(Float, nullable=True)
+    std_error = Column(Float, nullable=True)
+    statistic = Column(Float, nullable=True)
+    df = Column(Integer, nullable=True)
+    p_value = Column(Float, nullable=True)
+    null_value = Column(Float, nullable=True)
+    ci_level = Column(Float, nullable=True)
+    ci_lower = Column(Float, nullable=True)
+    ci_upper = Column(Float, nullable=True)
+    # Equivalence result of the first bound set; every set is in ``tost``.
+    equivalent = Column(Boolean, nullable=True)
+    tost = Column(JSONB, nullable=True)
+    mde = Column(JSONB, nullable=True)
+    ratio = Column(JSONB, nullable=True)
+    # The first family (spec order) the estimate belongs to; every
+    # membership with its adjusted p-value is in ``adjustments``.
+    family = Column(String(200), nullable=True)
+    p_adjusted = Column(Float, nullable=True)
+    adjustments = Column(JSONB, nullable=True)
+    n_obs = Column(Integer, nullable=True)
+    n_clusters = Column(JSONB, nullable=True)
+    k_params = Column(Integer, nullable=True)
+    conventions = Column(JSONB, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "position", name="uq_analysis_estimates_run_position"),
+        Index("ix_analysis_estimates_run_estimand", "run_id", "estimand_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisEstimate(run={self.run_id}, estimand={self.estimand_id}, "
+            f"scope={self.scope}, status={self.status})>"
+        )
+
+
+class AnalysisLookupTable(Base):
+    """One version of a named lookup table of a project (migration 148).
+
+    Analysis specs join lookup tables onto their frames by key columns
+    (``lookups`` with ``table: {name, version}``), for example a coding per
+    system, offence and group derived from another project. Every upload of
+    a name is its next version and a version never changes, so a spec that
+    names a version (and optionally its ``content_hash``) always reads the
+    same rows. ``columns`` lists the column names, ``rows`` the rows as lists
+    in that order; ``content_hash`` is
+    :func:`analysis.lookups.lookup_hash` of both. Rows cascade with the
+    project.
+    """
+
+    __tablename__ = "analysis_lookup_tables"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name = Column(String(100), nullable=False)
+    version = Column(Integer, nullable=False)
+    description = Column(Text, nullable=True)
+    columns = Column(JSONB, nullable=False)
+    rows = Column(JSONB, nullable=False)
+    row_count = Column(Integer, nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_analysis_lookup_tables_version"),
+        UniqueConstraint(
+            "project_id", "name", "version", name="uq_analysis_lookup_tables_version"
+        ),
+        Index("ix_analysis_lookup_tables_project_name", "project_id", "name"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<AnalysisLookupTable(project={self.project_id}, name={self.name}, "
+            f"version={self.version})>"
+        )
+
+
+class CodingProject(Base):
+    """A project made from a sample of another project's answers so they can
+    be coded (migration 149).
+
+    The coding project itself is an ordinary project: each task shows one
+    answer (``data.answer``) and context copied from its task, the label
+    config is the coding scheme, annotations are human codes and a judge
+    system's generations are automatic codes. Each task records its source
+    in ``tasks.meta.coding``; this row records how the sample was drawn
+    (seed, size, filters, candidate count and the hash of the drawn
+    generation ids), what text the tasks show and which task data keys were
+    copied. ``project_id`` is the coding project and cascades with it; the
+    source link is cleared when the source project goes.
+    """
+
+    __tablename__ = "coding_projects"
+
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # "answer" (the full response) or {"field": "<control name>"}
+    answer_source = Column(JSONB, nullable=False)
+    context_fields = Column(JSONB, nullable=False)
+    # {"seed", "size", "filters": {...}, "candidates", "drawn", "hash"}
+    sample = Column(JSONB, nullable=False)
+    coding_version = Column(Integer, nullable=False)
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self):
+        return (
+            f"<CodingProject(project={self.project_id}, "
+            f"source={self.source_project_id})>"
+        )
+
+
+class CodeValidation(Base):
+    """Agreement of one code with the human codes of a coding project
+    (migration 149).
+
+    The worker computes the automatic code of every coding task (a text
+    pattern code, a coder plugin, or a judge system's generations on the
+    coding project), compares it with the human codes of ``control`` and
+    stores the agreement in ``metrics`` (Cohen's kappa, observed and chance
+    agreement, precision, recall and F1 per category, the confusion matrix,
+    agreement per coder and between coders) and the per-task codes in
+    ``items``. ``code_hash`` is the identity hash of the validated code
+    (``analysis.codes.code_identity``); an analysis run accepts a code
+    measure's validation only for that hash. ``kappa`` and the counts are
+    copied out of ``metrics`` for listings. Rows cascade with the coding
+    project; nothing edits a finished validation.
+    """
+
+    __tablename__ = "code_validations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False, server_default="pending")
+    control = Column(String(200), nullable=False)
+    code = Column(JSONB, nullable=False)
+    normalized_code = Column(JSONB, nullable=False)
+    code_kind = Column(String(20), nullable=False)
+    # Filled by the worker (a coder's hash is only known where it runs).
+    code_ref = Column(String(300), nullable=True)
+    code_version = Column(String(100), nullable=True)
+    code_hash = Column(String(64), nullable=True, index=True)
+    identity = Column(JSONB, nullable=True)
+    # {"value_map": {...}, "missing": "category" | "exclude"}
+    options = Column(JSONB, nullable=False)
+    coding_version = Column(Integer, nullable=False)
+    metrics = Column(JSONB, nullable=True)
+    items = Column(JSONB, nullable=True)
+    n_items = Column(Integer, nullable=True)
+    n_compared = Column(Integer, nullable=True)
+    kappa = Column(Float, nullable=True)
+    observed_agreement = Column(Float, nullable=True)
+    warnings = Column(JSONB, nullable=True)
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_code_validations_status",
+        ),
+        Index("ix_code_validations_project_created", "project_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<CodeValidation(id={self.id}, project={self.project_id}, "
             f"status={self.status})>"
         )

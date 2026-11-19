@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Afficher/masquer la navigation"
     },
-    "billing": "Abonnement et facturation"
+    "billing": "Abonnement et facturation",
+    "compliance": "Conformité"
   },
   "header": {
     "expandSidebar": "Développer la barre latérale",
@@ -96,6 +97,7 @@
   "dashboard": {
     "title": "Tableau de bord",
     "subtitle": "Gérez vos projets d'annotation et suivez leur progression",
+    "subtitlePersonal": "Vos examens et tâches ouverts, vos réponses et vos résultats en un coup d'œil",
     "totalQuestions": "Total des questions",
     "recentDocuments": "Tâches récentes",
     "viewAll": "Tout afficher",
@@ -106,6 +108,11 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
+      "openExams": "Examens ouverts",
+      "openTasks": "Tâches ouvertes",
+      "submittedAnswers": "Réponses soumises",
+      "releasedResults": "Résultats publiés",
       "unavailable": "Indisponible",
       "unavailableShort": "n.d."
     },
@@ -676,6 +683,7 @@
       "import": "Importer des données",
       "export": "Exporter des données",
       "importSuccess": "Données importées avec succès",
+      "importAlreadyImported": "Ce fichier a déjà été importé dans ce projet le {date}. Rien n'a été ajouté.",
       "importFailed": "Erreur lors de l'import des données",
       "importLinkedExamSingleTask": "Cet examen est lié dans son ensemble à une activité d'une plateforme d'apprentissage et comporte donc exactement une tâche. Liez d'abord l'activité à la tâche de l'examen ; vous pourrez ensuite importer d'autres tâches.",
       "exportSuccess": "Données exportées avec succès",
@@ -725,6 +733,7 @@
       "importStats": " - {tasks} tâches, {annotations} annotations, {generations} générations, {evaluations} évaluations, {rows} lignes évaluées",
       "importSkippedAnnotations": "{count} réponses n'ont pas été importées : leurs auteurs sont inconnus ici et ont été associés à votre compte, qui ne peut détenir qu'une seule réponse active par tâche. Créez les utilisateurs avec la même adresse e-mail avant l'import.",
       "importSuccess": "« {title} » importé avec succès{stats} ({time} s)",
+      "importAlreadyImported": "Ce fichier a déjà été importé sous le nom « {title} » le {date}. Aucun nouveau projet n'a été créé ; le projet existant s'ouvre.",
       "importFailed": "Échec de l'import du projet",
       "invalidJsonFormat": "Format JSON invalide dans le fichier",
       "unsupportedFileFormat": "Version de format de fichier non prise en charge",
@@ -748,6 +757,8 @@
       "attemptedBadge": "Remise antérieure",
       "archivedBadge": "Archivé",
       "wizardDraftBadge": "Brouillon de l'assistant",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analyse",
       "participantVia": {
         "share": "Rejoint via un lien de partage",
         "entitlement": "Débloqué via « Découvrir »",
@@ -1021,6 +1032,8 @@
       "submit": "Fusionner",
       "running": "Fusion en cours...",
       "success": "Résultats fusionnés",
+      "alreadyMerged": "Ces résultats ont déjà été fusionnés dans ce projet le {date}. Rien n'a été ajouté.",
+      "alreadyMergedToast": "Ces résultats ont déjà été fusionnés. Rien n'a été ajouté.",
       "failed": "La fusion a échoué",
       "taskMismatch": "Les tâches de ce fichier ne sont pas celles de ce projet, rien n'a donc été importé. Fusionnez un fichier exporté de ce projet ou d'une copie, ou importez-le comme nouveau projet.",
       "summaryAdded": "{tasks} tâches associées ; {generations} générations, {evaluations} évaluations et {rows} lignes évaluées ajoutées.",
@@ -1180,7 +1193,7 @@
       "description": "Description (facultative)",
       "descriptionPlaceholder": "Décrivez à quoi sert cette structure...",
       "structureConfiguration": "Configuration de la structure",
-      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt",
+      "structureConfigHelp": "Définissez system_prompt, instruction_prompt et, en option, evaluation_prompt. Format de réponse : append_schema_instruction (true/false), structured_output (auto/off) et, en option, format_retry, answer_schema et refusal_heuristic",
       "cancel": "Annuler",
       "saving": "Enregistrement...",
       "createStructure": "Créer la structure",
@@ -1191,7 +1204,18 @@
       "delete": "Supprimer",
       "loadingStructures": "Chargement des structures de prompt...",
       "onlyCreatorCanManage": "Seul le créateur du projet peut gérer les structures de prompt",
-      "fieldReferenceHelp": "Utilisez la syntaxe $nomduchamp ou $chemin.imbrique pour référencer les champs des données de tâche dans vos prompts."
+      "fieldReferenceHelp": "Utilisez la syntaxe $nomduchamp ou $chemin.imbrique pour référencer les champs des données de tâche dans vos prompts.",
+      "format": {
+        "instructionAppended": "Ajoute les champs de réponse au prompt",
+        "instructionNotAppended": "Prompt envoyé tel quel",
+        "structuredAuto": "Sortie structurée : auto",
+        "structuredOff": "Sortie structurée : désactivée",
+        "retry": "Nouvelle demande de format",
+        "answerKeys": "Clés de réponse issues des données de la tâche",
+        "refusalHeuristic": "Heuristique de refus",
+        "appendedText": "Ajouté au prompt d’instruction",
+        "retryMessage": "Message de nouvelle demande de format"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -1324,7 +1348,7 @@
       "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque combinaison tâche-modèle doit être générée. Les coûts sont multipliés en conséquence.",
       "defaultRunsPerTask": "Nombre d'exécutions par tâche par défaut",
-      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 25."
+      "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond 100."
     },
     "settings": {
       "title": "Paramètres",
@@ -1520,6 +1544,7 @@
       "annotations": "Annotations",
       "generations": "Générations",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Notations de résolution de cas",
       "correctionsGradesBreakdown": "↳ Notations par les correcteurs",
@@ -5469,7 +5494,16 @@
         "selected": "sélectionné(s)",
         "noResults": "(aucun résultat)",
         "notRun": "(non exécuté)",
-        "tasks": "tâches"
+        "tasks": "tâches",
+        "searchProjects": "Rechercher des projets",
+        "noProjectsFound": "Aucun projet trouvé.",
+        "moreProjects": "Afficher plus ({shown} sur {total})",
+        "run": "Analyse",
+        "runOption": "{name} ({status})",
+        "systems": "Systèmes",
+        "estimands": "Estimandes",
+        "family": "Famille",
+        "allFamilies": "Toutes les familles"
       },
       "params": {
         "configure": "Configurer",
@@ -5514,7 +5548,9 @@
           "heatmapNeedsModels": "Nécessite au moins 2 modèles",
           "boxNeedsSampleAggregation": "Choisissez le niveau d'analyse « Par échantillon » pour les boîtes à moustaches",
           "boxComputingScores": "Calcul des scores par échantillon...",
-          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet"
+          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet",
+          "forestNeedsModelAggregation": "Le forest plot nécessite le niveau d'analyse Modèle",
+          "forestNoStatistics": "Aucune statistique par modèle disponible pour le moment"
         }
       },
       "results": {
@@ -5561,6 +5597,16 @@
         "mode": "Mode d'évaluation",
         "evaluateMissingOnly": "N'évaluer que les manquantes/en échec",
         "evaluateMissingDescription": "N'évalue que les générations qui n'ont pas encore été évaluées ou dont l'évaluation a échoué"
+      },
+      "resultType": {
+        "label": "Résultat",
+        "metrics": "Métriques",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Lancer une analyse",
+        "runDetails": "Détails de l'analyse",
+        "engine": "Moteur"
       }
     },
     "export": {
@@ -5773,7 +5819,8 @@
         "spanSequence": "Étiquetage de segments/séquences",
         "hierarchical": "Métriques hiérarchiques",
         "llmJudge": "LLM comme juge",
-        "humanEvaluation": "Correction humaine"
+        "humanEvaluation": "Correction humaine",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "Correspondance de chaînes et de surface",
@@ -5789,7 +5836,8 @@
         "hierarchical": "Pour les classifications hiérarchiques",
         "llmJudge": "Évaluation par modèle d'IA (clé API requise)",
         "llmJudgeModel": "Évaluation par modèle d'IA avec un modèle juge",
-        "humanEvaluation": "Correction par des correcteurs humains"
+        "humanEvaluation": "Correction par des correcteurs humains",
+        "codes": "Codes lus dans la réponse par un ensemble de règles versionné"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5808,7 +5856,8 @@
         "recall": "Rappel",
         "f1": "Score F1",
         "llmJudgeClassic": "Juge LLM classique",
-        "llmJudgeCustom": "Juge LLM personnalisé"
+        "llmJudgeCustom": "Juge LLM personnalisé",
+        "text_pattern": "Code par motif de texte"
       },
       "metricDesc": {
         "exactMatch": "Correspondance exacte des chaînes",
@@ -5855,7 +5904,8 @@
         "llmJudgeLexam": "Juge d'exactitude issu du benchmark LEXam (0,0 à 1,0 par rapport à la réponse de référence), transposé du droit suisse au droit allemand.",
         "korrekturClassic": "Commentaires libres, surlignages et étiquettes sur les annotations, générations et évaluations.",
         "korrekturFalloesung": "Notation manuelle selon le schéma à 10 dimensions de la résolution de cas standard (Falllösung), identique au juge LLM.",
-        "korrekturCustom": "Notation manuelle : remplit la grille d'évaluation de la tâche (ou les dimensions propres au projet issues du juge LLM personnalisé)."
+        "korrekturCustom": "Notation manuelle : remplit la grille d'évaluation de la tâche (ou les dimensions propres au projet issues du juge LLM personnalisé).",
+        "text_pattern": "Code la réponse avec un ensemble versionné d'expressions régulières"
       }
     },
     "sampleResults": {
@@ -6054,7 +6104,21 @@
       "strongNegative": "Fortement négative",
       "weakNone": "Faible/nulle",
       "comparisonsAlpha": "{count} comparaisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inférence",
+        "inferenceDescription": "Familles de multiplicité avec leurs p-valeurs ajustées, tests d'équivalence, effets minimaux détectables et tests conjoints, tels que la spécification les déclare.",
+        "noInference": "Cette analyse ne déclare ni familles, ni bornes d'équivalence, ni paramètres de puissance, ni tests conjoints.",
+        "familyTitle": "Famille {family} : {method}, {size} tests",
+        "contrast": "Contraste",
+        "familyMde": "Effet minimal détectable de la famille : {value} (puissance {power}, α {alpha})",
+        "mdeTitle": "Effets minimaux détectables",
+        "mde": "MDE",
+        "power": "Puissance",
+        "jointTitle": "Tests conjoints (Wald)",
+        "test": "Test",
+        "fitTitle": "Ajustement"
+      }
     },
     "scoreDistribution": {
       "title": "Distribution des scores",
@@ -6201,7 +6265,10 @@
       "tableChart": "Tableau + graphique",
       "tableChartDescription": "Tableau de données avec visualisation graphique",
       "tableChartBestFor": "Vue combinée des données et de la visualisation",
-      "selectView": "Choisir la vue"
+      "selectView": "Choisir la vue",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimations avec intervalles de confiance",
+      "forestPlotBestFor": "Comparer des estimations et leur incertitude"
     },
     "statistics": {
       "ci": "Intervalles de confiance à 95 %",
@@ -6301,7 +6368,11 @@
         "range90d": "90 j",
         "rangeAll": "Tout",
         "noDataForRange": "Aucune donnée disponible pour la période sélectionnée"
-      }
+      },
+      "intervalAriaLabel": "Estimations avec intervalles de confiance : {series}",
+      "intervalLegend": "Estimation avec intervalle de confiance à {level}",
+      "pAdjustedShort": "p ajust. {p}",
+      "series": "Série"
     },
     "fieldPair": {
       "label": "Paires de champs",
@@ -6350,6 +6421,40 @@
       "invalidPrompt": "Format de prompt non valide à l'index {index} : {error}",
       "failed": "Échec du téléversement des données : {error}",
       "failedUnknown": "Échec du téléversement des données : erreur inconnue"
+    },
+    "annotatorAgreement": {
+      "title": "Accord entre annotateurs",
+      "description": "Dans quelle mesure les annotateurs s'accordent sur les tâches annotées par au moins deux d'entre eux, par champ.",
+      "summary": "{tasks} tâches ont été annotées par au moins deux personnes ({annotators} annotateurs).",
+      "controlMeta": "{type} · {tasks} tâches · {annotators} annotateurs",
+      "types": {
+        "choices": "Choix",
+        "rating": "Note",
+        "number": "Nombre",
+        "other": "Autre"
+      },
+      "fleissKappa": "Kappa de Fleiss",
+      "cohensKappaMean": "Kappa de Cohen (moyenne des paires)",
+      "percentAgreement": "Tous d'accord",
+      "pearsonMean": "r de Pearson (moyenne des paires)",
+      "meanAbsoluteDeviation": "Écart absolu moyen",
+      "bands": {
+        "poor": "faible (sous le hasard)",
+        "slight": "très faible",
+        "fair": "passable",
+        "moderate": "modéré",
+        "substantial": "important",
+        "almostPerfect": "presque parfait"
+      },
+      "multiSelectNote": "Certaines annotations ont choisi plusieurs options : deux annotations ne s'accordent que si elles ont choisi le même ensemble.",
+      "pairs": "Paires d'annotateurs ({count})",
+      "pair": "Paire",
+      "sharedTasks": "Tâches communes",
+      "cohensKappa": "Kappa de Cohen",
+      "pearson": "r de Pearson",
+      "pairsTruncated": "Affichage des {shown} paires ayant le plus de tâches communes sur {total}.",
+      "unsupported": "Non évalués (aucune valeur comparable, comme du texte libre ou des segments) : {controls}.",
+      "methodNote": "Seules comptent les tâches ayant au moins deux réponses pour un champ. Le kappa se lit sur l'échelle de Landis et Koch ; les notes sont comparées comme des catégories (kappa non pondéré). Le kappa de Cohen d'une paire nécessite au moins deux tâches communes."
     }
   },
   "about": {
@@ -6649,6 +6754,7 @@
       "metric": "Métrique",
       "predictionFields": "Champs de prédiction",
       "referenceFields": "Champs de référence",
+      "noReferenceNeeded": "Aucun : cette métrique ne lit que la prédiction",
       "parameters": "Paramètres"
     },
     "fields": {
@@ -6765,7 +6871,15 @@
       "temperatureRange": "Caractère aléatoire de la réponse ({min} à {max} pour ce fournisseur)",
       "maxTokensRange": "Nombre maximal de tokens pour la réponse du juge ({min}-{max})",
       "promptTemplatePlaceholder": "Vous êtes correcteur juridique.\n\nCas : {{fall}}\nQuestion : {{task}}\nRéférence : {{binary_solution}} / {{reasoning}}\n\nÀ évaluer : {{answer}}\n\nRépondez en JSON avec les champs scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Exactitude du résultat"
+      "dimensionNamePlaceholder": "Exactitude du résultat",
+      "textPattern": {
+        "patternSet": "Ensemble de motifs (JSON)",
+        "patternSetHelp": "Un ensemble de motifs avec un nom, une version et ses codes. Dans un motif, {{task.<path>}} insère une valeur de la tâche. Le champ de référence n'est pas lu.",
+        "invalidJson": "L'ensemble de motifs n'est pas un JSON valide.",
+        "notASet": "L'ensemble de motifs nécessite un nom, une version et au moins un code.",
+        "code": "Code",
+        "selectCode": "Choisissez le code à rapporter"
+      }
     },
     "placeholders": {
       "answerType": "Choisir le type de réponse...",
@@ -7422,6 +7536,7 @@
       "showSection": "Afficher la section",
       "showDataCount": "Afficher le nombre de tâches",
       "showParticipants": "Afficher les participants",
+      "showAgreement": "Afficher l'accord entre annotateurs",
       "showModels": "Afficher les modèles",
       "presentation": "Présentation de l'évaluation",
       "primaryMetric": "Métrique principale",
@@ -7485,6 +7600,7 @@
       "participants": "Participants",
       "modelsEvaluated": "Modèles évalués",
       "evaluations": "Évaluations",
+      "analyses": "Analyses",
       "data": "Données",
       "defaultDataText": "Le jeu de données comprend {count} tâches.",
       "annotations": "Remises",
@@ -7548,6 +7664,7 @@
     "tasks": "Tâches",
     "annotations": "Annotations",
     "models": "Modèles évalués",
+    "analyses": "Analyses",
     "viewReport": "Afficher le rapport",
     "comingSoon": "Rapports bientôt disponibles",
     "comingSoonDescription": "La fonction de rapports est en cours de développement. Vous pourrez consulter ici les résultats d'évaluation publiés.",
@@ -9159,6 +9276,7 @@
       "nextTaskFailed": "Impossible de charger la tâche suivante",
       "allTasksCompletedRestart": "Toutes les tâches sont terminées ! Reprise depuis le début...",
       "imported": "{count} tâches importées avec succès",
+      "alreadyImported": "Ces données ont déjà été importées dans le projet. Rien n'a été ajouté.",
       "importFailed": "Impossible d'importer les données",
       "allTasksAnnotated": "Toutes les tâches ont été annotées avec succès",
       "annotationSaved": "Annotation enregistrée",
@@ -9175,10 +9293,11 @@
   },
   "runs": {
     "title": "Exécutions",
-    "subtitle": "Inventaire des exécutions individuelles de génération et d'évaluation. Cliquez sur une ligne pour afficher les détails de l'exécution.",
+    "subtitle": "Inventaire des exécutions individuelles de génération, d'évaluation et d'analyse. Cliquez sur une ligne pour afficher les détails de l'exécution.",
     "tabs": {
       "evaluation": "Évaluations",
-      "generation": "Générations"
+      "generation": "Générations",
+      "analysis": "Analyses"
     },
     "filterProject": "Projet",
     "filterStatus": "Statut",
@@ -9225,11 +9344,27 @@
       "runIndex": "Exécution n°",
       "preview": "Réponse (aperçu)",
       "response": "Réponse",
-      "prompt": "Prompt utilisé",
+      "prompt": "Modèles de prompt",
       "linkedEvaluations": "Évaluations liées",
       "metric": "Métrique",
       "scoredSamples": "Échantillons notés",
-      "loadFailed": "Impossible de charger l'exécution de génération"
+      "loadFailed": "Impossible de charger l'exécution de génération",
+      "request": {
+        "title": "Requête envoyée au modèle",
+        "help": "Exactement ce que le client du fournisseur a envoyé, y compris chaque bloc ajouté aux prompts par la plateforme.",
+        "none": "Aucune requête enregistrée (générée avant son enregistrement).",
+        "model": "Identifiant du modèle",
+        "workerCall": "Le client du fournisseur n’a signalé aucune requête ; voici l’appel effectué par le worker de génération.",
+        "roleSystem": "Système",
+        "roleUser": "Utilisateur",
+        "roleAssistant": "Assistant",
+        "responseFormat": "Format de réponse",
+        "parameters": "Paramètres de la requête",
+        "retried": "Nouvelle demande de format : {count} requêtes envoyées",
+        "firstAnswer": "Première réponse",
+        "loading": "Chargement de la requête…",
+        "loadFailed": "La requête n’a pas pu être chargée."
+      }
     }
   },
   "customModels": {
@@ -11307,6 +11442,8 @@
       "importing": "Import en cours…",
       "importingFiles": "Import de {count} fichier(s) en cours…",
       "importSuccess": "Import cloud terminé",
+      "importAllAlreadyImported": "Ces fichiers ont déjà été importés dans ce projet. Rien n'a été ajouté.",
+      "importSomeAlreadyImported": "{count} fichier(s) avaient déjà été importés dans ce projet et ont été ignorés.",
       "importFailed": "Échec de l'import cloud",
       "importFailedWithReason": "Échec de l'import cloud : {reason}",
       "historyTitle": "Imports cloud précédents",
@@ -11318,7 +11455,8 @@
         "pending": "En attente",
         "running": "En cours",
         "completed": "Terminé",
-        "failed": "Échec"
+        "failed": "Échec",
+        "alreadyImported": "Déjà importé"
       }
     }
   },
@@ -11799,6 +11937,180 @@
       "reglab": "Le Regulation, Evaluation, and Governance Lab de Stanford dirigé par le Prof. Daniel E. Ho, coauteur de CaseHOLD et de LegalBench.",
       "hazyresearch": "Le groupe du Prof. Christopher Ré à l'université Stanford, d'où est issu LegalBench.",
       "ethLawEcon": "Le Center for Law & Economics de l'ETH Zurich, avec notamment le Prof. Elliott Ash, coauteur de LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Chargement…",
+    "unavailable": {
+      "title": "La conformité n'est pas disponible",
+      "description": "Les fonctions de conformité ne sont pas activées pour votre compte dans cette installation."
+    }
+  },
+  "analysis": {
+    "project": "Projet",
+    "scope": {
+      "pooled": "Global"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Erreur",
+      "degenerate": "Aucune variance d'échantillonnage",
+      "not_estimable": "Non estimable",
+      "negative_variance": "Variance négative"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Les analyses traitent le projet comme une expérience contrôlée à variantes : chaque tâche est une cellule d'un plan de variantes, et une analyse calcule les estimandes de sa spécification sur les réponses, avec intervalles de confiance, tests d'équivalence et p-valeurs ajustées pour les tests multiples.",
+      "newRun": "Nouvelle analyse",
+      "newRunDescription": "Collez une spécification d'analyse (JSON). Validez-la d'abord pour voir chaque problème détecté par le moteur, puis lancez l'analyse.",
+      "empty": "Aucune analyse pour le moment.",
+      "forbidden": "Vous ne pouvez pas voir les analyses de ce projet.",
+      "loadFailed": "Les analyses n'ont pas pu être chargées.",
+      "prefillFailed": "La spécification de cette analyse n'a pas pu être chargée.",
+      "more": "Les {shown} analyses les plus récentes sur {total}.",
+      "col": {
+        "name": "Nom",
+        "rows": "Lignes du frame",
+        "estimates": "Estimations",
+        "specHash": "Hash de la spécification"
+      }
+    },
+    "newRun": {
+      "name": "Nom (facultatif)",
+      "namePlaceholder": "Par défaut, le nom de la spécification",
+      "spec": "Spécification d'analyse (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format : spécification version 1 (voir la documentation du moteur d'analyse). Le moteur complète chaque convention d'inférence et calcule le hash du résultat.",
+      "insertStarter": "Insérer une spécification de départ",
+      "defaultName": "Analyse",
+      "validate": "Valider",
+      "validating": "Validation…",
+      "start": "Lancer l'analyse",
+      "starting": "Lancement…",
+      "valid": "La spécification est valide (hash {hash}).",
+      "invalid": "La spécification n'est pas valide :",
+      "invalidJson": "JSON non valide : {error}",
+      "failed": "L'analyse n'a pas pu être lancée."
+    },
+    "run": {
+      "title": "Analyse",
+      "loading": "Chargement…",
+      "loadFailed": "L'analyse n'a pas pu être chargée.",
+      "notFound": "Cette analyse n'existe pas ou vous ne pouvez pas la voir.",
+      "timeline": "Lancée {created}, terminée {completed}",
+      "pending": "L'analyse est en file d'attente. Cette page se met à jour d'elle-même à la fin.",
+      "running": "L'analyse est en cours de calcul. Cette page se met à jour d'elle-même à la fin.",
+      "failed": "L'analyse a échoué.",
+      "warnings": "Avertissements ({count})",
+      "reuseSpec": "Nouvelle analyse avec cette spécification",
+      "frameDownload": "Télécharger le frame (Parquet)",
+      "frameDownloading": "Préparation du téléchargement…",
+      "frameForbidden": "Le téléchargement du frame nécessite le rôle administrateur d'organisation ou contributeur sur le projet.",
+      "frameFailed": "Le frame n'a pas pu être téléchargé."
+    },
+    "forest": {
+      "title": "Forest plot",
+      "description": "Un contraste sur l'ensemble de ses sous-ensembles : l'estimation ponctuelle avec son intervalle de confiance. Avec une bande d'équivalence, le segment épais est l'intervalle utilisé par le test d'équivalence.",
+      "contrast": "Contraste",
+      "band": "Bande d'équivalence",
+      "noBand": "Aucune bande",
+      "bandLabel": "Bornes d'équivalence {bounds}",
+      "empty": "Cette analyse n'a aucune estimation à représenter.",
+      "noEstimate": "aucune estimation",
+      "ariaLabel": "Forest plot de {contrast}",
+      "legendInterval": "Estimation avec intervalle de confiance à {level}",
+      "legendInner": "Intervalle à {level} du test d'équivalence"
+    },
+    "estimates": {
+      "title": "Estimations",
+      "description": "Toutes les estimations dans l'ordre de la spécification. p ajust. est la p-valeur ajustée dans la première famille de l'estimation ; ouvrez une ligne pour voir toutes les familles, les tests d'équivalence et les conventions.",
+      "loading": "Chargement des estimations…",
+      "loadFailed": "Les estimations n'ont pas pu être chargées.",
+      "filterEstimand": "Estimande",
+      "filterFamily": "Famille",
+      "all": "Toutes",
+      "count": "{shown} sur {total}",
+      "empty": "Aucune estimation ne correspond au filtre.",
+      "details": "Détails",
+      "estimand": "Estimande",
+      "scope": "Sous-ensemble",
+      "estimate": "Estimation",
+      "se": "ET",
+      "ci": "IC",
+      "family": "Famille",
+      "pAdjusted": "p ajust.",
+      "equivalence": "Équivalence",
+      "equivalent": "Équivalent",
+      "notEquivalent": "Non démontrée",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "clusters {clusters}",
+      "detail": {
+        "estimator": "Estimateur",
+        "outcome": "Variable de résultat",
+        "kind": "Type de contraste",
+        "statistic": "Statistique de test",
+        "df": "Degrés de liberté",
+        "dfNormal": "normale",
+        "nullValue": "Valeur nulle",
+        "ciLevel": "Niveau de confiance",
+        "kParams": "Paramètres",
+        "mde": "MDE (puissance {power})",
+        "tostTitle": "Tests d'équivalence (TOST)",
+        "bounds": "Bornes",
+        "tostInterval": "Intervalle",
+        "familiesTitle": "Familles",
+        "method": "Méthode",
+        "group": "Groupe",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Conventions"
+      },
+      "clustersHeader": "clusters"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "Ce qu'il faut pour reproduire les chiffres : le même frame, la même spécification normalisée et la même version du moteur donnent les mêmes estimations.",
+      "specHash": "Hash de la spécification",
+      "frameHash": "Hash du frame",
+      "frameSha256": "SHA-256 du fichier frame",
+      "lockfile": "SHA-256 du lockfile",
+      "frameSize": "Frame",
+      "frameRows": "{rows} lignes, {size}",
+      "engine": "Moteur",
+      "engineVersions": "moteur {engine}, format de spécification {spec}",
+      "libraries": "Bibliothèques",
+      "seed": "Graine",
+      "noSeed": "aucune",
+      "counts": "Effectifs",
+      "timings": "Durées",
+      "copy": "Copier {what}",
+      "copied": "Copié"
+    },
+    "spec": {
+      "title": "Spécification",
+      "normalized": "Normalisée",
+      "submitted": "Telle que soumise",
+      "normalizedHint": "Avec toutes les conventions complétées ; le hash de la spécification est calculé sur cette forme.",
+      "submittedHint": "Exactement telle que l'analyse a été lancée.",
+      "copy": "Copier la spécification"
+    },
+    "fits": {
+      "title": "Ajustements",
+      "description": "Un ajustement par estimande et sous-ensemble, tel que le moteur l'a calculé.",
+      "empty": "Aucun ajustement enregistré.",
+      "rows": "Lignes",
+      "parameters": "Paramètres",
+      "clusters": "Clusters",
+      "fixedEffects": "Niveaux des effets fixes",
+      "notes": "Remarques",
+      "dropped": "retiré : {columns}",
+      "missing": "Exclues (manquantes)"
     }
   }
 }

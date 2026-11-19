@@ -69,6 +69,10 @@ def _make_job(
         result=None,
         error_message=None,
         expires_at=None,
+        source_manifest=None,
+        payload_sha256=None,
+        idempotency_key=None,
+        duplicate_of_job_id=None,
     )
 
 
@@ -97,6 +101,9 @@ class _FakeSession:
     def query(self, model):
         return _FakeQuery(self._by_model.get(model))
 
+    def flush(self):
+        pass
+
     def commit(self):
         self.commits += 1
 
@@ -115,7 +122,16 @@ def _patched(tmp_path):
 
     storage = _make_local_storage(tmp_path)
 
-    with patch.object(workers_tasks, "_publish_progress"):
+    # The fake session has no import history: no earlier import matches, and
+    # the advisory lock and the task links are the database's (covered end
+    # to end in tests/integration/test_import_provenance_e2e.py).
+    import import_provenance
+
+    with patch.object(workers_tasks, "_publish_progress"), patch.object(
+        import_provenance, "find_completed_import", return_value=None
+    ), patch.object(import_provenance, "lock_import_key"), patch.object(
+        import_provenance, "track_written_tasks", return_value=set()
+    ), patch.object(import_provenance, "record_written_tasks"):
         with patch("storage.object_storage.object_storage", storage):
             yield workers_tasks, storage, ImportJob
 
@@ -157,6 +173,14 @@ def test_import_nested_runs_nested_driver(_patched):
     assert job.byte_size == len(content)
     assert job.result == {"created_tasks": 1}
     assert job.progress == 100
+    import hashlib
+
+    assert job.payload_sha256 == hashlib.sha256(content).hexdigest()
+    assert job.source_manifest["payload"] == {
+        "sha256": job.payload_sha256,
+        "byte_size": len(content),
+    }
+    assert job.idempotency_key is not None
     assert job.error_message is None
     assert job.expires_at is not None and job.expires_at > datetime.now(timezone.utc)
 
@@ -715,3 +739,92 @@ def test_export_failing_before_its_handler_marks_the_job_failed(_patched):
     assert result["status"] == "error"
     assert job.status == "failed"
     assert job.error_message.startswith("The export failed because of an internal error.")
+
+
+def test_repeat_of_a_completed_import_is_a_no_op_without_the_driver(_patched):
+    """An earlier completed import with the same key: the job completes as
+    a no-op pointing at it, and no driver runs."""
+    import import_provenance
+
+    workers_tasks, storage, ImportJob = _patched
+    content = b'{"data": [{"data": {"text": "a"}}]}'
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, content)
+    prior = types.SimpleNamespace(
+        id="ijob-0",
+        project_id="proj-1",
+        format="nested",
+        updated_at=datetime(2026, 11, 19, 8, 0, tzinfo=timezone.utc),
+        result={"created_tasks": 1},
+    )
+
+    with patch.object(
+        import_provenance, "find_completed_import", return_value=prior
+    ) as mock_find, patch.object(
+        import_provenance, "lock_import_key"
+    ) as mock_lock, patch("import_stream.run_nested_import") as mock_nested:
+        result, _ = _run_with_job(workers_tasks, ImportJob, job)
+
+    mock_nested.assert_not_called()
+    mock_lock.assert_called_once()
+    assert mock_lock.call_args.args[1] == job.idempotency_key
+    assert mock_find.call_args.args[1:3] == (job.idempotency_key, "ijob-1")
+    assert result == {
+        "status": "completed",
+        "job_id": "ijob-1",
+        "project_id": "proj-1",
+        "byte_size": len(content),
+        "no_op": True,
+        "duplicate_of_job_id": "ijob-0",
+    }
+    assert job.status == "completed"
+    assert job.duplicate_of_job_id == "ijob-0"
+    assert job.format == "nested"
+    assert job.result["no_op"] is True
+    assert job.result["duplicate_of"]["job_id"] == "ijob-0"
+
+
+def test_reimport_skips_the_lookup_but_takes_the_lock(_patched):
+    import import_provenance
+
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/file.json")
+    _stage_object(storage, job.object_key, b'{"data": []}')
+    session = _FakeSession({ImportJob: job})
+
+    def _fake_nested(db, project_id, fileobj, user_id, before_commit=None):
+        return _committed(before_commit, {"created_tasks": 0})
+
+    with patch.object(import_provenance, "find_completed_import") as mock_find, patch.object(
+        import_provenance, "lock_import_key"
+    ) as mock_lock, patch("import_stream.run_nested_import", _fake_nested), patch.object(
+        workers_tasks, "SessionLocal", return_value=session
+    ):
+        result = workers_tasks.import_project("ijob-1", reimport=True)
+
+    assert result["status"] == "completed"
+    mock_find.assert_not_called()
+    mock_lock.assert_called_once()
+    assert job.source_manifest["import"]["reimport"] is True
+    assert job.duplicate_of_job_id is None
+
+
+def test_merge_preview_records_provenance_without_a_key(_patched):
+    import import_provenance
+
+    workers_tasks, storage, ImportJob = _patched
+    job = _make_job(project_id="proj-1", object_key="imports/proj-1/export.json")
+    _stage_object(storage, job.object_key, b"{}")
+    session = _FakeSession({ImportJob: job})
+
+    with patch.object(import_provenance, "lock_import_key") as mock_lock, patch(
+        "import_stream.run_merge_import", return_value={"statistics": {}}
+    ), patch.object(workers_tasks, "SessionLocal", return_value=session):
+        result = workers_tasks.import_project("ijob-1", mode="merge", dry_run=True)
+
+    assert result["status"] == "completed"
+    mock_lock.assert_not_called()
+    assert job.format == "merge_preview"
+    assert job.idempotency_key is None
+    assert job.payload_sha256 is not None
+    assert job.source_manifest["import"]["mode"] == "merge_preview"

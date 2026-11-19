@@ -1,0 +1,742 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://benger.dev/schemas/analysis_spec.schema.json",
+  "title": "BenGER analysis spec",
+  "description": "Declares the inputs, frame unit, lookup tables, measures, estimands, contrasts, joint tests, equivalence bounds and multiplicity families of one analysis of a variant experiment. Format version 1; semantic rules (unique ids, references, measure cycles, expression syntax, which keys each estimator takes, pattern sets) are checked by analysis.spec.validate_spec.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec_version", "name", "inputs", "estimands"],
+  "properties": {
+    "spec_version": {"const": 1},
+    "name": {"type": "string", "minLength": 1, "maxLength": 200},
+    "description": {"type": "string", "maxLength": 5000},
+    "inputs": {"$ref": "#/$defs/inputs"},
+    "frame": {"$ref": "#/$defs/frame"},
+    "lookups": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"$ref": "#/$defs/lookup"}
+    },
+    "measures": {
+      "type": "object",
+      "maxProperties": 500,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/measure"}
+    },
+    "pattern_sets": {
+      "description": "Text pattern sets (schemas/text_pattern_set.schema.json, checked by analysis.text_patterns) that text_pattern measures name by id.",
+      "type": "object",
+      "maxProperties": 50,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"type": "object"}
+    },
+    "filter": {"$ref": "#/$defs/expression"},
+    "conventions": {"$ref": "#/$defs/conventions"},
+    "estimands": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {"$ref": "#/$defs/estimand"}
+    },
+    "families": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {"$ref": "#/$defs/family"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 100},
+    "label": {"type": "string", "minLength": 1, "maxLength": 200},
+    "expression": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "column_list": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/identifier"}
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["designs"],
+      "properties": {
+        "designs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 200}
+        },
+        "systems": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 300}
+        },
+        "structures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 300}
+        },
+        "factor_types": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"enum": ["number", "text"]}
+        },
+        "projects": {
+          "description": "Further projects whose generations join the frame (a cross-project frame); the run's own project contributes inputs.designs.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["project_id", "designs"],
+            "properties": {
+              "project_id": {"type": "string", "minLength": 1, "maxLength": 100},
+              "designs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 50,
+                "uniqueItems": true,
+                "items": {"type": "string", "minLength": 1, "maxLength": 200}
+              }
+            }
+          }
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit"],
+      "properties": {
+        "unit": {
+          "description": "generation: one row per generation (the default). slot: one row per generation and slot of the task's meta.variant.slots, with the slot index and the slot factors as columns.",
+          "enum": ["generation", "slot"]
+        }
+      }
+    },
+    "scalar": {
+      "anyOf": [
+        {"type": "string", "maxLength": 1000},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "lookup": {
+      "description": "A table joined onto the frame by key columns before the measures are computed: a stored, versioned lookup table of a project (table) or rows given inline.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "keys", "columns"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "table": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": {"$ref": "#/$defs/identifier"},
+            "version": {"type": "integer", "minimum": 1},
+            "project_id": {"type": "string", "minLength": 1, "maxLength": 100},
+            "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 50,
+            "propertyNames": {"$ref": "#/$defs/identifier"},
+            "additionalProperties": {"$ref": "#/$defs/scalar"}
+          }
+        },
+        "keys": {
+          "description": "Frame column -> lookup column; every frame row matches at most one lookup row.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 10,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/identifier"}
+        },
+        "columns": {
+          "description": "New frame column -> lookup column.",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 50,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/identifier"}
+        },
+        "fill": {
+          "description": "Value of a new column on frame rows without a matching lookup row (missing when not given).",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/scalar"}
+        },
+        "description": {"type": "string", "maxLength": 1000}
+      },
+      "oneOf": [{"required": ["table"]}, {"required": ["rows"]}]
+    },
+    "value_type": {"enum": ["number", "text", "bool"]},
+    "measure": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {"kind": {"enum": ["field", "expression", "gold", "slot_factor", "slot_aggregate", "list", "text_pattern", "coder", "judge_code"]}},
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["kind", "field"],
+          "properties": {
+            "kind": {"const": "field"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "slot": {"$ref": "#/$defs/slot_ref"},
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "by", "fields"],
+          "properties": {
+            "kind": {"const": "field"},
+            "by": {"$ref": "#/$defs/identifier"},
+            "fields": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 100,
+              "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 200}
+            },
+            "slot": {"$ref": "#/$defs/slot_ref"},
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "expr"],
+          "properties": {
+            "kind": {"const": "expression"},
+            "expr": {"$ref": "#/$defs/expression"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": {
+            "kind": {"const": "gold"},
+            "path": {"type": "string", "pattern": "^[^.\\s]+(\\.[^.\\s]+)*$", "maxLength": 300},
+            "type": {"$ref": "#/$defs/value_type"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "factor", "slot"],
+          "properties": {
+            "kind": {"const": "slot_factor"},
+            "factor": {"$ref": "#/$defs/identifier"},
+            "slot": {"$ref": "#/$defs/slot_ref"},
+            "type": {"enum": ["number", "text"]},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "field", "function"],
+          "properties": {
+            "kind": {"const": "slot_aggregate"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\{idx\\}"},
+            "function": {"enum": ["mean", "sum", "min", "max", "sd", "count", "is_ranking"]},
+              "description": {"type": "string", "maxLength": 1000}
+            }
+          },
+          {
+            "additionalProperties": false,
+          "required": ["kind", "field", "statistic"],
+          "properties": {
+            "kind": {"const": "list"},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "gold": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path"],
+                  "properties": {"path": {"type": "string", "pattern": "^[^.\\s]+(\\.[^.\\s]+)*$", "maxLength": 300}}
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["values"],
+                  "properties": {
+                    "values": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {"type": ["string", "number", "boolean"]}
+                    }
+                  }
+                }
+              ]
+            },
+            "statistic": {
+              "enum": ["n_answer", "n_gold", "hits", "misses", "extras", "precision", "recall", "f1", "jaccard", "exact", "any", "all"]
+            },
+            "split": {"type": "string", "minLength": 1, "maxLength": 500},
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pattern"],
+              "properties": {
+                "pattern": {"type": "string", "minLength": 1, "maxLength": 2000},
+                "template": {"type": "string", "minLength": 1, "maxLength": 200},
+                "flags": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {"enum": ["IGNORECASE", "MULTILINE", "DOTALL", "ASCII"]}
+                }
+              }
+            },
+            "normalize": {
+              "type": "array",
+              "maxItems": 5,
+              "items": {"enum": ["strip", "collapse_whitespace", "casefold", "nfc", "nfkc"]}
+            },
+              "description": {"type": "string", "maxLength": 1000}
+            }
+          },
+          {
+            "additionalProperties": false,
+          "required": ["kind", "set", "code"],
+          "properties": {
+            "kind": {"const": "text_pattern"},
+            "set": {"oneOf": [{"$ref": "#/$defs/identifier"}, {"type": "object"}]},
+            "code": {"$ref": "#/$defs/identifier"},
+            "input": {"$ref": "#/$defs/code_input"},
+            "validation": {"$ref": "#/$defs/validation_ref"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "coder", "output"],
+          "properties": {
+            "kind": {"const": "coder"},
+            "coder": {"$ref": "#/$defs/identifier"},
+            "version": {"type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.:-]*$", "maxLength": 100},
+            "output": {"$ref": "#/$defs/identifier"},
+            "input": {"$ref": "#/$defs/code_input"},
+            "parameters": {"type": "object", "maxProperties": 100},
+            "validation": {"$ref": "#/$defs/validation_ref"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["kind", "coding_project", "field", "system"],
+          "properties": {
+            "kind": {"const": "judge_code"},
+            "coding_project": {"type": "string", "minLength": 1, "maxLength": 100},
+            "field": {"type": "string", "minLength": 1, "maxLength": 200},
+            "system": {"type": "string", "minLength": 1, "maxLength": 300},
+            "structure": {"type": "string", "minLength": 1, "maxLength": 300},
+            "run_index": {"type": "integer", "minimum": 0, "maximum": 1000},
+            "type": {"$ref": "#/$defs/value_type"},
+            "validation": {"$ref": "#/$defs/validation_ref"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    },
+    "slot_ref": {
+      "description": "Which slot a per-slot value comes from: own (the row's slot, slot frames only), other (the generation's other slot when it has exactly two) or a slot index.",
+      "oneOf": [{"enum": ["own", "other"]}, {"type": "integer", "minimum": 0, "maximum": 100000}]
+    },
+    "code_input": {
+      "oneOf": [
+        {"const": "answer"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field"],
+          "properties": {"field": {"type": "string", "minLength": 1, "maxLength": 200}}
+        }
+      ]
+    },
+    "validation_ref": {"type": "string", "minLength": 1, "maxLength": 100},
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ssc": {"enum": ["statsmodels", "fixest", "none"]},
+        "inference": {"enum": ["normal", "t"]},
+        "ci_level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "ci_critical": {
+          "oneOf": [
+            {"const": "exact"},
+            {"type": "number", "exclusiveMinimum": 0, "maximum": 100}
+          ]
+        },
+        "tost_level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "drop_zero_columns": {"type": "boolean"},
+        "degenerate_p": {"enum": ["nan", "null_match"]},
+        "fe_tolerance": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.001},
+        "fe_max_iter": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "ml_tolerance": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.001},
+        "ml_max_iter": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "informative_only": {"type": "boolean"},
+        "separation_bound": {"type": "number", "exclusiveMinimum": 0},
+        "reml": {"type": "boolean"},
+        "mixedlm_optimizers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {"enum": ["lbfgs", "powell", "bfgs", "cg", "nm", "newton"]}
+        },
+        "mixedlm_max_se_ratio": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "vcov": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["iid", "hc1", "cluster"]},
+        "by": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/identifier"},
+              {"$ref": "#/$defs/column_list"}
+            ]
+          }
+        }
+      },
+      "if": {"properties": {"type": {"const": "cluster"}}},
+      "then": {"required": ["type", "by"]},
+      "else": {"not": {"required": ["by"]}}
+    },
+    "term": {
+      "oneOf": [
+        {"$ref": "#/$defs/identifier"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dummies"],
+          "properties": {
+            "dummies": {"$ref": "#/$defs/identifier"},
+            "reference": {"type": ["string", "number"]},
+            "levels": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 500,
+              "items": {"type": ["string", "number"]}
+            },
+            "by": {"$ref": "#/$defs/identifier"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["interact"],
+          "properties": {
+            "interact": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 4,
+              "items": {"$ref": "#/$defs/term"}
+            }
+          }
+        }
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {"const": "pooled"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by"],
+          "properties": {"by": {"$ref": "#/$defs/column_list"}}
+        }
+      ]
+    },
+    "linear_part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weights"],
+      "properties": {
+        "weights": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1000,
+          "additionalProperties": {"type": "number"}
+        },
+        "constant": {"type": "number"}
+      }
+    },
+    "tost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "margin": {"type": "number", "exclusiveMinimum": 0},
+        "bounds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "number"}
+        },
+        "level": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1}
+      },
+      "oneOf": [{"required": ["margin"]}, {"required": ["bounds"]}]
+    },
+    "mde": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "power": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "alpha": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "tests": {"type": "integer", "minimum": 1, "maximum": 100000}
+      }
+    },
+    "contrast": {
+      "type": "object",
+      "required": ["id"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["id", "weights"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "linear"},
+            "weights": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 1000,
+              "additionalProperties": {"type": "number"}
+            },
+            "null": {"type": "number"},
+            "tost": {
+              "oneOf": [
+                {"$ref": "#/$defs/tost"},
+                {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/tost"}}
+              ]
+            },
+            "mde": {"$ref": "#/$defs/mde"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "description": "Average marginal effect of a logit: the mean over the estimation sample of the predicted probability with column set to level minus the same with column set to reference, times scale.",
+          "additionalProperties": false,
+          "required": ["id", "kind", "column", "level", "reference"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "ame"},
+            "column": {"$ref": "#/$defs/identifier"},
+            "level": {"type": ["string", "number"]},
+            "reference": {"type": ["string", "number"]},
+            "scale": {"type": "number"},
+            "null": {"type": "number"},
+            "tost": {
+              "oneOf": [
+                {"$ref": "#/$defs/tost"},
+                {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/tost"}}
+              ]
+            },
+            "mde": {"$ref": "#/$defs/mde"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "kind", "numerator", "denominator"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "kind": {"const": "ratio"},
+            "numerator": {"$ref": "#/$defs/linear_part"},
+            "denominator": {"$ref": "#/$defs/linear_part"},
+            "scale": {"type": "number"},
+            "min_abs_denominator": {"type": "number", "minimum": 0},
+            "null": {"type": "number"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    },
+    "estimand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "estimator", "outcome"],
+      "properties": {
+        "id": {"$ref": "#/$defs/label"},
+        "description": {"type": "string", "maxLength": 2000},
+        "estimator": {
+          "enum": [
+            "fe_ols", "mean_rate", "paired_within", "logit", "mixedlm", "bradley_terry",
+            "plackett_luce", "clogit_rank1", "spearman"
+          ]
+        },
+        "outcome": {"$ref": "#/$defs/identifier"},
+        "subset": {"$ref": "#/$defs/expression"},
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/scope"}
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": {"$ref": "#/$defs/term"}
+        },
+        "fixed_effects": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/column_list"}
+        },
+        "method": {"enum": ["within", "dummies"]},
+        "intercept": {"type": "boolean"},
+        "pair_by": {"$ref": "#/$defs/column_list"},
+        "treatment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["factor", "level"],
+          "properties": {
+            "factor": {"$ref": "#/$defs/identifier"},
+            "level": {"type": ["string", "number"]},
+            "reference": {"type": ["string", "number"]},
+            "subset": {"$ref": "#/$defs/expression"}
+          }
+        },
+        "min_n": {"type": "integer", "minimum": 1},
+        "players": {
+          "description": "bradley_terry: the columns naming the first and the second player of each comparison.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/identifier"}
+        },
+        "reference": {"type": ["string", "number"]},
+        "levels": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 500,
+          "items": {"type": ["string", "number"]}
+        },
+        "link": {"enum": ["logit", "linear"]},
+        "groups": {"$ref": "#/$defs/column_list"},
+        "choice_set": {"$ref": "#/$defs/column_list"},
+        "stages": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "x": {"$ref": "#/$defs/identifier"},
+        "joint_tests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {"$ref": "#/$defs/joint_test"}
+        },
+        "vcov": {"$ref": "#/$defs/vcov"},
+        "conventions": {"$ref": "#/$defs/conventions"},
+        "contrasts": {
+          "oneOf": [
+            {"const": "terms"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 500,
+              "items": {"$ref": "#/$defs/contrast"}
+            }
+          ]
+        }
+      }
+    },
+    "joint_test": {
+      "description": "A Wald test that the listed contrasts (or parameters, or weight rows) are jointly equal to their nulls: chi2 = r' pinv(R V R') r with rank-many degrees of freedom.",
+      "type": "object",
+      "required": ["id"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["id", "contrasts"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "contrasts": {"type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/label"}},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "parameters"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "parameters": {
+              "description": "Parameter names; * matches any text (group[*] is every level of a dummy coding).",
+              "type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1, "maxLength": 300}
+            },
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["id", "rows"],
+          "properties": {
+            "id": {"$ref": "#/$defs/label"},
+            "rows": {
+              "type": "array", "minItems": 1, "maxItems": 500,
+              "items": {
+                "type": "object", "minProperties": 1, "maxProperties": 1000,
+                "additionalProperties": {"type": "number"}
+              }
+            },
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimand"],
+      "properties": {
+        "estimand": {"$ref": "#/$defs/label"},
+        "contrast": {"$ref": "#/$defs/label"},
+        "scope": {"type": "string", "minLength": 1, "maxLength": 200}
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "method", "members"],
+      "properties": {
+        "id": {"$ref": "#/$defs/label"},
+        "description": {"type": "string", "maxLength": 2000},
+        "method": {"enum": ["holm", "bonferroni", "bh"]},
+        "exploratory": {"type": "boolean"},
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": {"$ref": "#/$defs/member"}
+        },
+        "split_by": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"enum": ["estimand", "contrast", "scope_kind", "scope"]}
+        },
+        "missing_p": {"enum": ["skip", "count"]},
+        "mde": {"$ref": "#/$defs/mde"}
+      }
+    }
+  }
+}

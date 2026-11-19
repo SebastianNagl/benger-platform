@@ -35,6 +35,7 @@ import {
 } from '@/lib/api/organizations'
 import { projectsAPI, type CloudImportHistoryEntry } from '@/lib/api/projects'
 import { formatDecimal, intlTag } from '@/lib/i18n/locales'
+import { repeatedImport } from '@/lib/import/repeatedImport'
 import {
   ArrowPathIcon,
   DocumentIcon,
@@ -299,7 +300,7 @@ export function CloudImportPanel({
     })
     try {
       let done = 0
-      await projectsAPI.runCloudImportJobs(
+      const finals = await projectsAPI.runCloudImportJobs(
         projectId,
         { connection_id: connId, object_keys: keys },
         {
@@ -316,7 +317,21 @@ export function CloudImportPanel({
         },
       )
       completeProgress(progressId, 'success')
-      addToast(t('dataImport.cloud.importSuccess'), 'success')
+      // Files this project already imported are no-ops on the server.
+      const repeated = finals.filter((status) => repeatedImport(status)).length
+      if (repeated > 0 && repeated === finals.length) {
+        addToast(t('dataImport.cloud.importAllAlreadyImported'), 'info')
+      } else {
+        addToast(t('dataImport.cloud.importSuccess'), 'success')
+        if (repeated > 0) {
+          addToast(
+            t('dataImport.cloud.importSomeAlreadyImported', {
+              count: repeated,
+            }),
+            'info',
+          )
+        }
+      }
       setSelectedKeys([])
       await fetchHistory()
       onImportComplete?.()
@@ -645,14 +660,19 @@ export function CloudImportPanel({
                   )}
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      entry.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        : entry.status === 'failed'
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                      repeatedImport(entry)
+                        ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                        : entry.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : entry.status === 'failed'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
                     }`}
+                    data-testid={`cloud-import-status-${entry.job_id}`}
                   >
-                    {t(`dataImport.cloud.status.${entry.status}`)}
+                    {repeatedImport(entry)
+                      ? t('dataImport.cloud.status.alreadyImported')
+                      : t(`dataImport.cloud.status.${entry.status}`)}
                   </span>
                   <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                     {formatDate(entry.created_at, locale)}

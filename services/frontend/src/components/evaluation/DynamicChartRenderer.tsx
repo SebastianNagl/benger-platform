@@ -3,6 +3,12 @@
  *
  * Renders the appropriate chart type based on user selection.
  * Supports smooth transitions between chart types.
+ *
+ * Two inputs: `models` x `metrics` (metric scores) for the bar, radar, box,
+ * heatmap and table views, and `intervalRows` (estimates with confidence
+ * intervals, from metric statistics or analysis estimates) for the forest
+ * view. When a caller passes `intervalRows` without models (the analysis
+ * view), the bar and table views draw the interval rows too.
  */
 
 'use client'
@@ -10,6 +16,7 @@
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import { formatDecimal } from '@/lib/i18n/locales'
+import type { IntervalRow } from '@/lib/results/intervalRows'
 import { useEffect, useRef, useState } from 'react'
 import type { ChartType } from './ChartTypeSelector'
 import { EvaluationResultsTable } from './EvaluationResultsTable'
@@ -19,6 +26,7 @@ import {
   calculateBoxPlotStats,
   type BoxPlotData,
 } from './charts/BoxPlotChart'
+import { IntervalForestChart, IntervalTable } from './charts/IntervalCharts'
 import { SignificanceHeatmap } from './charts/SignificanceHeatmap'
 
 interface ModelData {
@@ -48,6 +56,10 @@ interface DynamicChartRendererProps {
   isLoading?: boolean
   emptyMessage?: string
   className?: string
+  /** Estimates with intervals: the forest view, and bar/table without models. */
+  intervalRows?: readonly IntervalRow[]
+  /** First column header of the interval table (what a series is). */
+  intervalSeriesHeader?: string
 }
 
 export function DynamicChartRenderer({
@@ -61,6 +73,8 @@ export function DynamicChartRenderer({
   isLoading = false,
   emptyMessage,
   className = '',
+  intervalRows,
+  intervalSeriesHeader,
 }: DynamicChartRendererProps) {
   const { t } = useI18n()
   const resolvedEmptyMessage = emptyMessage || t('evaluation.charts.noData')
@@ -112,7 +126,12 @@ export function DynamicChartRenderer({
 
   // Check if we have enough data for certain chart types
   const hasMultipleModels = models.length > 1
-  const hasData = models.length > 0 && metrics.length > 0
+  // Interval rows alone (no models): the analysis view's forest, bar, table.
+  const intervalOnly = intervalRows !== undefined && models.length === 0
+  const usesIntervals = displayedChartType === 'forest' || intervalOnly
+  const hasData = usesIntervals
+    ? (intervalRows?.length ?? 0) > 0
+    : models.length > 0 && metrics.length > 0
 
   if (isLoading) {
     return (
@@ -139,6 +158,31 @@ export function DynamicChartRenderer({
   const containerClasses = `transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'} ${className}`
 
   const renderChart = () => {
+    if (intervalOnly || displayedChartType === 'forest') {
+      const rows = intervalRows ?? []
+      if (displayedChartType === 'table') {
+        return (
+          <div style={{ maxHeight: height, overflow: 'auto' }}>
+            <IntervalTable
+              rows={rows}
+              seriesHeader={
+                intervalSeriesHeader ?? t('evaluation.charts.series')
+              }
+              emptyMessage={resolvedEmptyMessage}
+            />
+          </div>
+        )
+      }
+      if (displayedChartType === 'bar' || displayedChartType === 'forest') {
+        return (
+          <IntervalForestChart
+            rows={rows}
+            mode={displayedChartType === 'bar' ? 'bar' : 'point'}
+            emptyMessage={resolvedEmptyMessage}
+          />
+        )
+      }
+    }
     switch (displayedChartType) {
       case 'bar':
         return (

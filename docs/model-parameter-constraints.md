@@ -386,6 +386,77 @@ A seed does not make an answer reproducible under parallel load: a server
 that batches requests can return different text for identical seeded
 requests.
 
+### Reasoning switches of open-weight models
+
+A catalog model declares at most one reasoning knob in
+`default_config.reasoning_config`, and the model selection renders its
+control from that declaration. For DeepInfra models two knobs reach the
+provider:
+
+| Knob | Values | Sent as | Models |
+|---|---|---|---|
+| `reasoning_effort` | `low`, `medium`, `high` | `reasoning_effort` | gpt-oss-20b (reasoning cannot be switched off; `low` is the lightest setting) |
+| `enable_thinking` | `off`, `on` | `chat_template_kwargs: {"enable_thinking": false \| true}` | Qwen 3.8 27B (default `on`), Gemma 4 26B A4B and Nemotron 3.5 Lightning (default `off`) |
+
+The `enable_thinking` defaults are what DeepInfra does when no switch is
+sent, so a project that selected one of these models before the switch
+existed keeps its behaviour. DeepInfra always sends the declared knob, with
+the run's value or else the declared default, which is the value the model
+selection shows. A knob the model does not declare is never sent. Llama 3.1
+8B Turbo, Mistral Small 3.2 24B and Phi-4 have no thinking mode and declare
+no knob.
+
+### System key
+
+A system under test is a model plus the parameters it runs with: the same
+model with thinking on and off answers differently enough to be compared as
+two systems, while its repeats (seeds, run indexes) belong to one system.
+Every answer stores a `system` block in `response_metadata` (the run's
+`parameters.system` holds the block of its first answer):
+
+```json
+{
+  "key": "Qwen/Qwen3.8-27B@34035b183b64",
+  "model_id": "Qwen/Qwen3.8-27B",
+  "provider": "DeepInfra",
+  "provider_model_id": "Qwen/Qwen3.8-27B",
+  "response_model": "Qwen/Qwen3.8-27B",
+  "parameter_profile": {"enable_thinking": "off", "max_tokens": 4000, "temperature": 0.7},
+  "parameter_profile_sha256": "34035b183b64a64fe7ae44aadb402f6c164eb097fd576b0b495354186b58e0e5"
+}
+```
+
+- `parameter_profile` holds `temperature`, `max_tokens`, the reasoning knob
+  and `top_p` when it is sent. Seed and run index are left out. The values
+  are read from the first request the provider client sent (the
+  generation's `request_record`), so a value the client filled in or
+  coerced is the one in the profile: GPT-5's temperature forced to 1,
+  Gemini 2.5's default thinking budget, `max_completion_tokens` or
+  `max_output_tokens` as `max_tokens`. Per API: chat completions
+  (`temperature`, `top_p`, `max_tokens` / `max_completion_tokens`,
+  `reasoning_effort`, `chat_template_kwargs.enable_thinking`), OpenAI
+  responses (`temperature`, `top_p`, `max_output_tokens`,
+  `reasoning.effort`), Anthropic messages (`temperature`, `top_p`,
+  `max_tokens`, `thinking.budget_tokens`), Google generate content
+  (`temperature`, `topP`, `maxOutputTokens`, `thinkingConfig` budget),
+  Mistral chat (`temperature`, `top_p`, `max_tokens`, `prompt_mode`) and
+  Cohere chat (`temperature`, `p`, `max_tokens`, `thinking` token budget).
+  When the client reported no request (`capture: "worker_call"`) or the
+  body holds none of these, the profile is the run config, with the
+  reasoning knob DeepInfra reports as sent.
+  Float parameters are stored as floats, so `1` and `1.0` give the same
+  profile.
+- `parameter_profile_sha256` is the SHA-256 of the profile as JSON with
+  sorted keys and no whitespace; `key` is the model id, `@` and the first 12
+  hex digits of that hash.
+- `provider_model_id` is the model string sent to the provider (the endpoint
+  name for a custom model), `response_model` the one the provider reported
+  back (DeepInfra reports it; other providers leave it empty).
+
+The functions live in `services/shared/system_profile.py`, so analysis code
+groups answers by the same key the worker wrote. Answers generated before
+2026-11-18 carry no `system` block.
+
 ### For Researchers
 
 When designing benchmarks:

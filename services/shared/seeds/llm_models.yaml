@@ -2011,6 +2011,13 @@ models:
     is_active: true
     input_cost_per_million: 0.2
     output_cost_per_million: 2.5
+    default_config:
+      reasoning_config:
+        parameter: enable_thinking
+        type: select
+        values: ['off', 'on']
+        default: 'on'
+        label: Thinking
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -2754,6 +2761,13 @@ models:
     is_active: true
     input_cost_per_million: 0.06
     output_cost_per_million: 0.16
+    default_config:
+      reasoning_config:
+        parameter: enable_thinking
+        type: select
+        values: ['off', 'on']
+        default: 'off'
+        label: Thinking
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -2868,6 +2882,13 @@ models:
     is_active: true
     input_cost_per_million: 0.07
     output_cost_per_million: 0.34
+    default_config:
+      reasoning_config:
+        parameter: enable_thinking
+        type: select
+        values: ['off', 'on']
+        default: 'off'
+        label: Thinking
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -2954,6 +2975,89 @@ models:
       provenance:
         source: https://deepinfra.com/openai/gpt-oss-120b
         retrieved: '2026-10-07'
+  - id: openai/gpt-oss-20b
+    name: gpt-oss-20b
+    description: OpenAI's open-weight 21B MoE reasoning model (Apache 2.0), 131K context; reasoning cannot be switched off, low effort is the lightest setting
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.03
+    output_cost_per_million: 0.14
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/openai/gpt-oss-20b
+        retrieved: '2026-11-18'
+  - id: microsoft/phi-4
+    name: Phi-4
+    description: Microsoft's 14B dense model trained on synthetic and curated data, 16K context, no thinking mode
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.07
+    output_cost_per_million: 0.14
+    recommended_parameters:
+      default:
+        max_tokens: 4000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/microsoft/phi-4
+        retrieved: '2026-11-18'
+  - id: mistralai/Mistral-Small-3.2-24B-Instruct-2506
+    name: Mistral Small 3.2 24B
+    description: Mistral Small 3.2 24B instruct (2506), 128K context, multimodal, no thinking mode
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.075
+    output_cost_per_million: 0.2
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.15
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/mistralai/Mistral-Small-3.2-24B-Instruct-2506
+        retrieved: '2026-11-18'
+  - id: meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+    name: Llama 3.1 8B Turbo
+    description: Meta Llama 3.1 8B instruct in DeepInfra's quantized Turbo serving, 131K context, no thinking mode
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.02
+    output_cost_per_million: 0.04
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+        retrieved: '2026-11-18'
 
   - id: grok-4.7
     name: Grok 4.7

@@ -27,8 +27,10 @@ import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { dateFnsLocale, formatDecimal, intlTag } from '@/lib/i18n/locales'
+import { repeatedImport } from '@/lib/import/repeatedImport'
 import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { projectIcon } from '@/lib/projectKind'
+import { formatDateTime } from '@/lib/reports/format'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { canCreateProjects } from '@/utils/permissions'
@@ -45,6 +47,7 @@ import {
   GlobeAltIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  PresentationChartLineIcon,
   RectangleStackIcon,
   ScaleIcon,
   TrashIcon,
@@ -555,14 +558,27 @@ export function ProjectListTable({
           })
         : ''
 
-      addToast(
-        t('projects.list.importSuccess', {
-          title: result.project_title || '',
-          stats: statsMessage,
-          time: importTime,
-        }),
-        'success',
-      )
+      // A file this user already imported the same way is a no-op on the
+      // server: no new project, the earlier one is opened below.
+      const repeated = repeatedImport(job)
+      if (repeated) {
+        addToast(
+          t('projects.list.importAlreadyImported', {
+            title: result.project_title || '',
+            date: formatDateTime(repeated.completedAt, locale),
+          }),
+          'info',
+        )
+      } else {
+        addToast(
+          t('projects.list.importSuccess', {
+            title: result.project_title || '',
+            stats: statsMessage,
+            time: importTime,
+          }),
+          'success',
+        )
+      }
 
       // The job completes even when answers could not be stored (authors the
       // deployment does not know collapse onto the importer, who may hold
@@ -1294,6 +1310,19 @@ export function ProjectListTable({
                               >
                                 <ScaleIcon className="h-3.5 w-3.5" />
                                 {t('projects.list.kindExam')}
+                              </span>
+                            )}
+                            {(project.analysis_count ?? 0) > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                data-testid={`project-analyses-badge-${project.id}`}
+                              >
+                                <PresentationChartLineIcon className="h-3.5 w-3.5" />
+                                {project.analysis_count === 1
+                                  ? t('projects.list.analysesBadgeOne')
+                                  : t('projects.list.analysesBadge', {
+                                      count: project.analysis_count ?? 0,
+                                    })}
                               </span>
                             )}
                             {(() => {

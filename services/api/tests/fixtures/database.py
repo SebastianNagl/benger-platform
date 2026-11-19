@@ -477,6 +477,17 @@ def _create_tables():
             # Migration 141: projects.is_wizard_draft (create_all never adds
             # a column to an existing table); guarded, so a no-op otherwise.
             _run_migration(conn, "141_project_wizard_drafts")
+            # Migration 142: variant designs (table, the derived task columns,
+            # their trigger, unique cell index and design key); guarded.
+            _run_migration(conn, "142_variant_designs")
+            # Migration 143: the generation request record and format-retry
+            # columns (create_all never adds a column to an existing table);
+            # guarded, so a no-op otherwise.
+            _run_migration(conn, "143_generation_request_record")
+            # Migration 147: import provenance columns on import_jobs
+            # (create_all never adds a column to an existing table);
+            # guarded, so a no-op otherwise.
+            _run_migration(conn, "147_import_provenance")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

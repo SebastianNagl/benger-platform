@@ -620,21 +620,15 @@ def extract_label_config_fields(label_config: str) -> List[str]:
     """
     Extract annotation field names from Label Studio XML config.
     These field names should match the output field names from LLM responses.
-    """
-    from xml.etree import ElementTree
 
-    fields = []
-    try:
-        root = ElementTree.fromstring(label_config)
-        for elem in root.iter():
-            # Only include annotation output elements (not data display elements like Header/Text)
-            if elem.tag in ["TextArea", "Choices", "Rating", "Number"]:
-                name = elem.get("name")
-                if name:
-                    fields.append(name)
-    except Exception as e:
-        logger.warning(f"Could not parse label_config for field extraction: {e}")
-    return fields
+    Controls inside a <Repeater> are left out: they answer as a list of
+    objects under the block's own key (see label_config_repeater). One
+    source with the API's preview of the appended instruction
+    (``generation_fidelity.label_config_answer_fields``).
+    """
+    from generation_fidelity import label_config_answer_fields
+
+    return label_config_answer_fields(label_config)
 
 
 # The Celery app + its config live in worker_celery so task modules can import
@@ -3890,6 +3884,7 @@ def _build_sample_evaluator_for_cell(
     `sample_evaluator.py` are module-level, so only the first sub-task
     per worker process actually loads BERTScore/MoverScore/etc. weights.
     """
+    from metric_filters import graded_reference_fields
     from ml_evaluation.sample_evaluator import SampleEvaluator
 
     field_configs: Dict[str, Dict[str, str]] = {}
@@ -3899,7 +3894,7 @@ def _build_sample_evaluator_for_cell(
         metric = config.get("metric", "")
         params = config.get("metric_parameters") or {}
         for pred_field in config.get("prediction_fields", []):
-            for ref_field in config.get("reference_fields", []):
+            for ref_field in graded_reference_fields(config):
                 field_key = f"{config_id}|{pred_field}|{ref_field}"
                 field_configs[field_key] = {"type": "text"}
                 if params:
@@ -5244,10 +5239,16 @@ def import_project(
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
     dry_run: bool = False,
+    reimport: bool = False,
 ) -> Dict[str, Any]:
     try:
         return import_project_impl(
-            self, job_id, model_id_map=model_id_map, mode=mode, dry_run=dry_run
+            self,
+            job_id,
+            model_id_map=model_id_map,
+            mode=mode,
+            dry_run=dry_run,
+            reimport=reimport,
         )
     except Exception as exc:
         # See export_project: a failure before the body's own try (such as an
@@ -5304,6 +5305,48 @@ def purge_project(self, job_id: str) -> Dict[str, Any]:
         return run_project_purge_job(db, job_id)
     finally:
         db.close()
+
+
+# One analysis run of a variant experiment (services/shared/analysis): the
+# frame of the run's spec over the project's generations, every estimand,
+# the estimates. Minutes and CPU-bound, so its own `analysis` queue. The body
+# is idempotent for a redelivered message (a finished run is left alone, a
+# run a dead worker left `running` is recomputed), and the numeric stack is
+# imported inside it, so `import tasks` stays light.
+@app.task(
+    name="tasks.run_analysis",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def run_analysis(self, run_id: str) -> Dict[str, Any]:
+    try:
+        from analysis_jobs.service import run_analysis_impl
+
+        return run_analysis_impl(run_id, session_factory=SessionLocal)
+    except Exception as exc:
+        from analysis_jobs.service import fail_escaped_run
+
+        return fail_escaped_run(run_id, exc, session_factory=SessionLocal)
+
+
+# A code validation (analysis_jobs.coding): the automatic codes of a coding
+# project's tasks against its human codes. Idempotent like run_analysis.
+@app.task(
+    name="tasks.run_code_validation",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def run_code_validation(self, validation_id: str) -> Dict[str, Any]:
+    try:
+        from analysis_jobs.coding import run_code_validation_impl
+
+        return run_code_validation_impl(validation_id, session_factory=SessionLocal)
+    except Exception as exc:
+        from analysis_jobs.coding import fail_escaped_validation
+
+        return fail_escaped_validation(validation_id, exc, session_factory=SessionLocal)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

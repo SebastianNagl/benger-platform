@@ -993,11 +993,514 @@ whenever one is added, renamed or removed):
     dialog. Backward moves and the wizard outside draft mode are never
     guarded; ``getApplyingWizardDraftPolicies(wizardData)`` lists the
     applying policies.
+
+2.56 (2026-11-18): system key of a generation (no migration).
+  - ``services/shared/system_profile.py``: ``parameter_profile(params)``
+    (temperature, top_p, max_tokens and the reasoning knobs
+    ``reasoning_effort``, ``thinking_budget``, ``thinking_token_budget``,
+    ``prompt_mode``, ``enable_thinking``; never seed or run index),
+    ``parameter_profile_sha256`` (SHA-256 of the sorted compact JSON) and
+    ``system_key(model_id, profile)`` = ``"<model_id>@<first 12 hex>"``. A
+    reasoning arm of one model is a system of its own; its repeats are not.
+    The profile holds the parameters as sent for DeepInfra and as
+    configured for other providers until they report what they sent.
+  - ``generations.response_metadata.system`` and the run's
+    ``parameters.system``: ``{key, model_id, provider, provider_model_id,
+    response_model, parameter_profile, parameter_profile_sha256}``. Answers
+    generated before 2.56 carry no ``system`` block.
+  - Reasoning knob ``enable_thinking`` (``"on"`` / ``"off"``, a
+    ``reasoning_config`` select) in a model's run config. DeepInfra sends a
+    model's declared ``reasoning_effort`` or ``enable_thinking`` (as
+    ``chat_template_kwargs``) with the run value or the declared default,
+    and reports ``reasoning_params_sent``, ``provider_model_id`` and
+    ``response_model`` in its response metadata; the worker records the
+    reported knob in the run's ``parameters``.
+    ``provider_capabilities.model_reasoning_config(model_id)`` reads the
+    catalog declaration.
+
+2.57 (2026-11-18): compliance records (migration 145).
+  - Tables ``compliance_assessments``, ``compliance_suite_runs`` and
+    ``compliance_findings`` (``models.ComplianceAssessment``,
+    ``ComplianceSuiteRun``, ``ComplianceFinding``). A finding carries
+    ``requirement_ref``, ``metric``, ``system_key``, ``scope``, counts,
+    ``value`` / ``ci_low`` / ``ci_high`` / ``ci_level`` in double precision,
+    ``ci_method``, ``threshold``, ``verdict``, ``baseline``, ``details`` and
+    the ids of the analysis run and estimate it was derived from
+    (``analysis_run_id``, ``analysis_estimate_id``; plain indexed ids without
+    a foreign key, like ``compliance_suite_runs.analysis_run_ids`` and
+    ``compliance_assessments.release_id``, until those tables exist). The
+    composite key ``(suite_run_id, assessment_id)`` ties a finding to its run.
+  - ``compliance_records`` (shared, pure): the assessment statuses and the
+    static ``ASSESSMENT_TRANSITIONS`` table with ``transition_assessment``
+    (stamps ``registered_at`` and ``thresholds_hash``, ``attested_at``), the
+    suite-run statuses with ``SUITE_RUN_TRANSITIONS`` and
+    ``transition_suite_run``, ``VERDICTS``, ``REGISTRATION_LOCKED_FIELDS``,
+    the ``check_*`` guards (terminal assessments and finished suite runs are
+    read-only, only drafts are deleted) raising
+    ``ComplianceRecordConflict(code, detail)``, and ``canonical_json`` /
+    ``canonical_sha256``. The overlay's workflow and workers write through
+    these rules; the platform routes never change an assessment's status.
+  - Routes ``GET|POST /api/compliance/assessments``, ``GET|PATCH|DELETE
+    /api/compliance/assessments/{id}``, ``GET|POST
+    .../assessments/{id}/suite-runs``, ``GET|PATCH|DELETE
+    /api/compliance/suite-runs/{id}``, ``GET|POST
+    .../suite-runs/{id}/findings``, ``GET /api/compliance/findings``
+    (by assessment, suite run, analysis run or estimate) and ``GET|PATCH|DELETE
+    /api/compliance/findings/{id}`` (``routers/compliance_records.py``):
+    ORG_ADMIN and CONTRIBUTOR members of the assessment's organization,
+    deletes ORG_ADMIN only, 409 ``{"code", "message"}`` from the guards.
+    Access keys are refused (``key_routes``).
+
+2.58 (2026-11-18): uniform retryability of a failed provider call (no
+migration).
+  - Every provider's error response (OpenAI, Anthropic, Google, Mistral,
+    Cohere, Grok, DeepInfra, Custom endpoints) carries a boolean
+    ``metadata.retryable``: whether the same call can succeed when tried
+    again. It comes from one shared classifier,
+    ``ai_services.base_service.classify_retryable(exc)``, on the original
+    exception: False for an invalid or missing key, any 4xx other than
+    408/409/429 (unknown model 404, bad request, content filter, context
+    length), an exhausted quota or billing limit sent as 429
+    (``insufficient_quota`` / ``billing_hard_limit_reached``, where the
+    provider names it), an unresolvable host and the url_guard rejection;
+    True for 408/409/429, 5xx, timeouts, connection failures, a stream
+    whose connection drops midway (httpx ``ReadError`` or
+    ``RemoteProtocolError``) and a model answer that did not parse. Only a
+    4xx or 5xx counts as an HTTP status: an Anthropic stream that fails
+    after HTTP 200 is True when its error event's ``error.type`` is
+    ``overloaded_error``, ``api_error``, ``rate_limit_error`` or
+    ``timeout_error``. Google's own empty-answer error is False for a
+    safety block and True otherwise. Callers that repeat a failed
+    generation read this flag instead of ``error_type`` or
+    ``retry_attempts[-1].retryable``. ``error_type`` and each provider's
+    own retry behaviour are unchanged; ``base_service`` also exports
+    ``is_transient_upstream_error``, the DeepInfra / Custom backoff
+    predicate.
+
+2.59 (2026-11-18): variant designs, the declared and freezable design of a
+  variant experiment (counterfactual and robustness tests), migration 142.
+  - Table ``variant_designs`` (``project_models.VariantDesign``: ``key``
+    unique per project, ``spec`` JSONB, ``version``, ``status``
+    draft|frozen, ``content_hash``, ``frozen_at/by``, ``provenance``). The
+    spec follows ``shared/schemas/variant_design.schema.json`` (factors with
+    typed levels, ``role`` and ``source`` task|structure|system|run, the
+    unit, optional slots, outcome, gold and invariance bindings).
+  - ``task.meta.variant`` is a reserved key (``variant_designs.META_KEY``,
+    ``shared/schemas/task_variant.schema.json``: ``design``, ``unit``,
+    ``factors``, ``slots``, ``spans``, ``provenance``) and the single source
+    of each task's place in a design. ``tasks.variant_design`` /
+    ``variant_unit`` / ``variant_cell`` are derived from it by the trigger
+    ``trg_tasks_variant_sync`` (``project_models.TASKS_VARIANT_DDL``); never
+    write them. ``variant_cell`` is the design cell (the within-unit task
+    factors of the assignment), and ``uq_tasks_variant_cell`` allows one
+    task per cell and unit,
+    ``fk_tasks_variant_design`` requires the design (a writer flushes a
+    new design before its tasks).
+  - Every ORM flush validates the ``meta.variant`` it writes against its
+    design (``variant_design_guard.check_session_tasks``, a ``before_flush``
+    listener on every Session). Refusals raise
+    ``variant_design_guard.VariantDesignError`` (``status_code``, ``code``,
+    ``detail``); the API answers them, and the database guards'
+    errors (``error_from_db``), with 422/409 ``{"detail": {"code",
+    "message", "problems"?}}``; the importers raise ``ImportValidationError``.
+  - A frozen design makes its tasks' ``data`` and ``meta.variant``
+    read-only and takes no new tasks (the trigger; SQLSTATE 23001, message
+    ``variant_design_frozen``), and their bulk delete answers 409. An
+    overlay that writes task data must expect that refusal.
+  - Pure rules in ``variant_designs`` (``validate_spec``, ``DesignView``,
+    ``validate_task_variant``, ``DesignCheck``/``check_design`` for the
+    assignment, balance and span-invariance checks, ``content_hash``);
+    service functions in ``variant_design_guard`` (``run_checks``,
+    ``freeze_design``, ``update_design_spec``, ``serialize_design``,
+    ``export_document``, ``iter_design_records``).
+  - Routes under ``/api/projects/{id}/variant-designs`` (list, create,
+    ``import``, get, ``export``, PUT spec, DELETE draft, ``check``,
+    ``freeze``); reads need the full-data tier, writes edit rights.
+  - Exports carry ``variant_designs`` (JSON and comprehensive, only when
+    the project has any) and ``variant_design`` records (NDJSON); every
+    importer creates them before the tasks and freezes them again (same
+    content hash) before its commit. A flat import row may carry
+    ``meta.variant`` as JSON in a column of that name. The v1 task reads
+    never carry ``meta.variant``.
+
+2.60 (2026-11-19): per-slot label configs (Label Studio ``<Repeater>``; no
+migration).
+  - Label configs may contain ``<Repeater on="$array" indexFlag="{{idx}}">``.
+    It is expanded against each task's data exactly as Label Studio's
+    ``Tree.tsx`` expands it (children once per array element, the index flag
+    replaced by the 0-based element index in every attribute, the Repeater
+    becoming a ``<View>``), so results are stored under plain indexed control
+    names (``risk_0``, ``risk_1``, ...). BenGER attributes ``answerKey`` and
+    ``answerKeyStart`` (default 1) name the key that identifies an item in an
+    array answer. Rules (``label_config_repeater.repeater_errors``, enforced
+    by ``LabelConfigValidator``): ``on`` is a ``$`` binding (looked up
+    exactly, case-sensitive), no nesting, every named control carries the
+    flag in its name, at most once per attribute, no expanded name equals an
+    outside control's name or another template's expansion, and answer keys
+    are unique.
+  - ``shared/label_config_repeater.py``: ``expand_repeaters(config,
+    task_data)`` (a config without a Repeater comes back unchanged),
+    ``expand_repeaters_with_counts`` (to given counts, e.g. the longest
+    array), ``repeater_blocks`` (``RepeaterBlock`` / ``RepeaterControl``
+    with ``answer_property``, ``item_key``, ``item_count``),
+    ``map_array_answers`` (``ArrayAnswerError``), ``repeater_answer_schema``,
+    ``repeater_answer_example``, ``derive_slot_map(config, task_data,
+    patterns)`` (slot index to control names, from a Repeater or from
+    ``{idx}`` name patterns for hand-written indexed controls) and
+    ``control_targets``.
+  - ``ResponseParser.parse(..., task_data=None)``: required for a Repeater
+    config; an array answer (top-level list for the only block, or an object
+    keyed by ``answer_property``) is mapped onto the indexed names, by
+    ``answerKey`` or by position, and a misfitting array is a
+    ``validation_error``; only blocks with answer controls take array
+    answers. ``generate_json_schema_from_label_config(...,
+    task_data=None)`` and ``generate_format_instructions(...,
+    task_data=None)`` describe a Repeater block as one array of objects,
+    pinned to the task's item count when ``task_data`` is given. The
+    generation worker and the reparse route pass the task's data.
+  - ``LabelConfigParser.extract_fields``: a field inside a Repeater keeps
+    its template name with a ``repeater`` entry (expand the config first for
+    indexed names); ``bound_data_fields`` includes a Repeater's ``on`` array
+    instead of the bindings into its items, and blinding reads ``$a[i].b``
+    as the top-level key ``a``.
+  - ``services/label_config/project_expansion.expanded_project_label_config_async``
+    (longest array per Repeater, one SQL aggregate each), used by evaluation
+    field detection, the multi-field field list and the ``answer_fields`` of
+    the v1 project view (``serialize_project_public`` takes
+    ``expanded_label_config``). The stored evaluation config of a Repeater
+    project keeps the ``repeater_item_counts`` it was expanded to and is
+    regenerated on read when the tasks' counts change.
+  - ``ResponseParser`` JSON extraction: a JSON boolean answering a Choices
+    field with "true"/"false" choices is stored as that choice; a closing
+    code fence may follow the JSON directly; when neither a fenced block nor
+    the whole text decodes, the last JSON object or array in the text is
+    read; a ``<Choices choice="multiple">`` (or ``"multiple-dropdown"``)
+    answer may be a list of choices, stored as ``value.choices``; the
+    structured-output schema asks for a list of the choice values there,
+    also inside a Repeater block.
+  - Routes ``GET /api/projects/{id}/label-config/label-studio`` (the config
+    expanded for Label Studio, with ``item_counts``) and ``GET
+    /api/projects/{id}/label-config/slots?task_id=&pattern=`` (slot map).
+  - The Label Studio task export fills a result's missing or dangling
+    ``to_name`` from its control's ``toName`` in the task's expanded config
+    (``convert_to_label_studio_format(results, targets)``); stored results are
+    unchanged.
+  - Frontend: ``parseLabelConfig(xml, taskData?)`` expands Repeaters
+    (``@/lib/labelConfig/repeater``, exact path lookup like the backend),
+    data bindings resolve ``[n]`` indexes, and
+    ``extractFieldsFromLabelConfig(xml, tasksData)`` (project creation
+    wizard) lists a Repeater's indexed names to the longest array of the
+    imported tasks, none without data.
+
+2.61 (2026-11-19): generation fidelity (migration 143).
+  - ``generations.request_record`` (JSONB), ``request_sha256``,
+    ``first_response_content`` and ``retried`` (``models.Generation``). The
+    record holds every request the provider client sent for the generation
+    (``ai_services.request_capture``: ``capture_requests()`` scope,
+    ``record_request(provider, api, body, capture=...)`` called by every
+    provider service right before its send, ``build_request_record``,
+    ``request_sha256``, ``normalized_view``); for SDK clients the body is
+    replaced by the JSON the SDK hands to httpx / httpx2 inside the scope
+    (``capture: "http_body"``, with ``path``). A provider service added by
+    an overlay records its requests the same way, or the worker stores the
+    call it made marked ``capture: "worker_call"``.
+  - Provider services take ``continuation=[{role, content}, ...]`` on
+    ``generate`` / ``generate_structured``: turns sent after the first user
+    prompt (``base_service.continuation_turns``).
+  - Prompt structures take ``append_schema_instruction``,
+    ``structured_output`` (``auto`` / ``off``), ``format_retry``,
+    ``answer_schema`` and ``refusal_heuristic`` (``generation_fidelity``:
+    ``answer_format(structure)``, ``answer_skeleton(label_config,
+    task_data, answer_keys)`` and ``schema_instruction``,
+    ``render_answer_schema`` / ``AnswerKeys``, ``refusal_matches``,
+    ``MAX_GENERATION_RUNS_PER_TASK`` = 100). The appended skeleton lists the
+    flat answer fields under their rendered answer keys plus one example
+    object per item for each Repeater block; a config without a Repeater
+    appends the same text as before. ``ResponseParser`` takes
+    ``answer_keys`` (kept by the per-task Repeater parser);
+    ``ParseResult.mapped_values``; ``answer_controls(task_data)`` names the
+    indexed controls the format retry checks a parse against.
+  - ``GET /api/runs/generations/{id}`` children carry
+    ``has_request_record``, ``request_sha256``, ``retried`` and
+    ``first_response_preview``; ``GET /api/runs/generations/{id}/trials/
+    {trial_id}/request`` returns one trial's ``request_record`` and
+    ``request_sha256`` (same access rules, 404 for a trial of another run).
+  - Exports carry every generation column in both modes (``data`` also
+    names the job's ``structure_key``); the task-level import keeps them,
+    groups jobs by model and structure and keeps each row's ``run_index``.
+  - The ``system`` block's ``parameter_profile`` is read from the first
+    request the client sent (``system_profile.parameters_sent(entry)``, per
+    API: chat.completions, openai.responses, anthropic.messages,
+    google.generate_content, mistral.chat, cohere.chat), so filled-in and
+    coerced values count; a ``worker_call`` entry or a body without those
+    parameters falls back to the run config as in 2.56.
+
+2.62 (2026-11-19): the analysis engine for variant experiments (migration 146).
+  - ``services/shared/analysis`` (``import analysis``; importing the package
+    pulls in no numeric library): ``analysis.spec`` (``validate_spec``,
+    ``normalize_spec``, ``spec_hash``, ``SpecError``, ``DEFAULT_CONVENTIONS``,
+    ``BASE_COLUMNS``; the JSON Schema ``schemas/analysis_spec.schema.json``,
+    spec format 1), ``analysis.expression`` (``parse_expression``, grammar 1),
+    ``analysis.observations`` (``Observation``, ``variant_of_task_meta``,
+    ``typed_field_values``, ``observations_from_records``),
+    ``analysis.db_source.iter_observations(db, project_id, inputs, counts)``
+    (the seam to ``tasks.meta.variant``; the frame's ``system`` column is
+    the generation's system key ``response_metadata.system.key``, see 2.56,
+    read from the metadata as stored (a JSON object or its JSON text), and
+    falls back to the model id for answers generated before 2.56; its
+    ``retried`` column is ``generations.retried``, see 2.61),
+    ``analysis.frame``
+    (``build_frame``, ``frame_hash``, ``to_parquet``, ``from_parquet``),
+    ``analysis.runner.run_spec(frame, spec)`` (estimates in a fixed order with
+    the keys of ``ESTIMATE_KEYS``), ``analysis.multiplicity.adjust`` and
+    ``analysis.version.ENGINE_VERSION`` (1.0.0). Estimators ``fe_ols``,
+    ``mean_rate``, ``paired_within``; variances iid, HC1, one- and two-way
+    cluster with ``ssc`` ``statsmodels`` | ``fixest`` | ``none``; inference
+    normal or t; linear and ratio contrasts, TOST, Holm, Bonferroni,
+    Benjamini-Hochberg (exploratory families only), MDE.
+  - Tables ``analysis_runs`` (``models.AnalysisRun``) and
+    ``analysis_estimates`` (``models.AnalysisEstimate``), cascading with the
+    project and the run.
+  - Queue ``analysis`` (``celery_queues.ANALYSIS``, served by the bulk pool)
+    and the worker task ``tasks.run_analysis(run_id)``; frame snapshots under
+    the durable storage prefix ``analysis/``.
+  - Routes ``GET /api/analysis/engine``, ``POST /api/analysis/specs/validate``,
+    ``POST|GET /api/projects/{project_id}/analysis-runs``,
+    ``GET /api/analysis-runs/{analysis_run_id}``, ``.../estimates`` and
+    ``.../frame`` (``routers.analysis``: ``create_run``,
+    ``load_run_for_read``, ``serialize_run``, ``serialize_estimate``,
+    ``build_select_estimates``), and the v1 reads
+    ``GET /api/v1/projects/{project_id}/analysis-runs``,
+    ``GET /api/v1/analysis-runs/{analysis_run_id}`` and ``.../estimates``
+    (scope ``results:read``). The key gate binds ``analysis_run_id`` to its
+    project.
+
+2.63 (2026-11-19): import provenance and idempotent re-import (migration 147).
+  - ``import_jobs.payload_sha256``, ``source_manifest`` (JSONB),
+    ``idempotency_key`` and ``duplicate_of_job_id`` (``models.ImportJob``),
+    built by the shared module ``import_provenance`` (``hash_fileobj``,
+    ``build_manifest``, ``idempotency_key``, ``lock_import_key``,
+    ``find_completed_import``, ``no_op_result``,
+    ``validate_declared_manifest``, ``track_written_tasks``,
+    ``record_written_tasks``), and the table ``import_job_tasks``
+    (``models.ImportJobTask``) linking each import to the tasks it wrote.
+  - ``tasks.import_project`` takes ``reimport``. A job whose key (payload
+    hash, target, mode, model map) equals that of a completed import whose
+    written tasks all still exist completes as a no-op: nothing written,
+    ``duplicate_of_job_id`` set, ``result.no_op`` true and
+    ``result.duplicate_of``.
+  - The import job requests take ``source_manifest`` (declared, stored under
+    ``source_manifest.declared``) and ``reimport``; cloud imports take
+    ``reimport``. The job status carries ``payload_sha256``,
+    ``source_manifest`` and ``duplicate_of_job_id``.
+
+2.64 (2026-11-19): analysis results page and the /compliance route shells
+  (no migration).
+  - ``GET /api/analysis-runs/{analysis_run_id}/estimates`` items carry their
+    row ``id`` (``serialize_estimate(row, with_id=True)``), the value a
+    compliance finding's ``analysis_estimate_id`` cites; the v1 estimates
+    keep their schema without it.
+  - Pages ``/projects/[id]/analysis`` (the project's runs; editors start a
+    run from a spec, ``?from=<runId>`` prefills one) and
+    ``/projects/[id]/analysis/[runId]`` (status, forest plot, estimates with
+    families and adjusted p-values, provenance, spec, fits, frame download).
+  - Reusable components for overlays: ``@/components/analysis/ForestPlot``
+    (``ForestPlot`` with ``rows``, ``nullValue``, an optional shaded
+    ``band`` and inner intervals), ``ContrastForestPlot``,
+    ``EstimatesTable``, ``RunProvenance``; ``@/lib/api/analysis``
+    (``analysisAPI`` and the run and estimate types) and
+    ``@/lib/analysis/results`` (formatting and grouping helpers).
+  - Compliance slots, rendered only while the master flag
+    ``extension.compliance`` is on for the viewer
+    (``@/components/compliance/ComplianceSlot``: ``useComplianceSlot``,
+    ``ComplianceRouteShell``, ``ComplianceInlineSlot``):
+    ``ComplianceDashboard`` on ``/compliance`` (no props),
+    ``AssessmentDetail`` on ``/compliance/assessments/[assessmentId]``
+    (``{ assessmentId }``) and ``AnalysisRunFindings`` on the analysis run
+    page (``{ projectId, run, estimates }``). A registered
+    ``ComplianceDashboard`` also adds the Compliance entry to the
+    navigation.
+
+2.65 (2026-11-19): estimator extensions, slot frames, cross-project frames and
+lookup tables of the analysis engine (migration 148; ``ENGINE_VERSION`` 1.1.0,
+frame format 2).
+  - Estimators ``logit`` (Newton-Raphson; iid, HC1 and cluster sandwich
+    variances; fixed effects as dummies with ``informative_only``; contrasts
+    of kind ``ame``, the average marginal effect of setting a column to a
+    level; ``separation_bound`` withholds p-values, status ``separation``),
+    ``mixedlm`` (statsmodels ``MixedLM``, random intercept per ``groups``,
+    ``reml``, ``mixedlm_optimizers`` and ``mixedlm_max_se_ratio``; a fit with
+    an infinite log-likelihood or a variance on the boundary is refused),
+    ``bradley_terry`` (``players``, ``reference``, ``link`` logit or linear;
+    parameters ``strength[<level>]``), ``plackett_luce`` (``stages``) and
+    ``clogit_rank1`` over ``choice_set`` (default ``generation_id``), and
+    ``spearman`` (``x``; parameter ``(rho)``). Estimator-only conventions in
+    ``analysis.spec.ESTIMATOR_CONVENTIONS``; estimand keys per estimator in
+    ``ESTIMATOR_KEYS``. Modules ``analysis.ml`` (``newton``, ``fit_logit``,
+    ``fit_plackett_luce``, ``sandwich``) and ``analysis.mixed``.
+  - Every estimand takes ``joint_tests`` (by ``contrasts``, ``parameters``
+    with ``*`` or weight ``rows``): estimate rows of kind ``wald`` with the
+    chi2 statistic, its rank as ``df`` and the p-value
+    (``analysis.inference.wald_test``).
+  - Frames: base column ``project_id``; ``frame: {"unit": "slot"}`` unpivots
+    ``meta.variant.slots`` to one row per generation and slot (column
+    ``slot``, the slot factors as columns; ``Observation.slots``,
+    ``variant_of_task_meta`` returns ``slots``). Measures: field names with
+    ``{idx}`` and ``slot`` (own, other or an index), ``slot_factor`` and
+    ``slot_aggregate`` (mean, sum, min, max, sd, count, is_ranking).
+  - ``inputs.projects`` stacks further projects with their own designs
+    (``analysis.db_source.iter_run_observations``); starting such a run and
+    downloading its frame need the ORG_ADMIN or CONTRIBUTOR role on each of
+    them and, for a project-restricted access key, the key's access to each
+    (403 ``analysis_input_forbidden``). Reading such a run (detail,
+    estimates, the v1 reads) needs read access to each input project and
+    the stored lookup tables' owners, otherwise 404, and the run lists leave
+    it out (``routers.analysis.may_read_run_inputs``, ``hidden_runs_filter``;
+    a purged input project no longer counts). The worker fails a run whose
+    input project was deleted or purged before its results are stored
+    (``analysis.db_source.check_input_projects``). Purging a project removes
+    the frames of other projects' runs that read it.
+  - Lookups (``lookups`` in the spec: inline ``rows`` or a stored ``table``
+    with ``name``, ``version`` and optional ``project_id`` and
+    ``content_hash``) join by key columns before the measures
+    (``analysis.frame.join_lookups``). Table ``analysis_lookup_tables``
+    (``models.AnalysisLookupTable``, immutable versions,
+    ``analysis.lookups.validate_table`` and ``lookup_hash``) and
+    ``analysis_runs.resolved_inputs`` (further projects, stored tables with
+    their hashes); ``analysis.db_source.load_lookup_tables``.
+  - Routes ``POST|GET /api/projects/{project_id}/analysis-lookups`` and
+    ``GET .../analysis-lookups/{name}/versions/{version}``
+    (``routers.analysis``: ``serialize_lookup``, ``check_run_inputs``);
+    ``create_run`` takes the request's access-key principal; runs serialize
+    ``resolved_inputs`` (also in the v1 run detail). ``library_versions``
+    record statsmodels.
+
+2.66 (2026-11-19): codes for variant experiments (migration 149).
+  - Coder plugins: an overlay's workers module may export
+    ``register_coders(registry)``; the workers call it through
+    ``analysis.coders.load_overlay_coders`` (each package as owner) before an
+    analysis run or a code validation reads a coder. A coder subclasses
+    ``analysis.coders.Coder`` (``name``, ``version``, ``outputs`` typed
+    ``number`` | ``text`` | ``bool``, optional ``source_modules``,
+    ``code(text, context: CoderContext)``; ``FunctionCoder`` wraps a plain
+    function). The registry hashes the name, version, outputs and the
+    source of every counted module (``coder_code_hash``); runs and
+    validations record the hash and the owner, and a coder of a package
+    switched off for the run's context does not run (gated).
+  - Text pattern sets (``analysis.text_patterns``: ``validate_pattern_set``,
+    ``normalize_pattern_set``, ``pattern_set_hash``, ``compile_pattern_set``,
+    ``CompiledPatternSet``, schema ``schemas/text_pattern_set.schema.json``,
+    format 1) with task literals ``{{task.<path>}}``; list measures
+    (``analysis.list_measures``); code identity and the confirmatory rule
+    (``analysis.codes``: ``code_identity``, ``confirmatory_code_measures``,
+    ``CodeInputs``); coding samples and agreement (``analysis.coding``:
+    ``draw_sample``, ``normalize_validation_code``, ``validation_metrics``).
+  - Spec measures ``list``, ``text_pattern``, ``coder``, ``judge_code`` and
+    the spec key ``pattern_sets`` (spec format 1 stays; a spec without them
+    hashes as before). ``Observation.answer_text``;
+    ``iter_observations(..., with_text=)``, ``code_needs``,
+    ``load_judge_values``, ``coding_task_sources``,
+    ``coding_generation_values`` in ``analysis.db_source``;
+    ``build_frame(..., codes=CodeInputs)`` and ``FrameResult.codes``.
+    ``ENGINE_VERSION`` stays 1.1.0: no existing number moves.
+  - Tables ``coding_projects`` (``models.CodingProject``) and
+    ``code_validations`` (``models.CodeValidation``), column
+    ``analysis_runs.codes``; coding tasks carry ``tasks.meta.coding``.
+    Worker task ``tasks.run_code_validation`` on the ``analysis`` queue
+    (``analysis_jobs.coding``). A confirmatory family's code measures need
+    a completed validation with the same identity hash, or the run fails.
+  - Routes ``POST|GET /api/projects/{project_id}/coding-projects``,
+    ``GET /api/projects/{project_id}/coding``,
+    ``POST|GET /api/projects/{project_id}/code-validations`` and
+    ``GET /api/code-validations/{code_validation_id}`` (``routers.coding``;
+    key-gate kind ``code_validation``). ``GET /api/analysis-runs/{id}``
+    returns ``codes``.
+  - Evaluation metric ``text_pattern`` (``metric_parameters.pattern_set`` and
+    ``code``, checked on save). Metric handlers may set
+    ``wants_raw_values`` (values as stored, not lower-cased),
+    ``uses_task_data`` (``compute(..., task_data=)``) and ``reference_free``
+    (cells run once per prediction field, under the field key
+    ``<config>|<pred>|``, without a reference value);
+    ``SampleEvaluator.evaluate_sample`` takes ``task_data``.
+
+2.67 (2026-11-19): counts and listings reflect analysis runs (no
+  migration, additive response fields only).
+  - ``ProjectResponse.analysis_count``: completed analysis runs of the
+    project, on the detail and, batched in one grouped count, on the list
+    (``routers.projects.helpers.count_analysis_runs_by_project`` and
+    ``count_analysis_runs_by_project_async``, ``build_select_analysis_counts``).
+    A run that reads a further project counts for its own project.
+  - ``GET /api/dashboard/stats`` (overview) adds ``generations_count``,
+    ``evaluations_count`` and ``analyses_count``; ``projects_with_generations``
+    and ``projects_with_evaluations`` stay as aliases with the same values
+    (they always carried the counts, not a number of projects).
+  - ``GET /api/runs`` takes ``type=analysis`` (``RunSummary`` gains ``name``,
+    ``frame_rows``, ``estimates_count``, ``spec_hash``, ``engine_version``).
+    Every type filters the accessible projects in the query, so ``total``
+    and the pages count exactly the listed runs; analysis runs that read a
+    further project the user may not read are left out, as in the
+    per-project run list.
+  - Report statistics (``report_service.get_report_statistics`` and
+    ``get_report_statistics_batch``), the snapshot's ``statistics`` and the
+    published list items carry ``analysis_count``.
+
+2.68 (2026-11-19): inter-annotator agreement per control (no migration,
+  additive only).
+  - ``GET /api/evaluations/projects/{project_id}/annotator-agreement``
+    (access-key scope ``annotations:read``): per control of the labeling
+    interface, Fleiss' kappa, pairwise Cohen's kappa and percent agreement
+    for ``choices`` and ``rating``, Pearson's r and mean absolute deviation
+    for ``number``, over tasks with two or more active annotations;
+    ``available: false`` without overlap. Computed by
+    ``annotator_agreement.project_annotator_agreement`` (shared) with
+    ``bg_statistics.compute_agreement``; annotators are labelled by
+    ``user_display.masked_name``.
+  - The report snapshot gains ``annotator_agreement`` (the same object
+    without ``available``, or ``None``), and the Annotation section the
+    flag ``show_agreement``.
+  - ``report_snapshot.apply_section_visibility`` applies the section flags
+    when a report is served: with ``show_agreement`` off, every read path
+    serves ``annotator_agreement`` as ``None``; with ``show_participants``
+    off, every read path leaves out the agreement pairs and the participant
+    lists of the snapshot and the Annotation section, keeping the aggregates
+    and ``participant_count``. The stored snapshot is not changed.
+
+2.69 (2026-11-19): analysis runs on the evaluations page (no migration, no
+API change).
+  - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
+    (``?type=analysis``) with the URL state ``run``, ``chartType``,
+    ``systems``, ``estimands``, ``family`` and ``newRunFrom`` (opens the
+    start dialog prefilled with that run's spec). The run page moved to
+    ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
+    ``/projects/[id]/analysis?from=<runId>`` and
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308, in the
+    frontend proxy).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)``,
+    ``evaluationsPath({ projectId, type, run, newRunFrom })`` and
+    ``legacyAnalysisPath(pathname, search)``. Overlays link to result pages
+    through them.
+  - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
+    ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
+    ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):
+    one shape for metric statistics and analysis estimates.
+  - ``ChartType`` gains ``forest`` (both result types);
+    ``DynamicChartRenderer`` takes ``intervalRows`` (forest, and bar and
+    table without models); ``ForestPlot`` takes ``mode`` (``point`` or
+    ``bar``); ``EstimatesTable`` takes ``showFilters``;
+    ``StatisticalResultsPanel`` takes ``analysis`` (``{ run, estimates }``)
+    and shows its Inference and Fit blocks
+    (``@/components/evaluation/statistics/AnalysisStatistics``);
+    ``@/components/analysis/StartAnalysisDialog`` wraps the spec form.
+  - The compliance slot ``AnalysisRunFindings`` keeps its name and props
+    (``{ projectId, run, estimates }``) and renders in two hosts: the run
+    page and, for the selected run, inline in the Analyses view of
+    ``/evaluations``. The component must render compact content without a
+    page heading, breadcrumb or full-width layout.
 """
 
 import os
 
-CORE_API_VERSION = "2.55"
+CORE_API_VERSION = "2.69"
 
 
 def extended_required() -> bool:

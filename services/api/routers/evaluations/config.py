@@ -3,7 +3,7 @@ Evaluation configuration management endpoints.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -22,12 +22,18 @@ from grade_scale_history import (
 )
 from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
+from services.label_config.project_expansion import (
+    expanded_project_label_config_async,
+    repeater_item_counts_async,
+)
 from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
     check_project_accessible_async,
 )
+from label_config_repeater import has_repeater
+from metric_filters import is_reference_free
 from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
@@ -52,8 +58,17 @@ def _needs_version_stamp(project: Project, force_regenerate: bool) -> bool:
     )
 
 
-def _needs_regeneration(project: Project, force_regenerate: bool) -> bool:
-    """Config missing, regeneration forced, or label config actually changed."""
+REPEATER_ITEM_COUNTS_KEY = "repeater_item_counts"
+
+
+def _needs_regeneration(
+    project: Project,
+    force_regenerate: bool,
+    repeater_item_counts: Optional[Dict[str, int]] = None,
+) -> bool:
+    """Config missing, regeneration forced, label config actually changed, or
+    (for a <Repeater> config) the tasks' item counts its indexed fields were
+    expanded to changed."""
     stored_version = _stored_config_version(project)
     return bool(
         not project.evaluation_config
@@ -62,6 +77,10 @@ def _needs_regeneration(project: Project, force_regenerate: bool) -> bool:
             project.label_config_version
             and stored_version is not None
             and stored_version != project.label_config_version
+        )
+        or (
+            repeater_item_counts is not None
+            and project.evaluation_config.get(REPEATER_ITEM_COUNTS_KEY) != repeater_item_counts
         )
     )
 
@@ -166,6 +185,13 @@ async def get_project_evaluation_config(
                 detail="You don't have permission to view evaluation config for this project",
             )
 
+        # A <Repeater> config's fields follow the tasks' item counts.
+        repeater_item_counts = (
+            await repeater_item_counts_async(db, project_id, project.label_config)
+            if has_repeater(project.label_config)
+            else None
+        )
+
         # This GET has three derivation-write paths (version stamp,
         # regeneration, lazy migration). The hot read path stays lock-free;
         # when any write may be needed, the row is re-read FOR UPDATE and the
@@ -173,7 +199,7 @@ async def get_project_evaluation_config(
         # clobber a concurrent config PUT/PATCH (issue #291).
         if (
             _needs_version_stamp(project, force_regenerate)
-            or _needs_regeneration(project, force_regenerate)
+            or _needs_regeneration(project, force_regenerate, repeater_item_counts)
             or _needs_lazy_migration(project)
         ):
             locked = await db.execute(
@@ -193,7 +219,7 @@ async def get_project_evaluation_config(
             flag_modified(project, "evaluation_config")
             await db.commit()
 
-        if _needs_regeneration(project, force_regenerate):
+        if _needs_regeneration(project, force_regenerate, repeater_item_counts):
             # Generate config based on label_config or return empty structure
             if project.label_config:
                 # Preserve existing selected methods if regenerating
@@ -202,12 +228,21 @@ async def get_project_evaluation_config(
                     if (force_regenerate or project.evaluation_config)
                     else None
                 )
-                project.evaluation_config = generate_evaluation_config(
+                # A <Repeater> lists its indexed fields (risk_0, risk_1, ...)
+                label_config_for_fields, item_counts = await expanded_project_label_config_async(
+                    db, project_id, project.label_config
+                )
+                regenerated = generate_evaluation_config(
                     project_id=project_id,
-                    label_config=project.label_config,
+                    label_config=label_config_for_fields,
                     existing_config=existing_config,
                     label_config_version=project.label_config_version,
                 )
+                if has_repeater(project.label_config):
+                    regenerated[REPEATER_ITEM_COUNTS_KEY] = item_counts
+                else:
+                    regenerated.pop(REPEATER_ITEM_COUNTS_KEY, None)
+                project.evaluation_config = regenerated
                 await db.commit()
             else:
                 # Return empty config structure if no label_config
@@ -348,8 +383,9 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
     """Problems worth telling the user at save time that must not block it.
 
     Currently one: an enabled, dispatchable config with no reference field.
-    Every grading is a (prediction, reference) pair, so such a config grades
-    nothing; see ``_validate_config_fields`` for why it cannot be a 422.
+    Every grading of a metric that is not reference-free is a (prediction,
+    reference) pair, so such a config grades nothing; see
+    ``_validate_config_fields`` for why it cannot be a 422.
     """
     warnings: list = []
     if not isinstance(eval_configs_list, list):
@@ -358,7 +394,7 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
         if not isinstance(cfg, dict) or cfg.get("enabled") is False:
             continue
         metric = cfg.get("metric") or ""
-        if isinstance(metric, str) and metric.startswith("korrektur_"):
+        if isinstance(metric, str) and (metric.startswith("korrektur_") or is_reference_free(metric)):
             continue
         ref = cfg.get("reference_fields")
         if isinstance(ref, list) and ref:
@@ -456,6 +492,31 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
     return warnings
 
 
+def _validate_text_pattern_parameters(mp: dict) -> None:
+    from analysis.text_patterns import PatternSetError, normalize_pattern_set
+
+    try:
+        normalized = normalize_pattern_set(mp.get("pattern_set"), "/metric_parameters/pattern_set")
+    except PatternSetError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "invalid_pattern_set",
+                "message": "text_pattern needs a valid metric_parameters.pattern_set",
+                "errors": exc.errors,
+            },
+        )
+    code = mp.get("code")
+    if code not in normalized["codes"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "text_pattern needs metric_parameters.code naming a code of the pattern set "
+                f"(one of {', '.join(sorted(normalized['codes']))})"
+            ),
+        )
+
+
 def validate_evaluation_config_entries(eval_configs_list) -> None:
     """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
 
@@ -501,6 +562,12 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         status_code=422,
                         detail="judges[].runs must be an integer between 1 and 25",
                     )
+
+        # A text pattern code needs a valid pattern set and one of its codes
+        # (services/shared/analysis/text_patterns.py); without them every
+        # cell would record an error instead of a code.
+        if cfg.get("metric") == "text_pattern":
+            _validate_text_pattern_parameters(mp)
 
         # Phase 7 consolidation guard: Falllösung's prompt template
         # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).
@@ -970,10 +1037,14 @@ async def detect_answer_types(
                 "message": "No label configuration found",
             }
 
-        # Generate evaluation config based on label_config
+        # Generate evaluation config based on label_config (a <Repeater>
+        # lists its indexed fields)
+        label_config_for_fields, _ = await expanded_project_label_config_async(
+            db, project_id, project.label_config
+        )
         config = generate_evaluation_config(
             project_id=project_id,
-            label_config=project.label_config,
+            label_config=label_config_for_fields,
             existing_config=project.evaluation_config,
         )
 
@@ -1027,10 +1098,14 @@ async def get_field_types_for_llm_judge(
                 field_types={},
             )
 
-        # Generate evaluation config to get field types
+        # Generate evaluation config to get field types (a <Repeater> lists
+        # its indexed fields)
+        label_config_for_fields, _ = await expanded_project_label_config_async(
+            db, project_id, project.label_config
+        )
         config = generate_evaluation_config(
             project_id=project_id,
-            label_config=project.label_config,
+            label_config=label_config_for_fields,
             existing_config=project.evaluation_config,
         )
 

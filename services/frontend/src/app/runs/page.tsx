@@ -1,8 +1,8 @@
 'use client'
 
-import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import {
   Select,
   SelectContent,
@@ -14,6 +14,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
 import { intlTag } from '@/lib/i18n/locales'
+import { analysisRunPath } from '@/lib/results/paths'
 import { translate } from '@/lib/utils/translate'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -21,15 +22,36 @@ import { useCallback, useEffect, useState } from 'react'
 /**
  * Single-run inventory page (multi-run feature).
  *
- * Shows individual generation and evaluation runs across the platform — the
- * canonical "find a run" view. Clicking a row deep-links into the detail
- * page for that run. The aggregate dashboards at /evaluations and /generations
+ * Shows individual generation, evaluation and analysis runs across the
+ * platform — the canonical "find a run" view. Clicking a row deep-links into
+ * the detail page for that run. The aggregate dashboards at /evaluations and /generations
  * keep their existing role (cross-run scoresheets per project / per model).
  *
  * Notification routing in NotificationDropdown also points here.
  */
 
-type RunType = 'generation' | 'evaluation'
+type RunType = 'generation' | 'evaluation' | 'analysis'
+
+const RUN_TYPES: RunType[] = ['evaluation', 'generation', 'analysis']
+
+const TAB_LABELS: Record<RunType, string> = {
+  evaluation: 'runs.tabs.evaluation',
+  generation: 'runs.tabs.generation',
+  analysis: 'runs.tabs.analysis',
+}
+
+// Columns of each tab (started, project, status, the tab's own, duration),
+// for the full-width loading and empty rows.
+const COLUMN_COUNT: Record<RunType, number> = {
+  generation: 7,
+  evaluation: 8,
+  analysis: 8,
+}
+
+const STATUSES = ['pending', 'running', 'completed', 'failed']
+
+const asRunType = (value: string | null | undefined): RunType =>
+  RUN_TYPES.includes(value as RunType) ? (value as RunType) : 'evaluation'
 
 interface RunSummary {
   id: string
@@ -53,6 +75,12 @@ interface RunSummary {
   judge_models?: string[] | null
   samples_evaluated?: number | null
   metrics?: string[] | null
+  // Analysis runs.
+  name?: string | null
+  frame_rows?: number | null
+  estimates_count?: number | null
+  spec_hash?: string | null
+  engine_version?: string | null
 }
 
 /** The models an evaluation run graded, or '—' when it graded none. */
@@ -71,19 +99,6 @@ interface PaginatedRunsResponse {
 }
 
 const PAGE_SIZE = 25
-
-function StatusBadge({ status }: { status?: string | null }) {
-  if (!status) return <span className="text-zinc-400">—</span>
-  const tone =
-    status === 'completed'
-      ? 'success'
-      : status === 'failed'
-        ? 'error'
-        : status === 'running' || status === 'pending'
-          ? 'warning'
-          : 'secondary'
-  return <Badge variant={tone as any}>{status}</Badge>
-}
 
 function formatDate(d: string | null | undefined, locale: string) {
   if (!d) return '—'
@@ -122,11 +137,14 @@ export default function RunsPage() {
   const { t, locale } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialTab = (searchParams?.get('type') as RunType) || 'evaluation'
+  const initialTab = asRunType(searchParams?.get('type'))
   const initialProject = searchParams?.get('project_id') || ''
+  const initialStatus = searchParams?.get('status') || ''
   const [tab, setTab] = useState<RunType>(initialTab)
   const [page, setPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<string>(
+    STATUSES.includes(initialStatus) ? initialStatus : '',
+  )
   const [projectFilter, setProjectFilter] = useState<string>(initialProject)
   const [projects, setProjects] = useState<{ id: string; title: string }[]>([])
   const [data, setData] = useState<PaginatedRunsResponse | null>(null)
@@ -205,6 +223,19 @@ export default function RunsPage() {
     [router, searchParams],
   )
 
+  // Sync the status filter to the URL like the project filter.
+  const handleStatusChange = useCallback(
+    (next: string) => {
+      setStatusFilter(next)
+      setPage(1)
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      if (next) params.set('status', next)
+      else params.delete('status')
+      router.replace(`/runs?${params.toString()}`, { scroll: false })
+    },
+    [router, searchParams],
+  )
+
   useEffect(() => {
     load()
   }, [load])
@@ -214,6 +245,8 @@ export default function RunsPage() {
   const navigateToRun = (run: RunSummary) => {
     if (run.type === 'evaluation') {
       router.push(`/evaluations/${run.id}`)
+    } else if (run.type === 'analysis') {
+      router.push(analysisRunPath(run.id))
     } else {
       router.push(`/generations/${run.id}`)
     }
@@ -243,19 +276,19 @@ export default function RunsPage() {
       {/* Tabs */}
       <div className="mb-4">
         <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
-          {(['evaluation', 'generation'] as RunType[]).map((tname) => (
+          {RUN_TYPES.map((tname) => (
             <button
               key={tname}
               onClick={() => handleTabChange(tname)}
+              aria-pressed={tab === tname}
+              data-testid={`runs-tab-${tname}`}
               className={`h-7 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
                 tab === tname
                   ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
               } focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900`}
             >
-              {tname === 'evaluation'
-                ? t('runs.tabs.evaluation')
-                : t('runs.tabs.generation')}
+              {t(TAB_LABELS[tname])}
             </button>
           ))}
         </nav>
@@ -263,65 +296,60 @@ export default function RunsPage() {
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <label className="text-xs text-zinc-500">
-          {t('runs.filterProject')}
-        </label>
-        <Select
-          searchable
-          value={projectFilter || ALL}
-          onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
-        >
-          <SelectTrigger
-            className="w-56"
-            aria-label={t('runs.filterProject')}
-            data-testid="runs-project-filter"
+        {/* Each label stays next to its select when the row wraps. */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-zinc-500">
+            {t('runs.filterProject')}
+          </label>
+          <Select
+            searchable
+            value={projectFilter || ALL}
+            onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem pinned value={ALL}>
-              {t('runs.allProjects')}
-            </SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.title}
+            <SelectTrigger
+              className="w-56"
+              aria-label={t('runs.filterProject')}
+              data-testid="runs-project-filter"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem pinned value={ALL}>
+                {t('runs.allProjects')}
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <label className="text-xs text-zinc-500">
-          {t('runs.filterStatus')}
-        </label>
-        <Select
-          value={statusFilter || ALL}
-          onValueChange={(v) => {
-            setStatusFilter(v === ALL ? '' : v)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger
-            className="w-40"
-            aria-label={t('runs.filterStatus')}
-            data-testid="runs-status-filter"
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-zinc-500">
+            {t('runs.filterStatus')}
+          </label>
+          <Select
+            value={statusFilter || ALL}
+            onValueChange={(v) => handleStatusChange(v === ALL ? '' : v)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t('runs.allStatuses')}</SelectItem>
-            <SelectItem value="pending">
-              {t('evaluations.detail.statusLabels.pending')}
-            </SelectItem>
-            <SelectItem value="running">
-              {t('evaluations.detail.statusLabels.running')}
-            </SelectItem>
-            <SelectItem value="completed">
-              {t('evaluations.detail.statusLabels.completed')}
-            </SelectItem>
-            <SelectItem value="failed">
-              {t('evaluations.detail.statusLabels.failed')}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="w-40"
+              aria-label={t('runs.filterStatus')}
+              data-testid="runs-status-filter"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{t('runs.allStatuses')}</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {t(`evaluations.detail.statusLabels.${s}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <span className="ml-auto text-xs text-zinc-500">
           {data ? t('runs.totalCount', { count: data.total }) : ''}
         </span>
@@ -359,6 +387,21 @@ export default function RunsPage() {
                     {t('runs.col.runs')}
                   </th>
                 </>
+              ) : tab === 'analysis' ? (
+                <>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('analysis.list.col.name')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('analysis.list.col.rows')}
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('analysis.list.col.estimates')}
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium tracking-wider whitespace-nowrap text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('analysis.list.col.specHash')}
+                  </th>
+                </>
               ) : (
                 <>
                   <th className="px-4 py-3 text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
@@ -380,11 +423,11 @@ export default function RunsPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+          <tbody className="divide-y divide-zinc-100 bg-white text-zinc-900 dark:divide-zinc-800 dark:bg-zinc-950 dark:text-zinc-100">
             {loading && (
               <tr>
                 <td
-                  colSpan={tab === 'generation' ? 7 : 8}
+                  colSpan={COLUMN_COUNT[tab]}
                   className="px-3 py-6 text-center text-xs text-zinc-500"
                 >
                   {t('runs.loading')}
@@ -394,7 +437,7 @@ export default function RunsPage() {
             {!loading && data?.items.length === 0 && (
               <tr>
                 <td
-                  colSpan={tab === 'generation' ? 7 : 8}
+                  colSpan={COLUMN_COUNT[tab]}
                   className="px-3 py-6 text-center text-xs text-zinc-500"
                 >
                   {t('runs.empty')}
@@ -408,7 +451,7 @@ export default function RunsPage() {
                   onClick={() => navigateToRun(run)}
                   className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                 >
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
+                  <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                     {formatDate(run.created_at, locale)}
                   </td>
                   <td className="max-w-xs truncate px-4 py-3">
@@ -417,7 +460,7 @@ export default function RunsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={run.status} />
+                    <RunStatusBadge status={run.status} />
                   </td>
                   {tab === 'generation' ? (
                     <>
@@ -431,10 +474,31 @@ export default function RunsPage() {
                         {run.runs_requested && run.runs_requested > 1
                           ? `${run.runs_completed ?? 0}/${run.runs_requested}${
                               run.runs_failed
-                                ? ` (${run.runs_failed} fehlgeschlagen)`
+                                ? ` ${t('generations.detail.runsFailed', { count: run.runs_failed })}`
                                 : ''
                             }`
                           : '1'}
+                      </td>
+                    </>
+                  ) : tab === 'analysis' ? (
+                    <>
+                      <td
+                        className="max-w-xs truncate px-4 py-3"
+                        title={run.name ?? undefined}
+                      >
+                        {run.name || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs">
+                        {run.frame_rows ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs">
+                        {run.estimates_count ?? '—'}
+                      </td>
+                      <td
+                        className="px-4 py-3 font-mono text-xs"
+                        title={run.spec_hash ?? undefined}
+                      >
+                        {run.spec_hash ? run.spec_hash.slice(0, 12) : '—'}
                       </td>
                     </>
                   ) : (

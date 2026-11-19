@@ -1,13 +1,21 @@
 /**
- * The dashboard's quick actions follow the user's role: import, generation
- * and evaluation need ORG_ADMIN or CONTRIBUTOR somewhere (the same gate that
- * greys out those sidebar entries), so a student only sees the action they
- * can use (creating a private project). The paid e2e run found a student
- * dashboard offering "Daten importieren" and "Generierung starten".
+ * The dashboard's teacher quick actions (import, generation, evaluation)
+ * follow the view GET /api/dashboard/stats sends (`scope`): the API counts
+ * group teachers and creators of their own projects as teachers too, which
+ * the client's org roles cannot tell. Until the answer arrives, or when the
+ * request fails, the org roles stand in (ORG_ADMIN or CONTRIBUTOR
+ * somewhere). A student only sees the action they can use (creating a
+ * private project). The paid e2e run found a student dashboard offering
+ * "Daten importieren" and "Generierung starten".
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render as rtlRender, screen, within } from '@testing-library/react'
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import React from 'react'
 
 const render: typeof rtlRender = (ui, options) => {
@@ -20,16 +28,10 @@ const render: typeof rtlRender = (ui, options) => {
   )
 }
 
+const mockGetDashboardStats = jest.fn()
 jest.mock('@/lib/api', () => ({
-  default: {
-    getDashboardStats: jest.fn().mockResolvedValue({
-      project_count: 1,
-      task_count: 1,
-      annotation_count: 0,
-      projects_with_generations: 0,
-      projects_with_evaluations: 0,
-    }),
-  },
+  __esModule: true,
+  default: { getDashboardStats: () => mockGetDashboardStats() },
 }))
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn() }))
 jest.mock('@/lib/api/projects', () => ({
@@ -68,6 +70,23 @@ const TEACHER_ONLY = [
   'dashboard.evaluation.button',
 ]
 
+const OVERVIEW = {
+  scope: 'overview',
+  project_count: 1,
+  task_count: 1,
+  annotation_count: 0,
+  generations_count: 0,
+  evaluations_count: 0,
+  analyses_count: 0,
+}
+const PERSONAL = {
+  scope: 'personal',
+  open_exams: 0,
+  open_tasks: 2,
+  submitted_answers: 0,
+  released_results: 0,
+}
+
 function signIn(user: Record<string, unknown>, orgRoles: string[]) {
   ;(useAuth as jest.Mock).mockReturnValue({
     user: { id: 'u1', username: 'u1', is_superadmin: false, ...user },
@@ -75,50 +94,110 @@ function signIn(user: Record<string, unknown>, orgRoles: string[]) {
   })
 }
 
-describe('dashboard quick actions by role', () => {
-  it('a student (annotator in every org) sees only "create project"', () => {
-    signIn({ role: 'ANNOTATOR' }, ['ANNOTATOR'])
-    render(<DashboardPage />)
+async function renderSettled() {
+  render(<DashboardPage />)
+  await waitFor(() =>
+    expect(screen.getByTestId('dashboard-stats')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    ),
+  )
+}
 
-    expect(
-      screen.getByText('dashboard.createNewProject.button'),
-    ).toBeInTheDocument()
-    for (const key of TEACHER_ONLY) {
-      expect(screen.queryByText(key)).not.toBeInTheDocument()
-    }
+function expectTeacherActions(shown: boolean) {
+  expect(
+    screen.getByText('dashboard.createNewProject.button'),
+  ).toBeInTheDocument()
+  for (const key of TEACHER_ONLY) {
+    if (shown) expect(screen.getByText(key)).toBeInTheDocument()
+    else expect(screen.queryByText(key)).not.toBeInTheDocument()
+  }
+}
+
+beforeEach(() => {
+  mockGetDashboardStats.mockReset()
+  mockGetDashboardStats.mockResolvedValue(OVERVIEW)
+})
+
+describe('dashboard quick actions follow the view of the stats', () => {
+  it('a student (annotator in every org) sees only "create project"', async () => {
+    signIn({ role: 'ANNOTATOR' }, ['ANNOTATOR'])
+    mockGetDashboardStats.mockResolvedValue(PERSONAL)
+    await renderSettled()
+
+    expectTeacherActions(false)
   })
 
-  it('a user without any organization gets no teacher actions', () => {
+  it('a user without any organization gets no teacher actions', async () => {
     signIn({ role: null }, [])
-    render(<DashboardPage />)
+    mockGetDashboardStats.mockResolvedValue(PERSONAL)
+    await renderSettled()
 
-    for (const key of TEACHER_ONLY) {
-      expect(screen.queryByText(key)).not.toBeInTheDocument()
-    }
+    expectTeacherActions(false)
   })
 
   it.each(['CONTRIBUTOR', 'ORG_ADMIN'])(
     'a %s in one of several orgs sees every action',
-    (role) => {
+    async (role) => {
       signIn({ role: 'ANNOTATOR' }, ['ANNOTATOR', role])
-      render(<DashboardPage />)
+      await renderSettled()
 
-      expect(
-        screen.getByText('dashboard.createNewProject.button'),
-      ).toBeInTheDocument()
-      for (const key of TEACHER_ONLY) {
-        expect(screen.getByText(key)).toBeInTheDocument()
-      }
+      expectTeacherActions(true)
     },
   )
 
-  it('a superadmin sees every action', () => {
+  it('a superadmin sees every action', async () => {
     signIn({ is_superadmin: true, role: 'ANNOTATOR' }, [])
-    render(<DashboardPage />)
+    await renderSettled()
 
-    for (const key of TEACHER_ONLY) {
-      expect(screen.getByText(key)).toBeInTheDocument()
-    }
+    expectTeacherActions(true)
+  })
+
+  it('a group teacher who is only annotator at org level gets the actions back', async () => {
+    signIn({ role: 'ANNOTATOR' }, ['ANNOTATOR'])
+    await renderSettled()
+
+    expectTeacherActions(true)
+  })
+
+  it('the creator of a private project without any organization gets the actions', async () => {
+    signIn({ role: null }, [])
+    await renderSettled()
+
+    expectTeacherActions(true)
+  })
+
+  it('a personal answer hides the actions whatever the org roles say', async () => {
+    signIn({ role: 'CONTRIBUTOR' }, ['CONTRIBUTOR'])
+    mockGetDashboardStats.mockResolvedValue(PERSONAL)
+    await renderSettled()
+
+    expectTeacherActions(false)
+  })
+})
+
+describe('dashboard quick actions before or without a stats answer', () => {
+  it('follow the org roles while the stats load', () => {
+    mockGetDashboardStats.mockReturnValue(new Promise(() => {}))
+    signIn({ role: 'ANNOTATOR' }, ['ANNOTATOR'])
+    const { unmount } = render(<DashboardPage />)
+    expectTeacherActions(false)
+    unmount()
+
+    signIn({ role: 'CONTRIBUTOR' }, ['CONTRIBUTOR'])
+    render(<DashboardPage />)
+    expectTeacherActions(true)
+  })
+
+  it.each([
+    ['ANNOTATOR', false],
+    ['CONTRIBUTOR', true],
+  ])('follow the org roles when the stats fail (%s)', async (role, shown) => {
+    mockGetDashboardStats.mockRejectedValue(new Error('503'))
+    signIn({ role }, [role as string])
+    await renderSettled()
+
+    expectTeacherActions(shown as boolean)
   })
 })
 

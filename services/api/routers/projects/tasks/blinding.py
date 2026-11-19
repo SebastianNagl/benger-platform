@@ -27,6 +27,7 @@ is off": on reveal-enabled projects (student exams default to
 the Musterlösung PRE-submit — the exact leak this module closes.
 """
 
+import re
 from typing import Any, Dict, Iterable, Optional, Set
 
 from sqlalchemy import case, cast, exists, false, func, literal, or_, select
@@ -148,8 +149,10 @@ def visible_top_level_keys(bound_fields: Iterable[str]) -> Set[str]:
       ``case`` object, so the top-level segment is what must survive the
       filter. Deliberate consequence: a nested binding exposes its WHOLE
       top-level object — no wider than what the labeling UI can render.
+      Indexed paths count the same way: ``$cases[{{idx}}].text`` inside a
+      <Repeater> (and ``$cases[0].text`` once expanded) reads ``cases``.
     """
-    return {f.split(".", 1)[0].casefold() for f in bound_fields}
+    return {re.split(r"[.\[]", f, maxsplit=1)[0].casefold() for f in bound_fields}
 
 
 def blind_task_data(task_data, bound_fields: Set[str]) -> Dict:

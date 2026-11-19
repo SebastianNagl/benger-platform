@@ -402,3 +402,41 @@ def test_import_upload_default_sends_only_object_key(client, router):
     client.imports.upload("p1", [{"data": {}}], wait=False)
     (body,) = router.bodies("POST", "/api/projects/p1/imports")
     assert set(body) == {"object_key"}
+
+
+def test_import_upload_sends_source_manifest_and_reimport(client, router):
+    router.add("POST", "/api/projects/p1/imports/upload-url", _upload_answer("p1"))
+    router.add("POST", STORAGE, lambda r: httpx.Response(204))
+    router.add(
+        "POST",
+        "/api/projects/p1/imports",
+        lambda r: httpx.Response(202, json={"job_id": "j1", "status": "pending"}),
+    )
+    manifest = {"converter": "synthetic@1", "files": [{"path": "a.jsonl", "sha256": "0" * 64}]}
+    client.imports.upload("p1", [{"data": {}}], source_manifest=manifest, reimport=True, wait=False)
+    (body,) = router.bodies("POST", "/api/projects/p1/imports")
+    assert body["source_manifest"] == manifest
+    assert body["reimport"] is True
+
+
+def test_create_project_import_sends_source_manifest_and_reimport(client, router):
+    router.add("POST", "/api/projects/project-imports/upload-url", _upload_answer("u1"))
+    router.add("POST", STORAGE, lambda r: httpx.Response(204))
+    router.add(
+        "POST",
+        "/api/projects/project-imports",
+        lambda r: httpx.Response(202, json={"job_id": "j9", "status": "pending"}),
+    )
+    client.imports.create_project(
+        {"project": {"title": "x"}},
+        source_manifest={"origin": "synthetic"},
+        reimport=True,
+        wait=False,
+    )
+    assert router.bodies("POST", "/api/projects/project-imports") == [
+        {
+            "object_key": "imports/2026/10/u1/abc_import.json",
+            "source_manifest": {"origin": "synthetic"},
+            "reimport": True,
+        }
+    ]

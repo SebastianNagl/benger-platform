@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://benger.dev/schemas/text_pattern_set.schema.json",
+  "title": "BenGER text pattern set",
+  "description": "A named, versioned set of regular-expression codes (format version 1). Patterns use Python re syntax; {{task.<path>}} inserts a regex-escaped task data value (|spaces or |whitespace makes it insensitive to spaces or any whitespace). Semantic rules (patterns compile, placeholders are well formed, rule values are unique) are checked by analysis.text_patterns.validate_pattern_set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "codes"],
+  "properties": {
+    "name": {"$ref": "#/$defs/token"},
+    "version": {"$ref": "#/$defs/token"},
+    "description": {"type": "string", "maxLength": 5000},
+    "flags": {"$ref": "#/$defs/flags"},
+    "normalize": {"enum": ["none", "NFC", "NFKC"]},
+    "codes": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 200,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/code"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 100},
+    "token": {"type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.:-]*$", "maxLength": 100},
+    "flags": {
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {"enum": ["IGNORECASE", "MULTILINE", "DOTALL", "ASCII", "VERBOSE"]}
+    },
+    "pattern": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {"$ref": "#/$defs/pattern"}
+    },
+    "code": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {"mode": {"enum": ["any", "all", "count", "first"]}},
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["mode", "patterns"],
+          "properties": {
+            "mode": {"enum": ["any", "all", "count"]},
+            "patterns": {"$ref": "#/$defs/patterns"},
+            "flags": {"$ref": "#/$defs/flags"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["mode", "rules"],
+          "properties": {
+            "mode": {"const": "first"},
+            "rules": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["value", "patterns"],
+                "properties": {
+                  "value": {"type": "string", "minLength": 1, "maxLength": 200},
+                  "patterns": {"$ref": "#/$defs/patterns"}
+                }
+              }
+            },
+            "default": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+            "flags": {"$ref": "#/$defs/flags"},
+            "description": {"type": "string", "maxLength": 1000}
+          }
+        }
+      ]
+    }
+  }
+}

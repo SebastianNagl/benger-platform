@@ -55,10 +55,12 @@ function findKeyInsensitive(
 }
 
 /**
- * Get nested value from object using dot notation (case-insensitive keys)
+ * Get nested value from object using dot notation (case-insensitive keys).
+ * Array indexes may be written either way: `cases[0].text` or `cases.0.text`
+ * (an expanded <Repeater> binds `$cases[0].text`, as in Label Studio).
  */
 function getNestedValue(obj: any, path: string): any {
-  const parts = path.split('.')
+  const parts = path.replace(/\[([^\]]*)\]/g, '.$1').split('.')
   let current = obj
 
   for (const part of parts) {

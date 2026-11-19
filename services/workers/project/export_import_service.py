@@ -330,6 +330,7 @@ def import_project_impl(
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
     dry_run: bool = False,
+    reimport: bool = False,
 ) -> Dict[str, Any]:
     """Download an uploaded import artifact and stream-import it into the DB.
 
@@ -347,6 +348,14 @@ def import_project_impl(
     tabular imports ignore it. ``dry_run`` (merge only) is the merge preview:
     the merge runs and is rolled back, and only the job row is committed,
     completed with format ``merge_preview`` and the preview as its result.
+
+    Provenance and re-import (``import_provenance``): the job records the
+    payload's SHA-256 and its source manifest before importing. When an
+    import with the same idempotency key (payload hash, target, options)
+    already completed and every task it wrote still exists, the job
+    completes as a no-op that writes nothing and names that job in
+    ``duplicate_of_job_id``; ``reimport`` imports anyway. The job links the
+    tasks it writes (``import_job_tasks``) in the import's commit.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
     a finished job is a no-op); a job left `running` by a crashed worker IS
@@ -371,6 +380,8 @@ def import_project_impl(
     )
     from models import ImportJob, JobStatus, OrgStorageConnection
     from storage.object_storage import object_storage
+
+    import import_provenance as provenance
 
     # Filled by the driver's before_commit hook (_mark_completed below).
     completed: Dict[str, Any] = {}
@@ -401,6 +412,8 @@ def import_project_impl(
         # the first-active-membership fallback. Re-validated by the importer.
         organization_id = job.organization_id
         organization_group_id = getattr(job, "organization_group_id", None)
+        # The manifest the caller declared when creating the job, if any.
+        declared_manifest = (job.source_manifest or {}).get("declared")
 
         # Cloud import: the artifact lives in a customer bucket reached through
         # an org storage connection, not in our own object storage. Resolve the
@@ -449,27 +462,7 @@ def import_project_impl(
                 )
             else:
                 object_storage.download_to_fileobj(object_key, spooled)
-            byte_size = spooled.tell()
-            spooled.seek(0)
-
-            def _mark_completed(result: Dict[str, Any]) -> None:
-                # The drivers flush + expunge_all the session every batch,
-                # which detaches the `job` loaded above, so load the row again
-                # here. The driver commits it together with the imported rows.
-                done = db.query(ImportJob).filter(ImportJob.id == job_id).one()
-                done.status = JobStatus.COMPLETED.value
-                done.format = detected_format
-                done.byte_size = byte_size
-                done.progress = 100
-                done.result = result
-                # A create-new import made the project; point the status row
-                # and the download/poll URLs at it.
-                if not done.project_id and (result or {}).get("project_id"):
-                    done.project_id = result["project_id"]
-                done.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-                done.error_message = None
-                completed["project_id"] = done.project_id
-                completed["byte_size"] = byte_size
+            payload_sha256, byte_size = provenance.hash_fileobj(spooled)
 
             lowered_key = object_key.lower()
             tabular_fmt = next(
@@ -482,12 +475,120 @@ def import_project_impl(
             )
             if source_connection is not None and tabular_fmt is not None:
                 detected_format = tabular_fmt
+            elif project_id and mode == "merge":
+                detected_format = "merge_preview" if dry_run else "merge"
+            elif project_id:
+                detected_format = "nested"
+            else:
+                detected_format = "comprehensive"
+
+            manifest = provenance.build_manifest(
+                payload_sha256=payload_sha256,
+                byte_size=byte_size,
+                object_key=object_key,
+                source_connection_id=source_connection_id,
+                target=(
+                    provenance.project_target(project_id)
+                    if project_id
+                    else provenance.new_project_target(
+                        requested_by, organization_id, organization_group_id
+                    )
+                ),
+                mode=detected_format,
+                model_id_map=model_id_map,
+                reimport=reimport,
+                declared=declared_manifest,
+            )
+            import_key = provenance.idempotency_key(manifest)
+            # Committed on its own, so a failed import keeps its provenance too.
+            recorded = db.query(ImportJob).filter(ImportJob.id == job_id).one()
+            recorded.payload_sha256 = payload_sha256
+            recorded.source_manifest = manifest
+            recorded.idempotency_key = import_key
+            db.commit()
+
+            if import_key is not None:
+                # Held until the import commits: an identical import running
+                # at the same time waits here and then finds this one.
+                provenance.lock_import_key(db, import_key)
+                prior = (
+                    None
+                    if reimport
+                    else provenance.find_completed_import(
+                        db, import_key, job_id, manifest["target"]
+                    )
+                )
+                if prior is not None:
+                    done = db.query(ImportJob).filter(ImportJob.id == job_id).one()
+                    done.status = JobStatus.COMPLETED.value
+                    done.format = prior.format
+                    done.byte_size = byte_size
+                    done.progress = 100
+                    done.duplicate_of_job_id = prior.id
+                    done.result = provenance.no_op_result(prior, payload_sha256)
+                    if not done.project_id:
+                        done.project_id = prior.project_id
+                    done.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+                    done.error_message = None
+                    result_project_id = done.project_id
+                    db.commit()
+                    tasks._publish_progress(
+                        f"import:progress:{result_project_id or job_id}",
+                        {"job_id": job_id, "status": "completed", "progress": 100},
+                    )
+                    tasks.logger.info(
+                        "import_project: job %s is a no-op, payload %s already "
+                        "imported by job %s",
+                        job_id,
+                        payload_sha256,
+                        prior.id,
+                    )
+                    return {
+                        "status": "completed",
+                        "job_id": job_id,
+                        "project_id": result_project_id,
+                        "byte_size": byte_size,
+                        "no_op": True,
+                        "duplicate_of_job_id": prior.id,
+                    }
+
+            # The tasks this import writes, linked to the job at its commit
+            # so a later repeat can tell whether they all still exist.
+            written_tasks = (
+                provenance.track_written_tasks(db) if import_key is not None else None
+            )
+
+            def _mark_completed(result: Dict[str, Any]) -> None:
+                # The drivers flush + expunge_all the session every batch,
+                # which detaches the `job` loaded above, so load the row again
+                # here. The driver commits it together with the imported rows.
+                if written_tasks is not None:
+                    db.flush()
+                done = db.query(ImportJob).filter(ImportJob.id == job_id).one()
+                done.status = JobStatus.COMPLETED.value
+                done.format = detected_format
+                done.byte_size = byte_size
+                done.progress = 100
+                done.result = result
+                # A create-new import made the project; point the status row
+                # and the download/poll URLs at it.
+                if not done.project_id and (result or {}).get("project_id"):
+                    done.project_id = result["project_id"]
+                done.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+                done.error_message = None
+                if written_tasks is not None:
+                    provenance.record_written_tasks(
+                        db, job_id, done.project_id, written_tasks
+                    )
+                completed["project_id"] = done.project_id
+                completed["byte_size"] = byte_size
+
+            if detected_format in _TABULAR_EXTENSIONS.values():
                 run_tabular_import(
                     db, project_id, spooled, requested_by, tabular_fmt,
                     before_commit=_mark_completed,
                 )
-            elif project_id and mode == "merge" and dry_run:
-                detected_format = "merge_preview"
+            elif detected_format == "merge_preview":
                 _mark_completed(
                     run_merge_import(
                         db, project_id, spooled, requested_by,
@@ -495,20 +596,17 @@ def import_project_impl(
                     )
                 )
                 db.commit()
-            elif project_id and mode == "merge":
-                detected_format = "merge"
+            elif detected_format == "merge":
                 run_merge_import(
                     db, project_id, spooled, requested_by,
                     model_id_map=model_id_map, before_commit=_mark_completed,
                 )
-            elif project_id:
-                detected_format = "nested"
+            elif detected_format == "nested":
                 run_nested_import(
                     db, project_id, spooled, requested_by,
                     before_commit=_mark_completed,
                 )
             else:
-                detected_format = "comprehensive"
                 import_kwargs = {"organization_id": organization_id}
                 if organization_group_id:
                     import_kwargs["organization_group_id"] = organization_group_id

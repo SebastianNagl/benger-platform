@@ -68,8 +68,14 @@ BULK = "bulk"
 # uploads at the end of an exam never holds up instant grading on
 # `interactive`, and never waits behind bulk generation.
 OCR = "ocr"
+# Analysis runs of variant experiments (services/shared/analysis): one job
+# builds a frame over a project's generations and fits every estimand of a
+# spec, minutes and CPU-bound, nobody is blocked on it. Its own queue so a
+# dedicated pool can serve it later with a values-only change; today the bulk
+# pool consumes it next to generation/evaluation/bulk.
+ANALYSIS = "analysis"
 
-QUEUES = (INTERACTIVE, EMAILS, MAINTENANCE, GENERATION, EVALUATION, BULK, OCR)
+QUEUES = (INTERACTIVE, EMAILS, MAINTENANCE, GENERATION, EVALUATION, BULK, OCR, ANALYSIS)
 
 # Retired queue names kept as consumers only while their Redis lists drain.
 # The pool-split names ("celery", "default") were dropped 2026-07-30 after
@@ -150,6 +156,9 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.import_project": BULK,
     # Project purge: minutes for a large project, nobody is blocked on it.
     "tasks.purge_project": BULK,
+    # --- analysis: one analysis run of a variant experiment ---
+    "tasks.run_analysis": ANALYSIS,
+    "tasks.run_code_validation": ANALYSIS,
 }
 
 # Imports up to this size go to `interactive` instead of `bulk`. That covers
@@ -225,6 +234,9 @@ QUEUE_TIME_LIMITS: dict[str, tuple[int, int]] = {
     BULK: (5100, 5400),
     # A 30-page job is ~8 vision calls, three at a time.
     OCR: (600, 660),
+    # A frame of ~150k generations with a few hundred fits takes minutes;
+    # the hard limit stays below the broker visibility_timeout (7200).
+    ANALYSIS: (3300, 3600),
 }
 
 # The orchestrator enumerates up to ~6940 cells before dispatching the chord and

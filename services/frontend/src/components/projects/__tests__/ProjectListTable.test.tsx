@@ -300,6 +300,7 @@ describe('ProjectListTable', () => {
         annotation_count: 0,
         progress_percentage: 0,
         access_tier: 'full',
+        analysis_count: 3,
       },
       {
         id: 'part-1',
@@ -365,6 +366,16 @@ describe('ProjectListTable', () => {
       ).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('projects-table-checkbox-att-1'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('shows an analyses badge on rows with completed analysis runs', () => {
+      render(<ProjectListTable />)
+      expect(
+        screen.getByTestId('project-analyses-badge-full-1'),
+      ).toHaveTextContent('3 analyses')
+      expect(
+        screen.queryByTestId('project-analyses-badge-part-1'),
       ).not.toBeInTheDocument()
     })
 
@@ -1218,6 +1229,55 @@ describe('ProjectListTable', () => {
         )
       })
 
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/projects/imported-1')
+      })
+    })
+
+    it('opens the earlier project when the file was already imported', async () => {
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        project_id: 'imported-1',
+        duplicate_of_job_id: 'job-1',
+        result: {
+          project_id: 'imported-1',
+          project_title: 'Imported Project',
+          project_url: '/projects/imported-1',
+          no_op: true,
+          duplicate_of: {
+            job_id: 'job-1',
+            completed_at: '2026-11-19T08:00:00+00:00',
+            payload_sha256: 'a'.repeat(64),
+          },
+        },
+      })
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+
+      render(<ProjectListTable />)
+
+      fireEvent.click(screen.getByTestId('projects-more-button'))
+      fireEvent.click(screen.getByTestId('projects-import-button'))
+      await userEvent.upload(
+        screen.getByTestId('project-import-file-input'),
+        new File(['{}'], 'project.json', { type: 'application/json' }),
+      )
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'This file was already imported as "Imported Project" on',
+          ),
+          'info',
+        )
+      })
+      expect(mockAddToast).not.toHaveBeenCalledWith(
+        expect.stringContaining('Successfully imported'),
+        'success',
+      )
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith('/projects/imported-1')
       })

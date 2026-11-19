@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Navigation umschalten"
     },
-    "billing": "Abo & Abrechnung"
+    "billing": "Abo & Abrechnung",
+    "compliance": "Compliance"
   },
   "header": {
     "expandSidebar": "Seitenleiste erweitern",
@@ -96,6 +97,7 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Verwalte deine Annotationsprojekte und verfolge den Fortschritt",
+    "subtitlePersonal": "Deine offenen Klausuren und Aufgaben, deine Antworten und Ergebnisse auf einen Blick",
     "totalQuestions": "Gesamte Fragen",
     "recentDocuments": "Letzte Aufgaben",
     "viewAll": "Alle anzeigen",
@@ -106,6 +108,11 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "evaluations": "Evaluierungen",
+      "analyses": "Analysen",
+      "openExams": "Offene Klausuren",
+      "openTasks": "Offene Aufgaben",
+      "submittedAnswers": "Abgegebene Antworten",
+      "releasedResults": "Erhaltene Ergebnisse",
       "unavailable": "Nicht verfügbar",
       "unavailableShort": "k. A."
     },
@@ -676,6 +683,7 @@
       "import": "Daten importieren",
       "export": "Daten exportieren",
       "importSuccess": "Daten erfolgreich importiert",
+      "importAlreadyImported": "Diese Datei wurde am {date} bereits in dieses Projekt importiert. Es wurde nichts hinzugefügt.",
       "importFailed": "Fehler beim Importieren der Daten",
       "importLinkedExamSingleTask": "Diese Klausur ist als Ganzes mit einer Aktivität einer Lernplattform verknüpft und hat daher genau eine Aufgabe. Verknüpfe die Aktivität zuerst mit der Aufgabe der Klausur, danach kannst du weitere Aufgaben importieren.",
       "exportSuccess": "Daten erfolgreich exportiert",
@@ -725,6 +733,7 @@
       "importStats": " - {tasks} Aufgaben, {annotations} Annotationen, {generations} Generierungen, {evaluations} Evaluationsläufe, {rows} bewertete Zeilen",
       "importSkippedAnnotations": "{count} Antworten wurden nicht importiert: Ihre Verfasser sind hier unbekannt und wurden deinem Konto zugeordnet, das pro Aufgabe nur eine aktive Antwort halten kann. Lege die Nutzer vor dem Import mit derselben E-Mail-Adresse an.",
       "importSuccess": "\"{title}\" erfolgreich importiert{stats} ({time}s)",
+      "importAlreadyImported": "Diese Datei wurde am {date} bereits als „{title}“ importiert. Es wurde kein neues Projekt angelegt; das vorhandene wird geöffnet.",
       "importFailed": "Import des Projekts fehlgeschlagen",
       "invalidJsonFormat": "Ungültiges JSON-Format in Datei",
       "unsupportedFileFormat": "Nicht unterstützte Dateiformatversion",
@@ -748,6 +757,8 @@
       "attemptedBadge": "Frühere Abgabe",
       "archivedBadge": "Archiviert",
       "wizardDraftBadge": "Assistenten-Entwurf",
+      "analysesBadge": "{count} Analysen",
+      "analysesBadgeOne": "1 Analyse",
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
@@ -1021,6 +1032,8 @@
       "submit": "Zusammenführen",
       "running": "Wird zusammengeführt...",
       "success": "Ergebnisse zusammengeführt",
+      "alreadyMerged": "Diese Ergebnisse wurden am {date} bereits in dieses Projekt zusammengeführt. Es wurde nichts hinzugefügt.",
+      "alreadyMergedToast": "Diese Ergebnisse wurden bereits zusammengeführt. Es wurde nichts hinzugefügt.",
       "failed": "Das Zusammenführen ist fehlgeschlagen",
       "taskMismatch": "Die Aufgaben in dieser Datei sind nicht die Aufgaben dieses Projekts, daher wurde nichts importiert. Führe eine Datei zusammen, die aus diesem Projekt oder einer Kopie davon exportiert wurde, oder importiere sie als neues Projekt.",
       "summaryAdded": "{tasks} Aufgaben zugeordnet und {generations} Generierungen, {evaluations} Evaluationsläufe und {rows} bewertete Zeilen hinzugefügt.",
@@ -1180,7 +1193,7 @@
       "description": "Beschreibung (Optional)",
       "descriptionPlaceholder": "Beschreibe, wofür diese Struktur verwendet wird...",
       "structureConfiguration": "Strukturkonfiguration",
-      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt",
+      "structureConfigHelp": "Definiere system_prompt, instruction_prompt und optional evaluation_prompt. Antwortformat: append_schema_instruction (true/false), structured_output (auto/off) und optional format_retry, answer_schema und refusal_heuristic",
       "cancel": "Abbrechen",
       "saving": "Wird gespeichert...",
       "createStructure": "Struktur erstellen",
@@ -1191,7 +1204,18 @@
       "delete": "Löschen",
       "loadingStructures": "Prompt-Strukturen werden geladen...",
       "onlyCreatorCanManage": "Nur der Projektersteller kann Prompt-Strukturen verwalten",
-      "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen."
+      "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen.",
+      "format": {
+        "instructionAppended": "Hängt die Antwortfelder an den Prompt an",
+        "instructionNotAppended": "Prompt wird unverändert gesendet",
+        "structuredAuto": "Strukturierte Ausgabe: auto",
+        "structuredOff": "Strukturierte Ausgabe: aus",
+        "retry": "Format-Nachfrage",
+        "answerKeys": "Antwortschlüssel aus Aufgabendaten",
+        "refusalHeuristic": "Verweigerungs-Heuristik",
+        "appendedText": "Wird an den Instruktions-Prompt angehängt",
+        "retryMessage": "Nachricht der Format-Nachfrage"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -1324,7 +1348,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
       "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
-      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25."
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 100."
     },
     "settings": {
       "title": "Einstellungen",
@@ -1520,6 +1544,7 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "evaluations": "Evaluierungen",
+      "analyses": "Analysen",
       "corrections": "Korrekturen",
       "correctionsFalloesungBreakdown": "↳ Falllösung-Bewertungen",
       "correctionsGradesBreakdown": "↳ Bewertungen durch Korrigierende",
@@ -5469,7 +5494,16 @@
         "selected": "ausgewählt",
         "noResults": "(keine Ergebnisse)",
         "notRun": "(nicht ausgeführt)",
-        "tasks": "Aufgaben"
+        "tasks": "Aufgaben",
+        "searchProjects": "Projekte suchen",
+        "noProjectsFound": "Keine Projekte gefunden.",
+        "moreProjects": "Mehr anzeigen ({shown} von {total})",
+        "run": "Analyselauf",
+        "runOption": "{name} ({status})",
+        "systems": "Systeme",
+        "estimands": "Schätzgrößen",
+        "family": "Familie",
+        "allFamilies": "Alle Familien"
       },
       "params": {
         "configure": "Konfigurieren",
@@ -5514,7 +5548,9 @@
           "heatmapNeedsModels": "Benötigt 2+ Modelle",
           "boxNeedsSampleAggregation": "Wähle \"Pro Sample\" Analyseebene für Boxplots",
           "boxComputingScores": "Berechne Sample-Scores...",
-          "boxNoSampleData": "Keine Sample-Daten für dieses Projekt verfügbar"
+          "boxNoSampleData": "Keine Sample-Daten für dieses Projekt verfügbar",
+          "forestNeedsModelAggregation": "Der Forest-Plot braucht die Analyseebene Modell",
+          "forestNoStatistics": "Noch keine Statistiken pro Modell verfügbar"
         }
       },
       "results": {
@@ -5561,6 +5597,16 @@
         "mode": "Evaluierungsmodus",
         "evaluateMissingOnly": "Nur fehlende/fehlerhafte evaluieren",
         "evaluateMissingDescription": "Evaluiert nur Generierungen, die noch nicht evaluiert wurden oder Fehler hatten"
+      },
+      "resultType": {
+        "label": "Ergebnis",
+        "metrics": "Metriken",
+        "analysis": "Analysen"
+      },
+      "analysis": {
+        "start": "Analyse starten",
+        "runDetails": "Details zum Lauf",
+        "engine": "Engine"
       }
     },
     "export": {
@@ -5773,7 +5819,8 @@
         "spanSequence": "Span-/Sequenz-Labeling",
         "hierarchical": "Hierarchische Metriken",
         "llmJudge": "LLM-als-Richter",
-        "humanEvaluation": "Menschliche Korrektur"
+        "humanEvaluation": "Menschliche Korrektur",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "Zeichenketten- und Oberflächenabgleich",
@@ -5789,7 +5836,8 @@
         "hierarchical": "Für hierarchische Klassifikationen",
         "llmJudge": "KI-modellbasierte Evaluierung (API-Schlüssel erforderlich)",
         "llmJudgeModel": "KI-modellbasierte Evaluierung mit einem Richtermodell",
-        "humanEvaluation": "Korrektur durch menschliche Bewerterinnen und Bewerter"
+        "humanEvaluation": "Korrektur durch menschliche Bewerterinnen und Bewerter",
+        "codes": "Codes, die ein versionierter Regelsatz aus der Antwort liest"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5808,7 +5856,8 @@
         "recall": "Recall",
         "f1": "F1-Score",
         "llmJudgeClassic": "Klassischer LLM-Richter",
-        "llmJudgeCustom": "Benutzerdefinierter LLM-Richter"
+        "llmJudgeCustom": "Benutzerdefinierter LLM-Richter",
+        "text_pattern": "Text-Muster-Code"
       },
       "metricDesc": {
         "exactMatch": "Exakter Zeichenkettenabgleich",
@@ -5855,7 +5904,8 @@
         "llmJudgeLexam": "Korrektheits-Judge aus dem LEXam-Benchmark (0,0–1,0 gegenüber der Referenzantwort), vom Schweizer auf deutsches Recht übertragen.",
         "korrekturClassic": "Freie Kommentare, Highlights und Labels auf Annotationen, Generierungen und Evaluationen.",
         "korrekturFalloesung": "Manuelle Bewertung nach dem 10-Dimensionen-Schema der Standard Falllösung (identisch zum LLM Judge).",
-        "korrekturCustom": "Manuelle Bewertung: füllt den Bewertungsbogen der Aufgabe aus (oder die projektspezifischen Dimensionen aus dem Custom LLM Judge)."
+        "korrekturCustom": "Manuelle Bewertung: füllt den Bewertungsbogen der Aufgabe aus (oder die projektspezifischen Dimensionen aus dem Custom LLM Judge).",
+        "text_pattern": "Codiert die Antwort mit einem versionierten Satz regulärer Ausdrücke"
       }
     },
     "sampleResults": {
@@ -6054,7 +6104,21 @@
       "strongNegative": "Stark negativ",
       "weakNone": "Schwach/keine",
       "comparisonsAlpha": "{count} Vergleiche, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} Tests, unkorrigiertes α = {alpha}"
+      "testsUncorrectedAlpha": "{count} Tests, unkorrigiertes α = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inferenz",
+        "inferenceDescription": "Multiplizitätsfamilien mit ihren adjustierten p-Werten, Äquivalenztests, minimal nachweisbaren Effekten und gemeinsamen Tests, so wie die Spezifikation sie festlegt.",
+        "noInference": "Dieser Lauf legt keine Familien, Äquivalenzgrenzen, Power-Einstellungen oder gemeinsamen Tests fest.",
+        "familyTitle": "Familie {family}: {method}, {size} Tests",
+        "contrast": "Kontrast",
+        "familyMde": "Minimal nachweisbarer Effekt der Familie: {value} (Power {power}, α {alpha})",
+        "mdeTitle": "Minimal nachweisbare Effekte",
+        "mde": "MDE",
+        "power": "Power",
+        "jointTitle": "Gemeinsame Tests (Wald)",
+        "test": "Test",
+        "fitTitle": "Modellanpassung"
+      }
     },
     "scoreDistribution": {
       "title": "Score-Verteilung",
@@ -6201,7 +6265,10 @@
       "tableChart": "Tabelle + Diagramm",
       "tableChartDescription": "Datentabelle mit Diagrammvisualisierung",
       "tableChartBestFor": "Kombinierte Daten- und Visualisierungsansicht",
-      "selectView": "Ansicht wählen"
+      "selectView": "Ansicht wählen",
+      "forestPlot": "Forest-Plot",
+      "forestPlotDescription": "Schätzungen mit Konfidenzintervallen",
+      "forestPlotBestFor": "Schätzungen und ihre Unsicherheit vergleichen"
     },
     "statistics": {
       "ci": "95%-Konfidenzintervalle",
@@ -6301,7 +6368,11 @@
         "range90d": "90T",
         "rangeAll": "Alle",
         "noDataForRange": "Keine Daten für den ausgewählten Zeitraum verfügbar"
-      }
+      },
+      "intervalAriaLabel": "Schätzungen mit Konfidenzintervallen: {series}",
+      "intervalLegend": "Schätzung mit {level}-Konfidenzintervall",
+      "pAdjustedShort": "p adj. {p}",
+      "series": "Reihe"
     },
     "fieldPair": {
       "label": "Feldpaare",
@@ -6350,6 +6421,40 @@
       "invalidPrompt": "Ungültiges Prompt-Format an Position {index}: {error}",
       "failed": "Datenupload fehlgeschlagen: {error}",
       "failedUnknown": "Datenupload fehlgeschlagen: unbekannter Fehler"
+    },
+    "annotatorAgreement": {
+      "title": "Übereinstimmung der Annotierenden",
+      "description": "Wie gut die Annotierenden bei Aufgaben übereinstimmen, die mindestens zwei von ihnen annotiert haben, je Feld.",
+      "summary": "{tasks} Aufgaben wurden von mindestens zwei Personen annotiert ({annotators} Annotierende).",
+      "controlMeta": "{type} · {tasks} Aufgaben · {annotators} Annotierende",
+      "types": {
+        "choices": "Auswahl",
+        "rating": "Bewertung",
+        "number": "Zahl",
+        "other": "Sonstiges"
+      },
+      "fleissKappa": "Fleiss-Kappa",
+      "cohensKappaMean": "Cohens Kappa (Mittel der Paare)",
+      "percentAgreement": "Alle stimmen überein",
+      "pearsonMean": "Pearson-r (Mittel der Paare)",
+      "meanAbsoluteDeviation": "Mittlere absolute Abweichung",
+      "bands": {
+        "poor": "schlecht (unter Zufall)",
+        "slight": "gering",
+        "fair": "ausreichend",
+        "moderate": "mittelmäßig",
+        "substantial": "beachtlich",
+        "almostPerfect": "fast vollständig"
+      },
+      "multiSelectNote": "Manche Annotationen haben mehrere Optionen gewählt: Zwei Annotationen stimmen nur überein, wenn sie dieselbe Auswahl getroffen haben.",
+      "pairs": "Paare von Annotierenden ({count})",
+      "pair": "Paar",
+      "sharedTasks": "Gemeinsame Aufgaben",
+      "cohensKappa": "Cohens Kappa",
+      "pearson": "Pearson-r",
+      "pairsTruncated": "Angezeigt werden die {shown} Paare mit den meisten gemeinsamen Aufgaben von {total}.",
+      "unsupported": "Nicht bewertet (kein vergleichbarer Wert, etwa Freitext oder Markierungen): {controls}.",
+      "methodNote": "Es zählen nur Aufgaben mit mindestens zwei Antworten im jeweiligen Feld. Kappa wird nach der Skala von Landis und Koch gelesen; Bewertungen werden als Kategorien verglichen (ungewichtetes Kappa). Für Cohens Kappa braucht ein Paar mindestens zwei gemeinsame Aufgaben."
     }
   },
   "about": {
@@ -6649,6 +6754,7 @@
       "metric": "Metrik",
       "predictionFields": "Vorhersagefelder",
       "referenceFields": "Referenzfelder",
+      "noReferenceNeeded": "Keine: diese Metrik liest nur die Vorhersage",
       "parameters": "Parameter"
     },
     "fields": {
@@ -6765,7 +6871,15 @@
       "temperatureRange": "Antwort-Zufälligkeit ({min} bis {max} bei diesem Anbieter)",
       "maxTokensRange": "Maximale Tokens für die Judge-Antwort ({min}-{max})",
       "promptTemplatePlaceholder": "Du bist ein juristischer Korrektor.\n\nFall: {{fall}}\nFrage: {{task}}\nReferenz: {{binary_solution}} / {{reasoning}}\n\nZu bewerten: {{answer}}\n\nAntworte als JSON mit den Feldern scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Ergebnisrichtigkeit"
+      "dimensionNamePlaceholder": "Ergebnisrichtigkeit",
+      "textPattern": {
+        "patternSet": "Muster-Set (JSON)",
+        "patternSetHelp": "Ein Muster-Set mit Name, Version und seinen Codes. In einem Muster fügt {{task.<path>}} einen Wert der Aufgabe ein. Das Referenzfeld wird nicht gelesen.",
+        "invalidJson": "Das Muster-Set ist kein gültiges JSON.",
+        "notASet": "Das Muster-Set braucht einen Namen, eine Version und mindestens einen Code.",
+        "code": "Code",
+        "selectCode": "Wähle den Code, der berichtet wird"
+      }
     },
     "placeholders": {
       "answerType": "Antworttyp auswählen...",
@@ -7422,6 +7536,7 @@
       "showSection": "Abschnitt anzeigen",
       "showDataCount": "Anzahl der Aufgaben anzeigen",
       "showParticipants": "Teilnehmende anzeigen",
+      "showAgreement": "Übereinstimmung der Annotierenden anzeigen",
       "showModels": "Modelle anzeigen",
       "presentation": "Darstellung der Evaluation",
       "primaryMetric": "Primäre Metrik",
@@ -7485,6 +7600,7 @@
       "participants": "Teilnehmende",
       "modelsEvaluated": "Evaluierte Modelle",
       "evaluations": "Bewertungen",
+      "analyses": "Analysen",
       "data": "Daten",
       "defaultDataText": "Der Datensatz umfasst {count} Aufgaben.",
       "annotations": "Abgaben",
@@ -7548,6 +7664,7 @@
     "tasks": "Aufgaben",
     "annotations": "Annotationen",
     "models": "Modelle evaluiert",
+    "analyses": "Analysen",
     "viewReport": "Bericht anzeigen",
     "comingSoon": "Berichte in Kürze verfügbar",
     "comingSoonDescription": "Die Berichtsfunktion wird derzeit entwickelt. Hier kannst du später veröffentlichte Evaluierungsergebnisse einsehen.",
@@ -9159,6 +9276,7 @@
       "nextTaskFailed": "Nächste Aufgabe konnte nicht geladen werden",
       "allTasksCompletedRestart": "Alle Aufgaben abgeschlossen! Beginne von vorne...",
       "imported": "{count} Aufgaben erfolgreich importiert",
+      "alreadyImported": "Diese Daten wurden bereits in das Projekt importiert. Es wurde nichts hinzugefügt.",
       "importFailed": "Daten konnten nicht importiert werden",
       "allTasksAnnotated": "Alle Aufgaben erfolgreich annotiert",
       "annotationSaved": "Annotation gespeichert",
@@ -9175,10 +9293,11 @@
   },
   "runs": {
     "title": "Läufe",
-    "subtitle": "Inventar einzelner Generierungs- und Evaluierungsläufe. Klicke eine Zeile an, um die Details des Laufs zu sehen.",
+    "subtitle": "Inventar einzelner Generierungs-, Evaluierungs- und Analyseläufe. Klicke eine Zeile an, um die Details des Laufs zu sehen.",
     "tabs": {
       "evaluation": "Evaluierungen",
-      "generation": "Generierungen"
+      "generation": "Generierungen",
+      "analysis": "Analysen"
     },
     "filterProject": "Projekt",
     "filterStatus": "Status",
@@ -9225,11 +9344,27 @@
       "runIndex": "Lauf #",
       "preview": "Antwort (Vorschau)",
       "response": "Antwort",
-      "prompt": "Verwendeter Prompt",
+      "prompt": "Prompt-Vorlagen",
       "linkedEvaluations": "Verknüpfte Evaluierungen",
       "metric": "Metrik",
       "scoredSamples": "Bewertete Samples",
-      "loadFailed": "Der Generierungs-Lauf konnte nicht geladen werden"
+      "loadFailed": "Der Generierungs-Lauf konnte nicht geladen werden",
+      "request": {
+        "title": "An das Modell gesendete Anfrage",
+        "help": "Genau das, was der Provider-Client gesendet hat, einschließlich aller Blöcke, die die Plattform an die Prompts angehängt hat.",
+        "none": "Keine Anfrage gespeichert (erzeugt, bevor sie gespeichert wurde).",
+        "model": "Modell-ID",
+        "workerCall": "Der Provider-Client hat keine Anfrage gemeldet; das ist der Aufruf des Generierungs-Workers.",
+        "roleSystem": "System",
+        "roleUser": "Nutzer",
+        "roleAssistant": "Assistent",
+        "responseFormat": "Antwortformat",
+        "parameters": "Anfrageparameter",
+        "retried": "Format-Nachfrage: {count} Anfragen gesendet",
+        "firstAnswer": "Erste Antwort",
+        "loading": "Lade die Anfrage…",
+        "loadFailed": "Die Anfrage konnte nicht geladen werden."
+      }
     }
   },
   "customModels": {
@@ -11307,6 +11442,8 @@
       "importing": "Importiere…",
       "importingFiles": "{count} Datei(en) werden importiert…",
       "importSuccess": "Cloud-Import abgeschlossen",
+      "importAllAlreadyImported": "Diese Dateien wurden bereits in dieses Projekt importiert. Es wurde nichts hinzugefügt.",
+      "importSomeAlreadyImported": "{count} Datei(en) wurden bereits in dieses Projekt importiert und übersprungen.",
       "importFailed": "Cloud-Import fehlgeschlagen",
       "importFailedWithReason": "Cloud-Import fehlgeschlagen: {reason}",
       "historyTitle": "Bisherige Cloud-Importe",
@@ -11318,7 +11455,8 @@
         "pending": "Wartet",
         "running": "Läuft",
         "completed": "Abgeschlossen",
-        "failed": "Fehlgeschlagen"
+        "failed": "Fehlgeschlagen",
+        "alreadyImported": "Bereits importiert"
       }
     }
   },
@@ -11799,6 +11937,180 @@
       "reglab": "Stanfords Lab für Regulierung, Evaluation und Governance unter Prof. Daniel E. Ho, Mitautor von CaseHOLD und LegalBench.",
       "hazyresearch": "Die Gruppe von Prof. Christopher Ré an der Stanford University, aus der LegalBench hervorgegangen ist.",
       "ethLawEcon": "Das Center for Law & Economics der ETH Zürich, unter anderem mit Prof. Elliott Ash, Mitautor von LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Wird geladen…",
+    "unavailable": {
+      "title": "Compliance ist nicht verfügbar",
+      "description": "Die Compliance-Funktionen sind in dieser Installation für dein Konto nicht eingeschaltet."
+    }
+  },
+  "analysis": {
+    "project": "Projekt",
+    "scope": {
+      "pooled": "Gepoolt"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Fehler",
+      "degenerate": "Keine Stichprobenvarianz",
+      "not_estimable": "Nicht schätzbar",
+      "negative_variance": "Negative Varianz"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Analyseläufe behandeln das Projekt als kontrolliertes Variantenexperiment: Jede Aufgabe ist eine Zelle eines Variantendesigns, und ein Lauf berechnet die Schätzgrößen seiner Spezifikation auf den Antworten, mit Konfidenzintervallen, Äquivalenztests und für Mehrfachtests adjustierten p-Werten.",
+      "newRun": "Neuer Analyselauf",
+      "newRunDescription": "Füge eine Analysespezifikation (JSON) ein. Prüfe sie zuerst, um jedes Problem zu sehen, das die Engine findet, und starte dann den Lauf.",
+      "empty": "Noch keine Analyseläufe.",
+      "forbidden": "Du kannst die Analyseläufe dieses Projekts nicht sehen.",
+      "loadFailed": "Die Analyseläufe konnten nicht geladen werden.",
+      "prefillFailed": "Die Spezifikation dieses Laufs konnte nicht geladen werden.",
+      "more": "Die neuesten {shown} von {total} Läufen.",
+      "col": {
+        "name": "Name",
+        "rows": "Zeilen im Frame",
+        "estimates": "Schätzungen",
+        "specHash": "Spec-Hash"
+      }
+    },
+    "newRun": {
+      "name": "Name (optional)",
+      "namePlaceholder": "Sonst der Name aus der Spezifikation",
+      "spec": "Analysespezifikation (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format: Spezifikation Version 1 (siehe die Dokumentation der Analyse-Engine). Die Engine ergänzt jede Inferenzkonvention und bildet daraus den Hash.",
+      "insertStarter": "Startspezifikation einfügen",
+      "defaultName": "Analyse",
+      "validate": "Prüfen",
+      "validating": "Wird geprüft…",
+      "start": "Lauf starten",
+      "starting": "Wird gestartet…",
+      "valid": "Die Spezifikation ist gültig (Spec-Hash {hash}).",
+      "invalid": "Die Spezifikation ist ungültig:",
+      "invalidJson": "Kein gültiges JSON: {error}",
+      "failed": "Der Lauf konnte nicht gestartet werden."
+    },
+    "run": {
+      "title": "Analyselauf",
+      "loading": "Wird geladen…",
+      "loadFailed": "Der Analyselauf konnte nicht geladen werden.",
+      "notFound": "Diesen Analyselauf gibt es nicht, oder du kannst ihn nicht sehen.",
+      "timeline": "Gestartet {created}, fertig {completed}",
+      "pending": "Der Lauf wartet in der Warteschlange. Die Seite aktualisiert sich, sobald er fertig ist.",
+      "running": "Der Lauf wird berechnet. Die Seite aktualisiert sich, sobald er fertig ist.",
+      "failed": "Der Lauf ist fehlgeschlagen.",
+      "warnings": "Warnungen ({count})",
+      "reuseSpec": "Neuer Lauf mit dieser Spezifikation",
+      "frameDownload": "Frame herunterladen (Parquet)",
+      "frameDownloading": "Download wird vorbereitet…",
+      "frameForbidden": "Zum Herunterladen des Frames brauchst du im Projekt die Rolle Org-Admin oder Contributor.",
+      "frameFailed": "Der Frame konnte nicht heruntergeladen werden."
+    },
+    "forest": {
+      "title": "Forest-Plot",
+      "description": "Ein Kontrast über seine Teilmengen: die Punktschätzung mit ihrem Konfidenzintervall. Mit Äquivalenzband zeigt der dicke Abschnitt das Intervall, das der Äquivalenztest verwendet.",
+      "contrast": "Kontrast",
+      "band": "Äquivalenzband",
+      "noBand": "Kein Band",
+      "bandLabel": "Äquivalenzgrenzen {bounds}",
+      "empty": "Dieser Lauf hat keine Schätzung zum Darstellen.",
+      "noEstimate": "keine Schätzung",
+      "ariaLabel": "Forest-Plot von {contrast}",
+      "legendInterval": "Schätzung mit {level}-Konfidenzintervall",
+      "legendInner": "{level}-Intervall des Äquivalenztests"
+    },
+    "estimates": {
+      "title": "Schätzungen",
+      "description": "Alle Schätzungen in der Reihenfolge der Spezifikation. p adj. ist der adjustierte p-Wert in der ersten Familie der Schätzung; öffne eine Zeile für alle Familien, Äquivalenztests und Konventionen.",
+      "loading": "Schätzungen werden geladen…",
+      "loadFailed": "Die Schätzungen konnten nicht geladen werden.",
+      "filterEstimand": "Schätzgröße",
+      "filterFamily": "Familie",
+      "all": "Alle",
+      "count": "{shown} von {total}",
+      "empty": "Keine Schätzung passt zum Filter.",
+      "details": "Details",
+      "estimand": "Schätzgröße",
+      "scope": "Teilmenge",
+      "estimate": "Schätzung",
+      "se": "SE",
+      "ci": "KI",
+      "family": "Familie",
+      "pAdjusted": "p adj.",
+      "equivalence": "Äquivalenz",
+      "equivalent": "Äquivalent",
+      "notEquivalent": "Nicht belegt",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "Cluster {clusters}",
+      "detail": {
+        "estimator": "Schätzer",
+        "outcome": "Zielgröße",
+        "kind": "Art des Kontrasts",
+        "statistic": "Teststatistik",
+        "df": "Freiheitsgrade",
+        "dfNormal": "normal",
+        "nullValue": "Nullwert",
+        "ciLevel": "Konfidenzniveau",
+        "kParams": "Parameter",
+        "mde": "MDE (Power {power})",
+        "tostTitle": "Äquivalenztests (TOST)",
+        "bounds": "Grenzen",
+        "tostInterval": "Intervall",
+        "familiesTitle": "Familien",
+        "method": "Verfahren",
+        "group": "Gruppe",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Konventionen"
+      },
+      "clustersHeader": "Cluster"
+    },
+    "provenance": {
+      "title": "Herkunft",
+      "description": "Was es braucht, um die Zahlen zu reproduzieren: derselbe Frame, dieselbe normalisierte Spezifikation und dieselbe Engine-Version ergeben dieselben Schätzungen.",
+      "specHash": "Spec-Hash",
+      "frameHash": "Frame-Hash",
+      "frameSha256": "SHA-256 der Frame-Datei",
+      "lockfile": "SHA-256 der Lockfile",
+      "frameSize": "Frame",
+      "frameRows": "{rows} Zeilen, {size}",
+      "engine": "Engine",
+      "engineVersions": "Engine {engine}, Spec-Format {spec}",
+      "libraries": "Bibliotheken",
+      "seed": "Seed",
+      "noSeed": "keiner",
+      "counts": "Zählungen",
+      "timings": "Laufzeiten",
+      "copy": "{what} kopieren",
+      "copied": "Kopiert"
+    },
+    "spec": {
+      "title": "Spezifikation",
+      "normalized": "Normalisiert",
+      "submitted": "Wie eingereicht",
+      "normalizedHint": "Mit allen ergänzten Konventionen; aus dieser Form wird der Spec-Hash berechnet.",
+      "submittedHint": "Genau so, wie der Lauf gestartet wurde.",
+      "copy": "Spezifikation kopieren"
+    },
+    "fits": {
+      "title": "Modellanpassungen",
+      "description": "Eine Anpassung je Schätzgröße und Teilmenge, so wie die Engine sie gerechnet hat.",
+      "empty": "Keine Anpassungen erfasst.",
+      "rows": "Zeilen",
+      "parameters": "Parameter",
+      "clusters": "Cluster",
+      "fixedEffects": "Stufen der festen Effekte",
+      "notes": "Hinweise",
+      "dropped": "entfernt: {columns}",
+      "missing": "Ausgelassen (fehlend)"
     }
   }
 }

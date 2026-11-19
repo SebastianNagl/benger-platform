@@ -8,7 +8,7 @@ test_dashboard_coverage.py for the same pattern and rationale.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -65,6 +65,16 @@ def _override_async_db(app, mock_db):
         yield mock_db
 
     app.dependency_overrides[get_async_db] = _override
+
+
+
+@pytest.fixture(autouse=True)
+def _overview_view():
+    """These tests drive the overview of the dashboard (teachers and admins);
+    the personal view of annotators is covered by
+    tests/integration/test_dashboard_personal_view.py."""
+    with patch("routers.dashboard.sees_overview_async", AsyncMock(return_value=True)):
+        yield
 
 
 class TestGetDashboardStats:

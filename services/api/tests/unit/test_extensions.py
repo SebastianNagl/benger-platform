@@ -165,7 +165,37 @@ class TestExtensionLoader:
         # sheet judges, dispatch_waiting_gradings).
         # 2.55 adds creation-wizard drafts (projects.is_wizard_draft,
         # project_wizard_drafts, project_listable, the draft key scope).
-        assert CORE_API_VERSION == "2.55"
+        # 2.56 adds the generation system key (system_profile,
+        # response_metadata.system) and the enable_thinking knob.
+        # 2.57 adds the compliance records (assessments, suite runs and
+        # findings, migration 145, shared compliance_records).
+        # 2.58 adds metadata.retryable on every provider's error response
+        # (base_service.classify_retryable).
+        # 2.59 adds variant designs (variant_designs, the derived task
+        # columns and their guards, meta.variant as a reserved key).
+        # 2.60 adds per-slot label configs (<Repeater>, label_config_repeater,
+        # task_data on the response parser and the schema generator).
+        # 2.61 adds the generation request record and answer-format options
+        # (request_capture, generation_fidelity, provider continuation).
+        # 2.62 adds the analysis engine (shared/analysis, analysis_runs,
+        # analysis_estimates, the analysis queue and routes).
+        # 2.63 adds import provenance and idempotent re-import
+        # (import_provenance, the import_jobs provenance columns).
+        # 2.64 adds the analysis results page and the compliance slots
+        # (ComplianceDashboard, AssessmentDetail, AnalysisRunFindings).
+        # 2.65 adds the analysis estimator extensions, slot and cross-project
+        # frames and lookup tables (analysis_lookup_tables, resolved_inputs).
+        # 2.66 adds codes (coder plugins via register_coders, text pattern
+        # sets, coding projects and code validations, the text_pattern metric).
+        # 2.67 adds analysis_count on projects, reports and the dashboard,
+        # the dashboard's corrected count keys and GET /api/runs?type=analysis.
+        # 2.68 adds inter-annotator agreement per control (the
+        # annotator-agreement route, the snapshot's annotator_agreement and
+        # show_agreement, section visibility applied on read).
+        # 2.69 moves analysis runs onto the evaluations page (result type,
+        # /evaluations/analysis/[runId], path helpers, interval rows) and
+        # renders AnalysisRunFindings in two hosts.
+        assert CORE_API_VERSION == "2.69"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

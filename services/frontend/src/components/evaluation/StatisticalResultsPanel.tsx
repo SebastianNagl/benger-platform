@@ -6,6 +6,10 @@
  * - Pairwise comparisons with significance indicators
  * - Effect size badges
  * - Correlation matrix heatmap
+ *
+ * For an analysis run (the Analyses result type) it shows the run's
+ * Inference block (families with adjusted p-values, equivalence tests,
+ * MDEs, joint tests) and its Fit block (warnings, per-fit summaries).
  */
 
 'use client'
@@ -14,12 +18,17 @@ import { Badge } from '@/components/shared/Badge'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
+import type { AnalysisEstimate, AnalysisRun } from '@/lib/api/analysis'
 import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
   InformationCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
+import {
+  AnalysisFitBlock,
+  AnalysisInferenceBlock,
+} from './statistics/AnalysisStatistics'
 
 interface MetricStatistics {
   mean: number
@@ -113,6 +122,11 @@ interface StatisticalResultsPanelProps {
   /** Selected statistical methods to display. If empty, shows all. */
   selectedStatistics?: StatisticalMethod[]
   className?: string
+  /** An analysis run and the estimates to show (replaces the metric view). */
+  analysis?: {
+    run: AnalysisRun
+    estimates: readonly AnalysisEstimate[]
+  } | null
 }
 
 const formatValue = (value: number, locale: string): string => {
@@ -165,6 +179,7 @@ export function StatisticalResultsPanel({
   showBonferroniInfo = true,
   selectedStatistics = [],
   className = '',
+  analysis = null,
 }: StatisticalResultsPanelProps) {
   const { t, locale } = useI18n()
 
@@ -200,6 +215,18 @@ export function StatisticalResultsPanel({
           <p className="mt-2 text-red-600 dark:text-red-400">{error}</p>
         </div>
       </Card>
+    )
+  }
+
+  if (analysis) {
+    return (
+      <div
+        className={`space-y-6 ${className}`}
+        data-testid="analysis-statistics"
+      >
+        <AnalysisInferenceBlock estimates={analysis.estimates} />
+        <AnalysisFitBlock run={analysis.run} />
+      </div>
     )
   }
 

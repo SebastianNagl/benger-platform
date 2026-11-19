@@ -58,6 +58,8 @@ PROJECT_PARAMS: Dict[str, str] = {
     "evaluation_id": "evaluation_run",
     "generation_id": "response_generation",
     "report_id": "report",
+    "analysis_run_id": "analysis_run",
+    "code_validation_id": "code_validation",
 }
 
 
@@ -247,6 +249,9 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             methods="POST",
             bind=("body:project_id",),
         ),
+        # -- compliance records (CORE 2.57) --------------------------------- #
+        # Keys reach compliance data through the overlay's /api/v1 routes.
+        never("/api/compliance/*", note="compliance records: browser sessions only"),
         # -- marketplace (vendor listings) ----------------------------------- #
         area("/api/marketplace*", ["projects:read"], ["projects:write"], neutral=True),
         # -- files ----------------------------------------------------------- #
@@ -260,6 +265,11 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # -- generation ------------------------------------------------------ #
         allow("/api/runs", "runs:read", methods="read", bind=("query:project_id",)),
         allow("/api/runs/generations/{generation_id}", "runs:read", methods="read"),
+        allow(
+            "/api/runs/generations/{generation_id}/trials/{trial_id}/request",
+            "runs:read",
+            methods="read",
+        ),
         allow("/api/generation/parse-metrics", "runs:read", methods="read"),
         allow("/api/generation/status/{generation_id}", "runs:read", methods="read"),
         area("/api/generation/{generation_id}*", ["runs:read"], ["runs:write"]),
@@ -297,6 +307,11 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
             "results:read",
             methods="POST",
         ),
+        allow(
+            "/api/evaluations/projects/{project_id}/annotator-agreement",
+            "annotations:read",
+            methods="read",
+        ),
         area(
             "/api/evaluations/human/*",
             ["annotations:read"],
@@ -313,6 +328,25 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/evaluations/projects/{project_id}/*", ["evaluations:read"], ["evaluations:run"]),
         allow("/api/evaluations/evaluation/status/{evaluation_id}", "evaluations:read", methods="read"),
         allow("/api/evaluations/stream/{evaluation_id}", "evaluations:read", methods="read"),
+        # -- analysis runs of variant experiments ---------------------------- #
+        allow("/api/analysis/engine", "results:read", methods="read", neutral=True),
+        allow("/api/analysis/specs/validate", "results:read", methods="POST", neutral=True),
+        allow(
+            "/api/analysis-runs/{analysis_run_id}/frame",
+            "exports:read",
+            "results:read",
+            REF,
+            methods="read",
+            note="the frame carries task data (gold) and parsed answers",
+        ),
+        allow("/api/analysis-runs/{analysis_run_id}*", "results:read", methods="read"),
+        # -- codes: coding projects and code validations --------------------- #
+        allow(
+            "/api/code-validations/{code_validation_id}",
+            "results:read",
+            methods="read",
+            note="per-task codes only with full read access to the task content",
+        ),
         # -- legacy data API (tasks.py) -------------------------------------- #
         allow("/api/data/export", "exports:read", REF, methods="POST"),
         allow("/api/data/", REF, methods="read"),
@@ -353,12 +387,26 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         # only (the handler requires it too), before the read rule below.
         allow("/api/projects/{project_id}/generations/reparse", "admin:platform", methods="POST"),
         allow("/api/projects/{project_id}/generations/*", "runs:read", methods="read"),
+        area("/api/projects/{project_id}/analysis-runs", ["results:read"], ["evaluations:run"]),
+        area("/api/projects/{project_id}/analysis-lookups*", ["results:read"], ["evaluations:run"]),
+        # A coding project copies answers into a new project.
+        area(
+            "/api/projects/{project_id}/coding-projects",
+            ["projects:read"],
+            ["projects:write", "tasks:write", REF],
+        ),
+        allow("/api/projects/{project_id}/coding", "projects:read", methods="read"),
+        area("/api/projects/{project_id}/code-validations", ["results:read"], ["evaluations:run"]),
         allow("/api/projects/{project_id}/cohort-leaderboard", "results:read", methods="read"),
         allow("/api/projects/{project_id}/completion-stats", "results:read", methods="read"),
         allow("/api/projects/{project_id}/grading-feedback/*", "results:read", methods="read"),
         area("/api/projects/{project_id}/report*", ["results:read"], ["projects:write"]),
         area("/api/projects/{project_id}/shares*", ["projects:read"], ["projects:write"]),
         area("/api/projects/{project_id}/task-rubrics*", [REF], ["tasks:write"]),
+        # A variant design tells which tasks are twins: reading it needs the
+        # reference scope, like the full task content. The check only reads.
+        allow("/api/projects/{project_id}/variant-designs/{key}/check", REF, methods="POST"),
+        area("/api/projects/{project_id}/variant-designs*", [REF], ["projects:write"]),
         area("/api/projects/{project_id}/srs/*", ["annotations:read"], ["annotations:write"]),
         allow(
             "/api/projects/{project_id}/questionnaire-responses",

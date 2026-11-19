@@ -50,6 +50,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
+import { analysisAPI } from '@/lib/api/analysis'
 import { apiClient } from '@/lib/api/client'
 import { isExamNotReadyError } from '@/lib/api/errors'
 import type {
@@ -58,6 +59,7 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
+import { MAX_GENERATION_RUNS_PER_TASK } from '@/lib/generationLimits'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
@@ -66,6 +68,7 @@ import {
   hasRecommendations,
 } from '@/lib/modelConstraints'
 import { projectIcon } from '@/lib/projectKind'
+import { evaluationsPath } from '@/lib/results/paths'
 import { logger } from '@/lib/utils/logger'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
@@ -397,8 +400,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     allow_external_paste: true,
     allow_solution_upload: true,
     // Handwritten uploads (extended slot): switch + model override
-    // (null = the organization's default)
-    handwriting_ocr_enabled: false,
+    // (null = the organization's default, else the platform default)
+    handwriting_ocr_enabled: true,
     handwriting_ocr_model: null as string | null,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
@@ -770,7 +773,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         allow_external_paste: currentProject.allow_external_paste !== false,
         allow_solution_upload: currentProject.allow_solution_upload !== false,
         handwriting_ocr_enabled:
-          currentProject.handwriting_ocr_enabled === true,
+          currentProject.handwriting_ocr_enabled !== false,
         handwriting_ocr_model: currentProject.handwriting_ocr_model ?? null,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
         questionnaire_enabled: currentProject.questionnaire_enabled || false,
@@ -902,6 +905,38 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         return true
     }
   }
+
+  // Analysis runs of variant experiments open in the evaluations page's
+  // Analyses view. The Evaluations quick action goes there directly when the
+  // project has analysis runs or variant designs but no metric configs.
+  // Only fetched for the viewers who may see the action.
+  const mayOpenEvaluations = accessTierKnown && canSeeQuickAction('evaluations')
+  const [analysisPresence, setAnalysisPresence] = useState<{
+    projectId: string
+    any: boolean
+  } | null>(null)
+  useEffect(() => {
+    if (!projectId || !mayOpenEvaluations) return
+    let cancelled = false
+    Promise.allSettled([
+      analysisAPI.listRuns(projectId, 1),
+      analysisAPI.listDesignKeys(projectId),
+    ]).then(([runs, designs]) => {
+      if (cancelled) return
+      const hasRuns =
+        runs.status === 'fulfilled' && (runs.value?.total ?? 0) > 0
+      const hasDesigns =
+        designs.status === 'fulfilled' && (designs.value?.length ?? 0) > 0
+      setAnalysisPresence({ projectId, any: hasRuns || hasDesigns })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, mayOpenEvaluations])
+  const opensAnalyses =
+    analysisPresence?.projectId === projectId &&
+    analysisPresence.any &&
+    evaluationConfigs.length === 0
 
   const handleStartLabeling = () => {
     if (projectId) {
@@ -1725,8 +1760,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="group flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                <div className="group flex min-w-0 flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 text-3xl font-bold tracking-tight break-words text-zinc-900 dark:text-white">
                     {canEditIcon() ? (
                       <button
                         type="button"
@@ -2430,7 +2465,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <Input
                             type="number"
                             min={1}
-                            max={25}
+                            max={MAX_GENERATION_RUNS_PER_TASK}
                             step={1}
                             value={genDefaultRunsPerTask ?? 1}
                             placeholder="1"
@@ -3092,10 +3127,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               {canSeeQuickAction('evaluations') && (
                 <Button
                   onClick={() =>
-                    router.push(`/evaluations?projectId=${projectId}`)
+                    router.push(
+                      evaluationsPath({
+                        projectId,
+                        type: opensAnalyses ? 'analysis' : 'metrics',
+                      }),
+                    )
                   }
                   variant="outline"
                   className="w-full"
+                  data-testid="project-evaluations"
                 >
                   {t('project.quickActions.evaluations')}
                 </Button>
@@ -3205,6 +3246,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dt>
                   <dd className="text-sm font-medium text-zinc-900 dark:text-white">
                     {currentProject.evaluation_count ?? 0}
+                  </dd>
+                </div>
+              )}
+              {(currentProject.analysis_count ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.analyses')}
+                  </dt>
+                  <dd
+                    className="text-sm font-medium text-zinc-900 dark:text-white"
+                    data-testid="project-statistics-analyses"
+                  >
+                    {currentProject.analysis_count}
                   </dd>
                 </div>
               )}

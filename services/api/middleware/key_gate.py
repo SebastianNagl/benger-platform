@@ -158,6 +158,14 @@ def _resolver_statement(kind: str, value: str):
         from report_models import ProjectReport
 
         return select(ProjectReport.project_id).where(ProjectReport.id == value)
+    if kind == "analysis_run":
+        from models import AnalysisRun
+
+        return select(AnalysisRun.project_id).where(AnalysisRun.id == value)
+    if kind == "code_validation":
+        from models import CodeValidation
+
+        return select(CodeValidation.project_id).where(CodeValidation.id == value)
     return _overlay_resolvers[kind](value)
 
 

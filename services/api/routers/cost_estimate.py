@@ -28,6 +28,7 @@ from routers.projects.helpers import (
     check_project_accessible_async,
 )
 from evaluation_planning import judge_call_counts, judge_runs, plan_evaluation
+from system_profile import thinking_flag
 from services.generation_planning import (
     NoPromptStructures,
     StructureKeysRequired,
@@ -261,15 +262,27 @@ def _resolve_max_tokens_for_model(
     return int(project_default)
 
 
-def _is_reasoning_model(llm_model_row: LLMModel) -> bool:
+def _is_reasoning_model(
+    llm_model_row: LLMModel, model_config: Optional[Dict[str, Any]] = None
+) -> bool:
     """A model is reasoning-tier if its catalog entry declares a
     reasoning-effort selector (default_config.reasoning_config) or a
     recommended reasoning_effort value. These are the cohorts whose
     output reliably approaches the configured max_tokens budget
     because hidden reasoning tokens are billed as output tokens.
+
+    A model whose knob is the ``enable_thinking`` switch is reasoning-tier
+    only while the run (``model_config``) or, without a run value, the
+    declared default turns thinking on.
     """
     dc = getattr(llm_model_row, "default_config", None) or {}
-    if isinstance(dc, dict) and dc.get("reasoning_config"):
+    rc = dc.get("reasoning_config") if isinstance(dc, dict) else None
+    if isinstance(rc, dict) and rc.get("parameter") == "enable_thinking":
+        value = (model_config or {}).get("enable_thinking")
+        if value is None:
+            value = rc.get("default")
+        return thinking_flag(value) is True
+    if rc:
         return True
     rp = getattr(llm_model_row, "recommended_parameters", None) or {}
     if isinstance(rp, dict):
@@ -550,7 +563,13 @@ def _compute_cost_estimate_impl(
             project_gen_config, model_id, project_default_max_tokens
         )
         llm_model_row = db.query(LLMModel).filter(LLMModel.id == model_id).first()
-        is_reasoning = bool(llm_model_row and _is_reasoning_model(llm_model_row))
+        model_run_config = (
+            ((project_gen_config or {}).get("selected_configuration") or {}).get("model_configs")
+            or {}
+        ).get(model_id) or {}
+        is_reasoning = bool(
+            llm_model_row and _is_reasoning_model(llm_model_row, model_run_config)
+        )
         if request.mode == "evaluation":
             # Judges emit a small structured score + reasoning, not the
             # full max_tokens budget — see _EVAL_OUTPUT_UTILIZATION.

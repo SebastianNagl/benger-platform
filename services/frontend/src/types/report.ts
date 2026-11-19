@@ -8,6 +8,8 @@
  * published benchmark report is stable and cheap to serve.
  */
 
+import type { AnnotatorAgreementSummary } from '@/lib/api/agreement'
+
 /** Metric scale families the viewer knows how to format. */
 export type ReportMetricScale = '0-1' | '0-100' | '0-18' | 'raw'
 
@@ -91,6 +93,8 @@ export interface ReportSnapshot {
     participant_count: number
     model_count: number
     evaluation_count: number
+    /** Completed analysis runs; absent in snapshots taken before CORE 2.67. */
+    analysis_count?: number
   }
   methods: ReportMethod[]
   configs: ReportConfigRef[]
@@ -104,6 +108,9 @@ export interface ReportSnapshot {
   distributions: ReportDistribution[]
   participants: Array<{ id: string; label: string; annotation_count: number }>
   models: ReportSubject[]
+  /** Inter-annotator agreement per control; null (or absent in snapshots
+   *  taken before it existed) when no task has two annotators. */
+  annotator_agreement?: AnnotatorAgreementSummary | null
 }
 
 /** Editor-controlled presentation settings, stored in content.sections.evaluation.charts_config. */

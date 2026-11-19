@@ -9,7 +9,7 @@
  */
 
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 // Mock React.use() to synchronously unwrap the params promise.
@@ -170,8 +170,12 @@ describe('GenerationRunDetailPage', () => {
     expect(screen.getByText('1/1')).toBeInTheDocument()
     // project title appears in subtitle and breadcrumb context
     expect(screen.getAllByText(/My Project/).length).toBeGreaterThan(0)
-    // status badge
-    expect(screen.getByTestId('badge')).toHaveTextContent('completed')
+    // status badge: translated label, coloured by status
+    expect(screen.getByTestId('badge')).toHaveTextContent('Abgeschlossen')
+    expect(screen.getByTestId('badge')).toHaveAttribute(
+      'data-variant',
+      'success',
+    )
   })
 
   it('shows run-failed count suffix when runs_failed > 0', async () => {
@@ -357,8 +361,9 @@ describe('GenerationRunDetailPage', () => {
     expect(screen.getByText('Hello world preview')).toBeInTheDocument()
     expect(screen.getByText('child failed')).toBeInTheDocument()
     // Two run-index cells rendered
-    expect(screen.getByText('0')).toBeInTheDocument()
-    expect(screen.getByText('1')).toBeInTheDocument()
+    const table = screen.getAllByRole('table')[0]
+    expect(within(table).getByText('0')).toBeInTheDocument()
+    expect(within(table).getByText('1')).toBeInTheDocument()
   })
 
   it('renders the single-run response preview (no per-trial table)', async () => {
@@ -435,7 +440,7 @@ describe('GenerationRunDetailPage', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/projects/project-9')
   })
 
-  it('renders the prompt-used block when present', async () => {
+  it('renders the prompt templates block when present', async () => {
     ;(apiClient.get as jest.Mock).mockResolvedValue({
       ...baseDetail,
       prompt_used: 'You are a helpful legal assistant.',
@@ -446,11 +451,248 @@ describe('GenerationRunDetailPage', () => {
       />,
     )
     await waitFor(() => {
-      expect(screen.getByText('Verwendeter Prompt')).toBeInTheDocument()
+      expect(screen.getByText('Prompt-Vorlagen')).toBeInTheDocument()
     })
     expect(
       screen.getByText('You are a helpful legal assistant.'),
     ).toBeInTheDocument()
+  })
+
+  /** apiClient.get answering the detail and the trial-request routes. */
+  const routeGet = (
+    detail: Record<string, unknown>,
+    trials: Record<string, unknown | Error>,
+  ) =>
+    (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      const match = url.match(/\/trials\/([^/]+)\/request$/)
+      if (!match) return Promise.resolve(detail)
+      const trial = trials[match[1]]
+      if (trial instanceof Error) return Promise.reject(trial)
+      return trial === undefined
+        ? new Promise(() => {})
+        : Promise.resolve(trial)
+    })
+
+  it('fetches and shows the request the provider client sent, block for block', async () => {
+    const record = {
+      capture: 'http_body',
+      model: 'acme/model-7b',
+      messages: [
+        { role: 'system', content: 'Du bist Schlichterin.' },
+        {
+          role: 'user',
+          content: 'Akte\n\n---\nIMPORTANT: Respond ONLY with valid JSON',
+        },
+      ],
+      response_format: { type: 'json_object' },
+      parameters: { temperature: 0.7 },
+      requests: [{}, {}],
+    }
+    routeGet(
+      {
+        ...baseDetail,
+        children: [
+          {
+            id: 'child-1',
+            run_index: 0,
+            status: 'completed',
+            has_response: true,
+            response_preview: '{"anteil": 30}',
+            has_request_record: true,
+            request_sha256: 'ab'.repeat(32),
+            retried: true,
+            first_response_preview: 'Erste Antwort ohne JSON',
+          },
+        ],
+      },
+      {
+        'child-1': {
+          id: 'child-1',
+          run_index: 0,
+          request_record: record,
+          request_sha256: 'ab'.repeat(32),
+        },
+      },
+    )
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    const sent = await screen.findByTestId('sent-request')
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/runs/generations/gen-run-123/trials/child-1/request',
+    )
+    expect(
+      screen.getByText('An das Modell gesendete Anfrage'),
+    ).toBeInTheDocument()
+    expect(within(sent).getByText('Du bist Schlichterin.')).toBeInTheDocument()
+    // The appended block is shown as part of the user message.
+    expect(
+      within(sent).getByText(/IMPORTANT: Respond ONLY with valid JSON/),
+    ).toBeInTheDocument()
+    expect(within(sent).getByText('acme/model-7b')).toBeInTheDocument()
+    expect(within(sent).getByText('ab'.repeat(32))).toBeInTheDocument()
+    expect(within(sent).getByText(/json_object/)).toBeInTheDocument()
+    expect(
+      within(sent).getByText('Format-Nachfrage: 2 Anfragen gesendet'),
+    ).toBeInTheDocument()
+    expect(
+      within(sent).getByText(/Erste Antwort ohne JSON/),
+    ).toBeInTheDocument()
+  })
+
+  it('fetches the selected trial only and marks worker calls', async () => {
+    const user = userEvent.setup()
+    routeGet(
+      {
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: false,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
+        ],
+      },
+      {
+        c1: {
+          id: 'c1',
+          run_index: 1,
+          request_record: {
+            capture: 'worker_call',
+            messages: [{ role: 'user', content: 'Zweiter Lauf' }],
+          },
+        },
+      },
+    )
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Keine Anfrage gespeichert (erzeugt, bevor sie gespeichert wurde).',
+        ),
+      ).toBeInTheDocument()
+    })
+    // A trial without a record is not fetched.
+    expect(apiClient.get).toHaveBeenCalledTimes(1)
+    await user.selectOptions(screen.getByTestId('request-run-select'), '1')
+    expect(await screen.findByText('Zweiter Lauf')).toBeInTheDocument()
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/runs/generations/gen-run-123/trials/c1/request',
+    )
+    expect(
+      screen.getByText(/Der Provider-Client hat keine Anfrage gemeldet/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a loading note while the trial request loads and the error when it fails', async () => {
+    const user = userEvent.setup()
+    routeGet(
+      {
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: true,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
+        ],
+      },
+      { c1: new Error('Zugriff verweigert') },
+    )
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    expect(await screen.findByText('Lade die Anfrage…')).toBeInTheDocument()
+    await user.selectOptions(screen.getByTestId('request-run-select'), '1')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Zugriff verweigert',
+    )
+    expect(screen.queryByTestId('sent-request')).not.toBeInTheDocument()
+  })
+
+  it('shows a trial that loads after an earlier failure, not the old error', async () => {
+    const user = userEvent.setup()
+    const record = {
+      capture: 'http_body',
+      messages: [{ role: 'user', content: 'Erster Lauf, zweiter Versuch' }],
+    }
+    let attempts = 0
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.endsWith('/trials/c0/request')) {
+        attempts += 1
+        return attempts === 1
+          ? Promise.reject(new Error('Zeitüberschreitung'))
+          : Promise.resolve({ id: 'c0', run_index: 0, request_record: record })
+      }
+      if (url.endsWith('/trials/c1/request')) {
+        return Promise.resolve({
+          id: 'c1',
+          run_index: 1,
+          request_record: {
+            messages: [{ role: 'user', content: 'Zweiter Lauf' }],
+          },
+        })
+      }
+      return Promise.resolve({
+        ...baseDetail,
+        runs_requested: 2,
+        children: [
+          {
+            id: 'c0',
+            run_index: 0,
+            has_response: true,
+            has_request_record: true,
+          },
+          {
+            id: 'c1',
+            run_index: 1,
+            has_response: true,
+            has_request_record: true,
+          },
+        ],
+      })
+    })
+    render(
+      <GenerationRunDetailPage
+        params={Promise.resolve({ id: 'gen-run-123' })}
+      />,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Zeitüberschreitung',
+    )
+    const select = screen.getByTestId('request-run-select')
+    await user.selectOptions(select, '1')
+    expect(await screen.findByText('Zweiter Lauf')).toBeInTheDocument()
+    await user.selectOptions(select, '0')
+    expect(
+      await screen.findByText('Erster Lauf, zweiter Versuch'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(attempts).toBe(2)
   })
 
   it('renders em-dash placeholders when optional fields are missing', async () => {

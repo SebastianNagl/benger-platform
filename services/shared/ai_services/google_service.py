@@ -15,7 +15,8 @@ from google import genai
 from google.genai import types
 
 from .attachments import google_contents
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, classify_retryable, continuation_turns, derive_truncated
+from .request_capture import record_request
 from .reasoning import google_thoughts
 from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
@@ -41,8 +42,11 @@ def retry_with_exponential_backoff(
                 except Exception as e:
                     error_str = str(e).lower()
                     is_rate_limit = "429" in error_str or "rate limit" in error_str or "quota" in error_str or "resource exhausted" in error_str
+                    # Back off only on what the shared classifier deems retryable:
+                    # an exhausted quota is a 429 that no wait fixes.
+                    backs_off = is_rate_limit and classify_retryable(e)
 
-                    if not is_rate_limit or retries >= max_retries:
+                    if not backs_off or retries >= max_retries:
                         raise
 
                     delay = min(
@@ -57,6 +61,29 @@ def retry_with_exponential_backoff(
         return wrapper
     return decorator
 
+
+
+def _conversation_contents(first: Any, turns: list) -> Any:
+    """``contents`` for generate_content: the first prompt as it is, or,
+    when the conversation continues, a list of role-tagged contents with the
+    assistant turns as Gemini's ``model`` role."""
+    if not turns:
+        return first
+    first_parts = first if isinstance(first, list) else [first]
+    contents = [
+        {
+            "role": "user",
+            "parts": [{"text": p} if isinstance(p, str) else p for p in first_parts],
+        }
+    ]
+    for turn in turns:
+        contents.append(
+            {
+                "role": "model" if turn["role"] == "assistant" else "user",
+                "parts": [{"text": turn["content"]}],
+            }
+        )
+    return contents
 
 
 def _thinking_config(thinking_budget: int) -> "types.ThinkingConfig":
@@ -231,14 +258,19 @@ class GoogleService(BaseAIService):
             logger.info(f"📤 Config: temperature={temperature}, max_tokens={max_tokens}, thinking_config={thinking_config}")
 
             # Make Google Gemini API call using new client-based approach
-            response = self.client.models.generate_content(
-                model=model_name,
-                contents=(
+            api_params = {
+                "model": model_name,
+                "contents": _conversation_contents(
                     google_contents(prompt, kwargs["attachments"])
-                    if kwargs.get("attachments") else prompt
+                    if kwargs.get("attachments") else prompt,
+                    continuation_turns(kwargs),
                 ),
-                config=config,
+                "config": config,
+            }
+            record_request(
+                "Google", "google.generate_content", api_params, capture="sdk_kwargs"
             )
+            response = self.client.models.generate_content(**api_params)
 
             end_time = datetime.now()
             response_time_ms = int(
@@ -363,6 +395,9 @@ class GoogleService(BaseAIService):
                         # content_filter; otherwise treat as api_error so
                         # downstream filters can spot it.
                         "error_type": "content_filter" if refusal else "api_error",
+                        # A safety block repeats on the same prompt; an
+                        # empty answer without one is a capacity hiccup.
+                        "retryable": not refusal,
                         "seed": None,
                         "created_at": end_time.isoformat(),
                         **self.get_invocation_provenance(),
@@ -527,11 +562,17 @@ class GoogleService(BaseAIService):
                 thinking_config=thinking_config,
             )
 
-            response = self.client.models.generate_content(
-                model=model_name,
-                contents=enhanced_prompt,
-                config=config,
+            api_params = {
+                "model": model_name,
+                "contents": _conversation_contents(
+                    enhanced_prompt, continuation_turns(kwargs)
+                ),
+                "config": config,
+            }
+            record_request(
+                "Google", "google.generate_content", api_params, capture="sdk_kwargs"
             )
+            response = self.client.models.generate_content(**api_params)
 
             end_time = datetime.now()
             response_time_ms = int(

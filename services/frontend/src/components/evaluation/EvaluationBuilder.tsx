@@ -69,6 +69,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DimensionsEditor } from './DimensionsEditor'
 import { FieldMappingEditor } from './FieldMappingEditor'
 import { PromptTemplateEditor } from './PromptTemplateEditor'
+import { TextPatternEditor, textPatternReady } from './TextPatternEditor'
 import { JudgeEnsembleControl } from './builder/JudgeEnsembleControl'
 import { MetricStep } from './builder/MetricStep'
 import { PredictionFieldsStep } from './builder/PredictionFieldsStep'
@@ -92,6 +93,14 @@ interface EvaluationBuilderProps {
 
 type WizardStep =
   'metric' | 'prediction_fields' | 'reference_fields' | 'parameters' | 'review'
+
+const WIZARD_STEPS: WizardStep[] = [
+  'metric',
+  'prediction_fields',
+  'reference_fields',
+  'parameters',
+  'review',
+]
 
 interface NewEvaluationState {
   metric: string
@@ -346,12 +355,14 @@ export function EvaluationBuilder({
       addToast(t('evaluationBuilder.validation.selectPrediction'), 'error')
       return
     }
-    if (newEvaluation.reference_fields.length === 0) {
+    const metricDef = getMetricDefinitions()[newEvaluation.metric]
+    if (
+      !metricDef?.reference_free &&
+      newEvaluation.reference_fields.length === 0
+    ) {
       addToast(t('evaluationBuilder.validation.selectReference'), 'error')
       return
     }
-
-    const metricDef = getMetricDefinitions()[newEvaluation.metric]
     // The judge picker shows DEFAULT_MODEL_ID when no model was chosen, so the
     // saved config names it too. A judge config without a model used to be
     // graded by a different model than the one on screen.
@@ -374,7 +385,9 @@ export function EvaluationBuilder({
         ),
       metric_parameters: metricParameters,
       prediction_fields: newEvaluation.prediction_fields,
-      reference_fields: newEvaluation.reference_fields,
+      reference_fields: metricDef?.reference_free
+        ? []
+        : newEvaluation.reference_fields,
       enabled: true,
       created_at: new Date().toISOString(),
     }
@@ -619,6 +632,9 @@ export function EvaluationBuilder({
       case 'reference_fields':
         return newEvaluation.reference_fields.length > 0
       case 'parameters':
+        if (newEvaluation.metric === 'text_pattern') {
+          return textPatternReady(newEvaluation.metric_parameters)
+        }
         // Classic LLM Judge: require at least one dimension
         if (newEvaluation.metric === 'llm_judge_classic') {
           const dimensions = newEvaluation.metric_parameters.dimensions || []
@@ -651,63 +667,35 @@ export function EvaluationBuilder({
     }
   }
 
-  const getStepNumber = (step: WizardStep): number => {
-    const steps: WizardStep[] = [
-      'metric',
-      'prediction_fields',
-      'reference_fields',
-      'parameters',
-      'review',
-    ]
-    return steps.indexOf(step) + 1
+  const getStepNumber = (step: WizardStep): number =>
+    WIZARD_STEPS.indexOf(step) + 1
+
+  // A reference-free metric has no reference step, a metric without
+  // parameters no parameters step.
+  const stepIsSkipped = (step: WizardStep): boolean => {
+    const metricDef = getMetricDefinitions()[newEvaluation.metric]
+    if (step === 'reference_fields') return !!metricDef?.reference_free
+    if (step === 'parameters') return !metricDef?.supports_parameters
+    return false
+  }
+
+  const stepAfter = (direction: 1 | -1): WizardStep | null => {
+    let index = WIZARD_STEPS.indexOf(currentStep) + direction
+    while (index >= 0 && index < WIZARD_STEPS.length) {
+      if (!stepIsSkipped(WIZARD_STEPS[index])) return WIZARD_STEPS[index]
+      index += direction
+    }
+    return null
   }
 
   const goToNextStep = () => {
-    const steps: WizardStep[] = [
-      'metric',
-      'prediction_fields',
-      'reference_fields',
-      'parameters',
-      'review',
-    ]
-    const currentIndex = steps.indexOf(currentStep)
-
-    // Skip parameters step if metric doesn't support parameters
-    if (currentStep === 'reference_fields') {
-      const metricDef = getMetricDefinitions()[newEvaluation.metric]
-      if (!metricDef?.supports_parameters) {
-        setCurrentStep('review')
-        return
-      }
-    }
-
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1])
-    }
+    const next = stepAfter(1)
+    if (next) setCurrentStep(next)
   }
 
   const goToPreviousStep = () => {
-    const steps: WizardStep[] = [
-      'metric',
-      'prediction_fields',
-      'reference_fields',
-      'parameters',
-      'review',
-    ]
-    const currentIndex = steps.indexOf(currentStep)
-
-    // Skip parameters step if metric doesn't support parameters
-    if (currentStep === 'review') {
-      const metricDef = getMetricDefinitions()[newEvaluation.metric]
-      if (!metricDef?.supports_parameters) {
-        setCurrentStep('reference_fields')
-        return
-      }
-    }
-
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1])
-    }
+    const previous = stepAfter(-1)
+    if (previous) setCurrentStep(previous)
   }
 
   const renderWizardStep = () => {
@@ -1691,6 +1679,19 @@ export function EvaluationBuilder({
                   />
                 </div>
               </div>
+            ) : newEvaluation.metric === 'text_pattern' ? (
+              <TextPatternEditor
+                parameters={newEvaluation.metric_parameters}
+                onChange={(patch) =>
+                  setNewEvaluation((prev) => ({
+                    ...prev,
+                    metric_parameters: {
+                      ...prev.metric_parameters,
+                      ...patch,
+                    },
+                  }))
+                }
+              />
             ) : newEvaluation.metric === 'factcc' ? (
               <div>
                 <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -1948,7 +1949,10 @@ export function EvaluationBuilder({
                         <span className="font-medium">
                           {t('evaluationBuilder.list.references')}
                         </span>{' '}
-                        {(evaluation.reference_fields ?? []).join(', ')}
+                        {getMetricDefinitions()[evaluation.metric]
+                          ?.reference_free
+                          ? t('evaluationBuilder.review.noReferenceNeeded')
+                          : (evaluation.reference_fields ?? []).join(', ')}
                       </div>
                       {evaluation.metric_parameters &&
                         Object.keys(evaluation.metric_parameters).length >

@@ -81,6 +81,7 @@ from routers.projects.helpers import (  # noqa: E402
     require_org_key_own_organization,
 )
 
+from import_provenance import validate_declared_manifest  # noqa: E402
 from services.usage_limits import enforce_upload_url_limit  # noqa: E402
 from storage.upload_policy import IMPORT_UPLOAD_MAX_BYTES, import_content_type  # noqa: E402
 from schemas.import_schemas import (  # noqa: E402
@@ -482,6 +483,9 @@ def _serialize_import_job(job: ImportJob) -> dict:
         "error_status": error_status,
         "error_code": error_code,
         "result": job.result,
+        "payload_sha256": job.payload_sha256,
+        "source_manifest": job.source_manifest,
+        "duplicate_of_job_id": job.duplicate_of_job_id,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
         "expires_at": job.expires_at.isoformat() if job.expires_at else None,
@@ -567,6 +571,19 @@ def _validated_model_id_map(raw) -> Dict[str, str]:
         return normalize_model_id_map(raw)
     except ImportValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+
+def _declared_manifest(raw) -> Optional[Dict[str, Any]]:
+    """The job's initial ``source_manifest`` holding the caller's declared
+    manifest (the worker adds the rest), or None; 400 for an invalid one."""
+    try:
+        declared = validate_declared_manifest(raw)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "invalid_source_manifest", "message": str(exc)},
+        )
+    return None if declared is None else {"declared": declared}
 
 
 @router.post("/{project_id}/imports/upload-url")
@@ -678,6 +695,7 @@ async def create_import_job(
         )
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
+    source_manifest = _declared_manifest(data.source_manifest)
     task_kwargs = {}
     if mode == "merge":
         task_kwargs["mode"] = "merge"
@@ -685,12 +703,15 @@ async def create_import_job(
             task_kwargs["model_id_map"] = model_id_map
         if data.dry_run:
             task_kwargs["dry_run"] = True
+    if data.reimport:
+        task_kwargs["reimport"] = True
 
     job = ImportJob(
         id=str(uuid.uuid4()),
         project_id=project_id,
         requested_by=current_user.id,
         object_key=object_key,
+        source_manifest=source_manifest,
         status=JobStatus.PENDING.value,
         progress=0,
     )
@@ -816,7 +837,9 @@ async def create_cloud_import_jobs(
 ):
     """Create one import job per selected object in an org storage connection.
 
-    Body: ``{"connection_id": "...", "object_keys": ["...", ...]}``. Gates:
+    Body: ``{"connection_id": "...", "object_keys": ["...", ...],
+    "reimport": optional}``. A file whose payload this project already
+    imported completes as a no-op unless ``reimport`` is true. Gates:
     write access to the project AND active membership in the connection's org.
     Every key must live under the connection's configured prefix (the same jail
     the browse endpoint enforces) and carry an allowed data-file extension.
@@ -869,6 +892,10 @@ async def create_cloud_import_jobs(
             detail=f"At most {_CLOUD_IMPORT_MAX_KEYS} files per cloud import",
         )
 
+    reimport = data.get("reimport", False)
+    if not isinstance(reimport, bool):
+        raise HTTPException(status_code=400, detail="reimport must be a boolean")
+
     jail = conn.prefix or ""
     formats: Dict[str, str] = {}
     for key in object_keys:
@@ -908,7 +935,11 @@ async def create_cloud_import_jobs(
         for job in jobs:
             # Stays on `bulk`: the object lives in the org's own bucket, so its
             # size would cost a round-trip with that connection's credentials.
-            result = send_task_safe("tasks.import_project", args=[job.id])
+            result = send_task_safe(
+                "tasks.import_project",
+                args=[job.id],
+                **({"kwargs": {"reimport": True}} if reimport else {}),
+            )
             job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:
@@ -1179,6 +1210,7 @@ async def create_full_import_job(
 
     model_id_map = _validated_model_id_map(data.model_id_map)
     await _check_model_id_map_targets(db, model_id_map)
+    source_manifest = _declared_manifest(data.source_manifest)
 
     require_org_key_own_organization(request, data.organization_id)
     organization_id, organization_group_id = await _resolve_import_target_org(
@@ -1195,6 +1227,7 @@ async def create_full_import_job(
         object_key=object_key,
         organization_id=organization_id,
         organization_group_id=organization_group_id,
+        source_manifest=source_manifest,
         status=JobStatus.PENDING.value,
         progress=0,
     )
@@ -1202,13 +1235,18 @@ async def create_full_import_job(
     await db.commit()
     await db.refresh(job)
 
+    task_kwargs = {}
+    if model_id_map:
+        task_kwargs["model_id_map"] = model_id_map
+    if data.reimport:
+        task_kwargs["reimport"] = True
     try:
-        # The map travels with the task message (a redelivery keeps it), so
-        # the job table needs no column for this one-off import option.
+        # The options travel with the task message (a redelivery keeps them),
+        # so the job table needs no column for these one-off import options.
         result = send_task_safe(
             "tasks.import_project",
             args=[job.id],
-            **({"kwargs": {"model_id_map": model_id_map}} if model_id_map else {}),
+            **({"kwargs": task_kwargs} if task_kwargs else {}),
             queue=await _import_queue(object_key),
         )
         job.celery_task_id = getattr(result, "id", None)

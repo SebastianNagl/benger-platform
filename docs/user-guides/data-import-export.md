@@ -142,6 +142,10 @@ Standard data files (CSV, JSON, TXT, etc.) are processed normally:
 - Automatic format detection
 - Standard import validation
 
+### Variant experiments
+
+Projects that run variant experiments (counterfactual and robustness tests) keep each task's place in the experiment in `meta.variant` and the experiment itself as a variant design. Exports carry the designs with the tasks, every import checks each task's `meta.variant` against its design, and a CSV file may hold the assignment as JSON in a column named `meta.variant`. See [Variant Designs](variant-designs.md).
+
 ## Use Cases
 
 ### Data Migration

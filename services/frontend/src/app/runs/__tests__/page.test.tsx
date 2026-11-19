@@ -8,7 +8,9 @@
  *  - Switching tabs writes type= to the URL
  *  - Status filter resets pagination + appends ?status=
  *  - Project filter writes ?project_id= to the URL
- *  - Clicking a row routes to /evaluations/{id} or /generations/{id}
+ *  - Clicking a row routes to /evaluations/{id}, /generations/{id} or the
+ *    analysis run page
+ *  - The analysis tab lists name, frame rows, estimates and spec hash
  *  - Empty / error state renders the proper message
  */
 import '@testing-library/jest-dom'
@@ -77,6 +79,21 @@ const genRun = {
   runs_requested: 3,
   runs_completed: 3,
   runs_failed: 0,
+}
+
+const analysisRun = {
+  id: 'an-1',
+  type: 'analysis' as const,
+  project_id: 'p2',
+  project_title: 'Benchathon',
+  status: 'completed',
+  created_at: '2026-05-06T08:00:00Z',
+  completed_at: '2026-05-06T08:00:30Z',
+  name: 'synthetic contrast',
+  frame_rows: 480,
+  estimates_count: 12,
+  spec_hash: 'abcdef0123456789abcdef',
+  engine_version: '1.0.0',
 }
 
 beforeEach(() => {
@@ -249,6 +266,81 @@ describe('RunsPage', () => {
     render(<RunsPage />)
     await waitFor(() =>
       expect(screen.getByText('unreachable')).toBeInTheDocument(),
+    )
+  })
+
+  it('lists analysis runs on the analysis tab and opens their run page', async () => {
+    mockSearchParams = new URLSearchParams(
+      'type=analysis&project_id=p2&status=completed',
+    )
+    mockGet.mockResolvedValueOnce({
+      items: [analysisRun],
+      total: 1,
+      page: 1,
+      page_size: 25,
+    })
+    render(<RunsPage />)
+    const name = await screen.findByText('synthetic contrast')
+    const url: string = mockGet.mock.calls[0][0]
+    expect(url).toContain('type=analysis')
+    expect(url).toContain('project_id=p2')
+    expect(url).toContain('status=completed')
+    expect(screen.getByTestId('runs-tab-analysis')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByText('Analysen')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'Name' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('analysis.list.col.name')).toBeNull()
+    expect(screen.getByText('480')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByTitle('abcdef0123456789abcdef')).toHaveTextContent(
+      'abcdef012345',
+    )
+
+    fireEvent.click(name.closest('tr')!)
+    expect(mockPush).toHaveBeenCalledWith('/evaluations/analysis/an-1')
+  })
+
+  it('switches to the analysis tab and pages through its runs', async () => {
+    mockGet.mockResolvedValue({
+      items: [analysisRun],
+      total: 30,
+      page: 1,
+      page_size: 25,
+    })
+    render(<RunsPage />)
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByTestId('runs-tab-analysis'))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2))
+    expect(mockGet.mock.calls[1][0]).toContain('type=analysis')
+    expect(mockReplace).toHaveBeenCalledWith(
+      expect.stringContaining('type=analysis'),
+      expect.any(Object),
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Weiter' }))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(3))
+    expect(mockGet.mock.calls[2][0]).toContain('page=2')
+  })
+
+  it('writes the status filter to the URL and ignores an unknown type', async () => {
+    mockSearchParams = new URLSearchParams('type=bogus')
+    mockGet.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+    render(<RunsPage />)
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1))
+    expect(mockGet.mock.calls[0][0]).toContain('type=evaluation')
+
+    const statusSelect = screen.getAllByRole('combobox')[1]
+    fireEvent.change(statusSelect, { target: { value: 'running' } })
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(
+        expect.stringContaining('status=running'),
+        expect.any(Object),
+      ),
     )
   })
 })

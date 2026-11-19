@@ -298,8 +298,34 @@ def _schema(_eager_celery):
             # names the column.
             "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
             "is_wizard_draft BOOLEAN NOT NULL DEFAULT false",
+            # Migration 142: the task columns derived from meta.variant; every
+            # Task select names them (create_all builds variant_designs, and a
+            # fresh tasks table with its trigger and index).
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS variant_design VARCHAR(100)",
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS variant_unit TEXT",
+            "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS variant_cell JSONB",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_variant_cell ON tasks "
+            "(project_id, variant_design, variant_unit, variant_cell) "
+            "WHERE variant_design IS NOT NULL",
+            # Migration 147: import provenance; every ImportJob select names
+            # the columns (the self-referencing key only matters for deletes).
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS payload_sha256 VARCHAR(64)",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS source_manifest JSONB",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64)",
+            "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS duplicate_of_job_id VARCHAR",
         ):
             conn.execute(text(_ddl))
+        # Migration 142: the trigger that derives the variant columns and
+        # guards frozen designs (idempotent; a fresh tasks table has it).
+        from project_models import TASKS_VARIANT_FUNCTION
+
+        conn.execute(text(TASKS_VARIANT_FUNCTION))
+        if not conn.execute(
+            text("SELECT 1 FROM pg_trigger WHERE tgname = 'trg_tasks_variant_sync'")
+        ).scalar():
+            from project_models import TASKS_VARIANT_TRIGGER
+
+            conn.execute(text(TASKS_VARIANT_TRIGGER))
         # Migration 138: the task_evaluation_metric_keys mirror. create_all
         # builds the table and (metadata listener) its triggers; rows of a
         # long-lived database that predate the triggers are filled here.

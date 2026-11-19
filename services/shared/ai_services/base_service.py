@@ -2,10 +2,13 @@
 Base AI Service class with common functionality for all AI service integrations.
 """
 
+import asyncio
 import logging
+import re
+import socket
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +105,23 @@ def classify_error_type(exc: BaseException) -> str:
     return "api_error"
 
 
+def continuation_turns(kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Conversation turns a caller asks to send after the first user prompt.
+
+    ``generate(..., continuation=[{"role": "assistant", "content": ...},
+    {"role": "user", "content": ...}])`` continues the conversation of the
+    system prompt and the user prompt, which is how a format retry re-asks in
+    the same conversation. Only ``user`` and ``assistant`` turns are kept;
+    each provider maps the roles onto its own message format.
+    """
+    turns = kwargs.get("continuation") or []
+    return [
+        {"role": turn["role"], "content": turn.get("content") or ""}
+        for turn in turns
+        if isinstance(turn, dict) and turn.get("role") in ("user", "assistant")
+    ]
+
+
 class RetryableUpstreamError(Exception):
     """Transient upstream failure (HTTP 429/5xx). The async retry decorator
     backs off and re-attempts these; other exceptions fail fast."""
@@ -109,6 +129,176 @@ class RetryableUpstreamError(Exception):
     def __init__(self, message: str, status: Optional[int] = None):
         super().__init__(message)
         self.status = status
+
+
+def _is_dns_resolution_error(exc: BaseException) -> bool:
+    """True when ``exc`` is a failed host lookup: aiohttp's
+    ClientConnectorDNSError, or any error whose ``os_error`` or cause chain
+    holds a ``socket.gaierror`` (the OpenAI-style SDKs raise their connection
+    error ``from`` the httpx error, so the chain reaches the gaierror)."""
+    try:
+        import aiohttp as _aiohttp
+
+        if isinstance(exc, _aiohttp.ClientConnectorDNSError):
+            return True
+    except ImportError:  # pragma: no cover
+        pass
+    seen = set()
+    current: Optional[BaseException] = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, socket.gaierror):
+            return True
+        if isinstance(getattr(current, "os_error", None), socket.gaierror):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def is_transient_upstream_error(exc: BaseException) -> bool:
+    """Transient errors worth re-attempting: typed 429/5xx raises from our
+    HTTP paths, timeouts, and connection-layer failures. Everything else
+    (auth, other 4xx, SSRF-guard rejections, bugs) fails fast.
+
+    A host that does not resolve fails fast too: it is almost always a
+    misconfigured endpoint, and backing off five times only delays the
+    failure by minutes. The caller's own job-level retry still covers a
+    resolver that was briefly down.
+
+    This is the rule the DeepInfra / Custom endpoint retry decorator backs
+    off on, with :func:`classify_retryable` as a veto. That classifier
+    builds the uniform ``metadata.retryable`` flag of every provider on top
+    of it."""
+    if isinstance(exc, RetryableUpstreamError):
+        return True
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return True
+    if _is_dns_resolution_error(exc):
+        return False
+    try:
+        # Import the REAL aiohttp here: tests replace the DeepInfra module's
+        # ``aiohttp`` binding with a fake, which isinstance() can't take.
+        import aiohttp as _aiohttp
+
+        if isinstance(exc, _aiohttp.ClientConnectionError):
+            return True
+    except ImportError:  # pragma: no cover
+        pass
+    # Legacy substring fallback (untyped raise sites, foreign callers).
+    msg = str(exc).lower()
+    return "429" in msg or "rate limit" in msg or "too many requests" in msg
+
+
+# Error codes that mark an exhausted quota or billing limit. The provider
+# answers them with HTTP 429 like a plain rate limit, but waiting does not
+# help: the account has to be topped up or its limit raised. OpenAI names it
+# in the error code, and so do the OpenAI-compatible APIs behind DeepInfra and
+# custom endpoints, whose error text keeps the response body. Anthropic and
+# Cohere answer billing problems with a 4xx other than 429, which is
+# non-retryable anyway. Google's RESOURCE_EXHAUSTED and Mistral's 429 carry no
+# such code, and Grok's client drops the body, so there an exhausted quota
+# cannot be told from a per-minute limit and stays retryable.
+EXHAUSTED_QUOTA_MARKERS = ("insufficient_quota", "billing_hard_limit_reached")
+
+# Statuses the official SDKs themselves retry: request timeout, conflict
+# (lock contention) and rate limit; every 5xx is retryable as well.
+RETRYABLE_HTTP_STATUSES = frozenset({408, 409, 429})
+
+# Error types in the body of an Anthropic error event that a later attempt
+# can get past. A stream that already opened with HTTP 200 reports a mid-stream
+# failure only through this type, so the status says nothing about it.
+RETRYABLE_PROVIDER_ERROR_TYPES = frozenset(
+    {"overloaded_error", "api_error", "rate_limit_error", "timeout_error"}
+)
+
+_HTTP_STATUS_PREFIX = re.compile(r"\s*HTTP (\d{3})\b")
+
+
+def _is_error_status(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and 400 <= value <= 599
+
+
+def _http_status(exc: BaseException) -> Optional[int]:
+    """The HTTP error status an SDK or our own HTTP path attached to
+    ``exc``: ``status_code`` (OpenAI, Anthropic, Mistral, Cohere, Grok),
+    ``code`` (google.genai), ``status`` (RetryableUpstreamError, aiohttp),
+    or the ``HTTP <status>:`` prefix of the plain errors the DeepInfra /
+    Custom paths raise. Only 4xx and 5xx count: None when the error carries
+    no such status, as an SDK error raised mid-stream from a 200 response."""
+    for attr in ("status_code", "code", "status"):
+        value = getattr(exc, attr, None)
+        if _is_error_status(value):
+            return value
+    match = _HTTP_STATUS_PREFIX.match(str(exc))
+    if match and _is_error_status(int(match.group(1))):
+        return int(match.group(1))
+    return None
+
+
+def _provider_error_type(exc: BaseException) -> Optional[str]:
+    """The ``error.type`` of an Anthropic-style error body
+    (``{"type": "error", "error": {"type": ...}}``), or None."""
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    error_type = error.get("type") if isinstance(error, dict) else None
+    return error_type if isinstance(error_type, str) else None
+
+
+def _is_exhausted_quota(exc: BaseException) -> bool:
+    parts = [str(exc), str(getattr(exc, "code", "") or ""), str(getattr(exc, "body", "") or "")]
+    text = " ".join(parts).lower()
+    return any(marker in text for marker in EXHAUSTED_QUOTA_MARKERS)
+
+
+def classify_retryable(exc: BaseException) -> bool:
+    """Whether trying the same call again can succeed: the uniform
+    ``metadata.retryable`` flag on every provider's error response.
+
+    The rules, first match wins:
+
+    * exhausted quota or billing limit (:data:`EXHAUSTED_QUOTA_MARKERS`)
+      -> False, even though the provider sends it as HTTP 429;
+    * a host that does not resolve -> False (misconfigured endpoint);
+    * an HTTP error status -> True for 408, 409, 429 and 5xx, False for
+      every other 4xx (invalid or missing key, unknown model 404, bad
+      request, content filter, context length);
+    * no error status, but an error body whose ``error.type`` is in
+      :data:`RETRYABLE_PROVIDER_ERROR_TYPES` -> True (an Anthropic stream
+      that fails after HTTP 200, e.g. a mid-stream ``overloaded_error``);
+    * a timeout, a connection failure, a dropped HTTP stream (httpx
+      ``NetworkError`` such as ``ReadError``, or ``RemoteProtocolError``,
+      raised raw when a stream breaks after HTTP 200) or a
+      :class:`RetryableUpstreamError` -> True;
+    * no status: the :func:`classify_error_type` class decides, True for
+      ``rate_limit``, ``timeout`` and ``parse_error`` (a fresh sample can
+      return valid JSON), False for the rest.
+
+    Everything else fails fast, including a missing API key (the services
+    raise a plain ValueError), the url_guard rejection of an unreachable or
+    private host (``url_guard.UNREACHABLE_HOST_MESSAGE``) and our own bugs.
+
+    Every provider's retry decorator consults it too: the decorator backs
+    off only on an error that both its own rule matches and this function
+    deems retryable, so an exhausted quota fails on the first attempt.
+    """
+    if _is_exhausted_quota(exc):
+        return False
+    if _is_dns_resolution_error(exc):
+        return False
+    status = _http_status(exc)
+    if status is not None:
+        return status in RETRYABLE_HTTP_STATUSES or status >= 500
+    if _provider_error_type(exc) in RETRYABLE_PROVIDER_ERROR_TYPES:
+        return True
+    if is_transient_upstream_error(exc):
+        return True
+    names = [cls.__name__.lower() for cls in type(exc).__mro__]
+    if any(
+        "timeout" in n or "connection" in n or n in ("networkerror", "remoteprotocolerror")
+        for n in names
+    ):
+        return True
+    return classify_error_type(exc) in ("rate_limit", "timeout", "parse_error")
 
 
 class BaseAIService(ABC):
@@ -308,6 +498,10 @@ class BaseAIService(ABC):
         # the four standard fields so downstream persistence sees a
         # consistent shape on success and failure.
         response["metadata"]["error_type"] = error_type
+        # Whether the same call can succeed when tried again (see
+        # classify_retryable). Callers that repeat a failed generation read
+        # this flag instead of guessing from error_type or the message.
+        response["metadata"]["retryable"] = classify_retryable(error)
         response["metadata"]["finish_reason"] = None
         response["metadata"]["truncated"] = False
         response["metadata"]["refusal"] = False

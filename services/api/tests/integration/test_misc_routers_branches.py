@@ -55,6 +55,9 @@ from models import (
     EvaluationRun,
     EvaluationType,
     Generation,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
     ResponseGeneration,
     User,
 )
@@ -275,17 +278,28 @@ class TestDashboardStats:
     async def test_no_accessible_projects_all_zero(
         self, async_test_client, async_test_db
     ):
-        """A non-superadmin in private context with no own private projects
-        has an empty accessible set → the all-zeros short-circuit."""
-        annotator = await _make_owner(async_test_db, is_superadmin=False)
+        """A teacher (CONTRIBUTOR of an organization without projects) with
+        no own private projects has an empty accessible set → the all-zeros
+        short-circuit."""
+        teacher = await _make_owner(async_test_db, is_superadmin=False)
+        org = Organization(
+            id=_uid(), name=f"o-{_uid()[:8]}", display_name="Leer", slug=f"o-{_uid()[:8]}"
+        )
+        async_test_db.add(org)
+        await async_test_db.flush()
+        async_test_db.add(OrganizationMembership(
+            id=_uid(), user_id=teacher.id, organization_id=org.id,
+            role=OrganizationRole.CONTRIBUTOR, is_active=True,
+        ))
         await async_test_db.commit()
 
-        with _as_user(annotator):
+        with _as_user(teacher):
             resp = await async_test_client.get(
                 "/api/dashboard/stats",
             )
         assert resp.status_code == 200
         stats = resp.json()
+        assert stats["scope"] == "overview"
         assert stats["project_count"] == 0
         assert stats["task_count"] == 0
         assert stats["annotation_count"] == 0

@@ -30,7 +30,7 @@ from report_service import (
     create_or_update_report_from_existing_data,
     get_report_statistics_batch,
 )
-from report_snapshot import build_report_snapshot
+from report_snapshot import apply_section_visibility, build_report_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,8 @@ class AnnotationsSection(ReportSection):
     custom_text: Optional[str] = None
     show_count: bool = True
     show_participants: bool = True
+    # Inter-annotator agreement from the snapshot, when tasks overlap.
+    show_agreement: bool = True
     acknowledgment_text: Optional[str] = None
 
 
@@ -149,6 +151,8 @@ class PublishedReportListItem(BaseModel):
     task_count: int
     annotation_count: int
     model_count: int
+    # Completed analysis runs (as of the snapshot when it records them).
+    analysis_count: int = 0
     organizations: List[Dict[str, str]]
     is_public: bool = False
     # 'public' (anyone) or 'organizations' (members of the project's orgs)
@@ -162,6 +166,22 @@ class ReportDataResponse(BaseModel):
     snapshot: Optional[Dict[str, Any]] = None
 
 
+def _served_content(report: ProjectReport) -> Dict[str, Any]:
+    """The stored content as its sections allow it to be served: with
+    participants hidden, no participant list and no per-person snapshot data
+    (see ``apply_section_visibility``). The stored copy stays complete."""
+    content = report.content if isinstance(report.content, dict) else {}
+    sections = content.get("sections") or {}
+    annotations = sections.get("annotations") or {}
+    if annotations.get("show_participants") is False and "participants" in annotations:
+        sections = {**sections, "annotations": {**annotations, "participants": []}}
+    return {
+        **content,
+        "sections": sections,
+        "snapshot": apply_section_visibility(content.get("snapshot"), sections),
+    }
+
+
 def _report_response(
     report: ProjectReport, project_title: str, can_publish: bool, reason: str
 ) -> "ReportResponse":
@@ -169,7 +189,7 @@ def _report_response(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
-        content=ReportContent(**report.content),
+        content=ReportContent(**_served_content(report)),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
         published_at=report.published_at,
@@ -396,11 +416,15 @@ async def update_project_report(
         )
 
     # Update content. The editor round-trips prose and presentation settings;
-    # the computed snapshot is server-owned and survives a body that omits it.
+    # the computed snapshot and participant list are server-owned, so the
+    # stored ones are kept.
     new_content = update_request.content.model_dump()
     existing = report.content if isinstance(report.content, dict) else {}
-    if new_content.get("snapshot") is None and existing.get("snapshot"):
-        new_content["snapshot"] = existing["snapshot"]
+    new_content["snapshot"] = existing.get("snapshot")
+    existing_annotations = (existing.get("sections") or {}).get("annotations") or {}
+    new_annotations = (new_content.get("sections") or {}).get("annotations")
+    if isinstance(new_annotations, dict) and "participants" in existing_annotations:
+        new_annotations["participants"] = existing_annotations["participants"]
     report.content = new_content
     report.updated_at = datetime.utcnow()
 
@@ -685,7 +709,13 @@ async def list_published_reports(
     for report in reports:
         stats = dict(stats_map.get(
             report.project_id,
-            {"task_count": 0, "annotation_count": 0, "participant_count": 0, "model_count": 0},
+            {
+                "task_count": 0,
+                "annotation_count": 0,
+                "participant_count": 0,
+                "model_count": 0,
+                "analysis_count": 0,
+            },
         ))
         # A published report shows its frozen snapshot, so the card must count
         # the same way (hidden private models excluded, numbers as of the
@@ -694,7 +724,9 @@ async def list_published_reports(
         snapshot = content.get("snapshot") if isinstance(content.get("snapshot"), dict) else None
         if snapshot:
             snap_stats = snapshot.get("statistics") or {}
-            for key in ("task_count", "annotation_count", "model_count"):
+            # A snapshot from before analyses were counted has no
+            # analysis_count; the card then shows the live count.
+            for key in ("task_count", "annotation_count", "model_count", "analysis_count"):
                 if isinstance(snap_stats.get(key), int):
                     stats[key] = snap_stats[key]
         result.append(
@@ -706,6 +738,7 @@ async def list_published_reports(
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
+                analysis_count=stats["analysis_count"],
                 organizations=orgs_by_project.get(report.project_id, []),
                 is_public=bool(report.is_public),
                 visibility="public" if report.is_public else "organizations",
@@ -757,8 +790,7 @@ async def get_report_data(
         await check_report_access(db, report.project_id, current_user, require_edit=False)
 
     content = report.content if isinstance(report.content, dict) else {}
-    snapshot = content.get("snapshot")
-    if snapshot is None and is_superadmin:
+    if content.get("snapshot") is None and is_superadmin:
         # Draft preview: compute once and keep it so the editor sees stable numbers.
         snapshot = await db.run_sync(_build_snapshot_sync, report.project_id)
         report.content = {**content, "snapshot": snapshot}
@@ -771,7 +803,5 @@ async def get_report_data(
         else (report.is_published, "published")
     )
 
-    return ReportDataResponse(
-        report=_report_response(report, report.project.title, can_publish, reason),
-        snapshot=snapshot,
-    )
+    response = _report_response(report, report.project.title, can_publish, reason)
+    return ReportDataResponse(report=response, snapshot=response.content.snapshot)

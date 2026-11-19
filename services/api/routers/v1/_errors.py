@@ -15,13 +15,13 @@ handlers delegate to FastAPI's defaults, so the internal API keeps its
 
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import (
     http_exception_handler as fastapi_http_exception_handler,
-    request_validation_exception_handler as fastapi_validation_exception_handler,
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
@@ -156,10 +156,27 @@ async def v1_http_exception_handler(request: Request, exc: StarletteHTTPExceptio
     )
 
 
+def _json_safe(value: Any) -> Any:
+    """``value`` with non-finite floats replaced by their names (``"inf"``,
+    ``"-inf"``, ``"nan"``): a request body may carry ``Infinity`` or ``NaN``
+    (Python's JSON parser accepts them), and the error that echoes such an
+    input could not be rendered as JSON otherwise (500 instead of 422)."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 async def v1_validation_exception_handler(request: Request, exc: RequestValidationError):
     if not is_v1_request(request):
-        return await fastapi_validation_exception_handler(request, exc)
-    errors = jsonable_encoder(exc.errors())
+        return JSONResponse(
+            status_code=422,
+            content={"detail": _json_safe(jsonable_encoder(exc.errors()))},
+        )
+    errors = _json_safe(jsonable_encoder(exc.errors()))
     for err in errors:
         # Echoing the submitted input back is noise and may carry secrets.
         if isinstance(err, dict):

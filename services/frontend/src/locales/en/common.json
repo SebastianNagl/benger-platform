@@ -31,7 +31,8 @@
     "mobile": {
       "toggleNavigation": "Toggle navigation"
     },
-    "billing": "Plan & billing"
+    "billing": "Plan & billing",
+    "compliance": "Compliance"
   },
   "header": {
     "expandSidebar": "Expand sidebar",
@@ -96,6 +97,7 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Manage your annotation projects and track progress",
+    "subtitlePersonal": "Your open exams and tasks, your answers and results at a glance",
     "totalQuestions": "Total Questions",
     "recentDocuments": "Recent Tasks",
     "viewAll": "View All",
@@ -106,6 +108,11 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
+      "openExams": "Open exams",
+      "openTasks": "Open tasks",
+      "submittedAnswers": "Submitted answers",
+      "releasedResults": "Released results",
       "unavailable": "Unavailable",
       "unavailableShort": "n/a"
     },
@@ -676,6 +683,7 @@
       "import": "Import Data",
       "export": "Export Data",
       "importSuccess": "Data imported successfully",
+      "importAlreadyImported": "This file was already imported into this project on {date}. Nothing was added.",
       "importFailed": "Failed to import data",
       "importLinkedExamSingleTask": "This exam is linked as a whole to a learning platform activity, so it holds exactly one task. Bind the activity to the exam's task first, then you can import further tasks.",
       "exportSuccess": "Data exported successfully",
@@ -725,6 +733,7 @@
       "importStats": " - {tasks} tasks, {annotations} annotations, {generations} generations, {evaluations} evaluation runs, {rows} evaluated rows",
       "importSkippedAnnotations": "{count} answers were not imported: their authors are unknown here and were mapped to your account, which can hold only one active answer per task. Create the users with the same email address before importing.",
       "importSuccess": "Successfully imported \"{title}\"{stats} ({time}s)",
+      "importAlreadyImported": "This file was already imported as \"{title}\" on {date}. No new project was created; the existing one opens.",
       "importFailed": "Failed to import project",
       "invalidJsonFormat": "Invalid JSON format in file",
       "unsupportedFileFormat": "Unsupported file format version",
@@ -748,6 +757,8 @@
       "attemptedBadge": "Past submission",
       "archivedBadge": "Archived",
       "wizardDraftBadge": "Wizard draft",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analysis",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
@@ -1021,6 +1032,8 @@
       "submit": "Merge",
       "running": "Merging...",
       "success": "Results merged",
+      "alreadyMerged": "These results were already merged into this project on {date}. Nothing was added.",
+      "alreadyMergedToast": "These results were already merged. Nothing was added.",
       "failed": "The merge failed",
       "taskMismatch": "The tasks in this file are not this project's tasks, so nothing was imported. Merge a file exported from this project or from a copy of it, or import it as a new project.",
       "summaryAdded": "Matched {tasks} tasks and added {generations} generations, {evaluations} evaluation runs and {rows} evaluated rows.",
@@ -1180,7 +1193,7 @@
       "description": "Description (Optional)",
       "descriptionPlaceholder": "Describe what this structure is used for...",
       "structureConfiguration": "Structure Configuration",
-      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt",
+      "structureConfigHelp": "Define system_prompt, instruction_prompt, and optionally evaluation_prompt. Answer format: append_schema_instruction (true/false), structured_output (auto/off), and optionally format_retry, answer_schema and refusal_heuristic",
       "cancel": "Cancel",
       "saving": "Saving...",
       "createStructure": "Create Structure",
@@ -1191,7 +1204,18 @@
       "delete": "Delete",
       "loadingStructures": "Loading prompt structures...",
       "onlyCreatorCanManage": "Only the project creator can manage prompt structures",
-      "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts."
+      "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts.",
+      "format": {
+        "instructionAppended": "Appends answer fields to the prompt",
+        "instructionNotAppended": "Prompt sent as written",
+        "structuredAuto": "Structured output: auto",
+        "structuredOff": "Structured output: off",
+        "retry": "Format retry",
+        "answerKeys": "Answer keys from task data",
+        "refusalHeuristic": "Refusal heuristic",
+        "appendedText": "Appended to the instruction prompt",
+        "retryMessage": "Format retry message"
+      }
     },
     "prompts": {
       "title": "Prompts",
@@ -1324,7 +1348,7 @@
       "runsTitle": "Multi-Run",
       "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
       "defaultRunsPerTask": "Default runs per task",
-      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 25."
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 100."
     },
     "settings": {
       "title": "Settings",
@@ -1520,6 +1544,7 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Falllösung grades",
       "correctionsGradesBreakdown": "↳ Grades by graders",
@@ -5469,7 +5494,16 @@
         "selected": "selected",
         "noResults": "(no results)",
         "notRun": "(not run)",
-        "tasks": "tasks"
+        "tasks": "tasks",
+        "searchProjects": "Search projects",
+        "noProjectsFound": "No projects found.",
+        "moreProjects": "Show more ({shown} of {total})",
+        "run": "Run",
+        "runOption": "{name} ({status})",
+        "systems": "Systems",
+        "estimands": "Estimands",
+        "family": "Family",
+        "allFamilies": "All families"
       },
       "params": {
         "configure": "Configure",
@@ -5514,7 +5548,9 @@
           "heatmapNeedsModels": "Requires 2+ models",
           "boxNeedsSampleAggregation": "Select \"Per Sample\" analysis level for box plots",
           "boxComputingScores": "Computing sample scores...",
-          "boxNoSampleData": "No sample data available for this project"
+          "boxNoSampleData": "No sample data available for this project",
+          "forestNeedsModelAggregation": "The forest plot needs the Model analysis level",
+          "forestNoStatistics": "No per-model statistics available yet"
         }
       },
       "results": {
@@ -5561,6 +5597,16 @@
         "mode": "Evaluation Mode",
         "evaluateMissingOnly": "Evaluate Missing/Failed Only",
         "evaluateMissingDescription": "Only evaluates generations that haven't been evaluated yet or had evaluation errors"
+      },
+      "resultType": {
+        "label": "Result",
+        "metrics": "Metrics",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Start analysis",
+        "runDetails": "Run details",
+        "engine": "Engine"
       }
     },
     "export": {
@@ -5773,7 +5819,8 @@
         "spanSequence": "Span/Sequence Labeling",
         "hierarchical": "Hierarchical Metrics",
         "llmJudge": "LLM-as-Judge",
-        "humanEvaluation": "Human grading"
+        "humanEvaluation": "Human grading",
+        "codes": "Codes"
       },
       "categoryDesc": {
         "lexical": "String and surface-level matching",
@@ -5789,7 +5836,8 @@
         "hierarchical": "For hierarchical classifications",
         "llmJudge": "AI model-based evaluation (requires API key)",
         "llmJudgeModel": "AI model-based evaluation with a judge model",
-        "humanEvaluation": "Grading by human graders"
+        "humanEvaluation": "Grading by human graders",
+        "codes": "Codes read off the answer by a versioned rule set"
       },
       "metricName": {
         "bleu": "BLEU",
@@ -5808,7 +5856,8 @@
         "recall": "Recall",
         "f1": "F1 Score",
         "llmJudgeClassic": "Classic LLM Judge",
-        "llmJudgeCustom": "Custom LLM Judge"
+        "llmJudgeCustom": "Custom LLM Judge",
+        "text_pattern": "Text pattern code"
       },
       "metricDesc": {
         "exactMatch": "Exact string matching",
@@ -5855,7 +5904,8 @@
         "llmJudgeLexam": "LEXam benchmark correctness judge (0.0–1.0 against the reference answer), adapted from Swiss to German law.",
         "korrekturClassic": "Free comments, highlights and labels on annotations, generations and evaluations.",
         "korrekturFalloesung": "Manual grading with the 10-dimension scheme of the standard Falllösung (identical to the LLM judge).",
-        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge)."
+        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge).",
+        "text_pattern": "Codes the answer with a versioned set of regular expressions"
       }
     },
     "sampleResults": {
@@ -6054,7 +6104,21 @@
       "strongNegative": "Strong negative",
       "weakNone": "Weak/none",
       "comparisonsAlpha": "{count} comparisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inference",
+        "inferenceDescription": "Multiplicity families with their adjusted p-values, equivalence tests, minimum detectable effects and joint tests, as the spec declares them.",
+        "noInference": "This run declares no families, equivalence bounds, power settings or joint tests.",
+        "familyTitle": "Family {family}: {method}, {size} tests",
+        "contrast": "Contrast",
+        "familyMde": "Minimum detectable effect of the family: {value} (power {power}, α {alpha})",
+        "mdeTitle": "Minimum detectable effects",
+        "mde": "MDE",
+        "power": "Power",
+        "jointTitle": "Joint tests (Wald)",
+        "test": "Test",
+        "fitTitle": "Fit"
+      }
     },
     "scoreDistribution": {
       "title": "Score Distribution",
@@ -6201,7 +6265,10 @@
       "tableChart": "Table + Chart",
       "tableChartDescription": "Data table with chart visualization",
       "tableChartBestFor": "Combined data and visualization view",
-      "selectView": "Select View"
+      "selectView": "Select View",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimates with confidence intervals",
+      "forestPlotBestFor": "Comparing estimates and their uncertainty"
     },
     "statistics": {
       "ci": "95% Confidence Intervals",
@@ -6301,7 +6368,11 @@
         "range90d": "90D",
         "rangeAll": "All",
         "noDataForRange": "No data available for selected date range"
-      }
+      },
+      "intervalAriaLabel": "Estimates with confidence intervals: {series}",
+      "intervalLegend": "Estimate with {level} confidence interval",
+      "pAdjustedShort": "p adj. {p}",
+      "series": "Series"
     },
     "fieldPair": {
       "label": "Field Pairs",
@@ -6350,6 +6421,40 @@
       "invalidPrompt": "Invalid prompt format at index {index}: {error}",
       "failed": "Data upload failed: {error}",
       "failedUnknown": "Data upload failed: unknown error"
+    },
+    "annotatorAgreement": {
+      "title": "Annotator agreement",
+      "description": "How closely annotators agree on tasks that two or more of them annotated, per control.",
+      "summary": "{tasks} tasks were annotated by two or more people ({annotators} annotators).",
+      "controlMeta": "{type} · {tasks} tasks · {annotators} annotators",
+      "types": {
+        "choices": "Choices",
+        "rating": "Rating",
+        "number": "Number",
+        "other": "Other"
+      },
+      "fleissKappa": "Fleiss' kappa",
+      "cohensKappaMean": "Cohen's kappa (mean of pairs)",
+      "percentAgreement": "All annotators agree",
+      "pearsonMean": "Pearson's r (mean of pairs)",
+      "meanAbsoluteDeviation": "Mean absolute deviation",
+      "bands": {
+        "poor": "poor (below chance)",
+        "slight": "slight",
+        "fair": "fair",
+        "moderate": "moderate",
+        "substantial": "substantial",
+        "almostPerfect": "almost perfect"
+      },
+      "multiSelectNote": "Some annotations picked several options: two annotations agree only when they picked the same set.",
+      "pairs": "Annotator pairs ({count})",
+      "pair": "Pair",
+      "sharedTasks": "Shared tasks",
+      "cohensKappa": "Cohen's kappa",
+      "pearson": "Pearson's r",
+      "pairsTruncated": "Showing the {shown} pairs with the most shared tasks of {total}.",
+      "unsupported": "Not scored (no comparable value, such as free text or spans): {controls}.",
+      "methodNote": "Only tasks with two or more answers for a control count. Kappa is read on the Landis and Koch scale; ratings are compared as categories (unweighted kappa). Pairs need at least two shared tasks for Cohen's kappa."
     }
   },
   "about": {
@@ -6649,6 +6754,7 @@
       "metric": "Metric",
       "predictionFields": "Prediction Fields",
       "referenceFields": "Reference Fields",
+      "noReferenceNeeded": "None: this metric reads only the prediction",
       "parameters": "Parameters"
     },
     "fields": {
@@ -6765,7 +6871,15 @@
       "temperatureRange": "Response randomness ({min} - {max} for this provider)",
       "maxTokensRange": "Maximum tokens for judge response ({min}-{max})",
       "promptTemplatePlaceholder": "You are a legal grader.\n\nCase: {{fall}}\nQuestion: {{task}}\nReference: {{binary_solution}} / {{reasoning}}\n\nTo grade: {{answer}}\n\nAnswer as JSON with the fields scores, total_score, overall_assessment.",
-      "dimensionNamePlaceholder": "Result correctness"
+      "dimensionNamePlaceholder": "Result correctness",
+      "textPattern": {
+        "patternSet": "Pattern set (JSON)",
+        "patternSetHelp": "A pattern set with a name, a version and its codes. In a pattern, {{task.<path>}} inserts a value of the task. The reference field is not read.",
+        "invalidJson": "The pattern set is not valid JSON.",
+        "notASet": "The pattern set needs a name, a version and at least one code.",
+        "code": "Code",
+        "selectCode": "Choose the code to report"
+      }
     },
     "placeholders": {
       "answerType": "Select answer type...",
@@ -7422,6 +7536,7 @@
       "showSection": "Show section",
       "showDataCount": "Show task count",
       "showParticipants": "Show participants",
+      "showAgreement": "Show annotator agreement",
       "showModels": "Show models",
       "presentation": "Evaluation presentation",
       "primaryMetric": "Primary metric",
@@ -7485,6 +7600,7 @@
       "participants": "Participants",
       "modelsEvaluated": "Models evaluated",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "data": "Data",
       "defaultDataText": "The dataset comprises {count} tasks.",
       "annotations": "Submissions",
@@ -7548,6 +7664,7 @@
     "tasks": "tasks",
     "annotations": "annotations",
     "models": "models evaluated",
+    "analyses": "analyses",
     "viewReport": "View Report",
     "comingSoon": "Reports Coming Soon",
     "comingSoonDescription": "The reports feature is currently being developed. You will be able to view published evaluation results here.",
@@ -9159,6 +9276,7 @@
       "nextTaskFailed": "Failed to get next task",
       "allTasksCompletedRestart": "All tasks completed! Starting over from the beginning...",
       "imported": "Imported {count} tasks successfully",
+      "alreadyImported": "This data was already imported into the project. Nothing was added.",
       "importFailed": "Failed to import data",
       "allTasksAnnotated": "All tasks successfully annotated",
       "annotationSaved": "Annotation saved",
@@ -9175,10 +9293,11 @@
   },
   "runs": {
     "title": "Runs",
-    "subtitle": "Inventory of individual generation and evaluation runs. Click a row to see the run's detail.",
+    "subtitle": "Inventory of individual generation, evaluation and analysis runs. Click a row to see the run's detail.",
     "tabs": {
       "evaluation": "Evaluations",
-      "generation": "Generations"
+      "generation": "Generations",
+      "analysis": "Analyses"
     },
     "filterProject": "Project",
     "filterStatus": "Status",
@@ -9225,11 +9344,27 @@
       "runIndex": "Run #",
       "preview": "Response (preview)",
       "response": "Response",
-      "prompt": "Prompt used",
+      "prompt": "Prompt templates",
       "linkedEvaluations": "Linked evaluations",
       "metric": "Metric",
       "scoredSamples": "Samples scored",
-      "loadFailed": "Failed to load generation run"
+      "loadFailed": "Failed to load generation run",
+      "request": {
+        "title": "Request sent to the model",
+        "help": "Exactly what the provider client sent, including every block the platform added to the prompts.",
+        "none": "No request record (generated before it was recorded).",
+        "model": "Model id",
+        "workerCall": "The provider client reported no request; this is the call the generation worker made.",
+        "roleSystem": "System",
+        "roleUser": "User",
+        "roleAssistant": "Assistant",
+        "responseFormat": "Response format",
+        "parameters": "Request parameters",
+        "retried": "Format retry: {count} requests sent",
+        "firstAnswer": "First answer",
+        "loading": "Loading the request…",
+        "loadFailed": "The request could not be loaded."
+      }
     }
   },
   "customModels": {
@@ -11307,6 +11442,8 @@
       "importing": "Importing…",
       "importingFiles": "Importing {count} file(s)…",
       "importSuccess": "Cloud import completed",
+      "importAllAlreadyImported": "These files were already imported into this project. Nothing was added.",
+      "importSomeAlreadyImported": "{count} file(s) had already been imported into this project and were skipped.",
       "importFailed": "Cloud import failed",
       "importFailedWithReason": "Cloud import failed: {reason}",
       "historyTitle": "Previous cloud imports",
@@ -11318,7 +11455,8 @@
         "pending": "Pending",
         "running": "Running",
         "completed": "Completed",
-        "failed": "Failed"
+        "failed": "Failed",
+        "alreadyImported": "Already imported"
       }
     }
   },
@@ -11799,6 +11937,180 @@
       "reglab": "Stanford's Regulation, Evaluation, and Governance Lab led by Prof. Daniel E. Ho, a co-author of CaseHOLD and LegalBench.",
       "hazyresearch": "Prof. Christopher Ré's group at Stanford University, where LegalBench originated.",
       "ethLawEcon": "The Center for Law & Economics at ETH Zurich, with Prof. Elliott Ash among others, a co-author of LEXam."
+    }
+  },
+  "compliance": {
+    "loading": "Loading…",
+    "unavailable": {
+      "title": "Compliance is not available",
+      "description": "The compliance features are not switched on for your account in this installation."
+    }
+  },
+  "analysis": {
+    "project": "Project",
+    "scope": {
+      "pooled": "Pooled"
+    },
+    "estimateStatus": {
+      "ok": "OK",
+      "error": "Error",
+      "degenerate": "No sampling variance",
+      "not_estimable": "Not estimable",
+      "negative_variance": "Negative variance"
+    },
+    "methods": {
+      "holm": "Holm",
+      "bonferroni": "Bonferroni",
+      "bh": "Benjamini-Hochberg"
+    },
+    "list": {
+      "subtitle": "Analysis runs treat the project as a controlled variant experiment: every task is one cell of a variant design, and a run computes the estimands of its spec on the answers, with confidence intervals, equivalence tests and multiplicity-adjusted p-values.",
+      "newRun": "New analysis run",
+      "newRunDescription": "Paste an analysis spec (JSON). Validate it first to see every problem the engine finds, then start the run.",
+      "empty": "No analysis runs yet.",
+      "forbidden": "You cannot see the analysis runs of this project.",
+      "loadFailed": "The analysis runs could not be loaded.",
+      "prefillFailed": "The spec of that run could not be loaded.",
+      "more": "Showing the newest {shown} of {total} runs.",
+      "col": {
+        "name": "Name",
+        "rows": "Frame rows",
+        "estimates": "Estimates",
+        "specHash": "Spec hash"
+      }
+    },
+    "newRun": {
+      "name": "Name (optional)",
+      "namePlaceholder": "Defaults to the name in the spec",
+      "spec": "Analysis spec (JSON)",
+      "specPlaceholder": "{ \"spec_version\": 1, \"name\": …, \"inputs\": { \"designs\": [ … ] }, \"measures\": { … }, \"estimands\": [ … ] }",
+      "specHint": "Format: spec version 1 (see the analysis engine documentation). The engine fills in every inference convention and hashes the result.",
+      "insertStarter": "Insert a starting spec",
+      "defaultName": "Analysis",
+      "validate": "Validate",
+      "validating": "Validating…",
+      "start": "Start run",
+      "starting": "Starting…",
+      "valid": "The spec is valid (spec hash {hash}).",
+      "invalid": "The spec is invalid:",
+      "invalidJson": "Not valid JSON: {error}",
+      "failed": "The run could not be started."
+    },
+    "run": {
+      "title": "Analysis run",
+      "loading": "Loading…",
+      "loadFailed": "The analysis run could not be loaded.",
+      "notFound": "This analysis run does not exist or you cannot see it.",
+      "timeline": "Started {created}, finished {completed}",
+      "pending": "The run is queued. This page updates by itself when it finishes.",
+      "running": "The run is being computed. This page updates by itself when it finishes.",
+      "failed": "The run failed.",
+      "warnings": "Warnings ({count})",
+      "reuseSpec": "New run from this spec",
+      "frameDownload": "Download frame (Parquet)",
+      "frameDownloading": "Preparing download…",
+      "frameForbidden": "Downloading the frame needs the org admin or contributor role on the project.",
+      "frameFailed": "The frame could not be downloaded."
+    },
+    "forest": {
+      "title": "Forest plot",
+      "description": "One contrast across its scopes: the point estimate with its confidence interval. With an equivalence band, the thick segment is the interval the equivalence test uses.",
+      "contrast": "Contrast",
+      "band": "Equivalence band",
+      "noBand": "No band",
+      "bandLabel": "Equivalence bounds {bounds}",
+      "empty": "This run has no estimate to plot.",
+      "noEstimate": "no estimate",
+      "ariaLabel": "Forest plot of {contrast}",
+      "legendInterval": "Estimate with {level} confidence interval",
+      "legendInner": "{level} interval of the equivalence test"
+    },
+    "estimates": {
+      "title": "Estimates",
+      "description": "Every estimate in the order of the spec. p adj. is the adjusted p-value in the estimate's first family; open a row for all families, equivalence tests and conventions.",
+      "loading": "Loading estimates…",
+      "loadFailed": "The estimates could not be loaded.",
+      "filterEstimand": "Estimand",
+      "filterFamily": "Family",
+      "all": "All",
+      "count": "{shown} of {total}",
+      "empty": "No estimates match the filter.",
+      "details": "Details",
+      "estimand": "Estimand",
+      "scope": "Scope",
+      "estimate": "Estimate",
+      "se": "SE",
+      "ci": "CI",
+      "family": "Family",
+      "pAdjusted": "p adj.",
+      "equivalence": "Equivalence",
+      "equivalent": "Equivalent",
+      "notEquivalent": "Not established",
+      "moreBoundSets": "(+{count})",
+      "moreFamilies": "(+{count})",
+      "n": "n",
+      "clusters": "clusters {clusters}",
+      "detail": {
+        "estimator": "Estimator",
+        "outcome": "Outcome",
+        "kind": "Contrast kind",
+        "statistic": "Test statistic",
+        "df": "Degrees of freedom",
+        "dfNormal": "normal",
+        "nullValue": "Null value",
+        "ciLevel": "Confidence level",
+        "kParams": "Parameters",
+        "mde": "MDE (power {power})",
+        "tostTitle": "Equivalence tests (TOST)",
+        "bounds": "Bounds",
+        "tostInterval": "Interval",
+        "familiesTitle": "Families",
+        "method": "Method",
+        "group": "Group",
+        "size": "Tests",
+        "familyMde": "MDE",
+        "conventions": "Conventions"
+      },
+      "clustersHeader": "clusters"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "description": "What it takes to reproduce the numbers: the same frame, the same normalized spec and the same engine version give the same estimates.",
+      "specHash": "Spec hash",
+      "frameHash": "Frame hash",
+      "frameSha256": "Frame file SHA-256",
+      "lockfile": "Lockfile SHA-256",
+      "frameSize": "Frame",
+      "frameRows": "{rows} rows, {size}",
+      "engine": "Engine",
+      "engineVersions": "engine {engine}, spec format {spec}",
+      "libraries": "Libraries",
+      "seed": "Seed",
+      "noSeed": "none",
+      "counts": "Counts",
+      "timings": "Timings",
+      "copy": "Copy {what}",
+      "copied": "Copied"
+    },
+    "spec": {
+      "title": "Spec",
+      "normalized": "Normalized",
+      "submitted": "As submitted",
+      "normalizedHint": "With every convention filled in; the spec hash is computed from this form.",
+      "submittedHint": "Exactly as the run was started.",
+      "copy": "Copy spec"
+    },
+    "fits": {
+      "title": "Fits",
+      "description": "One fit per estimand and scope, as the engine ran it.",
+      "empty": "No fits recorded.",
+      "rows": "Rows",
+      "parameters": "Parameters",
+      "clusters": "Clusters",
+      "fixedEffects": "Fixed-effect levels",
+      "notes": "Notes",
+      "dropped": "dropped {columns}",
+      "missing": "Left out (missing)"
     }
   }
 }

@@ -95,8 +95,8 @@ the status routes instead.
 | `annotations:read`, `annotations:write` | annotations, drafts, checkpoints, questionnaires, reviews, human evaluation, grading |
 | `models:read`, `models:manage` | model catalog, own OpenAI-compatible models (BYOM), provider API keys of the user or organisation |
 | `runs:read`, `runs:write` | generation configuration, prompt structures, starting and controlling generation, generation results |
-| `evaluations:read`, `evaluations:run` | evaluation configuration, starting, pausing, cancelling evaluations, their status |
-| `results:read` | evaluation results, statistics, significance, leaderboards, dashboards, reports |
+| `evaluations:read`, `evaluations:run` | evaluation configuration, starting, pausing, cancelling evaluations, their status; starting analysis runs and code validations, storing analysis lookup tables |
+| `results:read` | evaluation results, statistics, significance, leaderboards, dashboards, reports, analysis runs and their estimates, analysis lookup tables, code validations |
 | `exports:read` | exports (with `tasks:read_reference`, because exports are unblinded) |
 | `files:read`, `files:write` | uploaded files and object-storage uploads |
 | `keys:manage` | access keys of the owner and, for org admins, the organisation |
@@ -198,6 +198,39 @@ task. `GET /api/projects/{id}/generation-config/structures` lists the
 existing ones. A project with structures needs `structure_keys` in the
 generate call (step 6), otherwise it answers 422 and names them.
 
+A structure also decides the answer format. By default a generation appends
+the label config's answer fields as a JSON skeleton (a Repeater block as one
+example object per item of the task) to the user prompt and asks the
+provider for structured output; the listing shows the appended text as
+`schema_instruction_preview`. To send a fixed prompt design unchanged, set
+`append_schema_instruction: false` and `structured_output: "off"` (the
+answer is then parsed from free text). Optional blocks:
+
+* `format_retry: {"message": "..."}`: when an answer yields no answer field,
+  ask once again in the same conversation (the answer as assistant turn,
+  `message` as user turn). The generation keeps the first answer in
+  `first_response_content` and sets `retried`.
+* `answer_schema: {"fields": {"<control>": {"key": "...", "values": {"...":
+  "<stored value>"}}}}`: answer keys and choice values that depend on the
+  task, with `{{path}}` (or `{{path|lower}}`) standing for a task field, for
+  example a key named after a party of the case. The parser reads them as the
+  control name and the stored value.
+* `refusal_heuristic: {"pattern": "...", "flags": "i", "window": 1500}`: mark
+  an answer as a refusal when the pattern matches its first `window`
+  characters (the provider's own refusal signal still counts).
+
+Every generation stores what the provider client actually sent as
+`request_record` (the first request's `model`, `messages`, `response_format`
+and `parameters`, and every request verbatim under `requests`, a format retry
+included) and `request_sha256`, the SHA-256 of the first request's body in
+canonical JSON. `GET /api/runs/generations/{id}` names per trial the hash,
+`has_request_record`, `retried` and `first_response_preview`;
+`GET /api/runs/generations/{id}/trials/{trial_id}/request` returns that
+trial's `request_record` and `request_sha256` (404 for a missing run or trial
+or a trial of another run, 403 without access to the project). Project
+exports carry both; importing an export keeps every generation column,
+the job's `structure_key` and each answer's `run_index`.
+
 `POST /api/llm-models/cost-estimate` (scope `runs:read`) takes
 `project_id`, `mode` (`generation` or `evaluation`), `model_ids` and, to
 match what the run will queue, `generation_mode` and `structure_keys`; for
@@ -211,7 +244,7 @@ takes, besides `mode` and `model_ids`:
 * `task_ids` (default: every task), `structure_keys`, `parameters`
   (`temperature`, `max_tokens`, `seed`, default 42), `model_configs` (per-model
   settings such as `max_tokens`, merged into the stored ones),
-  `runs_per_task` (1-25) and `billing_organization_id` (the organisation
+  `runs_per_task` (1-100) and `billing_organization_id` (the organisation
   whose provider keys pay, one of the caller's billing options);
 * `mode` is `missing`, `all` or `single`. `all` regenerates every cell and
   cancels pending generations of the project, so only project members may
@@ -347,7 +380,17 @@ New tasks come in through the nested import: write them as
 `{"data": [{...task fields...}, ...]}`, get an upload form with
 `POST /api/projects/{id}/imports/upload-url?filename=tasks.json`, upload the
 file, then `POST /api/projects/{id}/imports` with `{"object_key":
-"<file_key>"}` and poll `GET /api/projects/{id}/imports/{job_id}`.
+"<file_key>"}` and poll `GET /api/projects/{id}/imports/{job_id}`. The job
+records the file's SHA-256 (`payload_sha256`) and a `source_manifest`, and
+importing the same bytes into the same project again completes as a no-op
+that adds nothing and names the earlier job in `duplicate_of_job_id`, as
+long as every task the earlier import wrote still exists (once one of them
+was deleted, the repeat imports again); send `"reimport": true` (API only)
+to import them again in any case. A scripted import can
+pass its own description of the source as `source_manifest` (a JSON object
+of at most 64 KiB), which the job keeps under `source_manifest.declared`.
+See [import provenance and
+re-import](project-migration.md#import-provenance-and-re-import).
 
 To benchmark a model on a copy of a project (for example on another
 deployment) and bring its results back, the steps are:

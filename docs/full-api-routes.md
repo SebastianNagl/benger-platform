@@ -50,6 +50,11 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/admin/vendors` | `admin:platform` | any |
 | POST | `/api/admin/vendors` | `admin:platform` | any |
 | DELETE | `/api/admin/vendors/{organization_id}` | `admin:platform` | any |
+| GET | `/api/analysis-runs/{analysis_run_id}` | `results:read` | bound |
+| GET | `/api/analysis-runs/{analysis_run_id}/estimates` | `results:read` | bound |
+| GET | `/api/analysis-runs/{analysis_run_id}/frame` | `exports:read`, `results:read`, `tasks:read_reference` | bound |
+| GET | `/api/analysis/engine` | `results:read` | any |
+| POST | `/api/analysis/specs/validate` | `results:read` | any |
 | POST | `/api/auth/activate-account` | never |  |
 | POST | `/api/auth/change-password` | never |  |
 | GET | `/api/auth/check-profile-status` | `account:read` | any |
@@ -83,6 +88,23 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/auth/verify-email` | never |  |
 | POST | `/api/auth/verify-email-enhanced/{token}` | never |  |
 | POST | `/api/auth/verify-email/{token}` | never |  |
+| GET | `/api/code-validations/{code_validation_id}` | `results:read` | bound |
+| GET | `/api/compliance/assessments` | never |  |
+| POST | `/api/compliance/assessments` | never |  |
+| DELETE | `/api/compliance/assessments/{assessment_id}` | never |  |
+| GET | `/api/compliance/assessments/{assessment_id}` | never |  |
+| PATCH | `/api/compliance/assessments/{assessment_id}` | never |  |
+| GET | `/api/compliance/assessments/{assessment_id}/suite-runs` | never |  |
+| POST | `/api/compliance/assessments/{assessment_id}/suite-runs` | never |  |
+| GET | `/api/compliance/findings` | never |  |
+| DELETE | `/api/compliance/findings/{finding_id}` | never |  |
+| GET | `/api/compliance/findings/{finding_id}` | never |  |
+| PATCH | `/api/compliance/findings/{finding_id}` | never |  |
+| DELETE | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| GET | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| PATCH | `/api/compliance/suite-runs/{suite_run_id}` | never |  |
+| GET | `/api/compliance/suite-runs/{suite_run_id}/findings` | never |  |
+| POST | `/api/compliance/suite-runs/{suite_run_id}/findings` | never |  |
 | GET | `/api/custom-models/` | `models:read` | any |
 | POST | `/api/custom-models/` | `models:manage` | any |
 | POST | `/api/custom-models/test` | `models:manage` | any |
@@ -115,6 +137,7 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/evaluations/human/session/{session_id}` | `annotations:write` | bound |
 | GET | `/api/evaluations/human/session/{session_id}/progress` | `annotations:read` | bound |
 | GET | `/api/evaluations/human/sessions/{project_id}` | `annotations:read` | bound |
+| GET | `/api/evaluations/projects/{project_id}/annotator-agreement` | `annotations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/available-fields` | `evaluations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/configured-methods` | `evaluations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/detect-answer-types` | `evaluations:read` | bound |
@@ -291,9 +314,19 @@ project (`any`) or only for its own projects (`bound`).
 | DELETE | `/api/projects/{project_id}` | `projects:write` | bound |
 | GET | `/api/projects/{project_id}` | `projects:read` | bound |
 | PATCH | `/api/projects/{project_id}` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/analysis-lookups` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/analysis-lookups` | `evaluations:run` | bound |
+| GET | `/api/projects/{project_id}/analysis-lookups/{name}/versions/{version}` | `results:read` | bound |
+| GET | `/api/projects/{project_id}/analysis-runs` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/analysis-runs` | `evaluations:run` | bound |
 | GET | `/api/projects/{project_id}/annotators` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/cloud-imports` | `projects:read` | bound |
 | POST | `/api/projects/{project_id}/cloud-imports` | `projects:write`, `tasks:write` | bound |
+| GET | `/api/projects/{project_id}/code-validations` | `results:read` | bound |
+| POST | `/api/projects/{project_id}/code-validations` | `evaluations:run` | bound |
+| GET | `/api/projects/{project_id}/coding` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/coding-projects` | `projects:read` | bound |
+| POST | `/api/projects/{project_id}/coding-projects` | `projects:write`, `tasks:write`, `tasks:read_reference` | bound |
 | GET | `/api/projects/{project_id}/cohort-leaderboard` | `results:read` | bound |
 | GET | `/api/projects/{project_id}/completion-stats` | `results:read` | bound |
 | POST | `/api/projects/{project_id}/exports` | `exports:read`, `tasks:read_reference` | bound |
@@ -316,6 +349,8 @@ project (`any`) or only for its own projects (`bound`).
 | POST | `/api/projects/{project_id}/imports/upload-url` | `projects:write`, `tasks:write` | bound |
 | GET | `/api/projects/{project_id}/imports/{job_id}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/compare/{version1}/{version2}` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/label-studio` | `projects:read` | bound |
+| GET | `/api/projects/{project_id}/label-config/slots` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/label-config/versions/{version}` | `projects:read` | bound |
 | GET | `/api/projects/{project_id}/members` | `projects:read` | bound |
@@ -365,6 +400,15 @@ project (`any`) or only for its own projects (`bound`).
 | PUT | `/api/projects/{project_id}/tasks/{task_id}/draft` | `annotations:write` | bound |
 | POST | `/api/projects/{project_id}/tasks/{task_id}/questionnaire-response` | `annotations:write` | bound |
 | POST | `/api/projects/{project_id}/tasks/{task_id}/skip` | `annotations:write` | bound |
+| GET | `/api/projects/{project_id}/variant-designs` | `tasks:read_reference` | bound |
+| POST | `/api/projects/{project_id}/variant-designs` | `projects:write` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/import` | `projects:write` | bound |
+| DELETE | `/api/projects/{project_id}/variant-designs/{key}` | `projects:write` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}` | `tasks:read_reference` | bound |
+| PUT | `/api/projects/{project_id}/variant-designs/{key}` | `projects:write` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/{key}/check` | `tasks:read_reference` | bound |
+| GET | `/api/projects/{project_id}/variant-designs/{key}/export` | `tasks:read_reference` | bound |
+| POST | `/api/projects/{project_id}/variant-designs/{key}/freeze` | `projects:write` | bound |
 | PATCH | `/api/projects/{project_id}/visibility` | `projects:write` | bound |
 | DELETE | `/api/projects/{project_id}/wizard-draft` | never |  |
 | GET | `/api/projects/{project_id}/wizard-draft` | never |  |
@@ -376,6 +420,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/reports/{report_id}/data` | `results:read` | bound |
 | GET | `/api/runs` | `runs:read` | bound |
 | GET | `/api/runs/generations/{generation_id}` | `runs:read` | bound |
+| GET | `/api/runs/generations/{generation_id}/trials/{trial_id}/request` | `runs:read` | bound |
 | GET | `/api/shares/discover` | `projects:read` | any |
 | GET | `/api/shares/{token}` | `projects:read` | any |
 | POST | `/api/shares/{token}/join` | `account:write` | any |

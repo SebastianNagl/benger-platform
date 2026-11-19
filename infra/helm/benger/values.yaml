@@ -277,7 +277,9 @@ workers:
   # runs in the "Python Lint" CI job and via `make check-queue-pools`.
   # (The drain-only `default` queue was removed 2026-07-30 once its Redis list
   # hit 0 in both namespaces — issue #286.)
-  queues: [generation, evaluation, bulk]
+  # `analysis` (analysis runs of variant experiments, CPU-bound minutes) is
+  # served here until it needs a pool of its own.
+  queues: [generation, evaluation, bulk, analysis]
   replicaCount: 2
   # Concurrency = number of cell-eval forks per worker pod. Each fork that
   # loads embedding evaluators (BERTScore + MoverScore + sentence-

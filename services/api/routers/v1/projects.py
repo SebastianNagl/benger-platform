@@ -49,7 +49,9 @@ def _iso(value) -> Optional[str]:
 
 def answer_fields_of(label_config: Optional[str]) -> List[Dict[str, Any]]:
     """Fields of the label config that take an answer (they point at a
-    data field through ``toName``)."""
+    data field through ``toName``). Pass the project's expanded config
+    (``expanded_project_label_config_async``) so a <Repeater> lists its
+    indexed names, never its templates."""
     from services.label_config.parser import LabelConfigParser
 
     out: List[Dict[str, Any]] = []
@@ -76,6 +78,7 @@ def serialize_project_public(
     tier: str,
     effective_role: Optional[str],
     blinded: bool,
+    expanded_label_config: Optional[str],
 ) -> Dict[str, Any]:
     """The public view of a project: no configuration internals, no member
     data, only what a client needs to read and answer its tasks."""
@@ -88,7 +91,7 @@ def serialize_project_public(
         "kind": project.kind,
         "task_count": int(task_count or 0),
         "bound_fields": sorted(LabelConfigParser.bound_data_fields(project.label_config)),
-        "answer_fields": answer_fields_of(project.label_config),
+        "answer_fields": answer_fields_of(expanded_label_config),
         "created_at": _iso(project.created_at),
         "updated_at": _iso(project.updated_at or project.created_at),
         "access": {"tier": tier, "effective_role": effective_role, "blinded": blinded},
@@ -101,6 +104,15 @@ def _build_select_task_counts(project_ids: List[str]):
         .where(Task.project_id.in_(project_ids))
         .group_by(Task.project_id)
     )
+
+
+async def expanded_label_config_of(db: AsyncSession, project: Project) -> Optional[str]:
+    from services.label_config.project_expansion import expanded_project_label_config_async
+
+    expanded, _ = await expanded_project_label_config_async(
+        db, str(project.id), project.label_config
+    )
+    return expanded
 
 
 async def task_counts(db: AsyncSession, project_ids: List[str]) -> Dict[str, int]:
@@ -181,6 +193,7 @@ async def list_projects(
                 tier=tiers.get(str(project.id), TIER_FULL),
                 effective_role=role,
                 blinded=v1_bound_fields(principal, role, project) is not None,
+                expanded_label_config=await expanded_label_config_of(db, project),
             )
         )
     return {"items": out, "next_cursor": next_cursor}
@@ -210,4 +223,5 @@ async def get_project(
         tier=access.tier,
         effective_role=role,
         blinded=v1_bound_fields(principal, role, project) is not None,
+        expanded_label_config=await expanded_label_config_of(db, project),
     )

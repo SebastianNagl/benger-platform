@@ -31,11 +31,23 @@ MIGRATION_PATH = os.path.normpath(
 )
 
 
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_118", MIGRATION_PATH)
+#: Later migrations whose tables reference ``api_keys``. In the real chain
+#: they are downgraded before 118, so the round trip below does the same.
+DEPENDENT_MIGRATIONS = ("145_compliance_findings.py",)
+
+
+def _load_migration(path=MIGRATION_PATH, name="mig_118"):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
+
+
+def _dependents():
+    versions = os.path.dirname(MIGRATION_PATH)
+    return [
+        _load_migration(os.path.join(versions, f), f"mig_{f[:3]}") for f in DEPENDENT_MIGRATIONS
+    ]
 
 
 @contextmanager
@@ -93,7 +105,10 @@ class TestMigration118Shape:
     def test_downgrade_then_upgrade_rebuilds_shape(self, test_db: Session):
         conn = test_db.get_bind()
         mig = _load_migration()
+        dependents = _dependents()
         with _op_context(conn):
+            for later in reversed(dependents):
+                later.downgrade()
             mig.downgrade()
         shape = _shape(conn)
         assert shape["service_col"] is None
@@ -101,6 +116,8 @@ class TestMigration118Shape:
 
         with _op_context(conn):
             mig.upgrade()
+            for later in dependents:
+                later.upgrade()
         shape = _shape(conn)
         assert shape["service_col"] is not None
         assert shape["keys"] and shape["usage"]

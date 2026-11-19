@@ -1,3 +1,4 @@
+import { legacyAnalysisPath } from '@/lib/results/paths'
 import { BASE_DOMAINS, isStudentLockedHost } from '@/lib/utils/subdomain'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -5,6 +6,20 @@ import { NextResponse } from 'next/server'
 export function proxy(request: NextRequest) {
   const hostname =
     request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
+
+  // The analysis pages moved under /evaluations: old URLs redirect
+  // permanently (308) with their meaning kept.
+  const legacy = legacyAnalysisPath(
+    request.nextUrl.pathname,
+    request.nextUrl.searchParams,
+  )
+  if (legacy) {
+    const url = request.nextUrl.clone()
+    const [pathname, query = ''] = legacy.split('?')
+    url.pathname = pathname
+    url.search = query ? `?${query}` : ''
+    return NextResponse.redirect(url, 308)
+  }
 
   // Vertretbar: serve the dedicated student landing at the apex root, decided
   // server-side from the host header so there's no benger-branding flash. The

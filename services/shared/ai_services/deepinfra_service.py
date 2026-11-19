@@ -6,7 +6,6 @@ import asyncio
 import logging
 import os
 import random
-import socket
 import time
 from datetime import datetime
 from functools import wraps
@@ -17,10 +16,20 @@ import aiohttp
 from .base_service import (
     BaseAIService,
     RetryableUpstreamError,
+    classify_retryable,
+    continuation_turns,
     derive_refusal,
     derive_truncated,
+    is_transient_upstream_error,
 )
-from .provider_capabilities import calculate_cost, model_supports_seed
+from system_profile import openai_compatible_reasoning_payload, reasoning_params_sent
+
+from .provider_capabilities import (
+    calculate_cost,
+    model_reasoning_config,
+    model_supports_seed,
+)
+from .request_capture import record_request
 from .reasoning import chat_completion_reasoning
 from .response_validator import ResponseValidator
 
@@ -47,56 +56,11 @@ _sleep = asyncio.sleep
 DEEPINFRA_REQUEST_TIMEOUT_S = int(os.getenv("DEEPINFRA_REQUEST_TIMEOUT_S", "900"))
 
 
-def _is_dns_resolution_error(exc: BaseException) -> bool:
-    """True when ``exc`` is a failed host lookup: aiohttp's
-    ClientConnectorDNSError, or any error whose ``os_error`` or cause chain
-    holds a ``socket.gaierror``."""
-    try:
-        import aiohttp as _aiohttp
-
-        if isinstance(exc, _aiohttp.ClientConnectorDNSError):
-            return True
-    except ImportError:  # pragma: no cover
-        pass
-    seen = set()
-    current: Optional[BaseException] = exc
-    while current is not None and id(current) not in seen:
-        seen.add(id(current))
-        if isinstance(current, socket.gaierror):
-            return True
-        if isinstance(getattr(current, "os_error", None), socket.gaierror):
-            return True
-        current = current.__cause__ or current.__context__
-    return False
-
-
-def _is_retryable_error(exc: BaseException) -> bool:
-    """Transient errors worth re-attempting: typed 429/5xx raises from our
-    HTTP paths, timeouts, and connection-layer failures. Everything else
-    (auth, other 4xx, SSRF-guard rejections, bugs) fails fast.
-
-    A host that does not resolve fails fast too: it is almost always a
-    misconfigured endpoint, and backing off five times only delays the
-    failure by minutes. The caller's own job-level retry still covers a
-    resolver that was briefly down."""
-    if isinstance(exc, RetryableUpstreamError):
-        return True
-    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
-        return True
-    if _is_dns_resolution_error(exc):
-        return False
-    try:
-        # Import the REAL aiohttp here: tests replace this module's
-        # ``aiohttp`` binding with a fake, which isinstance() can't take.
-        import aiohttp as _aiohttp
-
-        if isinstance(exc, _aiohttp.ClientConnectionError):
-            return True
-    except ImportError:  # pragma: no cover
-        pass
-    # Legacy substring fallback (untyped raise sites, foreign callers).
-    msg = str(exc).lower()
-    return "429" in msg or "rate limit" in msg or "too many requests" in msg
+# The transient-error rule this module's retry decorator backs off on (and the
+# one the Custom endpoint service inherits through the decorator), vetoed by
+# classify_retryable. It lives in base_service so classify_retryable builds
+# every provider's uniform ``metadata.retryable`` flag on the same rules.
+_is_retryable_error = is_transient_upstream_error
 
 
 def async_retry_with_exponential_backoff(
@@ -107,7 +71,9 @@ def async_retry_with_exponential_backoff(
     jitter: bool = True
 ):
     """Async decorator for exponential backoff retry on transient upstream
-    errors (rate limits, 5xx, timeouts, connection failures).
+    errors (rate limits, 5xx, timeouts, connection failures). An error
+    :func:`classify_retryable` marks non-retryable, such as an exhausted
+    quota sent as HTTP 429, fails fast on the first attempt.
 
     Records attempts in the shared retry-history contextvar (Phase 6.2) and
     stamps the final exception with ``_retry_history`` so callers can rebuild
@@ -132,7 +98,10 @@ def async_retry_with_exponential_backoff(
                             or "rate limit" in error_str
                             or "too many requests" in error_str
                         )
-                        retryable = _is_retryable_error(e)
+                        # Back off only on what the shared classifier also
+                        # deems retryable: an exhausted quota is a 429 that
+                        # no wait fixes.
+                        retryable = _is_retryable_error(e) and classify_retryable(e)
                         # Scrub BEFORE truncating so a cut-off endpoint host
                         # can't survive the provider's sanitizer.
                         error_text = str(e)
@@ -278,6 +247,13 @@ class DeepInfraService(BaseAIService):
                     # Most DeepInfra-hosted models do not support a seed
                     # parameter; we don't send one.
                     "seed": None,
+                    "reasoning_params_sent": reasoning_params_sent(
+                        openai_compatible_reasoning_payload(
+                            model_reasoning_config(model_name), kwargs
+                        )
+                    ),
+                    "provider_model_id": self.model_mapping.get(model_name, model_name),
+                    "response_model": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -339,6 +315,7 @@ class DeepInfraService(BaseAIService):
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
+                *continuation_turns(kwargs),
             ],
             "max_tokens": max_tokens,
             "temperature": temperature,
@@ -346,11 +323,23 @@ class DeepInfraService(BaseAIService):
         }
         if supports_seed_here:
             payload["seed"] = requested_seed
+        # The reasoning knob the catalog declares for this model
+        # (reasoning_effort for gpt-oss, enable_thinking for Qwen, Gemma and
+        # Nemotron chat templates), with the run's value or the declared
+        # default. Undeclared knobs are never sent.
+        payload.update(
+            openai_compatible_reasoning_payload(
+                model_reasoning_config(model_name), kwargs
+            )
+        )
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+
+        # The body below is json.dumps(payload): record exactly that.
+        record_request("DeepInfra", "chat.completions", payload)
 
         # Make DeepInfra API call
         async with aiohttp.ClientSession() as session:
@@ -425,6 +414,11 @@ class DeepInfraService(BaseAIService):
                 "error_type": None,
                 # Per-model gated; None when the model doesn't accept seed.
                 "seed": requested_seed if supports_seed_here else None,
+                # Reasoning knobs as sent, and the model id sent to and
+                # reported by DeepInfra (the system key's provider side).
+                "reasoning_params_sent": reasoning_params_sent(payload),
+                "provider_model_id": api_model_name,
+                "response_model": result.get("model"),
                 "created_at": end_time.isoformat(),
                 **self.get_invocation_provenance(),
             },

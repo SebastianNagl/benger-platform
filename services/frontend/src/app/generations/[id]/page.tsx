@@ -1,10 +1,10 @@
 'use client'
 
 import { SeedNotSentNotice } from '@/components/generation/SeedNotSentNotice'
-import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { RunStatusBadge } from '@/components/shared/RunStatusBadge'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { intlTag } from '@/lib/i18n/locales'
@@ -30,6 +30,29 @@ interface ChildGeneration {
   error_message?: string | null
   has_response: boolean
   response_preview?: string | null
+  has_request_record?: boolean
+  request_sha256?: string | null
+  retried?: boolean
+  first_response_preview?: string | null
+}
+
+interface TrialRequest {
+  id: string
+  run_index: number
+  request_record?: RequestRecord | null
+  request_sha256?: string | null
+}
+
+/** What the provider client sent for one trial (generations.request_record):
+ * a provider-neutral view of the first request plus every request as sent. */
+interface RequestRecord {
+  provider?: string | null
+  capture?: string | null
+  model?: string | null
+  messages?: { role?: string; content?: unknown }[]
+  response_format?: unknown
+  parameters?: Record<string, unknown> | null
+  requests?: { body?: Record<string, unknown>; capture?: string }[]
 }
 
 interface LinkedEvaluation {
@@ -62,17 +85,134 @@ interface GenerationRunDetail {
   linked_evaluations?: LinkedEvaluation[]
 }
 
-function StatusBadge({ status }: { status?: string | null }) {
-  if (!status) return <span className="text-zinc-400">—</span>
-  const tone =
-    status === 'completed'
-      ? 'success'
-      : status === 'failed'
-        ? 'error'
-        : status === 'running' || status === 'pending'
-          ? 'warning'
-          : 'secondary'
-  return <Badge variant={tone as any}>{status}</Badge>
+function contentText(content: unknown): string {
+  if (typeof content === 'string') return content
+  return JSON.stringify(content, null, 2)
+}
+
+/** The request a trial sent, as the provider client recorded it. */
+function SentRequest({
+  generationId,
+  child,
+}: {
+  generationId: string
+  child: ChildGeneration
+}) {
+  const { t } = useI18n()
+  const [trial, setTrial] = useState<TrialRequest | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!child.has_request_record) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const resp = await apiClient.get(
+          `/runs/generations/${generationId}/trials/${child.id}/request`,
+        )
+        if (!cancelled) setTrial(resp as TrialRequest)
+      } catch (err: any) {
+        if (!cancelled)
+          setError(err?.message || t('generations.detail.request.loadFailed'))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [generationId, child.id, child.has_request_record])
+
+  if (child.has_request_record && !trial && !error) {
+    return (
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        {t('generations.detail.request.loading')}
+      </p>
+    )
+  }
+  if (error) {
+    return (
+      <p className="text-xs text-red-700 dark:text-red-400" role="alert">
+        {error}
+      </p>
+    )
+  }
+  const record = trial?.request_record
+  if (!record) {
+    return (
+      <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
+        {t('generations.detail.request.none')}
+      </p>
+    )
+  }
+  const requestCount = record.requests?.length ?? 0
+  return (
+    <div className="space-y-3" data-testid="sent-request">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+        {record.model && (
+          <span>
+            {t('generations.detail.request.model')}:{' '}
+            <span className="font-mono">{record.model}</span>
+          </span>
+        )}
+        {child.request_sha256 && (
+          <span className="min-w-0 break-all">
+            SHA-256: <span className="font-mono">{child.request_sha256}</span>
+          </span>
+        )}
+      </div>
+      {record.capture === 'worker_call' && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          {t('generations.detail.request.workerCall')}
+        </p>
+      )}
+      {(record.messages || []).map((message, i) => (
+        <div key={i}>
+          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            {message.role === 'system'
+              ? t('generations.detail.request.roleSystem')
+              : message.role === 'assistant'
+                ? t('generations.detail.request.roleAssistant')
+                : t('generations.detail.request.roleUser')}
+          </p>
+          <pre className="max-h-72 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs whitespace-pre-wrap text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200">
+            {contentText(message.content)}
+          </pre>
+        </div>
+      ))}
+      {record.response_format != null && (
+        <div>
+          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            {t('generations.detail.request.responseFormat')}
+          </p>
+          <pre className="max-h-48 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
+            {JSON.stringify(record.response_format, null, 2)}
+          </pre>
+        </div>
+      )}
+      {record.parameters && Object.keys(record.parameters).length > 0 && (
+        <div>
+          <p className="mb-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            {t('generations.detail.request.parameters')}
+          </p>
+          <pre className="max-h-48 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-800/60">
+            {JSON.stringify(record.parameters, null, 2)}
+          </pre>
+        </div>
+      )}
+      {child.retried && (
+        <div className="rounded-md border border-zinc-200 p-3 text-xs dark:border-zinc-700">
+          <p className="font-medium text-zinc-700 dark:text-zinc-300">
+            {t('generations.detail.request.retried', { count: requestCount })}
+          </p>
+          {child.first_response_preview && (
+            <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+              {t('generations.detail.request.firstAnswer')}:{' '}
+              {child.first_response_preview}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function fmtDate(d: string | null | undefined, locale: string) {
@@ -95,6 +235,7 @@ export default function GenerationRunDetailPage({
   const [data, setData] = useState<GenerationRunDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [requestRun, setRequestRun] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -187,7 +328,7 @@ export default function GenerationRunDetailPage({
             {t('generations.detail.status')}
           </div>
           <div className="mt-1">
-            <StatusBadge status={data.status} />
+            <RunStatusBadge status={data.status} />
           </div>
         </div>
         <div>
@@ -306,7 +447,7 @@ export default function GenerationRunDetailPage({
                       {c.run_index}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={c.status} />
+                      <RunStatusBadge status={c.status} />
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {fmtDate(c.completed_at, locale)}
@@ -384,7 +525,7 @@ export default function GenerationRunDetailPage({
                       {ev.metric || <span className="text-zinc-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={ev.status} />
+                      <RunStatusBadge status={ev.status} />
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {fmtDate(ev.completed_at, locale)}
@@ -400,7 +541,47 @@ export default function GenerationRunDetailPage({
         </div>
       )}
 
-      {/* Prompt used */}
+      {/* What the provider client actually sent (per trial) */}
+      {data.children.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
+              {t('generations.detail.request.title')}
+            </h2>
+            {data.children.length > 1 && (
+              <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                {t('generations.detail.runIndex')}
+                <select
+                  value={requestRun}
+                  onChange={(e) => setRequestRun(Number(e.target.value))}
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                  data-testid="request-run-select"
+                >
+                  {data.children.map((c, i) => (
+                    <option key={c.id} value={i}>
+                      {c.run_index}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+            {t('generations.detail.request.help')}
+          </p>
+          <SentRequest
+            key={
+              data.children[Math.min(requestRun, data.children.length - 1)].id
+            }
+            generationId={data.id}
+            child={
+              data.children[Math.min(requestRun, data.children.length - 1)]
+            }
+          />
+        </div>
+      )}
+
+      {/* Prompt templates of the structure (not what was sent) */}
       {data.prompt_used && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
