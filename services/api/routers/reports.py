@@ -42,6 +42,7 @@ from report_snapshot import (
     public_snapshot,
     report_analysis_runs,
     gated_snapshot,
+    with_served_hash,
 )
 
 logger = logging.getLogger(__name__)
@@ -261,15 +262,18 @@ def _report_response(
     """``member``: the reader has the project's report read rights
     (``check_report_access``); authors always do. Every reader gets the
     content as its sections allow it to be served (``_served_content``);
-    a reader who does not author the report gets the reader view on top."""
+    a reader who does not author the report gets the reader view on top.
+    The snapshot's hash is the one of what this reader gets
+    (``with_served_hash``)."""
     served = _served_content(report)
+    content = served if can_edit else _reader_content(served, member)
+    stored = report.content.get("snapshot") if isinstance(report.content, dict) else None
+    content = {**content, "snapshot": with_served_hash(stored, content.get("snapshot"))}
     return ReportResponse(
         id=report.id,
         project_id=report.project_id,
         project_title=project_title,
-        content=ReportContent(
-            **(served if can_edit else _reader_content(served, member))
-        ),
+        content=ReportContent(**content),
         is_published=report.is_published,
         is_public=bool(getattr(report, "is_public", False)),
         published_at=report.published_at,

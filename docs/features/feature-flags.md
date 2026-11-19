@@ -113,10 +113,12 @@ needs the overlay's master flag `extension.compliance`.
   snapshot holds a flag's parts only when it was built with the flag on for
   its author, and they are served while the flag is on for anybody, so
   switching a flag off for everybody hides them everywhere without
-  rewriting a report. When serving leaves parts out,
-  `reproducibility.snapshot_sha256` is computed over what is served, so
-  the hash a reader gets verifies against the data the reader gets
-  (`report_snapshot.gated_snapshot`).
+  rewriting a report. The hash a reader gets verifies against the data that
+  reader gets: when serving leaves anything out (these flag parts, the
+  report's visibility switches or the public view),
+  `reproducibility.snapshot_sha256` is computed over what is served, and
+  when nothing is left out it is the stored snapshot's hash
+  (`report_snapshot.with_served_hash`).
 
 ## Left on with the flag off
 

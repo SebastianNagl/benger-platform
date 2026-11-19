@@ -500,8 +500,11 @@ async def test_member_only_runs_are_left_out_of_the_public_reproducibility_list(
     assert [r["id"] for r in public_list] == [public.id]
     assert "custom-secret-model" not in str(anonymous)
     assert hidden.id not in str(anonymous)
-    # The stored snapshot and its hash stay whole.
-    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] == (
+    # The author gets the stored hash; the public view's hash is the one of
+    # what it serves.
+    assert author["snapshot"]["reproducibility"]["snapshot_sha256"] == snapshot_sha256(author["snapshot"])
+    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] == snapshot_sha256(anonymous["snapshot"])
+    assert anonymous["snapshot"]["reproducibility"]["snapshot_sha256"] != (
         author["snapshot"]["reproducibility"]["snapshot_sha256"])
 
 

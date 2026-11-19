@@ -1643,8 +1643,9 @@ def public_snapshot(snapshot: Any) -> Any:
     the reproducibility list and the Analyses section leave out every
     member-only run (:func:`analysis_runs_member_only`; a run not marked
     public counts as one), and the Analyses section its list of runs it
-    could not show (the author's note to fix). The stored snapshot and its
-    ``snapshot_sha256`` stay whole."""
+    could not show (the author's note to fix). The stored snapshot stays
+    whole; the served hash is computed over the served body
+    (:func:`with_served_hash`)."""
     if not isinstance(snapshot, dict):
         return snapshot
     out = dict(snapshot)
@@ -1767,9 +1768,9 @@ def gated_snapshot(
     """``snapshot`` without the parts of the flags that are off (a copy; the
     stored snapshot is not changed): without report_paper none of
     :data:`PAPER_SNAPSHOT_KEYS`, without variant_experiments none of the
-    parts listed with :data:`EXPERIMENT_SNAPSHOT_KEYS`. When anything is
-    left out, ``reproducibility.snapshot_sha256`` is computed over what is
-    left, so the served hash verifies against the served body."""
+    parts listed with :data:`EXPERIMENT_SNAPSHOT_KEYS`. The hash is left as
+    it is; serving computes it over what a reader gets
+    (:func:`with_served_hash`)."""
     if not isinstance(snapshot, dict):
         return snapshot
     out = dict(snapshot)
@@ -1777,9 +1778,21 @@ def gated_snapshot(
         out = _drop(out, PAPER_SNAPSHOT_KEYS)
     if not variant_experiments:
         out = _without_experiment_values(out)
-    if out != snapshot and isinstance(out.get("reproducibility"), dict):
-        out["reproducibility"] = {**out["reproducibility"], "snapshot_sha256": None}
-        out["reproducibility"]["snapshot_sha256"] = snapshot_sha256(out)
+    return out
+
+
+def with_served_hash(stored: Any, served: Any) -> Any:
+    """``served`` (the snapshot as one reader gets it, after every part left
+    out for that reader) with ``reproducibility.snapshot_sha256`` computed
+    over it when it differs from ``stored``, so the hash a reader gets
+    verifies against the data that reader gets; unchanged, it keeps the
+    stored hash."""
+    if not isinstance(served, dict) or served == stored:
+        return served
+    if not isinstance(served.get("reproducibility"), dict):
+        return served
+    out = {**served, "reproducibility": {**served["reproducibility"], "snapshot_sha256": None}}
+    out["reproducibility"]["snapshot_sha256"] = snapshot_sha256(out)
     return out
 
 

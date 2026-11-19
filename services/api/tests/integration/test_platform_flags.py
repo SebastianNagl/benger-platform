@@ -516,15 +516,42 @@ def _stored_snapshot():
     return snapshot
 
 
-def _served(snapshot):
-    from routers.reports import _served_content
+def _signed(snapshot):
+    from report_snapshot import snapshot_sha256
 
-    report = MagicMock()
-    report.content = {
-        "sections": {"annotations": {"show_participants": True}, "analyses": {"runs": []}},
-        "snapshot": snapshot,
-    }
-    return _served_content(report)
+    snapshot["reproducibility"]["snapshot_sha256"] = None
+    snapshot["reproducibility"]["snapshot_sha256"] = snapshot_sha256(snapshot)
+    return snapshot
+
+
+def _served(snapshot, *, annotations=None, can_edit=True, member=True):
+    """The content one reader gets through the report routes' response."""
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+
+    from routers.reports import _report_response
+
+    report = SimpleNamespace(
+        id="r", project_id="p", is_published=True, is_public=True, published_at=None,
+        published_by=None, created_by="u", created_at=datetime.now(timezone.utc),
+        updated_at=None,
+        content={
+            "sections": {
+                "annotations": annotations or {"show_participants": True},
+                "analyses": {"runs": []},
+            },
+            "metadata": {},
+            "snapshot": snapshot,
+        },
+    )
+    response = _report_response(report, "t", True, "ok", can_edit=can_edit, member=member)
+    return response.content.model_dump()
+
+
+def _verifies(served):
+    from report_snapshot import snapshot_sha256
+
+    return served["reproducibility"]["snapshot_sha256"] == snapshot_sha256(served)
 
 
 def test_served_report_drops_every_flagged_part_while_both_are_off_for_everybody():
@@ -534,8 +561,6 @@ def test_served_report_drops_every_flagged_part_while_both_are_off_for_everybody
 
 
 def test_served_paper_without_variant_experiments_has_no_values_of_its_features():
-    from report_snapshot import snapshot_sha256
-
     stored = _stored_snapshot()
     with flag_scope({REPORT_PAPER: True}):
         content = _served(stored)
@@ -554,15 +579,52 @@ def test_served_paper_without_variant_experiments_has_no_values_of_its_features(
     assert served["reproducibility"]["analysis_runs"] == []
     assert served["reproducibility"]["imports"] == [{"completed_at": None}]
     # The served hash is the one of the served body, not the stored one.
-    assert served["reproducibility"]["snapshot_sha256"] == snapshot_sha256(served)
+    assert _verifies(served)
     assert served["reproducibility"]["snapshot_sha256"] != stored["reproducibility"]["snapshot_sha256"]
     assert "analyses" not in content["sections"]
+
+
+def test_the_served_hash_verifies_after_the_flag_strip_and_hidden_participants():
+    stored = _stored_snapshot()
+    stored["participants"] = [{"id": "a", "label": "Heron"}]
+    stored = _signed(stored)
+    with flag_scope({REPORT_PAPER: True}):
+        served = _served(stored, annotations={"show_participants": False})["snapshot"]
+    assert served["participants"] == []
+    assert _verifies(served)
+
+
+def test_the_served_hash_verifies_for_hidden_participants_with_both_flags():
+    stored = _stored_snapshot()
+    stored["participants"] = [{"id": "a", "label": "Heron"}]
+    stored["annotator_agreement"] = {"controls": [{"name": "c", "pairs": [{"a": "x", "b": "y"}]}]}
+    stored = _signed(stored)
+    with flag_scope({REPORT_PAPER: True, VARIANT_EXPERIMENTS: True}):
+        served = _served(stored, annotations={"show_participants": False})["snapshot"]
+    assert served["participants"] == []
+    assert served["annotator_agreement"]["controls"][0]["pairs"] == []
+    assert _verifies(served)
+    assert served["reproducibility"]["snapshot_sha256"] != stored["reproducibility"]["snapshot_sha256"]
+
+
+def test_the_served_hash_verifies_for_a_reader_outside_the_project():
+    stored = _stored_snapshot()
+    stored["data"]["imports"][0]["declared_manifest"] = {"sha256": "d" * 64, "content": {"files": []}}
+    stored = _signed(stored)
+    with flag_scope({REPORT_PAPER: True, VARIANT_EXPERIMENTS: True}):
+        served = _served(stored, can_edit=False, member=False)["snapshot"]
+    assert served["data"]["imports"][0]["declared_manifest"] == {"sha256": "d" * 64}
+    assert _verifies(served)
+    assert served["reproducibility"]["snapshot_sha256"] != stored["reproducibility"]["snapshot_sha256"]
 
 
 def test_served_report_is_the_stored_one_with_both_flags():
     stored = _stored_snapshot()
     with flag_scope({REPORT_PAPER: True, VARIANT_EXPERIMENTS: True}):
-        assert _served(stored)["snapshot"] == stored
+        for kwargs in ({}, {"can_edit": False, "member": True}):
+            served = _served(stored, **kwargs)["snapshot"]
+            assert served == stored
+            assert served["reproducibility"]["snapshot_sha256"] == stored["reproducibility"]["snapshot_sha256"]
 
 
 async def test_only_superadmins_author_reports_while_off(async_test_client, async_test_db, world):

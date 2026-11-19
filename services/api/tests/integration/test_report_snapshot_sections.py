@@ -860,7 +860,9 @@ async def test_public_readers_get_hashes_members_get_parameters(async_test_clien
             assert manifest == {"sha256": full["data"]["imports"][0]["declared_manifest"]["sha256"]}
             provenance = snapshot["data"]["variant_designs"][0]["provenance"]
             assert provenance == {"sha256": full["data"]["variant_designs"][0]["provenance"]["sha256"]}
-            assert snapshot["reproducibility"]["snapshot_sha256"] == full["reproducibility"]["snapshot_sha256"]
+            # The public view's hash is the one of what it serves.
+            assert snapshot["reproducibility"]["snapshot_sha256"] == snapshot_sha256(snapshot)
+            assert snapshot["reproducibility"]["snapshot_sha256"] != full["reproducibility"]["snapshot_sha256"]
             assert snapshot["series"] == full["series"]
 
     # The stored snapshot stays whole.

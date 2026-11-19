@@ -1714,8 +1714,11 @@ API change).
     human evaluation or reproducibility part
     (``report_snapshot.PAPER_SNAPSHOT_KEYS``), none of which is served while
     the flag is off for everybody. ``report_snapshot.gated_snapshot``
-    leaves out the parts of the flags that are off and then computes
-    ``reproducibility.snapshot_sha256`` over what is served.
+    leaves out the parts of the flags that are off; after every part left
+    out for a reader (flags, visibility switches, the public view),
+    ``report_snapshot.with_served_hash`` computes
+    ``reproducibility.snapshot_sha256`` over what that reader gets, and an
+    unchanged read keeps the stored hash.
   - Catalog entries can belong to a flag: ``default_config.feature_flag``
     (the model) and ``default_config.reasoning_config.feature_flag`` (its
     reasoning knob); ``catalog_flags`` (``model_offered``,

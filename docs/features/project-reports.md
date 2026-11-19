@@ -130,10 +130,14 @@ sorted, no whitespace, floats rounded to 12 significant digits, and every
 list sorted to a total order. A rebuild over unchanged data therefore gives
 the same hash, whenever and on whichever build it runs, and any change to a
 number or record changes it. `canonical_snapshot_json` and `snapshot_sha256`
-in `report_snapshot.py` compute it; a reader with the project's read rights
-can recompute it from the JSON the report's data link serves (the public view,
-and a report with agreement or participants switched off, leave content
-out, so they carry the hash but cannot reproduce it).
+in `report_snapshot.py` compute it. The hash a reader gets verifies against
+the data that reader gets: when serving leaves anything out (the public
+view, agreement, participants or code validations switched off, or the parts
+of a platform flag that is off for everybody), the served
+`snapshot_sha256` is computed over the served snapshot
+(`with_served_hash`); when nothing is left out it is the stored snapshot's
+hash. Anyone can therefore recompute it from the JSON the report's data link
+serves to them.
 
 ## Content sections
 
