@@ -282,7 +282,8 @@ scope); otherwise the effect is `not_estimable`.
 
 `joint_tests` on an estimand asks whether several restrictions hold at once:
 `{"id": "groups", "contrasts": ["a", "b"]}` (contrasts of the estimand,
-each against its null), `{"id": "groups", "parameters": ["group[*]"]}`
+each against its null; a ratio contrast without a `null` makes the test
+not estimable), `{"id": "groups", "parameters": ["group[*]"]}`
 (parameters by name, `*` matching any text) or `{"id": "x", "rows":
 [{"group[a]": 1, "group[b]": -1}]}`. The Wald statistic is
 `r' pinv(G V G') r` with `r` the restrictions' values minus their nulls and

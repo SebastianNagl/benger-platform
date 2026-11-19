@@ -352,10 +352,19 @@ async def may_read_project(db: AsyncSession, user, project_id: str, principal=No
 async def hidden_runs_filter(db: AsyncSession, user, project_id: str, principal=None):
     """SQL condition that leaves out the project's runs reading a further
     project the user may not read; None when there is none."""
-    specs = (
-        await db.execute(select(AnalysisRun.normalized_spec).where(AnalysisRun.project_id == project_id))
-    ).scalars().all()
-    further = dict.fromkeys(pid for spec in specs for pid in AnalysisRun.input_projects(spec, project_id))
+    spec = AnalysisRun.normalized_spec
+    reads = (
+        await db.execute(
+            select(spec["inputs"]["projects"], spec["lookups"])
+            .where(AnalysisRun.project_id == project_id)
+            .where(or_(spec["inputs"]["projects"].isnot(None), spec["lookups"].isnot(None)))
+        )
+    ).all()
+    further = dict.fromkeys(
+        pid
+        for projects, lookups in reads
+        for pid in AnalysisRun.input_projects({"inputs": {"projects": projects}, "lookups": lookups}, project_id)
+    )
     hidden = [pid for pid in further if not await may_read_project(db, user, pid, principal)]
     if not hidden:
         return None

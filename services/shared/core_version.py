@@ -1352,8 +1352,14 @@ frame format 2).
     (``analysis.db_source.iter_run_observations``); starting such a run and
     downloading its frame need the ORG_ADMIN or CONTRIBUTOR role on each of
     them and, for a project-restricted access key, the key's access to each
-    (403 ``analysis_input_forbidden``). Purging a project removes the frames
-    of other projects' runs that read it.
+    (403 ``analysis_input_forbidden``). Reading such a run (detail,
+    estimates, the v1 reads) needs read access to each input project and
+    the stored lookup tables' owners, otherwise 404, and the run lists leave
+    it out (``routers.analysis.may_read_run_inputs``, ``hidden_runs_filter``;
+    a purged input project no longer counts). The worker fails a run whose
+    input project was deleted or purged before its results are stored
+    (``analysis.db_source.check_input_projects``). Purging a project removes
+    the frames of other projects' runs that read it.
   - Lookups (``lookups`` in the spec: inline ``rows`` or a stored ``table``
     with ``name``, ``version`` and optional ``project_id`` and
     ``content_hash``) join by key columns before the measures

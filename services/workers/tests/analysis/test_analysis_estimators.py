@@ -265,6 +265,24 @@ def test_joint_test_of_one_contrast_is_its_squared_z():
     assert est[("o", "none", "pooled")]["status"] == "not_estimable"
 
 
+def test_a_joint_test_of_a_ratio_needs_its_null():
+    rows = [{"g": ["a", "b", "c"][i % 3], "y": float((i * 37) % 11) + 3} for i in range(60)]
+    ratio = {"kind": "ratio", "numerator": {"weights": {"g[b]": 1}}, "denominator": {"weights": {"g[c]": 1}}}
+    est, _, _ = _estimates(_records(rows), [{
+        "id": "o", "estimator": "fe_ols", "outcome": "y", "terms": [{"dummies": "g", "reference": "a"}],
+        "vcov": {"type": "hc1"},
+        "contrasts": [{"id": "rel", **ratio}, {"id": "rel1", **ratio, "null": 1.0}],
+        "joint_tests": [{"id": "no_null", "contrasts": ["rel"]}, {"id": "with_null", "contrasts": ["rel1"]}],
+    }])
+    no_null = est[("o", "no_null", "pooled")]
+    assert no_null["status"] == "not_estimable" and no_null["p_value"] is None
+    assert "ratio contrast 'rel' has no null" in no_null["message"]
+    # one restriction: the Wald statistic is the squared z of the ratio against its null
+    single, joint = est[("o", "rel1", "pooled")], est[("o", "with_null", "pooled")]
+    _close(joint["statistic"], ((single["estimate"] - 1.0) / single["std_error"]) ** 2)
+    _close(joint["p_value"], single["p_value"])
+
+
 def test_spearman_hand_examples():
     rows = [{"x": float(i), "y": float(i ** 3)} for i in range(10)] + [{"x": 1.0, "y": 5.0, "grp": "flat"} for _ in range(5)]
     for r in rows[:10]:

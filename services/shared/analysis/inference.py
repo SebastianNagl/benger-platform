@@ -412,6 +412,8 @@ def contrast_vector(
             return None, None, 0.0, str(exc)
         return value, grad, float(contrast.get("null", 0.0)), None
     if kind == "ratio":
+        if contrast.get("null") is None:
+            return None, None, 0.0, f"ratio contrast {contrast['id']!r} has no null to test against"
         num, den = contrast["numerator"], contrast["denominator"]
         a, reason_a = weight_vector(fit, num["weights"], implied_zero=implied_zero)
         c, reason_c = weight_vector(fit, den["weights"], implied_zero=implied_zero)
@@ -422,8 +424,7 @@ def contrast_vector(
         if abs(B) < max(float(contrast.get("min_abs_denominator", 0.0)), 1e-12):
             return None, None, 0.0, f"the denominator of {contrast['id']!r} is too close to zero"
         scale = float(contrast.get("scale", 1.0))
-        null = contrast.get("null")
-        return scale * A / B, scale * (a / B - c * A / B**2), float(null) if null is not None else 0.0, None
+        return scale * A / B, scale * (a / B - c * A / B**2), float(contrast["null"]), None
     L, reason = weight_vector(fit, contrast["weights"], implied_zero=implied_zero)
     if L is None:
         return None, None, 0.0, reason
