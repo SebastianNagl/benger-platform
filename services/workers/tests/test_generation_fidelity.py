@@ -257,12 +257,22 @@ def test_preview_of_a_repeater_config_shows_one_item():
     )
 
 
-def test_skeleton_without_repeater_matches_the_field_list_instruction():
-    # Render equivalence: a config without a Repeater appends the same text
-    # as the plain field list.
-    assert schema_instruction(answer_skeleton(LABEL_CONFIG)) == schema_instruction(
-        ["anteil_mieter", "vorrang"]
+def test_skeleton_without_repeater_appends_the_unchanged_block():
+    # Render equivalence: a config without a Repeater appends, byte for
+    # byte, the block the worker appended before per-item configs existed
+    # (separator, header, the fields in document order, 2-space JSON).
+    expected = (
+        "\n\n---\n"
+        "IMPORTANT: Respond ONLY with valid JSON using these exact field names:\n"
+        "```json\n"
+        "{\n"
+        '  "anteil_mieter": "<your response>",\n'
+        '  "vorrang": "<your response>"\n'
+        "}\n"
+        "```"
     )
+    assert schema_instruction(answer_skeleton(LABEL_CONFIG)) == expected
+    assert schema_instruction_preview({}, LABEL_CONFIG) == expected
 
 
 def test_skeleton_uses_rendered_answer_keys():
