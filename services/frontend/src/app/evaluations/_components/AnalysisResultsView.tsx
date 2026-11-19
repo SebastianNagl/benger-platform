@@ -332,16 +332,19 @@ export function AnalysisResultsView({
     return () => window.clearTimeout(timer)
   }, [anyActive, runs, failedRefreshes, loadRuns])
 
+  const selectedRunRef = useRef<string | null>(selectedRunId)
   const loadRun = useCallback(
     async (runId: string, isPoll = false) => {
       try {
         const run = await analysisAPI.getRun(runId)
+        if (selectedRunRef.current !== runId) return
         if (run.project_id !== projectId) {
           setRunState({ kind: 'notFound' })
           return
         }
         setRunState({ kind: 'ready', run })
       } catch (error) {
+        if (selectedRunRef.current !== runId) return
         if (isPoll && statusOf(error) !== 404) {
           setFailedPolls((n) => n + 1)
           return
@@ -364,6 +367,7 @@ export function AnalysisResultsView({
 
   // The selected run, fresh on every selection.
   useEffect(() => {
+    selectedRunRef.current = selectedRunId
     setEstimates(null)
     setEstimatesError(null)
     if (!selectedRunId) {

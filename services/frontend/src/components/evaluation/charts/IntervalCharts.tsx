@@ -57,7 +57,7 @@ function commonLevel(rows: readonly IntervalRow[]): number | null {
 
 export interface IntervalForestChartProps {
   rows: readonly IntervalRow[]
-  /** `point` (forest plot) or `bar` (bars from the reference value). */
+  /** `point` (forest plot) or `bar` (bars from 0, the null value dashed). */
   mode?: 'point' | 'bar'
   /** Shown when there are no rows. */
   emptyMessage?: string

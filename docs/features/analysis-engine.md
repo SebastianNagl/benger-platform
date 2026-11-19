@@ -358,7 +358,7 @@ evaluation configs, so runs stay reachable after their designs are deleted.
   shaded as a band and every row also draws the TOST interval (the
   `tost_level`, 90 % by default) that the equivalence decision uses; the band
   can be switched to another bound set or off. `bar` draws the estimates of
-  each contrast as bars from the null value, `table` lists the contrasts
+  each contrast as bars from 0, with the null value as a dashed line, `table` lists the contrasts
   against their scopes, `data` shows only the estimates table.
 - The estimates table: every estimate in engine order with its standard
   error, confidence interval, p-value, first family with its method and

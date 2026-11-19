@@ -59,7 +59,7 @@ export interface ForestPlotProps {
   axisLabel?: string
   /** Legend entries for the lines; omitted entries are not shown. */
   legend?: { interval?: string; inner?: string; band?: string }
-  /** `point` (default): a marker per estimate; `bar`: a bar from the reference. */
+  /** `point` (default): a marker per estimate; `bar`: a bar from 0, the null value dashed. */
   mode?: 'point' | 'bar'
   className?: string
   'data-testid'?: string

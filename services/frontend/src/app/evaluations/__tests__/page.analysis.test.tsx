@@ -10,7 +10,14 @@
  */
 
 import '@testing-library/jest-dom'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import EvaluationDashboard from '@/app/evaluations/page'
@@ -349,6 +356,48 @@ describe('Evaluations page, Analyses result type', () => {
     })
     await waitFor(() => expect(mockListEstimates).toHaveBeenCalledWith('run-3'))
     expect(await screen.findByTestId('estimates-table')).toBeInTheDocument()
+  })
+
+  it('ignores a slow poll of the previous run after another is selected', async () => {
+    jest.useFakeTimers()
+    mockSearch = new URLSearchParams(
+      'projectId=project-1&type=analysis&run=run-3',
+    )
+    let resolveStalePoll: (run: unknown) => void = () => {}
+    let run3Calls = 0
+    mockGetRun.mockImplementation((id: string) => {
+      if (id === 'run-3') {
+        run3Calls += 1
+        if (run3Calls === 1)
+          return Promise.resolve(makeRun({ id: 'run-3', status: 'running' }))
+        return new Promise((resolve) => {
+          resolveStalePoll = resolve
+        })
+      }
+      return Promise.resolve(makeRun({ id, status: 'completed' }))
+    })
+    render(<EvaluationDashboard />)
+    expect(await screen.findByTestId('analysis-run-active')).toBeInTheDocument()
+    await act(async () => {
+      jest.advanceTimersByTime(3100)
+    })
+    expect(run3Calls).toBe(2)
+
+    fireEvent.change(screen.getByTestId('analysis-run-filter'), {
+      target: { value: 'run-1' },
+    })
+    expect(await screen.findByTestId('estimates-table')).toBeInTheDocument()
+    expect(mockListEstimates).toHaveBeenCalledWith('run-1')
+
+    await act(async () => {
+      resolveStalePoll(makeRun({ id: 'run-3', status: 'running' }))
+    })
+    await act(async () => {
+      jest.advanceTimersByTime(3100)
+    })
+    expect(screen.queryByTestId('analysis-run-active')).toBeNull()
+    expect(screen.getByTestId('estimates-table')).toBeInTheDocument()
+    expect(run3Calls).toBe(2)
   })
 
   it('shows a failed run and a run that cannot be read', async () => {
