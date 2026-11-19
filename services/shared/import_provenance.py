@@ -18,10 +18,15 @@ Same target means: the same existing project for the project-scoped imports
 (nested, tabular, merge); for an import that creates a project, the same
 requester, organization and group, as long as the project the earlier import
 created still exists and is not deleted. A merge preview (``dry_run``) writes
-nothing and gets no key, so it never matches and is never matched. A caller
-that wants to import the same payload again on purpose (for example after
-deleting the tasks of the earlier import) passes ``reimport``; that job
-still records hash, manifest and key.
+nothing and gets no key, so it never matches and is never matched.
+
+An import records the tasks it wrote (``import_job_tasks``): the tasks it
+created and the existing tasks it added rows to, as a merge does. A repeat
+is a no-op only while every one of those tasks still exists; once any of
+them was deleted, the repeat imports again as a new import with the same
+payload hash and no ``duplicate_of_job_id``. ``reimport`` (API only) imports
+the same payload again in any case; that job still records hash, manifest,
+key and its tasks.
 
 Two identical imports running at once are serialized by a transaction-level
 advisory lock on the key, taken before the lookup and held until the import
@@ -38,7 +43,7 @@ import hashlib
 import json
 import os
 from datetime import datetime
-from typing import Any, BinaryIO, Dict, Mapping, Optional, Tuple
+from typing import Any, BinaryIO, Dict, Iterable, Mapping, Optional, Set, Tuple
 
 MANIFEST_VERSION = 1
 
@@ -50,6 +55,9 @@ DECLARED_MANIFEST_MAX_BYTES = 64 * 1024
 _LOCK_CLASS = 0x1D9
 
 _HASH_CHUNK = 1024 * 1024
+
+# Task ids per statement when an import's task links are written.
+_LINK_BATCH = 10_000
 
 # Import modes whose result depends on model_id_map; the others ignore it.
 _MODES_WITH_MODEL_MAP = frozenset({"merge", "comprehensive"})
@@ -191,13 +199,67 @@ def lock_import_key(db, key: str) -> None:
     )
 
 
+def track_written_tasks(db) -> Set[str]:
+    """The ids of the tasks ``db`` writes from now on, filled at each flush:
+    every task it creates and every task a row it creates points at through
+    ``task_id``. Includes ids of other kinds of ``task_id``;
+    :func:`record_written_tasks` keeps only real tasks of the project."""
+    from sqlalchemy import event
+
+    from project_models import Task
+
+    written: Set[str] = set()
+
+    def _collect(session, _flush_context, _instances) -> None:
+        for obj in session.new:
+            task_id = obj.id if isinstance(obj, Task) else getattr(obj, "task_id", None)
+            if isinstance(task_id, str) and task_id:
+                written.add(task_id)
+
+    event.listen(db, "before_flush", _collect)
+    return written
+
+
+def record_written_tasks(
+    db, job_id: str, project_id: Optional[str], task_ids: Iterable[str]
+) -> None:
+    """Link ``job_id`` to those of ``task_ids`` that are tasks of
+    ``project_id``, in ``db``'s transaction. Flush first, so the import's
+    pending tasks are collected and visible."""
+    from sqlalchemy import text
+
+    if not project_id:
+        return
+    ids = sorted(task_ids)
+    for start in range(0, len(ids), _LINK_BATCH):
+        db.execute(
+            text(
+                "INSERT INTO import_job_tasks (import_job_id, task_id) "
+                "SELECT :job_id, id FROM tasks "
+                "WHERE project_id = :project_id AND id = ANY(:ids)"
+            ),
+            {
+                "job_id": job_id,
+                "project_id": project_id,
+                "ids": ids[start : start + _LINK_BATCH],
+            },
+        )
+
+
 def find_completed_import(db, key: str, job_id: str, target: Mapping[str, Any]):
     """The latest completed, non-no-op import job with ``key`` other than
-    ``job_id``, or None. For a new-project target the project that import
-    created must still exist and not be deleted."""
-    from models import ImportJob, JobStatus
-    from project_models import Project
+    ``job_id`` whose written tasks all still exist, or None. For a
+    new-project target the project that import created must also still exist
+    and not be deleted."""
+    from sqlalchemy import exists
 
+    from models import ImportJob, ImportJobTask, JobStatus
+    from project_models import Project, Task
+
+    lost_task = exists().where(
+        ImportJobTask.import_job_id == ImportJob.id,
+        ~exists().where(Task.id == ImportJobTask.task_id),
+    )
     query = (
         db.query(ImportJob)
         .filter(
@@ -205,6 +267,7 @@ def find_completed_import(db, key: str, job_id: str, target: Mapping[str, Any]):
             ImportJob.status == JobStatus.COMPLETED.value,
             ImportJob.duplicate_of_job_id.is_(None),
             ImportJob.id != job_id,
+            ~lost_task,
         )
         .order_by(ImportJob.updated_at.desc())
     )

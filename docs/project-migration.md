@@ -241,10 +241,19 @@ with 409 `import_conflict`, and starting it again after the first finished
 is the no-op. A failed import records its hash and manifest too and blocks
 nothing.
 
-To import the same file again on purpose, for example after deleting the
-tasks of the earlier import, send `"reimport": true` in the job body (on
+An import records which tasks it wrote: the tasks it created and, for a
+merge, the existing tasks it added results to. A repeat is a no-op only
+while every one of those tasks still exists. Once any of them was deleted,
+all or only some, the same file imports again as a new import: a new job
+with the same `payload_sha256`, no `duplicate_of_job_id` and the usual
+result. This holds for the imports into an existing project (nested,
+tabular, merge) and for create-new imports.
+
+To import the same file again on purpose in any case, send
+`"reimport": true` in the job body (on
 `POST /api/projects/project-imports`, `POST /api/projects/{id}/imports` and
-`POST /api/projects/{id}/cloud-imports`). Jobs from before this feature
+`POST /api/projects/{id}/cloud-imports`); the web interface does not send
+it. Jobs from before this feature
 carry no hash, so the first import of a file after the upgrade always runs.
 
 `error_message` is always a short reason meant for the person who started

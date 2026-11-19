@@ -352,8 +352,10 @@ def import_project_impl(
     Provenance and re-import (``import_provenance``): the job records the
     payload's SHA-256 and its source manifest before importing. When an
     import with the same idempotency key (payload hash, target, options)
-    already completed, the job completes as a no-op that writes nothing and
-    names that job in ``duplicate_of_job_id``; ``reimport`` imports anyway.
+    already completed and every task it wrote still exists, the job
+    completes as a no-op that writes nothing and names that job in
+    ``duplicate_of_job_id``; ``reimport`` imports anyway. The job links the
+    tasks it writes (``import_job_tasks``) in the import's commit.
 
     Idempotent: a job already past `running` is skipped (acks_late redelivery of
     a finished job is a no-op); a job left `running` by a crashed worker IS
@@ -550,10 +552,18 @@ def import_project_impl(
                         "duplicate_of_job_id": prior.id,
                     }
 
+            # The tasks this import writes, linked to the job at its commit
+            # so a later repeat can tell whether they all still exist.
+            written_tasks = (
+                provenance.track_written_tasks(db) if import_key is not None else None
+            )
+
             def _mark_completed(result: Dict[str, Any]) -> None:
                 # The drivers flush + expunge_all the session every batch,
                 # which detaches the `job` loaded above, so load the row again
                 # here. The driver commits it together with the imported rows.
+                if written_tasks is not None:
+                    db.flush()
                 done = db.query(ImportJob).filter(ImportJob.id == job_id).one()
                 done.status = JobStatus.COMPLETED.value
                 done.format = detected_format
@@ -566,6 +576,10 @@ def import_project_impl(
                     done.project_id = result["project_id"]
                 done.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
                 done.error_message = None
+                if written_tasks is not None:
+                    provenance.record_written_tasks(
+                        db, job_id, done.project_id, written_tasks
+                    )
                 completed["project_id"] = done.project_id
                 completed["byte_size"] = byte_size
 

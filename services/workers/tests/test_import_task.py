@@ -101,6 +101,9 @@ class _FakeSession:
     def query(self, model):
         return _FakeQuery(self._by_model.get(model))
 
+    def flush(self):
+        pass
+
     def commit(self):
         self.commits += 1
 
@@ -120,13 +123,15 @@ def _patched(tmp_path):
     storage = _make_local_storage(tmp_path)
 
     # The fake session has no import history: no earlier import matches, and
-    # the advisory lock is the database's (both covered end to end in
-    # tests/integration/test_import_provenance_e2e.py).
+    # the advisory lock and the task links are the database's (covered end
+    # to end in tests/integration/test_import_provenance_e2e.py).
     import import_provenance
 
     with patch.object(workers_tasks, "_publish_progress"), patch.object(
         import_provenance, "find_completed_import", return_value=None
-    ), patch.object(import_provenance, "lock_import_key"):
+    ), patch.object(import_provenance, "lock_import_key"), patch.object(
+        import_provenance, "track_written_tasks", return_value=set()
+    ), patch.object(import_provenance, "record_written_tasks"):
         with patch("storage.object_storage.object_storage", storage):
             yield workers_tasks, storage, ImportJob
 

@@ -10,6 +10,10 @@
   import whose key equals that of a completed import is a no-op.
 - ``import_jobs.duplicate_of_job_id`` (String, nullable, FK import_jobs.id
   ON DELETE SET NULL): the completed import a no-op job repeated.
+- ``import_job_tasks`` (``import_job_id`` FK import_jobs.id ON DELETE
+  CASCADE, ``task_id``; primary key over both): the tasks each import wrote.
+  No foreign key to ``tasks`` on purpose: a deleted task leaves its link, and
+  a repeat of that import then imports again instead of being a no-op.
 
 Rows written before this migration keep NULL in all four, so they are never
 matched: the first import of a file after the upgrade runs as before.
@@ -34,6 +38,7 @@ branch_labels = None
 depends_on = None
 
 _TABLE = "import_jobs"
+_LINKS = "import_job_tasks"
 _FK = "fk_import_jobs_duplicate_of_job_id"
 _INDEXES = {
     "ix_import_jobs_payload_sha256": "payload_sha256",
@@ -73,6 +78,18 @@ def _duplicate_fks() -> set:
 
 
 def upgrade() -> None:
+    if _LINKS not in _inspector().get_table_names():
+        op.create_table(
+            _LINKS,
+            sa.Column(
+                "import_job_id",
+                sa.String(),
+                sa.ForeignKey(f"{_TABLE}.id", ondelete="CASCADE"),
+                nullable=False,
+            ),
+            sa.Column("task_id", sa.String(), nullable=False),
+            sa.PrimaryKeyConstraint("import_job_id", "task_id"),
+        )
     existing = _columns()
     if "payload_sha256" not in existing:
         op.add_column(_TABLE, sa.Column("payload_sha256", sa.String(64), nullable=True))
@@ -109,6 +126,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if _LINKS in _inspector().get_table_names():
+        op.drop_table(_LINKS)
     present = _indexes()
     for name in _INDEXES:
         if name in present:

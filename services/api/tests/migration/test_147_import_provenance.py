@@ -1,7 +1,8 @@
 """Shape tests for migration 147: import provenance on import_jobs.
 
 The shared test DB already carries the four columns, the self-referencing
-key and the two indexes (built from the models), so ``upgrade()`` must be a
+key, the two indexes and the ``import_job_tasks`` links (built from the
+models), so ``upgrade()`` must be a
 no-op through its guards, twice. ``downgrade()`` removes all of it, and a
 re-run ``upgrade()`` rebuilds the shape of the models. Deleting a job a
 no-op repeated clears the no-op's ``duplicate_of_job_id``.
@@ -67,6 +68,15 @@ def _assert_shape(conn):
     assert fk["referred_table"] == "import_jobs"
     assert fk["referred_columns"] == ["id"]
     assert fk["options"].get("ondelete") == "SET NULL"
+    links = {c["name"] for c in insp.get_columns("import_job_tasks")}
+    assert links == {"import_job_id", "task_id"}
+    assert set(
+        insp.get_pk_constraint("import_job_tasks")["constrained_columns"]
+    ) == {"import_job_id", "task_id"}
+    (link_fk,) = insp.get_foreign_keys("import_job_tasks")
+    assert link_fk["constrained_columns"] == ["import_job_id"]
+    assert link_fk["referred_table"] == "import_jobs"
+    assert link_fk["options"].get("ondelete") == "CASCADE"
 
 
 class TestMigration147:
@@ -91,6 +101,7 @@ class TestMigration147:
         insp = inspect(conn)
         assert not COLUMNS & {c["name"] for c in insp.get_columns("import_jobs")}
         assert not INDEXES & {i["name"] for i in insp.get_indexes("import_jobs")}
+        assert "import_job_tasks" not in insp.get_table_names()
         with _op_context(conn):
             mig.upgrade()
         _assert_shape(conn)

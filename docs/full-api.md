@@ -383,8 +383,10 @@ file, then `POST /api/projects/{id}/imports` with `{"object_key":
 "<file_key>"}` and poll `GET /api/projects/{id}/imports/{job_id}`. The job
 records the file's SHA-256 (`payload_sha256`) and a `source_manifest`, and
 importing the same bytes into the same project again completes as a no-op
-that adds nothing and names the earlier job in `duplicate_of_job_id`; send
-`"reimport": true` to import them again on purpose. A scripted import can
+that adds nothing and names the earlier job in `duplicate_of_job_id`, as
+long as every task the earlier import wrote still exists (once one of them
+was deleted, the repeat imports again); send `"reimport": true` (API only)
+to import them again in any case. A scripted import can
 pass its own description of the source as `source_manifest` (a JSON object
 of at most 64 KiB), which the job keeps under `source_manifest.declared`.
 See [import provenance and

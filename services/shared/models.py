@@ -3989,6 +3989,24 @@ class ImportJob(Base):
         )
 
 
+class ImportJobTask(Base):
+    """A task an import job wrote: one it created or one it added rows to
+    (migration 147, ``shared/import_provenance.py``). A repeated import is a
+    no-op only while every task linked to the earlier import still exists,
+    so the link deliberately has no foreign key to ``tasks``: deleting a
+    task leaves its link behind, and that missing task makes the repeat
+    import again."""
+
+    __tablename__ = "import_job_tasks"
+
+    import_job_id = Column(
+        String,
+        ForeignKey("import_jobs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    task_id = Column(String, primary_key=True)
+
+
 class ProjectPurgeJob(Base):
     """Background purge of a soft-deleted project (migration 140).
 

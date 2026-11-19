@@ -40,10 +40,12 @@ class _ImportRequest(BaseModel):
     reimport: bool = Field(
         False,
         description=(
-            "Import even when the same payload was already imported into the "
-            "same target with the same options. Without it such a repeat is a "
-            "no-op: the job completes without writing anything and names the "
-            "earlier job in duplicate_of_job_id."
+            "API only: import even when the same payload was already "
+            "imported into the same target with the same options. Without it "
+            "such a repeat is a no-op while every task the earlier import "
+            "wrote still exists: the job completes without writing anything "
+            "and names the earlier job in duplicate_of_job_id. Once one of "
+            "those tasks was deleted, the repeat imports again anyway."
         ),
     )
 

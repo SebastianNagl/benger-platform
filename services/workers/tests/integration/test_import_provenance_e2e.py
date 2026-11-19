@@ -8,9 +8,11 @@ check the job rows and the imported rows:
 - importing the same payload into the same target again is a no-op that
   writes nothing and names the earlier job, also under another file name;
 - a changed payload is a new import with a different hash;
+- a repeat imports again once any task the earlier import wrote was
+  deleted, all of them or only some;
 - ``reimport`` imports the same payload again on purpose;
 - a create-new import repeated is a no-op that returns the earlier
-  project, until that project is deleted;
+  project, until that project or one of its imported tasks is deleted;
 - a failed import keeps its provenance and never blocks a later one;
 - two identical imports running at once write the payload once.
 """
@@ -229,6 +231,115 @@ def test_reimport_of_the_same_payload_is_a_no_op(
     assert _task_texts(db_conn, target.id) == ["alpha", "beta"]
 
 
+def _linked_task_ids(db, job_id):
+    from models import ImportJobTask
+
+    return {
+        t
+        for (t,) in db.query(ImportJobTask.task_id).filter(
+            ImportJobTask.import_job_id == job_id
+        )
+    }
+
+
+def _project_task_ids(db, project_id):
+    from project_models import Task
+
+    return {t for (t,) in db.query(Task.id).filter(Task.project_id == project_id)}
+
+
+def _delete_tasks(db, task_ids):
+    from project_models import Task
+
+    db.query(Task).filter(Task.id.in_(list(task_ids))).delete(
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def test_import_links_the_tasks_it_created(
+    db_conn, make_user, make_project, storage, jobs
+):
+    user = make_user()
+    target = make_project(created_by=user.id, title=f"Prov {_uid()[:8]}")
+    _o, earlier = _import(
+        db_conn,
+        jobs,
+        user,
+        _stage(storage, _nested_body(["old"]), "old.json"),
+        project_id=target.id,
+    )
+    before = _project_task_ids(db_conn, target.id)
+
+    _o, job = _import(
+        db_conn,
+        jobs,
+        user,
+        _stage(storage, _nested_body(["alpha", "beta"]), "tasks.json"),
+        project_id=target.id,
+    )
+
+    created = _project_task_ids(db_conn, target.id) - before
+    assert len(created) == 2
+    assert _linked_task_ids(db_conn, job.id) == created
+    assert _linked_task_ids(db_conn, earlier.id) == before
+
+
+def test_repeat_after_deleting_all_earlier_tasks_imports_again(
+    db_conn, make_user, make_project, storage, jobs
+):
+    user = make_user()
+    target = make_project(created_by=user.id, title=f"Prov {_uid()[:8]}")
+    body = _nested_body(["alpha", "beta"])
+    _o, first = _import(
+        db_conn, jobs, user, _stage(storage, body, "tasks.json"), project_id=target.id
+    )
+    _delete_tasks(db_conn, _project_task_ids(db_conn, target.id))
+
+    outcome, again = _import(
+        db_conn, jobs, user, _stage(storage, body, "tasks.json"), project_id=target.id
+    )
+
+    _assert_imported(outcome, again)
+    assert again.payload_sha256 == first.payload_sha256
+    assert again.idempotency_key == first.idempotency_key
+    assert again.result["created_tasks"] == 2
+    assert _task_texts(db_conn, target.id) == ["alpha", "beta"]
+
+    # The new import's tasks are intact, so the next repeat is its no-op.
+    outcome, repeat = _import(
+        db_conn, jobs, user, _stage(storage, body, "tasks.json"), project_id=target.id
+    )
+    _assert_no_op(outcome, repeat, again)
+
+
+def test_repeat_after_deleting_some_earlier_tasks_imports_again(
+    db_conn, make_user, make_project, storage, jobs
+):
+    from project_models import Task
+
+    user = make_user()
+    target = make_project(created_by=user.id, title=f"Prov {_uid()[:8]}")
+    body = _nested_body(["alpha", "beta"])
+    _o, first = _import(
+        db_conn, jobs, user, _stage(storage, body, "tasks.json"), project_id=target.id
+    )
+    (beta,) = [
+        t.id
+        for t in db_conn.query(Task).filter(Task.project_id == target.id)
+        if t.data["text"] == "beta"
+    ]
+    _delete_tasks(db_conn, [beta])
+
+    outcome, again = _import(
+        db_conn, jobs, user, _stage(storage, body, "tasks.json"), project_id=target.id
+    )
+
+    _assert_imported(outcome, again)
+    assert again.idempotency_key == first.idempotency_key
+    assert _task_texts(db_conn, target.id) == ["alpha", "alpha", "beta"]
+
+
 def test_changed_payload_is_a_new_import_with_another_hash(
     db_conn, make_user, make_project, storage, jobs
 ):
@@ -370,6 +481,27 @@ def test_create_new_import_repeated_returns_the_earlier_project(
     outcome, fresh = _import(db_conn, jobs, user, _stage(storage, body, "p.json"))
     _assert_imported(outcome, fresh)
     assert fresh.project_id not in (None, first.project_id)
+
+
+def test_create_new_import_repeated_after_deleting_a_task_creates_a_project(
+    db_conn, make_user, storage, jobs
+):
+    user = make_user()
+    title = f"Prov full {uuid.uuid4().hex[:8]}"
+    jobs["titles"].update({title, f"{title} (1)"})
+    body = _comprehensive_body(title)
+
+    _o, first = _import(db_conn, jobs, user, _stage(storage, body, "p.json"))
+    imported = _project_task_ids(db_conn, first.project_id)
+    assert len(imported) == 3
+    assert _linked_task_ids(db_conn, first.id) == imported
+    _delete_tasks(db_conn, [sorted(imported)[0]])
+
+    outcome, fresh = _import(db_conn, jobs, user, _stage(storage, body, "p.json"))
+
+    _assert_imported(outcome, fresh)
+    assert fresh.project_id not in (None, first.project_id)
+    assert len(_project_task_ids(db_conn, fresh.project_id)) == 3
 
 
 def test_create_new_import_by_another_user_is_imported(
