@@ -196,12 +196,14 @@ def _match(values: np.ndarray, level: Any) -> np.ndarray:
 
 
 def expand_term(
-    columns, term: Any, where: str, keep_absent: bool = False
+    columns, term: Any, where: str, keep_absent: bool = False, references: Optional[Dict[str, str]] = None
 ) -> Tuple[List[str], List[np.ndarray], Set[str], List[str]]:
     """(names, columns, implied-zero names, absent names) of one term on the
     sample. Absent names are dummy combinations with no row in the sample;
     with ``keep_absent`` they are expanded like the others (all-zero
-    columns), which the counterfactual designs of marginal effects need."""
+    columns), which the counterfactual designs of marginal effects need.
+    ``references``, when given, receives the reference level of every dummy
+    coding (factor -> level label)."""
     if isinstance(term, str):
         return [term], [_numeric(columns, term, where)], set(), []
     if "dummies" in term:
@@ -212,6 +214,8 @@ def expand_term(
         ref = term.get("reference", levels[0])
         ref_label = _label(ref)
         factor = term["dummies"]
+        if references is not None:
+            references[factor] = ref_label
         names: List[str] = []
         cols: List[np.ndarray] = []
         implied: Set[str] = set()
@@ -244,7 +248,7 @@ def expand_term(
     implied: Set[str] = set()
     absent: List[str] = []
     for sub in term["interact"]:
-        sub_names, sub_cols, sub_implied, sub_absent = expand_term(columns, sub, where, keep_absent)
+        sub_names, sub_cols, sub_implied, sub_absent = expand_term(columns, sub, where, keep_absent, references)
         new_names, new_cols = [], []
         for n0 in names:
             for n1 in sub_absent:
@@ -333,8 +337,9 @@ def fit_fe_ols(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
     cols: List[np.ndarray] = []
     implied: Set[str] = set()
     absent: List[str] = []
+    references: Dict[str, str] = {}
     for term in est["terms"]:
-        t_names, t_cols, t_implied, t_absent = expand_term(sub, term, where)
+        t_names, t_cols, t_implied, t_absent = expand_term(sub, term, where, references=references)
         names += t_names
         cols += t_cols
         implied |= t_implied
@@ -394,6 +399,7 @@ def fit_fe_ols(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where:
         fe_levels=fe_levels if est.get("method", "within") == "within" else (),
     )
     fit.dropped = dropped
+    fit.extra["references"] = references
     zero = [nm for nm in dropped if nm not in absent]
     if zero:
         fit.warnings.append("dropped identically-zero regressor(s): " + ", ".join(zero))
@@ -488,13 +494,15 @@ def _freeze_term(sub, term: Any) -> Any:
     return {"interact": [_freeze_term(sub, t) for t in term["interact"]]}
 
 
-def _expand_terms(sub, terms: Sequence[Any], where: str, keep_absent: bool = False):
+def _expand_terms(
+    sub, terms: Sequence[Any], where: str, keep_absent: bool = False, references: Optional[Dict[str, str]] = None
+):
     names: List[str] = []
     cols: List[np.ndarray] = []
     implied: Set[str] = set()
     absent: List[str] = []
     for term in terms:
-        t_names, t_cols, t_implied, t_absent = expand_term(sub, term, where, keep_absent)
+        t_names, t_cols, t_implied, t_absent = expand_term(sub, term, where, keep_absent, references)
         names += t_names
         cols += t_cols
         implied |= t_implied
@@ -640,7 +648,8 @@ def fit_logit_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray
     idx = np.flatnonzero(use)
     sub = {name: arr[idx] for name, arr in columns.items()}
     frozen = [_freeze_term(sub, t) for t in terms]
-    names, cols, implied, absent = _expand_terms(sub, frozen, where)
+    references: Dict[str, str] = {}
+    names, cols, implied, absent = _expand_terms(sub, frozen, where, references=references)
     m = len(idx)
     fixed: Dict[str, np.ndarray] = {}
     if fes or est.get("intercept", True):
@@ -662,6 +671,7 @@ def fit_logit_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray
     if uninformative:
         fit.warnings.append(f"{uninformative} row(s) of fixed-effect groups without outcome variation left out")
     fit.extra["rows_uninformative"] = uninformative
+    fit.extra["references"] = references
     fit.design = LogitDesign(sub, frozen, names, fixed, numeric + factors, fe_cols, where)
     return fit, implied, m, dropped_rows + uninformative, 0
 
@@ -714,7 +724,8 @@ def fit_bradley_terry(columns, n: int, est: Mapping[str, Any], mask: np.ndarray,
             continue
         names.append(f"strength[{lv}]")
         cols.append(_match(a, lv).astype(float) - _match(b, lv).astype(float))
-    t_names, t_cols, implied, absent = _expand_terms(sub, terms, where)
+    references: Dict[str, str] = {"strength": ref}
+    t_names, t_cols, implied, absent = _expand_terms(sub, terms, where, references=references)
     names, cols = names + t_names, cols + t_cols
     implied = set(implied) | {f"strength[{ref}]"}
     if fes:
@@ -739,7 +750,20 @@ def fit_bradley_terry(columns, n: int, est: Mapping[str, Any], mask: np.ndarray,
     if outside:
         fit.warnings.append(f"{outside} row(s) with a player outside the declared levels left out")
     fit.extra["players"] = levels
+    fit.extra["references"] = references
+    fit.extra["players_are_systems"] = _are_systems(columns, levels)
     return fit, implied, m, dropped_rows + outside + uninformative, 0
+
+
+def _are_systems(columns, levels: Sequence[str]) -> bool:
+    """Whether every one of ``levels`` is a value of the frame's ``system``
+    (or ``model_id``) column."""
+    for column in ("system", "model_id"):
+        if column in columns:
+            values = {_label(v) for v in columns[column].tolist() if v is not None}
+            if levels and set(levels) <= values:
+                return True
+    return False
 
 
 def fit_mixedlm_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, where: str):
@@ -752,7 +776,8 @@ def fit_mixedlm_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarr
     idx = np.flatnonzero(use)
     sub = {name: arr[idx] for name, arr in columns.items()}
     m = len(idx)
-    names, cols, implied, absent = _expand_terms(sub, terms, where)
+    references: Dict[str, str] = {}
+    names, cols, implied, absent = _expand_terms(sub, terms, where, references=references)
     if est.get("intercept", True):
         names, cols = ["(intercept)"] + names, [np.ones(m)] + cols
     X = np.column_stack(cols) if cols else np.empty((m, 0))
@@ -766,6 +791,7 @@ def fit_mixedlm_estimand(columns, n: int, est: Mapping[str, Any], mask: np.ndarr
         )
     fit = fit_mixedlm(sub[est["outcome"]].astype(float), X, names, g, est["conventions"])
     fit.dropped = list(absent) + zero
+    fit.extra["references"] = references
     if zero:
         fit.warnings.append("dropped identically-zero regressor(s): " + ", ".join(zero))
     return fit, implied, m, dropped_rows, 0
@@ -818,7 +844,8 @@ def fit_ranked_logit(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, 
     flat = [i for rows in sets for i in rows]
     idx = np.array(flat, dtype=np.int64)
     sub = {name: arr[idx] for name, arr in columns.items()}
-    names, cols, implied, absent = _expand_terms(sub, est["terms"], where)
+    references: Dict[str, str] = {}
+    names, cols, implied, absent = _expand_terms(sub, est["terms"], where, references=references)
     m = len(idx)
     X = np.column_stack(cols) if cols else np.empty((m, 0))
     set_of = np.repeat(np.arange(len(sets)), [len(r) for r in sets])
@@ -878,7 +905,7 @@ def fit_ranked_logit(columns, n: int, est: Mapping[str, Any], mask: np.ndarray, 
         fit.warnings.append("dropped regressor(s) constant within every choice set: " + ", ".join(zero))
     if invalid:
         fit.warnings.append(f"{invalid} choice set(s) without a valid ranking, a usable size or complete regressors left out")
-    fit.extra.update(choice_sets=S, alternatives=m, choice_sets_invalid=invalid)
+    fit.extra.update(choice_sets=S, alternatives=m, choice_sets_invalid=invalid, references=references)
     return fit, implied, m, in_mask - m, 0
 
 

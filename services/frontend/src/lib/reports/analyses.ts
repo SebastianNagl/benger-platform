@@ -55,7 +55,7 @@ export type AnalysisRunDefinition = Pick<
 
 /** The frame columns holding a system key (or the bare model id). */
 const SYSTEM_COLUMNS = ['system', 'model_id']
-const SYSTEM_PARAMETER = /(?:^|:)(?:system|model_id)\[([^[\]]*)\]/g
+const PARAMETER = /(?:^|:)([^[\]:]+)\[([^[\]]*)\]/g
 
 type Json = Record<string, unknown>
 
@@ -108,6 +108,18 @@ function weightKeys(contrast: Json): [string[], string[]] {
   ]
 }
 
+/** The references the `terms` of a spec declare (factor -> level). */
+function declaredReferences(terms: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const term of asList(terms)) {
+    if (!isObject(term)) continue
+    if (term.dummies && term.reference !== null && term.reference !== undefined)
+      out[String(term.dummies)] = String(term.reference)
+    else Object.assign(out, declaredReferences(term.interact))
+  }
+  return out
+}
+
 function globPattern(pattern: string): RegExp {
   const escape = (part: string) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return new RegExp('^' + pattern.split('*').map(escape).join('.*') + '$')
@@ -116,8 +128,12 @@ function globPattern(pattern: string): RegExp {
 /**
  * The systems an estimate involves: the one it is scoped to plus every
  * system level its contrast or joint test names in the run's normalized
- * spec (`system[<level>]` or `model_id[<level>]` parameters). The editor's
- * copy of `estimate_systems` in services/shared/report_snapshot.py.
+ * spec (`system[<level>]` or `model_id[<level>]` parameters) and the
+ * reference level those parameters are measured against (the one the fit
+ * recorded, or for a run whose fits record none the declared one).
+ * Bradley-Terry strengths count as systems when the fit recorded
+ * `players_are_systems`. The editor's copy of `estimate_systems` in
+ * services/shared/report_snapshot.py.
  */
 export function estimateSystems(
   estimate: EstimateLike,
@@ -139,6 +155,16 @@ export function estimateSystems(
   const byId = new Map<unknown, Json>()
   for (const c of asList(est.contrasts)) if (isObject(c)) byId.set(c.id, c)
   const cid = estimate.contrast_id
+  const fit = (run?.fits ?? []).find(
+    (f) => f.estimand === estimate.estimand_id && f.scope === estimate.scope,
+  )
+  const references: Record<string, string> = {}
+  if (fit && isObject(fit.references)) {
+    for (const [k, v] of Object.entries(fit.references))
+      if (v !== null && v !== undefined) references[k] = String(v)
+  } else Object.assign(references, declaredReferences(est.terms))
+  const prefixes = new Set(SYSTEM_COLUMNS)
+  if (fit?.players_are_systems === true) prefixes.add('strength')
   const names: unknown[] = []
   const contrasts: Json[] = []
   const test =
@@ -159,13 +185,9 @@ export function estimateSystems(
     )
     names.push(...patterns.filter((p) => !p.includes('*')))
     const compiled = patterns.map(globPattern)
-    for (const fit of run?.fits ?? []) {
-      if (fit.estimand !== estimate.estimand_id || fit.scope !== estimate.scope)
-        continue
-      for (const n of fit.parameters ?? [])
-        if (typeof n === 'string' && compiled.some((c) => c.test(n)))
-          names.push(n)
-    }
+    for (const n of fit?.parameters ?? [])
+      if (typeof n === 'string' && compiled.some((c) => c.test(n)))
+        names.push(n)
   } else {
     for (const ref of asList(test.contrasts)) {
       const listed = byId.get(ref)
@@ -180,7 +202,11 @@ export function estimateSystems(
   }
   for (const name of names) {
     if (typeof name !== 'string') continue
-    for (const m of name.matchAll(SYSTEM_PARAMETER)) systems.add(m[1])
+    for (const [, prefix, level] of name.matchAll(PARAMETER)) {
+      if (!prefixes.has(prefix)) continue
+      systems.add(level)
+      if (prefix in references) systems.add(references[prefix])
+    }
   }
   return systems
 }

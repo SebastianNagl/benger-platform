@@ -5,6 +5,7 @@
  * so the editor's preview shows the rows the snapshot will copy.
  */
 
+import type { AnalysisEstimate, AnalysisFit } from '@/lib/api/analysis'
 import {
   type AnalysisRunDefinition,
   cleanFilters,
@@ -22,10 +23,14 @@ import type { ReportExhibitFilters } from '@/types/report'
 
 const OPEN = 'open-model@p1'
 const SECRET = 'custom-secret-model@p2'
+const OTHER = 'other-model@p3'
 
 // The run's normalized spec and fits: model_gap has a contrast with a
 // neutral label that weights the private system and a joint test whose
-// parameter pattern matches both systems of its fit.
+// parameter pattern matches both systems of its fit. The fits record the
+// reference of their system dummies: OTHER for model_gap, SECRET for
+// length_effect, whose terms contrasts are therefore measured against the
+// private system.
 const RUN: AnalysisRunDefinition = {
   normalized_spec: {
     inputs: { designs: ['framing'] },
@@ -64,14 +69,23 @@ const RUN: AnalysisRunDefinition = {
       estimand: 'model_gap',
       scope: 'pooled',
       parameters: ['(intercept)', `system[${OPEN}]`, `system[${SECRET}]`],
+      references: { system: OTHER },
+    },
+    {
+      estimand: 'length_effect',
+      scope: 'pooled',
+      parameters: ['(intercept)', `system[${OPEN}]`, `system[${OTHER}]`],
+      references: { system: SECRET },
     },
   ],
 }
 
 // position, estimand, contrast, scope values, families, kind. Involved
-// systems: none for 0, 3, 5; OPEN for 1, 4, 6, 8 (8: a terms contrast of
-// OPEN against the reference); SECRET for 2, 7, 9 (9 through its weights
-// only); both for the joint test 10.
+// systems: none for 0, 3, 5; OPEN for 1, 4, 6; SECRET for 2; the terms
+// contrasts against the SECRET reference involve OTHER and SECRET (7) or
+// OPEN and SECRET (8); the neutral-label contrast 9 involves SECRET
+// (through its weights only) and the OTHER reference; the joint test 10
+// involves OPEN, SECRET and OTHER.
 const ROWS: Array<
   [number, string, string, Record<string, string> | null, string[], string]
 > = [
@@ -117,7 +131,7 @@ const ROWS: Array<
     ['secondary'],
     'linear',
   ],
-  [7, 'length_effect', `system[${SECRET}]`, null, [], 'linear'],
+  [7, 'length_effect', `system[${OTHER}]`, null, [], 'linear'],
   [8, 'length_effect', `system[${OPEN}]`, null, [], 'linear'],
   [9, 'model_gap', 'secret_vs_ref', null, [], 'linear'],
   [10, 'model_gap', 'any_system', null, [], 'wald'],
@@ -158,8 +172,9 @@ describe('exhibitSelects', () => {
     [{ estimands: ['framing_effect'], contrasts: ['long_vs_short'] }, []],
     [{ families: ['secondary'] }, [3, 4, 6]],
     [{ families: ['primary', 'secondary'] }, [0, 1, 2, 3, 4, 6]],
-    [{ systems: [OPEN] }, [1, 4, 6, 8]],
-    [{ systems: [OPEN, SECRET] }, [1, 2, 4, 6, 7, 8, 9, 10]],
+    [{ systems: [OPEN] }, [1, 4, 6]],
+    [{ systems: [OPEN, SECRET] }, [1, 2, 4, 6, 8]],
+    [{ systems: [OPEN, SECRET, OTHER] }, [1, 2, 4, 6, 7, 8, 9, 10]],
     [{ systems: ['nobody'] }, []],
     [
       {
@@ -183,14 +198,14 @@ describe('exhibitSelects', () => {
     },
   )
 
-  it('keeps a contrast of another system out of a systems filter', () => {
-    // A pooled terms contrast of SECRET against the reference is not a row
-    // about OPEN.
-    expect(
-      selectEstimates(estimates, { systems: [OPEN] }, RUN).map(
-        (e) => e.contrast_id,
-      ),
-    ).not.toContain(`system[${SECRET}]`)
+  it('keeps contrasts of another system or reference out of a systems filter', () => {
+    // A pooled terms contrast of OTHER against the reference is not a row
+    // about OPEN, and neither is OPEN against the SECRET reference.
+    const shown = selectEstimates(estimates, { systems: [OPEN] }, RUN).map(
+      (e) => e.contrast_id,
+    )
+    expect(shown).not.toContain(`system[${OTHER}]`)
+    expect(shown).not.toContain(`system[${OPEN}]`)
   })
 
   it('treats empty lists and no filters as no restriction', () => {
@@ -225,8 +240,19 @@ describe('exhibitSelects', () => {
 })
 
 describe('estimateSystems', () => {
+  const FIT: AnalysisFit = {
+    estimand: 'e',
+    scope: 'pooled',
+    parameters: [],
+    references: {},
+  }
   const cases: Array<
-    [Record<string, unknown>, Record<string, unknown>, string[]]
+    [
+      Record<string, unknown>,
+      AnalysisFit[] | null,
+      Partial<AnalysisEstimate>,
+      string[],
+    ]
   > = [
     [
       {
@@ -236,6 +262,7 @@ describe('estimateSystems', () => {
           { id: 'j', rows: [{ 'system[a@1]': 1 }, { 'x[1]:system[b@2]': 1 }] },
         ],
       },
+      null,
       { contrast_id: 'j', kind: 'wald' },
       ['a@1', 'b@2'],
     ],
@@ -245,6 +272,7 @@ describe('estimateSystems', () => {
         contrasts: [{ id: 'c1', weights: { 'model_id[m]': 1 } }],
         joint_tests: [{ id: 'j', contrasts: ['c1'] }],
       },
+      null,
       { contrast_id: 'j', kind: 'wald' },
       ['m'],
     ],
@@ -254,6 +282,7 @@ describe('estimateSystems', () => {
         contrasts: 'terms',
         joint_tests: [{ id: 'j', parameters: ['system[a@1]'] }],
       },
+      null,
       { contrast_id: 'j', kind: 'wald' },
       ['a@1'],
     ],
@@ -269,6 +298,7 @@ describe('estimateSystems', () => {
           },
         ],
       },
+      null,
       { contrast_id: 'r', kind: 'ratio' },
       ['a@1', 'b@2'],
     ],
@@ -285,6 +315,7 @@ describe('estimateSystems', () => {
           },
         ],
       },
+      null,
       { contrast_id: 'm', kind: 'ame' },
       ['a@1', 'b@2'],
     ],
@@ -301,6 +332,7 @@ describe('estimateSystems', () => {
           },
         ],
       },
+      null,
       { contrast_id: 'm', kind: 'ame' },
       [],
     ],
@@ -310,12 +342,63 @@ describe('estimateSystems', () => {
         treatment: { factor: 'system', level: 'a@1', reference: 'b@2' },
         contrasts: 'terms',
       },
+      null,
       { contrast_id: '(difference)', kind: 'linear' },
       ['a@1', 'b@2'],
     ],
+    [
+      {
+        id: 'e',
+        contrasts: 'terms',
+        terms: [{ dummies: 'system', reference: 'd@9' }],
+      },
+      [{ ...FIT, references: { system: 'r@0' } }],
+      { contrast_id: 'system[a@1]', kind: 'linear' },
+      ['a@1', 'r@0'],
+    ],
+    [
+      { id: 'e', contrasts: 'terms' },
+      [{ ...FIT, references: { system: 'r@0', framing: 'neutral' } }],
+      { contrast_id: 'framing[loaded]:system[a@1]', kind: 'linear' },
+      ['a@1', 'r@0'],
+    ],
+    [
+      { id: 'e', contrasts: 'terms' },
+      [{ ...FIT, references: { system: 'r@0', framing: 'neutral' } }],
+      { contrast_id: 'framing[loaded]', kind: 'linear' },
+      [],
+    ],
+    [
+      {
+        id: 'e',
+        contrasts: 'terms',
+        terms: [{ interact: [{ dummies: 'system', reference: 'd@9' }, 'x'] }],
+      },
+      [{ estimand: 'e', scope: 'pooled', parameters: [] }],
+      { contrast_id: 'system[a@1]:x', kind: 'linear' },
+      ['a@1', 'd@9'],
+    ],
+    [
+      { id: 'e', contrasts: 'terms', terms: [{ dummies: 'system' }] },
+      null,
+      { contrast_id: 'system[a@1]', kind: 'linear' },
+      ['a@1'],
+    ],
+    [
+      { id: 'e', estimator: 'bradley_terry', contrasts: 'terms' },
+      [{ ...FIT, references: { strength: 'r@0' }, players_are_systems: true }],
+      { contrast_id: 'strength[a@1]', kind: 'linear' },
+      ['a@1', 'r@0'],
+    ],
+    [
+      { id: 'e', estimator: 'bradley_terry', contrasts: 'terms' },
+      [{ ...FIT, references: { strength: 'r@0' }, players_are_systems: false }],
+      { contrast_id: 'strength[a@1]', kind: 'linear' },
+      [],
+    ],
   ]
 
-  it.each(cases)('reads the spec of %j', (estimand, row, expected) => {
+  it.each(cases)('reads the spec of %j', (estimand, fits, row, expected) => {
     const estimate = makeEstimate({
       estimand_id: 'e',
       scope: 'pooled',
@@ -326,7 +409,7 @@ describe('estimateSystems', () => {
       [
         ...estimateSystems(estimate, {
           normalized_spec: { estimands: [estimand] },
-          fits: null,
+          fits,
         }),
       ].sort(),
     ).toEqual(expected)
@@ -341,13 +424,13 @@ describe('exhibit helpers', () => {
         'loaded_vs_neutral',
         'order_effect',
         'long_vs_short',
-        `system[${SECRET}]`,
+        `system[${OTHER}]`,
         `system[${OPEN}]`,
         'secret_vs_ref',
         'any_system',
       ],
       families: ['primary', 'secondary'],
-      systems: [SECRET, OPEN],
+      systems: [SECRET, OPEN, OTHER],
     })
   })
 

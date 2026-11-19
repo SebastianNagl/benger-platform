@@ -195,8 +195,15 @@ level and reference of an average marginal effect over a system column),
 the contrast id itself when the spec lists no such contrast (as for
 `terms`), the rows, parameters (matched against the fit's parameters) or
 contrasts of a joint test, and the level and reference of a paired
-treatment over a system column. The editor reads the run's normalized spec
-and fits for its preview, so it selects the rows the snapshot copies.
+treatment over a system column. A `system` or `model_id` parameter (also
+inside an interaction) is measured against the reference level of its
+dummy coding, so that level is involved too: the one the fit recorded in
+its summary (`references`), or, for a run made before fits recorded it, the
+`reference` the spec declares (a level is never guessed from the order of
+the levels). Bradley-Terry strengths `strength[<level>]` and their
+reference count as systems when the fit recorded `players_are_systems`.
+The editor reads the run's normalized spec and fits for its preview, so it
+selects the rows the snapshot copies.
 
 Publishing and "Refresh data" copy into `snapshot.analyses.runs`, per run:
 id, name, spec hash and version, engine version, frame hash and SHA-256,
@@ -219,8 +226,8 @@ a hidden model (the model id is the part of the system key before `@`),
 whatever its label, an estimate whose contrast id names a hidden model, an
 engine message or run warning naming one and a run warning about the fit of
 a left-out estimate (prefixed `<estimand> [<scope>]:`) are left out, unless
-the builder is called with `include_private_models`. The frame is never linked, and only a report
-author gets a link to the run page.
+the builder is called with `include_private_models`. The frame is never
+linked, and only a report author gets a link to the run page.
 
 ## Reading and citing a report
 

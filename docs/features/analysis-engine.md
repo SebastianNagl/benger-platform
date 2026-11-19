@@ -229,6 +229,15 @@ dropped and named; a contrast on it is `not_estimable`.
 `scopes` repeats an estimand per level of the `by` columns, next to the
 pooled fit.
 
+The summary of every fit with `terms` (`fe_ols`, `logit`, `bradley_terry`,
+`mixedlm`, `plackett_luce`, `clogit_rank1`) records `references`: the
+reference level each dummy coding was measured against (factor -> level),
+the declared `reference` or else the first level of the estimation sample.
+A Bradley-Terry fit records its `reference` under `strength` and
+`players_are_systems`, true when every player level is a value of the
+frame's `system` (or `model_id`) column. Both keys are provenance only and
+move no estimate; fits of runs made before they existed lack them.
+
 ### Variances and inference conventions
 
 `vcov` is `iid`, `hc1` or `cluster` with one or two clustering dimensions

@@ -996,7 +996,7 @@ ANALYSIS_EXHIBIT_TYPES = ("forest", "table")
 EXHIBIT_FILTER_KEYS = ("estimands", "contrasts", "families", "systems")
 # The frame columns holding a system key (or the bare model id).
 SYSTEM_COLUMNS = ("system", "model_id")
-_SYSTEM_PARAMETER = re.compile(r"(?:^|:)(?:system|model_id)\[([^\[\]]*)\]")
+_PARAMETER = re.compile(r"(?:^|:)([^\[\]:]+)\[([^\[\]]*)\]")
 MAX_REPORT_ANALYSIS_RUNS = 10
 MAX_RUN_EXHIBITS = 12
 MAX_FILTER_VALUES = 500
@@ -1217,10 +1217,21 @@ def estimate_system(estimate: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _parameter_systems(names: Iterable[Any]) -> set:
-    """The system levels the parameter names ``system[<level>]`` (or
-    ``model_id[<level>]``, also inside an interaction ``a[x]:b[y]``) name."""
-    return {m.group(1) for n in names if isinstance(n, str) for m in _SYSTEM_PARAMETER.finditer(n)}
+def _parameter_levels(names: Iterable[Any]) -> set:
+    """The (prefix, level) pairs the parameter names ``<prefix>[<level>]``
+    name, also inside an interaction ``a[x]:b[y]``."""
+    return {(m.group(1), m.group(2)) for n in names if isinstance(n, str) for m in _PARAMETER.finditer(n)}
+
+
+def _declared_references(terms: Any) -> Dict[str, str]:
+    """The references the ``terms`` of a spec declare (factor -> level)."""
+    out: Dict[str, str] = {}
+    for term in terms if isinstance(terms, list) else []:
+        if isinstance(term, dict) and term.get("dummies") and term.get("reference") is not None:
+            out[str(term["dummies"])] = str(term["reference"])
+        elif isinstance(term, dict):
+            out.update(_declared_references(term.get("interact")))
+    return out
 
 
 def _weight_keys(contrast: Dict[str, Any]) -> Tuple[List[str], set]:
@@ -1243,8 +1254,14 @@ def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> s
     when the spec lists none, as for ``terms``), the rows, parameters (as
     matched against its fit's parameters in ``fits``) or contrasts of a
     joint test, and the level and reference of a paired treatment over a
-    system column. The editor's preview applies the same rule
-    (``estimateSystems`` in ``services/frontend/src/lib/reports/analyses.ts``)."""
+    system column. A ``system`` or ``model_id`` parameter is measured
+    against the reference level of its dummy coding, which is involved too:
+    the one its fit recorded (``references``), or for a run whose fits
+    record none the one the spec declares. Bradley-Terry strengths
+    (``strength[<level>]`` and its reference) count as systems when the fit
+    recorded ``players_are_systems``. The editor's preview applies the same
+    rule (``estimateSystems`` in
+    ``services/frontend/src/lib/reports/analyses.ts``)."""
     systems: set = set()
     scoped = estimate_system(estimate)
     if scoped is not None:
@@ -1257,6 +1274,13 @@ def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> s
     listed = est.get("contrasts") if isinstance(est.get("contrasts"), list) else []
     by_id = {c.get("id"): c for c in listed if isinstance(c, dict)}
     cid = estimate.get("contrast_id")
+    fit = next((f for f in (fits if isinstance(fits, list) else []) if isinstance(f, dict)
+                and f.get("estimand") == estimate.get("estimand_id") and f.get("scope") == estimate.get("scope")), None)
+    if fit is not None and isinstance(fit.get("references"), dict):
+        references = {str(k): str(v) for k, v in fit["references"].items() if v is not None}
+    else:
+        references = _declared_references(est.get("terms"))
+    prefixes = set(SYSTEM_COLUMNS) | ({"strength"} if fit is not None and fit.get("players_are_systems") is True else set())
     names: List[Any] = []
     contrasts: List[Dict[str, Any]] = []
     test = None
@@ -1273,10 +1297,8 @@ def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> s
         patterns = [p for p in test["parameters"] if isinstance(p, str)]
         names += [p for p in patterns if "*" not in p]
         compiled = [re.compile(".*".join(re.escape(part) for part in p.split("*")) + r"\Z") for p in patterns]
-        for fit in fits if isinstance(fits, list) else []:
-            if isinstance(fit, dict) and fit.get("estimand") == estimate.get("estimand_id") \
-                    and fit.get("scope") == estimate.get("scope"):
-                names += [n for n in fit.get("parameters") or [] if isinstance(n, str) and any(c.match(n) for c in compiled)]
+        if fit is not None:
+            names += [n for n in fit.get("parameters") or [] if isinstance(n, str) and any(c.match(n) for c in compiled)]
     else:
         for ref in test.get("contrasts") or []:
             if ref in by_id:
@@ -1287,7 +1309,8 @@ def estimate_systems(estimate: Dict[str, Any], spec: Any, fits: Any = None) -> s
         keys, levels = _weight_keys(contrast)
         names += keys
         systems |= levels
-    return systems | _parameter_systems(names)
+    named = {(prefix, level) for prefix, level in _parameter_levels(names) if prefix in prefixes}
+    return systems | {level for _, level in named} | {references[p] for p, _ in named if p in references}
 
 
 def exhibit_selects(estimate: Dict[str, Any], filters: Dict[str, List[str]], systems: Iterable[str]) -> bool:

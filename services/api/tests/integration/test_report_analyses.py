@@ -35,6 +35,7 @@ from tests.integration.test_report_snapshot_public import _as_user, _user
 
 OPEN = "open-model@p1"
 SECRET = "custom-secret-model@p2"
+OTHER = "other-model@p3"
 
 
 def _uid() -> str:
@@ -93,14 +94,21 @@ SPEC = {
          "joint_tests": [{"id": "any_system", "parameters": ["system[*]"]}]},
     ],
 }
+# The fits record the reference of their system dummies: OTHER for
+# model_gap, SECRET for length_effect, whose terms contrasts are therefore
+# measured against the private system.
 FITS = [{"estimand": "model_gap", "scope": "pooled",
-         "parameters": ["(intercept)", f"system[{OPEN}]", f"system[{SECRET}]"]}]
+         "parameters": ["(intercept)", f"system[{OPEN}]", f"system[{SECRET}]"], "references": {"system": OTHER}},
+        {"estimand": "length_effect", "scope": "pooled",
+         "parameters": ["(intercept)", f"system[{OPEN}]", f"system[{OTHER}]"], "references": {"system": SECRET}}]
 
 # Position -> (estimand, contrast, scope values, families, kind). Families
 # are the estimate's first ``family`` plus every ``adjustments`` membership.
-# Involved systems: none for 0, 3, 5; OPEN for 1, 4, 6, 8 (8: a ``terms``
-# contrast of OPEN against the reference); SECRET for 2, 7, 9 (9 through its
-# weights only); both for the joint test 10.
+# Involved systems: none for 0, 3, 5; OPEN for 1, 4, 6; SECRET for 2; the
+# ``terms`` contrasts against the SECRET reference involve OTHER and SECRET
+# (7) or OPEN and SECRET (8); the neutral-label contrast 9 involves SECRET
+# (through its weights only) and the OTHER reference; the joint test 10
+# involves OPEN, SECRET and OTHER.
 ROWS = [
     (0, "framing_effect", "loaded_vs_neutral", None, ["primary"], "linear"),
     (1, "framing_effect", "loaded_vs_neutral", {"system": OPEN}, ["primary"], "linear"),
@@ -109,7 +117,7 @@ ROWS = [
     (4, "framing_effect", "order_effect", {"system": OPEN}, ["secondary"], "linear"),
     (5, "length_effect", "long_vs_short", None, [], "linear"),
     (6, "length_effect", "long_vs_short", {"system": OPEN}, ["secondary"], "linear"),
-    (7, "length_effect", f"system[{SECRET}]", None, [], "linear"),
+    (7, "length_effect", f"system[{OTHER}]", None, [], "linear"),
     (8, "length_effect", f"system[{OPEN}]", None, [], "linear"),
     (9, "model_gap", "secret_vs_ref", None, [], "linear"),
     (10, "model_gap", "any_system", None, [], "wald"),
@@ -191,10 +199,12 @@ def _row_dict(position, estimand, contrast, scope_values, families, kind):
     ({"families": ["secondary"]}, [3, 4, 6]),
     ({"families": ["primary", "secondary"]}, [0, 1, 2, 3, 4, 6]),
     # A systems filter keeps the estimates whose involved systems are all
-    # listed: no pooled estimate involving no system, no contrast of the
-    # other system against the reference (7), no joint test over both (10).
-    ({"systems": [OPEN]}, [1, 4, 6, 8]),
-    ({"systems": [OPEN, SECRET]}, [1, 2, 4, 6, 7, 8, 9, 10]),
+    # listed: no pooled estimate involving no system, no contrast of another
+    # system against the reference (7), none of OPEN against the SECRET
+    # reference (8), no joint test over both (10).
+    ({"systems": [OPEN]}, [1, 4, 6]),
+    ({"systems": [OPEN, SECRET]}, [1, 2, 4, 6, 8]),
+    ({"systems": [OPEN, SECRET, OTHER]}, [1, 2, 4, 6, 7, 8, 9, 10]),
     ({"systems": ["nobody"]}, []),
     ({"estimands": ["framing_effect"], "systems": [OPEN], "families": ["primary"]}, [1]),
     ({"estimands": ["model_gap"]}, [9, 10]),
@@ -212,32 +222,60 @@ def test_exhibit_selects_model_id_scope_as_system():
     assert exhibit_selects(row, {"systems": ["m2"]}, systems) is False
 
 
-@pytest.mark.parametrize("estimand,row,expected", [
+FIT = {"estimand": "e", "scope": "pooled", "parameters": [], "references": {}}
+
+
+@pytest.mark.parametrize("estimand,fits,row,expected", [
     # Joint test rows name their weight keys, also inside an interaction.
     ({"id": "e", "contrasts": [], "joint_tests": [{"id": "j", "rows": [{"system[a@1]": 1}, {"x[1]:system[b@2]": 1}]}]},
-     {"contrast_id": "j", "kind": "wald"}, {"a@1", "b@2"}),
+     None, {"contrast_id": "j", "kind": "wald"}, {"a@1", "b@2"}),
     # A joint test over listed contrasts takes their weights.
     ({"id": "e", "contrasts": [{"id": "c1", "weights": {"model_id[m]": 1}}],
       "joint_tests": [{"id": "j", "contrasts": ["c1"]}]},
-     {"contrast_id": "j", "kind": "wald"}, {"m"}),
+     None, {"contrast_id": "j", "kind": "wald"}, {"m"}),
     # A literal parameter pattern counts even without a matching fit.
     ({"id": "e", "contrasts": "terms", "joint_tests": [{"id": "j", "parameters": ["system[a@1]"]}]},
-     {"contrast_id": "j", "kind": "wald"}, {"a@1"}),
+     None, {"contrast_id": "j", "kind": "wald"}, {"a@1"}),
     # Ratio numerator and denominator, and the levels of a marginal effect.
     ({"id": "e", "contrasts": [{"id": "r", "kind": "ratio", "numerator": {"weights": {"system[a@1]": 1}},
                                 "denominator": {"weights": {"system[b@2]": 1}}}]},
-     {"contrast_id": "r", "kind": "ratio"}, {"a@1", "b@2"}),
+     None, {"contrast_id": "r", "kind": "ratio"}, {"a@1", "b@2"}),
     ({"id": "e", "contrasts": [{"id": "m", "kind": "ame", "column": "system", "level": "a@1", "reference": "b@2"}]},
-     {"contrast_id": "m", "kind": "ame"}, {"a@1", "b@2"}),
+     None, {"contrast_id": "m", "kind": "ame"}, {"a@1", "b@2"}),
     ({"id": "e", "contrasts": [{"id": "m", "kind": "ame", "column": "framing", "level": "x", "reference": "y"}]},
-     {"contrast_id": "m", "kind": "ame"}, set()),
+     None, {"contrast_id": "m", "kind": "ame"}, set()),
     # A paired treatment over the system column involves both of its levels.
     ({"id": "e", "treatment": {"factor": "system", "level": "a@1", "reference": "b@2"}, "contrasts": "terms"},
-     {"contrast_id": "(difference)", "kind": "linear"}, {"a@1", "b@2"}),
+     None, {"contrast_id": "(difference)", "kind": "linear"}, {"a@1", "b@2"}),
+    # A system parameter is measured against the reference its fit recorded,
+    # also inside an interaction; the recorded one wins over the declared.
+    ({"id": "e", "contrasts": "terms", "terms": [{"dummies": "system", "reference": "d@9"}]},
+     [{**FIT, "references": {"system": "r@0"}}], {"contrast_id": "system[a@1]", "kind": "linear"}, {"a@1", "r@0"}),
+    ({"id": "e", "contrasts": "terms"},
+     [{**FIT, "references": {"system": "r@0", "framing": "neutral"}}],
+     {"contrast_id": "framing[loaded]:system[a@1]", "kind": "linear"}, {"a@1", "r@0"}),
+    # A parameter of another factor brings no system reference along.
+    ({"id": "e", "contrasts": "terms"},
+     [{**FIT, "references": {"system": "r@0", "framing": "neutral"}}],
+     {"contrast_id": "framing[loaded]", "kind": "linear"}, set()),
+    # A run whose fits record no references: the declared reference, also of
+    # an interaction, and none when the spec declares none.
+    ({"id": "e", "contrasts": "terms", "terms": [{"interact": [{"dummies": "system", "reference": "d@9"}, "x"]}]},
+     [{"estimand": "e", "scope": "pooled", "parameters": []}],
+     {"contrast_id": "system[a@1]:x", "kind": "linear"}, {"a@1", "d@9"}),
+    ({"id": "e", "contrasts": "terms", "terms": [{"dummies": "system"}]},
+     None, {"contrast_id": "system[a@1]", "kind": "linear"}, {"a@1"}),
+    # Bradley-Terry strengths are systems only when the fit says the players are.
+    ({"id": "e", "estimator": "bradley_terry", "contrasts": "terms"},
+     [{**FIT, "references": {"strength": "r@0"}, "players_are_systems": True}],
+     {"contrast_id": "strength[a@1]", "kind": "linear"}, {"a@1", "r@0"}),
+    ({"id": "e", "estimator": "bradley_terry", "contrasts": "terms"},
+     [{**FIT, "references": {"strength": "r@0"}, "players_are_systems": False}],
+     {"contrast_id": "strength[a@1]", "kind": "linear"}, set()),
 ])
-def test_estimate_systems_reads_the_spec(estimand, row, expected):
+def test_estimate_systems_reads_the_spec(estimand, fits, row, expected):
     estimate = {"estimand_id": "e", "scope": "pooled", "scope_values": None, **row}
-    assert estimate_systems(estimate, {"estimands": [estimand]}) == expected
+    assert estimate_systems(estimate, {"estimands": [estimand]}, fits) == expected
 
 
 def test_parse_normalizes_and_reports_every_problem():
@@ -304,11 +342,11 @@ async def test_snapshot_copies_run_metadata_and_selected_estimates(async_test_db
     # rule.
     assert forest == {"id": "forest-primary", "type": "forest", "filters": {"families": ["primary"]},
                       "band": None, "row_count": 3, "positions": [0, 1, 3]}
-    assert length["positions"] == [6, 8] and length["band"] is None and length["row_count"] == 2
+    assert length["positions"] == [6] and length["band"] is None and length["row_count"] == 1
     assert empty["positions"] == [] and empty["row_count"] == 0
     # The run carries the union of its exhibits' estimates, in engine order,
     # with every engine field and no database row id.
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 6, 8]
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 6]
     first = run["estimates"][0]
     assert "id" not in first and "run_id" not in first
     assert (first["estimand_id"], first["contrast_id"], first["estimate"]) == ("framing_effect", "loaded_vs_neutral", 0.1)
@@ -330,10 +368,10 @@ async def test_private_model_rows_never_reach_a_snapshot(async_test_db):
 
     snap = await _snapshot(async_test_db, project.id, analyses)
     [run] = snap["analyses"]["runs"]
-    # Left out: the private system's estimate (2), the contrast naming it
-    # (7), the neutral-label contrast weighting it (9) and the joint test
-    # over it (10).
-    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 4, 5, 6, 8]
+    # Left out: the private system's estimate (2), the terms contrasts
+    # measured against it as the recorded reference (7, 8), the
+    # neutral-label contrast weighting it (9) and the joint test over it (10).
+    assert [e["position"] for e in run["estimates"]] == [0, 1, 3, 4, 5, 6]
     assert "custom-secret-model" not in str(snap["analyses"])
     assert {"secret_vs_ref", "any_system"}.isdisjoint(e["contrast_id"] for e in run["estimates"])
 
@@ -477,7 +515,7 @@ async def test_runs_are_truncated_beyond_the_limit(async_test_db, monkeypatch):
     assert run["truncated"] is True
     assert [e["position"] for e in run["estimates"]] == [0, 1, 5]
     a, b = run["exhibits"]
-    assert (a["row_count"], a["positions"]) == (3, [5])
+    assert (a["row_count"], a["positions"]) == (2, [5])
     assert (b["row_count"], b["positions"]) == (2, [0, 1])
 
 
