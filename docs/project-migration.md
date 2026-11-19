@@ -167,7 +167,9 @@ The job body of `POST /api/projects/project-imports` (create a new project):
   "object_key": "<file_key from the upload-url response>",
   "organization_id": "optional: the organization that owns the new project",
   "organization_group_id": "optional: a group of that organization",
-  "model_id_map": {"custom-<id in the export>": "custom-<id on this instance>"}
+  "model_id_map": {"custom-<id in the export>": "custom-<id on this instance>"},
+  "source_manifest": {"optional": "where the file came from, see below"},
+  "reimport": false
 }
 ```
 
@@ -192,6 +194,58 @@ HTTP-style status, e.g. 409) and `error_code`, a stable token such as
 `import_too_large`. The job also carries `format`, `progress`, `byte_size`,
 `created_at`, `updated_at` and `expires_at`. There is no `completed_at`: once
 `status` is `completed` or `failed`, `updated_at` is the time the job finished.
+
+### Import provenance and re-import
+
+Every import job records what it imported. Once the worker has downloaded
+the file, the job carries `payload_sha256`, the SHA-256 of the file's bytes,
+and `source_manifest`:
+
+```json
+{
+  "version": 1,
+  "payload": {"sha256": "<hex>", "byte_size": 1234},
+  "source": {"kind": "upload", "object_key": "imports/...", "filename": "..."},
+  "target": {"kind": "project", "project_id": "<id>"},
+  "import": {"mode": "nested", "model_id_map": {}, "reimport": false},
+  "declared": {"...": "what the caller sent as source_manifest"}
+}
+```
+
+`source.kind` is `storage_connection` (with `connection_id`) for a cloud
+import. `target` is `{"kind": "project", "project_id"}` for the imports into
+an existing project and `{"kind": "new_project", "requested_by",
+"organization_id", "organization_group_id"}` for a create-new import.
+`import.mode` is `nested`, `merge`, `merge_preview`, `comprehensive` or the
+tabular format (`csv`, `tsv`, `txt`). `declared` is there only when the job
+request carried `source_manifest`, an optional JSON object of at most
+64 KiB that describes where the file came from (for example the source
+files a converter built it from, with their hashes); a larger or non-object
+value is refused with 400 `invalid_source_manifest`.
+
+Importing the same file into the same target again is a no-op. Same file
+means the same bytes, whatever the file is called; same target means the
+same project for the imports into an existing project, or the same
+requester, organization and group for a create-new import whose project
+still exists and is not deleted; the mode and, for merge and create-new
+imports, `model_id_map` must match too. Such a job completes without
+writing anything: `duplicate_of_job_id` names the import it repeated, and
+`result` is `{"project_id", "project_title", "project_url", "no_op": true,
+"duplicate_of": {"job_id", "completed_at", "payload_sha256"}}` with the
+earlier import's project. A changed file has another hash and is imported
+as usual. A merge preview (`dry_run`) is never a no-op and never makes a
+later import one. Two identical imports started at the same time run one
+after the other, so the second one becomes the no-op; when the first one
+takes longer than the worker's lock timeout (30 seconds), the second fails
+with 409 `import_conflict`, and starting it again after the first finished
+is the no-op. A failed import records its hash and manifest too and blocks
+nothing.
+
+To import the same file again on purpose, for example after deleting the
+tasks of the earlier import, send `"reimport": true` in the job body (on
+`POST /api/projects/project-imports`, `POST /api/projects/{id}/imports` and
+`POST /api/projects/{id}/cloud-imports`). Jobs from before this feature
+carry no hash, so the first import of a file after the upgrade always runs.
 
 `error_message` is always a short reason meant for the person who started
 the job, never the exception the worker hit: a database error would carry

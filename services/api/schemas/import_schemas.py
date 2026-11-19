@@ -28,6 +28,24 @@ class _ImportRequest(BaseModel):
         description="Key returned by the matching upload-url endpoint, after the file was uploaded to it",
     )
     model_id_map: Optional[Dict[str, str]] = Field(None, description=_MODEL_ID_MAP_DESCRIPTION)
+    source_manifest: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Optional JSON object (at most 64 KiB) describing where the payload "
+            "came from, for example the source files it was built from with "
+            "their hashes. Stored on the job under source_manifest.declared; "
+            "it does not decide whether two imports are the same."
+        ),
+    )
+    reimport: bool = Field(
+        False,
+        description=(
+            "Import even when the same payload was already imported into the "
+            "same target with the same options. Without it such a repeat is a "
+            "no-op: the job completes without writing anything and names the "
+            "earlier job in duplicate_of_job_id."
+        ),
+    )
 
 
 class ProjectImportJobRequest(_ImportRequest):
@@ -96,7 +114,33 @@ class ImportJobStatus(BaseModel):
         ),
     )
     result: Optional[Dict[str, Any]] = Field(
-        None, description="The importer's result: project_id, project_url and statistics"
+        None,
+        description=(
+            "The importer's result: project_id, project_url and statistics. "
+            "For a no-op repeat: project_id (and project_title, project_url) "
+            "of the earlier import, no_op true and duplicate_of {job_id, "
+            "completed_at, payload_sha256}"
+        ),
+    )
+    payload_sha256: Optional[str] = Field(
+        None, description="SHA-256 (hex) of the imported file, set once the worker downloaded it"
+    )
+    source_manifest: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "What was imported: payload {sha256, byte_size}, source {kind "
+            "(upload or storage_connection), object_key, filename, "
+            "connection_id}, target {kind (project or new_project), ...}, "
+            "import {mode, model_id_map, reimport} and the caller's declared "
+            "manifest"
+        ),
+    )
+    duplicate_of_job_id: Optional[str] = Field(
+        None,
+        description=(
+            "Set when the job was a no-op: the completed import of the same "
+            "payload into the same target it repeated. Nothing was written."
+        ),
     )
     created_at: Optional[str] = None
     updated_at: Optional[str] = None

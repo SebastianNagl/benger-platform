@@ -1234,11 +1234,27 @@ migration).
     google.generate_content, mistral.chat, cohere.chat), so filled-in and
     coerced values count; a ``worker_call`` entry or a body without those
     parameters falls back to the run config as in 2.56.
+
+2.62 (2026-11-19): import provenance and idempotent re-import (migration 147).
+  - ``import_jobs.payload_sha256``, ``source_manifest`` (JSONB),
+    ``idempotency_key`` and ``duplicate_of_job_id`` (``models.ImportJob``),
+    built by the shared module ``import_provenance`` (``hash_fileobj``,
+    ``build_manifest``, ``idempotency_key``, ``lock_import_key``,
+    ``find_completed_import``, ``no_op_result``,
+    ``validate_declared_manifest``).
+  - ``tasks.import_project`` takes ``reimport``. A job whose key (payload
+    hash, target, mode, model map) equals that of a completed import
+    completes as a no-op: nothing written, ``duplicate_of_job_id`` set,
+    ``result.no_op`` true and ``result.duplicate_of``.
+  - The import job requests take ``source_manifest`` (declared, stored under
+    ``source_manifest.declared``) and ``reimport``; cloud imports take
+    ``reimport``. The job status carries ``payload_sha256``,
+    ``source_manifest`` and ``duplicate_of_job_id``.
 """
 
 import os
 
-CORE_API_VERSION = "2.61"
+CORE_API_VERSION = "2.62"
 
 
 def extended_required() -> bool:

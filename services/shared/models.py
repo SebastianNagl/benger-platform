@@ -3952,6 +3952,24 @@ class ImportJob(Base):
         nullable=False,
     )
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    # Import provenance (migration 147, ``shared/import_provenance.py``).
+    # SHA-256 of the payload bytes the worker downloaded, hex.
+    payload_sha256 = Column(String(64), nullable=True, index=True)
+    # Where the payload came from and what it was imported as: payload hash
+    # and size, source (upload or storage connection, object key, file
+    # name), target, import options, and the caller's declared manifest.
+    source_manifest = Column(JSONB, nullable=True)
+    # SHA-256 over payload hash, target and the options that shape the
+    # result; equal keys mean the same import. NULL for a merge preview,
+    # which writes nothing and is never matched.
+    idempotency_key = Column(String(64), nullable=True, index=True)
+    # Set when this job was a no-op: an identical import (same
+    # idempotency_key) had already completed, so nothing was written.
+    duplicate_of_job_id = Column(
+        String,
+        ForeignKey("import_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     __table_args__ = (
         CheckConstraint(

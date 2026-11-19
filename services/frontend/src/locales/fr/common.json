@@ -681,6 +681,7 @@
       "import": "Importer des données",
       "export": "Exporter des données",
       "importSuccess": "Données importées avec succès",
+      "importAlreadyImported": "Ce fichier a déjà été importé dans ce projet le {date}. Rien n'a été ajouté.",
       "importFailed": "Erreur lors de l'import des données",
       "importLinkedExamSingleTask": "Cet examen est lié dans son ensemble à une activité d'une plateforme d'apprentissage et comporte donc exactement une tâche. Liez d'abord l'activité à la tâche de l'examen ; vous pourrez ensuite importer d'autres tâches.",
       "exportSuccess": "Données exportées avec succès",
@@ -730,6 +731,7 @@
       "importStats": " - {tasks} tâches, {annotations} annotations, {generations} générations, {evaluations} évaluations, {rows} lignes évaluées",
       "importSkippedAnnotations": "{count} réponses n'ont pas été importées : leurs auteurs sont inconnus ici et ont été associés à votre compte, qui ne peut détenir qu'une seule réponse active par tâche. Créez les utilisateurs avec la même adresse e-mail avant l'import.",
       "importSuccess": "« {title} » importé avec succès{stats} ({time} s)",
+      "importAlreadyImported": "Ce fichier a déjà été importé sous le nom « {title} » le {date}. Aucun nouveau projet n'a été créé ; le projet existant s'ouvre.",
       "importFailed": "Échec de l'import du projet",
       "invalidJsonFormat": "Format JSON invalide dans le fichier",
       "unsupportedFileFormat": "Version de format de fichier non prise en charge",
@@ -1026,6 +1028,8 @@
       "submit": "Fusionner",
       "running": "Fusion en cours...",
       "success": "Résultats fusionnés",
+      "alreadyMerged": "Ces résultats ont déjà été fusionnés dans ce projet le {date}. Rien n'a été ajouté.",
+      "alreadyMergedToast": "Ces résultats ont déjà été fusionnés. Rien n'a été ajouté.",
       "failed": "La fusion a échoué",
       "taskMismatch": "Les tâches de ce fichier ne sont pas celles de ce projet, rien n'a donc été importé. Fusionnez un fichier exporté de ce projet ou d'une copie, ou importez-le comme nouveau projet.",
       "summaryAdded": "{tasks} tâches associées ; {generations} générations, {evaluations} évaluations et {rows} lignes évaluées ajoutées.",
@@ -9175,6 +9179,7 @@
       "nextTaskFailed": "Impossible de charger la tâche suivante",
       "allTasksCompletedRestart": "Toutes les tâches sont terminées ! Reprise depuis le début...",
       "imported": "{count} tâches importées avec succès",
+      "alreadyImported": "Ces données ont déjà été importées dans le projet. Rien n'a été ajouté.",
       "importFailed": "Impossible d'importer les données",
       "allTasksAnnotated": "Toutes les tâches ont été annotées avec succès",
       "annotationSaved": "Annotation enregistrée",
@@ -11339,6 +11344,8 @@
       "importing": "Import en cours…",
       "importingFiles": "Import de {count} fichier(s) en cours…",
       "importSuccess": "Import cloud terminé",
+      "importAllAlreadyImported": "Ces fichiers ont déjà été importés dans ce projet. Rien n'a été ajouté.",
+      "importSomeAlreadyImported": "{count} fichier(s) avaient déjà été importés dans ce projet et ont été ignorés.",
       "importFailed": "Échec de l'import cloud",
       "importFailedWithReason": "Échec de l'import cloud : {reason}",
       "historyTitle": "Imports cloud précédents",
@@ -11350,7 +11357,8 @@
         "pending": "En attente",
         "running": "En cours",
         "completed": "Terminé",
-        "failed": "Échec"
+        "failed": "Échec",
+        "alreadyImported": "Déjà importé"
       }
     }
   },

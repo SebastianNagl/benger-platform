@@ -8,6 +8,7 @@
 import { toast } from '@/components/shared/Toast'
 import { isExamNotReadyError } from '@/lib/api/errors'
 import { projectsAPI } from '@/lib/api/projects'
+import { repeatedImport } from '@/lib/import/repeatedImport'
 import { logger } from '@/lib/utils/logger'
 import { translate as t } from '@/lib/utils/translate'
 import { Annotation, Project, Task } from '@/types/labelStudio'
@@ -625,10 +626,17 @@ export const useProjectStore = create<ProjectStore>()(
             { type: 'application/json' },
           )
           const job = await projectsAPI.runNestedImportJob(projectId, file)
-          const created =
-            job.result?.created_tasks ?? job.result?.total_items ?? data.length
           set({ loading: false })
-          toast(t('store.project.imported', { count: created }), 'success')
+          if (repeatedImport(job)) {
+            // The project already imported this data; nothing was added.
+            toast(t('store.project.alreadyImported'), 'info')
+          } else {
+            const created =
+              job.result?.created_tasks ??
+              job.result?.total_items ??
+              data.length
+            toast(t('store.project.imported', { count: created }), 'success')
+          }
 
           // Update project task count
           // If this is the current project, fetch its updated data

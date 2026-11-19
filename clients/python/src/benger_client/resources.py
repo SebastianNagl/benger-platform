@@ -53,6 +53,16 @@ def _drop_none(data: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in data.items() if v is not None}
 
 
+def _add_provenance(
+    body: dict[str, Any], source_manifest: Mapping[str, Any] | None, reimport: bool
+) -> None:
+    """Add the import provenance options to an import job body when set."""
+    if source_manifest is not None:
+        body["source_manifest"] = dict(source_manifest)
+    if reimport:
+        body["reimport"] = True
+
+
 class _Resource:
     def __init__(self, client: BengerClient):
         self._client = client
@@ -197,6 +207,8 @@ class Imports(_Resource):
         mode: str | None = None,
         dry_run: bool = False,
         model_id_map: Mapping[str, str] | None = None,
+        source_manifest: Mapping[str, Any] | None = None,
+        reimport: bool = False,
         wait: bool = True,
         timeout: float = 1800.0,
         interval: float = 2.0,
@@ -220,6 +232,14 @@ class Imports(_Resource):
         the file to models of this deployment. ``dry_run=True`` (merge only)
         rolls the merge back and completes with the preview in
         ``result.statistics``.
+
+        The job records the file's SHA-256 (``payload_sha256``) and a
+        ``source_manifest``; ``source_manifest`` here adds the caller's own
+        description of the source (a JSON object of at most 64 KiB, kept
+        under ``source_manifest.declared``). Importing the same bytes into
+        the same project again completes as a no-op: nothing is added and
+        ``duplicate_of_job_id`` names the earlier job. ``reimport=True``
+        imports them again on purpose.
         """
         merge = mode == "merge"
         content, name = _read_source(source, filename, wrap_list=not merge)
@@ -233,6 +253,7 @@ class Imports(_Resource):
             body["dry_run"] = True
         if model_id_map is not None:
             body["model_id_map"] = dict(model_id_map)
+        _add_provenance(body, source_manifest, reimport)
         job = self._client.post(base, json=body)
         if not wait:
             return job
@@ -245,6 +266,8 @@ class Imports(_Resource):
         organization_id: str | None = None,
         organization_group_id: str | None = None,
         filename: str | None = None,
+        source_manifest: Mapping[str, Any] | None = None,
+        reimport: bool = False,
         wait: bool = True,
         timeout: float = 1800.0,
         interval: float = 2.0,
@@ -254,7 +277,11 @@ class Imports(_Resource):
         Uses ``POST /api/projects/project-imports/upload-url`` and
         ``POST /api/projects/project-imports``. Without ``organization_id``
         the project is the importer's private project. The finished job's
-        ``project_id`` is the new project.
+        ``project_id`` is the new project. Importing the same file again
+        (same caller, organization and group) is a no-op whose
+        ``project_id`` is the project the earlier import created, as long as
+        that project exists; ``source_manifest`` and ``reimport`` work as in
+        :meth:`upload`.
         """
         content, name = _read_source(source, filename, wrap_list=False)
         base = "/api/projects/project-imports"
@@ -267,6 +294,7 @@ class Imports(_Resource):
                 "organization_group_id": organization_group_id if organization_id else None,
             }
         )
+        _add_provenance(body, source_manifest, reimport)
         job = self._client.post(base, json=body)
         if not wait:
             return job

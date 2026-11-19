@@ -164,6 +164,47 @@ describe('MergeResultsModal', () => {
     expect(addToast).toHaveBeenCalledWith('Results merged', 'success')
   })
 
+  it('says a file already merged added nothing instead of showing counts', async () => {
+    ;(projectsAPI.runMergeImportJob as jest.Mock).mockResolvedValue({
+      status: 'completed',
+      duplicate_of_job_id: 'job-earlier',
+      result: {
+        project_id: 'proj-1',
+        no_op: true,
+        duplicate_of: {
+          job_id: 'job-earlier',
+          completed_at: '2026-11-19T08:00:00+00:00',
+          payload_sha256: 'a'.repeat(64),
+        },
+      },
+    })
+    const onMergeComplete = renderModal()
+    await checkFile()
+    fireEvent.change(screen.getByTestId('merge-model-target-0'), {
+      target: { value: 'custom-prod' },
+    })
+    fireEvent.click(screen.getByTestId('merge-results-submit'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('merge-results-repeated')).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('merge-results-repeated')).toHaveTextContent(
+      'These results were already merged into this project on',
+    )
+    expect(screen.getByTestId('merge-results-repeated')).toHaveTextContent(
+      '2026',
+    )
+    expect(
+      screen.queryByTestId('merge-results-summary'),
+    ).not.toBeInTheDocument()
+    expect(addToast).toHaveBeenCalledWith(
+      'These results were already merged. Nothing was added.',
+      'info',
+    )
+    expect(addToast).not.toHaveBeenCalledWith('Results merged', 'success')
+    expect(onMergeComplete).toHaveBeenCalled()
+  })
+
   it('explains a file of foreign tasks at the check', async () => {
     const error: any = new Error('Of the 3 tasks in the export, ...')
     error.response = {

@@ -681,6 +681,7 @@
       "import": "Import Data",
       "export": "Export Data",
       "importSuccess": "Data imported successfully",
+      "importAlreadyImported": "This file was already imported into this project on {date}. Nothing was added.",
       "importFailed": "Failed to import data",
       "importLinkedExamSingleTask": "This exam is linked as a whole to a learning platform activity, so it holds exactly one task. Bind the activity to the exam's task first, then you can import further tasks.",
       "exportSuccess": "Data exported successfully",
@@ -730,6 +731,7 @@
       "importStats": " - {tasks} tasks, {annotations} annotations, {generations} generations, {evaluations} evaluation runs, {rows} evaluated rows",
       "importSkippedAnnotations": "{count} answers were not imported: their authors are unknown here and were mapped to your account, which can hold only one active answer per task. Create the users with the same email address before importing.",
       "importSuccess": "Successfully imported \"{title}\"{stats} ({time}s)",
+      "importAlreadyImported": "This file was already imported as \"{title}\" on {date}. No new project was created; the existing one opens.",
       "importFailed": "Failed to import project",
       "invalidJsonFormat": "Invalid JSON format in file",
       "unsupportedFileFormat": "Unsupported file format version",
@@ -1026,6 +1028,8 @@
       "submit": "Merge",
       "running": "Merging...",
       "success": "Results merged",
+      "alreadyMerged": "These results were already merged into this project on {date}. Nothing was added.",
+      "alreadyMergedToast": "These results were already merged. Nothing was added.",
       "failed": "The merge failed",
       "taskMismatch": "The tasks in this file are not this project's tasks, so nothing was imported. Merge a file exported from this project or from a copy of it, or import it as a new project.",
       "summaryAdded": "Matched {tasks} tasks and added {generations} generations, {evaluations} evaluation runs and {rows} evaluated rows.",
@@ -9175,6 +9179,7 @@
       "nextTaskFailed": "Failed to get next task",
       "allTasksCompletedRestart": "All tasks completed! Starting over from the beginning...",
       "imported": "Imported {count} tasks successfully",
+      "alreadyImported": "This data was already imported into the project. Nothing was added.",
       "importFailed": "Failed to import data",
       "allTasksAnnotated": "All tasks successfully annotated",
       "annotationSaved": "Annotation saved",
@@ -11339,6 +11344,8 @@
       "importing": "Importing…",
       "importingFiles": "Importing {count} file(s)…",
       "importSuccess": "Cloud import completed",
+      "importAllAlreadyImported": "These files were already imported into this project. Nothing was added.",
+      "importSomeAlreadyImported": "{count} file(s) had already been imported into this project and were skipped.",
       "importFailed": "Cloud import failed",
       "importFailedWithReason": "Cloud import failed: {reason}",
       "historyTitle": "Previous cloud imports",
@@ -11350,7 +11357,8 @@
         "pending": "Pending",
         "running": "Running",
         "completed": "Completed",
-        "failed": "Failed"
+        "failed": "Failed",
+        "alreadyImported": "Already imported"
       }
     }
   },

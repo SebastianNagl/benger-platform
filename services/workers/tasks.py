@@ -5238,10 +5238,16 @@ def import_project(
     model_id_map: Optional[Dict[str, str]] = None,
     mode: Optional[str] = None,
     dry_run: bool = False,
+    reimport: bool = False,
 ) -> Dict[str, Any]:
     try:
         return import_project_impl(
-            self, job_id, model_id_map=model_id_map, mode=mode, dry_run=dry_run
+            self,
+            job_id,
+            model_id_map=model_id_map,
+            mode=mode,
+            dry_run=dry_run,
+            reimport=reimport,
         )
     except Exception as exc:
         # See export_project: a failure before the body's own try (such as an

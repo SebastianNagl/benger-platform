@@ -177,7 +177,9 @@ class TestExtensionLoader:
         # task_data on the response parser and the schema generator).
         # 2.61 adds the generation request record and answer-format options
         # (request_capture, generation_fidelity, provider continuation).
-        assert CORE_API_VERSION == "2.61"
+        # 2.62 adds import provenance and idempotent re-import
+        # (import_provenance, the import_jobs provenance columns).
+        assert CORE_API_VERSION == "2.62"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
