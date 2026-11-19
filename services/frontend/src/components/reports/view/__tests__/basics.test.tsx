@@ -74,6 +74,23 @@ describe('StatTiles', () => {
     rerender(<StatTiles tiles={[]} />)
     expect(screen.queryByTestId('stat-tiles')).not.toBeInTheDocument()
   })
+
+  it('lays six tiles out in two rows of three and keeps five columns otherwise', () => {
+    const tiles = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `t${i}`,
+        label: `T${i}`,
+        value: String(i),
+      }))
+    const { rerender } = render(<StatTiles tiles={tiles(6)} />)
+    expect(screen.getByTestId('stat-tiles').className).toContain(
+      'lg:grid-cols-3',
+    )
+    rerender(<StatTiles tiles={tiles(5)} />)
+    expect(screen.getByTestId('stat-tiles').className).toContain(
+      'lg:grid-cols-5',
+    )
+  })
 })
 
 describe('ModelChips', () => {

@@ -108,6 +108,7 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "openExams": "Open exams",
       "openTasks": "Open tasks",
       "submittedAnswers": "Submitted answers",
@@ -756,6 +757,8 @@
       "attemptedBadge": "Past submission",
       "archivedBadge": "Archived",
       "wizardDraftBadge": "Wizard draft",
+      "analysesBadge": "{count} analyses",
+      "analysesBadgeOne": "1 analysis",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
@@ -1542,6 +1545,7 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Falllösung grades",
       "correctionsGradesBreakdown": "↳ Grades by graders",
@@ -7555,6 +7559,7 @@
       "participants": "Participants",
       "modelsEvaluated": "Models evaluated",
       "evaluations": "Evaluations",
+      "analyses": "Analyses",
       "data": "Data",
       "defaultDataText": "The dataset comprises {count} tasks.",
       "annotations": "Submissions",
@@ -7618,6 +7623,7 @@
     "tasks": "tasks",
     "annotations": "annotations",
     "models": "models evaluated",
+    "analyses": "analyses",
     "viewReport": "View Report",
     "comingSoon": "Reports Coming Soon",
     "comingSoonDescription": "The reports feature is currently being developed. You will be able to view published evaluation results here.",
@@ -9246,10 +9252,11 @@
   },
   "runs": {
     "title": "Runs",
-    "subtitle": "Inventory of individual generation and evaluation runs. Click a row to see the run's detail.",
+    "subtitle": "Inventory of individual generation, evaluation and analysis runs. Click a row to see the run's detail.",
     "tabs": {
       "evaluation": "Evaluations",
-      "generation": "Generations"
+      "generation": "Generations",
+      "analysis": "Analyses"
     },
     "filterProject": "Project",
     "filterStatus": "Status",

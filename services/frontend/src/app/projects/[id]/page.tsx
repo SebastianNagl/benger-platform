@@ -399,8 +399,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     allow_external_paste: true,
     allow_solution_upload: true,
     // Handwritten uploads (extended slot): switch + model override
-    // (null = the organization's default)
-    handwriting_ocr_enabled: false,
+    // (null = the organization's default, else the platform default)
+    handwriting_ocr_enabled: true,
     handwriting_ocr_model: null as string | null,
     skip_queue: 'requeue_for_others' as
       'requeue_for_me' | 'requeue_for_others' | 'ignore_skipped',
@@ -772,7 +772,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         allow_external_paste: currentProject.allow_external_paste !== false,
         allow_solution_upload: currentProject.allow_solution_upload !== false,
         handwriting_ocr_enabled:
-          currentProject.handwriting_ocr_enabled === true,
+          currentProject.handwriting_ocr_enabled !== false,
         handwriting_ocr_model: currentProject.handwriting_ocr_model ?? null,
         skip_queue: currentProject.skip_queue || 'requeue_for_others',
         questionnaire_enabled: currentProject.questionnaire_enabled || false,
@@ -1756,8 +1756,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="group flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                <div className="group flex min-w-0 flex-wrap items-center gap-3">
+                  <h1 className="min-w-0 text-3xl font-bold tracking-tight break-words text-zinc-900 dark:text-white">
                     {canEditIcon() ? (
                       <button
                         type="button"
@@ -3247,6 +3247,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </dt>
                   <dd className="text-sm font-medium text-zinc-900 dark:text-white">
                     {currentProject.evaluation_count ?? 0}
+                  </dd>
+                </div>
+              )}
+              {(currentProject.analysis_count ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.analyses')}
+                  </dt>
+                  <dd
+                    className="text-sm font-medium text-zinc-900 dark:text-white"
+                    data-testid="project-statistics-analyses"
+                  >
+                    {currentProject.analysis_count}
                   </dd>
                 </div>
               )}

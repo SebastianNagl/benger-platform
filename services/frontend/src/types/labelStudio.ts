@@ -128,6 +128,10 @@ export interface Project {
   evaluation_count?: number
   evaluations_completed_count?: number
 
+  // Completed analysis runs — the Statistiken "Analyses" tile (when > 0)
+  // and the list badge; routers/projects/helpers.count_analysis_runs_by_project.
+  analysis_count?: number
+
   // BenGER specific
   llm_model_ids?: string[]
   generation_config?: GenerationConfig

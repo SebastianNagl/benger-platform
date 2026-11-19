@@ -5,14 +5,19 @@ The organization keeps a default in ``organizations.settings`` under
 ``PUT /organizations/{id}/ocr-model``). A project switches handwritten
 uploads on with ``projects.handwriting_ocr_enabled`` and may override the
 model with ``projects.handwriting_ocr_model`` (NULL = follow the
-organization). The OCR flow itself is an extended feature; this module is
-the generic lookup both the api and the workers use.
+organization). When neither names a model, :data:`DEFAULT_OCR_MODEL` is
+used, provided the catalog holds it as an active official model that can
+read page images. The OCR flow itself is an extended feature; this module
+is the generic lookup both the api and the workers use.
 """
 
 from typing import Any, Mapping, Optional
 
 SETTINGS_KEY = "handwriting_ocr_model"
 MAX_MODEL_ID_LENGTH = 255
+# The platform fallback when neither the project nor any of its
+# organizations names a model: a cheap OpenAI vision model.
+DEFAULT_OCR_MODEL = "gpt-5.6-luna"
 
 
 def org_ocr_model(settings: Optional[Mapping[str, Any]]) -> Optional[str]:
@@ -56,12 +61,34 @@ def project_org_ocr_model(db, project) -> Optional[str]:
     return None
 
 
+def platform_default_ocr_model(db) -> Optional[str]:
+    """:data:`DEFAULT_OCR_MODEL` when the catalog holds it as an active
+    official model that can read page images (the rule the organization
+    default is checked against), else None."""
+    from ai_services.attachments import catalog_model_reads_attachments
+    from models import LLMModel
+
+    row = (
+        db.query(LLMModel.id, LLMModel.provider, LLMModel.capabilities)
+        .filter(
+            LLMModel.id == DEFAULT_OCR_MODEL,
+            LLMModel.is_active.is_(True),
+            LLMModel.is_official.is_(True),
+        )
+        .first()
+    )
+    if row is None or not catalog_model_reads_attachments(row.provider, row.id, row.capabilities):
+        return None
+    return row.id
+
+
 def effective_ocr_model(db, project) -> Optional[str]:
     """The model an OCR job of ``project`` runs, or None when handwritten
-    uploads are off (switch off, or no project model and no org default)."""
+    uploads are off (switch off, or no project model, no org default and no
+    usable platform default)."""
     if project is None or not getattr(project, "handwriting_ocr_enabled", False):
         return None
     override = getattr(project, "handwriting_ocr_model", None)
     if isinstance(override, str) and override.strip():
         return override.strip()
-    return project_org_ocr_model(db, project)
+    return project_org_ocr_model(db, project) or platform_default_ocr_model(db)

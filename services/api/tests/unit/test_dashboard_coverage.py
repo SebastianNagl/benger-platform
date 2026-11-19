@@ -296,7 +296,8 @@ class TestDashboardStats:
                  patch("routers.dashboard.read_dashboard_sum_async", return_value=sums), \
                  patch("routers.dashboard.unsummarized_project_ids_async", return_value=[]), \
                  patch("routers.dashboard._live_dashboard_counts_async") as live_counts, \
-                 patch("routers.dashboard._live_evaluations_count_async") as live_evals:
+                 patch("routers.dashboard._live_evaluations_count_async") as live_evals, \
+                 patch("routers.dashboard._analyses_count_async", return_value=0):
                 mock_cache.get.return_value = None
                 async with await _client() as client:
                     resp = await client.get("/api/dashboard/stats")
@@ -304,6 +305,7 @@ class TestDashboardStats:
                 assert resp.json() == {
                     "scope": "overview",
                     "project_count": 2, "task_count": 10, "annotation_count": 0,
+                    "generations_count": 0, "evaluations_count": 0, "analyses_count": 0,
                     "projects_with_generations": 0, "projects_with_evaluations": 0,
                 }
                 live_counts.assert_not_called()
@@ -340,7 +342,8 @@ class TestDashboardStats:
                  patch("routers.dashboard.read_dashboard_sum_async", return_value=sums), \
                  patch("routers.dashboard.unsummarized_project_ids_async", return_value=["p-new"]), \
                  patch("routers.dashboard._live_dashboard_counts_async", side_effect=_live_counts), \
-                 patch("routers.dashboard._live_evaluations_count_async", side_effect=_live_evals):
+                 patch("routers.dashboard._live_evaluations_count_async", side_effect=_live_evals), \
+                 patch("routers.dashboard._analyses_count_async", return_value=3) as analyses:
                 mock_cache.get.return_value = None
                 async with await _client() as client:
                     resp = await client.get("/api/dashboard/stats")
@@ -348,7 +351,10 @@ class TestDashboardStats:
                 assert resp.json() == {
                     "scope": "overview",
                     "project_count": 2, "task_count": 12, "annotation_count": 5,
+                    "generations_count": 4, "evaluations_count": 12, "analyses_count": 3,
                     "projects_with_generations": 4, "projects_with_evaluations": 12,
                 }
+                # analyses are counted over every accessible project
+                assert analyses.call_args.args[1] == ["p-old", "p-new"]
         finally:
             app.dependency_overrides.clear()

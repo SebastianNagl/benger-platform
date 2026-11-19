@@ -93,6 +93,8 @@ export interface ReportSnapshot {
     participant_count: number
     model_count: number
     evaluation_count: number
+    /** Completed analysis runs; absent in snapshots taken before CORE 2.67. */
+    analysis_count?: number
   }
   methods: ReportMethod[]
   configs: ReportConfigRef[]

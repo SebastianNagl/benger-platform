@@ -47,6 +47,7 @@ import {
   GlobeAltIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  PresentationChartLineIcon,
   RectangleStackIcon,
   ScaleIcon,
   TrashIcon,
@@ -1309,6 +1310,19 @@ export function ProjectListTable({
                               >
                                 <ScaleIcon className="h-3.5 w-3.5" />
                                 {t('projects.list.kindExam')}
+                              </span>
+                            )}
+                            {(project.analysis_count ?? 0) > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                data-testid={`project-analyses-badge-${project.id}`}
+                              >
+                                <PresentationChartLineIcon className="h-3.5 w-3.5" />
+                                {project.analysis_count === 1
+                                  ? t('projects.list.analysesBadgeOne')
+                                  : t('projects.list.analysesBadge', {
+                                      count: project.analysis_count ?? 0,
+                                    })}
                               </span>
                             )}
                             {(() => {

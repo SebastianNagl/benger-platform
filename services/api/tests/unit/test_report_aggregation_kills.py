@@ -890,6 +890,7 @@ class TestChartsAndStatistics:
             "annotation_count": 0,
             "participant_count": 0,
             "model_count": 0,
+            "analysis_count": 0,
         }
 
     def test_statistics_batch_empty_input_returns_empty(self, test_db: Session):
