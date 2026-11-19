@@ -1531,8 +1531,7 @@
       "evaluations": "Évaluations",
       "reviewWorkflow": "Processus de relecture",
       "korrektur": "Correction",
-      "members": "Membres",
-      "analysis": "Analyse"
+      "members": "Membres"
     },
     "billing": {
       "title": "Facturation",
@@ -5496,7 +5495,16 @@
         "selected": "sélectionné(s)",
         "noResults": "(aucun résultat)",
         "notRun": "(non exécuté)",
-        "tasks": "tâches"
+        "tasks": "tâches",
+        "searchProjects": "Rechercher des projets",
+        "noProjectsFound": "Aucun projet trouvé.",
+        "moreProjects": "Afficher plus ({shown} sur {total})",
+        "run": "Analyse",
+        "runOption": "{name} ({status})",
+        "systems": "Systèmes",
+        "estimands": "Estimandes",
+        "family": "Famille",
+        "allFamilies": "Toutes les familles"
       },
       "params": {
         "configure": "Configurer",
@@ -5541,7 +5549,9 @@
           "heatmapNeedsModels": "Nécessite au moins 2 modèles",
           "boxNeedsSampleAggregation": "Choisissez le niveau d'analyse « Par échantillon » pour les boîtes à moustaches",
           "boxComputingScores": "Calcul des scores par échantillon...",
-          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet"
+          "boxNoSampleData": "Aucune donnée d'échantillon disponible pour ce projet",
+          "forestNeedsModelAggregation": "Le forest plot nécessite le niveau d'analyse Modèle",
+          "forestNoStatistics": "Aucune statistique par modèle disponible pour le moment"
         }
       },
       "results": {
@@ -5588,6 +5598,16 @@
         "mode": "Mode d'évaluation",
         "evaluateMissingOnly": "N'évaluer que les manquantes/en échec",
         "evaluateMissingDescription": "N'évalue que les générations qui n'ont pas encore été évaluées ou dont l'évaluation a échoué"
+      },
+      "resultType": {
+        "label": "Résultat",
+        "metrics": "Métriques",
+        "analysis": "Analyses"
+      },
+      "analysis": {
+        "start": "Lancer une analyse",
+        "runDetails": "Détails de l'analyse",
+        "engine": "Moteur"
       }
     },
     "export": {
@@ -6085,7 +6105,21 @@
       "strongNegative": "Fortement négative",
       "weakNone": "Faible/nulle",
       "comparisonsAlpha": "{count} comparaisons, α = {alpha}",
-      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}"
+      "testsUncorrectedAlpha": "{count} tests, α non corrigé = {alpha}",
+      "analysis": {
+        "inferenceTitle": "Inférence",
+        "inferenceDescription": "Familles de multiplicité avec leurs p-valeurs ajustées, tests d'équivalence, effets minimaux détectables et tests conjoints, tels que la spécification les déclare.",
+        "noInference": "Cette analyse ne déclare ni familles, ni bornes d'équivalence, ni paramètres de puissance, ni tests conjoints.",
+        "familyTitle": "Famille {family} : {method}, {size} tests",
+        "contrast": "Contraste",
+        "familyMde": "Effet minimal détectable de la famille : {value} (puissance {power}, α {alpha})",
+        "mdeTitle": "Effets minimaux détectables",
+        "mde": "MDE",
+        "power": "Puissance",
+        "jointTitle": "Tests conjoints (Wald)",
+        "test": "Test",
+        "fitTitle": "Ajustement"
+      }
     },
     "scoreDistribution": {
       "title": "Distribution des scores",
@@ -6232,7 +6266,10 @@
       "tableChart": "Tableau + graphique",
       "tableChartDescription": "Tableau de données avec visualisation graphique",
       "tableChartBestFor": "Vue combinée des données et de la visualisation",
-      "selectView": "Choisir la vue"
+      "selectView": "Choisir la vue",
+      "forestPlot": "Forest plot",
+      "forestPlotDescription": "Estimations avec intervalles de confiance",
+      "forestPlotBestFor": "Comparer des estimations et leur incertitude"
     },
     "statistics": {
       "ci": "Intervalles de confiance à 95 %",
@@ -6332,7 +6369,11 @@
         "range90d": "90 j",
         "rangeAll": "Tout",
         "noDataForRange": "Aucune donnée disponible pour la période sélectionnée"
-      }
+      },
+      "intervalAriaLabel": "Estimations avec intervalles de confiance : {series}",
+      "intervalLegend": "Estimation avec intervalle de confiance à {level}",
+      "pAdjustedShort": "p ajust. {p}",
+      "series": "Série"
     },
     "fieldPair": {
       "label": "Paires de champs",
@@ -11908,7 +11949,6 @@
     }
   },
   "analysis": {
-    "title": "Analyse",
     "project": "Projet",
     "scope": {
       "pooled": "Global"
@@ -11936,8 +11976,6 @@
       "more": "Les {shown} analyses les plus récentes sur {total}.",
       "col": {
         "name": "Nom",
-        "status": "Statut",
-        "created": "Lancée",
         "rows": "Lignes du frame",
         "estimates": "Estimations",
         "specHash": "Hash de la spécification"

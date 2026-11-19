@@ -1465,6 +1465,38 @@ frame format 2).
     lists of the snapshot and the Annotation section, keeping the aggregates
     and ``participant_count``. The stored snapshot is not changed.
 
+2.69 (2026-11-19): analysis runs on the evaluations page (no migration, no
+API change).
+  - ``/evaluations`` has a result type: Metrics (unchanged) or Analyses
+    (``?type=analysis``) with the URL state ``run``, ``chartType``,
+    ``systems``, ``estimands``, ``family`` and ``newRunFrom`` (opens the
+    start dialog prefilled with that run's spec). The run page moved to
+    ``/evaluations/analysis/[runId]``; ``/projects/[id]/analysis``,
+    ``/projects/[id]/analysis?from=<runId>`` and
+    ``/projects/[id]/analysis/[runId]`` redirect permanently (308, in the
+    frontend proxy).
+  - Path helpers ``@/lib/results/paths``: ``analysisRunPath(runId)``,
+    ``evaluationsPath({ projectId, type, run, newRunFrom })`` and
+    ``legacyAnalysisPath(pathname, search)``. Overlays link to result pages
+    through them.
+  - Interval rows ``@/lib/results/intervalRows`` (``IntervalRow``,
+    ``intervalRowsFromStatistics``, ``intervalRowsFromEstimates``,
+    ``filterEstimates``, ``systemsOf``, ``estimandsOf``, ``contrastLabel``):
+    one shape for metric statistics and analysis estimates.
+  - ``ChartType`` gains ``forest`` (both result types);
+    ``DynamicChartRenderer`` takes ``intervalRows`` (forest, and bar and
+    table without models); ``ForestPlot`` takes ``mode`` (``point`` or
+    ``bar``); ``EstimatesTable`` takes ``showFilters``;
+    ``StatisticalResultsPanel`` takes ``analysis`` (``{ run, estimates }``)
+    and shows its Inference and Fit blocks
+    (``@/components/evaluation/statistics/AnalysisStatistics``);
+    ``@/components/analysis/StartAnalysisDialog`` wraps the spec form.
+  - The compliance slot ``AnalysisRunFindings`` keeps its name and props
+    (``{ projectId, run, estimates }``) and renders in two hosts: the run
+    page and, for the selected run, inline in the Analyses view of
+    ``/evaluations``. The component must render compact content without a
+    page heading, breadcrumb or full-width layout.
+
 2.70 (2026-11-19): the experiment features behind platform feature flags
   (migration 151; docs/features/feature-flags.md).
   - Two platform flags (``feature_flags.registry.VARIANT_EXPERIMENTS`` =
@@ -1474,7 +1506,7 @@ frame format 2).
     for its users: ``compliance_records`` for ``/api/compliance`` and the
     ``/compliance`` shells (besides ``extension.compliance``),
     ``variant_experiments`` for everything else listed below.
-  - Off, the routes of 2.56-2.68 answer 404 ``feature_disabled``
+  - Off, the routes of 2.56-2.69 answer 404 ``feature_disabled``
     (``feature_flags.deps.require_variant_experiments`` /
     ``require_compliance_records``; an organization key's organization
     counts on the v1 analysis routes), the analysis and code-validation

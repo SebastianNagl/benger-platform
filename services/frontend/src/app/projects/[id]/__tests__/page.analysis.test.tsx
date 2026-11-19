@@ -1,18 +1,20 @@
 /**
- * Project detail page: the "Analysis" quick action. It shows for org admins
- * and contributors (and superadmins) once the project declares a variant
- * design, and is never fetched for annotators or participants.
+ * Project detail page: the one Evaluations quick action. Analysis runs live
+ * in the evaluations page's Analyses view, so the action opens that view
+ * when the project has analysis runs or variant designs but no metric
+ * configs, and the metrics view otherwise. The analysis reads are never
+ * made for annotators or participants.
  *
  * @jest-environment jsdom
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
@@ -39,9 +41,11 @@ jest.mock('@/stores')
 jest.mock('@/stores/projectStore')
 
 const mockListDesignKeys = jest.fn()
+const mockListRuns = jest.fn()
 jest.mock('@/lib/api/analysis', () => ({
   analysisAPI: {
     listDesignKeys: (...args: unknown[]) => mockListDesignKeys(...args),
+    listRuns: (...args: unknown[]) => mockListRuns(...args),
   },
 }))
 
@@ -197,7 +201,7 @@ beforeAll(async () => {
   ProjectDetailPage = (await import('../page')).default
 })
 
-describe('ProjectDetailPage — analysis quick action', () => {
+describe('ProjectDetailPage — Evaluations quick action', () => {
   const contributor = {
     ...mockUser,
     id: 'member-2',
@@ -205,7 +209,11 @@ describe('ProjectDetailPage — analysis quick action', () => {
     is_superadmin: false,
   }
 
-  const setup = (projectOverrides: any, user: any = contributor) => {
+  const setup = (
+    projectOverrides: any,
+    user: any = contributor,
+    evaluationConfig: any = { status: 'ok' },
+  ) => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
@@ -225,7 +233,13 @@ describe('ProjectDetailPage — analysis quick action', () => {
       updateProject: jest.fn().mockResolvedValue({}),
       deleteProject: jest.fn().mockResolvedValue({}),
     })
-    ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'ok' })
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes('/evaluation-config')
+          ? evaluationConfig
+          : { status: 'ok' },
+      ),
+    )
     jest.spyOn(window, 'addEventListener').mockImplementation(jest.fn())
     jest.spyOn(window, 'removeEventListener').mockImplementation(jest.fn())
   }
@@ -233,7 +247,8 @@ describe('ProjectDetailPage — analysis quick action', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     setMockFeatureFlags({ variant_experiments: true })
-    mockListDesignKeys.mockResolvedValue(['role_swap'])
+    mockListDesignKeys.mockResolvedValue([])
+    mockListRuns.mockResolvedValue({ items: [], total: 0 })
   })
 
   const renderPage = () =>
@@ -243,52 +258,118 @@ describe('ProjectDetailPage — analysis quick action', () => {
       />,
     )
 
-  it('links to the analysis runs when the project declares a design', async () => {
+  const clickEvaluations = async () => {
+    const action = await screen.findByTestId('project-evaluations')
+    expect(action).toHaveTextContent('project.quickActions.evaluations')
+    fireEvent.click(action)
+  }
+
+  it('has one Evaluations action and no separate Analysis action', async () => {
+    mockListDesignKeys.mockResolvedValue(['role_swap'])
     setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
     renderPage()
-    const action = await screen.findByTestId('project-analysis')
-    expect(action).toHaveAttribute(
-      'href',
-      '/projects/test-project-123/analysis',
-    )
-    expect(action).toHaveTextContent('project.quickActions.analysis')
-    expect(mockListDesignKeys).toHaveBeenCalledWith('test-project-123')
+    await screen.findByTestId('project-evaluations')
+    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.analysis'),
+    ).not.toBeInTheDocument()
   })
 
-  it('stays hidden and asks for no designs while variant_experiments is off', async () => {
+  it('keeps the classic Evaluations target and asks for nothing while variant_experiments is off', async () => {
     setMockFeatureFlags({})
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 1 })
     setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
     renderPage()
-    await screen.findByText('project.quickActions.title')
-    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    await clickEvaluations()
+    expect(mockRouter.push).not.toHaveBeenCalledWith(
+      '/evaluations?projectId=test-project-123&type=analysis',
+    )
+    expect(mockListRuns).not.toHaveBeenCalled()
     expect(mockListDesignKeys).not.toHaveBeenCalled()
   })
 
-  it('stays hidden for a project without a variant design', async () => {
-    mockListDesignKeys.mockResolvedValue([])
-    setup({ effective_role: 'ORG_ADMIN', can_edit: true })
+  it('opens the Analyses view for a project with runs and no metric configs', async () => {
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 1 })
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
     renderPage()
-    await waitFor(() => expect(mockListDesignKeys).toHaveBeenCalled())
-    await screen.findByText('project.quickActions.title')
-    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(mockListRuns).toHaveBeenCalledWith('test-project-123', 1),
+    )
+    await waitFor(async () => {
+      mockRouter.push.mockClear()
+      await clickEvaluations()
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        '/evaluations?projectId=test-project-123&type=analysis',
+      )
+    })
   })
 
-  it('stays hidden when the designs cannot be read', async () => {
+  it('keeps runs reachable after their variant designs are deleted', async () => {
+    mockListDesignKeys.mockResolvedValue([])
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 3 })
+    setup({ effective_role: 'ORG_ADMIN', can_edit: true })
+    renderPage()
+    await waitFor(async () => {
+      mockRouter.push.mockClear()
+      await clickEvaluations()
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        '/evaluations?projectId=test-project-123&type=analysis',
+      )
+    })
+  })
+
+  it('opens the Analyses view for a project with a design and no runs yet', async () => {
+    mockListDesignKeys.mockResolvedValue(['role_swap'])
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
+    renderPage()
+    await waitFor(async () => {
+      mockRouter.push.mockClear()
+      await clickEvaluations()
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        '/evaluations?projectId=test-project-123&type=analysis',
+      )
+    })
+  })
+
+  it('opens the Metrics view when the project has metric configs', async () => {
+    mockListRuns.mockResolvedValue({ items: [{ id: 'r1' }], total: 1 })
+    setup({ effective_role: 'CONTRIBUTOR', can_edit: true }, contributor, {
+      evaluation_configs: [{ id: 'cfg-1', metric: 'bleu', enabled: true }],
+    })
+    renderPage()
+    await waitFor(() => expect(mockListRuns).toHaveBeenCalled())
+    // Wait for the config read to land before clicking.
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/evaluations/projects/test-project-123/evaluation-config',
+      ),
+    )
+    await clickEvaluations()
+    expect(mockRouter.push).toHaveBeenLastCalledWith(
+      '/evaluations?projectId=test-project-123',
+    )
+  })
+
+  it('opens the Metrics view when nothing about analyses can be read', async () => {
+    mockListRuns.mockRejectedValue(new Error('403'))
     mockListDesignKeys.mockRejectedValue(new Error('403'))
     setup({ effective_role: 'CONTRIBUTOR', can_edit: true })
     renderPage()
     await waitFor(() => expect(mockListDesignKeys).toHaveBeenCalled())
-    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    await clickEvaluations()
+    expect(mockRouter.push).toHaveBeenLastCalledWith(
+      '/evaluations?projectId=test-project-123',
+    )
   })
 
-  it('is never fetched for annotators or participants', async () => {
+  it('never reads analyses for annotators or participants', async () => {
     setup(
       { effective_role: 'ANNOTATOR', can_edit: false },
       { ...contributor, role: 'ANNOTATOR' },
     )
     const { unmount } = renderPage()
     await screen.findByText('project.quickActions.title')
-    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-evaluations')).not.toBeInTheDocument()
     unmount()
 
     setup({
@@ -298,7 +379,7 @@ describe('ProjectDetailPage — analysis quick action', () => {
     })
     renderPage()
     await screen.findByText('project.quickActions.title')
-    expect(screen.queryByTestId('project-analysis')).not.toBeInTheDocument()
     expect(mockListDesignKeys).not.toHaveBeenCalled()
+    expect(mockListRuns).not.toHaveBeenCalled()
   })
 })

@@ -10,10 +10,10 @@
  * projects box as failed, each with a retry.
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import DashboardPage from '@/app/dashboard/page'
 import api from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'

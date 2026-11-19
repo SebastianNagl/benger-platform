@@ -118,9 +118,9 @@ describe('RunsPage with variant_experiments off', () => {
     render(<RunsPage />)
     await waitFor(() => expect(mockGet).toHaveBeenCalled())
     expect(mockGet.mock.calls[0][0]).toContain('type=evaluation')
-    expect(mockGet.mock.calls.some(([url]) => url.includes('type=analysis'))).toBe(
-      false,
-    )
+    expect(
+      mockGet.mock.calls.some(([url]) => url.includes('type=analysis')),
+    ).toBe(false)
     expect(screen.getByTestId('runs-tab-evaluation')).toBeInTheDocument()
     expect(screen.getByTestId('runs-tab-generation')).toBeInTheDocument()
     expect(screen.queryByTestId('runs-tab-analysis')).not.toBeInTheDocument()
@@ -314,6 +314,10 @@ describe('RunsPage', () => {
       'true',
     )
     expect(screen.getByText('Analysen')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: 'Name' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('analysis.list.col.name')).toBeNull()
     expect(screen.getByText('480')).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByTitle('abcdef0123456789abcdef')).toHaveTextContent(
@@ -321,7 +325,7 @@ describe('RunsPage', () => {
     )
 
     fireEvent.click(name.closest('tr')!)
-    expect(mockPush).toHaveBeenCalledWith('/projects/p2/analysis/an-1')
+    expect(mockPush).toHaveBeenCalledWith('/evaluations/analysis/an-1')
   })
 
   it('switches to the analysis tab and pages through its runs', async () => {

@@ -192,6 +192,9 @@ class TestExtensionLoader:
         # 2.68 adds inter-annotator agreement per control (the
         # annotator-agreement route, the snapshot's annotator_agreement and
         # show_agreement, section visibility applied on read).
+        # 2.69 moves analysis runs onto the evaluations page (result type,
+        # /evaluations/analysis/[runId], path helpers, interval rows) and
+        # renders AnalysisRunFindings in two hosts.
         # 2.70 adds the platform flags variant_experiments and
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).

@@ -16,6 +16,7 @@ import { projectsAPI } from '@/lib/api/projects'
 import { useFeatureFlag } from '@/lib/featureFlags'
 import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
+import { analysisRunPath } from '@/lib/results/paths'
 import { translate } from '@/lib/utils/translate'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -255,7 +256,7 @@ export default function RunsPage() {
     if (run.type === 'evaluation') {
       router.push(`/evaluations/${run.id}`)
     } else if (run.type === 'analysis') {
-      router.push(`/projects/${run.project_id}/analysis/${run.id}`)
+      router.push(analysisRunPath(run.id))
     } else {
       router.push(`/generations/${run.id}`)
     }

@@ -3,8 +3,8 @@
  * Issue #580: Add Annotations stat box to dashboard between Tasks and Generations
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import DashboardPage from '@/app/dashboard/page'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@testing-library/jest-dom'
 import { render as rtlRender, screen, waitFor } from '@testing-library/react'

@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { apiClient } from '@/lib/api/client'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PromptStructuresManager } from '../PromptStructuresManager'

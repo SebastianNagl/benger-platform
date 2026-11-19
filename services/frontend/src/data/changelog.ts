@@ -11,6 +11,12 @@ import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-19-analyses-on-evaluations-page',
+    date: '2026-11-19',
+    audience: 'benger',
+    featureFlag: VARIANT_EXPERIMENTS,
+  },
+  {
     id: '2026-11-19-annotator-agreement',
     date: '2026-11-19',
     audience: 'benger',

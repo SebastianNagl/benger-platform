@@ -3,6 +3,8 @@
  *
  * Dropdown for selecting between different chart visualization types.
  * Includes a 'data' view that shows only the data table without charts.
+ * `forest` draws interval rows (estimate and confidence interval) for both
+ * result types; callers pass `availableTypes` per result type.
  */
 
 'use client'
@@ -10,6 +12,7 @@
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
+  AdjustmentsHorizontalIcon,
   ChartBarIcon,
   ChartPieIcon,
   ChevronDownIcon,
@@ -19,7 +22,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-export type ChartType = 'data' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
+export type ChartType =
+  'data' | 'forest' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
 
 interface ChartTypeConfig {
   type: ChartType
@@ -39,6 +43,13 @@ function getChartTypes(t: (key: string) => string): ChartTypeConfig[] {
       description: t('evaluation.chartType.dataViewDescription'),
       icon: TableCellsIcon,
       bestFor: t('evaluation.chartType.dataViewBestFor'),
+    },
+    {
+      type: 'forest',
+      label: t('evaluation.chartType.forestPlot'),
+      description: t('evaluation.chartType.forestPlotDescription'),
+      icon: AdjustmentsHorizontalIcon,
+      bestFor: t('evaluation.chartType.forestPlotBestFor'),
     },
     {
       type: 'bar',
@@ -89,6 +100,8 @@ interface ChartTypeSelectorProps {
   disabledReasons?: Partial<Record<ChartType, string>>
   className?: string
   size?: 'sm' | 'md'
+  /** Load and save the viewer's last choice; off when the URL owns the state. */
+  persistPreference?: boolean
 }
 
 const STORAGE_KEY = 'benger-preferred-chart-type'
@@ -101,6 +114,7 @@ export function ChartTypeSelector({
   disabledReasons = {},
   className = '',
   size = 'md',
+  persistPreference = true,
 }: ChartTypeSelectorProps) {
   const { t } = useI18n()
   const mounted = useHydration()
@@ -113,7 +127,7 @@ export function ChartTypeSelector({
   // Load preference from localStorage after hydration
   // Only apply if current selection is the default (no URL override)
   useEffect(() => {
-    if (!mounted || hasLoadedPreference.current) return
+    if (!persistPreference || !mounted || hasLoadedPreference.current) return
     hasLoadedPreference.current = true
 
     // Don't override if URL already set a non-default chart type
@@ -129,7 +143,15 @@ export function ChartTypeSelector({
         onChange(savedType)
       }
     }
-  }, [mounted, availableTypes, disabledTypes, onChange, selectedType])
+  }, [
+    persistPreference,
+    mounted,
+    availableTypes,
+    disabledTypes,
+    onChange,
+    selectedType,
+    CHART_TYPES,
+  ])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -149,7 +171,7 @@ export function ChartTypeSelector({
   const handleSelect = (type: ChartType) => {
     onChange(type)
     setIsOpen(false)
-    if (mounted) {
+    if (persistPreference && mounted) {
       localStorage.setItem(STORAGE_KEY, type)
     }
   }

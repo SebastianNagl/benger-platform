@@ -357,42 +357,82 @@ The dashboard's older keys `projects_with_generations` and
 `projects_with_evaluations` stay as aliases of `generations_count` and
 `evaluations_count`.
 
-## Results pages
+## Results on the evaluations page
 
-Once a project declares a variant design, its page shows an **Analysis**
-action to org admins and contributors. It opens
-`/projects/{project_id}/analysis`: the project's runs, newest first, and for
-members with edit rights a form that takes a spec as JSON, validates it
-against the engine (every problem it names is listed) and starts the run.
-"New run from this spec" on a run page opens the form prefilled with that
-run's spec (`?from={analysis_run_id}`).
+Every result of a project is viewed on `/evaluations`. Its filter bar has a
+result type next to the project picker: **Metrics** (automated, LLM judge and
+human evaluations) or **Analyses**, shown once the project has analysis runs
+or variant designs. The project page has one **Evaluations** action; it opens
+the Analyses view directly when the project has runs or designs but no metric
+evaluation configs, so runs stay reachable after their designs are deleted.
 
-`/projects/{project_id}/analysis/{analysis_run_id}` shows one run. A pending
-or running run is polled until it finishes. A completed run shows:
+`/evaluations?projectId={project_id}&type=analysis` shows the analysis runs:
 
-- a forest plot of one contrast across its scopes (pooled first), with a
-  dashed line at the contrast's null value. When the spec declares
-  equivalence bounds for the contrast, the first bound set is shaded as a
-  band and every row also draws the TOST interval (the `tost_level`, 90 %
-  by default) that the equivalence decision uses; the band can be switched
-  to another bound set or off;
-- every estimate in engine order with its standard error, confidence
-  interval, p-value, first family with its method and adjusted p-value, the
-  first equivalence test and the sample and cluster counts. A row opens to
-  every equivalence test, every family membership (with the family MDE), the
-  test statistic, the engine's message and the conventions;
-- the run's provenance: spec hash, frame hash, the SHA-256 of the stored
-  frame file and its size, the lockfile hash, engine, spec format and library
-  versions, the seed, the frame counts and the timings;
-- the spec (normalized, or as submitted) and the per-fit summaries.
+- Filters: the run (newest first with its status; by default the newest
+  completed run), the systems (from the estimates' `scope_values.system`;
+  estimates without a system, such as the pooled fit, always stay), the
+  estimands and the family. The URL keeps them as `run`, `systems`,
+  `estimands` (comma separated) and `family`, so a reload or a shared link
+  shows the same view.
+- A strip of the run's facts (status, frame rows, estimates, spec hash,
+  engine version) and **Run details**, the run page.
+- The view (`chartType`): the forest plot (default) of one contrast across
+  its scopes, pooled first, with a dashed line at the null value. When the
+  spec declares equivalence bounds for the contrast, the first bound set is
+  shaded as a band and every row also draws the TOST interval (the
+  `tost_level`, 90 % by default) that the equivalence decision uses; the band
+  can be switched to another bound set or off. `bar` draws the estimates of
+  each contrast as bars from 0, with the null value as a dashed line,
+  `table` lists the contrasts against their scopes, `data` shows only the
+  estimates table.
+- The estimates table: every estimate in engine order with its standard
+  error, confidence interval, p-value, first family with its method and
+  adjusted p-value, the first equivalence test and the sample and cluster
+  counts. A row opens to every equivalence test, every family membership
+  (with the family MDE), the test statistic, the engine's message and the
+  conventions.
+- The statistics panel: **Inference** (each family with its adjustment method
+  and the adjusted p-values of its members, the equivalence tests with their
+  bounds and decisions, the minimum detectable effects and the joint Wald
+  tests) and **Fit** (the run's warnings and the per-fit summaries).
 
-The frame download button (ORG_ADMIN and CONTRIBUTOR) fetches the short-lived
-URL of the Parquet snapshot. The page computes no statistics; every number is
-the stored estimate.
+Superadmins and members whose project grants edit rights (`can_edit`) get
+**Start analysis**: a dialog that takes a spec as JSON, validates it against
+the engine (every problem it names is listed) and starts the run, which the
+view then selects and polls. A pending or running run is polled until it
+finishes.
 
-The forest plot (`@/components/analysis/ForestPlot`) takes plain rows, a null
-value and an optional band, so overlay views can reuse it with their own
-bounds.
+`/evaluations/analysis/{analysis_run_id}` is the run page, next to the
+evaluation run page `/evaluations/{id}`. It shows the same status, warnings,
+forest plot and estimates, plus the run's provenance (spec hash, frame hash,
+the SHA-256 of the stored frame file and its size, the lockfile hash, engine,
+spec format and library versions, the seed, the frame counts and the
+timings), the spec (normalized, or as submitted) and the per-fit summaries.
+"New run from this spec" opens the start dialog prefilled with that run's
+spec (`&newRunFrom={analysis_run_id}`). The frame download button (ORG_ADMIN
+and CONTRIBUTOR) fetches the short-lived URL of the Parquet snapshot.
+
+The old paths redirect permanently: `/projects/{project_id}/analysis` to
+`/evaluations?projectId={project_id}&type=analysis`, its `?from={run}` to
+`&newRunFrom={run}`, and `/projects/{project_id}/analysis/{run}` to
+`/evaluations/analysis/{run}`.
+
+The pages compute no statistics; every number is the stored estimate. The
+Metrics view gains the same forest view: the mean and 95 % confidence
+interval of each model per metric, from the statistics of the Model analysis
+level.
+
+### Building on the views
+
+Metric statistics and analysis estimates both map into interval rows
+(`@/lib/results/intervalRows`: `intervalRowsFromStatistics`,
+`intervalRowsFromEstimates`), and the forest, bar and table views draw
+interval rows whatever produced them. The forest plot
+(`@/components/analysis/ForestPlot`) takes plain rows, a null value, an
+optional band and a `mode` (`point` or `bar`), so overlay views can reuse it
+with their own bounds. Links to result pages use the path helpers in
+`@/lib/results/paths` (`analysisRunPath(runId)`,
+`evaluationsPath({ projectId, type, run, newRunFrom })`).
 
 ## Compliance overlay slots
 
@@ -405,7 +445,7 @@ not-available notice (route shells) or nothing (inline slot):
 |---|---|---|
 | `ComplianceDashboard` | `/compliance` (and a navigation entry) | none |
 | `AssessmentDetail` | `/compliance/assessments/{assessment_id}` | `{ assessmentId }` |
-| `AnalysisRunFindings` | the analysis run page, below the estimates | `{ projectId, run, estimates }` |
+| `AnalysisRunFindings` | the analysis run page, below the estimates, and the Analyses view of `/evaluations` for the selected run, below the statistics panel | `{ projectId, run, estimates }` |
 
 ## Reproducibility
 

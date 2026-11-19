@@ -153,7 +153,12 @@ describe('GenerationRunDetailPage', () => {
           has_response: true,
           has_request_record: true,
         },
-        { id: 'trial-2', run_index: 1, status: 'completed', has_response: true },
+        {
+          id: 'trial-2',
+          run_index: 1,
+          status: 'completed',
+          has_response: true,
+        },
       ],
     })
     render(

@@ -17,13 +17,13 @@
  * @jest-environment jsdom
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import '@testing-library/jest-dom'
 import {
   act,

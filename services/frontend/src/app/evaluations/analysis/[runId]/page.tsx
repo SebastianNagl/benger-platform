@@ -1,12 +1,14 @@
 'use client'
 
 /**
- * Analysis run page: one run of a variant-experiment analysis with its
+ * Analysis run page (/evaluations/analysis/[runId], next to the evaluation
+ * run page /evaluations/[id]): one run of a variant-experiment analysis with its
  * status, the forest plot of a contrast (optional equivalence band), every
  * estimate with its family and adjusted p-value, the compliance findings
  * slot, the provenance (spec and frame hashes, versions), the spec and the
  * fits, and the frame download. A pending or running run is polled until it
- * finishes.
+ * finishes. The project is the run's own; the old path
+ * /projects/[id]/analysis/[runId] redirects here.
  */
 
 import { ContrastForestPlot } from '@/components/analysis/ContrastForestPlot'
@@ -30,6 +32,7 @@ import {
 import { projectsAPI } from '@/lib/api/projects'
 import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
 import { intlTag } from '@/lib/i18n/locales'
+import { evaluationsPath } from '@/lib/results/paths'
 import {
   ArrowDownTrayIcon,
   DocumentDuplicateIcon,
@@ -94,8 +97,7 @@ type LoadState =
 function AnalysisRunPageContent() {
   const { t, locale } = useI18n()
   const { user } = useAuth()
-  const params = useParams<{ id: string; runId: string }>()
-  const projectId = typeof params?.id === 'string' ? params.id : ''
+  const params = useParams<{ runId: string }>()
   const runId = typeof params?.runId === 'string' ? params.runId : ''
 
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
@@ -112,10 +114,6 @@ function AnalysisRunPageContent() {
     async (isPoll = false) => {
       try {
         const run = await analysisAPI.getRun(runId)
-        if (run.project_id !== projectId) {
-          setState({ kind: 'notFound' })
-          return null
-        }
         setState({ kind: 'ready', run })
         return run
       } catch (error) {
@@ -134,12 +132,14 @@ function AnalysisRunPageContent() {
     },
     // t is stable per locale; a locale switch need not reload the run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [runId, projectId],
+    [runId],
   )
 
   useEffect(() => {
     if (runId) void loadRun()
   }, [runId, loadRun])
+
+  const projectId = state.kind === 'ready' ? String(state.run.project_id) : ''
 
   useEffect(() => {
     if (!projectId) return
@@ -219,15 +219,16 @@ function AnalysisRunPageContent() {
     <div className="mb-4">
       <Breadcrumb
         items={[
-          { label: t('navigation.projects'), href: '/projects' },
-          {
-            label: projectTitle || t('analysis.project'),
-            href: `/projects/${projectId}`,
-          },
-          {
-            label: t('analysis.title'),
-            href: `/projects/${projectId}/analysis`,
-          },
+          { label: t('navigation.dashboard'), href: '/dashboard' },
+          { label: t('navigation.evaluation'), href: '/evaluations' },
+          ...(projectId
+            ? [
+                {
+                  label: projectTitle || t('analysis.project'),
+                  href: evaluationsPath({ projectId, type: 'analysis' }),
+                },
+              ]
+            : []),
           { label: run?.name || t('analysis.run.title') },
         ]}
       />
@@ -287,7 +288,11 @@ function AnalysisRunPageContent() {
           {mayStartRun && (
             <Button
               variant="outline"
-              href={`/projects/${projectId}/analysis?from=${encodeURIComponent(r.id)}`}
+              href={evaluationsPath({
+                projectId,
+                type: 'analysis',
+                newRunFrom: r.id,
+              })}
             >
               <DocumentDuplicateIcon className="mr-2 h-4 w-4" />
               {t('analysis.run.reuseSpec')}

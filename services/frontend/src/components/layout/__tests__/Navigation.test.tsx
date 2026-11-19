@@ -2,13 +2,13 @@
  * @jest-environment jsdom
  */
 
-import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import {
   _resetActiveExtensionsForTests,
   setActiveExtensions,
 } from '@/lib/extensions/active'
 import { setRegistrationOwner } from '@/lib/extensions/owner'
 import { registerSlot } from '@/lib/extensions/slots'
+import { setMockFeatureFlags } from '@/test-utils/featureFlagsMock'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Navigation } from '../Navigation'
