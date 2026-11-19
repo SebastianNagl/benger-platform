@@ -63,21 +63,28 @@ describe('TextPatternEditor', () => {
     expect(params().code).toBe('hedge')
   })
 
-  it('keeps the last valid set and explains invalid input', () => {
+  it('drops the set while the text is not one, keeping the chosen code', () => {
     render(<Harness initial={{ pattern_set: SET, code: 'hedge' }} />)
     const box = screen.getByLabelText('Pattern set (JSON)')
     expect((box as HTMLTextAreaElement).value).toContain('"signals"')
+    expect(screen.getByTestId('ready').textContent).toBe('true')
     fireEvent.change(box, { target: { value: '{"name": ' } })
     expect(screen.getByRole('alert').textContent).toBe(
       'The pattern set is not valid JSON.',
     )
-    expect(params().code).toBe('hedge')
+    expect(params()).toEqual({ code: 'hedge' })
+    expect(screen.getByTestId('ready').textContent).toBe('false')
+    fireEvent.change(box, { target: { value: JSON.stringify(SET) } })
+    expect(screen.getByTestId('ready').textContent).toBe('true')
     fireEvent.change(box, { target: { value: '{"name": "x"}' } })
     expect(screen.getByRole('alert').textContent).toBe(
       'The pattern set needs a name, a version and at least one code.',
     )
+    expect(params().pattern_set).toBeUndefined()
+    expect(screen.getByTestId('ready').textContent).toBe('false')
     fireEvent.change(box, { target: { value: JSON.stringify(SET) } })
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(params().code).toBe('hedge')
+    expect(params()).toEqual({ pattern_set: SET, code: 'hedge' })
+    expect(screen.getByTestId('ready').textContent).toBe('true')
   })
 })

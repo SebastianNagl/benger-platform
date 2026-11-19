@@ -28,6 +28,7 @@ Routes:
 
 from __future__ import annotations
 
+import copy
 import logging
 import uuid
 import xml.etree.ElementTree as ET
@@ -44,7 +45,7 @@ from auth_module import require_user
 from celery_client import send_task_safe
 from database import get_async_db
 from models import CodeValidation, CodingProject, Generation, ResponseGeneration
-from project_models import Project, ProjectOrganization, Task
+from project_models import Project, Task
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
     can_read_all_task_content_async,
@@ -298,8 +299,10 @@ async def create_coding_project(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Draw a seeded sample of the project's answers into a new coding
-    project. The new project lives where the source does (its organizations
-    and groups; a private source gives a private coding project)."""
+    project. The new project is private to its creator: it joins none of
+    the source's organizations or groups, coders are added through the
+    project's members, and a source that requires the Safe Exam Browser
+    gives a coding project that requires it too."""
     from analysis.coding import CODING_VERSION, sample_hash
 
     source = access.project
@@ -317,13 +320,6 @@ async def create_coding_project(
     if not drawn:
         raise _invalid(["/sample: no completed answer with a usable text matches"], "empty_coding_sample")
 
-    attachments = (
-        await db.execute(
-            select(ProjectOrganization.organization_id, ProjectOrganization.group_id).where(
-                ProjectOrganization.project_id == source.id
-            )
-        )
-    ).all()
     new_id = str(uuid.uuid4())
     project = Project(
         id=new_id,
@@ -331,20 +327,12 @@ async def create_coding_project(
         description=request["description"],
         created_by=access.user.id,
         label_config=request["label_config"],
-        is_private=not attachments,
+        is_private=True,
         is_public=False,
+        seb_required=bool(source.seb_required),
+        seb_config=copy.deepcopy(source.seb_config) if source.seb_required else None,
     )
     db.add(project)
-    for org_id, group_id in attachments:
-        db.add(
-            ProjectOrganization(
-                id=str(uuid.uuid4()),
-                project_id=new_id,
-                organization_id=org_id,
-                group_id=group_id,
-                assigned_by=access.user.id,
-            )
-        )
     await db.flush()
     for i, d in enumerate(drawn):
         db.add(

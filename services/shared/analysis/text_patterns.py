@@ -38,7 +38,8 @@ Modes:
 Patterns use Python's ``re`` syntax and are searched anywhere in the text.
 ``flags`` (``IGNORECASE``, ``MULTILINE``, ``DOTALL``, ``ASCII``, ``VERBOSE``)
 apply to every code unless a code lists its own. ``normalize`` (``NFC`` or
-``NFKC``) normalizes the text's Unicode form before matching.
+``NFKC``) brings the text, the patterns and the task literals into that
+Unicode form before matching.
 
 Task-parameterised literals: ``{{task.<path>}}`` in a pattern is replaced by
 the value at that task data path (dotted, a numeric segment indexes a list),
@@ -297,6 +298,8 @@ class CompiledPatternSet:
     def _resolve(self, pattern: str, task_data: Optional[Mapping[str, Any]]) -> Optional[str]:
         from analysis.measures import lookup_path
 
+        if self._normal_form:
+            pattern = unicodedata.normalize(self._normal_form, pattern)
         if "{{" not in pattern:
             return pattern
         missing = False
@@ -304,7 +307,10 @@ class CompiledPatternSet:
         def replace(match: "re.Match[str]") -> str:
             nonlocal missing
             value = lookup_path(task_data or {}, match.group(1))
-            literal = _literal_regex(_literal_values(value), match.group(2) or "literal")
+            values = _literal_values(value)
+            if self._normal_form:
+                values = [unicodedata.normalize(self._normal_form, v) for v in values]
+            literal = _literal_regex(values, match.group(2) or "literal")
             if literal is None:
                 missing = True
                 return ""

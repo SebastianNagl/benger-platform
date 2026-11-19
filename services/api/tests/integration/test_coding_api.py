@@ -113,13 +113,86 @@ async def test_create_draws_a_seeded_sample_into_a_new_project(async_test_client
     assert first.meta["coding"]["source_project_id"] == project.id
     assert first.meta["coding"]["answer_source"] == "answer" and first.meta["coding"]["sample_seed"] == 42
     coding = (await async_test_db.execute(select(Project).where(Project.id == body["project_id"]))).scalar_one()
-    assert coding.label_config == SCHEME and coding.is_private is False
+    assert coding.label_config == SCHEME and coding.is_private is True and coding.is_public is False
+    assert coding.created_by == world["member"].id and coding.seb_required is False
     orgs = (
         await async_test_db.execute(
             select(ProjectOrganization.organization_id).where(ProjectOrganization.project_id == coding.id)
         )
     ).scalars().all()
-    assert orgs == [world["org"].id]
+    assert orgs == []
+
+
+async def _share_with_org(client, coding_id, org_id):
+    r = await client.patch(
+        f"/api/projects/{coding_id}/visibility", json={"is_private": False, "organization_ids": [org_id]}
+    )
+    assert r.status_code == 200, r.text
+
+
+async def test_a_coding_project_is_private_to_its_creator(async_test_client, async_test_db, world):
+    """The source's annotators and org admins see the source but not the
+    copied answers: a coding project joins none of the source's orgs."""
+    project = world["project"]
+    with v1_auth(async_test_db, session_user=world["member"]):
+        coding_id = (await _create(async_test_client, project.id)).json()["project_id"]
+        own = await async_test_client.get(f"/api/projects/{coding_id}/coding")
+    with v1_auth(async_test_db, session_user=world["annotator"]):
+        source = await async_test_client.get(f"/api/projects/{project.id}/coding-projects")
+        annotator = await async_test_client.get(f"/api/projects/{coding_id}/coding")
+        annotator_tasks = await async_test_client.get(f"/api/projects/{coding_id}/tasks")
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        admin = await async_test_client.get(f"/api/projects/{coding_id}/coding")
+    assert own.status_code == 200
+    assert source.status_code == 200 and source.json()["items"] == []
+    assert annotator.status_code in (403, 404) and annotator_tasks.status_code in (403, 404)
+    assert admin.status_code in (403, 404)
+
+
+async def test_a_seb_source_gives_a_seb_coding_project(async_test_client, async_test_db, world):
+    project = world["project"]
+    project.seb_required = True
+    project.seb_config = {"generated_config_key": "k" * 64}
+    await async_test_db.commit()
+    with v1_auth(async_test_db, session_user=world["admin"]):
+        r = await _create(async_test_client, project.id)
+    assert r.status_code == 201, r.text
+    coding = (await async_test_db.execute(select(Project).where(Project.id == r.json()["project_id"]))).scalar_one()
+    assert coding.seb_required is True and coding.seb_config == {"generated_config_key": "k" * 64}
+    assert coding.is_private is True
+
+
+async def test_an_added_coder_can_open_and_code(async_test_client, async_test_db, world):
+    """The creator adds coders the normal way (attaching the project to an
+    organization); the annotator then opens it and annotates a task."""
+    from auth_module.service import db_user_to_user
+    from project_models import Annotation
+    from project_schemas import AnnotationCreate
+    from routers.projects.annotations import create_annotation
+
+    project = world["project"]
+    with v1_auth(async_test_db, session_user=world["member"]):
+        coding_id = (await _create(async_test_client, project.id)).json()["project_id"]
+        await _share_with_org(async_test_client, coding_id, world["org"].id)
+    with v1_auth(async_test_db, session_user=world["annotator"]):
+        opened = await async_test_client.get(f"/api/projects/{coding_id}/coding")
+    assert opened.status_code == 200, opened.text
+    task = (
+        await async_test_db.execute(select(Task).where(Task.project_id == coding_id).order_by(Task.inner_id))
+    ).scalars().first()
+    result = [{"from_name": "side", "to_name": "answer", "type": "choices", "value": {"choices": ["P"]}}]
+
+    def annotate(session):
+        user = db_user_to_user(session.merge(world["annotator"]))
+        return create_annotation(
+            task.id, AnnotationCreate(result=result), request=MagicMock(), current_user=user, db=session
+        )
+
+    await async_test_db.run_sync(annotate)
+    saved = (
+        await async_test_db.execute(select(Annotation).where(Annotation.task_id == task.id))
+    ).scalars().all()
+    assert [(a.completed_by, a.result) for a in saved] == [(world["annotator"].id, result)]
 
 
 async def test_create_from_a_field_and_with_filters(async_test_client, async_test_db, world):
@@ -210,6 +283,7 @@ async def test_validations_are_queued_listed_and_read(async_test_client, async_t
     v.status, v.items, v.kappa = "completed", [{"task_id": "t", "automatic": "P", "human": {}}], 0.5
     await async_test_db.commit()
     with v1_auth(async_test_db, session_user=world["member"]):
+        await _share_with_org(async_test_client, coding_id, world["org"].id)
         full = await async_test_client.get(f"/api/code-validations/{v.id}")
     with v1_auth(async_test_db, session_user=world["annotator"]):
         blinded = await async_test_client.get(f"/api/code-validations/{v.id}")

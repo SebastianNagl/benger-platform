@@ -284,7 +284,7 @@ def _automatic_codes(db, v, coding, tasks: List[Dict[str, Any]], warnings: List[
 
 def _execute(db, v) -> Dict[str, Any]:
     from analysis.coding import CODING_VERSION, code_label, validation_metrics
-    from models import CodingProject
+    from models import CodeValidation, CodingProject
 
     warnings: List[str] = []
     coding = db.query(CodingProject).filter(CodingProject.project_id == v.project_id).first()
@@ -312,7 +312,8 @@ def _execute(db, v) -> Dict[str, Any]:
         warnings.append("no coding task has both a human and a usable reference code")
     main = metrics["automatic_vs_reference"]
     v.identity = identity
-    v.code_ref = identity.get("ref")
+    ref = identity.get("ref")
+    v.code_ref = ref[: CodeValidation.code_ref.type.length] if ref else None
     v.code_version = identity.get("version")
     v.code_hash = identity["hash"]
     v.metrics = metrics

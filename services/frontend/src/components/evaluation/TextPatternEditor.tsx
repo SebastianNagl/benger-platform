@@ -8,7 +8,8 @@ import { useState } from 'react'
  * Parameters of the `text_pattern` metric: the pattern set (JSON, see
  * docs/features/codes.md) and the code of the set to report. The server
  * checks the set when the configuration is saved; this editor only keeps
- * the JSON parseable and offers the set's codes.
+ * the JSON parseable and offers the set's codes. While the text is not a
+ * set, the parameters hold no set, so the metric is not ready.
  */
 export interface TextPatternParameters {
   pattern_set?: unknown
@@ -52,11 +53,13 @@ export function TextPatternEditor({ parameters, onChange }: Props) {
       parsed = JSON.parse(value)
     } catch {
       setError('invalidJson')
+      onChange({ pattern_set: undefined })
       return
     }
     const parsedCodes = patternSetCodes(parsed)
     if (parsedCodes.length === 0) {
       setError('notASet')
+      onChange({ pattern_set: undefined })
       return
     }
     setError(null)

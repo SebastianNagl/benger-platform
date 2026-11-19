@@ -80,6 +80,10 @@ def sample_hash(generation_ids: Iterable[str]) -> str:
 CODE_KINDS = ("text_pattern", "coder", "judge_code")
 
 
+MAX_SYSTEM_LENGTH = 200
+MAX_FIELD_LENGTH = 99
+
+
 def normalize_validation_code(
     code: Any,
     *,
@@ -146,8 +150,11 @@ def normalize_validation_code(
         out["parameters"] = dict(params)
         out["input"] = normalized_input(answer_source)
     else:
-        if not isinstance(code.get("system"), str) or not code.get("system"):
+        system = code.get("system")
+        if not isinstance(system, str) or not system:
             errors.append("/code/system: name the coding system (a system key or a model id)")
+        elif len(system) > MAX_SYSTEM_LENGTH:
+            errors.append(f"/code/system: at most {MAX_SYSTEM_LENGTH} characters")
         out["coding_project"] = coding_project_id
         out["system"] = code.get("system")
         structure = code.get("structure")
@@ -160,8 +167,11 @@ def normalize_validation_code(
             errors.append("/code/run_index: must be a whole number >= 0")
             run_index = 0
         out["run_index"] = run_index
-        if code.get("field") is not None:
-            out["field"] = code["field"]
+        field = code.get("field")
+        if field is not None:
+            if not isinstance(field, str) or not field or len(field) > MAX_FIELD_LENGTH:
+                errors.append(f"/code/field: a control name of at most {MAX_FIELD_LENGTH} characters")
+            out["field"] = field
         out["type"] = "text"
     if errors:
         raise CodingError(errors)

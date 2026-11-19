@@ -48,8 +48,8 @@ and hashed:
 
 Patterns use Python's `re` syntax. `flags` (`IGNORECASE`, `MULTILINE`,
 `DOTALL`, `ASCII`, `VERBOSE`) apply to every code unless a code lists its
-own, and `normalize` (`NFC` or `NFKC`) normalizes the text's Unicode form
-before matching.
+own, and `normalize` (`NFC` or `NFKC`) brings the text, the patterns and
+the task literals into that Unicode form before matching.
 
 Task-parameterised literals: `{{task.<path>}}` inserts the value at that task
 data path, regex-escaped, so a pattern can look for something only the task
@@ -174,8 +174,13 @@ SHA-256 of `"<seed>:<generation id>"` and keeps the first `size` with a
 non-empty text (all of them without `size`), so the same seed always draws
 the same answers. Each task records its source in `tasks.meta.coding`
 (source project, task and generation, the answer source, the seed and rank);
-`meta` is never shown to annotators. The coding project lives where the
-source does (its organizations and groups, or private).
+`meta` is never shown to annotators. A new coding project is private to its
+creator, because its tasks show answers and context that the source shows
+in full only to its editors: it joins none of the source's organizations or
+groups, and the creator adds the coders the normal way (attaching it to an
+organization or group under the project's visibility). A source that
+requires the Safe Exam Browser gives a coding project that requires it too,
+with the same SEB settings.
 
 Human coders annotate the coding project like any project. A judge codes it
 by generating on it: the judge model, its parameters (the system key) and

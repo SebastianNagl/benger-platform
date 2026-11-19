@@ -203,6 +203,20 @@ class TestMatching:
         assert plain.code("n", decomposed) == 0.0
         assert nfc.code("n", decomposed) == 1.0
 
+    def test_normal_form_applies_to_task_literals_and_patterns(self):
+        nfd, nfc = "Mu\u0308ller", "M\u00fcller"
+        literal = {"mode": "any", "patterns": ["{{task.party}}"]}
+        spaced = {"mode": "any", "patterns": ["{{task.party|spaces}}"]}
+        own = {"mode": "any", "patterns": ["M" + "u\u0308" + "ller"]}
+        s = compile_pattern_set({**_set(lit=literal, sp=spaced, own=own), "normalize": "NFC"})
+        for text in (nfc, nfd):
+            assert s.code("lit", f"the claimant {text}", {"party": nfd}) == 1.0
+            assert s.code("lit", f"the claimant {text}", {"party": nfc}) == 1.0
+            assert s.code("sp", f"the claimant {text}", {"party": nfd}) == 1.0
+            assert s.code("own", f"the claimant {text}") == 1.0
+        plain = compile_pattern_set(_set(lit=literal))
+        assert plain.code("lit", f"the claimant {nfc}", {"party": nfd}) == 0.0
+
     def test_missing_text_is_missing_and_empty_text_is_coded(self):
         s = compile_pattern_set(_set(a={"mode": "any", "patterns": ["x"]}))
         assert math.isnan(s.code("a", None)) and s.code("a", "") == 0.0

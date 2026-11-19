@@ -165,6 +165,11 @@ class TestIdentity:
         other["field"] = "side"
         assert code_identity(other)["hash"] != code_identity(judge)["hash"]
 
+    def test_the_longest_accepted_judge_code_fits_the_ref_column(self):
+        code = normalize_validation_code({"kind": "judge_code", "system": "s" * 200, "field": "f" * 99},
+                                         coding_project_id="cp", answer_source="answer")
+        assert len(code_identity(code)["ref"]) == 300
+
     @pytest.mark.parametrize(
         "code, needle",
         [
@@ -174,6 +179,9 @@ class TestIdentity:
             ({"kind": "text_pattern", "set": PATTERN_SET, "code": "q"}, "no code 'q'"),
             ({"kind": "coder", "coder": "c"}, "/code/output"),
             ({"kind": "judge_code"}, "/code/system"),
+            ({"kind": "judge_code", "system": "s" * 201}, "/code/system: at most 200"),
+            ({"kind": "judge_code", "system": "s", "field": "f" * 100}, "/code/field"),
+            ({"kind": "judge_code", "system": "s", "field": 3}, "/code/field"),
             ({"kind": "coder", "coder": "c", "output": "o", "input": "answer"}, "unknown key"),
         ],
     )
