@@ -1,0 +1,7 @@
+{
+  "username": "contractuser",
+  "email": "contract-user@example.com",
+  "name": "Contract User",
+  "password": "contract-pass-1234",
+  "research_data_consent_accepted": true
+}

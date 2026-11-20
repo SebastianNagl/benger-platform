@@ -2668,6 +2668,8 @@
     "currentSemester": "Aktuelles Semester",
     "currentSemesterPlaceholder": "z.B. 5",
     "legalSpecializations": "Rechtsbereiche",
+    "optionalField": "(optional)",
+    "notApplicableOption": "Nicht zutreffend / keine Angabe",
     "selectOption": "Bitte wählen...",
     "expertiseLevel": {
       "layperson": "Laie (Keine juristische Ausbildung)",

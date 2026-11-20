@@ -5,9 +5,9 @@ Consolidated Pydantic models for authentication, user management, and token hand
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, EmailStr, Field, field_validator
 
 from .serialization import ensure_dict, iso_or_none
 
@@ -15,6 +15,18 @@ from .serialization import ensure_dict, iso_or_none
 #: profile completion). Existing shorter passwords keep working; login never
 #: checks the length.
 MIN_PASSWORD_LENGTH = 12
+
+
+def _blank_to_none(v):
+    """An unanswered optional select arrives as "" from older clients: store
+    it as no answer (NULL), never as an empty value."""
+    if isinstance(v, str) and not v.strip():
+        return None
+    return v
+
+
+#: An optional signup choice; a blank string counts as not answered.
+OptionalChoice = Annotated[Optional[str], BeforeValidator(_blank_to_none)]
 
 
 class User(BaseModel):
@@ -96,13 +108,15 @@ class UserCreate(BaseModel):
     is_superadmin: bool = False
     invitation_token: Optional[str] = Field(None, description="Optional invitation token")
 
-    # Legal expertise fields (required at signup for human baseline groups)
-    legal_expertise_level: str = Field(
-        ...,
-        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor)",
+    # Legal expertise fields: optional research data. Many users (e.g.
+    # students trained outside Germany) have no German legal background, so
+    # both may be omitted; they are stored as NULL then.
+    legal_expertise_level: OptionalChoice = Field(
+        None,
+        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor); optional",
     )
-    german_proficiency: str = Field(
-        ..., description="German language proficiency (native, c2, c1, b2, below_b2)"
+    german_proficiency: OptionalChoice = Field(
+        None, description="German language proficiency (native, c2, c1, b2, below_b2); optional"
     )
     degree_program_type: Optional[str] = Field(
         None,
@@ -145,13 +159,15 @@ class UserCreateWithInvitation(BaseModel):
     password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
     invitation_token: str = Field(..., description="Invitation token from organization invite")
 
-    # Legal expertise fields (required at signup for human baseline groups)
-    legal_expertise_level: str = Field(
-        ...,
-        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor)",
+    # Legal expertise fields: optional research data. Many users (e.g.
+    # students trained outside Germany) have no German legal background, so
+    # both may be omitted; they are stored as NULL then.
+    legal_expertise_level: OptionalChoice = Field(
+        None,
+        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor); optional",
     )
-    german_proficiency: str = Field(
-        ..., description="German language proficiency (native, c2, c1, b2, below_b2)"
+    german_proficiency: OptionalChoice = Field(
+        None, description="German language proficiency (native, c2, c1, b2, below_b2); optional"
     )
     degree_program_type: Optional[str] = Field(
         None,

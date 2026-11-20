@@ -269,6 +269,59 @@ describe('RegisterPage - branch coverage', () => {
     })
   })
 
+  describe('Optional legal background', () => {
+    it('marks both selects optional and offers "not applicable"', async () => {
+      const user = userEvent.setup()
+      render(<RegisterPage />)
+
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button'))
+
+      for (const testId of [
+        'auth-register-legal-expertise-select',
+        'auth-register-german-proficiency-select',
+      ]) {
+        const select = getSelectInTestId(testId)
+        expect(select.labels?.[0]).toHaveTextContent('register.optionalField')
+        expect(
+          Array.from(select.options).map((option) => option.value),
+        ).toContain('not_applicable')
+      }
+    })
+
+    it('shows no follow-up fields for "not applicable" and sends no value', async () => {
+      const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
+      render(<RegisterPage />)
+
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button'))
+      await user.selectOptions(
+        getSelectInTestId('auth-register-legal-expertise-select'),
+        'not_applicable',
+      )
+      await user.selectOptions(
+        getSelectInTestId('auth-register-german-proficiency-select'),
+        'not_applicable',
+      )
+
+      expect(
+        screen.queryByTestId('auth-register-degree-program-select'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-semester-input'),
+      ).not.toBeInTheDocument()
+
+      await user.click(screen.getByTestId('register-step-indicator-5'))
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+
+      await waitFor(() => expect(mockSignup).toHaveBeenCalled())
+      const profile = mockSignup.mock.calls[0][4]
+      expect(profile.legal_expertise_level).toBeUndefined()
+      expect(profile.german_proficiency).toBeUndefined()
+    })
+  })
+
   describe('Grade fields visibility', () => {
     it('shows grade fields for law_student with staatsexamen degree', async () => {
       const user = userEvent.setup()
