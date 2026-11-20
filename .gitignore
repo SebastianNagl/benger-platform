@@ -213,6 +213,9 @@ targeted_fix.py
 # Unignore the prompts of the requirement-level rubric judge, written from the
 # worker code (services/workers/scripts/write_rubric_requirement_prompts.py)
 !services/shared/rubric_requirement_prompts.json
+# Unignore the frontend/API request contracts (e.g. the signup bodies the
+# signup forms send, checked by both the Jest and the API suites)
+!services/shared/contracts/*/*.json
 
 # Unignore the JSON schemas of variant designs (services/shared/variant_designs.py)
 !services/shared/schemas/*.json

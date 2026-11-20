@@ -1,5 +1,13 @@
 'use client'
 
+import {
+  isResearchConsentMissing,
+  LEGAL_EXPERTISE_LEVELS,
+  LegalBackgroundFields,
+  legalBackgroundPayload,
+  RESEARCH_CONSENT_SLOT,
+  researchConsentPayload,
+} from '@/components/auth/SignupProfileFields'
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
@@ -15,7 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth/passwordPolicy'
-import { hasSlot, useSlot } from '@/lib/extensions/slots'
+import { useSlot } from '@/lib/extensions/slots'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
@@ -34,17 +42,8 @@ const EMAIL_TAKEN_DETAIL = 'Email already registered'
 // before we hand over to the login page.
 const INVITED_SUCCESS_REDIRECT_MS = 3000
 
-const EXPERTISE_HIERARCHY = [
-  'layperson',
-  'law_student',
-  'referendar',
-  'graduated_no_practice',
-  'practicing_lawyer',
-  'judge_professor',
-]
-
 function getExpertiseIndex(level: string): number {
-  return EXPERTISE_HIERARCHY.indexOf(level)
+  return LEGAL_EXPERTISE_LEVELS.findIndex((l) => l.value === level)
 }
 
 const PSYCHOMETRIC_ITEM_KEYS = ['item_1', 'item_2', 'item_3', 'item_4']
@@ -115,35 +114,9 @@ export default function RegisterPage() {
     setBrandName(getHostBrandName())
     setIsVtr(isStudentLockedHost())
   }, [])
-  const ResearchConsentSlot = useSlot('signup-step5-consent')
+  const ResearchConsentSlot = useSlot(RESEARCH_CONSENT_SLOT)
 
   // Options
-  const legalExpertiseLevels = [
-    { value: 'layperson', label: t('register.expertiseLevel.layperson') },
-    { value: 'law_student', label: t('register.expertiseLevel.lawStudent') },
-    { value: 'referendar', label: t('register.expertiseLevel.referendar') },
-    {
-      value: 'graduated_no_practice',
-      label: t('register.expertiseLevel.graduatedNoPractice'),
-    },
-    {
-      value: 'practicing_lawyer',
-      label: t('register.expertiseLevel.practicingLawyer'),
-    },
-    {
-      value: 'judge_professor',
-      label: t('register.expertiseLevel.judgeProfessor'),
-    },
-  ]
-
-  const germanProficiencyLevels = [
-    { value: 'native', label: t('register.germanProficiency.native') },
-    { value: 'c2', label: t('register.germanProficiency.c2') },
-    { value: 'c1', label: t('register.germanProficiency.c1') },
-    { value: 'b2', label: t('register.germanProficiency.b2') },
-    { value: 'below_b2', label: t('register.germanProficiency.belowB2') },
-  ]
-
   const degreeProgramTypes = [
     { value: 'staatsexamen', label: t('register.degreeProgram.staatsexamen') },
     { value: 'llb', label: t('register.degreeProgram.llb') },
@@ -162,14 +135,11 @@ export default function RegisterPage() {
     { value: 'keine_angabe', label: t('register.gender.preferNotToSay') },
   ]
 
-  // Conditional field visibility
-  const showDegreeProgramField =
-    formData.legalExpertiseLevel !== '' &&
-    formData.legalExpertiseLevel !== 'layperson'
-  const showSemesterField = formData.legalExpertiseLevel === 'law_student'
-
-  // Grade visibility based on expertise hierarchy
+  // Conditional field visibility, based on the expertise hierarchy. "Not
+  // applicable" and no answer sit outside it and show no follow-up fields.
   const expertiseIdx = getExpertiseIndex(formData.legalExpertiseLevel)
+  const showDegreeProgramField = expertiseIdx >= 1 // law_student and above
+  const showSemesterField = formData.legalExpertiseLevel === 'law_student'
   const isIncomparableGradingProgram =
     formData.degreeProgramType === 'llb' || formData.degreeProgramType === 'llm'
   const showGradeZwischenpruefung =
@@ -293,7 +263,7 @@ export default function RegisterPage() {
           return t('register.passwordMismatch')
         // Research-data consent (extended edition only) is the one required
         // field that moved onto Step 1; it gates account creation.
-        if (hasSlot('signup-step5-consent') && !formData.researchDataConsent)
+        if (isResearchConsentMissing(formData.researchDataConsent))
           return t('register.researchConsent.required')
         return null
       }
@@ -345,8 +315,7 @@ export default function RegisterPage() {
         formData.name,
         formData.password,
         {
-          legal_expertise_level: formData.legalExpertiseLevel,
-          german_proficiency: formData.germanProficiency,
+          ...legalBackgroundPayload(formData),
           degree_program_type: formData.degreeProgramType || undefined,
           current_semester: formData.currentSemester
             ? parseInt(formData.currentSemester, 10)
@@ -377,9 +346,7 @@ export default function RegisterPage() {
           ki_experience_scores: completeScaleOrUndefined(
             formData.kiExperienceScores,
           ),
-          research_data_consent_accepted: hasSlot('signup-step5-consent')
-            ? formData.researchDataConsent
-            : undefined,
+          ...researchConsentPayload(formData.researchDataConsent),
         },
         invitationToken || undefined,
       )
@@ -540,71 +507,18 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div>
-        <label htmlFor="legalExpertiseLevel" className={labelClassName}>
-          {t('register.legalExpertiseLevel')}
-        </label>
-        <div
-          className="mt-1"
-          data-testid="auth-register-legal-expertise-select"
-        >
-          <Select
-            value={formData.legalExpertiseLevel}
-            onValueChange={(v) =>
-              setFormData((prev) => ({ ...prev, legalExpertiseLevel: v }))
-            }
-            displayValue={
-              legalExpertiseLevels.find(
-                (l) => l.value === formData.legalExpertiseLevel,
-              )?.label
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('register.selectOption')} />
-            </SelectTrigger>
-            <SelectContent>
-              {legalExpertiseLevels.map((level) => (
-                <SelectItem key={level.value} value={level.value}>
-                  {level.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="germanProficiency" className={labelClassName}>
-          {t('register.germanProficiencyLabel')}
-        </label>
-        <div
-          className="mt-1"
-          data-testid="auth-register-german-proficiency-select"
-        >
-          <Select
-            value={formData.germanProficiency}
-            onValueChange={(v) =>
-              setFormData((prev) => ({ ...prev, germanProficiency: v }))
-            }
-            displayValue={
-              germanProficiencyLevels.find(
-                (l) => l.value === formData.germanProficiency,
-              )?.label
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('register.selectOption')} />
-            </SelectTrigger>
-            <SelectContent>
-              {germanProficiencyLevels.map((level) => (
-                <SelectItem key={level.value} value={level.value}>
-                  {level.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <LegalBackgroundFields
+        legalExpertiseLevel={formData.legalExpertiseLevel}
+        germanProficiency={formData.germanProficiency}
+        onLegalExpertiseLevelChange={(v) =>
+          setFormData((prev) => ({ ...prev, legalExpertiseLevel: v }))
+        }
+        onGermanProficiencyChange={(v) =>
+          setFormData((prev) => ({ ...prev, germanProficiency: v }))
+        }
+        labelClassName={labelClassName}
+        testIdPrefix="auth-register"
+      />
 
       {showDegreeProgramField && (
         <div>

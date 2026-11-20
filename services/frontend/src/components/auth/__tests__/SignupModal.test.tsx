@@ -3,6 +3,7 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
+import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SignupModal } from '../SignupModal'
@@ -48,6 +49,35 @@ jest.mock('@/contexts/I18nContext', () => ({
   })),
 }))
 
+// The research-data consent checkbox is an extended-edition slot: absent
+// (community edition) unless a test registers it.
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: jest.fn(),
+  hasSlot: jest.fn(),
+}))
+
+function ConsentCheckbox({
+  value,
+  onChange,
+}: {
+  value: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <input
+      type="checkbox"
+      aria-label="research consent"
+      checked={value}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+  )
+}
+
+function withConsentSlot(present: boolean) {
+  ;(hasSlot as jest.Mock).mockReturnValue(present)
+  ;(useSlot as jest.Mock).mockReturnValue(present ? ConsentCheckbox : null)
+}
+
 // Mock Headless UI components
 jest.mock('@headlessui/react', () => ({
   Dialog: ({ open, onClose, children, className }: any) =>
@@ -77,7 +107,16 @@ describe('SignupModal Component', () => {
     mockUseAuth.mockReturnValue({
       signup: mockSignup,
     })
+    withConsentSlot(false)
   })
+
+  async function fillAccount(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText('Full Name'), 'Test User')
+    await user.type(screen.getByLabelText('Email Address'), 'test@example.com')
+    await user.type(screen.getByLabelText('Username'), 'testuser')
+    await user.type(screen.getByLabelText('Password'), 'password12345')
+    await user.type(screen.getByLabelText('Confirm Password'), 'password12345')
+  }
 
   describe('Modal Visibility', () => {
     it('renders when isOpen is true', () => {
@@ -193,13 +232,25 @@ describe('SignupModal Component', () => {
       await user.click(screen.getByRole('button', { name: 'Create account' }))
 
       await waitFor(() => {
+        // Account fields only: the legal background is optional and not
+        // asked in the modal, and there is no consent checkbox here.
         expect(mockSignup).toHaveBeenCalledWith(
           'testuser',
           'test@example.com',
           'Test User',
           'password12345',
+          {},
         )
       })
+    })
+
+    it('does not ask for the legal background', () => {
+      render(<SignupModal isOpen={true} onClose={mockOnClose} />)
+
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('register.legalExpertiseLevel'),
+      ).not.toBeInTheDocument()
     })
 
     it('calls onClose after successful signup', async () => {
@@ -599,6 +650,63 @@ describe('SignupModal Component', () => {
       await user.click(cancelButton)
 
       expect(localOnClose).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Research-data consent (extended edition)', () => {
+    it('shows no consent checkbox in the community edition', () => {
+      render(<SignupModal isOpen={true} onClose={mockOnClose} />)
+
+      expect(
+        screen.queryByLabelText('research consent'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('requires the consent before signing up', async () => {
+      withConsentSlot(true)
+      const user = userEvent.setup()
+      render(<SignupModal isOpen={true} onClose={mockOnClose} />)
+
+      await fillAccount(user)
+      await user.click(screen.getByRole('button', { name: 'Create account' }))
+
+      expect(
+        await screen.findByText('register.researchConsent.required'),
+      ).toBeInTheDocument()
+      expect(mockSignup).not.toHaveBeenCalled()
+    })
+
+    it('sends the consent once it is given', async () => {
+      withConsentSlot(true)
+      mockSignup.mockResolvedValue(undefined)
+      const user = userEvent.setup()
+      render(<SignupModal isOpen={true} onClose={mockOnClose} />)
+
+      await fillAccount(user)
+      await user.click(screen.getByLabelText('research consent'))
+      await user.click(screen.getByRole('button', { name: 'Create account' }))
+
+      await waitFor(() =>
+        expect(mockSignup).toHaveBeenCalledWith(
+          'testuser',
+          'test@example.com',
+          'Test User',
+          'password12345',
+          { research_data_consent_accepted: true },
+        ),
+      )
+    })
+
+    it('clears the consent when the modal is cancelled', async () => {
+      withConsentSlot(true)
+      const user = userEvent.setup()
+      render(<SignupModal isOpen={true} onClose={mockOnClose} />)
+
+      await user.click(screen.getByLabelText('research consent'))
+      expect(screen.getByLabelText('research consent')).toBeChecked()
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.getByLabelText('research consent')).not.toBeChecked()
     })
   })
 

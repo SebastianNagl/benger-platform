@@ -4,7 +4,7 @@ Integration tests for auth.py handler body code.
 Covers:
 - login: cookie setting, user response structure, contributor/annotator login
 - signup: required fields validation, demographic fields, duplicate email,
-  legal_expertise_level and german_proficiency required
+  optional legal_expertise_level and german_proficiency
 - register: superadmin-only, annotator blocked
 - /me: full response fields, unauthorized
 - /me/contexts: superadmin sees all orgs, non-admin sees own orgs,
@@ -317,16 +317,35 @@ class TestSignupBody:
         resp = client.post("/api/auth/signup", json=payload)
         assert resp.status_code == 200
 
-    def test_signup_missing_legal_expertise(self, client, test_db, test_users):
+    def test_signup_without_legal_background(self, client, test_db, test_users):
+        # Both legal-background fields are optional: omitted, they are NULL.
         payload = {
             "username": f"noexpert_{uuid.uuid4().hex[:6]}",
             "email": f"noexpert_{uuid.uuid4().hex[:6]}@test.com",
             "name": "No Expert",
-            "password": "password123",
-            # Missing legal_expertise_level and german_proficiency
+            "password": "password12345",
         }
         resp = client.post("/api/auth/signup", json=payload)
-        assert resp.status_code == 422  # validation error
+        assert resp.status_code == 200
+        user = test_db.query(User).filter(User.username == payload["username"]).one()
+        assert user.legal_expertise_level is None
+        assert user.german_proficiency is None
+
+    def test_signup_blank_legal_background_is_null(self, client, test_db, test_users):
+        # Older clients send "" for an unanswered select: stored as NULL too.
+        payload = _signup_payload(legal_expertise_level="", german_proficiency="")
+        resp = client.post("/api/auth/signup", json=payload)
+        assert resp.status_code == 200
+        user = test_db.query(User).filter(User.username == payload["username"]).one()
+        assert user.legal_expertise_level is None
+        assert user.german_proficiency is None
+
+    def test_signup_unknown_legal_expertise_rejected(self, client, test_db, test_users):
+        resp = client.post(
+            "/api/auth/signup",
+            json=_signup_payload(legal_expertise_level="not_applicable"),
+        )
+        assert resp.status_code == 400
 
     def test_signup_short_password(self, client, test_db, test_users):
         payload = _signup_payload(password="x" * 11)  # too short (min 12)

@@ -7,6 +7,7 @@ src/app/api/auth/me/contexts/__tests__/route.test.ts
 src/app/api/auth/refresh/__tests__/route.test.ts
 src/app/api/health/__tests__/route.test.ts
 src/app/login/__tests__/page.test.tsx
+src/components/auth/__tests__/signupPayload.contract.test.tsx
 src/components/evaluation/__tests__/EvaluationControlModal.test.tsx
 src/components/generation/__tests__/GenerationControlModal.test.tsx
 src/components/projects/__tests__/ImportDataModal.test.tsx
