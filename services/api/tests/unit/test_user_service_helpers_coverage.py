@@ -117,10 +117,10 @@ class TestGetMandatoryProfileFields:
         from auth_module.user_service import get_mandatory_profile_fields
         user = self._make_user()
         missing = get_mandatory_profile_fields(user)
-        assert "legal_expertise_level" in missing
+        assert "legal_expertise_level" not in missing
         assert "gender" in missing
         assert "age" in missing
-        assert "german_proficiency" in missing
+        assert "german_proficiency" not in missing
         assert "ati_s_scores" in missing
 
     def test_all_base_fields_present_no_expertise(self):
@@ -131,9 +131,7 @@ class TestGetMandatoryProfileFields:
             subjective_competence_criminal=5, ati_s_scores={}, ptt_a_scores={},
             ki_experience_scores={},
         )
-        missing = get_mandatory_profile_fields(user)
-        assert "legal_expertise_level" in missing
-        assert "gender" not in missing
+        assert get_mandatory_profile_fields(user) == []
 
     def test_law_student_needs_grades(self):
         from auth_module.user_service import get_mandatory_profile_fields

@@ -270,8 +270,9 @@ describe('RegisterPage - branch coverage', () => {
   })
 
   describe('Optional legal background', () => {
-    it('marks both selects optional and offers "not applicable"', async () => {
+    it('marks both selects optional and sends no value when left open', async () => {
       const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
       render(<RegisterPage />)
 
       await fillStep1(user)
@@ -285,32 +286,8 @@ describe('RegisterPage - branch coverage', () => {
         expect(select.labels?.[0]).toHaveTextContent('register.optionalField')
         expect(
           Array.from(select.options).map((option) => option.value),
-        ).toContain('not_applicable')
+        ).not.toContain('not_applicable')
       }
-    })
-
-    it('shows no follow-up fields for "not applicable" and sends no value', async () => {
-      const user = userEvent.setup()
-      mockSignup.mockResolvedValue(undefined)
-      render(<RegisterPage />)
-
-      await fillStep1(user)
-      await user.click(screen.getByTestId('register-next-button'))
-      await user.selectOptions(
-        getSelectInTestId('auth-register-legal-expertise-select'),
-        'not_applicable',
-      )
-      await user.selectOptions(
-        getSelectInTestId('auth-register-german-proficiency-select'),
-        'not_applicable',
-      )
-
-      expect(
-        screen.queryByTestId('auth-register-degree-program-select'),
-      ).not.toBeInTheDocument()
-      expect(
-        screen.queryByTestId('auth-register-semester-input'),
-      ).not.toBeInTheDocument()
 
       await user.click(screen.getByTestId('register-step-indicator-5'))
       await user.click(screen.getByTestId('auth-register-submit-button'))

@@ -44,13 +44,6 @@ export const GERMAN_PROFICIENCY_LEVELS = [
 ] as const
 
 /**
- * The explicit "does not apply to me" answer, e.g. for someone trained in
- * law outside Germany. It is a form value only: like no answer, it is sent
- * as no value and stored as NULL.
- */
-export const NOT_APPLICABLE = 'not_applicable'
-
-/**
  * The slot through which the extended edition adds its research-data consent
  * checkbox. When it is registered, the API refuses a signup without consent,
  * so every signup form renders it and requires it. The name is historical:
@@ -72,21 +65,17 @@ export function researchConsentPayload(consent: boolean) {
   }
 }
 
-function answerOrUndefined(value: string): string | undefined {
-  return value && value !== NOT_APPLICABLE ? value : undefined
-}
-
 /**
  * The legal-background fields of a signup request. Both are optional: an
- * unanswered or "not applicable" select is left out of the request.
+ * unanswered select is left out of the request.
  */
 export function legalBackgroundPayload(answers: {
   legalExpertiseLevel: string
   germanProficiency: string
 }) {
   return {
-    legal_expertise_level: answerOrUndefined(answers.legalExpertiseLevel),
-    german_proficiency: answerOrUndefined(answers.germanProficiency),
+    legal_expertise_level: answers.legalExpertiseLevel || undefined,
+    german_proficiency: answers.germanProficiency || undefined,
   }
 }
 
@@ -101,10 +90,7 @@ interface LegalBackgroundFieldsProps {
   disabled?: boolean
 }
 
-/**
- * The optional legal expertise level and German proficiency selects, each
- * with an explicit "not applicable" answer.
- */
+/** The optional legal expertise level and German proficiency selects. */
 export function LegalBackgroundFields({
   legalExpertiseLevel,
   germanProficiency,
@@ -115,17 +101,20 @@ export function LegalBackgroundFields({
   disabled,
 }: LegalBackgroundFieldsProps) {
   const { t } = useI18n()
-  const notApplicable = {
-    value: NOT_APPLICABLE,
-    labelKey: 'register.notApplicableOption',
-  }
 
-  const fields = [
+  const fields: {
+    id: string
+    label: string
+    testId: string
+    options: readonly { value: string; labelKey: string }[]
+    value: string
+    onChange: (value: string) => void
+  }[] = [
     {
       id: 'legalExpertiseLevel',
       label: t('register.legalExpertiseLevel'),
       testId: `${testIdPrefix}-legal-expertise-select`,
-      options: [...LEGAL_EXPERTISE_LEVELS, notApplicable],
+      options: LEGAL_EXPERTISE_LEVELS,
       value: legalExpertiseLevel,
       onChange: onLegalExpertiseLevelChange,
     },
@@ -133,7 +122,7 @@ export function LegalBackgroundFields({
       id: 'germanProficiency',
       label: t('register.germanProficiencyLabel'),
       testId: `${testIdPrefix}-german-proficiency-select`,
-      options: [...GERMAN_PROFICIENCY_LEVELS, notApplicable],
+      options: GERMAN_PROFICIENCY_LEVELS,
       value: germanProficiency,
       onChange: onGermanProficiencyChange,
     },

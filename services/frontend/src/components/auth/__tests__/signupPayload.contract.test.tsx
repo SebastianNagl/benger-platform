@@ -231,16 +231,6 @@ describe('signup payload contract', () => {
     expectMatchesContract(await sentBody(), 'register_minimal.json')
   })
 
-  it('register page, legal background "not applicable" sends no value', async () => {
-    const user = userEvent.setup()
-    render(<RegisterPage />)
-    await fillRegisterAccount(user)
-    await chooseLegalBackground(user, 'not_applicable', 'not_applicable')
-    await submitRegister(user)
-    // Same request as leaving both selects open: stored as no answer.
-    expectMatchesContract(await sentBody(), 'register_minimal.json')
-  })
-
   it('register page, legal background answered', async () => {
     const user = userEvent.setup()
     render(<RegisterPage />)

@@ -1118,10 +1118,13 @@ def get_mandatory_profile_fields(user) -> list:
 
     Which fields are required depends on the user's legal_expertise_level
     and degree_program_type:
-    - All users: gender, age, german_proficiency, subjective_competence_*,
-      ati_s_scores, ptt_a_scores, ki_experience_scores, legal_expertise_level
+    - All users: gender, age, subjective_competence_*, ati_s_scores,
+      ptt_a_scores, ki_experience_scores
     - referendar+: grade_first_staatsexamen
     - graduated_no_practice+: grade_second_staatsexamen, job, years_of_experience
+
+    legal_expertise_level and german_proficiency are optional: without an
+    expertise level, no expertise-dependent field is required.
 
     grade_zwischenpruefung / grade_vorgeruecktenubung are NOT required — many
     students have not sat those exams yet — but stay as optional inputs.
@@ -1131,21 +1134,15 @@ def get_mandatory_profile_fields(user) -> list:
     """
     missing = []
 
-    # legal_expertise_level is always required
     expertise = None
     if user.legal_expertise_level != None:  # noqa: E711
         expertise = user.legal_expertise_level.value if hasattr(user.legal_expertise_level, 'value') else str(user.legal_expertise_level)
-    else:
-        missing.append("legal_expertise_level")
 
     # Base fields required for everyone
     if user.gender == None:  # noqa: E711
         missing.append("gender")
     if user.age == None:  # noqa: E711
         missing.append("age")
-
-    if user.german_proficiency == None:  # noqa: E711
-        missing.append("german_proficiency")
 
     if user.subjective_competence_civil == None:  # noqa: E711
         missing.append("subjective_competence_civil")
@@ -1283,11 +1280,9 @@ def _check_mandatory_fields_present(**kwargs) -> bool:
     should be set to True.
     """
     expertise = kwargs.get("legal_expertise_level")
-    if expertise is None:
-        return False
 
     # Base fields required for everyone
-    base_fields = ["gender", "age", "german_proficiency",
+    base_fields = ["gender", "age",
                    "subjective_competence_civil", "subjective_competence_public",
                    "subjective_competence_criminal",
                    "ati_s_scores", "ptt_a_scores", "ki_experience_scores"]
