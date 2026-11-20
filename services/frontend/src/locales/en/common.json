@@ -2668,6 +2668,7 @@
     "currentSemester": "Current Semester",
     "currentSemesterPlaceholder": "e.g., 5",
     "legalSpecializations": "Legal Specializations",
+    "optionalField": "(optional)",
     "selectOption": "Please select...",
     "expertiseLevel": {
       "layperson": "Layperson (No legal training)",

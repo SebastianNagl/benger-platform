@@ -2668,6 +2668,7 @@
     "currentSemester": "Semestre actuel",
     "currentSemesterPlaceholder": "p. ex. 5",
     "legalSpecializations": "Domaines du droit",
+    "optionalField": "(facultatif)",
     "selectOption": "Veuillez choisir...",
     "expertiseLevel": {
       "layperson": "Profane (aucune formation juridique)",

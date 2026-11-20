@@ -416,23 +416,21 @@ class TestGetMandatoryProfileFields:
         missing = get_mandatory_profile_fields(user)
         assert "grade_second_staatsexamen" in missing
 
-    def test_no_expertise_returns_expertise_missing(self, make_user):
+    def test_no_expertise_is_not_missing(self, make_user):
         from auth_module.user_service import get_mandatory_profile_fields
 
-        user = make_user(expertise="law_student")
+        user = make_user(expertise="judge_professor")
         user.legal_expertise_level = None
-        missing = get_mandatory_profile_fields(user)
-        assert "legal_expertise_level" in missing
+        assert get_mandatory_profile_fields(user) == []
 
-    def test_missing_german_proficiency(self, make_user):
+    def test_no_german_proficiency_is_not_missing(self, make_user):
         from auth_module.user_service import get_mandatory_profile_fields
 
         user = make_user(
             expertise="layperson", grade_zwischenpruefung=None, grade_vorgeruecktenubung=None
         )
         user.german_proficiency = None
-        missing = get_mandatory_profile_fields(user)
-        assert "german_proficiency" in missing
+        assert get_mandatory_profile_fields(user) == []
 
     def test_llm_law_student_no_grades_required(self, make_user):
         from auth_module.user_service import get_mandatory_profile_fields
@@ -689,14 +687,14 @@ class TestCheckMandatoryFieldsPresent:
         )
         assert result is True
 
-    def test_no_expertise_returns_false(self):
+    def test_no_expertise_or_german_proficiency_returns_true(self):
         from auth_module.user_service import _check_mandatory_fields_present
 
         result = _check_mandatory_fields_present(
             legal_expertise_level=None,
             gender="maennlich",
             age=30,
-            german_proficiency="native",
+            german_proficiency=None,
             subjective_competence_civil=5,
             subjective_competence_public=4,
             subjective_competence_criminal=3,
@@ -704,7 +702,7 @@ class TestCheckMandatoryFieldsPresent:
             ptt_a_scores={"item_1": 4, "item_2": 5, "item_3": 3, "item_4": 6},
             ki_experience_scores={"item_1": 4, "item_2": 5, "item_3": 3, "item_4": 6},
         )
-        assert result is False
+        assert result is True
 
     def test_missing_gender_returns_false(self):
         from auth_module.user_service import _check_mandatory_fields_present

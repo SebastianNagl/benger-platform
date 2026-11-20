@@ -96,13 +96,15 @@ class UserCreate(BaseModel):
     is_superadmin: bool = False
     invitation_token: Optional[str] = Field(None, description="Optional invitation token")
 
-    # Legal expertise fields (required at signup for human baseline groups)
-    legal_expertise_level: str = Field(
-        ...,
-        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor)",
+    # Legal expertise fields: optional research data. Many users (e.g.
+    # students trained outside Germany) have no German legal background, so
+    # both may be omitted; they are stored as NULL then.
+    legal_expertise_level: Optional[str] = Field(
+        None,
+        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor); optional",
     )
-    german_proficiency: str = Field(
-        ..., description="German language proficiency (native, c2, c1, b2, below_b2)"
+    german_proficiency: Optional[str] = Field(
+        None, description="German language proficiency (native, c2, c1, b2, below_b2); optional"
     )
     degree_program_type: Optional[str] = Field(
         None,
@@ -145,13 +147,15 @@ class UserCreateWithInvitation(BaseModel):
     password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
     invitation_token: str = Field(..., description="Invitation token from organization invite")
 
-    # Legal expertise fields (required at signup for human baseline groups)
-    legal_expertise_level: str = Field(
-        ...,
-        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor)",
+    # Legal expertise fields: optional research data. Many users (e.g.
+    # students trained outside Germany) have no German legal background, so
+    # both may be omitted; they are stored as NULL then.
+    legal_expertise_level: Optional[str] = Field(
+        None,
+        description="Legal expertise level (layperson, law_student, referendar, graduated_no_practice, practicing_lawyer, judge_professor); optional",
     )
-    german_proficiency: str = Field(
-        ..., description="German language proficiency (native, c2, c1, b2, below_b2)"
+    german_proficiency: Optional[str] = Field(
+        None, description="German language proficiency (native, c2, c1, b2, below_b2); optional"
     )
     degree_program_type: Optional[str] = Field(
         None,

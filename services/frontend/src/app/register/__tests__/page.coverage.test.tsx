@@ -269,6 +269,36 @@ describe('RegisterPage - branch coverage', () => {
     })
   })
 
+  describe('Optional legal background', () => {
+    it('marks both selects optional and sends no value when left open', async () => {
+      const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
+      render(<RegisterPage />)
+
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button'))
+
+      for (const testId of [
+        'auth-register-legal-expertise-select',
+        'auth-register-german-proficiency-select',
+      ]) {
+        const select = getSelectInTestId(testId)
+        expect(select.labels?.[0]).toHaveTextContent('register.optionalField')
+        expect(
+          Array.from(select.options).map((option) => option.value),
+        ).not.toContain('not_applicable')
+      }
+
+      await user.click(screen.getByTestId('register-step-indicator-5'))
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+
+      await waitFor(() => expect(mockSignup).toHaveBeenCalled())
+      const profile = mockSignup.mock.calls[0][4]
+      expect(profile.legal_expertise_level).toBeUndefined()
+      expect(profile.german_proficiency).toBeUndefined()
+    })
+  })
+
   describe('Grade fields visibility', () => {
     it('shows grade fields for law_student with staatsexamen degree', async () => {
       const user = userEvent.setup()

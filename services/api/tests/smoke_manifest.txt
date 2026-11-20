@@ -18,6 +18,7 @@ tests/integration/test_remaining_router_endpoints.py::TestDashboardEndpoints::te
 tests/integration/test_remaining_router_endpoints.py::TestHealthEndpoints::test_health_schema
 tests/integration/test_remaining_router_endpoints.py::TestHealthEndpoints::test_healthz
 tests/integration/test_remaining_router_endpoints.py::TestHealthEndpoints::test_root_endpoint
+tests/integration/test_signup_payload_contract.py
 tests/migration/test_single_alembic_head.py::test_alembic_has_exactly_one_head
 tests/migration/test_upgrade_from_empty.py::test_upgrade_head_on_an_empty_database
 tests/test_extensions_loading.py
