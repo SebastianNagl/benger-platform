@@ -16,13 +16,17 @@
  * the bar view of the evaluations page uses it.
  *
  * The SVG is drawn at the container's measured width (ResizeObserver), so
- * text keeps its size on narrow screens; long row labels are shortened with
- * the full label in a tooltip.
+ * text keeps its size on narrow screens. The label column is as wide as the
+ * longest row label, measured in the chart's font. When that label needs
+ * more than a share of the width, every label goes on its own line above
+ * its row, across the full width; a label longer than even that line is
+ * shortened in the middle with the full label in a tooltip. No label is
+ * ever cut off at the edge.
  */
 
 import { useI18n } from '@/contexts/I18nContext'
 import { axisTicks, formatInterval, formatNumber } from '@/lib/analysis/results'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 export interface ForestPlotInterval {
   lower: number
@@ -66,8 +70,34 @@ export interface ForestPlotProps {
 }
 
 const ROW_HEIGHT = 30
+/** Row height with the label on its own line above the interval. */
+const STACKED_ROW_HEIGHT = 44
+/** Baseline of a stacked label and centre of its marks, from the row top. */
+const STACKED_LABEL_BASELINE = 14
+const STACKED_MARK_Y = 31
+/** Top of the marks of a stacked row (grid lines start below the label). */
+const STACKED_MARK_TOP = 20
 const AXIS_HEIGHT = 34
 const TOP_PAD = 8
+/** Space between the SVG's left edge and the labels. */
+const EDGE = 4
+/** Space between the label column and the plot. */
+const LABEL_GAP = 8
+const MIN_LABEL_WIDTH = 48
+/** The label column takes at most this share of the width and this many pixels. */
+const MAX_LABEL_SHARE = 0.4
+const MAX_LABEL_WIDTH = 360
+/** The plot keeps at least this width next to a side label column. */
+const MIN_PLOT_WIDTH = 120
+/** Font size of the SVG's `text-xs` until it is read from the page. */
+const DEFAULT_FONT_SIZE = 13
+/**
+ * Width of one label character, in ems, when the font cannot be measured
+ * (server render, test environment): above the average of a sans-serif
+ * font, so the estimate errs towards more room.
+ */
+const FALLBACK_CHAR_EM = 0.6
+const FALLBACK_BOLD_CHAR_EM = 0.64
 /** Bounds of the value column, sized to its longest text. */
 const MIN_VALUE_WIDTH = 140
 const MAX_VALUE_WIDTH = 300
@@ -76,7 +106,6 @@ const MONO_CHAR_WIDTH = 8
 /** Gap between the plot and the value column's longest text. */
 const VALUE_GAP = 8
 const FALLBACK_WIDTH = 720
-const CHAR_WIDTH = 6.6
 
 function useMeasuredWidth() {
   const ref = useRef<HTMLDivElement>(null)
@@ -94,9 +123,106 @@ function useMeasuredWidth() {
   return [ref, width] as const
 }
 
-function shorten(label: string, maxChars: number): string {
-  if (label.length <= maxChars) return label
-  return `${label.slice(0, Math.max(1, maxChars - 1))}…`
+/** Width of a label in pixels; `bold` for emphasised rows. */
+export type MeasureText = (text: string, bold: boolean) => number
+
+let measuringContext: OffscreenCanvasRenderingContext2D | null | undefined
+
+function measuringContext2d(): OffscreenCanvasRenderingContext2D | null {
+  if (measuringContext === undefined) {
+    measuringContext =
+      typeof OffscreenCanvas === 'undefined'
+        ? null
+        : new OffscreenCanvas(1, 1).getContext('2d')
+  }
+  return measuringContext
+}
+
+interface ChartFont {
+  family: string
+  size: number
+}
+
+/**
+ * Measures label text in the font of the chart's SVG at `ref` (family and
+ * size as computed there, semibold when emphasised), read after mount and
+ * whenever `width` changes, and again once web fonts have loaded. Until
+ * then, and where no canvas exists, the width is estimated per character.
+ */
+function useMeasureText(
+  ref: RefObject<SVGSVGElement | null>,
+  width: number,
+): MeasureText {
+  const [font, setFont] = useState<ChartFont | null>(null)
+  const [fontsLoaded, setFontsLoaded] = useState(0)
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const style = getComputedStyle(node)
+    const family = style.fontFamily || 'sans-serif'
+    const size = parseFloat(style.fontSize) || DEFAULT_FONT_SIZE
+    setFont((prev) =>
+      prev?.family === family && prev.size === size ? prev : { family, size },
+    )
+  }, [ref, width])
+  useEffect(() => {
+    let live = true
+    document.fonts?.ready.then(() => {
+      if (live) setFontsLoaded((n) => n + 1)
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+  return useMemo(() => {
+    const context = font ? measuringContext2d() : null
+    const size = font?.size ?? DEFAULT_FONT_SIZE
+    const cache = new Map<string, number>()
+    return (text, bold) => {
+      if (!context || !font)
+        return (
+          text.length * size * (bold ? FALLBACK_BOLD_CHAR_EM : FALLBACK_CHAR_EM)
+        )
+      const key = `${bold ? 1 : 0}${text}`
+      let measured = cache.get(key)
+      if (measured === undefined) {
+        context.font = `${bold ? 600 : 400} ${font.size}px ${font.family}`
+        measured = context.measureText(text).width
+        cache.set(key, measured)
+      }
+      return measured
+    }
+    // fontsLoaded only invalidates the cache.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [font, fontsLoaded])
+}
+
+/**
+ * The label if it fits `maxWidth`, else its start and end around a middle
+ * ellipsis (the end of a system key often tells two systems apart).
+ */
+export function fitLabel(
+  label: string,
+  maxWidth: number,
+  measure: MeasureText,
+  bold = false,
+): string {
+  if (measure(label, bold) <= maxWidth) return label
+  let best = '…'
+  let low = 1
+  let high = label.length - 1
+  while (low <= high) {
+    const kept = Math.floor((low + high) / 2)
+    const head = Math.ceil(kept / 2)
+    const candidate = `${label.slice(0, head)}…${label.slice(label.length - (kept - head))}`
+    if (measure(candidate, bold) <= maxWidth) {
+      best = candidate
+      low = kept + 1
+    } else {
+      high = kept - 1
+    }
+  }
+  return best
 }
 
 export function ForestPlot({
@@ -112,7 +238,9 @@ export function ForestPlot({
 }: ForestPlotProps) {
   const { locale } = useI18n()
   const [containerRef, measured] = useMeasuredWidth()
+  const svgRef = useRef<SVGSVGElement>(null)
   const width = measured > 0 ? measured : FALLBACK_WIDTH
+  const measureText = useMeasureText(svgRef, width)
   const compact = width < 560
   const finite = (v: number | null | undefined): v is number =>
     typeof v === 'number' && Number.isFinite(v)
@@ -130,13 +258,6 @@ export function ForestPlot({
           Math.ceil(longestValue * MONO_CHAR_WIDTH) + VALUE_GAP,
         ),
       )
-  const labelWidth = Math.min(240, Math.max(96, Math.round(width * 0.28)))
-  const plotLeft = labelWidth + 8
-  const plotRight = width - valueWidth - 12
-  const plotWidth = Math.max(40, plotRight - plotLeft)
-  const height = TOP_PAD + rows.length * ROW_HEIGHT + AXIS_HEIGHT
-  const plotBottom = TOP_PAD + rows.length * ROW_HEIGHT
-
   const domainValues: (number | null | undefined)[] = []
   for (const row of rows) {
     domainValues.push(row.estimate, row.lower, row.upper)
@@ -149,16 +270,58 @@ export function ForestPlot({
   const barBase = mode === 'bar' ? 0 : null
   if (barBase !== null) domainValues.push(barBase)
   const { min, max, ticks } = axisTicks(domainValues)
+  // The outer tick labels are centred on the plot's ends and must not
+  // stick out of the SVG.
+  const tickHalf = (tick: number | undefined) =>
+    tick === undefined
+      ? 0
+      : measureText(formatNumber(tick, locale, 3), false) / 2
+  const plotRight = Math.min(
+    width - valueWidth - 12,
+    width - EDGE - Math.ceil(tickHalf(ticks[ticks.length - 1])),
+  )
+  // The label column fits the longest label; past its maximum every label
+  // goes on its own line above its row.
+  const longestLabel = Math.max(
+    0,
+    ...rows.map((r) => measureText(r.label, Boolean(r.emphasis))),
+  )
+  const maxLabelWidth = Math.min(
+    MAX_LABEL_WIDTH,
+    Math.round(width * MAX_LABEL_SHARE),
+    plotRight - MIN_PLOT_WIDTH - LABEL_GAP - EDGE,
+  )
+  const stacked = longestLabel > maxLabelWidth
+  const labelRight = stacked
+    ? EDGE
+    : EDGE + Math.max(MIN_LABEL_WIDTH, Math.ceil(longestLabel))
+  const plotLeft = Math.max(
+    stacked ? 2 * EDGE : labelRight + LABEL_GAP,
+    EDGE + Math.ceil(tickHalf(ticks[0])),
+  )
+  const plotWidth = Math.max(40, plotRight - plotLeft)
+  const rowHeight = stacked ? STACKED_ROW_HEIGHT : ROW_HEIGHT
+  const rowTop = (i: number) => TOP_PAD + i * rowHeight
+  const plotBottom = TOP_PAD + rows.length * rowHeight
+  const height = plotBottom + AXIS_HEIGHT
+  // Vertical lines (grid, null value) leave the stacked labels' line free.
+  const lineSpans: [number, number][] = stacked
+    ? rows.map((_, i) => [
+        rowTop(i) + STACKED_MARK_TOP,
+        rowTop(i) + STACKED_ROW_HEIGHT,
+      ])
+    : [[TOP_PAD, plotBottom]]
+
   const x = (value: number) =>
     plotLeft + ((value - min) / (max - min || 1)) * plotWidth
   const clampX = (value: number) =>
     Math.min(plotLeft + plotWidth, Math.max(plotLeft, x(value)))
-  const maxLabelChars = Math.floor(labelWidth / CHAR_WIDTH)
 
   return (
     <div className={className}>
       <div ref={containerRef} className="w-full">
         <svg
+          ref={svgRef}
           role="img"
           aria-label={ariaLabel}
           width={width}
@@ -173,9 +336,9 @@ export function ForestPlot({
               <rect
                 key={`stripe-${row.id}`}
                 x={0}
-                y={TOP_PAD + i * ROW_HEIGHT}
+                y={rowTop(i)}
                 width={width}
-                height={ROW_HEIGHT}
+                height={rowHeight}
                 className="fill-zinc-50 dark:fill-zinc-800/40"
               />
             ) : null,
@@ -194,14 +357,17 @@ export function ForestPlot({
           )}
           {ticks.map((tick) => (
             <g key={`tick-${tick}`}>
-              <line
-                x1={x(tick)}
-                x2={x(tick)}
-                y1={TOP_PAD}
-                y2={plotBottom}
-                className="stroke-zinc-200 dark:stroke-zinc-800"
-                strokeWidth={1}
-              />
+              {lineSpans.map(([y1, y2]) => (
+                <line
+                  key={y1}
+                  x1={x(tick)}
+                  x2={x(tick)}
+                  y1={y1}
+                  y2={y2}
+                  className="stroke-zinc-200 dark:stroke-zinc-800"
+                  strokeWidth={1}
+                />
+              ))}
               <text
                 x={x(tick)}
                 y={plotBottom + 14}
@@ -226,19 +392,24 @@ export function ForestPlot({
             nullValue !== undefined &&
             nullValue >= min &&
             nullValue <= max && (
-              <line
-                data-testid="forest-plot-null"
-                x1={x(nullValue)}
-                x2={x(nullValue)}
-                y1={TOP_PAD}
-                y2={plotBottom}
-                strokeDasharray="4 3"
-                strokeWidth={1.25}
-                className="stroke-zinc-500 dark:stroke-zinc-400"
-              />
+              <g>
+                {lineSpans.map(([y1, y2], j) => (
+                  <line
+                    key={y1}
+                    data-testid={j === 0 ? 'forest-plot-null' : undefined}
+                    x1={x(nullValue)}
+                    x2={x(nullValue)}
+                    y1={y1}
+                    y2={y2}
+                    strokeDasharray="4 3"
+                    strokeWidth={1.25}
+                    className="stroke-zinc-500 dark:stroke-zinc-400"
+                  />
+                ))}
+              </g>
             )}
           {rows.map((row, i) => {
-            const cy = TOP_PAD + i * ROW_HEIGHT + ROW_HEIGHT / 2
+            const cy = rowTop(i) + (stacked ? STACKED_MARK_Y : ROW_HEIGHT / 2)
             const has =
               typeof row.estimate === 'number' && Number.isFinite(row.estimate)
             const hasInterval =
@@ -246,13 +417,23 @@ export function ForestPlot({
               typeof row.upper === 'number' &&
               Number.isFinite(row.lower) &&
               Number.isFinite(row.upper)
-            const label = shorten(row.label, maxLabelChars)
+            // A side label always fits its column; a stacked one may need
+            // shortening to the full width.
+            const label = stacked
+              ? fitLabel(
+                  row.label,
+                  width - 2 * EDGE,
+                  measureText,
+                  Boolean(row.emphasis),
+                )
+              : row.label
             return (
               <g key={row.id} data-testid="forest-plot-row">
                 <text
-                  x={labelWidth}
-                  y={cy + 4}
-                  textAnchor="end"
+                  data-testid="forest-plot-label"
+                  x={labelRight}
+                  y={stacked ? rowTop(i) + STACKED_LABEL_BASELINE : cy + 4}
+                  textAnchor={stacked ? 'start' : 'end'}
                   className={
                     row.emphasis
                       ? 'fill-zinc-900 font-semibold dark:fill-white'
