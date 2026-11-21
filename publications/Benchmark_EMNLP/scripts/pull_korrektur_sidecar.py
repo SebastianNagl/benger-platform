@@ -23,12 +23,14 @@ Output
       "rows": [{"evaluation_row_id": "...", "task_id": "...", ...}, ...]
     }
 
-Requires SSH access to root@178.105.26.90 with kubectl in PATH.
+Requires SSH access to the production host (BENGER_SSH_HOST, user@host) with
+kubectl in PATH.
 """
 from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -112,7 +114,7 @@ print(json.dumps(emitted, ensure_ascii=False))
 
 def fetch_via_kubectl() -> list[dict]:
     cmd = [
-        "ssh", "-o", "ConnectTimeout=15", "root@178.105.26.90",
+        "ssh", "-o", "ConnectTimeout=15", os.environ["BENGER_SSH_HOST"],
         "kubectl -n benger exec -i deployment/benger-api -- python3 -",
     ]
     proc = subprocess.run(

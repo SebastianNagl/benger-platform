@@ -1,7 +1,7 @@
 {{- /*
-Demo-environment golden snapshot + nightly reset (demo.what-a-benger.net).
+Demo-environment golden snapshot + nightly reset.
 
-Rendered only when demoReset.enabled (values-demo.yaml). Two CronJobs share one
+Rendered only when demoReset.enabled (the demo environment's values). Two CronJobs share one
 pod template, selected by MODE:
 
   <release>-reset     scheduled (default 04:00 Europe/Berlin): scale the app

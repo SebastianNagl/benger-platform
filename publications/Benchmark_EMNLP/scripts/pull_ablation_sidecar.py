@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def main():
               .replace("__PROJECTS__", json.dumps(PROJECTS))
               .replace("__PREFIXES__", json.dumps(JUDGE_PREFIXES)))
     proc = subprocess.run(
-        ["ssh", "root@178.105.26.90",
+        ["ssh", os.environ["BENGER_SSH_HOST"],
          "kubectl -n benger exec -i deployment/benger-api -- python3 -"],
         input=script.encode(), capture_output=True, check=True)
     payload = json.loads(proc.stdout.decode().strip().splitlines()[-1])
