@@ -182,7 +182,8 @@ export default defineConfig({
     },
     {
       // LTI: registrations admin (any stack) + Moodle launch (needs the
-      // Moodle harness, LTI_E2E=1). See e2e/lti/lti-helpers.ts for the env.
+      // Moodle harness, LTI_E2E=1). The LTI specs, like every @extended
+      // spec, live in the extended package and are copied into e2e/ to run.
       // The student host is the launch surface, hence the vertretbar
       // default. One worker: the specs share one Moodle + one database.
       // LTI_E2E_HOST_RESOLVER_RULES (e.g. "MAP moodle 127.0.0.1") lets

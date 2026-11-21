@@ -161,68 +161,6 @@ test.describe('Randomized Order with Annotation Features', () => {
     }
   })
 
-  test('timer displays and counts down with randomized task order @extended', async () => {
-    test.setTimeout(90000)
-
-    testProjectId = await createFullFeaturedProject(
-      page,
-      `E2E Timer+Random ${Date.now()}`,
-      5,
-    )
-
-    // Verify settings persisted
-    const settings = await getProjectSettings(page, testProjectId!)
-    expect(settings.randomize_task_order).toBe(true)
-    expect(settings.annotation_time_limit_enabled).toBe(true)
-    expect(settings.annotation_time_limit_seconds).toBe(120)
-
-    // Navigate to annotation UI
-    await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
-
-    // With timer + conditional instructions, an instruction modal may appear
-    // with "Annotation starten" button, OR a standalone "Start" timer screen.
-    // Handle both cases.
-    const startButton = page
-      .locator('button')
-      .filter({ hasText: /^Start$|Annotation starten/ })
-      .first()
-    await expect(startButton).toBeVisible({ timeout: 20000 })
-    console.log('Start/instruction screen visible')
-    await startButton.click()
-
-    // Dismiss any remaining instruction modal overlay
-    const dismissButton = page
-      .locator('button')
-      .filter({ hasText: /Annotation starten/ })
-    const hasDismiss = await dismissButton
-      .isVisible({ timeout: 3000 })
-      .catch(() => false)
-    if (hasDismiss) {
-      await dismissButton.click()
-      console.log('Dismissed instruction modal')
-    }
-
-    // Wait for timer to appear (top-right corner)
-    const timer = page
-      .locator('[data-testid="annotation-timer-display"]')
-      .or(page.locator('[role="timer"]'))
-      .first()
-    await expect(timer).toBeVisible({ timeout: 15000 })
-
-    // Verify timer shows approximately 02:00 or slightly less
-    const timerText = await timer.textContent()
-    expect(timerText).toMatch(/0[12]:\d\d/)
-    console.log(`Timer display: ${timerText}`)
-
-    // Wait 3 seconds and verify timer is counting down
-    await page.waitForTimeout(3000)
-    const timerText2 = await timer.textContent()
-    console.log(`Timer after 3s: ${timerText2}`)
-    // Should have decreased from initial value
-    expect(timerText2).not.toBe(timerText)
-    console.log('Timer is counting down correctly with randomized task order')
-  })
-
   test('conditional instruction variant is shown and deterministic with randomized order', async () => {
     test.setTimeout(90000)
 
