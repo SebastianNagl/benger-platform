@@ -144,6 +144,52 @@ it('reserves a side column as wide as the longest short label', () => {
   expect(Number(point.getAttribute('x'))).toBeGreaterThan(shown[0].right)
 })
 
+it('keeps the band and vertical lines off the stacked labels', () => {
+  width = 343
+  const labelTexts = ['Pooled', ...SYSTEMS.map((s) => `stem = ${s}`)]
+  render(
+    <ForestPlot
+      rows={rows(labelTexts)}
+      band={{ lower: -0.2, upper: 0.2, label: 'Equivalence bounds' }}
+      nullValue={0}
+      ariaLabel="plot"
+    />,
+  )
+  const svg = screen.getByRole('img')
+  const labelNodes = within(svg).getAllByTestId('forest-plot-label')
+  // Stacked: every label starts at the left edge on its own line.
+  expect(new Set(labelNodes.map((n) => n.getAttribute('x'))).size).toBe(1)
+  // A label's glyphs reach about one font size (12 px) above its baseline
+  // and a few pixels below it.
+  const labelLines = labelNodes.map((n) => {
+    const baseline = Number(n.getAttribute('y'))
+    return [baseline - 13, baseline + 4] as const
+  })
+  const bandSegments = [...svg.querySelectorAll('rect')].filter(
+    (r) => r.querySelector('title')?.textContent === 'Equivalence bounds',
+  )
+  const verticalLines = [...svg.querySelectorAll('line')].filter(
+    (l) => l.getAttribute('x1') === l.getAttribute('x2'),
+  )
+  expect(bandSegments.length).toBeGreaterThan(0)
+  expect(verticalLines.length).toBeGreaterThan(0)
+  const spans = [
+    ...bandSegments.map((r) => {
+      const y = Number(r.getAttribute('y'))
+      return [y, y + Number(r.getAttribute('height'))] as const
+    }),
+    ...verticalLines.map((l) => {
+      const ys = [Number(l.getAttribute('y1')), Number(l.getAttribute('y2'))]
+      return [Math.min(...ys), Math.max(...ys)] as const
+    }),
+  ]
+  for (const [top, bottom] of spans) {
+    for (const [labelTop, labelBottom] of labelLines) {
+      expect(bottom <= labelTop || top >= labelBottom).toBe(true)
+    }
+  }
+})
+
 describe('fitLabel', () => {
   const measure = (t: string) => textWidth(t)
 

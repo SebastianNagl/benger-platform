@@ -304,7 +304,7 @@ export function ForestPlot({
   const rowTop = (i: number) => TOP_PAD + i * rowHeight
   const plotBottom = TOP_PAD + rows.length * rowHeight
   const height = plotBottom + AXIS_HEIGHT
-  // Vertical lines (grid, null value) leave the stacked labels' line free.
+  // Vertical marks (grid, null value, band) leave the stacked labels' line free.
   const lineSpans: [number, number][] = stacked
     ? rows.map((_, i) => [
         rowTop(i) + STACKED_MARK_TOP,
@@ -343,18 +343,20 @@ export function ForestPlot({
               />
             ) : null,
           )}
-          {band && (
-            <rect
-              data-testid="forest-plot-band"
-              x={clampX(band.lower)}
-              y={TOP_PAD}
-              width={Math.max(0, clampX(band.upper) - clampX(band.lower))}
-              height={plotBottom - TOP_PAD}
-              className="fill-emerald-500/15 dark:fill-emerald-400/15"
-            >
-              {band.label && <title>{band.label}</title>}
-            </rect>
-          )}
+          {band &&
+            lineSpans.map(([y1, y2], j) => (
+              <rect
+                key={`band-${y1}`}
+                data-testid={j === 0 ? 'forest-plot-band' : undefined}
+                x={clampX(band.lower)}
+                y={y1}
+                width={Math.max(0, clampX(band.upper) - clampX(band.lower))}
+                height={y2 - y1}
+                className="fill-emerald-500/15 dark:fill-emerald-400/15"
+              >
+                {band.label && <title>{band.label}</title>}
+              </rect>
+            ))}
           {ticks.map((tick) => (
             <g key={`tick-${tick}`}>
               {lineSpans.map(([y1, y2]) => (
