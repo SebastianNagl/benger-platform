@@ -68,7 +68,7 @@ spec:
       terminationGracePeriodSeconds: {{ $pool.terminationGracePeriodSeconds | default $.Values.workers.terminationGracePeriodSeconds | default 600 }}
       containers:
         - name: workers-{{ $poolName }}
-          image: "{{ $.Values.workers.image.repository }}:{{ $.Values.workers.image.tag | default $.Chart.AppVersion }}"
+          image: {{ include "benger.image" (dict "image" $.Values.workers.image "root" $) | quote }}
           imagePullPolicy: {{ $.Values.workers.image.pullPolicy }}
           {{- include "benger.containerSecurityContext" (dict "root" $ "component" ($pool.securityContext | default $.Values.workers.securityContext)) | nindent 10 }}
           # -n gives this pool a FIXED nodename prefix so the probes below can

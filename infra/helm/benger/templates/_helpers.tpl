@@ -53,6 +53,26 @@ credentials, so the app authenticates as the MinIO root user.
 {{- end -}}
 
 {{/*
+Image reference of an application image (api, workers, frontend). Call with
+(dict "image" .Values.<component>.image "root" $). Without a digest this is
+"<repository>:<tag>". With image.digest (sha256:<64 hex>) it is
+"<repository>:<tag>@<digest>": the node pulls exactly that digest and the tag
+only stays readable. BENGER_APP_VERSION keeps the plain tag either way, since
+the platform stores it as provenance.
+*/}}
+{{- define "benger.image" -}}
+{{- $tag := .image.tag | default .root.Chart.AppVersion -}}
+{{- with .image.digest -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" .) -}}
+{{- fail (printf "image.digest must be sha256:<64 hex>, got %q" .) -}}
+{{- end -}}
+{{- printf "%s:%s@%s" $.image.repository $tag . -}}
+{{- else -}}
+{{- printf "%s:%s" .image.repository $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Pod imagePullSecrets rendered from global.imagePullSecrets. Accepts both
 plain-string entries (["ghcr-secret"] — the canonical form; the bitnami
 subcharts' common helpers stringify map entries into bogus secret names

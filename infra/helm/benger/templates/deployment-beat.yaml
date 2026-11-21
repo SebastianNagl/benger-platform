@@ -41,7 +41,7 @@ spec:
           # Reuse the workers image + env — same Celery app / codebase, same
           # Redis broker. (In prod, .Values.workers.image is overridden to the
           # extended workers image by values-extended.yaml; beat inherits it.)
-          image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
+          image: {{ include "benger.image" (dict "image" .Values.workers.image "root" $) | quote }}
           imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
           {{- include "benger.containerSecurityContext" (dict "root" $ "component" .Values.beat.securityContext) | nindent 10 }}
           # Schedule DB + pidfile live under /tmp so a restart never trips on

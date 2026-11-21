@@ -132,11 +132,8 @@ fi
 
 cd BenGER
 
-# Update Helm dependencies
-print_status "Updating Helm dependencies..."
-cd infra/helm/benger
-helm dependency update
-cd ../../..
+# The Bitnami subcharts are vendored in infra/helm/benger/charts/ (pinned in
+# Chart.yaml and Chart.lock), so no `helm dependency update` is needed.
 
 # Deploy BenGER
 print_header "Deploying BenGER application"
