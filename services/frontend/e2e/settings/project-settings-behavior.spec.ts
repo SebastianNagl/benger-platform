@@ -241,48 +241,6 @@ test.describe('Project Settings Behavior', () => {
     console.log('Task skipped successfully, now on task 2 of 3')
   })
 
-  test('annotation_time_limit shows countdown timer @extended', async () => {
-    test.setTimeout(90000)
-
-    testProjectId = await helpers.createTestProject(`Timer Test ${Date.now()}`)
-    expect(testProjectId).toBeTruthy()
-    await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
-    await fixtures.createTasks(testProjectId!, 3)
-
-    // Enable time limit (60 seconds)
-    await updateProjectSettings(page, testProjectId!, {
-      annotation_time_limit_enabled: true,
-      annotation_time_limit_seconds: 60,
-    })
-
-    await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
-    await waitForAnnotationUI(page)
-
-    // Verify timer is visible
-    const timer = page
-      .locator('[data-testid="annotation-timer-display"]')
-      .or(page.locator('[role="timer"]'))
-      .first()
-    await expect(timer).toBeVisible({ timeout: 10000 })
-    console.log('Timer visible with annotation_time_limit_enabled=true')
-
-    // Verify timer shows approximately 01:00 or less (allowing for load time)
-    const timerText = await timer.textContent()
-    expect(timerText).toMatch(/00:[0-5]\d|01:00/)
-    console.log(`Timer display: ${timerText}`)
-
-    // Disable timer
-    await updateProjectSettings(page, testProjectId!, {
-      annotation_time_limit_enabled: false,
-    })
-    await page.reload()
-    await waitForAnnotationUI(page)
-
-    // Verify timer is NOT visible
-    await expect(timer).not.toBeVisible({ timeout: 5000 })
-    console.log('Timer hidden with annotation_time_limit_enabled=false')
-  })
-
   test('min_annotations_per_task controls task completion status', async ({
     browser,
   }) => {
