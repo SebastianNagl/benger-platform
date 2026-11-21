@@ -20,7 +20,7 @@ helm install benger ./infra/helm/benger
 
 Key configuration values are in `values.yaml`:
 
-- `global.domain`: The base domain for the application (e.g., `what-a-benger.net`)
+- `global.domain`: The base domain for the application (e.g., `example.com`)
 - `global.environment`: Environment setting (must be `production` for proper authentication)
 
 ## Template Evaluation for Dynamic URLs

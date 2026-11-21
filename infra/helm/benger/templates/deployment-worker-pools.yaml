@@ -18,7 +18,7 @@ workers.extraEnv (BENGER_REQUIRE_EXTENDED, LTI keys) -- so the extended overlay
 needs no change. Same inheritance deployment-beat.yaml uses.
 
 `workerPools` is a MAP, not a list: Helm merges maps key-by-key but REPLACES
-lists, and values-staging.yaml layers on top of this.
+lists, and an environment's values file layers on top of this.
 */}}
 {{- range $poolName, $pool := .Values.workerPools }}
 {{- if $pool.enabled }}

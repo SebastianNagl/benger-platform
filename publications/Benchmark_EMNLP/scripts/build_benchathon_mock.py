@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -50,9 +51,17 @@ from benger_extended.workers.falloesung_constants import (
 )
 
 PROJECT_ID = "e529779b-300f-48c0-89cb-90f3f4b72a51"             # Benchathon
-SSH_HOST = "root@178.105.26.90"
+# The production host as user@host, from the environment (not in the repository).
+SSH_HOST = os.environ.get("BENGER_SSH_HOST", "")
 K8S_NS = "benger"
 API_DEPLOYMENT = "deployment/benger-api"
+
+
+def _ssh_host() -> str:
+    if not SSH_HOST:
+        sys.exit("set BENGER_SSH_HOST to the production host (user@host) to fetch live data")
+    return SSH_HOST
+
 
 MOCK_EVAL_RUN_ID = "00000000-0000-0000-0000-000000feb001"       # synthetic
 MOCK_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-00000000feb1")
@@ -119,7 +128,7 @@ json.dump(out, sys.stdout, default=_default, ensure_ascii=False)
 
 def _ssh_kubectl_exec(stdin_payload: str) -> str:
     cmd = [
-        "ssh", "-o", "ConnectTimeout=15", SSH_HOST,
+        "ssh", "-o", "ConnectTimeout=15", _ssh_host(),
         f"kubectl exec -i {API_DEPLOYMENT} -n {K8S_NS} -- python3 -",
     ]
     res = subprocess.run(cmd, input=stdin_payload, capture_output=True, text=True, check=False)
