@@ -215,11 +215,11 @@ spec:
 {{- end }}
 ---
 {{- if .Values.vertretbar.enabled }}
-# vertretbar.net (prod) / staging.vertretbar.net (staging) → the SAME frontend
+# The Vertretbar host (vertretbar.host) → the SAME frontend
 # service as the main host. The host is
 # student-locked in the frontend and beta-locked by the vertretbar-chain middleware
 # (BasicAuth while vertretbar.betaAuth.enabled). Separate Ingress so the beta lock
-# and TLS cert scope to this apex only — what-a-benger.net stays open and untouched.
+# and TLS cert scope to this apex only — the main host stays open and untouched.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

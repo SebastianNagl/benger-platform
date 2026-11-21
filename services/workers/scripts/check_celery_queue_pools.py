@@ -11,13 +11,19 @@ only mounts ``services/workers`` and ``services/shared`` -- ``infra/helm`` is no
 reachable from inside it. This runs in the "Python Lint" CI job, which has the
 full repo checked out, and via ``make check-queue-pools``.
 
-It also asserts the CPU floor of the probes: every worker pool, in every
-values file, must be allowed at least ``MIN_POOL_CPU_MILLIS`` of CPU. Both
+It also asserts the CPU floor of the probes: every worker pool, in values.yaml
+and in every environment values file given as an argument, must be allowed at
+least ``MIN_POOL_CPU_MILLIS`` of CPU. Both
 probes of a pool run ``celery inspect ping``, a fresh import of ``tasks.py``
 inside the pod's cgroup. Below that floor the import does not finish within the
 probe timeout, and the pod is restarted by its liveness probe after most
 deploys (prod ``aux`` at 500m: 18 restarts in 7 days up to 2026-11-11, one
 import took 44 s against a timeout of 25 s; the pools at 1000m had none).
+
+    check_celery_queue_pools.py [<environment values file>...]
+
+A deployment checks its own values files, which merge key-by-key over
+``workerPools`` of values.yaml, by passing them as arguments.
 
 Exit 0 = contract holds. Exit 1 = a queue is stranded, double-served, or unknown,
 or a pool is below the CPU floor.
@@ -37,8 +43,6 @@ _HERE = Path(__file__).resolve()
 REPO_ROOT = _HERE.parents[3] if len(_HERE.parents) > 3 else _HERE.parent
 CHART = REPO_ROOT / "infra" / "helm" / "benger"
 VALUES = CHART / "values.yaml"
-# The environment files merge key-by-key over ``workerPools`` of VALUES.
-OVERLAY_VALUES = (CHART / "values-staging.yaml", CHART / "values-demo.yaml")
 SHARED = REPO_ROOT / "services" / "shared"
 # What the exec probes of a worker pool need (see the module docstring).
 MIN_POOL_CPU_MILLIS = 1000
@@ -127,7 +131,7 @@ def cpu_floor_errors(limits_by_file: dict[str, dict[str, object]], floor: int = 
     return errors
 
 
-def main() -> int:
+def main(overlays: list[str]) -> int:
     cq = _load_queue_contract()
     values = yaml.safe_load(VALUES.read_text())
     pools = _pool_queues(values)
@@ -178,11 +182,10 @@ def main() -> int:
             "either a typo, or a queue that needs adding to QUEUES"
         )
 
-    # 5. Every pool gets the CPU its probes need, in every environment.
+    # 5. Every pool gets the CPU its probes need, in every environment given.
     limits_by_file = {VALUES.name: pool_cpu_limits(values)}
-    for overlay in OVERLAY_VALUES:
-        if overlay.exists():
-            limits_by_file[overlay.name] = pool_cpu_limits(yaml.safe_load(overlay.read_text()) or {})
+    for overlay in map(Path, overlays):
+        limits_by_file[overlay.name] = pool_cpu_limits(yaml.safe_load(overlay.read_text()) or {})
     errors.extend(cpu_floor_errors(limits_by_file))
 
     if errors:
@@ -200,4 +203,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

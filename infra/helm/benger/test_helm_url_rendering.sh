@@ -49,17 +49,17 @@ echo "----------------"
 failed=0
 
 # Test API deployment
-if ! test_url_rendering "API" "FRONTEND_URL" "https://what-a-benger.net"; then
+if ! test_url_rendering "API" "FRONTEND_URL" "https://example.com"; then
     failed=$((failed + 1))
 fi
 
 # Test Workers deployment  
-if ! test_url_rendering "Workers" "FRONTEND_URL" "https://what-a-benger.net"; then
+if ! test_url_rendering "Workers" "FRONTEND_URL" "https://example.com"; then
     failed=$((failed + 1))
 fi
 
 # Test Frontend deployment
-if ! test_url_rendering "Frontend" "NEXT_PUBLIC_API_URL" "https://api.what-a-benger.net"; then
+if ! test_url_rendering "Frontend" "NEXT_PUBLIC_API_URL" "https://api.example.com"; then
     failed=$((failed + 1))
 fi
 

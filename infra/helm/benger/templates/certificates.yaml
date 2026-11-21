@@ -1,8 +1,7 @@
 {{- /*
 Wildcard cert for the environment's own apex: <domain> + *.<domain> (org
-subdomains). One block for every environment — prod (what-a-benger.net),
-staging (staging.what-a-benger.net), demo (demo.what-a-benger.net) — keyed on
-global.domain / global.tlsSecretName instead of per-environment copies. Issued
+subdomains). One block for every environment, keyed on global.domain /
+global.tlsSecretName instead of per-environment copies. Issued
 via the Cloudflare DNS-01 issuer, the only way to get a wildcard.
 
 Certificate names are kept per environment for continuity with the resources
@@ -24,9 +23,8 @@ spec:
   - {{ printf "*.%s" .Values.global.domain | quote }}
 ---
 {{- if .Values.vertretbar.enabled }}
-# Vertretbar branded apex served from this same release. Host is per-environment
-# (prod: vertretbar.net; staging: staging.vertretbar.net; demo: demo.vertretbar.net)
-# via the values overlays.
+# Vertretbar branded apex served from this same release. The host is set per
+# environment in the deployment's values file.
 # Apex-only for the beta (HTTP-01 needs each dnsName's A record to resolve;
 # www/wildcard can be added later). Issued by the same server-local
 # letsencrypt-prod ClusterIssuer.
@@ -37,9 +35,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   secretName: {{ .Values.vertretbar.tlsSecretName }}
-  # HTTP-01 issuer, NOT the Cloudflare DNS-01 one used for the *.what-a-benger.net
-  # wildcard: vertretbar.net is a non-wildcard apex on external DNS (Namecheap),
-  # so it validates via HTTP-01 (A record + Traefik) — no Cloudflare/DNS-API.
+  # HTTP-01 issuer by default, NOT the DNS-01 one used for the wildcard of
+  # global.domain: the apex is a single non-wildcard name, so it validates via
+  # HTTP-01 (A record + Traefik) and needs no DNS API for its zone.
   issuerRef:
     name: {{ .Values.vertretbar.certIssuer | default "letsencrypt-prod-http01" }}
     kind: ClusterIssuer

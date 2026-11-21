@@ -76,15 +76,18 @@ helm upgrade --install benger ./infra/helm/benger \
 
 While the **container images are identical**, the configuration differs between environments:
 
-### Staging (`values-staging.yaml`)
-- Domain: `staging.what-a-benger.net`
+Each environment layers its own values file over the chart's `values.yaml`;
+those files belong to the deployment, not to this repository.
+
+### Staging
+- Domain: `staging.example.com`
 - Replicas: 1 (reduced resources)
 - Database: Separate staging database
 - Environment: `staging`
 - Debug logging enabled
 
-### Production (`values.yaml`)
-- Domain: `what-a-benger.net`
+### Production
+- Domain: `example.com`
 - Replicas: 2+ (high availability)
 - Database: Production database
 - Environment: `production`

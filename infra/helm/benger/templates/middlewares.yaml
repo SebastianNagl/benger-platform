@@ -116,7 +116,7 @@ spec:
 {{- if .Values.vertretbar.enabled }}
 ---
 {{- if .Values.vertretbar.betaAuth.enabled }}
-# Closed-beta gate for the vertretbar.net host. One shared htpasswd password locks
+# Closed-beta gate for the Vertretbar host. One shared htpasswd password locks
 # the WHOLE host (landing + signup + app) at the edge until public launch. The
 # app's own cookie login runs behind it; removeHeader strips the Basic credential
 # before proxying so the backend never sees it. Remove by flipping
@@ -137,7 +137,7 @@ spec:
     removeHeader: true
 ---
 {{- end }}
-# vertretbar.net middleware chain: security headers (when enabled) + the beta lock.
+# Vertretbar host middleware chain: security headers (when enabled) + the beta lock.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

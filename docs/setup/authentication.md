@@ -8,14 +8,14 @@ BenGER's authentication system is controlled by the `ENVIRONMENT` variable. When
 ### Production Environment (namespace: benger)
 - **ENVIRONMENT**: `production`
 - **Authentication**: FULLY ENABLED
-- **URL**: https://what-a-benger.net
-- **API**: https://api.what-a-benger.net
+- **URL**: https://example.com
+- **API**: https://api.example.com
 
 ### Staging Environment (namespace: benger-staging)  
 - **ENVIRONMENT**: `staging`
 - **Authentication**: FULLY ENABLED
-- **URL**: https://staging.what-a-benger.net
-- **API**: https://api.staging.what-a-benger.net
+- **URL**: https://staging.example.com
+- **API**: https://api.staging.example.com
 
 ## Important Security Notes
 
@@ -59,7 +59,7 @@ api:
       value: "production"  # IMPORTANT: Must be 'production' for proper authentication
 ```
 
-Staging deployments use `/infra/helm/benger/values-staging.yaml`:
+Staging deployments override it in their own values file:
 ```yaml
 api:
   env:
