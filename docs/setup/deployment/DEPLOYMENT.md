@@ -222,10 +222,8 @@ EOF
 
 ### 4. Deploy BenGER
 ```bash
-# Update Helm dependencies
-cd infra/helm/benger
-helm dependency update
-cd ../../..
+# The Bitnami subcharts are vendored in infra/helm/benger/charts/, pinned
+# in Chart.yaml and Chart.lock: no `helm dependency update` is needed.
 
 # Deploy application
 helm upgrade --install benger ./infra/helm/benger \

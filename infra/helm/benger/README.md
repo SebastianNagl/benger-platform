@@ -22,6 +22,9 @@ Key configuration values are in `values.yaml`:
 
 - `global.domain`: The base domain for the application (e.g., `example.com`)
 - `global.environment`: Environment setting (must be `production` for proper authentication)
+- `api.image`, `workers.image`, `frontend.image`: `repository` and `tag`, plus an optional `digest` (`sha256:<64 hex>`). With a digest the image is rendered as `<repository>:<tag>@<digest>`, so the node pulls exactly that image whatever the tag points at; `BENGER_APP_VERSION` stays the plain tag.
+
+The Bitnami PostgreSQL and Redis subcharts are vendored in `charts/` at the exact versions pinned in `Chart.yaml` and `Chart.lock`, so installing or upgrading needs no `helm dependency update`.
 
 ## Template Evaluation for Dynamic URLs
 
