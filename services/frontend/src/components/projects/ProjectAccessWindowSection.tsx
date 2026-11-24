@@ -4,7 +4,8 @@
  * when. It saves on its own (like the other settings sub-sections), but only
  * a finished edit: on leaving or pressing Enter in a time field, or on
  * switching the window on or off. A time still being typed is never saved,
- * since a partial date (year 0002) could open the window to students.
+ * since a partial date (year 0002) could open the window to students. The
+ * badge shows the saved window, the one the server enforces.
  */
 
 'use client'
@@ -88,13 +89,13 @@ export function ProjectAccessWindowSection({
       })
   }
 
-  const state = computeWindowState(draft.window_start_at, draft.window_end_at)
+  const state = computeWindowState(stored.window_start_at, stored.window_end_at)
 
   return (
     <div data-testid="project-access-window">
       <SubSection
         title={t('project.settings.accessWindow.title')}
-        badge={windowStateLabel(state, draft.window_start_at, t, locale)}
+        badge={windowStateLabel(state, stored.window_start_at, t, locale)}
       >
         <AccessWindowFields
           value={draft}

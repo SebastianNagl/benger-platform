@@ -152,6 +152,25 @@ describe('AccessWindowFields', () => {
     })
   })
 
+  it('keeps the window on and the fields shown when both times are emptied', () => {
+    const onChange = jest.fn()
+    const { rerender } = render(
+      <AccessWindowFields
+        value={{ window_start_at: START, window_end_at: END }}
+        onChange={onChange}
+      />,
+    )
+    rerender(
+      <AccessWindowFields
+        value={{ window_start_at: null, window_end_at: null }}
+        onChange={onChange}
+      />,
+    )
+    expect(screen.getByTestId('access-window-toggle')).toBeChecked()
+    expect(opensInput().value).toBe('')
+    expect(closesInput().value).toBe('')
+  })
+
   it('flags a window that closes before it opens', () => {
     render(
       <AccessWindowFields
@@ -317,6 +336,32 @@ describe('ProjectAccessWindowSection', () => {
     })
     expect(onSave).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('never saves or hides a stored window whose times are emptied', async () => {
+    jest.setSystemTime(new Date('2030-01-01T00:00:00Z'))
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={END}
+        onSave={onSave}
+      />,
+    )
+    const badge = `Öffnet ${new Date(START).toLocaleDateString('de-DE')}`
+    expand()
+    await act(async () => {
+      fireEvent.change(opensInput(), { target: { value: '' } })
+      fireEvent.blur(opensInput())
+      fireEvent.change(closesInput(), { target: { value: '' } })
+      fireEvent.blur(closesInput())
+      fireEvent.keyDown(closesInput(), { key: 'Enter' })
+    })
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByTestId('access-window-toggle')).toBeChecked()
+    expect(opensInput().value).toBe('')
+    expect(closesInput().value).toBe('')
+    expect(screen.getByText(badge)).toBeInTheDocument()
   })
 
   it('follows a refetched window without saving', () => {

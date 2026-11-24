@@ -1,6 +1,7 @@
 /**
  * The fields of a project's timed access window: a switch that sets or
- * clears the window, and the opening and closing time. Controlled; the
+ * clears the window, and the opening and closing time. Only the switch turns
+ * the window off; emptying the time fields keeps them shown. Controlled; the
  * creation wizard (StepSettings) and the project page's settings card
  * (ProjectAccessWindowSection) render the same fields and each saves them
  * its own way. The backend (shared/project_window.py) enforces the window.
@@ -12,7 +13,7 @@ import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
 import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
-import type { KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 
 export interface AccessWindowValue {
   window_start_at: string | null
@@ -41,8 +42,9 @@ interface AccessWindowFieldsProps {
   onChange: (value: AccessWindowValue) => void
   /**
    * Called with the value the user finished: on leaving or pressing Enter in
-   * a time field, and on switching the window on or off. Unlike onChange it
-   * never fires for a time that is still being typed.
+   * a time field once both times are set, and on switching the window on or
+   * off. Unlike onChange it never fires for a time that is still being typed,
+   * and only the switch commits an empty window.
    */
   onCommit?: (value: AccessWindowValue) => void
   disabled?: boolean
@@ -58,13 +60,19 @@ export function AccessWindowFields({
   showTitle = true,
 }: AccessWindowFieldsProps) {
   const { t } = useI18n()
-  const enabled = !!(value.window_start_at || value.window_end_at)
-  const toggle = (next: AccessWindowValue) => {
+  const hasBounds = !!(value.window_start_at || value.window_end_at)
+  const [enabled, setEnabled] = useState(hasBounds)
+  if (hasBounds && !enabled) setEnabled(true)
+  const toggle = (on: boolean, next: AccessWindowValue) => {
+    setEnabled(on)
     onChange(next)
     onCommit?.(next)
   }
+  const commitTimes = () => {
+    if (value.window_start_at && value.window_end_at) onCommit?.(value)
+  }
   const commitOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') onCommit?.(value)
+    if (e.key === 'Enter') commitTimes()
   }
 
   return (
@@ -85,9 +93,9 @@ export function AccessWindowFields({
           checked={enabled}
           onChange={(e) => {
             if (!e.target.checked) {
-              toggle({ window_start_at: null, window_end_at: null })
-            } else if (!enabled) {
-              toggle(proposedWindow())
+              toggle(false, { window_start_at: null, window_end_at: null })
+            } else {
+              toggle(true, proposedWindow())
             }
           }}
           disabled={disabled}
@@ -111,7 +119,7 @@ export function AccessWindowFields({
                   window_start_at: localInputToIso(e.target.value),
                 })
               }
-              onBlur={() => onCommit?.(value)}
+              onBlur={commitTimes}
               onKeyDown={commitOnEnter}
               disabled={disabled}
               className="text-sm"
@@ -131,7 +139,7 @@ export function AccessWindowFields({
                   window_end_at: localInputToIso(e.target.value),
                 })
               }
-              onBlur={() => onCommit?.(value)}
+              onBlur={commitTimes}
               onKeyDown={commitOnEnter}
               disabled={disabled}
               className="text-sm"
