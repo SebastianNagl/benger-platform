@@ -3168,6 +3168,9 @@ class NotificationType(str, Enum):
     # A grading held back for review (a feedback-only judge result, core
     # 2.41) was released to the recipient by a teacher.
     EVALUATION_RELEASED = "evaluation_released"
+    # A fellow participant graded the recipient's submission in a project
+    # with peer review on (feedback only, never a grade).
+    PEER_FEEDBACK_RECEIVED = "peer_feedback_received"
 
     # Organization notifications
     ORGANIZATION_INVITATION_SENT = "organization_invitation_sent"

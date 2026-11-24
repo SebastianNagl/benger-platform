@@ -440,6 +440,10 @@ class ProjectUpdate(BaseModel):
     enable_generation: Optional[bool] = None
     enable_evaluation: Optional[bool] = None
     enable_prompts: Optional[bool] = None
+    # Peer review: the project's participants may grade each other's
+    # submissions (feedback only). Only an effective project role of
+    # ORG_ADMIN may change it.
+    peer_review_enabled: Optional[bool] = None
 
     # Task assignment
     assignment_mode: Optional[str] = Field(
@@ -547,6 +551,10 @@ class ProjectResponse(ProjectBase):
     # The backend's own edit decision (check_user_can_edit_project) for the
     # caller, so the UI gates per project and never on the selected org.
     can_edit: bool = False
+    # Who the caller reviews submissions as (services.peer_review):
+    # "staff", "peer" (peer review on and the caller a participant) or None.
+    # Set on single-project responses only.
+    viewer_review_role: Optional[str] = None
 
     # Additional fields not in ProjectBase
     instructions: Optional[str] = None  # Mapped from expert_instruction
@@ -608,6 +616,7 @@ class ProjectResponse(ProjectBase):
     enable_generation: bool = True
     enable_evaluation: bool = True
     enable_prompts: bool = True
+    peer_review_enabled: bool = False
 
     # Task assignment
     assignment_mode: str = "open"

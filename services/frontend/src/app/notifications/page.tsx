@@ -53,6 +53,7 @@ const notificationIcons = {
   evaluation_received_immediate: CheckCircleIcon,
   evaluation_received_batch: CheckCircleIcon,
   evaluation_released: CheckCircleIcon,
+  peer_feedback_received: CheckCircleIcon,
   system_alert: ExclamationTriangleIcon,
   error_occurred: ExclamationTriangleIcon,
 }
@@ -80,6 +81,8 @@ const notificationColors = {
   evaluation_received_batch:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_released:
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
+  peer_feedback_received:
     'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',

@@ -16,6 +16,7 @@ EVALUATION_RECEIVED_TYPES = frozenset(
         NotificationType.EVALUATION_RECEIVED_IMMEDIATE.value,
         NotificationType.EVALUATION_RECEIVED_BATCH.value,
         NotificationType.EVALUATION_RELEASED.value,
+        NotificationType.PEER_FEEDBACK_RECEIVED.value,
     }
 )
 

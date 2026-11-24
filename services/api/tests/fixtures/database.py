@@ -94,6 +94,16 @@ def _create_tables():
                     "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_feedback'"
                 )
             )
+            # Migration 156: the korrektur_peer sibling (peer review).
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_human_eval_run_per_project_metric_peer "
+                    "ON evaluation_runs (project_id, model_id) "
+                    "WHERE model_id = 'human' "
+                    "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_peer'"
+                )
+            )
             # Migration 064: one active annotation per (task, user). Declared on
             # the Annotation model, but force it in idempotently too so a
             # long-lived test DB bootstrapped before it landed still gets the
@@ -241,6 +251,8 @@ def _create_tables():
                 "evaluation_received_batch",
                 # Migration 155.
                 "evaluation_released",
+                # Migration 156.
+                "peer_feedback_received",
             ):
                 conn.execute(
                     text(

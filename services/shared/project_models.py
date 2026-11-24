@@ -249,6 +249,16 @@ class Project(Base):
         Boolean, default=False, server_default="false", nullable=False
     )
 
+    # Peer review (migration 156): the project's participants may grade each
+    # other's submissions next to the staff graders. A peer grading is
+    # feedback for the author and never counts as a grade (it is stored on a
+    # method of its own, ``human_graded_metrics.PEER_REVIEW_METRIC``). Only an
+    # effective project role of ORG_ADMIN changes it; who counts as a peer is
+    # ``services.peer_review.review_role``. False keeps every project as it was.
+    peer_review_enabled = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

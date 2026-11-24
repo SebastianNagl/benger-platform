@@ -120,6 +120,7 @@ const mockTranslations = {
     'AI grading ready',
   'settings.notifications.types.evaluationReceivedBatch': 'New evaluation run',
   'settings.notifications.types.evaluationReleased': 'Released grading',
+  'settings.notifications.types.peerFeedbackReceived': 'Peer feedback',
   'settings.notifications.types.dataUploadCompleted': 'Data Upload Completed',
   'settings.notifications.types.dataUploadCompletedDesc':
     'Receive notifications when data uploads complete',
@@ -300,6 +301,7 @@ describe('NotificationSettingsPage', () => {
         email: false,
       },
       evaluation_released: { enabled: true, in_app: true, email: true },
+      peer_feedback_received: { enabled: true, in_app: true, email: true },
     }
 
     beforeEach(() => {
@@ -309,7 +311,7 @@ describe('NotificationSettingsPage', () => {
       })
     })
 
-    it('lists the four grading types next to the expert types', async () => {
+    it('lists the five grading types next to the expert types', async () => {
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
@@ -318,6 +320,7 @@ describe('NotificationSettingsPage', () => {
       expect(screen.getByText('AI grading ready')).toBeInTheDocument()
       expect(screen.getByText('New evaluation run')).toBeInTheDocument()
       expect(screen.getByText('Released grading')).toBeInTheDocument()
+      expect(screen.getByText('Peer feedback')).toBeInTheDocument()
       expect(screen.getByText('Project Created')).toBeInTheDocument()
     })
 
@@ -341,13 +344,18 @@ describe('NotificationSettingsPage', () => {
       expect(
         screen.getByTestId('settings-notification-toggle-evaluation_released'),
       ).toBeInTheDocument()
+      expect(
+        screen.getByTestId(
+          'settings-notification-toggle-peer_feedback_received',
+        ),
+      ).toBeInTheDocument()
       expect(screen.queryByText('Project Created')).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('settings-notification-toggle-project_created'),
       ).not.toBeInTheDocument()
-      // Human gradings and teacher releases are on by default.
+      // Human gradings, teacher releases and peer feedback are on by default.
       expect(
-        screen.getByText('2 of 4 notification types enabled'),
+        screen.getByText('3 of 5 notification types enabled'),
       ).toBeInTheDocument()
     })
 
@@ -379,6 +387,36 @@ describe('NotificationSettingsPage', () => {
             },
             evaluation_received_human:
               gradingDefaults.evaluation_received_human,
+          }),
+        )
+      })
+    })
+
+    it('a student keeps peer feedback in the app but turns its email off', async () => {
+      const user = userEvent.setup()
+      mockUiMode.mockReturnValue('student')
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(
+            'settings-notification-email-peer_feedback_received',
+          ),
+        ).toBeInTheDocument()
+      })
+      await user.click(
+        screen.getByTestId('settings-notification-email-peer_feedback_received'),
+      )
+      await user.click(screen.getByText('Save Preferences'))
+
+      await waitFor(() => {
+        expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
+          expect.objectContaining({
+            peer_feedback_received: {
+              enabled: true,
+              in_app: true,
+              email: false,
+            },
           }),
         )
       })
@@ -435,6 +473,7 @@ describe('NotificationSettingsPage', () => {
             evaluation_received_immediate: off,
             evaluation_received_batch: off,
             evaluation_released: off,
+            peer_feedback_received: off,
           }),
         )
       })

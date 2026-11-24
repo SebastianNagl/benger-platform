@@ -884,16 +884,25 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // Deleted: only the read-only way into the tasks and their answers.
     if (isDeletedView) return action === 'projectData'
     if (user?.is_superadmin) return true
+    // Peer review: a participant who may grade fellow participants opens
+    // the Korrektur page next to the staff graders.
+    const isPeerReviewer = currentProject?.viewer_review_role === 'peer'
     if (isAttempted) return action === 'myTasks'
-    if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
+    if (isParticipant)
+      return (
+        action === 'startLabeling' ||
+        action === 'myTasks' ||
+        (action === 'feedback' && isPeerReviewer)
+      )
     const role = currentProject?.effective_role
     switch (action) {
       case 'startLabeling':
       case 'myTasks':
         return true
+      case 'feedback':
+        return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR' || isPeerReviewer
       case 'projectData':
       case 'review':
-      case 'feedback':
       case 'generation':
       case 'evaluations':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'

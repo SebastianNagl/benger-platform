@@ -111,6 +111,10 @@ export interface Project {
   // Immediate evaluation (extended feature)
   immediate_evaluation_enabled?: boolean
 
+  // Peer review: participants may grade each other's submissions (feedback
+  // only, never a grade). Only an effective role of ORG_ADMIN changes it.
+  peer_review_enabled?: boolean
+
   // Per-project feature visibility flags (D4 from korrektur rework). Pure UI
   // gate — when false, the corresponding ConfigCard on the project detail
   // page is hidden; data and APIs stay untouched. Default true server-side.
@@ -181,6 +185,9 @@ export interface Project {
   // the selected organization context.
   can_edit?: boolean
   can_manage_shares?: boolean
+  // Who the caller reviews submissions as: staff, a peer (peer review on
+  // and the caller a participant), or not at all.
+  viewer_review_role?: 'staff' | 'peer' | null
   origin?: string | null
 
   // Timestamps

@@ -14,17 +14,21 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from evaluation_run_models import run_evaluated_model_ids  # noqa: E402
 from routers.evaluations.helpers import run_cells_completed, run_cells_total  # noqa: E402
 from routers.evaluations.results._common import _coerce_metric_value  # noqa: E402,F401
-from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS  # noqa: E402
+from services.evaluation.human_eval_runs import (  # noqa: E402
+    FEEDBACK_ONLY_HUMAN_METRICS,
+    HUMAN_GRADED_METRICS,
+)
 
 # Evaluation-type tags (``eval_metadata.evaluation_type``) both read endpoints
 # accept: legacy "multi_field", standard "evaluation"/"llm_judge", "immediate"
 # (per-task annotation evals the run page opens straight from /runs), and the
 # human-graded singletons (e.g. "korrektur_falloesung") which run forever as
 # the destination for corrector submissions — see
-# services.evaluation.human_eval_runs.
+# services.evaluation.human_eval_runs. A feedback-only human run (peer
+# review) holds no scores and is not a result run.
 ACCEPTED_EVAL_RUN_TYPES = frozenset({
     "multi_field", "evaluation", "llm_judge", "immediate",
-    *HUMAN_GRADED_METRICS,
+    *(HUMAN_GRADED_METRICS - FEEDBACK_ONLY_HUMAN_METRICS),
 })
 
 

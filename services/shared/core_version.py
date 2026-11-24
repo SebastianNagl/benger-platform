@@ -1822,11 +1822,60 @@ API change).
     ``/projects/[id]/release-review``: the page where a project's editors
     review held-back gradings and release them. Without the slot the route
     says it needs the extended edition.
+
+2.80 (2026-11-24): peer review grant (migration 156, additive).
+  - ``projects.peer_review_enabled`` (Boolean, default false): the
+    project's participants may grade each other's submissions next to the
+    staff graders. ``ProjectResponse.peer_review_enabled``; ``PATCH
+    /projects/{id}`` changes it only for an effective project role of
+    ORG_ADMIN (creator, org or group admin through an attachment,
+    superadmin), else 403 ``{"code": "peer_review_admin_only"}``; an echo
+    of the stored value or an explicit null is no change. Exported and
+    imported with the project settings.
+  - ``services.peer_review``: ``review_role(db, user, project)`` /
+    ``review_role_async`` answer ``"staff"`` (effective role CONTRIBUTOR or
+    above with the full tier), ``"peer"`` (switch on, project not archived,
+    the user an ANNOTATOR, participants included, with a write tier, never
+    a service account) or None; ``decide_review_role`` is the pure decider.
+    ``peer_candidate_ids(db, project, user_ids=None)`` /
+    ``peer_candidate_ids_async`` list the peers of a project in one go
+    (attachment ANNOTATOR members when the project is open to them,
+    consented share members, active entitlements, on a public project
+    everyone who handed in; never staff, superadmins, service accounts or
+    deactivated accounts; empty while the switch is off or the project is
+    archived). ``REVIEW_ROLE_STAFF`` / ``REVIEW_ROLE_PEER``.
+    ``ProjectResponse.viewer_review_role`` carries the caller's role on
+    single-project responses; the "Korrektur" quick action shows for a
+    peer (participants included) as for staff.
+  - ``human_graded_metrics`` (/shared, re-exported by
+    ``services.evaluation.human_eval_runs``): ``HUMAN_GRADED_METRICS``
+    gains ``PEER_REVIEW_METRIC = "korrektur_peer"`` (partial unique index
+    ``uq_human_eval_run_per_project_metric_peer``, migration 156), listed
+    in ``FEEDBACK_ONLY_HUMAN_METRICS``: its rows are feedback, never a
+    score (``value: null``, ``details.feedback_only``). Helpers
+    ``is_feedback_only_human_metric``, ``is_feedback_only_run``,
+    ``run_metric``, ``sql_scored_run(run)`` and ``scored_run_sql(alias)``.
+    The run list (``/evaluations/run/results/project/{id}``, also by id),
+    the project result grid, the evaluated models and the report's
+    evaluation count leave the peer run out; ``current_scores`` ranks a
+    feedback-only human row below every other row of its cell
+    (``row_is_feedback_only``, ``sql_is_feedback_only``), so a newer peer
+    grading never hides a staff grade.
+  - Notification type ``peer_feedback_received`` (migration 156):
+    ``notify_evaluation_received(source="peer")``, a fellow participant
+    graded the recipient's submission; default channels in-app and email
+    on, its own row in the notification settings (also in the student
+    shell), both channels honour the stored preference, the email reuses
+    ``evaluation_received.html`` and the grading link.
+  - The project merge import knows every human-graded singleton run, not
+    only the Falllösung one: a copy's run of a method the project already
+    has is skipped as present instead of failing on the method's unique
+    index.
 """
 
 import os
 
-CORE_API_VERSION = "2.79"
+CORE_API_VERSION = "2.80"
 
 
 def extended_required() -> bool:

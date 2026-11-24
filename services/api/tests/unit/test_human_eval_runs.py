@@ -19,7 +19,9 @@ from sqlalchemy.orm import Session
 from models import EvaluationRun, User
 from project_models import Project
 from services.evaluation.human_eval_runs import (
+    FEEDBACK_ONLY_HUMAN_METRICS,
     HUMAN_GRADED_METRICS,
+    PEER_REVIEW_METRIC,
     get_or_create_human_eval_run,
     is_human_graded_metric,
 )
@@ -356,6 +358,77 @@ class TestKorrekturFeedbackHumanEvalRun:
                        '["korrektur_feedback"]'::json,
                        '{}'::json,
                        '{"evaluation_type": "korrektur_feedback"}'::json,
+                       'in_progress', 0, true, :uid, now())
+                    """
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "pid": project.id,
+                    "uid": admin_user.id,
+                },
+            )
+            test_db.flush()
+
+
+class TestPeerReviewHumanEvalRun:
+    """korrektur_peer (a participant's feedback-only grading of a fellow
+    participant's submission) is the fourth human-graded metric; migration
+    156 gives it its own partial index."""
+
+    def test_peer_metric_is_human_graded_and_feedback_only(self):
+        assert PEER_REVIEW_METRIC == "korrektur_peer"
+        assert is_human_graded_metric(PEER_REVIEW_METRIC)
+        assert FEEDBACK_ONLY_HUMAN_METRICS == frozenset({PEER_REVIEW_METRIC})
+        # The three staff lanes are scores, never feedback only.
+        assert not FEEDBACK_ONLY_HUMAN_METRICS & {
+            "korrektur_falloesung",
+            "korrektur_custom",
+            "korrektur_feedback",
+        }
+
+    def test_singleton_per_metric(self, test_db: Session, admin_user: User):
+        project = _make_project(test_db, admin_user)
+
+        staff_run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_feedback", admin_user.id
+        )
+        test_db.commit()
+        peer_run = get_or_create_human_eval_run(
+            test_db, project.id, PEER_REVIEW_METRIC, admin_user.id
+        )
+        test_db.commit()
+        again = get_or_create_human_eval_run(
+            test_db, project.id, PEER_REVIEW_METRIC, admin_user.id
+        )
+        test_db.commit()
+
+        assert peer_run.id == again.id
+        assert peer_run.id != staff_run.id
+        assert peer_run.eval_metadata["evaluation_type"] == PEER_REVIEW_METRIC
+
+    def test_partial_unique_index_rejects_bypass_insert(
+        self, test_db: Session, admin_user: User
+    ):
+        project = _make_project(test_db, admin_user)
+
+        get_or_create_human_eval_run(
+            test_db, project.id, PEER_REVIEW_METRIC, admin_user.id
+        )
+        test_db.commit()
+
+        with pytest.raises(IntegrityError):
+            test_db.execute(
+                text(
+                    """
+                    INSERT INTO evaluation_runs
+                      (id, project_id, model_id, evaluation_type_ids, metrics,
+                       eval_metadata, status, samples_evaluated, has_sample_results,
+                       created_by, created_at)
+                    VALUES
+                      (:id, :pid, 'human',
+                       '["korrektur_peer"]'::json,
+                       '{}'::json,
+                       '{"evaluation_type": "korrektur_peer"}'::json,
                        'in_progress', 0, true, :uid, now())
                     """
                 ),

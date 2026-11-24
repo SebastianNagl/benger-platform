@@ -3336,6 +3336,10 @@
         "title": "Grading released: {project_title}",
         "message": "Your teacher released the grading of your submission in '{project_title}'."
       },
+      "peer_feedback_received": {
+        "title": "Peer feedback: {project_title}",
+        "message": "A fellow participant graded your submission in '{project_title}'. This grading does not count towards your grade."
+      },
       "data_upload_completed": {
         "title": "Data upload completed: {task_name}",
         "message": "Successfully uploaded {upload_count} items from '{filename}' to task '{task_name}'."
@@ -3903,6 +3907,8 @@
         "evaluationReceivedBatchDesc": "Receive notifications when an evaluation run has graded your submissions",
         "evaluationReleased": "Released grading",
         "evaluationReleasedDesc": "Receive notifications when your teacher releases a grading of your submission that was held back for review",
+        "peerFeedbackReceived": "Peer feedback",
+        "peerFeedbackReceivedDesc": "Receive notifications when a fellow participant grades your submission (does not count towards your grade)",
         "dataUploadCompleted": "Data Upload Completed",
         "dataUploadCompletedDesc": "Receive notifications when data uploads finish processing",
         "llmGenerationCompleted": "LLM Generation Completed",

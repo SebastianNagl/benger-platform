@@ -86,6 +86,7 @@ from routers.projects.helpers import (
     TIER_PARTICIPANT,
     resolve_project_roles_batch_async,
 )
+from services.peer_review import decide_review_role
 from task_rubric_service import remirror_project_rubrics, rubric_mirrors_changed
 # Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
 # working for existing importers (tests) after the local copy was removed.
@@ -811,6 +812,12 @@ async def _apply_caller_fields(db, current_user, project, response, tier) -> Non
     response.can_manage_shares = await check_user_can_manage_shares_async(
         db, current_user, project
     )
+    response.viewer_review_role = decide_review_role(
+        effective_role=response.effective_role,
+        access_tier=tier,
+        project=project,
+        is_service_account=bool(getattr(current_user, "is_service_account", False)),
+    )
     if tier == TIER_PARTICIPANT:
         participant_map = await get_participant_project_ids_async(db, current_user.id)
         response.participant_via = participant_map.get(str(project.id))
@@ -943,6 +950,26 @@ async def update_project(
                 eval_config_body,
                 actor_id=str(current_user.id),
             )
+
+    # Peer review lets participants grade each other's work, so switching it
+    # is the project owner's call: the creator, an org or group admin through
+    # an attachment, or a superadmin (effective role ORG_ADMIN), not every
+    # editor. Echoing the stored value back is no change, and an explicit
+    # null leaves it (NOT NULL column).
+    if "peer_review_enabled" in update_data and update_data["peer_review_enabled"] is None:
+        update_data.pop("peer_review_enabled")
+    if (
+        "peer_review_enabled" in update_data
+        and update_data["peer_review_enabled"] != bool(project.peer_review_enabled)
+        and await get_effective_project_role_async(db, current_user, project) != "ORG_ADMIN"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "peer_review_admin_only",
+                "message": "Only a project admin can turn peer review on or off",
+            },
+        )
 
     # Kind is editable on expert projects (the extended student surfaces key
     # discovery off it), but a student-origin project can never be un-flagged

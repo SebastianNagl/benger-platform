@@ -3336,6 +3336,10 @@
         "title": "Korrektur freigegeben: {project_title}",
         "message": "Deine Lehrkraft hat die Korrektur deiner Bearbeitung in '{project_title}' freigegeben."
       },
+      "peer_feedback_received": {
+        "title": "Peer-Feedback: {project_title}",
+        "message": "Eine andere teilnehmende Person hat deine Bearbeitung in '{project_title}' bewertet. Diese Bewertung zählt nicht zur Note."
+      },
       "data_upload_completed": {
         "title": "Daten-Upload abgeschlossen: {task_name}",
         "message": "Es wurden {upload_count} Einträge aus '{filename}' in die Aufgabe '{task_name}' hochgeladen."
@@ -3903,6 +3907,8 @@
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf deine Bearbeitungen bewertet hat",
         "evaluationReleased": "Freigegebene Korrektur",
         "evaluationReleasedDesc": "Benachrichtigungen erhalten, wenn deine Lehrkraft eine zurückgehaltene Korrektur deiner Bearbeitung freigibt",
+        "peerFeedbackReceived": "Peer-Feedback",
+        "peerFeedbackReceivedDesc": "Benachrichtigungen erhalten, wenn eine andere teilnehmende Person deine Bearbeitung bewertet (zählt nicht zur Note)",
         "dataUploadCompleted": "Datenupload abgeschlossen",
         "dataUploadCompletedDesc": "Benachrichtigungen erhalten, wenn Datenuploads die Verarbeitung abgeschlossen haben",
         "llmGenerationCompleted": "LLM-Generierung abgeschlossen",

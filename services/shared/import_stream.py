@@ -120,6 +120,7 @@ from evaluation_run_models import (
     run_label_aliases,
 )
 from exam_tools import portable_exam_tools
+from human_graded_metrics import is_human_graded_metric, run_metric
 from serializers import (
     CALL_TELEMETRY_FIELDS,
     TASK_RUBRIC_REVIEW_EVENT_FIELDS,
@@ -3444,6 +3445,7 @@ def _create_imported_project(
         handwriting_ocr_enabled=_setting(project_data, "handwriting_ocr_enabled", True),
         handwriting_ocr_model=project_data.get("handwriting_ocr_model"),
         rubric_review_required=_setting(project_data, "rubric_review_required", False),
+        peer_review_enabled=_setting(project_data, "peer_review_enabled", False),
         restorable_checkpoints_enabled=_setting(
             project_data, "restorable_checkpoints_enabled", True
         ),
@@ -4298,7 +4300,8 @@ class _MergeState:
         self.runs: Dict[tuple, str] = {}
         # created_at -> [(model_id, run_id)], for _present_run's relabel match.
         self.runs_by_created: Dict[Any, List[tuple]] = {}
-        self.human_korrektur_run: Optional[str] = None
+        # Human-graded method -> the project's singleton run of it.
+        self.human_runs: Dict[str, str] = {}
         # (label a relabel superseded, created_at) -> run, so a run exported
         # before a relabel of stored runs still finds its relabelled copy.
         superseded_labels: Dict[tuple, str] = {}
@@ -4314,8 +4317,9 @@ class _MergeState:
             )
             for label in run_label_aliases(model_id, meta)[1:]:
                 superseded_labels.setdefault((label, _utc_key(created_at)), run_id)
-            if _is_human_korrektur_run(model_id, meta):
-                self.human_korrektur_run = run_id
+            human_metric = _human_run_metric(model_id, meta)
+            if human_metric:
+                self.human_runs[human_metric] = run_id
         # A run's own label wins over a label another run once had.
         for key, run_id in superseded_labels.items():
             self.runs.setdefault(key, run_id)
@@ -4410,11 +4414,13 @@ def _merge_task_rubric(ctx, state: "_MergeState", rec: dict) -> None:
         state.added["task_rubrics"] += 1
 
 
-def _is_human_korrektur_run(model_id, eval_metadata) -> bool:
-    # The singleton behind uq_human_eval_run_per_project_metric.
-    return model_id == "human" and isinstance(eval_metadata, dict) and (
-        eval_metadata.get("evaluation_type") == "korrektur_falloesung"
-    )
+def _human_run_metric(model_id, eval_metadata) -> Optional[str]:
+    """The human-graded method of a project's singleton run (one per method,
+    each behind its own partial unique index), or None for any other run."""
+    if model_id != "human":
+        return None
+    metric = run_metric(eval_metadata)
+    return metric if is_human_graded_metric(metric) else None
 
 
 def _merge_user(ctx: _FullImportContext, user_data: dict) -> None:
@@ -4628,11 +4634,7 @@ def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
     ]
     present = next(
         (run for label in labels if (run := _present_run(state, label, created))), None
-    ) or (
-        state.human_korrektur_run
-        if _is_human_korrektur_run(model_id, rec.get("eval_metadata"))
-        else None
-    )
+    ) or state.human_runs.get(_human_run_metric(model_id, rec.get("eval_metadata")))
     if present:
         # Not mapped on purpose: its metrics, judge runs and rows are skipped.
         state.skipped["evaluations"] += 1
@@ -4645,8 +4647,9 @@ def _merge_evaluation(ctx, state: _MergeState, rec: dict) -> None:
         state.runs.setdefault((label, created), new_id)
     if created:
         state.runs_by_created.setdefault(created, []).append((model_id, new_id))
-    if _is_human_korrektur_run(model_id, rec.get("eval_metadata")):
-        state.human_korrektur_run = new_id
+    human_metric = _human_run_metric(model_id, rec.get("eval_metadata"))
+    if human_metric:
+        state.human_runs[human_metric] = new_id
     state.added["evaluations"] += 1
     _tally_model(state, rec.get("model_id"), added=True)
     # A run's label is not a model whose results the grid should show: only
