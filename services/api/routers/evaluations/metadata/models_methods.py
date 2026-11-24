@@ -1,5 +1,6 @@
 """Evaluated-models and configured-methods metadata endpoints."""
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from human_graded_metrics import sql_scored_run
 
 
 @router.get("/projects/{project_id}/evaluated-models")
@@ -127,6 +128,8 @@ async def get_evaluated_models(
                 DBEvaluationRun.project_id == project_id,
                 DBEvaluationRun.status == "completed",
                 TaskEvaluation.generation_id == None,  # noqa: E711
+                # Peer feedback alone does not make an evaluated annotator.
+                sql_scored_run(DBEvaluationRun),
             )
         )
         for user_id, username, name, pseudonym, use_pseudonym in (

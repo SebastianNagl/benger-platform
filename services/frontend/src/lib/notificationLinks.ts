@@ -12,6 +12,7 @@ export const EVALUATION_RECEIVED_TYPES = [
   'evaluation_received_immediate',
   'evaluation_received_batch',
   'evaluation_released',
+  'peer_feedback_received',
 ] as const
 
 export type EvaluationReceivedType = (typeof EVALUATION_RECEIVED_TYPES)[number]

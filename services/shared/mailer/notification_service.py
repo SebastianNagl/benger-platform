@@ -67,6 +67,9 @@ _DEFAULT_CHANNELS_BY_TYPE: Dict[str, Dict[str, bool]] = {
     # A teacher released a held-back grading: as worth an email as a human
     # grading, and sent once per release, never per AI run.
     NotificationType.EVALUATION_RELEASED.value: {"in_app": True, "email": True},
+    # A fellow participant graded the submission (peer review): personal
+    # feedback like a human grading, so both channels start on.
+    NotificationType.PEER_FEEDBACK_RECEIVED.value: {"in_app": True, "email": True},
     # A returned submission asks the author to act (hand in again).
     NotificationType.SUBMISSION_RETURNED.value: {"in_app": True, "email": True},
 }
@@ -1176,6 +1179,7 @@ _EVALUATION_RECEIVED_TYPE_BY_SOURCE = {
     "immediate": NotificationType.EVALUATION_RECEIVED_IMMEDIATE,
     "batch": NotificationType.EVALUATION_RECEIVED_BATCH,
     "release": NotificationType.EVALUATION_RELEASED,
+    "peer": NotificationType.PEER_FEEDBACK_RECEIVED,
 }
 
 # Stored title and message. The frontend shows its own translation
@@ -1193,6 +1197,11 @@ _EVALUATION_RECEIVED_TEXT = {
     "release": (
         "Grading released",
         "Your grading in '{project_title}' was released to you.",
+    ),
+    "peer": (
+        "Peer feedback",
+        "A fellow participant graded your submission in '{project_title}'. "
+        "This grading does not count towards your grade.",
     ),
 }
 
@@ -1228,8 +1237,10 @@ def notify_evaluation_received(
 
     ``source`` picks the notification type: ``human`` (a Korrektor saved a
     grade), ``immediate`` (the AI grading after a submission finished),
-    ``batch`` (an evaluation run graded their annotations) or ``release``
-    (a teacher released a grading that was held back for review). Each type is its
+    ``batch`` (an evaluation run graded their annotations), ``release``
+    (a teacher released a grading that was held back for review) or ``peer``
+    (a fellow participant graded it in a project with peer review on; that
+    grading is feedback and never counts as a grade). Each type is its
     own row in the notification settings with its own defaults (see
     ``default_channels``).
 

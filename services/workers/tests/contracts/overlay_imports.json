@@ -1,5 +1,5 @@
 {
-  "generated_from": "a994df05d27fd6b73d4893897b4c9b89dfe19a8d",
+  "generated_from": "427056c4181c41074ad24f051f79919330df0fa5",
   "api_shared": [
     {
       "module": "account_activation",
@@ -1615,6 +1615,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/timer.py",
         "benger_extended/ocr_submission.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/auto_submit_timer.py"
       ]
     },
@@ -2794,7 +2795,8 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
-        "benger_extended/api/routers/student_exams.py"
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/withdrawal.py"
       ]
     },
     {

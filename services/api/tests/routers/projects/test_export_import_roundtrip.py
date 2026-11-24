@@ -1298,6 +1298,7 @@ class TestRoundtripExtensions:
         project.allow_solution_upload = False
         project.handwriting_ocr_enabled = False  # non-default: the off switch survives
         project.handwriting_ocr_model = "gemini-3-flash"
+        project.peer_review_enabled = True  # non-default: the switch survives
         project.exam_tools = {
             "tools": [
                 {"id": "calculator"},
@@ -1327,6 +1328,7 @@ class TestRoundtripExtensions:
         assert proj["allow_solution_upload"] is False
         assert proj["handwriting_ocr_enabled"] is False
         assert proj["handwriting_ocr_model"] == "gemini-3-flash"
+        assert proj["peer_review_enabled"] is True
         # Exam tools travel without the deployment-bound connection id.
         assert proj["exam_tools"] == {
             "tools": [
@@ -1375,6 +1377,7 @@ class TestRoundtripExtensions:
         assert imported.allow_solution_upload is False
         assert imported.handwriting_ocr_enabled is False
         assert imported.handwriting_ocr_model == "gemini-3-flash"
+        assert imported.peer_review_enabled is True
         assert imported.exam_tools == proj["exam_tools"]
         # Unknown model ids are reconciled away like generation_config models.
         assert imported.llm_model_ids == [official_id]
@@ -1427,6 +1430,7 @@ class TestRoundtripExtensions:
         proj.pop("handwriting_ocr_enabled")
         proj.pop("handwriting_ocr_model")
         proj.pop("exam_tools", None)
+        proj.pop("peer_review_enabled")
 
         result = run_full_project_import(
             db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
@@ -1445,6 +1449,7 @@ class TestRoundtripExtensions:
         assert imported.allow_solution_upload is True
         assert imported.handwriting_ocr_enabled is True
         assert imported.handwriting_ocr_model is None
+        assert imported.peer_review_enabled is False
 
 
 class TestTaskRubricRoundtrip:
@@ -2637,6 +2642,44 @@ class TestMergeImport:
         again = _merge_text(db_session, prod.id, local_export, user.id)
         assert set(again["statistics"]["added_counts"].values()) == {0}
         assert _result_counts(db_session, prod.id) == after
+
+    @pytest.mark.parametrize(
+        "metric",
+        ["korrektur_falloesung", "korrektur_custom", "korrektur_feedback", "korrektur_peer"],
+    )
+    def test_a_copys_human_graded_run_merges_into_the_projects_own(
+        self, db_session, user, benchmark_project, fmt, metric
+    ):
+        """Each human-graded method has one run per project (its partial
+        unique index). A copy that opened its own run of the method merges
+        back next to the project's run of it: skipped as present, never a
+        second singleton (which the index refused with an IntegrityError for
+        every method but the Falllösung one)."""
+        from services.evaluation.human_eval_runs import get_or_create_human_eval_run
+
+        prod = benchmark_project["project"]
+        local_id = _import_text(
+            db_session, _export_text(db_session, prod.id, fmt), user.id
+        )["project_id"]
+        local_run = get_or_create_human_eval_run(db_session, local_id, metric, user.id)
+        local_run.created_at = _later()
+        db_session.commit()
+        prod_run = get_or_create_human_eval_run(db_session, prod.id, metric, user.id)
+        db_session.commit()
+        before = _result_counts(db_session, prod.id)
+
+        result = _merge_text(
+            db_session, prod.id, _export_text(db_session, local_id, fmt), user.id
+        )
+
+        assert result["statistics"]["added_counts"]["evaluations"] == 0
+        assert _result_counts(db_session, prod.id) == before
+        runs = (
+            db_session.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == prod.id, EvaluationRun.model_id == "human")
+            .all()
+        )
+        assert [r.id for r in runs] == [prod_run.id]
 
     def test_merging_a_project_into_itself_adds_nothing(
         self, db_session, user, benchmark_project, fmt

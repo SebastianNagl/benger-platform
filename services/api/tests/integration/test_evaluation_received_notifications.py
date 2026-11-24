@@ -26,6 +26,7 @@ HUMAN = NotificationType.EVALUATION_RECEIVED_HUMAN
 IMMEDIATE = NotificationType.EVALUATION_RECEIVED_IMMEDIATE
 BATCH = NotificationType.EVALUATION_RECEIVED_BATCH
 RELEASED = NotificationType.EVALUATION_RELEASED
+PEER = NotificationType.PEER_FEEDBACK_RECEIVED
 
 
 def _uid():
@@ -158,6 +159,39 @@ class TestChannelsWithStoredPreferences:
         assert _rows(test_db, annotator, RELEASED) == []
         assert [p["user_id"] for p in _queued(celery)] == [annotator.id]
 
+    def test_peer_feedback_without_a_row_is_shown_and_queued(
+        self, test_db, test_users, celery
+    ):
+        """A fellow participant's grading notifies in-app and by email by default."""
+        annotator = test_users[2]
+
+        created = _create(test_db, annotator, PEER)
+
+        assert [n.user_id for n in _rows(test_db, annotator, PEER)] == [annotator.id]
+        assert [(p["user_id"], p["id"]) for p in _queued(celery)] == [(annotator.id, created[0].id)]
+
+    def test_peer_feedback_switched_off_sends_nothing(self, test_db, test_users, celery):
+        """The author's own switch decides: no in-app row and no email."""
+        annotator = test_users[2]
+        _prefer(test_db, annotator, PEER, in_app=False, email=False)
+
+        assert _create(test_db, annotator, PEER) == []
+
+        assert _rows(test_db, annotator, PEER) == []
+        celery.send_task.assert_not_called()
+
+    def test_peer_feedback_in_app_only(self, test_db, test_users, celery):
+        annotator = test_users[2]
+        _prefer(test_db, annotator, PEER, in_app=True, email=False)
+
+        _create(test_db, annotator, PEER)
+
+        assert [n.user_id for n in _rows(test_db, annotator, PEER)] == [annotator.id]
+        # The email worker skips the row: the stored email switch is off.
+        assert not ns_module.NotificationService._user_wants_channel(
+            test_db, annotator.id, PEER, "email"
+        )
+
     def test_stored_row_overrides_the_human_email_default(self, test_db, test_users, celery):
         annotator = test_users[2]
         _prefer(test_db, annotator, HUMAN, in_app=True, email=False)
@@ -253,6 +287,21 @@ class TestNotifyEvaluationReceived:
         assert _rows(test_db, annotator, RELEASED) == created
         assert _rows(test_db, annotator, HUMAN) == []
 
+    def test_a_peer_grading_uses_its_own_type_and_skips_the_grader(
+        self, test_db, test_users, celery
+    ):
+        admin, peer, author = test_users[0], test_users[1], test_users[2]
+        project, task = _exam(test_db, admin)
+
+        created = _notify(test_db, project, source="peer", recipients=[author.id, peer.id],
+                          exclude=[peer.id], task_id=task.id)
+
+        assert [n.user_id for n in created] == [author.id]
+        assert created[0].data["source"] == "peer"
+        assert _rows(test_db, author, PEER) == created
+        assert _rows(test_db, author, HUMAN) == []
+        assert _rows(test_db, peer, PEER) == []
+
     def test_unknown_annotations_have_no_annotators(self, test_db):
         assert ns_module.annotator_ids_for_annotations(test_db, ["missing-annotation"]) == []
 
@@ -302,6 +351,7 @@ class TestGradingPreferencesApi:
         assert prefs[IMMEDIATE.value] == {"enabled": False, "in_app": False, "email": False}
         assert prefs[BATCH.value] == {"enabled": False, "in_app": False, "email": False}
         assert prefs[RELEASED.value] == {"enabled": True, "in_app": True, "email": True}
+        assert prefs[PEER.value] == {"enabled": True, "in_app": True, "email": True}
 
     def test_email_only_choice_persists(self, client, test_db, test_users, auth_headers):
         annotator = test_users[2]

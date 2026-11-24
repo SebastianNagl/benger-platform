@@ -73,6 +73,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from annotator_agreement import project_annotator_agreement
+from human_graded_metrics import scored_run_sql
 from user_display import masked_name
 
 logger = logging.getLogger(__name__)
@@ -268,7 +269,8 @@ SELECT
   (SELECT COUNT(*) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS annotation_count,
   (SELECT COUNT(DISTINCT completed_by) FROM annotations WHERE project_id = :project_id AND was_cancelled = false) AS participant_count,
   (SELECT COUNT(*) FROM task_evaluations te JOIN evaluation_runs r ON r.id = te.evaluation_id
-     WHERE r.project_id = :project_id AND r.status = 'completed') AS evaluation_count,
+     WHERE r.project_id = :project_id AND r.status = 'completed'
+       AND """ + scored_run_sql("r") + """) AS evaluation_count,
   (SELECT COUNT(*) FROM analysis_runs WHERE project_id = :project_id AND status = 'completed') AS analysis_count
 """
 
