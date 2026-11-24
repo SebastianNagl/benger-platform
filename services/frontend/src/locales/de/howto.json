@@ -277,9 +277,9 @@
       "summary": "Die Projektseite besteht aus aufklappbaren Karten. Links die Konfiguration (Projektdetails, Annotationskonfiguration, Generierung, Evaluation, Einstellungen, Freigabe), rechts Schnellaktionen, Abrechnung, Statistiken und der Projektbericht. Daten, Meine Aufgaben, Korrektur und Review sind eigene Seiten.",
       "steps": [
         "**Projektdetails**: Status, Ersteller, Projekt-ID, Organisationen. Titel und Beschreibung änderst du direkt im Kopf der Seite (Stift beim Überfahren).",
-        "**Annotationskonfiguration**: Anweisungen für Annotierende, Varianten für A/B-Tests, die Label-Konfiguration (XML) und *Annotationsablauf & -verhalten* (Zuweisungsmodus, Zeitlimit, Zugriffsfenster, Review- und Korrekturphase).",
+        "**Annotationskonfiguration**: Anweisungen für Annotierende, Varianten für A/B-Tests, die Label-Konfiguration (XML) und *Annotationsablauf & -verhalten* (Zuweisungsmodus, Zeitlimit, Review- und Korrekturphase).",
         "**Generierungskonfiguration** und **Evaluierungskonfiguration**: Modelle, Prompts, Bewertungsverfahren, jeweils mit einem Startknopf.",
-        "**Einstellungen**: Projekttyp, Sichtbarkeit der Bereiche (welche Karten es gibt) und die Projekt-Sichtbarkeit (Privat, Organisation, Öffentlich).",
+        "**Einstellungen**: Projekttyp, Sichtbarkeit der Bereiche (welche Karten es gibt), die Projekt-Sichtbarkeit (Privat, Organisation, Öffentlich) und das Zeitfenster für den Zugriff.",
         "**Freigabe**: Auffindbarkeit unter *Entdecken*, Freigabe-Links und Teilnehmende.",
         "**Schnellaktionen** rechts: *Annotation starten*, *Projektdaten* (Aufgaben, Import, Export), *Meine Aufgaben*, *Generierung*, *Evaluierungen*, *Review-Workflow*, *Korrektur*, *Projekt löschen*."
       ],
@@ -321,10 +321,10 @@
       "title": "Wie setze ich ein Zeitlimit oder ein Zugriffsfenster?",
       "summary": "**Zeitlimit für Annotation** begrenzt die Bearbeitungszeit pro Aufgabe, der **strikte Timer** gibt bei Ablauf automatisch ab. Das **Zeitfenster für den Zugriff** öffnet das Projekt nur zwischen zwei Zeitpunkten.",
       "steps": [
-        "Im Assistenten unter **Einstellungen** oder später unter *Annotationsablauf & -verhalten*.",
+        "Im Assistenten unter **Einstellungen**. Später: Zeitlimit und strikter Timer unter *Annotationsablauf & -verhalten*, das Zeitfenster in der Projektkarte **Einstellungen** gleich nach *Projekt-Sichtbarkeit*.",
         "**Zeitlimit für Annotation** anhaken und die Minuten eintragen (1 bis 360, Vorgabe 30).",
         "Erst danach **Strikter Timer** anhaken, wenn die Abgabe bei Ablauf automatisch erfolgen soll.",
-        "**Zeitfenster für den Zugriff** anhaken und *Öffnet* und *Schließt* setzen. Vor dem Öffnen ist das Projekt gelistet, die Daten bleiben verborgen. Nach dem Schließen ist alles schreibgeschützt."
+        "**Zeitfenster für den Zugriff** anhaken und *Öffnet* und *Schließt* setzen. Vor dem Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht. Nach dem Schließen ist alles schreibgeschützt. Die Zeiten werden gespeichert, sobald du ein Feld verlässt oder Enter drückst."
       ],
       "pitfalls": [
         "Das Ein- oder Ausschalten des Zeitlimits setzt den strikten Timer zurück. Reihenfolge: erst Zeitlimit, dann strikter Timer.",

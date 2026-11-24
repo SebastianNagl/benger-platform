@@ -249,9 +249,9 @@
       "summary": "La page du projet se compose de cartes dépliables. À gauche, la configuration (détails du projet, configuration de l'annotation, génération, évaluation, paramètres, partage) ; à droite, les actions rapides, la facturation, les statistiques et le rapport de projet. Les données, Mes tâches, la correction et la relecture ont leurs propres pages.",
       "steps": [
         "**Détails du projet** : statut, créateur, ID du projet, organisations. Vous modifiez le titre et la description directement dans l'en-tête de la page (crayon au survol).",
-        "**Configuration de l'annotation** : instructions pour les annotateurs, variantes pour les tests A/B, la configuration des étiquettes (XML) et *Déroulement et comportement de l'annotation* (mode d'attribution, limite de temps, fenêtre d'accès, phase de relecture et de correction).",
+        "**Configuration de l'annotation** : instructions pour les annotateurs, variantes pour les tests A/B, la configuration des étiquettes (XML) et *Déroulement et comportement de l'annotation* (mode d'attribution, limite de temps, phase de relecture et de correction).",
         "**Configuration de la génération** et **Configuration de l'évaluation** : modèles, prompts, méthodes d'évaluation, chacune avec un bouton de lancement.",
-        "**Paramètres** : type de projet, visibilité des sections (quelles cartes existent) et visibilité du projet (privé, organisation, public).",
+        "**Paramètres** : type de projet, visibilité des sections (quelles cartes existent), visibilité du projet (privé, organisation, public) et fenêtre d'accès.",
         "**Partage** : visibilité sous *Découvrir*, liens de partage et participants.",
         "**Actions rapides** à droite : *Commencer l'annotation*, *Données du projet* (tâches, import, export), *Mes tâches*, *Génération*, *Évaluations*, *Processus de relecture*, *Correction*, *Supprimer le projet*."
       ],
@@ -296,10 +296,10 @@
       "title": "Comment définir une limite de temps ou une fenêtre d'accès ?",
       "summary": "La **Limite de temps pour l'annotation** limite la durée de travail par tâche ; le **minuteur strict** soumet automatiquement à l'expiration. La **Fenêtre d'accès** n'ouvre le projet qu'entre deux dates.",
       "steps": [
-        "Dans l'assistant sous **Paramètres**, ou plus tard sous *Déroulement et comportement de l'annotation*.",
+        "Dans l'assistant sous **Paramètres**. Plus tard : la limite de temps et le minuteur strict sous *Déroulement et comportement de l'annotation*, la fenêtre d'accès dans la carte **Paramètres** du projet, juste après *Visibilité du projet*.",
         "Cochez **Limite de temps pour l'annotation** et saisissez les minutes (1 à 360, 30 par défaut).",
         "Ensuite seulement, cochez **Minuteur strict** si la soumission doit se faire automatiquement à l'expiration.",
-        "Cochez **Fenêtre d'accès** et définissez *Ouverture* et *Fermeture*. Avant l'ouverture, le projet est listé, mais les données restent masquées. Après la fermeture, tout est en lecture seule."
+        "Cochez **Fenêtre d'accès** et définissez *Ouverture* et *Fermeture*. Avant l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants. Après la fermeture, tout est en lecture seule. Les dates sont enregistrées dès que vous quittez un champ ou appuyez sur Entrée."
       ],
       "pitfalls": [
         "Activer ou désactiver la limite de temps réinitialise le minuteur strict. Ordre à respecter : d'abord la limite de temps, ensuite le minuteur strict.",
