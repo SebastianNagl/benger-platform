@@ -1403,7 +1403,8 @@
       },
       "visibilityDangerZone": {
         "title": "Project visibility",
-        "help": "Changes here affect who across the whole platform can see and interact with this project. Public exposes it to every authenticated user."
+        "help": "Changes here affect who across the whole platform can see and interact with this project. Public exposes it to every authenticated user.",
+        "prepareHint": "To prepare a project without anyone seeing it, keep it \"Private\" until it is ready and only then attach it to the organization or group. If it should appear only at a set time, add a timed access window below: until it opens, the data stays hidden and exams and flashcard decks do not appear for students yet."
       },
       "annotationBehavior": {
         "title": "Annotation Behavior",
@@ -1506,7 +1507,7 @@
       },
       "accessWindow": {
         "title": "Timed access window",
-        "hint": "Open the project to its access group only during a set time. Before it opens, the project is listed but its data stays hidden; after it closes, the data is read-only. Owners and admins are never restricted.",
+        "hint": "Open the project to its access group only during a set time. Before it opens, its data stays hidden and exams and flashcard decks do not appear for students yet; after it closes, the data is read-only. Anyone who may edit the project is never restricted.",
         "opens": "Opens",
         "closes": "Closes",
         "invalid": "The close time must be after the open time."

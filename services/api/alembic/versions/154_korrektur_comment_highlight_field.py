@@ -12,8 +12,8 @@ field; general comments and replies never carry one.
 
 Idempotent: guards on column existence, safe to re-run (091 pattern).
 
-Revision ID: 153_korrektur_comment_highlight_field
-Revises: 152_platform_flags_tum_rollout
+Revision ID: 154_korrektur_comment_highlight_field
+Revises: 153_project_is_published_server_default
 Create Date: 2026-11-24
 """
 
@@ -23,8 +23,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "153_korrektur_comment_highlight_field"
-down_revision = "152_platform_flags_tum_rollout"
+revision = "154_korrektur_comment_highlight_field"
+down_revision = "153_project_is_published_server_default"
 branch_labels = None
 depends_on = None
 

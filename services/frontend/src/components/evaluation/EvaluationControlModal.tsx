@@ -13,6 +13,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { apiClient } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
 import { Dialog, Transition } from '@headlessui/react'
 import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline'
@@ -60,7 +61,9 @@ function configOptionLabel(
   t: (key: string, vars?: Record<string, unknown>) => string,
 ): string {
   const base = (c: EvaluationConfigInput) =>
-    c.display_name || metricDisplayLabel(c.metric, undefined, t)
+    c.display_name
+      ? localizedEvalConfigName(c, t)
+      : metricDisplayLabel(c.metric, undefined, t)
   const label = base(cfg)
   const judge = cfg.metric_parameters?.judge_model
   const shared = all.filter((c) => base(c) === label).length > 1

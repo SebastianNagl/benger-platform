@@ -198,7 +198,6 @@ class Project(Base):
     enable_prompts = Column(Boolean, default=True, server_default="true", nullable=False)
 
     # Status
-    is_published = Column(Boolean, default=False, nullable=False)
     is_archived = Column(Boolean, default=False, nullable=False, index=True)
 
     # Access window (timed availability). When set, the project is only writable

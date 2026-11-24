@@ -153,7 +153,6 @@ export interface Project {
   generation_completed?: boolean // Whether generation is complete for all tasks/models
 
   // Status
-  is_published: boolean
   is_archived: boolean
 
   // Visibility and access control
@@ -161,6 +160,10 @@ export interface Project {
   is_public?: boolean
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
+  // Timed access window (ISO 8601 UTC, null when unset; see
+  // utils/projectWindow.ts).
+  window_start_at?: string | null
+  window_end_at?: string | null
 
   // Student-surface markers (extended): e.g. kind 'exam' |
   // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
@@ -212,7 +215,6 @@ export interface ProjectCreate {
 }
 
 export interface ProjectUpdate extends Partial<ProjectCreate> {
-  is_published?: boolean
   is_archived?: boolean
   generation_structure?: string
   instructions?: string

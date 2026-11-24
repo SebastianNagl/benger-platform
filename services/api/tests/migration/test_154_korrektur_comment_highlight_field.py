@@ -1,4 +1,4 @@
-"""Shape tests for migration 153: korrektur_comments.highlight_field.
+"""Shape tests for migration 154: korrektur_comments.highlight_field.
 
 The shared test DB already carries the column (created from the models by
 ``Base.metadata.create_all``), so ``upgrade()`` must be a clean no-op through
@@ -22,7 +22,7 @@ MIGRATION_PATH = os.path.normpath(
         "..",
         "alembic",
         "versions",
-        "153_korrektur_comment_highlight_field.py",
+        "154_korrektur_comment_highlight_field.py",
     )
 )
 
@@ -31,7 +31,7 @@ COLUMN = "highlight_field"
 
 
 def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_153", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("mig_154", MIGRATION_PATH)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -54,11 +54,11 @@ def _column(conn):
     )
 
 
-class TestMigration153Shape:
-    def test_revision_chains_after_152(self):
+class TestMigration154Shape:
+    def test_revision_chains_after_153(self):
         mig = _load_migration()
-        assert mig.revision == "153_korrektur_comment_highlight_field"
-        assert mig.down_revision == "152_platform_flags_tum_rollout"
+        assert mig.revision == "154_korrektur_comment_highlight_field"
+        assert mig.down_revision == "153_project_is_published_server_default"
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()

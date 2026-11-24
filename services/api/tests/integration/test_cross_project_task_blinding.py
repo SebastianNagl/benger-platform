@@ -121,7 +121,6 @@ async def world(async_test_db):
         title=f"XBlind Project {_uid()[:6]}",
         label_config=BOUND_CONFIG,
         created_by=admin.id,
-        is_published=True,
         assignment_mode="open",
     )
     db.add(project)
@@ -346,7 +345,6 @@ async def _second_org_project(db, world):
         title=f"XBlind Project 2 {_uid()[:6]}",
         label_config=BOUND_CONFIG,
         created_by=world["admin"].id,
-        is_published=True,
         assignment_mode="open",
     )
     db.add(project2)

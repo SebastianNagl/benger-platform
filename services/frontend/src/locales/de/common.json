@@ -1403,7 +1403,8 @@
       },
       "visibilityDangerZone": {
         "title": "Projekt-Sichtbarkeit",
-        "help": "Änderungen hier wirken sich plattformweit aus — wer dieses Projekt sehen und damit arbeiten darf. „Öffentlich“ macht es für alle authentifizierten Nutzer sichtbar."
+        "help": "Änderungen hier wirken sich plattformweit aus — wer dieses Projekt sehen und damit arbeiten darf. „Öffentlich“ macht es für alle authentifizierten Nutzer sichtbar.",
+        "prepareHint": "So bereitest du ein Projekt vor, ohne dass es jemand sieht: Lass es auf „Privat“, bis es fertig ist, und ordne es erst dann der Organisation oder Gruppe zu. Soll es erst zu einem bestimmten Zeitpunkt erscheinen, setze darunter ein Zeitfenster für den Zugriff: Bis zum Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht."
       },
       "annotationBehavior": {
         "title": "Annotationsverhalten",
@@ -1506,7 +1507,7 @@
       },
       "accessWindow": {
         "title": "Zeitfenster für den Zugriff",
-        "hint": "Öffnet das Projekt nur während eines festgelegten Zeitraums für die Zugriffsgruppe. Vor dem Öffnen ist das Projekt gelistet, aber die Daten bleiben verborgen; nach dem Schließen sind die Daten schreibgeschützt. Eigentümer und Admins sind nie eingeschränkt.",
+        "hint": "Öffnet das Projekt nur während eines festgelegten Zeitraums für die Zugriffsgruppe. Vor dem Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht; nach dem Schließen sind die Daten schreibgeschützt. Wer das Projekt bearbeiten darf, ist nie eingeschränkt.",
         "opens": "Öffnet",
         "closes": "Schließt",
         "invalid": "Das Schließdatum muss nach dem Öffnungsdatum liegen."

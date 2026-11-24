@@ -152,7 +152,6 @@ async def world(async_test_db, async_test_client):
         title=f"VU Project {_uid()[:6]}",
         label_config=CONFIG,
         created_by=admin.id,
-        is_published=True,
         assignment_mode="open",
     )
     db.add(project)
