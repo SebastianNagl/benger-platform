@@ -19,9 +19,9 @@ def test_without_groups_every_config_is_official():
     assert sel.method_key("judge-a") == "judge-a"
 
 
-def test_static_group_first_config_is_the_default_official():
+def test_group_first_config_is_the_default_official():
     sel = build_method_selection(
-        [dict(A, method_group="score"), dict(B, method_group="score"), C]
+        [A, B, C], {"groups": {"score": {"config_ids": ["judge-a", "judge-b"]}}}
     )
     assert sel.groups == {"score": ["judge-a", "judge-b"]}
     assert sel.is_official("judge-a") and not sel.is_official("judge-b")
@@ -30,12 +30,13 @@ def test_static_group_first_config_is_the_default_official():
     assert sel.method_key("judge-b") == "group:score"
 
 
-def test_static_official_flag_and_label():
+def test_official_answer_and_label_reach_the_public_shape():
     sel = build_method_selection(
-        [
-            dict(A, method_group="score", method_label="Score"),
-            dict(B, method_group="score", method_official=True),
-        ]
+        [A, B],
+        {
+            "groups": {"score": {"config_ids": ["judge-a", "judge-b"], "label": "Score"}},
+            "official": {"score": "judge-b"},
+        },
     )
     assert sel.official_config("score") == "judge-b"
     public = sel.to_public({"judge-a": "Score (model A)", "judge-b": "Score (model B)"})
@@ -51,8 +52,21 @@ def test_static_official_flag_and_label():
     assert public["research_config_ids"] == ["judge-a"]
 
 
-def test_research_only_flag():
-    sel = build_method_selection([A, dict(C, research_only=True)])
+def test_static_config_fields_do_not_group():
+    sel = build_method_selection(
+        [
+            dict(A, method_group="score", method_official=True),
+            dict(B, method_group="score"),
+            dict(C, research_only=True),
+        ]
+    )
+    assert sel.groups == {}
+    assert sel.research_only == set()
+    assert all(sel.is_official(c["id"]) for c in (A, B, C))
+
+
+def test_research_only_answer():
+    sel = build_method_selection([A, C], {"research_only": ["bleu-1"]})
     assert not sel.is_official("bleu-1")
     assert sel.default_research_config_ids() == {"bleu-1"}
 
@@ -75,23 +89,33 @@ def test_hook_answer_groups_and_per_user_official():
     assert sel.research_only == {"bleu-1"}
 
 
-def test_hook_group_takes_configs_over_from_static_groups():
+def test_a_config_belongs_to_one_group_and_one_config_is_no_group():
     sel = build_method_selection(
-        [dict(A, method_group="old"), dict(B, method_group="old"), C],
-        {"groups": {"new": {"config_ids": ["judge-b", "bleu-1"]}}},
+        [A, B, C],
+        {
+            "groups": {
+                "first": {"config_ids": ["judge-a", "judge-b"]},
+                "second": {"config_ids": ["judge-b", "bleu-1"]},
+            }
+        },
     )
-    # "old" keeps one config, which is no group any more.
-    assert sel.groups == {"new": ["judge-b", "bleu-1"]}
-    assert sel.is_official("judge-a")
+    # "second" keeps only bleu-1, which is no group.
+    assert sel.groups == {"first": ["judge-a", "judge-b"]}
+    assert sel.is_official("bleu-1")
 
 
 def test_disabled_configs_and_junk_are_ignored():
     sel = build_method_selection(
-        [dict(A, method_group="g"), dict(B, method_group="g", enabled=False), "junk", {"metric": "x"}],
-        "not a dict",
+        [A, dict(B, enabled=False), "junk", {"metric": "x"}],
+        {"groups": {"g": {"config_ids": ["judge-a", "judge-b"]}}},
     )
     assert sel.config_ids == ["judge-a"]
     assert sel.groups == {}
+
+
+def test_an_answer_that_is_not_a_dict_groups_nothing():
+    sel = build_method_selection([A, B], "not a dict")
+    assert sel.groups == {} and sel.research_only == set()
 
 
 def test_project_configs():

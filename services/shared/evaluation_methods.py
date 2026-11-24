@@ -10,20 +10,7 @@ research data on its own.
 
 Where the grouping comes from
 -----------------------------
-Static, in the stored config (``project.evaluation_config.evaluation_configs``):
-
-``method_group`` (str)
-    Configs with the same value are alternatives of one method.
-``method_label`` (str, optional)
-    Label of that method in the views; else the official config's
-    ``display_name``.
-``method_official`` (bool, optional)
-    Marks the group's default official config; else the first config of the
-    group in list order is.
-``research_only`` (bool, optional)
-    The config is research data for every subject.
-
-Dynamic, from an extension package: the ``evaluation_method_selection`` hook
+Only from an extension package: the ``evaluation_method_selection`` hook
 (``services/api/extensions.py``, SINGLE_OWNER) is called as
 ``hook(db, project, configs, user_ids)`` with the project's enabled configs
 and the account ids whose answers the view shows, and may return a dict
@@ -34,14 +21,16 @@ and the account ids whose answers the view shows, and may return a dict
 "official_by_user": {user_id: {group: config_id}},
 "research_only": [config_id, ...]}``
 
-Its groups and labels are added to (and override) the static ones, its
-``official`` answers replace the static default, ``official_by_user``
-decides per submitting account (an answer's official config can differ by
-who submitted it), and ``research_only`` adds to the static flags. An
-unknown config id in an answer is ignored. Generations always use the
-default official config.
+``groups`` names the configs that grade one method and its label (else the
+official config's ``display_name``), ``official`` the group's default
+official config (else the group's first config in list order),
+``official_by_user`` decides per submitting account (an answer's official
+config can differ by who submitted it), and ``research_only`` marks configs
+that are research data for every subject. An unknown config id in an answer
+is ignored. Generations always use the default official config.
 
-Without any of this every config is its own method, as before.
+Without an answer (no package implements the hook, or it failed) every
+config is its own method.
 """
 
 from __future__ import annotations
@@ -133,40 +122,23 @@ def _enabled(configs: Iterable[Any]) -> List[Dict[str, Any]]:
 
 
 def build_method_selection(configs: Iterable[Any], hook_answer: Any = None) -> MethodSelection:
-    """Combine the static config fields with an extension's answer."""
+    """The method selection an extension's answer gives ``configs``."""
     enabled = _enabled(configs)
     ids = [str(c["id"]) for c in enabled]
     known = set(ids)
     selection = MethodSelection(config_ids=ids)
 
-    for config in enabled:
-        cid = str(config["id"])
-        group = config.get("method_group")
-        if isinstance(group, str) and group.strip():
-            group = group.strip()
-            selection.groups.setdefault(group, []).append(cid)
-            label = config.get("method_label")
-            if isinstance(label, str) and label.strip() and group not in selection.labels:
-                selection.labels[group] = label.strip()
-            if config.get("method_official") is True and group not in selection.default_official:
-                selection.default_official[group] = cid
-        if config.get("research_only") is True:
-            selection.research_only.add(cid)
-
     answer = hook_answer if isinstance(hook_answer, Mapping) else {}
     for group, spec in (answer.get("groups") or {}).items():
         if not isinstance(group, str) or not isinstance(spec, Mapping):
             continue
-        members = [str(c) for c in spec.get("config_ids") or [] if str(c) in known]
+        grouped = set(selection.group_of)
+        members = [
+            str(c) for c in spec.get("config_ids") or [] if str(c) in known and str(c) not in grouped
+        ]
         if not members:
             continue
-        # A config belongs to one group: the answer's group takes it over.
-        for other, other_members in list(selection.groups.items()):
-            if other != group:
-                selection.groups[other] = [c for c in other_members if c not in members]
-                if not selection.groups[other]:
-                    del selection.groups[other]
-        selection.groups[group] = sorted(members, key=ids.index)
+        selection.groups[group] = sorted(set(members), key=ids.index)
         label = spec.get("label")
         if isinstance(label, str) and label.strip():
             selection.labels[group] = label.strip()

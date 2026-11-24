@@ -12,16 +12,26 @@ treated the bare ``field_name`` of an on-submit row and the composite
 ``{config_id}|{pred}|{ref}`` of a batch row as the same cell while the views
 did not. This module is the one definition all of them use.
 
-The cell of a row is ``(subject, evaluation config, prediction field)``:
+The cell of a row is ``(subject, evaluation config, prediction field,
+reference field)``:
 
 * subject: the generation, else the annotation, else the task.
 * evaluation config: ``evaluation_config_id``, else the config part of a
   composite ``field_name`` (rows written before migration 057), else ``""``.
 * prediction field: the prediction part of a composite ``field_name``, or
   the bare ``field_name`` of an on-submit row, without its ``human:`` /
-  ``model:`` role prefix. The reference part is not part of the cell: a
-  judge reads its reference fields itself, so one score per prediction field
-  is the method's score whichever reference field the row was written under.
+  ``model:`` role prefix.
+* reference field (:func:`cell_ref_field`): ``""`` for a config that grades
+  once per prediction field (``metric_filters.graded_reference_fields`` has
+  one entry or none, such as a judge that reads its reference fields itself),
+  so the rows it wrote per reference field before the worker graded it once
+  are one cell. A config that grades once per reference field keeps the
+  reference part: those rows are different gradings, each with its own
+  current score. A bare on-submit row of such a config belongs to the cell
+  of the config's first reference field, the one the on-submit grader
+  tries first. A row whose config is unknown (a deleted config) keeps the
+  reference part of its composite ``field_name``, so rows that may be
+  different gradings are never merged.
 
 On-submit rows written before the label fix carry the config's first
 prediction selector even when that selector names model outputs
@@ -45,6 +55,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from eval_field_classification import BULK_SELECTORS, bare_field_name
 from evaluation_planning import _row_has_score
+from metric_filters import graded_reference_fields
 from metric_values import coerce_metric_value
 
 SUBJECT_GENERATION = "generation"
@@ -54,7 +65,7 @@ SUBJECT_TASK = "task"
 _MODEL_SIDE_SELECTORS = ("__all_model__",)
 _EPOCH = datetime.min.replace(tzinfo=timezone.utc)
 
-CellKey = Tuple[str, str, str, str]
+CellKey = Tuple[str, str, str, str, str]
 
 
 def _get(row: Any, name: str, default: Any = None) -> Any:
@@ -122,6 +133,25 @@ def cell_config_id(evaluation_config_id: Optional[str], field_name: Optional[str
     return config_part
 
 
+def _bare_row_ref(config: Mapping[str, Any]) -> Optional[str]:
+    """The reference field of a bare row of a known config: ``""`` for a
+    config that grades once per prediction field, else its first reference
+    field (whose composite rows keep their own reference part)."""
+    refs = graded_reference_fields(config)
+    return str(refs[0]) if len(refs) > 1 else ""
+
+
+def cell_ref_field(field_name: Optional[str], config: Optional[Mapping[str, Any]]) -> str:
+    """The reference field of a row's cell (see the module docstring)."""
+    value = field_name or ""
+    composite = _is_composite(value)
+    if config is not None:
+        bare_ref = _bare_row_ref(config)
+        if bare_ref == "" or not composite:
+            return bare_ref
+    return value.split("|")[2] if composite else ""
+
+
 def cell_subject(row: Any) -> Tuple[str, str]:
     generation_id = _get(row, "generation_id")
     if generation_id:
@@ -133,7 +163,8 @@ def cell_subject(row: Any) -> Tuple[str, str]:
 
 
 def cell_key(row: Any, configs_by_id: Optional[Mapping[str, Mapping[str, Any]]] = None) -> CellKey:
-    """``(subject kind, subject id, config id, prediction field)`` of a row."""
+    """``(subject kind, subject id, config id, prediction field, reference
+    field)`` of a row."""
     kind, subject_id = cell_subject(row)
     field_name = _get(row, "field_name")
     config_id = cell_config_id(_get(row, "evaluation_config_id"), field_name)
@@ -141,7 +172,7 @@ def cell_key(row: Any, configs_by_id: Optional[Mapping[str, Mapping[str, Any]]] 
     pred = cell_pred_field(
         field_name, is_annotation=kind == SUBJECT_ANNOTATION, config=config
     )
-    return kind, subject_id, config_id, pred
+    return kind, subject_id, config_id, pred, cell_ref_field(field_name, config)
 
 
 def row_has_score(metrics: Any) -> bool:
@@ -282,6 +313,24 @@ def sql_cell_pred(field_col):
     return func.regexp_replace(pred, "^(human|model):", "")
 
 
+def sql_cell_ref(config_col, field_col, configs_by_id: Mapping[str, Mapping[str, Any]]):
+    """SQL twin of :func:`cell_ref_field`; ``configs_by_id`` are the
+    project's configs (:func:`configs_by_id`)."""
+    from sqlalchemy import and_, case, func, literal, not_
+
+    composite = field_col.like("%|%|%")
+    config = sql_cell_config(config_col, field_col)
+    whens = []
+    for config_id, config_value in (configs_by_id or {}).items():
+        bare_ref = _bare_row_ref(config_value)
+        if bare_ref == "":
+            whens.append((config == config_id, literal("")))
+        else:
+            whens.append((and_(config == config_id, not_(composite)), literal(bare_ref)))
+    whens.append((composite, func.split_part(field_col, "|", 3)))
+    return case(*whens, else_=literal(""))
+
+
 def sql_has_score(metrics_col):
     """Whether a row's (lite) metrics carry a score, in SQL."""
     from sqlalchemy import func, literal_column
@@ -300,6 +349,14 @@ def sql_current_rank_order(metrics_col, created_col, id_col) -> List[Any]:
     return [sql_has_score(metrics_col).desc(), created_col.desc(), id_col.desc()]
 
 
-def sql_cell_partition(subject_col, config_col, field_col) -> Sequence[Any]:
-    """``PARTITION BY`` of that window for one subject column."""
-    return [subject_col, sql_cell_config(config_col, field_col), sql_cell_pred(field_col)]
+def sql_cell_partition(
+    subject_col, config_col, field_col, configs_by_id: Mapping[str, Mapping[str, Any]]
+) -> Sequence[Any]:
+    """``PARTITION BY`` of that window for one subject column, given the
+    project's configs (:func:`configs_by_id`)."""
+    return [
+        subject_col,
+        sql_cell_config(config_col, field_col),
+        sql_cell_pred(field_col),
+        sql_cell_ref(config_col, field_col, configs_by_id),
+    ]

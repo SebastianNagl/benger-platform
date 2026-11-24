@@ -162,6 +162,12 @@ async def get_results_by_task_model(
                 detail="Access denied",
             )
         await _require_content_access(db, current_user, evaluation.project_id)
+        run_project = (
+            await db.execute(select(Project).where(Project.id == evaluation.project_id))
+        ).scalar_one_or_none()
+        run_configs_by_id = current_scores.configs_by_id(
+            getattr(run_project, "evaluation_config", None)
+        )
 
         # `include_history` controls cell aggregation:
         #   off  → cell shows the score of the LATEST generation per (task,
@@ -222,9 +228,9 @@ async def get_results_by_task_model(
             )
 
             # The current row per cell (shared/current_scores.py): one per
-            # (generation, evaluation config, prediction field), the newest
-            # row with a score winning. Partitioning by the raw field_name
-            # kept one row per reference field and per key format.
+            # (generation, evaluation config, prediction field, reference
+            # field), the newest row with a score winning. Partitioning by
+            # the raw field_name kept one row per key format.
             ranked_results = (
                 select(
                     TaskEvaluation.task_id,
@@ -238,6 +244,7 @@ async def get_results_by_task_model(
                             TaskEvaluation.generation_id,
                             TaskEvaluation.evaluation_config_id,
                             TaskEvaluation.field_name,
+                            run_configs_by_id,
                         ),
                         order_by=current_scores.sql_current_rank_order(
                             TaskEvaluation.metrics,
@@ -336,16 +343,8 @@ async def get_results_by_task_model(
                 )
             ).all()
             # The current row per cell (shared/current_scores.py).
-            run_project = (
-                await db.execute(select(Project).where(Project.id == evaluation.project_id))
-            ).scalar_one_or_none()
             annotation_eval_results = list(
-                current_scores.pick_current(
-                    candidate_ann_evals,
-                    current_scores.configs_by_id(
-                        getattr(run_project, "evaluation_config", None)
-                    ),
-                ).values()
+                current_scores.pick_current(candidate_ann_evals, run_configs_by_id).values()
             )
 
         if not sample_results and not annotation_eval_results:
@@ -871,13 +870,15 @@ async def get_project_results_by_task_model(
             )
 
         # The current row per cell (shared/current_scores.py): one per
-        # (generation, evaluation config, prediction field), the newest row
-        # with a score winning, so a failed re-run never blanks a score and
-        # the rows a judge wrote per reference field count once. Filters
+        # (generation, evaluation config, prediction field, reference field),
+        # the newest row with a score winning, so a failed re-run never blanks
+        # a score and the rows a judge reading its references itself wrote
+        # per reference field count once. Filters
         # MUST apply before the window: a row without the selected metric
         # must not win its partition and then be discarded.
+        project_configs_by_id = current_scores.configs_by_id(project.evaluation_config)
         cell_partition = current_scores.sql_cell_partition(
-            MK.generation_id, MK.evaluation_config_id, MK.field_name
+            MK.generation_id, MK.evaluation_config_id, MK.field_name, project_configs_by_id
         )
         ranked = _scope_to_latest_gens(
             select(
@@ -933,7 +934,7 @@ async def get_project_results_by_task_model(
             or 0
         )
         deduplication_summary = {
-            "scope": "(generation_id, evaluation_config_id, prediction_field)",
+            "scope": "(generation_id, evaluation_config_id, prediction_field, reference_field)",
             "policy": "newest_scored_row_wins",
             "suppressed_run_count": int(suppressed_count),
         }
@@ -972,8 +973,7 @@ async def get_project_results_by_task_model(
             # model-side selector to the answer field they graded.
             annotation_eval_results = list(
                 current_scores.pick_current(
-                    annotation_eval_results,
-                    current_scores.configs_by_id(project.evaluation_config),
+                    annotation_eval_results, project_configs_by_id
                 ).values()
             )
         if selection is not None and annotation_eval_results:
@@ -1155,8 +1155,8 @@ async def get_sample_result_by_task_model(
         True,
         description=(
             "Include all historical results. When false, only the current row "
-            "of each (subject, evaluation config, prediction field) cell "
-            "(shared/current_scores.py), and for an annotator only their "
+            "of each (subject, evaluation config, prediction field, reference "
+            "field) cell (shared/current_scores.py), and for an annotator only their "
             "latest answer to the task."
         ),
     ),

@@ -1,4 +1,5 @@
-"""The one current score per (subject, evaluation config, prediction field).
+"""The one current score per cell: (subject, evaluation config, prediction
+field, and the reference field for a config that grades per reference field).
 
 Covers ``services/shared/current_scores.py``: the cell key every view uses,
 the newest-scored-row rule, the fallback for on-submit rows that carry a
@@ -15,7 +16,24 @@ pytestmark = pytest.mark.unit
 
 T0 = datetime(2026, 11, 21, 12, 0, tzinfo=timezone.utc)
 CFG = "llm_judge_custom-abc"
-CONFIGS = {CFG: {"id": CFG, "prediction_fields": ["__all_model__", "human:loesung"]}}
+PER_REF = "llm_judge_custom-per-ref"
+REFS = ["task.musterloesung", "task.bewertungsbogen"]
+CONFIGS = {
+    # Reads both reference fields itself: its prompt names one of them.
+    CFG: {
+        "id": CFG, "metric": "llm_judge_custom",
+        "prediction_fields": ["__all_model__", "human:loesung"],
+        "reference_fields": REFS,
+        "metric_parameters": {"custom_prompt_template": "{bewertungsbogen} {prediction}"},
+    },
+    # Sees one reference per call ({ground_truth}): one grading per reference.
+    PER_REF: {
+        "id": PER_REF, "metric": "llm_judge_custom",
+        "prediction_fields": ["human:loesung"],
+        "reference_fields": REFS,
+        "metric_parameters": {"custom_prompt_template": "{ground_truth} {prediction}"},
+    },
+}
 
 
 def _row(id, *, field_name, ann="a1", gen=None, cfg=CFG, minutes=0, score=0.5, task="t1"):
@@ -38,14 +56,33 @@ class TestCellKey:
     def test_on_submit_and_batch_rows_share_a_cell(self):
         on_submit = _row("r1", field_name="human:loesung")
         batch = _row("r2", field_name=f"{CFG}|human:loesung|task.musterloesung")
-        assert cs.cell_key(on_submit) == cs.cell_key(batch) == (
-            "annotation", "a1", CFG, "loesung"
+        assert cs.cell_key(on_submit, CONFIGS) == cs.cell_key(batch, CONFIGS) == (
+            "annotation", "a1", CFG, "loesung", ""
         )
 
-    def test_reference_part_is_not_part_of_the_cell(self):
+    def test_a_judge_reading_its_references_has_one_cell(self):
         a = _row("r1", field_name=f"{CFG}|human:loesung|task.musterloesung")
         b = _row("r2", field_name=f"{CFG}|human:loesung|task.bewertungsbogen")
-        assert cs.cell_key(a) == cs.cell_key(b)
+        assert cs.cell_key(a, CONFIGS) == cs.cell_key(b, CONFIGS)
+
+    def test_a_config_grading_per_reference_has_a_cell_per_reference(self):
+        a = _row("r1", field_name=f"{PER_REF}|human:loesung|task.musterloesung", cfg=PER_REF)
+        b = _row("r2", field_name=f"{PER_REF}|human:loesung|task.bewertungsbogen", cfg=PER_REF)
+        assert cs.cell_key(a, CONFIGS) != cs.cell_key(b, CONFIGS)
+        assert cs.cell_key(a, CONFIGS)[4] == "task.musterloesung"
+
+    def test_an_on_submit_row_of_a_per_reference_config_meets_its_first_reference(self):
+        on_submit = _row("r1", field_name="human:loesung", cfg=PER_REF)
+        first = _row("r2", field_name=f"{PER_REF}|human:loesung|task.musterloesung", cfg=PER_REF)
+        second = _row("r3", field_name=f"{PER_REF}|human:loesung|task.bewertungsbogen", cfg=PER_REF)
+        assert cs.cell_key(on_submit, CONFIGS) == cs.cell_key(first, CONFIGS)
+        assert cs.cell_key(on_submit, CONFIGS) != cs.cell_key(second, CONFIGS)
+
+    def test_an_unknown_config_keeps_the_reference_part(self):
+        a = _row("r1", field_name=f"{CFG}|human:loesung|task.musterloesung")
+        b = _row("r2", field_name=f"{CFG}|human:loesung|task.bewertungsbogen")
+        assert cs.cell_key(a) != cs.cell_key(b)
+        assert cs.cell_key(a, {}) != cs.cell_key(b, {})
 
     def test_unprefixed_and_prefixed_fields_match(self):
         assert cs.cell_key(_row("r1", field_name="loesung")) == cs.cell_key(
@@ -61,11 +98,11 @@ class TestCellKey:
 
     def test_model_side_label_on_a_generation_is_kept(self):
         row = _row("r1", field_name=f"{CFG}|__all_model__|task.x", ann=None, gen="g1")
-        assert cs.cell_key(row, CONFIGS) == ("generation", "g1", CFG, "__all_model__")
+        assert cs.cell_key(row, CONFIGS) == ("generation", "g1", CFG, "__all_model__", "")
 
     def test_config_from_the_field_name_when_the_column_is_empty(self):
         row = _row("r1", field_name="cfg-old|human:loesung|ref", cfg=None)
-        assert cs.cell_key(row) == ("annotation", "a1", "cfg-old", "loesung")
+        assert cs.cell_key(row) == ("annotation", "a1", "cfg-old", "loesung", "ref")
 
     def test_distinct_configs_and_subjects_are_distinct_cells(self):
         assert cs.cell_key(_row("r1", field_name="loesung")) != cs.cell_key(
@@ -86,7 +123,19 @@ class TestPickCurrent:
         same config are one cell; the re-run is current, the first is history."""
         on_submit = _row("r1", field_name="human:loesung", minutes=0, score=0.75)
         rerun = _row("r2", field_name=f"{CFG}|human:loesung|task.musterloesung", minutes=20, score=0.82)
-        assert cs.current_row_ids([on_submit, rerun]) == {"r2"}
+        assert cs.current_row_ids([on_submit, rerun], CONFIGS) == {"r2"}
+
+    def test_per_reference_gradings_of_one_run_are_all_current(self):
+        """Two gradings against different reference fields, written by one
+        batch run at the same moment: neither replaces the other."""
+        rows = [
+            _row("r1", field_name="human:loesung", cfg=PER_REF, minutes=0, score=0.75),
+            _row("r2", field_name=f"{PER_REF}|human:loesung|task.musterloesung", cfg=PER_REF,
+                 minutes=20, score=0.9),
+            _row("r3", field_name=f"{PER_REF}|human:loesung|task.bewertungsbogen", cfg=PER_REF,
+                 minutes=20, score=0.4),
+        ]
+        assert cs.current_row_ids(rows, CONFIGS) == {"r2", "r3"}
 
     def test_a_failed_newer_row_does_not_replace_a_score(self):
         good = _row("r1", field_name="human:loesung", minutes=0, score=0.6)

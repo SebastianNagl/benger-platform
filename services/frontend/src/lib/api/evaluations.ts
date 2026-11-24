@@ -1412,10 +1412,9 @@ export class EvaluationsClient extends BaseApiClient {
     projectId: string,
     includeResearch: boolean = false,
   ): Promise<Blob> {
-    const sp = new URLSearchParams({ format: 'csv' })
-    if (includeResearch) sp.set('include_research', 'true')
+    const query = includeResearch ? '?include_research=true' : ''
     return this.request(
-      `/evaluations/projects/${projectId}/results/by-submission?${sp.toString()}`,
+      `/evaluations/projects/${projectId}/results/by-submission${query}`,
       { cache: 'no-store' },
     )
   }

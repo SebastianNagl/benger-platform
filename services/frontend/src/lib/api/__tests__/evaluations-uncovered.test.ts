@@ -328,9 +328,12 @@ describe('EvaluationsClient - uncovered methods', () => {
       requestSpy.mockClear()
       await client.downloadResultsBySubmission('p1', true)
       expect(url()).toBe(
-        '/evaluations/projects/p1/results/by-submission?format=csv&include_research=true',
+        '/evaluations/projects/p1/results/by-submission?include_research=true',
       )
       expect(opts()).toEqual({ cache: 'no-store' })
+      requestSpy.mockClear()
+      await client.downloadResultsBySubmission('p1')
+      expect(url()).toBe('/evaluations/projects/p1/results/by-submission')
     })
   })
 

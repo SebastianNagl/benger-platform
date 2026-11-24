@@ -129,7 +129,8 @@ MAX_BATCH_TASK_EVALS = 1000
 def current_task_evaluation_ids(db: Session, project, eval_run_ids) -> set:
     """Ids of the task evaluations of ``eval_run_ids`` that are the current
     score of their cell (shared/current_scores.py): one per (subject,
-    evaluation config, prediction field), the newest row with a score. Read
+    evaluation config, prediction field, reference field), the newest row
+    with a score. Read
     from the narrow ``task_evaluation_metric_keys`` mirror, so the metrics
     blobs are not read twice."""
     from models import TaskEvaluationMetricKeys as MK

@@ -916,8 +916,8 @@ def evaluation_method_selection(db, project, configs, user_ids):
 
     ``configs`` are the project's enabled evaluation configs, ``user_ids``
     the accounts whose answers the caller shows. Returns ``None`` when no
-    package implements it and when the hook fails: the views then use the
-    configs' own ``method_group`` fields, never an error.
+    package implements it and when the hook fails: the views then show every
+    config as its own method, never an error.
     """
     try:
         hook = _single_hook("evaluation_method_selection")

@@ -2,8 +2,9 @@
 importer still reads files with and without the marker.
 
 ``is_current`` (shared/current_scores.py) is additive: True on the one
-current row of each (subject, evaluation config, prediction field), False
-on the history rows. The importer ignores it and the re-export recomputes it
+current row of each cell (subject, evaluation config, prediction field, and
+the reference field for a config that grades once per reference field),
+False on the history rows. The importer ignores it and the re-export recomputes it
 from the imported rows, so a round trip keeps the same answer, and a file
 written before the marker existed imports as before.
 """
@@ -31,9 +32,10 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-@pytest.fixture
-def graded_project(test_db, test_users, test_org):
-    admin = test_users[0]
+def _build_graded_project(test_db, admin, test_org, *, prompt, runs):
+    """A project with one two-reference judge config ``CFG`` whose prompt is
+    ``prompt``, one answer, and per run ``(model_id, [(field_name, score,
+    created_at)])`` its task evaluations."""
     project = Project(
         id=_uid(),
         title=f"Current score RT {_uid()[:8]}",
@@ -46,6 +48,7 @@ def graded_project(test_db, test_users, test_org):
                     "id": CFG, "metric": "llm_judge_custom",
                     "prediction_fields": ["human:loesung"],
                     "reference_fields": ["task.musterloesung", "task.bewertungsbogen"],
+                    "metric_parameters": {"custom_prompt_template": prompt},
                     "enabled": True,
                 }
             ]
@@ -73,13 +76,7 @@ def graded_project(test_db, test_users, test_org):
     test_db.flush()
 
     rows = []
-    for model_id, entries in (
-        ("immediate", [("human:loesung", 0.75, T0)]),
-        ("annotator:x", [
-            (f"{CFG}|human:loesung|task.musterloesung", 0.82, T0 + timedelta(minutes=20)),
-            (f"{CFG}|human:loesung|task.bewertungsbogen", 0.80, T0 + timedelta(minutes=21)),
-        ]),
-    ):
+    for model_id, entries in runs:
         run = EvaluationRun(
             id=_uid(), project_id=project.id, model_id=model_id,
             evaluation_type_ids=["llm_judge_custom"], metrics={}, status="completed",
@@ -104,6 +101,24 @@ def graded_project(test_db, test_users, test_org):
             rows.append(row)
     test_db.commit()
     return project, admin, rows
+
+
+@pytest.fixture
+def graded_project(test_db, test_users, test_org):
+    """The judge reads both reference fields itself (its prompt names
+    ``{bewertungsbogen}``): the batch rows it wrote per reference field
+    before it graded once are one cell with the on-submit row."""
+    return _build_graded_project(
+        test_db, test_users[0], test_org,
+        prompt="{musterloesung} {bewertungsbogen} {prediction}",
+        runs=(
+            ("immediate", [("human:loesung", 0.75, T0)]),
+            ("annotator:x", [
+                (f"{CFG}|human:loesung|task.musterloesung", 0.82, T0 + timedelta(minutes=20)),
+                (f"{CFG}|human:loesung|task.bewertungsbogen", 0.80, T0 + timedelta(minutes=21)),
+            ]),
+        ),
+    )
 
 
 def _records(body: str, fmt: str):
@@ -176,3 +191,37 @@ class TestCurrentScoreRoundTrip:
         imported = test_db.query(TaskEvaluation).filter(TaskEvaluation.task_id.in_(task_ids)).count()
         assert imported == 3
         assert _marks(_records(_export(test_db, new_pid, fmt), fmt)) == EXPECTED
+
+
+@pytest.fixture
+def per_reference_project(test_db, test_users, test_org):
+    """The judge's prompt names only ``{ground_truth}``, so it grades the
+    answer once against each reference field: one batch run writes two
+    different gradings at the same moment."""
+    batch_at = T0 + timedelta(minutes=20)
+    return _build_graded_project(
+        test_db, test_users[0], test_org,
+        prompt="{ground_truth} {prediction}",
+        runs=(
+            ("immediate", [("human:loesung", 0.75, T0)]),
+            ("annotator:x", [
+                (f"{CFG}|human:loesung|task.musterloesung", 0.9, batch_at),
+                (f"{CFG}|human:loesung|task.bewertungsbogen", 0.4, batch_at),
+            ]),
+        ),
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("fmt", ["comprehensive", "ndjson"])
+def test_each_reference_grading_is_current(test_db, per_reference_project, fmt):
+    project, _admin, _rows = per_reference_project
+    records = _records(_export(test_db, project.id, fmt), fmt)
+    # Neither batch grading replaced the other; the on-submit row graded
+    # against the first reference field and the batch row of that field
+    # replaced it.
+    assert _marks(records) == {
+        "human:loesung": False,
+        f"{CFG}|human:loesung|task.musterloesung": True,
+        f"{CFG}|human:loesung|task.bewertungsbogen": True,
+    }

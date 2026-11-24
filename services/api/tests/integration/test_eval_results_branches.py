@@ -1224,7 +1224,9 @@ class TestProjectByTaskModelBranches:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         dedup = body["deduplication_summary"]
-        assert dedup["scope"] == "(generation_id, evaluation_config_id, prediction_field)"
+        assert dedup["scope"] == (
+            "(generation_id, evaluation_config_id, prediction_field, reference_field)"
+        )
         assert dedup["policy"] == "newest_scored_row_wins"
         assert dedup["suppressed_run_count"] == 1
         # Cell shows the latest (0.7), not the suppressed 0.3.
@@ -1524,20 +1526,31 @@ class TestSampleResultBranches:
     async def test_history_off_one_row_per_method_on_one_generation(
         self, async_test_client, async_test_db
     ):
-        """One generation graded by one config under two reference fields and
-        re-run later, plus a failed retry: history off leaves the one current
-        row (the newest that has a score); history on marks the rest as
-        superseded."""
+        """One generation graded by a judge that reads both reference fields
+        itself, under each reference field and re-run later, plus a failed
+        retry: history off leaves the one current row (the newest that has a
+        score); history on marks the rest as superseded."""
         owner = await _make_owner(async_test_db)
         org = await _make_org(async_test_db)
         p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        cfg = "llm_judge_custom-abc"
+        p.evaluation_config = {
+            "evaluation_configs": [
+                {
+                    "id": cfg, "metric": "llm_judge_custom",
+                    "prediction_fields": ["answer"],
+                    "reference_fields": ["task.ref1", "task.ref2"],
+                    "metric_parameters": {"custom_prompt_template": "{ref1} {ref2} {prediction}"},
+                    "enabled": True,
+                }
+            ]
+        }
         task = tasks[0]
         er = await _make_eval_run(async_test_db, p, model_id="gpt-4")
         jr2 = await _add_judge_run(async_test_db, er, run_index=1)
         jr3 = await _add_judge_run(async_test_db, er, run_index=2)
         gen, _ = await _make_generation(async_test_db, task, model_id="gpt-4")
         now = datetime.now(timezone.utc)
-        cfg = "llm_judge_custom-abc"
         old_ref1 = await _make_task_evaluation(
             async_test_db, er, task, generation=gen,
             field_name=f"{cfg}|answer|task.ref1", evaluation_config_id=cfg,

@@ -4,9 +4,11 @@ the per-submission results file.
 The case these tests rebuild: an answer graded on submit (bare field name,
 one config of a two-config method), then re-evaluated by a teacher (a batch
 run with the composite ``config|pred|ref`` key, both configs, and one row per
-reference field). Before, the grid and the modal kept every row because their
-field names differed; now each (subject, config, prediction field) has one
-current score, and a method group shows the official config per answer.
+reference field of a judge that reads its references itself). Before, the
+grid and the modal kept every row because their field names differed; now
+each cell has one current score, and a method group (the extension hook's
+answer) shows the official config per answer. A config that grades once per
+reference field keeps one current score per reference field.
 """
 
 from __future__ import annotations
@@ -35,21 +37,34 @@ CFG_B = "llm_judge_custom-model-b"
 KORREKTUR = "korrektur_custom-k1"
 
 
-def _configs(*, grouped: bool):
-    group = {"method_group": "notenpunkte", "method_label": "Notenpunkte"} if grouped else {}
+GROUPS = {"notenpunkte": {"config_ids": [CFG_A, CFG_B], "label": "Notenpunkte"}}
+
+
+def _grouped(**answer):
+    """The extension hook groups CFG_A and CFG_B as one method."""
+    return patch(
+        "extensions.evaluation_method_selection", return_value={"groups": GROUPS, **answer}
+    )
+
+
+def _configs():
     return {
         "evaluation_configs": [
             {
                 "id": CFG_A, "metric": "llm_judge_custom", "display_name": "Notenpunkte (A)",
                 "prediction_fields": ["__all_model__", "human:loesung"],
                 "reference_fields": ["task.musterloesung", "task.bewertungsbogen"],
-                "enabled": True, **group,
+                # The judge reads both reference fields itself.
+                "metric_parameters": {
+                    "custom_prompt_template": "{musterloesung} {bewertungsbogen} {prediction}"
+                },
+                "enabled": True,
             },
             {
                 "id": CFG_B, "metric": "llm_judge_custom", "display_name": "Notenpunkte (B)",
                 "prediction_fields": ["human:loesung"],
                 "reference_fields": ["task.musterloesung"],
-                "enabled": True, **group,
+                "enabled": True,
             },
             {
                 "id": KORREKTUR, "metric": "korrektur_custom", "display_name": "Korrektur",
@@ -60,14 +75,14 @@ def _configs(*, grouped: bool):
     }
 
 
-async def _seed(db, *, grouped: bool):
+async def _seed(db):
     """A submission graded on submit (CFG_B, under the legacy model-side
     label), then by a forced batch re-run (both configs, two reference
     fields for CFG_A), and a second student graded on submit only."""
     owner = await _make_owner(db)
     org = await _make_org(db)
     project, tasks = await _setup_project(db, owner, org, num_tasks=1)
-    project.evaluation_config = _configs(grouped=grouped)
+    project.evaluation_config = _configs()
     task = tasks[0]
     student = await _make_owner(db, name="Student One", is_superadmin=False)
     other = await _make_owner(db, name="Student Two", is_superadmin=False)
@@ -123,7 +138,7 @@ def _grid_url(project_id, **params):
 class TestGridOneScorePerConfig:
     @pytest.mark.asyncio
     async def test_on_submit_and_rerun_collapse(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+        s = await _seed(async_test_db)
         with _as_user(s["owner"]):
             resp = await async_test_client.get(
                 _grid_url(s["project"].id, metric="llm_judge_custom", evaluation_config_id=CFG_B)
@@ -140,7 +155,7 @@ class TestGridOneScorePerConfig:
 
     @pytest.mark.asyncio
     async def test_reference_fan_out_counts_once(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+        s = await _seed(async_test_db)
         with _as_user(s["owner"]):
             resp = await async_test_client.get(
                 _grid_url(s["project"].id, metric="llm_judge_custom", evaluation_config_id=CFG_A)
@@ -155,19 +170,18 @@ class TestGridOneScorePerConfig:
     async def test_method_group_shows_the_official_config_per_answer(
         self, async_test_client, async_test_db
     ):
-        s = await _seed(async_test_db, grouped=True)
-        with _as_user(s["owner"]):
+        s = await _seed(async_test_db)
+        with _grouped(), _as_user(s["owner"]):
             default = await async_test_client.get(
                 _grid_url(s["project"].id, metric="llm_judge_custom", method_group="notenpunkte")
             )
         assert default.status_code == 200, default.text
         cell = next(t for t in default.json()["tasks"] if t["task_id"] == s["task"].id)
-        # Static default: the group's first config (CFG_A) is official.
+        # Without an official answer the group's first config (CFG_A) is.
         assert cell["scores"] == {"annotator:Student One": pytest.approx(0.95)}
 
-        # An extension decides per submitting account: CFG_B for both.
-        answer = {"official": {"notenpunkte": CFG_B}}
-        with patch("extensions.evaluation_method_selection", return_value=answer):
+        # The extension makes CFG_B official.
+        with _grouped(official={"notenpunkte": CFG_B}):
             with _as_user(s["owner"]):
                 hooked = await async_test_client.get(
                     _grid_url(s["project"].id, metric="llm_judge_custom", method_group="notenpunkte")
@@ -178,8 +192,8 @@ class TestGridOneScorePerConfig:
             "annotator:Student Two": pytest.approx(0.5),
         }
 
-        per_user = {"official_by_user": {s["student"].id: {"notenpunkte": CFG_A}}}
-        with patch("extensions.evaluation_method_selection", return_value=per_user):
+        per_user = {s["student"].id: {"notenpunkte": CFG_A}}
+        with _grouped(official_by_user=per_user):
             with _as_user(s["owner"]):
                 mixed = await async_test_client.get(
                     _grid_url(s["project"].id, metric="llm_judge_custom", method_group="notenpunkte")
@@ -191,7 +205,7 @@ class TestGridOneScorePerConfig:
 
     @pytest.mark.asyncio
     async def test_unknown_method_group_is_404(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+        s = await _seed(async_test_db)
         with _as_user(s["owner"]):
             resp = await async_test_client.get(
                 _grid_url(s["project"].id, method_group="nope")
@@ -203,8 +217,8 @@ class TestGridOneScorePerConfig:
 class TestMethodsEndpoint:
     @pytest.mark.asyncio
     async def test_lists_groups_and_research_configs(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=True)
-        with _as_user(s["owner"]):
+        s = await _seed(async_test_db)
+        with _grouped(), _as_user(s["owner"]):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{s['project'].id}/results/methods"
             )
@@ -223,7 +237,7 @@ class TestMethodsEndpoint:
 
     @pytest.mark.asyncio
     async def test_no_groups(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+        s = await _seed(async_test_db)
         with _as_user(s["owner"]):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{s['project'].id}/results/methods"
@@ -231,10 +245,8 @@ class TestMethodsEndpoint:
         assert resp.json()["groups"] == [] and resp.json()["research_config_ids"] == []
 
     @pytest.mark.asyncio
-    async def test_a_failing_hook_falls_back_to_the_static_fields(
-        self, async_test_client, async_test_db
-    ):
-        s = await _seed(async_test_db, grouped=True)
+    async def test_a_failing_hook_groups_nothing(self, async_test_client, async_test_db):
+        s = await _seed(async_test_db)
         import extensions
 
         def boom(*_a, **_k):
@@ -246,14 +258,14 @@ class TestMethodsEndpoint:
                     f"{BASE}/projects/{s['project'].id}/results/methods"
                 )
         assert resp.status_code == 200
-        assert resp.json()["research_config_ids"] == [CFG_B]
+        assert resp.json()["groups"] == [] and resp.json()["research_config_ids"] == []
 
 
 @pytest.mark.integration
 class TestCellModal:
     @pytest.mark.asyncio
     async def test_history_off_one_current_row_per_config(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+        s = await _seed(async_test_db)
         url = f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
         with _as_user(s["owner"]):
             off = await async_test_client.get(url + "&include_history=false")
@@ -274,12 +286,12 @@ class TestCellModal:
 
     @pytest.mark.asyncio
     async def test_method_group_hides_research_rows(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=True)
+        s = await _seed(async_test_db)
         url = (
             f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
             "&include_history=false&method_group=notenpunkte"
         )
-        with _as_user(s["owner"]):
+        with _grouped(), _as_user(s["owner"]):
             hidden = await async_test_client.get(url + "&include_research=false")
             shown = await async_test_client.get(url)
         assert [r["id"] for r in hidden.json()["results"]] == [s["a_ref2"].id]
@@ -293,8 +305,8 @@ class TestResultsBySubmission:
     async def test_csv_one_row_per_submission_one_column_per_method(
         self, async_test_client, async_test_db
     ):
-        s = await _seed(async_test_db, grouped=True)
-        with _as_user(s["owner"]):
+        s = await _seed(async_test_db)
+        with _grouped(), _as_user(s["owner"]):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{s['project'].id}/results/by-submission"
             )
@@ -319,8 +331,8 @@ class TestResultsBySubmission:
 
     @pytest.mark.asyncio
     async def test_research_columns_and_grade_points(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=True)
-        with _as_user(s["owner"]):
+        s = await _seed(async_test_db)
+        with _grouped(), _as_user(s["owner"]):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{s['project'].id}/results/by-submission?include_research=true"
             )
@@ -333,14 +345,70 @@ class TestResultsBySubmission:
         assert by_submitter[s["student"].id][6:8] == ["0.82", "14"]
         assert by_submitter[s["other"].id][6:8] == ["0.5", "9"]
 
+
+CFG_PER_REF = "llm_judge_custom-per-ref"
+
+
+async def _seed_per_reference(db):
+    """A judge whose prompt names only ``{ground_truth}`` grades the answer
+    once against each of its two reference fields: one batch run writes two
+    different gradings (0.9 and 0.4) at the same moment."""
+    owner = await _make_owner(db)
+    org = await _make_org(db)
+    project, tasks = await _setup_project(db, owner, org, num_tasks=1)
+    project.evaluation_config = {
+        "evaluation_configs": [
+            {
+                "id": CFG_PER_REF, "metric": "llm_judge_custom", "display_name": "Judge",
+                "prediction_fields": ["human:loesung"],
+                "reference_fields": ["task.musterloesung", "task.bewertungsbogen"],
+                "metric_parameters": {"custom_prompt_template": "{ground_truth} {prediction}"},
+                "enabled": True,
+            }
+        ]
+    }
+    task = tasks[0]
+    student = await _make_owner(db, name="Student One", is_superadmin=False)
+    ann = await _make_annotation(db, task, project, student.id)
+    batch = await _make_eval_run(db, project, model_id="annotator:Student One")
+    graded_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    rows = {}
+    for ref, score in (("task.musterloesung", 0.9), ("task.bewertungsbogen", 0.4)):
+        rows[ref] = await _make_task_evaluation(
+            db, batch, task, annotation=ann,
+            field_name=f"{CFG_PER_REF}|human:loesung|{ref}", evaluation_config_id=CFG_PER_REF,
+            metrics={"llm_judge_custom": score}, created_at=graded_at,
+        )
+    await db.commit()
+    return {"owner": owner, "project": project, "task": task, "student": student, "rows": rows}
+
+
+@pytest.mark.integration
+class TestConfigGradedPerReference:
     @pytest.mark.asyncio
-    async def test_json(self, async_test_client, async_test_db):
-        s = await _seed(async_test_db, grouped=False)
+    async def test_modal_shows_both_gradings_as_current(self, async_test_client, async_test_db):
+        s = await _seed_per_reference(async_test_db)
+        url = f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
+        with _as_user(s["owner"]):
+            off = await async_test_client.get(url + "&include_history=false")
+            on = await async_test_client.get(url + "&include_history=true")
+        assert off.status_code == 200, off.text
+        expected = {row.id for row in s["rows"].values()}
+        assert {r["id"] for r in off.json()["results"]} == expected
+        assert {r["id"]: r["is_current"] for r in on.json()["results"]} == {
+            row_id: True for row_id in expected
+        }
+
+    @pytest.mark.asyncio
+    async def test_results_file_has_a_column_per_reference_field(
+        self, async_test_client, async_test_db
+    ):
+        s = await _seed_per_reference(async_test_db)
         with _as_user(s["owner"]):
             resp = await async_test_client.get(
-                f"{BASE}/projects/{s['project'].id}/results/by-submission?format=json"
+                f"{BASE}/projects/{s['project'].id}/results/by-submission"
             )
-        doc = resp.json()
-        assert doc["methods"] == ["Notenpunkte (A)", "Notenpunkte (B)", "Korrektur"]
-        mine = next(r for r in doc["submissions"] if r["submitter_id"] == s["student"].id)
-        assert [m["score"] for m in mine["methods"]] == [pytest.approx(0.95), pytest.approx(0.82), None]
+        assert resp.status_code == 200, resp.text
+        rows = list(csv.reader(io.StringIO(resp.text)))
+        assert rows[0][5:] == ["Judge (task.musterloesung)", "Judge (task.bewertungsbogen)"]
+        assert rows[1][5:] == ["0.9", "0.4"]

@@ -10,7 +10,9 @@ file for the people who grade: one row per submission (the latest answer of
 each account to each task), one column per evaluation method with its current
 score (shared/current_scores.py) and, where the method gives them, its grade
 points. A method that has not graded a submission yet (a human Korrektur that
-has not happened, a judge still running) leaves the cell empty. Research
+has not happened, a judge still running) leaves the cell empty. A config that
+grades once per reference field (shared/current_scores.py) has one current
+score per reference field, so it gets one column per reference field. Research
 configs are left out unless ``include_research`` is set, and then every config
 gets its own column. The comprehensive project export stays the full record
 of every run.
@@ -18,13 +20,13 @@ of every run.
 
 import csv
 import io
-import json
 from datetime import datetime, timezone
 
 from fastapi.responses import Response
 
 import current_scores
 from evaluation_methods import project_configs
+from metric_filters import graded_reference_fields
 from user_display import masked_name
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__, the shared surface)
@@ -78,8 +80,21 @@ async def get_project_evaluation_methods(
     return {"project_id": project_id, **selection.to_public(display_names)}
 
 
+def _reference_columns(configs) -> list:
+    """The reference fields a column of ``configs`` splits into: ``[""]``
+    (one column) unless one of them grades once per reference field."""
+    refs: list = []
+    for config in configs:
+        graded = graded_reference_fields(config)
+        if len(graded) > 1:
+            refs.extend(str(r) for r in graded if str(r) not in refs)
+    return refs or [""]
+
+
 def _method_columns(configs, selection, include_research: bool):
-    """``[(label, config ids, grouped)]`` in config order."""
+    """``[(label, config ids, grouped, reference field)]`` in config order;
+    the reference field is ``""`` for a column that is not split by it."""
+    by_id = {str(c["id"]): c for c in configs}
     columns = []
     seen_groups = set()
     group_of = selection.group_of
@@ -99,19 +114,23 @@ def _method_columns(configs, selection, include_research: bool):
             (_config_label(c) for c in configs if str(c["id"]) == official), group
         )
         columns.append((label, list(selection.groups[group]), True))
+    split = []
+    for label, ids, grouped in columns:
+        refs = _reference_columns([by_id[cid] for cid in ids])
+        for ref in refs:
+            split.append((f"{label} ({ref})" if ref else label, ids, grouped, ref))
     # Two methods with one label would share a column name.
     used: dict = {}
     out = []
-    for label, ids, grouped in columns:
+    for label, ids, grouped, ref in split:
         used[label] = used.get(label, 0) + 1
-        out.append((label if used[label] == 1 else f"{label} ({used[label]})", ids, grouped))
+        out.append((label if used[label] == 1 else f"{label} ({used[label]})", ids, grouped, ref))
     return out
 
 
 @router.get("/projects/{project_id}/results/by-submission")
 async def export_project_results_by_submission(
     project_id: str,
-    format: str = Query("csv", pattern="^(csv|json)$"),
     include_research: bool = Query(
         False,
         description="Also list the research configs, each in its own column.",
@@ -165,7 +184,7 @@ async def export_project_results_by_submission(
         db, project, {s.completed_by for s in submissions}
     )
     columns = _method_columns(configs, selection, include_research)
-    wanted_configs = {cid for _label, ids, _g in columns for cid in ids}
+    wanted_configs = {cid for _label, ids, _g, _ref in columns for cid in ids}
     submitter_of = {s.id: s.completed_by for s in submissions}
 
     rows = []
@@ -189,12 +208,15 @@ async def export_project_results_by_submission(
         ).all()
     current = list(current_scores.pick_current(rows, configs_lookup).values())
 
-    # Per (annotation, column): the newest current row with a score.
+    # Per (annotation, column): the newest current row with a score. A row of
+    # a config graded once per prediction field (reference part "") fills
+    # every reference column of its method.
     picked: dict = {}
     for row in current:
         config_id = current_scores.cell_config_id(row.evaluation_config_id, row.field_name)
-        for index, (_label, ids, grouped) in enumerate(columns):
-            if config_id not in ids:
+        row_ref = current_scores.cell_ref_field(row.field_name, configs_lookup.get(config_id))
+        for index, (_label, ids, grouped, ref) in enumerate(columns):
+            if config_id not in ids or row_ref not in ("", ref):
                 continue
             if grouped and not selection.is_official(config_id, submitter_of.get(row.annotation_id)):
                 continue
@@ -231,24 +253,16 @@ async def export_project_results_by_submission(
         key=lambda s: (task_order.get(s.task_id, len(task_order)), str(s.task_id), str(s.completed_by)),
     ):
         methods = []
-        for index, (label, _ids, _grouped) in enumerate(columns):
+        for index in range(len(columns)):
             row = picked.get((sub.id, index))
             if row is None:
-                methods.append({"method": label, "score": None, "grade_points": None, "evaluation_config_id": None, "graded_at": None})
+                methods.append({"score": None, "grade_points": None})
                 continue
             points = current_scores.extract_grade_points(full_metrics.get(row.id))
             if points is not None:
                 has_points[index] = True
             methods.append(
-                {
-                    "method": label,
-                    "score": _extract_primary_score(row.metrics),
-                    "grade_points": points,
-                    "evaluation_config_id": current_scores.cell_config_id(
-                        row.evaluation_config_id, row.field_name
-                    ),
-                    "graded_at": row.created_at.isoformat() if row.created_at else None,
-                }
+                {"score": _extract_primary_score(row.metrics), "grade_points": points}
             )
         records.append(
             {
@@ -263,22 +277,10 @@ async def export_project_results_by_submission(
         )
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-    if format == "json":
-        return Response(
-            content=json.dumps(
-                {"project_id": project_id, "methods": [c[0] for c in columns], "submissions": records},
-                ensure_ascii=False,
-            ),
-            media_type="application/json",
-            headers={
-                "Content-Disposition": f'attachment; filename="results_by_submission_{project_id}_{stamp}.json"'
-            },
-        )
-
     output = io.StringIO()
     writer = csv.writer(output)
     header = ["task_id", "task", "submitter_id", "submitter", "submitted_at"]
-    for index, (label, _ids, _grouped) in enumerate(columns):
+    for index, (label, _ids, _grouped, _ref) in enumerate(columns):
         header.append(_cell_text(label))
         if has_points[index]:
             header.append(_cell_text(f"{label} (grade points)"))

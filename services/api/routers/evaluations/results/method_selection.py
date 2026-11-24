@@ -1,6 +1,6 @@
 """Load a project's method selection (shared/evaluation_methods.py) in an
-async handler: the static config fields plus the extension hook's answer,
-which runs on the sync side of the request's session."""
+async handler: the extension hook's answer, which runs on the sync side of
+the request's session."""
 
 from typing import Iterable, Optional
 
