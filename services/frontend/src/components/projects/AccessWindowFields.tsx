@@ -1,0 +1,130 @@
+/**
+ * The fields of a project's timed access window: a switch that sets or
+ * clears the window, and the opening and closing time. Controlled; the
+ * creation wizard (StepSettings) and the project page's settings card
+ * (ProjectAccessWindowSection) render the same fields and each saves them
+ * its own way. The backend (shared/project_window.py) enforces the window.
+ */
+
+'use client'
+
+import { Input } from '@/components/shared/Input'
+import { Label } from '@/components/shared/Label'
+import { useI18n } from '@/contexts/I18nContext'
+import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
+
+export interface AccessWindowValue {
+  window_start_at: string | null
+  window_end_at: string | null
+}
+
+/** False when both bounds are set and the window closes before it opens. */
+export function isAccessWindowValid(value: AccessWindowValue): boolean {
+  if (!value.window_start_at || !value.window_end_at) return true
+  return new Date(value.window_end_at) > new Date(value.window_start_at)
+}
+
+/** The window the switch proposes: now (to the minute) for two hours. */
+function proposedWindow(): AccessWindowValue {
+  const start = new Date()
+  start.setSeconds(0, 0)
+  const end = new Date(start.getTime() + 2 * 3600 * 1000)
+  return {
+    window_start_at: start.toISOString(),
+    window_end_at: end.toISOString(),
+  }
+}
+
+interface AccessWindowFieldsProps {
+  value: AccessWindowValue
+  onChange: (value: AccessWindowValue) => void
+  disabled?: boolean
+  /** Show the title above the hint; off where a section header names it. */
+  showTitle?: boolean
+}
+
+export function AccessWindowFields({
+  value,
+  onChange,
+  disabled = false,
+  showTitle = true,
+}: AccessWindowFieldsProps) {
+  const { t } = useI18n()
+  const enabled = !!(value.window_start_at || value.window_end_at)
+
+  return (
+    <div className="space-y-3" data-testid="access-window-fields">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          {showTitle && (
+            <Label>{t('project.settings.accessWindow.title')}</Label>
+          )}
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {t('project.settings.accessWindow.hint')}
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          aria-label={t('project.settings.accessWindow.title')}
+          data-testid="access-window-toggle"
+          checked={enabled}
+          onChange={(e) => {
+            if (!e.target.checked) {
+              onChange({ window_start_at: null, window_end_at: null })
+            } else if (!enabled) {
+              onChange(proposedWindow())
+            }
+          }}
+          disabled={disabled}
+          className="h-4 w-4 shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+        />
+      </div>
+
+      {enabled && (
+        <div className="ml-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="access-window-opens" className="w-16 text-sm">
+              {t('project.settings.accessWindow.opens')}
+            </Label>
+            <Input
+              id="access-window-opens"
+              type="datetime-local"
+              value={isoToLocalInput(value.window_start_at)}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  window_start_at: localInputToIso(e.target.value),
+                })
+              }
+              disabled={disabled}
+              className="text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="access-window-closes" className="w-16 text-sm">
+              {t('project.settings.accessWindow.closes')}
+            </Label>
+            <Input
+              id="access-window-closes"
+              type="datetime-local"
+              value={isoToLocalInput(value.window_end_at)}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  window_end_at: localInputToIso(e.target.value),
+                })
+              }
+              disabled={disabled}
+              className="text-sm"
+            />
+          </div>
+          {!isAccessWindowValid(value) && (
+            <p className="text-xs text-red-500" role="alert">
+              {t('project.settings.accessWindow.invalid')}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -144,7 +144,6 @@ class TestComprehensiveRoundTrip:
             enable_empty_annotation=True,
             created_by=test_user.id,
             min_annotations_per_task=2,
-            is_published=True,
         )
         session.add(project)
 

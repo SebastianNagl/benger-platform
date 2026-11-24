@@ -60,7 +60,6 @@ const createMockProject = (overrides?: Partial<Project>): Project => ({
   min_annotations_to_start_training: 10,
   num_tasks: 10,
   num_annotations: 5,
-  is_published: false,
   is_archived: false,
   created_at: '2025-01-01T00:00:00Z',
   ...overrides,

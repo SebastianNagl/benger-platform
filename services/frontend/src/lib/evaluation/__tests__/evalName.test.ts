@@ -1,4 +1,6 @@
-import { computeDefaultEvalName } from '../evalName'
+import type { AvailableMetric } from '@/lib/api/evaluation-types'
+import { registerTranslations, translateKey } from '@/lib/i18n/catalog'
+import { computeDefaultEvalName, localizedEvalConfigName } from '../evalName'
 
 const FALL = { display_name: 'Falllösung LLM Judge' } as any
 
@@ -166,5 +168,141 @@ describe('computeDefaultEvalName', () => {
         'llm_judge_classic',
       ),
     ).toBe('llm_judge_classic (gpt-4o)')
+  })
+})
+
+describe('localizedEvalConfigName', () => {
+  // A metric as an overlay registers it: its own name key plus the key of
+  // the name its preset stores.
+  const definitions = {
+    human_grade: {
+      name: 'human_grade',
+      display_name: 'Human grade (registry)',
+      displayNameKey: 'zzEvalName.metric',
+      presetNameKeys: ['zzEvalName.preset'],
+      description: '',
+      category: 'Human Evaluation',
+      status: 'stable',
+      supports_parameters: false,
+    },
+    plain: {
+      name: 'plain',
+      display_name: 'Plain',
+      description: '',
+      category: 'Lexical',
+      status: 'stable',
+      supports_parameters: false,
+    },
+  } as Record<string, AvailableMetric>
+  const fr = (key: string) => translateKey('fr', key)
+  const de = (key: string) => translateKey('de', key)
+
+  beforeAll(() => {
+    registerTranslations('evalName-test', {
+      de: {
+        zzEvalName: {
+          metric: 'Menschliche Note',
+          preset: 'Korrektur (Raster /20)',
+        },
+      },
+      en: {
+        zzEvalName: { metric: 'Human grade', preset: 'Grading (grid /20)' },
+      },
+      fr: {
+        zzEvalName: {
+          metric: 'Note humaine',
+          preset: 'Correction (grille /20)',
+        },
+      },
+    })
+  })
+  afterAll(() => {
+    registerTranslations('evalName-test', { de: {}, en: {}, fr: {} })
+  })
+
+  it('renders a stored preset name in the reader language', () => {
+    expect(
+      localizedEvalConfigName(
+        'Korrektur (Raster /20)',
+        'human_grade',
+        fr,
+        definitions,
+      ),
+    ).toBe('Correction (grille /20)')
+    expect(
+      localizedEvalConfigName(
+        'Correction (grille /20)',
+        'human_grade',
+        de,
+        definitions,
+      ),
+    ).toBe('Korrektur (Raster /20)')
+  })
+
+  it("recognizes the metric's own name, also as the registry literal", () => {
+    expect(
+      localizedEvalConfigName('Human grade', 'human_grade', fr, definitions),
+    ).toBe('Note humaine')
+    expect(
+      localizedEvalConfigName(
+        'Human grade (registry)',
+        'human_grade',
+        fr,
+        definitions,
+      ),
+    ).toBe('Note humaine')
+  })
+
+  it('keeps a suffix such as the judge model', () => {
+    expect(
+      localizedEvalConfigName(
+        'Korrektur (Raster /20) (gpt-5-mini)',
+        'human_grade',
+        fr,
+        definitions,
+      ),
+    ).toBe('Correction (grille /20) (gpt-5-mini)')
+    expect(
+      localizedEvalConfigName(
+        'Menschliche Note (Lauf 2)',
+        'human_grade',
+        fr,
+        definitions,
+      ),
+    ).toBe('Note humaine (Lauf 2)')
+  })
+
+  it('leaves a typed name, an unknown metric and an empty name as stored', () => {
+    expect(
+      localizedEvalConfigName(
+        'Meine Korrektur',
+        'human_grade',
+        fr,
+        definitions,
+      ),
+    ).toBe('Meine Korrektur')
+    expect(
+      localizedEvalConfigName(
+        'Korrektur (Raster /20)',
+        'unknown',
+        fr,
+        definitions,
+      ),
+    ).toBe('Korrektur (Raster /20)')
+    expect(localizedEvalConfigName('Plain', 'plain', fr, definitions)).toBe(
+      'Plain',
+    )
+    expect(localizedEvalConfigName('', 'human_grade', fr, definitions)).toBe('')
+  })
+
+  it('does not take a name of another metric', () => {
+    expect(
+      localizedEvalConfigName(
+        'Korrektur (Raster /20)',
+        'plain',
+        fr,
+        definitions,
+      ),
+    ).toBe('Korrektur (Raster /20)')
   })
 })

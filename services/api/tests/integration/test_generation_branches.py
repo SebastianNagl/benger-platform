@@ -143,7 +143,6 @@ async def _seed_project(
         title="gen-branches-test",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=owner.id,
-        is_published=True,
         is_private=is_private,
     )
     db.add(project)

@@ -34,7 +34,7 @@ import { formatDateTime } from '@/lib/reports/format'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { canCreateProjects } from '@/utils/permissions'
-import { computeWindowState } from '@/utils/projectWindow'
+import { computeWindowState, windowStateLabel } from '@/utils/projectWindow'
 import { Menu } from '@headlessui/react'
 import {
   ArchiveBoxIcon,
@@ -1337,16 +1337,12 @@ export function ProjectListTable({
                                   : ws === 'closed'
                                     ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
                                     : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
-                              const label =
-                                ws === 'upcoming'
-                                  ? t('projects.list.windowUpcoming', {
-                                      date: new Date(
-                                        (project as any).window_start_at,
-                                      ).toLocaleDateString(intlTag(locale)),
-                                    })
-                                  : ws === 'closed'
-                                    ? t('projects.list.windowClosed')
-                                    : t('projects.list.windowOpen')
+                              const label = windowStateLabel(
+                                ws,
+                                (project as any).window_start_at,
+                                t,
+                                locale,
+                              )
                               return (
                                 <span
                                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${cls}`}

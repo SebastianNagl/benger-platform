@@ -130,7 +130,6 @@ class TestEvaluationConfigValidation:
                 "selected_methods": {},
                 "last_updated": None,
             },
-            is_published=False,
             is_archived=False,
             created_at=datetime.now(timezone.utc),
         )

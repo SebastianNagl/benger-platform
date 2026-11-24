@@ -382,6 +382,13 @@ export interface AvailableMetric {
   description: string
   /** Optional i18n key for the display name, tried before `display_name`. */
   displayNameKey?: string
+  /**
+   * i18n keys of the names that presets of this metric store as a config's
+   * `display_name` (besides the metric's own name). A stored name that is
+   * still one of them, in any UI language, renders in the reader's language
+   * (`localizedEvalConfigName`); a name someone typed stays as typed.
+   */
+  presetNameKeys?: string[]
   /** Optional i18n key for the description, tried before `description`. */
   descriptionKey?: string
   category: string

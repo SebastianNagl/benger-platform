@@ -13,10 +13,13 @@
  * wizards (defaults) and the backfill produce identical names.
  */
 
-import type {
-  AvailableMetric,
-  MetricParameters,
+import {
+  getMetricDefinitions,
+  type AvailableMetric,
+  type MetricParameters,
 } from '@/lib/api/evaluation-types'
+import { hasTranslation, translateKey } from '@/lib/i18n/catalog'
+import { LOCALES } from '@/lib/i18n/locales'
 
 type MetricDefLike = Pick<AvailableMetric, 'display_name'> | undefined | null
 type MetricParamsLike =
@@ -97,4 +100,67 @@ export function computeDefaultEvalName(
     return `${base} (${model})`
   }
   return base
+}
+
+type Translate = (key: string) => string
+
+/** `[text, key]` for every UI language's text of each name key of a metric:
+ * its `displayNameKey` (plus the registry literal `display_name`) and its
+ * `presetNameKeys`. */
+function knownNames(def: AvailableMetric): Array<[string, string]> {
+  const names: Array<[string, string]> = []
+  const keys = [def.displayNameKey, ...(def.presetNameKeys ?? [])]
+  for (const key of keys) {
+    if (!key) continue
+    for (const locale of LOCALES) {
+      if (hasTranslation(locale, key)) {
+        names.push([String(translateKey(locale, key)), key])
+      }
+    }
+  }
+  if (def.displayNameKey && def.display_name) {
+    names.push([def.display_name, def.displayNameKey])
+  }
+  return names
+}
+
+/**
+ * The name of an evaluation config in the reader's language.
+ *
+ * Configs store their name as text (`display_name`), written in whatever
+ * language the preset or the wizard used, so a French reader would see a
+ * German preset name. A stored name that is still a name the system gave
+ * the config (the metric's own name or one of its `presetNameKeys`, in any
+ * UI language, optionally followed by a ` (…)` suffix such as the judge
+ * model) renders in the reader's language with the suffix kept. Any other
+ * name was typed by someone and stays exactly as stored. Display only: the
+ * stored name stays what configs are matched by.
+ */
+export function localizedEvalConfigName(
+  name: string,
+  metric: string | null | undefined,
+  t: Translate,
+  definitions: Record<string, AvailableMetric> = getMetricDefinitions(),
+): string {
+  const def = metric ? definitions[metric] : undefined
+  const stored = name.trim()
+  if (!def || !stored) return name
+  const names = knownNames(def)
+  const render = (key: string) => {
+    const text = t(key)
+    return text === key ? null : text
+  }
+  for (const [text, key] of names) {
+    if (text === stored) return render(key) ?? name
+  }
+  const suffixed = /^(.*\S) (\([^()]*\))$/.exec(stored)
+  if (suffixed) {
+    for (const [text, key] of names) {
+      if (text === suffixed[1]) {
+        const head = render(key)
+        return head ? `${head} ${suffixed[2]}` : name
+      }
+    }
+  }
+  return name
 }

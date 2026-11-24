@@ -32,7 +32,10 @@ import {
   metricGroupLabel,
   resolveDefaultFieldSelection,
 } from '@/lib/api/evaluation-types'
-import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
+import {
+  computeDefaultEvalName,
+  localizedEvalConfigName,
+} from '@/lib/evaluation/evalName'
 import { useSlot } from '@/lib/extensions/slots'
 import { useFeatureFlagMap } from '@/lib/featureFlags'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
@@ -282,7 +285,9 @@ export function StepEvaluationMethods({
         <div className="flex flex-wrap gap-2">
           {evaluationConfigs.map((config) => (
             <Badge key={config.id} variant="default" className="text-xs">
-              {config.display_name || config.metric}
+              {config.display_name
+                ? localizedEvalConfigName(config.display_name, config.metric, t)
+                : config.metric}
             </Badge>
           ))}
         </div>
@@ -378,8 +383,13 @@ export function StepEvaluationMethods({
                         >
                           {metricConfigs.length > 1 && (
                             <p className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                              {config.display_name ||
-                                `${def.display_name} ${configIndex + 1}`}
+                              {config.display_name
+                                ? localizedEvalConfigName(
+                                    config.display_name,
+                                    config.metric,
+                                    t,
+                                  )
+                                : `${def.display_name} ${configIndex + 1}`}
                               {config.variant && (
                                 <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                                   {config.variant}

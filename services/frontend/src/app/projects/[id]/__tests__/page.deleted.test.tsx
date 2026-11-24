@@ -15,7 +15,7 @@ import { apiClient } from '@/lib/api/client'
 import { useUIStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   useParams,
   usePathname,
@@ -124,6 +124,11 @@ jest.mock('@/components/projects/ParticipantCard', () => ({
       {projectId}
     </div>
   ),
+}))
+// The permissions panel loads organizations; this page test only needs
+// to know where it sits.
+jest.mock('@/components/projects/ProjectPermissionsPanel', () => ({
+  ProjectPermissionsPanel: () => <div data-testid="permissions-panel-stub" />,
 }))
 jest.mock('@/components/reports/PublicationToggle', () => ({
   PublicationToggle: () => <div data-testid="publication-toggle" />,
@@ -269,6 +274,9 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
     expect(
       screen.queryByTestId('project-visibility-danger-zone'),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('project-access-window'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByTestId('publication-toggle')).not.toBeInTheDocument()
   })
 
@@ -290,5 +298,61 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
       screen.getByTestId('project-visibility-danger-zone'),
     ).toBeInTheDocument()
     expect(await screen.findByTestId('publication-toggle')).toBeInTheDocument()
+  })
+
+  it('the access window sits in the settings card right after the visibility', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] })
+    try {
+      setup({
+        deleted_at: null,
+        effective_role: 'ORG_ADMIN',
+        window_start_at: '2030-03-01T08:00:00.000Z',
+        window_end_at: '2030-03-01T10:00:00.000Z',
+      })
+      const params = Promise.resolve({ id: 'test-project-123' })
+      render(<ProjectDetailPage params={params} />)
+      await screen.findAllByText('Test Project')
+
+      // Not in the annotation card any more.
+      fireEvent.click(screen.getByText('project.annotationConfiguration.title'))
+      fireEvent.click(
+        screen.getByText('project.settings.annotationSettingsTitle'),
+      )
+      expect(
+        screen.getByText('project.settings.annotationBehavior.title'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('access-window-fields'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('project.settings.accessWindow.hint'),
+      ).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('project.settings.title'))
+      const visibility = screen.getByTestId('project-visibility-danger-zone')
+      const window = screen.getByTestId('project-access-window')
+      expect(visibility.nextElementSibling).toBe(window)
+      fireEvent.click(
+        screen.getByText('project.settings.visibilityDangerZone.title'),
+      )
+      expect(
+        screen.getByTestId('project-visibility-prepare-hint'),
+      ).toHaveTextContent('project.settings.visibilityDangerZone.prepareHint')
+
+      // Clearing the window saves the project on its own.
+      fireEvent.click(screen.getByText('project.settings.accessWindow.title'))
+      fireEvent.click(screen.getByTestId('access-window-toggle'))
+      await act(async () => {
+        jest.advanceTimersByTime(1000)
+      })
+      const { updateProject } = (useProjectStore as unknown as jest.Mock).mock
+        .results[0].value
+      expect(updateProject).toHaveBeenCalledWith('test-project-123', {
+        window_start_at: null,
+        window_end_at: null,
+      })
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })
