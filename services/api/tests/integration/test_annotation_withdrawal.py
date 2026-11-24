@@ -273,6 +273,26 @@ class TestAuthorWithdraws:
         # The author withdrew it: no notice to anybody.
         assert await _returned_notices(async_test_db, author_id) == []
 
+    async def test_empty_submission_leaves_the_counters_consistent(
+        self, async_test_client, async_test_db
+    ):
+        seed = await _seed(async_test_db)
+        annotation_id, task_id = seed["annotation_id"], seed["task_id"]
+        row = await _row(async_test_db, annotation_id)
+        row.result = []
+        await async_test_db.flush()
+        task = await _task(async_test_db, task_id)
+        task.total_annotations = 0
+        task.is_labeled = False
+        await async_test_db.commit()
+        await async_test_db.refresh(seed["author"])
+        with _as_user(seed["author"]):
+            resp = await _withdraw(async_test_client, annotation_id)
+        assert resp.status_code == 200, resp.text
+        task = await _task(async_test_db, task_id)
+        assert task.total_annotations == 0
+        assert task.cancelled_annotations == 0
+
     async def test_author_can_hand_in_again(self, async_test_client, async_test_db):
         from annotation_submission import persist_submission
 
@@ -391,6 +411,26 @@ class TestEditorReturns:
         assert data["reason"] == "Please hand in the full text"
         assert "Please hand in the full text" in notices[0].message
         assert await _returned_notices(async_test_db, editor_id) == []
+
+    async def test_a_failed_notice_does_not_fail_the_committed_return(
+        self, async_test_client, async_test_db
+    ):
+        seed = await _seed(async_test_db)
+        annotation_id, editor_id = seed["annotation_id"], seed["editor_id"]
+        with _as_user(seed["editor"]), patch(
+            "notification_service.NotificationService.create_notification",
+            side_effect=RuntimeError("enum value missing"),
+        ):
+            resp = await _withdraw(async_test_client, annotation_id)
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["id"] == annotation_id
+        assert body["was_cancelled"] is True
+        assert body["withdrawn_by"] == editor_id
+        row = await _row(async_test_db, annotation_id)
+        assert row.was_cancelled is True
+        assert row.withdrawn_by == editor_id
+        assert await _returned_notices(async_test_db, seed["author_id"]) == []
 
     async def test_closed_window_does_not_stop_the_editor(
         self, async_test_client, async_test_db

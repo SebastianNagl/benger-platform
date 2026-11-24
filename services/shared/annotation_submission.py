@@ -248,9 +248,10 @@ def withdraw_submission(db, annotation, *, actor_id: str, reason: str):
     and the partial unique index lets the author hand in again) and records
     ``withdrawn_at``, ``withdrawn_by`` (``actor_id``: the author, or the
     editor who returned it) and ``withdrawal_reason``. The task's
-    ``cancelled_annotations`` grows by one and ``is_labeled`` is cleared when
-    fewer active answers than the project's ``min_annotations_per_task``
-    remain. The caller checks permission, runs the overlay hooks in the same
+    ``cancelled_annotations`` grows by one when the row counted toward
+    ``total_annotations`` (a non-empty result, as in the create path), and
+    ``is_labeled`` is cleared when fewer active answers than the project's
+    ``min_annotations_per_task`` remain. The caller checks permission, runs the overlay hooks in the same
     transaction and commits.
 
     Locks the row first, so two concurrent withdrawals cannot both pass.
@@ -275,12 +276,13 @@ def withdraw_submission(db, annotation, *, actor_id: str, reason: str):
     locked.withdrawal_reason = reason
     locked.updated_at = now
 
-    db.execute(
-        update(Task)
-        .where(Task.id == locked.task_id)
-        .values(cancelled_annotations=Task.cancelled_annotations + 1)
-        .execution_options(synchronize_session="fetch")
-    )
+    if _has_result(locked.result):
+        db.execute(
+            update(Task)
+            .where(Task.id == locked.task_id)
+            .values(cancelled_annotations=Task.cancelled_annotations + 1)
+            .execution_options(synchronize_session="fetch")
+        )
     db.flush()
     remaining = (
         db.query(Annotation)

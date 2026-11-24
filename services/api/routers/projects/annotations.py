@@ -578,13 +578,14 @@ async def withdraw_annotation(
         await db.rollback()
         raise
     await db.refresh(db_annotation)
+    response = AnnotationResponse.model_validate(db_annotation)
+    project_id = db_annotation.project_id
 
     if not by_author:
         from notification_service import notify_submission_returned
 
         author_id = str(db_annotation.completed_by)
         task_id = db_annotation.task_id
-        project_id = db_annotation.project_id
         await db.run_sync(
             lambda session: notify_submission_returned(
                 session,
@@ -596,5 +597,5 @@ async def withdraw_annotation(
                 reason=reason,
             )
         )
-    _queue_report_refresh(db_annotation.project_id)
-    return db_annotation
+    _queue_report_refresh(project_id)
+    return response
