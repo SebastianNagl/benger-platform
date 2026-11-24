@@ -211,7 +211,10 @@ class TestExtensionLoader:
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).
         # 2.76 adds the optional hook key evaluation_method_selection.
-        assert CORE_API_VERSION == "2.76"
+        # 2.77 adds presetNameKeys / localizedEvalConfigName and stops
+        # mapping and serving projects.is_published (migration 153 gives it
+        # a server default; the drop follows in a later release).
+        assert CORE_API_VERSION == "2.77"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

@@ -3376,7 +3376,6 @@ def _create_imported_project(
         created_by=ctx.user_id,  # Current user is creator of imported project
         # organization_id removed - now handled via ProjectOrganization table
         min_annotations_per_task=project_data.get("min_annotations_per_task", 1),
-        is_published=project_data.get("is_published", False),
         # Issue #817: Add missing fields for full roundtrip capability.
         # BYOM: reconcile the selected model list against this instance's
         # catalog + the importer's custom-model access before persisting.

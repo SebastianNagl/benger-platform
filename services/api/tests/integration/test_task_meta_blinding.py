@@ -192,7 +192,6 @@ async def world(async_test_db):
         title=f"MBlind Project {_uid()[:6]}",
         label_config=BOUND_CONFIG,
         created_by=admin.id,
-        is_published=True,
         assignment_mode="open",
     )
     db.add(project)

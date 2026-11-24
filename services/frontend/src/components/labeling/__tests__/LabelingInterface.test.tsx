@@ -132,7 +132,6 @@ describe('LabelingInterface', () => {
     label_config: '<View><Text name="text" value="$text"/></View>',
     num_tasks: 10,
     num_annotations: 5,
-    is_published: true,
     is_archived: false,
     created_by: 'user-1',
     organization_id: 'org-1',

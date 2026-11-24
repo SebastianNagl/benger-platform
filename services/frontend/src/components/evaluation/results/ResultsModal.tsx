@@ -21,6 +21,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import { intlTag } from '@/lib/i18n/locales'
 
 import { ResultsTabs } from './ResultsTabs'
@@ -294,8 +295,9 @@ export function ResultDetailsModal({
                                 className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                               />
                               <span className="text-zinc-700 dark:text-zinc-300">
-                                {config.display_name ||
-                                  config.metric.replace(/_/g, ' ')}
+                                {config.display_name
+                                  ? localizedEvalConfigName(config, t)
+                                  : config.metric.replace(/_/g, ' ')}
                               </span>
                             </label>
                           ))}

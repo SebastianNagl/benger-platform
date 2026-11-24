@@ -1402,7 +1402,8 @@
       },
       "visibilityDangerZone": {
         "title": "Visibilité du projet",
-        "help": "Les modifications ici s'appliquent à toute la plateforme : elles déterminent qui peut voir ce projet et y travailler. « Public » le rend visible pour tous les utilisateurs authentifiés."
+        "help": "Les modifications ici s'appliquent à toute la plateforme : elles déterminent qui peut voir ce projet et y travailler. « Public » le rend visible pour tous les utilisateurs authentifiés.",
+        "prepareHint": "Pour préparer un projet sans que personne ne le voie, laissez-le en « Privé » jusqu'à ce qu'il soit prêt, puis rattachez-le seulement alors à l'organisation ou au groupe. S'il ne doit apparaître qu'à un moment précis, définissez en dessous une fenêtre d'accès : jusqu'à l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants."
       },
       "annotationBehavior": {
         "title": "Comportement de l'annotation",
@@ -1505,7 +1506,7 @@
       },
       "accessWindow": {
         "title": "Fenêtre d'accès",
-        "hint": "N'ouvre le projet au groupe d'accès que pendant une période définie. Avant l'ouverture, le projet est répertorié mais les données restent masquées ; après la fermeture, les données sont en lecture seule. Les propriétaires et administrateurs ne sont jamais restreints.",
+        "hint": "N'ouvre le projet au groupe d'accès que pendant une période définie. Avant l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants ; après la fermeture, les données sont en lecture seule. Les personnes qui peuvent modifier le projet ne sont jamais restreintes.",
         "opens": "Ouverture",
         "closes": "Fermeture",
         "invalid": "La date de fermeture doit être postérieure à la date d'ouverture."
