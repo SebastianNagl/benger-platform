@@ -123,6 +123,14 @@ export function StepPrompts({
         <p className="text-zinc-600 dark:text-zinc-400">
           {t('projects.creation.wizard.step6.subtitle')}
         </p>
+        {/* Generation prompts and judge prompts are easy to mix up: say
+            which one this step sets. */}
+        <p
+          className="mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200"
+          data-testid="wizard-prompts-generation-only"
+        >
+          {t('projects.creation.wizard.step6.generationOnly')}
+        </p>
       </div>
 
       {/* Template selector */}

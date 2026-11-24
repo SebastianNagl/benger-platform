@@ -1756,11 +1756,26 @@ API change).
     ``OPTIONAL_HOOK_KEYS`` (keys the platform calls but an overlay need not
     implement, currently ``evaluation_method_selection``). An overlay's
     handshake test must not require any of them.
+
+2.77 (2026-11-24): grading sheet import and Korrektur comment fields
+  (migration 153, additive).
+  - ``korrektur_comments.highlight_field`` (nullable): the label-config name
+    of the field a highlighted passage was marked in.
+    ``project_schemas.KorrekturCommentCreate`` / ``KorrekturCommentResponse``
+    carry it, the project export and both imports round-trip it.
+  - ``rubric_import.parse_rubric_file`` returns ``declared_total`` (the total
+    the file states, or ``None``) and warnings may carry the values they
+    name (``declared``, ``computed``, ``column``, ``read_column``, ``rows``,
+    ``sheets``, ``read_sheet``); new warning codes ``columns_ignored`` and
+    ``sheets_ignored``. A total row no longer ends the outline.
+  - ``rubric_structure.OWN_SCALE_METRICS``, ``grade_scale_applies`` and
+    ``rubric_mirror_text``: the task-data mirror of a sheet leaves the
+    Notenschlüssel out when every enabled method grades on its own scale.
 """
 
 import os
 
-CORE_API_VERSION = "2.76"
+CORE_API_VERSION = "2.77"
 
 
 def extended_required() -> bool:

@@ -29,6 +29,7 @@ import os
 import re
 import zipfile
 import xml.etree.ElementTree as ET
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -85,6 +86,8 @@ WARNING_CODES = (
     "grade_scale_total_mismatch",
     "rounding_assumed",
     "title_from_filename",
+    "columns_ignored",
+    "sheets_ignored",
 )
 
 ERROR_CODES = (
@@ -125,8 +128,15 @@ _BULLET_RE = re.compile(r"^[·•\-–—*]\s*(.*)$")
 
 _HEADER_CELL_RE = re.compile(r"^(max\.?\s*)?(BE|Punkte|Pkt\.?|P\.?)\s*:?$", re.I)
 _IGNORED_COLUMN_RE = re.compile(r"(Ihre\s+BE|Bewertung|erreicht|Korrektor)", re.I)
+#: A total or subtotal row: never a step and never the end of the outline.
+#: "Gesamt" only in its exact forms (``Gesamtwürdigung`` is content), the
+#: sum words with up to three trailing words ("Summe fiche", "Zwischensumme
+#: Teil A", "Total général", "Sous-total").
 _TOTAL_ROW_RE = re.compile(
-    r"^(Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?|Summe|Gesamtpunkte|Σ)\s*[:.]?\s*$",
+    r"^(?:Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?"
+    r"|(?:Zwischen|Teil)?summe(?:\s+\S+){0,3}"
+    r"|Σ(?:\s+\S+){0,3}"
+    r"|(?:Sous[-\s]?)?total(?:\s+\S+){0,3})\s*[:.]?\s*$",
     re.I,
 )
 _TRAILER_RE = re.compile(r"^(Korrektor(?:in)?|Prüfer(?:in)?|Ergibt|Gesamtnote|Note)\b", re.I)
@@ -142,6 +152,11 @@ _RANGE_RE = re.compile(
     r"^\s*(\d+(?:[.,]\d+)?)\s*(?:[-–—~]|bis)\s*(\d+(?:[.,]\d+)?)\s*(?:BE)?\s*$", re.I
 )
 _GRADE_RE = re.compile(r"^\s*(\d{1,2})\s*(?:NP|Punkte|Notenpunkte)?\s*$", re.I)
+#: A row of a grade key written as words ("sehr gut", "ausreichend").
+_GRADE_WORD_RE = re.compile(
+    r"^(sehr\s+gut|gut|vollbefriedigend|befriedigend|ausreichend|mangelhaft|ungenügend)\b",
+    re.I,
+)
 
 _ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
 
@@ -263,12 +278,24 @@ class _Node:
 
 
 class _Warnings(list):
-    def add(self, code: str, message: str, *, row: Optional[int] = None, node_id: Optional[str] = None):
+    def add(
+        self,
+        code: str,
+        message: str,
+        *,
+        row: Optional[int] = None,
+        node_id: Optional[str] = None,
+        **details: Any,
+    ):
+        """One warning. ``details`` are the values the message names
+        (``declared``, ``computed``, ``column``, ``sheets`` …), so a client
+        can phrase the warning in its own language."""
         entry: Dict[str, Any] = {"code": code, "message": message}
         if row is not None:
             entry["row"] = row
         if node_id is not None:
             entry["node_id"] = node_id
+        entry.update({k: v for k, v in details.items() if v is not None})
         self.append(entry)
 
 
@@ -372,40 +399,36 @@ def _shared_strings(zf: zipfile.ZipFile) -> List[str]:
     return out
 
 
-def _first_sheet_path(zf: zipfile.ZipFile) -> str:
+def _sheet_paths(zf: zipfile.ZipFile) -> List[Tuple[str, str]]:
+    """``[(sheet name, member path)]`` of every worksheet, in workbook order."""
     names = set(zf.namelist())
     workbook = ET.fromstring(_read_member(zf, "xl/workbook.xml"))
-    sheet = next((el for el in workbook.iter() if _local(el.tag) == "sheet"), None)
-    if sheet is None:
+    sheets = [el for el in workbook.iter() if _local(el.tag) == "sheet"]
+    if not sheets:
         raise RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
-    rid = _attr(sheet, "id")
-    target = None
-    if rid and "xl/_rels/workbook.xml.rels" in names:
-        rels = ET.fromstring(_read_member(zf, "xl/_rels/workbook.xml.rels"))
-        for rel in rels.iter():
-            if _local(rel.tag) == "Relationship" and rel.attrib.get("Id") == rid:
-                target = rel.attrib.get("Target")
-                break
-    if not target:
-        target = "worksheets/sheet1.xml"
-    path = target.lstrip("/") if target.startswith("/") else os.path.normpath(f"xl/{target}")
-    path = path.replace("\\", "/")
-    if path not in names:
+    rels: Dict[str, str] = {}
+    if "xl/_rels/workbook.xml.rels" in names:
+        root = ET.fromstring(_read_member(zf, "xl/_rels/workbook.xml.rels"))
+        for rel in root.iter():
+            if _local(rel.tag) == "Relationship" and rel.attrib.get("Id"):
+                rels[rel.attrib["Id"]] = rel.attrib.get("Target") or ""
+    out: List[Tuple[str, str]] = []
+    for index, sheet in enumerate(sheets, start=1):
+        rid = _attr(sheet, "id")
+        target = rels.get(rid or "") or f"worksheets/sheet{index}.xml"
+        path = target.lstrip("/") if target.startswith("/") else os.path.normpath(f"xl/{target}")
+        out.append((sheet.attrib.get("name") or f"#{index}", path.replace("\\", "/")))
+    if out[0][1] not in names:
         raise RubricImportError("corrupt_file", "Das Tabellenblatt fehlt in der Datei.")
-    return path
+    return [(name, path) for name, path in out if path in names]
 
 
-def _read_xlsx_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
-    """``[(row_no, {col_index: str|float})]`` of the first worksheet."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            shared = _shared_strings(zf)
-            sheet = ET.fromstring(_read_member(zf, _first_sheet_path(zf)))
-    except RubricImportError:
-        raise
-    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError) as exc:
-        raise RubricImportError("corrupt_file", "Die XLSX-Datei konnte nicht gelesen werden.") from exc
+def _first_sheet_path(zf: zipfile.ZipFile) -> str:
+    return _sheet_paths(zf)[0][1]
 
+
+def _sheet_grid(sheet: ET.Element, shared: List[str]) -> List[Tuple[int, Dict[int, Any]]]:
+    """``[(row_no, {col_index: str|float})]`` of one parsed worksheet."""
     grid: List[Tuple[int, Dict[int, Any]]] = []
     next_row = 1
     for row_el in sheet.iter():
@@ -458,6 +481,61 @@ def _read_xlsx_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
     return grid
 
 
+def _read_xlsx_sheets(data: bytes) -> List[Tuple[str, List[Tuple[int, Dict[int, Any]]]]]:
+    """``[(sheet name, grid)]`` of every worksheet, the first one first."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            shared = _shared_strings(zf)
+            paths = _sheet_paths(zf)
+            sheets = [(paths[0][0], _sheet_grid(ET.fromstring(_read_member(zf, paths[0][1])), shared))]
+            # Further worksheets are only looked at for the warning, so one
+            # that cannot be read never refuses the file.
+            for name, path in paths[1:]:
+                try:
+                    sheets.append((name, _sheet_grid(ET.fromstring(_read_member(zf, path)), shared)))
+                except (RubricImportError, ET.ParseError, ValueError, KeyError):
+                    continue
+            return sheets
+    except RubricImportError:
+        raise
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError) as exc:
+        raise RubricImportError("corrupt_file", "Die XLSX-Datei konnte nicht gelesen werden.") from exc
+
+
+def _read_xlsx_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
+    """The grid of the first worksheet (the one a sheet is read from)."""
+    return _read_xlsx_sheets(data)[0][1]
+
+
+def _has_scored_text(grid: List[Tuple[int, Dict[int, Any]]]) -> bool:
+    """Whether a grid holds a row with outline text and a points value."""
+    return any(
+        any(_is_outline_text(v) for v in cells.values())
+        and any(_is_points_value(v) for v in cells.values())
+        for _row_no, cells in grid
+    )
+
+
+def _warn_ignored_sheets(
+    sheets: List[Tuple[str, List[Tuple[int, Dict[int, Any]]]]], warnings: _Warnings
+) -> None:
+    """Warn about further worksheets with text and points: only the first
+    worksheet is read, and a sheet continued on a second one would
+    otherwise lose that part without a word."""
+    ignored = [name for name, grid in sheets[1:] if _has_scored_text(grid)]
+    if not ignored:
+        return
+    warnings.add(
+        "sheets_ignored",
+        "Die Arbeitsmappe hat weitere Tabellenblätter mit Text und Punkten ("
+        + ", ".join(f"„{name}“" for name in ignored)
+        + f"), die nicht gelesen wurden; gelesen wird nur das erste Blatt „{sheets[0][0]}“. "
+        "Bitte den ganzen Bogen auf das erste Blatt setzen.",
+        sheets=ignored,
+        read_sheet=sheets[0][0],
+    )
+
+
 def _detect_columns(grid: List[Tuple[int, Dict[int, Any]]]) -> Tuple[int, Optional[int]]:
     """``(text_col, points_col)`` for a grid (points_col None when no numeric column)."""
     text_counts: Dict[int, int] = {}
@@ -486,8 +564,84 @@ def _detect_columns(grid: List[Tuple[int, Dict[int, Any]]]) -> Tuple[int, Option
     return text_col, None
 
 
+def _col_letter(index: int) -> str:
+    """``0`` → ``A``, ``26`` → ``AA``."""
+    letters, n = "", index + 1
+    while n:
+        n, rem = divmod(n - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
+
+def _is_points_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return value > 0
+    return isinstance(value, str) and bool(_POINTS_RE.match(value))
+
+
+def _is_outline_text(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    text = value.strip()
+    return (
+        len(text) >= 2
+        and not _POINTS_RE.match(text)
+        and not _RANGE_RE.match(text)
+        and not _HEADER_CELL_RE.match(text)
+        and not _IGNORED_COLUMN_RE.search(text)
+    )
+
+
+#: Rows a second column block needs before it is reported (one stray note
+#: next to a number is not a block).
+MIN_IGNORED_BLOCK_ROWS = 2
+
+
+def _warn_ignored_columns(
+    grid: List[Tuple[int, Dict[int, Any]]],
+    text_col: int,
+    points_col: Optional[int],
+    warnings: _Warnings,
+    column_name=_col_letter,
+) -> None:
+    """Warn about column blocks next to the one that is read.
+
+    Only the text column and its points column are read. Another column with
+    text that has a points value to its right (a sheet laid out in two halves
+    side by side) is a second block of the outline that would otherwise be
+    dropped without a word. The grade key below the outline is not scanned.
+    """
+    counts: Dict[int, int] = {}
+    for _row_no, cells in grid:
+        if any(isinstance(v, str) and _SCALE_TRIGGER_RE.match(v.strip()) for v in cells.values()):
+            break
+        for col, value in cells.items():
+            if col in (text_col, points_col) or not _is_outline_text(value):
+                continue
+            if any(
+                other > col and other != points_col and _is_points_value(v)
+                for other, v in cells.items()
+            ):
+                counts[col] = counts.get(col, 0) + 1
+    for col in sorted(counts):
+        if counts[col] < MIN_IGNORED_BLOCK_ROWS:
+            continue
+        warnings.add(
+            "columns_ignored",
+            f"Spalte {column_name(col)} enthält {counts[col]} weitere Zeilen mit Text und Punkten, "
+            f"die nicht gelesen wurden; gelesen wird nur Spalte {column_name(text_col)}. "
+            "Bitte den ganzen Bogen untereinander in eine Spalte setzen.",
+            column=column_name(col),
+            read_column=column_name(text_col),
+            rows=counts[col],
+        )
+
+
 def _rows_from_xlsx(grid, warnings: _Warnings) -> Tuple[List[_RawRow], List[Tuple[int, Dict[int, Any]]]]:
     text_col, points_col = _detect_columns(grid)
+    _warn_ignored_columns(grid, text_col, points_col, warnings)
     rows: List[_RawRow] = []
     for row_no, cells in grid:
         text_value = cells.get(text_col)
@@ -867,9 +1021,13 @@ def _rows_from_docx(doc: _DocxDoc, warnings: _Warnings) -> Tuple[List[_RawRow], 
             "Im Dokument wurde keine Tabelle mit Gliederungspunkten und Punktwerten gefunden.",
         )
     table_rows: List[List[List[_Paragraph]]] = doc.blocks[main_index][1]
-    text_col, points_col = _detect_columns(_table_grid(table_rows))
+    table_grid = _table_grid(table_rows)
+    text_col, points_col = _detect_columns(table_grid)
     if points_col is None:
         points_col = text_col + 1
+    _warn_ignored_columns(
+        table_grid, text_col, points_col, warnings, column_name=lambda col: str(col + 1)
+    )
 
     rows: List[_RawRow] = []
     # Paragraphs before the table feed the title candidate.
@@ -1012,8 +1170,44 @@ def _subtree_points(nodes: List[_Node], index: int) -> float:
     return doubled / 2
 
 
+def _has_outline_label(text: str) -> bool:
+    """Whether ``text`` starts with an outline label (no side effects)."""
+    return any(
+        pattern.match(text)
+        for pattern in (
+            _FRAGE_RE,
+            _ROMAN_RE,
+            _CAPITAL_RE,
+            _DECIMAL_RE,
+            _DOUBLE_LOWER_RE,
+            _LOWER_RE,
+            _PAREN_DECIMAL_RE,
+            _PAREN_LOWER_RE,
+        )
+    )
+
+
+def _starts_grade_key(raw: _RawRow, text: str) -> bool:
+    """A row after a total row that opens a grade key without its heading:
+    a range in the points column ("0-12") or a grade word in the text."""
+    points = raw.points_text if raw.points_parsed else raw.points_raw
+    if isinstance(points, str) and _RANGE_RE.match(points):
+        return True
+    return bool(_GRADE_WORD_RE.match(text))
+
+
 def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node], Optional[float], Optional[str], Optional[str]]:
-    """``(nodes, declared_total, title_candidate, rounding)``."""
+    """``(nodes, declared_total, title_candidate, rounding)``.
+
+    A total row ("Gesamt", "Summe …", "Total", "Σ") is never a step and never
+    ends the outline: when scored rows follow it, it was a subtotal and they
+    are read on. Text rows without points right after a total row are held
+    back until a scored or labelled row shows the outline goes on (then they
+    are read in order), so a trailer below the final total never becomes a
+    hint. ``declared_total`` is the stated value of the last total row when
+    no step follows it. Only the Notenschlüssel heading, or a grade key right
+    after a total row, ends the outline.
+    """
     nodes: List[_Node] = []
     stack: List[_Node] = []
     last_node: Optional[_Node] = None
@@ -1022,8 +1216,12 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
     title_candidate: Optional[str] = None
     rounding: Optional[str] = None
     stopped = False
+    #: After a total row: rows waiting for the outline to go on.
+    held: Optional[List[_RawRow]] = None
+    queue = deque(rows)
 
-    for raw in rows:
+    while queue:
+        raw = queue.popleft()
         text = raw.text.strip()
         rounding_match = _ROUNDING_RE.search(text)
         if rounding_match:
@@ -1034,6 +1232,9 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             stopped = True
             continue
         if stopped:
+            continue
+        if held is not None and _starts_grade_key(raw, text):
+            stopped = True
             continue
         if not raw.points_parsed:
             raw.points, raw.points_text = _parse_points_cell(raw.points_raw, raw.row, warnings)
@@ -1051,7 +1252,16 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             continue
         if _TOTAL_ROW_RE.match(text):
             declared_total = raw.points
-            stopped = True
+            held = []
+            continue
+        if held is not None:
+            if raw.points is None and raw.auto_rank is None and not _has_outline_label(text):
+                held.append(raw)
+                continue
+            # The outline goes on: the total row was a subtotal.
+            declared_total = None
+            queue.extendleft(reversed(held + [raw]))
+            held = None
             continue
 
         rank: Optional[int] = None
@@ -1576,6 +1786,7 @@ def _result_from_structure(payload: Dict[str, Any], warnings: _Warnings) -> Dict
         "total_points": total,
         "grade_scale": grade_scale,
         "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
+        "declared_total": None,
         "warnings": list(warnings),
         "source_format": "json",
     }
@@ -1609,7 +1820,9 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
             return _result_from_structure(payload, warnings)
 
     if ext == ".xlsx":
-        rows, scale_grid = _rows_from_xlsx(_read_xlsx_grid(data), warnings)
+        sheets = _read_xlsx_sheets(data)
+        rows, scale_grid = _rows_from_xlsx(sheets[0][1], warnings)
+        _warn_ignored_sheets(sheets, warnings)
         source_format = "xlsx"
     elif ext == ".docx":
         rows, scale_grid = _rows_from_docx(_read_docx(data), warnings)
@@ -1652,6 +1865,8 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         warnings.add(
             "total_mismatch",
             f"Gesamtsumme laut Bogen {format_points(declared_total)} BE, Summe der Schritte {format_points(total)} BE.",
+            declared=declared_total,
+            computed=total,
         )
 
     grade_scale = _detect_grade_scale(scale_grid, rounding, float(total), warnings)
@@ -1683,6 +1898,9 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         # percent key survives a later change of the sheet's point total).
         # ``None`` when the file carried no readable key.
         "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
+        # The total the file itself states (its final total row), or None.
+        # A client checks the sheet against this, not against a fixed target.
+        "declared_total": declared_total,
         "warnings": list(warnings),
         "source_format": source_format,
     }
@@ -1726,12 +1944,19 @@ def rubric_document_text(filename: str, data: bytes) -> str:
         raise RubricImportError("corrupt_file", "Die Datei ist leer.")
 
     if ext == ".xlsx":
-        lines = [
-            " | ".join(
-                text for text in (_cell_text(cells[c]) for c in sorted(cells)) if text
+        # Every worksheet, each under its name when there are several: a
+        # sheet continued on a second worksheet reaches the model whole.
+        sheets = _read_xlsx_sheets(data)
+        lines = []
+        for name, grid in sheets:
+            if len(sheets) > 1:
+                lines.append(f"[{name}]")
+            lines.extend(
+                " | ".join(
+                    text for text in (_cell_text(cells[c]) for c in sorted(cells)) if text
+                )
+                for _row, cells in grid
             )
-            for _row, cells in _read_xlsx_grid(data)
-        ]
     elif ext == ".docx":
         lines = []
         for kind, block in _read_docx(data).blocks:

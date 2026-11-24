@@ -1283,6 +1283,10 @@ class KorrekturComment(Base):
     highlight_end = Column(Integer, nullable=True)
     highlight_text = Column(Text, nullable=True)
     highlight_label = Column(String, nullable=True)
+    # The label-config name of the field the passage was marked in
+    # (``loesung``); NULL on general comments and on comments written before
+    # the column existed (readers use the graded answer field then).
+    highlight_field = Column(String, nullable=True)
 
     # Resolution tracking
     is_resolved = Column(Boolean, default=False, nullable=False)

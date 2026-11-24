@@ -228,3 +228,50 @@ class TestEntryPoints:
         db = _AsyncSession([])
         assert await remirror_project_rubrics(db, "p1", {"grade_scale": EXAM_KEY}) == 0
         assert db.flushes == 0
+
+
+class TestMethodsWithTheirOwnScale:
+    """An exam graded only by methods with a scale of their own (a note sur
+    20 from a barème) gets the sheet without the Notenschlüssel."""
+
+    OWN_SCALE = {
+        "evaluation_configs": [
+            {"id": "j", "metric": "llm_judge_feedback", "enabled": True},
+            {"id": "k", "metric": "korrektur_feedback"},
+        ]
+    }
+
+    def test_the_mirror_carries_no_grade_key(self):
+        task = _task()
+        assert _remirror_rows([_row(task)], self.OWN_SCALE) == 1
+        mirror = task.data["bewertungsbogen"]
+        assert "NOTENSCHLÜSSEL" not in mirror
+        assert "Notenpunkte" not in mirror
+        assert "Rechtsweg" in mirror
+
+    def test_an_up_to_date_mirror_without_a_key_is_not_rewritten(self):
+        task = _task()
+        _remirror_rows([_row(task)], self.OWN_SCALE)
+        assert _remirror_rows([_row(task)], self.OWN_SCALE) == 0
+
+    def test_a_notenpunkte_method_next_to_them_keeps_the_key(self):
+        config = {
+            "evaluation_configs": [
+                *self.OWN_SCALE["evaluation_configs"],
+                {"id": "r", "metric": "llm_judge_rubric"},
+            ]
+        }
+        task = _task()
+        _remirror_rows([_row(task)], config)
+        assert task.data["bewertungsbogen"].endswith(_key_block(None))
+
+    def test_a_disabled_notenpunkte_method_does_not_count(self):
+        config = {
+            "evaluation_configs": [
+                *self.OWN_SCALE["evaluation_configs"],
+                {"id": "r", "metric": "llm_judge_rubric", "enabled": False},
+            ]
+        }
+        task = _task()
+        _remirror_rows([_row(task)], config)
+        assert "NOTENSCHLÜSSEL" not in task.data["bewertungsbogen"]

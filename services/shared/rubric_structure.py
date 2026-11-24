@@ -1125,6 +1125,49 @@ def _loaded_project_config(task: Any) -> Any:
     return getattr(project, "evaluation_config", None)
 
 
+#: Evaluation methods that grade on a scale of their own (a note sur 20 from a
+#: barème), never on the Notenschlüssel. String keys only: which methods
+#: those are is the method's business, the platform only skips the key for
+#: an exam graded by nothing else (see ``grade_scale_applies``).
+OWN_SCALE_METRICS = frozenset({"llm_judge_feedback", "korrektur_feedback"})
+
+
+def grade_scale_applies(project_config: Any) -> bool:
+    """Whether the Notenschlüssel (Notenpunkte 0-18) grades this project.
+
+    False only when the project has enabled evaluation methods and every one
+    of them grades on its own scale (``OWN_SCALE_METRICS``): then no grade is
+    ever read off the key, and showing it next to a sheet would state a
+    German grade scale the exam does not use. A project without methods, or
+    with any other method, keeps the key. ``project_config`` is the raw
+    ``Project.evaluation_config`` document (or ``None``).
+    """
+    if not isinstance(project_config, dict):
+        return True
+    configs = project_config.get("evaluation_configs")
+    if not isinstance(configs, list):
+        return True
+    enabled = [
+        c
+        for c in configs
+        if isinstance(c, dict) and c.get("enabled") is not False and c.get("metric")
+    ]
+    if not enabled:
+        return True
+    return not all(c.get("metric") in OWN_SCALE_METRICS for c in enabled)
+
+
+def rubric_mirror_text(rubric: Any, project_config: Any) -> str:
+    """The ``task.data["bewertungsbogen"]`` text of a sheet: its rendering,
+    ending in the key that grades the exam where one does
+    (``grade_scale_applies``)."""
+    return rubric_prompt_text(
+        rubric,
+        include_grade_scale=grade_scale_applies(project_config),
+        project_config=project_config,
+    )
+
+
 def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = None) -> None:
     """Mirror the ACTIVE rubric into ``task.data["bewertungsbogen"]``.
 
@@ -1135,9 +1178,10 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = N
     of the active rubric's rendering with the Notenschlüssel that grades it:
     the exam's key (``project_config``, the project's ``evaluation_config``;
     when omitted, taken from ``task.project`` if that is loaded), else the
-    rubric's own, else the standard key. Pass ``rubric=None`` when no active
-    rubric remains to remove the key. Callers must be in a session that will
-    be committed.
+    rubric's own, else the standard key. A project whose methods all grade
+    on their own scale gets the sheet without a key (``grade_scale_applies``).
+    Pass ``rubric=None`` when no active rubric remains to remove the key.
+    Callers must be in a session that will be committed.
     """
     from sqlalchemy.orm.attributes import flag_modified
 
@@ -1149,9 +1193,7 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = N
     else:
         if project_config is None:
             project_config = _loaded_project_config(task)
-        data["bewertungsbogen"] = rubric_prompt_text(
-            rubric, include_grade_scale=True, project_config=project_config
-        )
+        data["bewertungsbogen"] = rubric_mirror_text(rubric, project_config)
     task.data = data
     flag_modified(task, "data")
 

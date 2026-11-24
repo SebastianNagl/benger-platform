@@ -28,6 +28,7 @@ from rubric_structure import (  # noqa: E402
     format_points,
     grade_for_rubric,
     grade_from_points,
+    grade_scale_applies,
     grade_scale_from_preset,
     iter_steps,
     mirror_rubric_into_task_data,
@@ -766,3 +767,30 @@ class TestWithoutGuidance:
 
         assert structure_without_guidance(value) == value
         assert criteria_without_guidance(value) == value
+
+
+class TestGradeScaleApplies:
+    @pytest.mark.parametrize(
+        "config",
+        [
+            None,
+            {},
+            {"evaluation_configs": []},
+            {"evaluation_configs": "not a list"},
+            {"evaluation_configs": [{"metric": "llm_judge_rubric"}]},
+            {"evaluation_configs": [{"metric": "llm_judge_feedback"}, {"metric": "bleu"}]},
+            {"evaluation_configs": [{"metric": "llm_judge_feedback", "enabled": False}]},
+        ],
+    )
+    def test_the_key_applies(self, config):
+        assert grade_scale_applies(config) is True
+
+    def test_only_methods_with_their_own_scale(self):
+        config = {
+            "evaluation_configs": [
+                {"metric": "llm_judge_feedback", "enabled": True},
+                {"metric": "korrektur_feedback"},
+                {"metric": "llm_judge_rubric", "enabled": False},
+            ]
+        }
+        assert grade_scale_applies(config) is False
