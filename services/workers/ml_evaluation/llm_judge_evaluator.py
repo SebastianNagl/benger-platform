@@ -17,7 +17,7 @@ import logging
 import random
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
 from .evidence_check import EvidenceIndex, verify_evidence
@@ -298,6 +298,41 @@ RUBRIC_JUDGE_CLOSING_RULES = """VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelt
 - Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln und aus dem Teil der Bearbeitung stammen, der die Aufgabe dieses Schritts bearbeitet. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder mit nur gleichem Stichwort bringt keine Punkte. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt.
 - Eine abweichende Ansicht ("a.A. vertretbar") bringt nur Punkte, wenn die Bearbeitung sie selbst vertritt und begründet.
 - Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung."""
+
+# A sheet that grades by argument (``structure.placement`` "anywhere",
+# ``rubric_structure.PLACEMENT_ANYWHERE``): a step's point counts wherever
+# the answer makes it, not only in the part that treats the step's question.
+# Everything else of the two texts above stays as it is.
+_RULE4_IN_PLACE = (
+    'Stelle zuerst fest, zu welcher Aufgabe und zu welchem Gliederungspunkt der Schritt laut Bewertungsbogen gehört, und suche das Zitat nur in dem Teil der Bearbeitung, der diese Aufgabe behandelt. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder nur zum allgemeinen Thema genügt nicht. Ein gleiches Stichwort, eine gleiche Norm oder ein ähnliches Ergebnis in anderem Zusammenhang genügt ebenfalls nicht. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt.'
+)
+_RULE4_ANYWHERE = (
+    "Dieser Bewertungsbogen bewertet nach Argumenten: Wo die Stelle in der Bearbeitung steht, ist gleich. "
+    "Suche das Zitat in der ganzen Bearbeitung; behandelt eine Stelle unter irgendeiner Überschrift oder in "
+    "einem anderen Teil der Bearbeitung genau den Punkt dieses Schritts, zählt sie für diesen Schritt. Ein Zitat "
+    "nur zum allgemeinen Thema genügt nicht. Ein gleiches Stichwort, eine gleiche Norm oder ein ähnliches "
+    "Ergebnis in anderem Zusammenhang genügt ebenfalls nicht."
+)
+_CLOSING_PLACEMENT_IN_PLACE = (
+    '- Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln und aus dem Teil der Bearbeitung stammen, der die Aufgabe dieses Schritts bearbeitet. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder mit nur gleichem Stichwort bringt keine Punkte. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt.'
+)
+_CLOSING_PLACEMENT_ANYWHERE = (
+    "- Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln. Wo es in der Bearbeitung steht, ist "
+    "gleich: Dieser Bewertungsbogen bewertet nach Argumenten, und ein Schritt bringt seine Punkte, wenn die "
+    "Bearbeitung seinen Punkt an irgendeiner Stelle ausführt. Ein Zitat zu einem anderen Prüfungspunkt oder mit "
+    "nur gleichem Stichwort bringt keine Punkte."
+)
+
+
+def rubric_judge_prompts(placement: Optional[str] = None) -> Tuple[str, str]:
+    """``(system_prompt, closing_rules)`` of the per-step rubric lane for a
+    sheet's ``structure.placement`` (None: the default texts above)."""
+    if placement != "anywhere":
+        return RUBRIC_JUDGE_SYSTEM_PROMPT, RUBRIC_JUDGE_CLOSING_RULES
+    return (
+        RUBRIC_JUDGE_SYSTEM_PROMPT.replace(_RULE4_IN_PLACE, _RULE4_ANYWHERE),
+        RUBRIC_JUDGE_CLOSING_RULES.replace(_CLOSING_PLACEMENT_IN_PLACE, _CLOSING_PLACEMENT_ANYWHERE),
+    )
 
 
 # Reasoning effort for the rubric judge when its config sets none. The
@@ -755,6 +790,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # Margin notes (Randbemerkungen) of the rubric judge: set by
         # bind_task_rubric(), never in the checklist lane.
         self.margin_notes = False
+        # The bound sheet's structure.placement (bind_task_rubric).
+        self.rubric_placement: Optional[str] = None
         # Checklist scoring (research lane): set by configure_checklist().
         self.checklist: Optional[Dict[str, Any]] = None
 
@@ -817,6 +854,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         from rubric_structure import (
             checklist_spec_from_structure,
             order_criteria_keys,
+            sheet_placement,
             stored_checklist_spec,
         )
 
@@ -827,6 +865,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.rubric_mode = True
         self.margin_notes = margin_notes
         self.checklist = None
+        self.rubric_placement = sheet_placement(getattr(rubric, "structure", None))
 
         unit = score_unit or RUBRIC_REQUIREMENT_UNIT
         if unit == "step":
@@ -932,8 +971,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "total_mode": total_mode,
             "grade_scale": key,
             "user_template": checklist_scoring.USER_TEMPLATE,
-            "system_prompt": checklist_scoring.system_prompt(score_unit, alternatives, weichenstellungen),
-            "closing_rules": checklist_scoring.closing_rules(score_unit, alternatives, weichenstellungen),
+            "system_prompt": checklist_scoring.system_prompt(
+                score_unit, alternatives, weichenstellungen, self.rubric_placement
+            ),
+            "closing_rules": checklist_scoring.closing_rules(
+                score_unit, alternatives, weichenstellungen, self.rubric_placement
+            ),
         }
 
     def get_supported_metrics(self) -> List[str]:
@@ -1774,8 +1817,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{opts['closing_rules']}"
                 system_prompt = opts["system_prompt"]
             else:
-                prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-                system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+                system_prompt, closing = rubric_judge_prompts(self.rubric_placement)
+                prompt = f"{prompt.rstrip()}\n\n{closing}"
             if notes is not None:
                 prompt = f"{prompt}\n\n{notes.rubric_rules()}"
             answer_parts = [prediction or ""] + [
