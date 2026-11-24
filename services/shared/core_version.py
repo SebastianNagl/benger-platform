@@ -1806,9 +1806,11 @@ API change).
     The immediate grading notice (``evaluation_received_immediate``) skips
     a run whose rows all wait for their release, so a held-back draft no
     longer announces "AI grading ready"; the batch notice
-    (``evaluation_received_batch``) now leaves out only such rows and
-    counts a released feedback row like any grading. Announcing a release
-    stays with the overlay that releases.
+    (``evaluation_received_batch``) counts a feedback row only when the
+    judge released it at write time (``details.review.released_by =
+    "judge"``, a field the overlay writes); a draft or a row a teacher
+    released tells nobody there. Announcing a teacher's release stays with
+    the overlay that releases.
   - Slot ``ProjectReleaseReviewPage`` (props ``{projectId}``) on
     ``/projects/[id]/release-review``: the page where a project's editors
     review held-back gradings and release them. Without the slot the route

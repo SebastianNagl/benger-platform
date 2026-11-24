@@ -73,11 +73,14 @@ def _grade(db, run, task_id, annotation_id=None, generation_id=None, metrics=Non
     return row
 
 
-def _feedback(released):
-    """A score-less feedback judge row (core 2.41), held back or released."""
+def _feedback(released, released_by=None):
+    """A score-less feedback judge row (core 2.41), held back or released
+    (``released_by`` is "judge" or "teacher", absent on legacy rows)."""
     details = {"feedback_only": True}
     if released:
         details["review"] = {"status": "released"}
+        if released_by:
+            details["review"]["released_by"] = released_by
     return {
         "llm_judge_feedback": {
             "value": 0.6 if released else None,
@@ -212,26 +215,63 @@ class TestBatchFeedbackDrafts:
         assert recorded == []
         assert not (_stored_metadata(db_conn, run.id) or {}).get("annotators_notified")
 
-    def test_a_released_feedback_row_notifies_like_any_grading(
+    def test_only_a_row_the_judge_released_notifies(
         self, db_conn, recorded, make_user, make_project, make_task,
         make_annotation, make_evaluation_run,
     ):
-        """Only the draft waits for its release: a row the run stored released
-        is visible to the student, so the batch notice goes out (opt-in)."""
+        """A row the judge released at write time is visible to the student,
+        so the batch notice goes out (opt-in). A draft, a row a teacher
+        released (the overlay's release announced it) and a legacy released
+        row without ``released_by`` tell nobody here."""
         starter = make_user("Teacher")
-        draft_owner = make_user("Draft")
-        released_owner = make_user("Released")
+        owners = {
+            "judge": (make_user("Judge"), _feedback(True, "judge")),
+            "teacher": (make_user("TeacherReleased"), _feedback(True, "teacher")),
+            "legacy": (make_user("Legacy"), _feedback(True)),
+            "draft": (make_user("Draft"), _feedback(False)),
+        }
         project = make_project(created_by=starter.id)
         task = make_task(project.id, {"text": "Cas"})
         run = make_evaluation_run(project.id, starter.id, status="completed")
-        draft_ann = make_annotation(project.id, task.id, draft_owner.id, result=[])
-        _grade(db_conn, run, task.id, annotation_id=draft_ann.id, metrics=_feedback(False))
-        released_ann = make_annotation(project.id, task.id, released_owner.id, result=[])
-        _grade(db_conn, run, task.id, annotation_id=released_ann.id, metrics=_feedback(True))
+        for owner, metrics in owners.values():
+            annotation = make_annotation(project.id, task.id, owner.id, result=[])
+            _grade(db_conn, run, task.id, annotation_id=annotation.id, metrics=metrics)
 
         tasks._notify_batch_grading_received(db_conn, run)
 
-        assert [call["user_ids"] for call in recorded] == [[released_owner.id]]
+        assert [call["user_ids"] for call in recorded] == [[owners["judge"][0].id]]
+
+    def test_a_run_resumed_after_a_teacher_release_notifies_nobody_again(
+        self, db_conn, recorded, make_user, make_project, make_task,
+        make_annotation, make_evaluation_run,
+    ):
+        """Pause, teacher release, resume: the paused run wrote drafts and was
+        never finalized, the teacher released some of them (announced by the
+        overlay), and the resumed run's finalize must not announce them a
+        second time."""
+        starter = make_user("Teacher")
+        released_student = make_user("Released")
+        draft_student = make_user("Draft")
+        project = make_project(created_by=starter.id)
+        task = make_task(project.id, {"text": "Cas"})
+        run = make_evaluation_run(project.id, starter.id, status="paused")
+        rows = {}
+        for student in (released_student, draft_student):
+            annotation = make_annotation(project.id, task.id, student.id, result=[])
+            rows[student.id] = _grade(
+                db_conn, run, task.id, annotation_id=annotation.id, metrics=_feedback(False)
+            )
+        assert not (_stored_metadata(db_conn, run.id) or {}).get("annotators_notified")
+
+        released = rows[released_student.id]
+        released.metrics = _feedback(True, "teacher")
+        run.status = "completed"
+        db_conn.commit()
+
+        tasks._notify_batch_grading_received(db_conn, run)
+
+        assert recorded == []
+        assert not (_stored_metadata(db_conn, run.id) or {}).get("annotators_notified")
 
 
 class TestImmediateTrigger:
@@ -299,7 +339,10 @@ class TestImmediateTrigger:
         task = make_task(project.id, {"text": "Cas"})
         annotation = make_annotation(project.id, task.id, student.id, result=[])
         run = make_evaluation_run(project.id, student.id, model_id="immediate", status="completed")
-        _grade(db_conn, run, task.id, annotation_id=annotation.id, metrics=_feedback(True))
+        _grade(
+            db_conn, run, task.id, annotation_id=annotation.id,
+            metrics=_feedback(True, "judge"),
+        )
 
         tasks._notify_immediate_grading_received(
             db_conn, run.id, project.id, task.id, annotation.id
