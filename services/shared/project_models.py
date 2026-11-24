@@ -2175,21 +2175,35 @@ class GradingFeedback(Base):
         )
 
 
-class SubmissionFile(Base):
-    """A file a person handed in as their answer to a task.
+#: What a ``submission_files`` row is (migration 156): ``submission`` is a
+#: file a person handed in as their answer, ``grading`` a file a grader
+#: returned with their grading of it (a corrected copy, ``task_evaluation_id``).
+SUBMISSION_FILE_PURPOSES = ("submission", "grading")
 
-    The person (``user_id``) or an admin on their behalf (``uploaded_by``)
-    uploads a text PDF, Word file, ``.txt`` or ``.md``; its extracted text
-    becomes the answer and the original stays in object storage under
-    ``storage_key`` so graders can open it. ``annotation_id`` points at the
-    submission the upload created or replaced (NULL for a student's own upload,
-    which only fills the editor and is submitted the normal way; those are
-    found by ``(task_id, user_id)``). ``replaced_result`` keeps the annotation
-    result an admin upload overwrote, for the audit trail.
+
+class SubmissionFile(Base):
+    """A file stored for a person's submission to a task.
+
+    ``purpose = "submission"`` (the default): the person (``user_id``) or an
+    admin on their behalf (``uploaded_by``) uploads a text PDF, Word file,
+    ``.txt`` or ``.md``; its extracted text becomes the answer and the
+    original stays in object storage under ``storage_key`` so graders can
+    open it. ``annotation_id`` points at the submission the upload created or
+    replaced (NULL for a student's own upload, which only fills the editor
+    and is submitted the normal way; those are found by ``(task_id,
+    user_id)``). ``replaced_result`` keeps the annotation result an admin
+    upload overwrote, for the audit trail.
+
+    ``purpose = "grading"``: a file a grader (``uploaded_by``) returned with
+    their grading of the submission of ``user_id``, such as the corrected
+    copy; ``task_evaluation_id`` is that grading's row. A reader of a
+    person's handed-in files filters on ``purpose = "submission"``.
 
     Platform owns the table (migration 113); who may upload for whom and the
     upload flow live in ``benger_extended.api.routers.submission_uploads``.
-    Not part of the project export/import round-trip yet.
+    Not part of the project export/import round-trip yet; a project purge,
+    a task delete and an account delete remove the stored objects
+    (``stored_files``).
     """
 
     __tablename__ = "submission_files"
@@ -2218,13 +2232,24 @@ class SubmissionFile(Base):
         String, ForeignKey("submission_ocr_jobs.id", ondelete="SET NULL"), nullable=True
     )
     page_index = Column(Integer, nullable=True)
+    purpose = Column(
+        String(16), nullable=False, default="submission", server_default="submission"
+    )
+    # The grading a ``purpose = "grading"`` file belongs to (migration 156).
+    task_evaluation_id = Column(
+        String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
+        sa.CheckConstraint(
+            "purpose IN ('submission', 'grading')", name="ck_submission_files_purpose"
+        ),
         sa.Index("ix_submission_files_task_user", "task_id", "user_id", "created_at"),
         sa.Index("ix_submission_files_project", "project_id"),
         sa.Index("ix_submission_files_ocr_job", "ocr_job_id"),
+        sa.Index("ix_submission_files_task_evaluation", "task_evaluation_id"),
     )
 
 
@@ -2425,6 +2450,67 @@ class PendingSubmissionUpload(Base):
         sa.Index("ix_pending_submission_uploads_email", "email"),
         sa.Index("ix_pending_submission_uploads_invitation", "invitation_id"),
         sa.Index("ix_pending_submission_uploads_project", "project_id"),
+    )
+
+
+#: ``upload_batches.status``: a batch is ``committed`` when its rows were
+#: written and ``undone`` once they were taken back.
+UPLOAD_BATCH_STATUSES = ("committed", "undone")
+
+
+class UploadBatch(Base):
+    """One committed bulk upload by staff: a file of many rows written at once.
+
+    A staff member uploads a table (or a set of files) that writes many rows
+    in one go, for example the points of many gradings. The batch records
+    what was uploaded, by whom, with which options and what came of every
+    row, so the upload can be reviewed, its report downloaded again and the
+    whole batch taken back.
+
+    - ``kind``: what the batch wrote, named by the package that writes it
+      (for example ``gradings``); the platform does not interpret it.
+    - ``task_id``: set when the batch was for one task (SET NULL with it, so
+      the record of a batch survives the task).
+    - ``source_filename`` / ``source_sha256`` / ``source_storage_key``: the
+      uploaded file, kept in object storage (durable ``uploads/`` prefix);
+      a project purge deletes it.
+    - ``options``: what the uploader chose (for example which rows to
+      replace); ``report``: one entry per row with its outcome, in the shape
+      the writing package defines; ``rows_total`` / ``rows_written``.
+    - ``status``: ``committed``, or ``undone`` with ``undone_at`` /
+      ``undone_by``.
+
+    Platform owns the table (migration 156); what a batch writes and how it
+    is taken back live in the package that defines its ``kind``.
+    """
+
+    __tablename__ = "upload_batches"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    kind = Column(String(32), nullable=False)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(16), nullable=False, default="committed", server_default="committed")
+
+    source_filename = Column(String, nullable=True)
+    source_sha256 = Column(String(64), nullable=True)
+    source_storage_key = Column(String, nullable=True)
+    options = Column(JSONB, nullable=False, default=dict, server_default=sa.text("'{}'::jsonb"))
+    report = Column(JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb"))
+    rows_total = Column(Integer, nullable=False, default=0, server_default="0")
+    rows_written = Column(Integer, nullable=False, default=0, server_default="0")
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    undone_at = Column(DateTime(timezone=True), nullable=True)
+    undone_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    __table_args__ = (
+        sa.CheckConstraint(
+            "status IN ('committed', 'undone')", name="ck_upload_batches_status"
+        ),
+        sa.Index("ix_upload_batches_project_created", "project_id", "created_at"),
+        sa.Index("ix_upload_batches_task", "task_id"),
     )
 
 
