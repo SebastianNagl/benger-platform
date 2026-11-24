@@ -416,6 +416,11 @@ keys; the NDJSON export carries the same data as one record per line.
 
 `evaluations` holds the project's evaluation runs, `task_assignments` the task
 assignments (see above), and `users` the pseudonymous user placeholders.
+`task_evaluations` keeps every grading run; each row's `is_current` is true
+for the current score of its cell (the newest row with a score for its
+submission and evaluation config, see `services/shared/current_scores.py`)
+and false for a superseded one. The import ignores `is_current` and works
+out the current scores from the rows themselves.
 
 `task_rubrics` holds the grading sheets (Bewertungsbogen) with their check
 (`review_state`, `reviewed_at`, `reviewed_by`), and `task_rubric_review_events`

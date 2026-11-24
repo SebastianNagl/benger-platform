@@ -37,6 +37,7 @@ from typing import Any, Callable, Iterable, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
+import current_scores
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
@@ -123,6 +124,44 @@ BATCH_SIZE = 50
 # measured at ~0.5 GB peak; eval-light projects still form full BATCH_SIZE
 # batches, preserving the batched-IN-query round-trip savings.
 MAX_BATCH_TASK_EVALS = 1000
+
+
+def current_task_evaluation_ids(db: Session, project, eval_run_ids) -> set:
+    """Ids of the task evaluations of ``eval_run_ids`` that are the current
+    score of their cell (shared/current_scores.py): one per (subject,
+    evaluation config, prediction field, reference field), the newest row
+    with a score. Read
+    from the narrow ``task_evaluation_metric_keys`` mirror, so the metrics
+    blobs are not read twice."""
+    from models import TaskEvaluationMetricKeys as MK
+
+    if not eval_run_ids:
+        return set()
+    rows = (
+        db.query(
+            MK.task_evaluation_id.label("id"),
+            MK.task_id,
+            MK.annotation_id,
+            MK.generation_id,
+            MK.field_name,
+            MK.evaluation_config_id,
+            MK.metrics_lite.label("metrics"),
+            MK.created_at,
+        )
+        .filter(MK.evaluation_id.in_(eval_run_ids))
+        .yield_per(5000)
+    )
+    return current_scores.current_row_ids(
+        rows, current_scores.configs_by_id(getattr(project, "evaluation_config", None))
+    )
+
+
+def _with_current_marker(row: dict, current_ids: set) -> dict:
+    """``row`` with ``is_current``: True for the current score of its cell,
+    False for a superseded (history) row. Additive: the importer ignores the
+    key and recomputes currency from the rows themselves."""
+    row["is_current"] = row.get("id") in current_ids
+    return row
 
 
 def variant_design_docs(db: Session, project_id: str, *, subset: bool = False) -> list:
@@ -1049,9 +1088,11 @@ def stream_comprehensive_project_data_json(
             .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
             .order_by(TaskEvaluation.id)
         )
+        current_ids = current_task_evaluation_ids(db, project, eval_run_ids)
         for te in _drain(te_q):
             yield ("" if first else ",") + json.dumps(
-                serialize_task_evaluation(te, mode="full"), ensure_ascii=False
+                _with_current_marker(serialize_task_evaluation(te, mode="full"), current_ids),
+                ensure_ascii=False,
             )
             first = False
             stats["total_task_evaluations"] += 1
@@ -1408,12 +1449,16 @@ def stream_export_ndjson(
 
     # --- task_evaluations (very heavy: thousands of rows) ---
     if eval_run_ids:
+        current_ids = current_task_evaluation_ids(db, project, eval_run_ids)
         for te in _drain(
             db.query(TaskEvaluation)
             .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
             .order_by(TaskEvaluation.id)
         ):
-            yield _emit("task_evaluation", serialize_task_evaluation(te, mode="full"))
+            yield _emit(
+                "task_evaluation",
+                _with_current_marker(serialize_task_evaluation(te, mode="full"), current_ids),
+            )
             stats["total_task_evaluations"] += 1
 
     # --- human_evaluation_configs (small) ---

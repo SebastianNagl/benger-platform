@@ -9,7 +9,10 @@ means a test that patches `_get_task_data_availability` on this module
 reaches both the handler's direct call and the helper's internal call.
 """
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+import current_scores
 from user_display import masked_name
+
+from .method_selection import load_method_selection
 
 from routers.projects.helpers import can_read_all_task_content_async
 
@@ -22,6 +25,97 @@ async def _require_content_access(db, user, project_id: str) -> None:
     ).scalar_one_or_none()
     if not await can_read_all_task_content_async(db, user, project):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
+async def _add_annotator_cells(
+    db,
+    rows,
+    *,
+    include_history: bool,
+    task_scores: dict,
+    model_scores: dict,
+    model_ids: list,
+    model_name_map: dict,
+    model_export_labels: dict,
+    selection=None,
+) -> None:
+    """Add the annotator columns (``annotator:<display>``) to a grid.
+
+    ``rows`` are evaluation rows of answers: without ``include_history`` the
+    current row of every cell (shared/current_scores.py), and the column
+    shows the newest of them that carries a score; with it every row, and
+    the column shows their mean. Each column contributes ONE score per task
+    to its average, however many rows the cell had. ``selection`` (a
+    ``MethodSelection``) drops the rows that are research data for the
+    account that submitted the answer.
+    """
+    from models import User as DBUser
+
+    annotation_ids = list({r.annotation_id for r in rows if r.annotation_id})
+    if not annotation_ids:
+        return
+    annotations_with_users = (
+        await db.execute(
+            select(
+                Annotation.id,
+                DBUser.username,
+                DBUser.name,
+                DBUser.pseudonym,
+                DBUser.use_pseudonym,
+                DBUser.id.label("user_id"),
+            )
+            .join(DBUser, Annotation.completed_by == DBUser.id)
+            .where(Annotation.id.in_(annotation_ids))
+        )
+    ).all()
+    # Mirror the leaderboard pseudonym resolution
+    # (benger_extended/api/routers/leaderboards_human.py) so users with
+    # use_pseudonym=true display under their pseudonym.
+    annotator_name_map = {
+        a.id: (a.pseudonym if (a.use_pseudonym and a.pseudonym) else (a.name or a.username))
+        for a in annotations_with_users
+    }
+    # What a DOWNLOAD of this grid may say about the same people. The labels
+    # above honour each person's own choice for the screen and can be a real
+    # name; a file never names anyone, so it gets the account id and the
+    # pseudonym instead.
+    annotator_export_map = {
+        a.id: (a.user_id, masked_name(user_id=a.user_id, pseudonym=a.pseudonym))
+        for a in annotations_with_users
+    }
+    user_of = {a.id: a.user_id for a in annotations_with_users}
+
+    cells: dict = {}  # {(task_id, synthetic_model_id): [(created_at, score), ...]}
+    for r in rows:
+        if selection is not None and not selection.is_official(
+            current_scores.cell_config_id(getattr(r, "evaluation_config_id", None), r.field_name),
+            user_of.get(r.annotation_id),
+        ):
+            continue
+        score = _extract_primary_score(r.metrics)
+        if score is None:
+            continue
+        display = annotator_name_map.get(r.annotation_id, "Unknown")
+        synthetic_model_id = f"annotator:{display}"
+        if synthetic_model_id not in model_scores:
+            model_scores[synthetic_model_id] = []
+            model_ids.append(synthetic_model_id)
+        model_name_map[synthetic_model_id] = f"Annotator: {display}"
+        export_user_id, export_label = annotator_export_map.get(r.annotation_id, (None, "Unknown"))
+        model_export_labels[synthetic_model_id] = {
+            "id": f"annotator:{export_user_id or 'unknown'}",
+            "name": f"Annotator: {export_label}",
+        }
+        cells.setdefault((r.task_id, synthetic_model_id), []).append((r.created_at, score))
+
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+    for (task_id, synthetic_model_id), entries in cells.items():
+        if include_history:
+            value = sum(s for _, s in entries) / len(entries)
+        else:
+            value = max(entries, key=lambda e: e[0] or epoch)[1]
+        task_scores.setdefault(task_id, {})[synthetic_model_id] = value
+        model_scores[synthetic_model_id].append(value)
 
 
 @router.get("/{evaluation_id}/results/by-task-model")
@@ -68,6 +162,12 @@ async def get_results_by_task_model(
                 detail="Access denied",
             )
         await _require_content_access(db, current_user, evaluation.project_id)
+        run_project = (
+            await db.execute(select(Project).where(Project.id == evaluation.project_id))
+        ).scalar_one_or_none()
+        run_configs_by_id = current_scores.configs_by_id(
+            getattr(run_project, "evaluation_config", None)
+        )
 
         # `include_history` controls cell aggregation:
         #   off  → cell shows the score of the LATEST generation per (task,
@@ -127,6 +227,10 @@ async def get_results_by_task_model(
                 select(latest_gen.c.gen_id).where(latest_gen.c.rn == 1).subquery()
             )
 
+            # The current row per cell (shared/current_scores.py): one per
+            # (generation, evaluation config, prediction field, reference
+            # field), the newest row with a score winning. Partitioning by
+            # the raw field_name kept one row per key format.
             ranked_results = (
                 select(
                     TaskEvaluation.task_id,
@@ -136,8 +240,17 @@ async def get_results_by_task_model(
                     GenerationModel.model_id,
                     func.row_number()
                     .over(
-                        partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
-                        order_by=TaskEvaluation.created_at.desc(),
+                        partition_by=current_scores.sql_cell_partition(
+                            TaskEvaluation.generation_id,
+                            TaskEvaluation.evaluation_config_id,
+                            TaskEvaluation.field_name,
+                            run_configs_by_id,
+                        ),
+                        order_by=current_scores.sql_current_rank_order(
+                            TaskEvaluation.metrics,
+                            TaskEvaluation.created_at,
+                            TaskEvaluation.id,
+                        ),
                     )
                     .label("rn"),
                 )
@@ -172,7 +285,6 @@ async def get_results_by_task_model(
         # yet, this leaves the cell empty (rendered as n/a) instead of
         # silently surfacing an evaluation of an older annotation —
         # which is what the user explicitly asked for.
-        from models import User as DBUser
 
         if aggregate_mean:
             annotation_eval_results = (
@@ -211,40 +323,28 @@ async def get_results_by_task_model(
             latest_ann_ids = (
                 select(latest_ann.c.ann_id).where(latest_ann.c.rn == 1).subquery()
             )
-            ranked_ann_evals = (
-                select(
-                    TaskEvaluation.task_id,
-                    TaskEvaluation.annotation_id,
-                    TaskEvaluation.field_name,
-                    TaskEvaluation.metrics,
-                    TaskEvaluation.created_at,
-                    func.row_number()
-                    .over(
-                        partition_by=[TaskEvaluation.annotation_id, TaskEvaluation.field_name],
-                        order_by=TaskEvaluation.created_at.desc(),
-                    )
-                    .label("rn"),
-                )
-                .where(
-                    TaskEvaluation.evaluation_id == evaluation_id,
-                    TaskEvaluation.generation_id == None,  # noqa: E711
-                    TaskEvaluation.annotation_id.isnot(None),
-                    TaskEvaluation.annotation_id.in_(select(latest_ann_ids.c.ann_id)),
-                )
-                .subquery()
-            )
-            annotation_eval_results = (
+            candidate_ann_evals = (
                 await db.execute(
                     select(
-                        ranked_ann_evals.c.task_id,
-                        ranked_ann_evals.c.annotation_id,
-                        ranked_ann_evals.c.field_name,
-                        ranked_ann_evals.c.metrics,
-                        ranked_ann_evals.c.created_at,
+                        TaskEvaluation.id,
+                        TaskEvaluation.task_id,
+                        TaskEvaluation.annotation_id,
+                        TaskEvaluation.field_name,
+                        TaskEvaluation.evaluation_config_id,
+                        TaskEvaluation.metrics,
+                        TaskEvaluation.created_at,
+                    ).where(
+                        TaskEvaluation.evaluation_id == evaluation_id,
+                        TaskEvaluation.generation_id == None,  # noqa: E711
+                        TaskEvaluation.annotation_id.isnot(None),
+                        TaskEvaluation.annotation_id.in_(select(latest_ann_ids.c.ann_id)),
                     )
-                    .where(ranked_ann_evals.c.rn == 1)
                 )
             ).all()
+            # The current row per cell (shared/current_scores.py).
+            annotation_eval_results = list(
+                current_scores.pick_current(candidate_ann_evals, run_configs_by_id).values()
+            )
 
         if not sample_results and not annotation_eval_results:
             return {
@@ -337,89 +437,16 @@ async def get_results_by_task_model(
 
         # Process annotation-based results as synthetic annotator "models"
         if annotation_eval_results:
-            annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
-            if annotation_ids:
-                annotations_with_users = (
-                    await db.execute(
-                        select(
-                            Annotation.id,
-                            DBUser.username,
-                            DBUser.name,
-                            DBUser.pseudonym,
-                            DBUser.use_pseudonym,
-                            DBUser.id.label("user_id"),
-                        )
-                        .join(DBUser, Annotation.completed_by == DBUser.id)
-                        .where(Annotation.id.in_(annotation_ids))
-                    )
-                ).all()
-                # Mirror the leaderboard's pseudonym resolution
-                # (benger_extended/api/routers/leaderboards_human.py:168) so
-                # annotators with use_pseudonym=true display under their
-                # pseudonym instead of their real name/username.
-                annotator_name_map = {
-                    a.id: (
-                        a.pseudonym
-                        if (a.use_pseudonym and a.pseudonym)
-                        else (a.name or a.username)
-                    )
-                    for a in annotations_with_users
-                }
-                # What a DOWNLOAD of this grid may say about the same people.
-                # The labels above honour each person's own choice for the
-                # screen and can be a real name; a file never names anyone,
-                # so it gets the account id and the pseudonym instead.
-                annotator_export_map = {
-                    a.id: (a.user_id, masked_name(user_id=a.user_id, pseudonym=a.pseudonym))
-                    for a in annotations_with_users
-                }
-
-                # When aggregate_mean is on, keep ALL rows so we can average
-                # across graders / re-grades for each (task, annotator, field)
-                # cell. Otherwise dedup to the latest row, preserving existing
-                # behavior for LLM evaluation runs.
-                if aggregate_mean:
-                    rows_for_aggregation = list(annotation_eval_results)
-                else:
-                    seen_task_annotations: dict = {}
-                    for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
-                        seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
-                    rows_for_aggregation = list(seen_task_annotations.values())
-
-                annotation_cell_scores: dict = {}  # {(task_id, synthetic_model_id): [score, ...]}
-
-                for r in rows_for_aggregation:
-                    display = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{display}"
-                    score = _extract_primary_score(r.metrics)
-                    if score is None:
-                        continue
-
-                    if synthetic_model_id not in model_scores_list:
-                        model_scores_list[synthetic_model_id] = []
-                        model_ids.append(synthetic_model_id)
-                    model_name_map[synthetic_model_id] = f"Annotator: {display}"
-                    export_user_id, export_label = annotator_export_map.get(
-                        r.annotation_id, (None, "Unknown")
-                    )
-                    model_export_labels[synthetic_model_id] = {
-                        "id": f"annotator:{export_user_id or 'unknown'}",
-                        "name": f"Annotator: {export_label}",
-                    }
-
-                    if aggregate_mean:
-                        annotation_cell_scores.setdefault(
-                            (r.task_id, synthetic_model_id), []
-                        ).append(score)
-                    else:
-                        task_model_scores.setdefault(r.task_id, {})[synthetic_model_id] = score
-                        model_scores_list[synthetic_model_id].append(score)
-
-                if aggregate_mean:
-                    for (task_id, synthetic_model_id), scores in annotation_cell_scores.items():
-                        mean = sum(scores) / len(scores)
-                        task_model_scores.setdefault(task_id, {})[synthetic_model_id] = mean
-                        model_scores_list[synthetic_model_id].append(mean)
+            await _add_annotator_cells(
+                db,
+                annotation_eval_results,
+                include_history=aggregate_mean,
+                task_scores=task_model_scores,
+                model_scores=model_scores_list,
+                model_ids=model_ids,
+                model_name_map=model_name_map,
+                model_export_labels=model_export_labels,
+            )
 
         # Build response
         tasks_response = []
@@ -634,6 +661,17 @@ async def get_project_results_by_task_model(
             "use latest-only."
         ),
     ),
+    method_group: Optional[str] = Query(
+        None,
+        description=(
+            "When set, show one evaluation method that the project grades with "
+            "several alternative configs (shared/evaluation_methods.py): rows of "
+            "the group's configs, each answer under the config that is official "
+            "for the account that submitted it, generations under the group's "
+            "default official config. The other configs' rows are research data "
+            "and are left out; scope to one of them with `evaluation_config_id`."
+        ),
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -778,6 +816,22 @@ async def get_project_results_by_task_model(
 
         # Predicates shared by both branches.
         scope_filters = [MK.evaluation_id.in_(run_ids_select)]
+        # One method graded by alternative configs: their rows, and below only
+        # the official config's per subject.
+        selection = None
+        gen_official_config_id = None
+        if method_group:
+            selection = await load_method_selection(db, project)
+            group_config_ids = selection.groups.get(method_group) or []
+            if not group_config_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Method group '{method_group}' not found",
+                )
+            gen_official_config_id = selection.official_config(method_group)
+            # The per-account answers are resolved for the accounts whose
+            # answers the scope holds (below, once they are known).
+            scope_filters.append(MK.evaluation_config_id.in_(group_config_ids))
         # When a single EvaluationRun bundles multiple metrics, every metric
         # produces its own row for the same (gen, model) cell. The aggregation
         # loop below assigns score by overwriting `task_model_scores[t][m]`
@@ -795,6 +849,8 @@ async def get_project_results_by_task_model(
         # replaces the old inner-join-drops-NULLs behavior now that ranking
         # happens before the Generation join.
         gen_filters = [*scope_filters, MK.generation_id.isnot(None)]
+        if gen_official_config_id:
+            gen_filters.append(MK.evaluation_config_id == gen_official_config_id)
 
         # The latest-gen scope is applied as a JOIN below, not as a
         # `generation_id IN (subquery)` filter: as an IN-subquery the planner
@@ -812,9 +868,17 @@ async def get_project_results_by_task_model(
                 latest_gen_ids_subq.c.gen_id == MK.generation_id,
             )
 
-        # Latest-wins rank per (generation_id, field_name). Filters MUST
-        # apply before the window: a row without the selected metric must not
-        # win its partition and then be discarded.
+        # The current row per cell (shared/current_scores.py): one per
+        # (generation, evaluation config, prediction field, reference field),
+        # the newest row with a score winning, so a failed re-run never blanks
+        # a score and the rows a judge reading its references itself wrote
+        # per reference field count once. Filters
+        # MUST apply before the window: a row without the selected metric
+        # must not win its partition and then be discarded.
+        project_configs_by_id = current_scores.configs_by_id(project.evaluation_config)
+        cell_partition = current_scores.sql_cell_partition(
+            MK.generation_id, MK.evaluation_config_id, MK.field_name, project_configs_by_id
+        )
         ranked = _scope_to_latest_gens(
             select(
                 MK.task_id,
@@ -823,8 +887,10 @@ async def get_project_results_by_task_model(
                 MK.created_at,
                 func.row_number()
                 .over(
-                    partition_by=[MK.generation_id, MK.field_name],
-                    order_by=MK.created_at.desc(),
+                    partition_by=cell_partition,
+                    order_by=current_scores.sql_current_rank_order(
+                        MK.metrics_lite, MK.created_at, MK.task_evaluation_id
+                    ),
                 )
                 .label("rn"),
             )
@@ -846,23 +912,20 @@ async def get_project_results_by_task_model(
         ).all()
 
         # Phase 6.3: count suppressed runs so consumers see the
-        # deduplication footprint. Per (generation_id, field_name) a single
-        # latest row is surfaced; older runs survive in the DB but get
-        # filtered out here. Without this audit trail a leaderboard score
-        # could swing on re-evaluation with no record of which historical
-        # run was hidden.
+        # deduplication footprint. Per cell a single current row is
+        # surfaced; older runs survive in the DB but get filtered out here.
+        # Without this audit trail a leaderboard score could swing on
+        # re-evaluation with no record of which historical run was hidden.
         #
         # Windowless equivalent of COUNT(*) WHERE rn > 1: total candidate
-        # rows minus the number of (generation_id, field_name) partitions.
+        # rows minus the number of cell partitions.
         suppressed_count = (
             (
                 await db.execute(
                     _scope_to_latest_gens(
                         select(
                             func.count()
-                            - func.count(
-                                distinct(tuple_(MK.generation_id, MK.field_name))
-                            )
+                            - func.count(distinct(tuple_(*cell_partition)))
                         ).where(*gen_filters)
                     )
                 )
@@ -870,18 +933,19 @@ async def get_project_results_by_task_model(
             or 0
         )
         deduplication_summary = {
-            "scope": "(generation_id, field_name)",
-            "policy": "latest_wins_by_created_at_desc",
+            "scope": "(generation_id, evaluation_config_id, prediction_field, reference_field)",
+            "policy": "newest_scored_row_wins",
             "suppressed_run_count": int(suppressed_count),
         }
 
         # Query 2: Get annotation-based evaluation results (generation_id IS NULL)
-        from models import User as DBUser
 
         ann_query = select(
+            MK.task_evaluation_id.label("id"),
             MK.task_id,
             MK.annotation_id,
             MK.field_name,
+            MK.evaluation_config_id,
             MK.metrics_lite.label("metrics"),
             MK.created_at,
         ).where(
@@ -901,6 +965,28 @@ async def get_project_results_by_task_model(
                 latest_ann_ids_subq.c.ann_id == MK.annotation_id,
             )
         annotation_eval_results = (await db.execute(ann_query)).all()
+        if not include_history:
+            # The current row per cell (shared/current_scores.py); the
+            # project's configs resolve the on-submit rows labelled with a
+            # model-side selector to the answer field they graded.
+            annotation_eval_results = list(
+                current_scores.pick_current(
+                    annotation_eval_results, project_configs_by_id
+                ).values()
+            )
+        if selection is not None and annotation_eval_results:
+            submitter_ids = (
+                await db.execute(
+                    select(Annotation.completed_by)
+                    .where(
+                        Annotation.id.in_(
+                            list({r.annotation_id for r in annotation_eval_results})
+                        )
+                    )
+                    .distinct()
+                )
+            ).scalars().all()
+            selection = await load_method_selection(db, project, submitter_ids)
 
         if not sample_results and not annotation_eval_results:
             return {
@@ -970,87 +1056,17 @@ async def get_project_results_by_task_model(
 
         # Process annotation-based results: add as synthetic annotator "models"
         if annotation_eval_results:
-            annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
-            if annotation_ids:
-                annotations_with_users = (
-                    await db.execute(
-                        select(
-                            Annotation.id,
-                            DBUser.username,
-                            DBUser.name,
-                            DBUser.pseudonym,
-                            DBUser.use_pseudonym,
-                            DBUser.id.label("user_id"),
-                        )
-                        .join(DBUser, Annotation.completed_by == DBUser.id)
-                        .where(Annotation.id.in_(annotation_ids))
-                    )
-                ).all()
-                # Mirror the leaderboard pseudonym resolution so users with
-                # use_pseudonym=true display under their pseudonym.
-                annotator_name_map = {
-                    a.id: (
-                        a.pseudonym
-                        if (a.use_pseudonym and a.pseudonym)
-                        else (a.name or a.username)
-                    )
-                    for a in annotations_with_users
-                }
-                # What a DOWNLOAD of this grid may say about the same people.
-                # The labels above honour each person's own choice for the
-                # screen and can be a real name; a file never names anyone,
-                # so it gets the account id and the pseudonym instead.
-                annotator_export_map = {
-                    a.id: (a.user_id, masked_name(user_id=a.user_id, pseudonym=a.pseudonym))
-                    for a in annotations_with_users
-                }
-
-                # When `include_history` is on, keep ALL rows so we can mean
-                # across grader history per (task, annotator) cell. Otherwise
-                # dedup to the latest row, preserving existing LLM-eval
-                # behavior.
-                if include_history:
-                    rows_for_aggregation = list(annotation_eval_results)
-                else:
-                    seen_task_annotations: dict = {}
-                    for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
-                        seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
-                    rows_for_aggregation = list(seen_task_annotations.values())
-
-                annotation_cell_scores: dict = {}  # {(task_id, synthetic_model_id): [score, ...]}
-
-                for r in rows_for_aggregation:
-                    display = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{display}"
-                    score = _extract_primary_score(r.metrics)
-                    if score is None:
-                        continue
-
-                    if synthetic_model_id not in model_scores:
-                        model_scores[synthetic_model_id] = []
-                        model_ids.append(synthetic_model_id)
-                    model_name_map[synthetic_model_id] = f"Annotator: {display}"
-                    export_user_id, export_label = annotator_export_map.get(
-                        r.annotation_id, (None, "Unknown")
-                    )
-                    model_export_labels[synthetic_model_id] = {
-                        "id": f"annotator:{export_user_id or 'unknown'}",
-                        "name": f"Annotator: {export_label}",
-                    }
-
-                    if include_history:
-                        annotation_cell_scores.setdefault(
-                            (r.task_id, synthetic_model_id), []
-                        ).append(score)
-                    else:
-                        task_scores.setdefault(r.task_id, {})[synthetic_model_id] = score
-                        model_scores[synthetic_model_id].append(score)
-
-                if include_history:
-                    for (task_id_, synthetic_model_id), scores in annotation_cell_scores.items():
-                        mean = sum(scores) / len(scores)
-                        task_scores.setdefault(task_id_, {})[synthetic_model_id] = mean
-                        model_scores[synthetic_model_id].append(mean)
+            await _add_annotator_cells(
+                db,
+                annotation_eval_results,
+                include_history=include_history,
+                task_scores=task_scores,
+                model_scores=model_scores,
+                model_ids=model_ids,
+                model_name_map=model_name_map,
+                model_export_labels=model_export_labels,
+                selection=selection,
+            )
 
         # Get ALL project tasks (not just evaluated ones) so unevaluated tasks
         # show as n/a. Previews are computed in SQL — selecting Task.data here
@@ -1133,7 +1149,32 @@ async def get_project_results_by_task_model(
 async def get_sample_result_by_task_model(
     task_id: str = Query(..., description="Task ID"),
     model_id: str = Query(..., description="Model ID"),
-    include_history: bool = Query(True, description="Include all historical results. When false, deduplicate to latest per field_name."),
+    include_history: bool = Query(
+        True,
+        description=(
+            "Include all historical results. When false, only the current row "
+            "of each (subject, evaluation config, prediction field, reference "
+            "field) cell (shared/current_scores.py), and for an annotator only their "
+            "latest answer to the task."
+        ),
+    ),
+    evaluation_config_ids: Optional[str] = Query(
+        None,
+        description="Comma-separated evaluation config ids: only rows of these configs.",
+    ),
+    method_group: Optional[str] = Query(
+        None,
+        description=(
+            "Only rows of this method group's configs (shared/evaluation_methods.py)."
+        ),
+    ),
+    include_research: bool = Query(
+        True,
+        description=(
+            "When false, leave out rows that are research data for the subject "
+            "(a config the method selection does not make official for it)."
+        ),
+    ),
     generation_id: Optional[str] = Query(
         None,
         description=(
@@ -1286,16 +1327,91 @@ async def get_sample_result_by_task_model(
                 "message": "No evaluation results found for this task and model",
             }
 
-        # Deduplicate to latest per field_name when history is off
-        # Results are already ordered by created_at desc, so first per field wins
+        # Current row per cell (shared/current_scores.py), over every row of
+        # the cell before any filter, so `is_current` means the same in every
+        # view of it.
+        project = (
+            await db.execute(select(Project).where(Project.id == task.project_id))
+        ).scalar_one_or_none()
+        project_configs_by_id = current_scores.configs_by_id(
+            getattr(project, "evaluation_config", None)
+        )
+        current_ids = current_scores.current_row_ids(sample_results, project_configs_by_id)
+
+        submitter_of: dict = {}
+        annotation_ids = list({sr.annotation_id for sr in sample_results if sr.annotation_id})
+        if annotation_ids:
+            submitter_of = dict(
+                (
+                    await db.execute(
+                        select(Annotation.id, Annotation.completed_by).where(
+                            Annotation.id.in_(annotation_ids)
+                        )
+                    )
+                ).all()
+            )
+
+        def _config_of(sr) -> str:
+            return current_scores.cell_config_id(sr.evaluation_config_id, sr.field_name)
+
+        selection = None
+        if project is not None and (method_group or not include_research):
+            selection = await load_method_selection(
+                db, project, set(submitter_of.values())
+            )
+
+        wanted_configs = {
+            c.strip() for c in (evaluation_config_ids or "").split(",") if c.strip()
+        }
+        if method_group and selection is not None:
+            wanted_configs |= set(selection.groups.get(method_group) or [])
+        if wanted_configs or (method_group and selection is not None):
+            sample_results = [sr for sr in sample_results if _config_of(sr) in wanted_configs]
+
+        def _official(sr) -> bool:
+            if selection is None:
+                return True
+            return selection.is_official(_config_of(sr), submitter_of.get(sr.annotation_id))
+
+        if not include_research:
+            sample_results = [sr for sr in sample_results if _official(sr)]
+
         if not include_history:
-            seen_fields = set()
-            deduplicated = []
-            for sr in sample_results:
-                if sr.field_name not in seen_fields:
-                    seen_fields.add(sr.field_name)
-                    deduplicated.append(sr)
-            sample_results = deduplicated
+            sample_results = [sr for sr in sample_results if sr.id in current_ids]
+            if not model_id.startswith("annotator:") and not generation_id:
+                # The model's latest generation only, like the grid's cell.
+                latest_gen = (
+                    await db.execute(
+                        select(GenerationModel.id)
+                        .where(
+                            GenerationModel.task_id == task_id,
+                            GenerationModel.model_id == model_id,
+                            GenerationModel.status == "completed",
+                        )
+                        .order_by(GenerationModel.created_at.desc(), GenerationModel.id.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                sample_results = [
+                    sr for sr in sample_results if sr.generation_id == latest_gen
+                ]
+            if annotation_ids:
+                # The annotator's latest answer only, like the grid's cell.
+                latest = (
+                    await db.execute(
+                        select(Annotation.id)
+                        .where(
+                            Annotation.id.in_(annotation_ids),
+                            Annotation.was_cancelled == False,  # noqa: E712
+                        )
+                        .order_by(Annotation.created_at.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                sample_results = [
+                    sr for sr in sample_results
+                    if sr.annotation_id is None or sr.annotation_id == latest
+                ]
 
         # Build response with full evaluation details
         # Batch-load evaluation runs to avoid N+1 queries
@@ -1322,6 +1438,11 @@ async def get_sample_result_by_task_model(
             result_data = {
                 "id": sr.id,
                 "evaluation_id": sr.evaluation_id,
+                "evaluation_config_id": _config_of(sr) or None,
+                # The current row of its cell; the others are history.
+                "is_current": sr.id in current_ids,
+                # False when the row is research data for its subject.
+                "is_official": _official(sr),
                 "field_name": sr.field_name,
                 "answer_type": sr.answer_type,
                 "ground_truth": sr.ground_truth,

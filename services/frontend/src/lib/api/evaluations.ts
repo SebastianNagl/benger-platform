@@ -229,12 +229,26 @@ export class EvaluationsClient extends BaseApiClient {
     modelId: string,
     includeHistory: boolean = true,
     generationId?: string,
+    scope?: {
+      /** Only rows of these evaluation configs. */
+      evaluationConfigIds?: string[]
+      /** Only rows of this method group's configs. */
+      methodGroup?: string | null
+      /** False leaves out rows that are research data for their subject. */
+      includeResearch?: boolean
+    },
   ): Promise<{
     task_id: string
     model_id: string
     results: Array<{
       id: string
       evaluation_id: string
+      /** The row's evaluation config (null for legacy rows without one). */
+      evaluation_config_id?: string | null
+      /** The current score of its cell; false for history rows. */
+      is_current?: boolean
+      /** False when the row is research data for its subject. */
+      is_official?: boolean
       field_name: string
       answer_type: string
       ground_truth: any
@@ -263,6 +277,18 @@ export class EvaluationsClient extends BaseApiClient {
     }
     if (generationId) {
       params.append('generation_id', generationId)
+    }
+    if (scope?.evaluationConfigIds?.length) {
+      params.append(
+        'evaluation_config_ids',
+        scope.evaluationConfigIds.join(','),
+      )
+    }
+    if (scope?.methodGroup) {
+      params.append('method_group', scope.methodGroup)
+    }
+    if (scope?.includeResearch === false) {
+      params.append('include_research', 'false')
     }
     return await this.request(
       `/evaluations/sample-result?${params.toString()}`,
@@ -1301,7 +1327,12 @@ export class EvaluationsClient extends BaseApiClient {
     includeHistory: boolean = false,
     metric?: string | null,
     evaluationConfigId?: string | null,
-    options?: { signal?: AbortSignal; cache?: RequestCache },
+    options?: {
+      signal?: AbortSignal
+      cache?: RequestCache
+      /** One method graded by alternative configs (see getProjectEvaluationMethods). */
+      methodGroup?: string | null
+    },
   ): Promise<{
     project_id: string
     models: string[]
@@ -1339,6 +1370,9 @@ export class EvaluationsClient extends BaseApiClient {
     // generation + annotation cells — so no run's scores are dropped and the
     // grid never shows n/a for data that exists under another run.
     if (evaluationConfigId) sp.set('evaluation_config_id', evaluationConfigId)
+    // A method group shows each answer under the config that is official
+    // for it; the group's other configs are research data.
+    if (options?.methodGroup) sp.set('method_group', options.methodGroup)
     const qs = sp.toString()
     return this.request(
       `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`,
@@ -1349,6 +1383,39 @@ export class EvaluationsClient extends BaseApiClient {
         ...(options?.signal ? { signal: options.signal } : {}),
         ...(options?.cache ? { cache: options.cache } : {}),
       },
+    )
+  }
+
+  /**
+   * The project's evaluation methods that alternative configs grade
+   * together, and the configs the default views leave out as research data.
+   */
+  async getProjectEvaluationMethods(projectId: string): Promise<{
+    project_id: string
+    groups: Array<{
+      key: string
+      method_key: string
+      label: string
+      config_ids: string[]
+      default_official_config_id: string | null
+    }>
+    research_config_ids: string[]
+  }> {
+    return this.request(`/evaluations/projects/${projectId}/results/methods`)
+  }
+
+  /**
+   * One row per submission with the current score of every evaluation
+   * method (and its grade points), as a CSV file.
+   */
+  async downloadResultsBySubmission(
+    projectId: string,
+    includeResearch: boolean = false,
+  ): Promise<Blob> {
+    const query = includeResearch ? '?include_research=true' : ''
+    return this.request(
+      `/evaluations/projects/${projectId}/results/by-submission${query}`,
+      { cache: 'no-store' },
     )
   }
 

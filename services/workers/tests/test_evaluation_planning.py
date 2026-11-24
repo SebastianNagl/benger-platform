@@ -48,10 +48,21 @@ def test_each_open_field_pair_costs_one_call_per_judge_run():
 
 
 def test_graded_field_pairs_are_not_counted_again():
+    # A judge graded once per reference field: the open pair still costs.
     cfg = _cfg("c1", ["__all_model__"], [{"judge_model_id": "j", "runs": 1}],
-               refs=("a", "b"))
+               refs=("a", "b"), metric="llm_judge_custom")
     plan = _plan(gen_cells=[("t1", "g1", ["c1|__all_model__|a"])])
     assert judge_call_counts(plan, [cfg]) == {"j": 1}
+
+
+def test_a_judge_that_reads_its_references_costs_one_call_per_prediction_field():
+    # The Falllösung judge takes its reference from the task: one call per
+    # answer whatever reference fields it lists, under the first one.
+    cfg = _cfg("c1", ["__all_model__"], [{"judge_model_id": "j", "runs": 1}],
+               refs=("a", "b"))
+    assert judge_call_counts(_plan(gen_cells=[("t1", "g1", [])]), [cfg]) == {"j": 1}
+    graded = _plan(gen_cells=[("t1", "g1", ["c1|__all_model__|a"])])
+    assert judge_call_counts(graded, [cfg]) == {}
 
 
 def test_answer_cells_grade_the_human_fields():

@@ -145,6 +145,12 @@ export interface EvaluationDetailData {
   results: Array<{
     id: string
     evaluation_id: string
+    /** The row's evaluation config (null for legacy rows without one). */
+    evaluation_config_id?: string | null
+    /** The current score of its cell; false for history rows. */
+    is_current?: boolean
+    /** False when the row is research data for its subject. */
+    is_official?: boolean
     field_name: string
     answer_type: string
     ground_truth: any

@@ -1224,8 +1224,10 @@ class TestProjectByTaskModelBranches:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         dedup = body["deduplication_summary"]
-        assert dedup["scope"] == "(generation_id, field_name)"
-        assert dedup["policy"] == "latest_wins_by_created_at_desc"
+        assert dedup["scope"] == (
+            "(generation_id, evaluation_config_id, prediction_field, reference_field)"
+        )
+        assert dedup["policy"] == "newest_scored_row_wins"
         assert dedup["suppressed_run_count"] == 1
         # Cell shows the latest (0.7), not the suppressed 0.3.
         cell = next(t for t in body["tasks"] if t["task_id"] == task.id)
@@ -1462,20 +1464,25 @@ class TestSampleResultBranches:
         assert body["results"][0]["metrics"] == {"score": 0.11}
 
     @pytest.mark.asyncio
-    async def test_include_history_false_dedups_per_field(
+    async def test_include_history_false_keeps_the_latest_generation(
         self, async_test_client, async_test_db
     ):
-        """include_history=false keeps only the latest row per field_name.
-        Two evals on the same field (different generations) collapse to one;
-        a second field survives → 2 rows total, latest per field."""
+        """include_history=false shows the model's latest generation only,
+        like the grid's cell, with the current row of each of its cells
+        (shared/current_scores.py); the older generations are history."""
         owner = await _make_owner(async_test_db)
         org = await _make_org(async_test_db)
         p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
         task = tasks[0]
         er = await _make_eval_run(async_test_db, p, model_id="gpt-4")
-        gen1, _ = await _make_generation(async_test_db, task, model_id="gpt-4")
-        gen2, _ = await _make_generation(async_test_db, task, model_id="gpt-4")
-        gen3, _ = await _make_generation(async_test_db, task, model_id="gpt-4")
+        now = datetime.now(timezone.utc)
+        gen1, _ = await _make_generation(
+            async_test_db, task, model_id="gpt-4", created_at=now - timedelta(hours=2)
+        )
+        gen2, _ = await _make_generation(
+            async_test_db, task, model_id="gpt-4", created_at=now - timedelta(hours=1)
+        )
+        gen3, _ = await _make_generation(async_test_db, task, model_id="gpt-4", created_at=now)
         # Two rows on field "answer" (older + newer) + one row on "comment".
         await _make_task_evaluation(
             async_test_db, er, task, generation=gen1, field_name="answer",
@@ -1501,17 +1508,90 @@ class TestSampleResultBranches:
         assert resp_all.status_code == 200, resp_all.text
         assert resp_all.json()["total_count"] == 3
 
-        # history off → one per field (2 fields). The "answer" survivor is the
-        # latest (0.5), not 0.1.
+        # history off → only the model's latest generation, like the grid's
+        # cell: gen3 is the newest, so its one row is left.
         with _as_user(owner):
             resp_dedup = await async_test_client.get(
                 f"{BASE}/sample-result?task_id={task.id}&model_id=gpt-4&include_history=false"
             )
         assert resp_dedup.status_code == 200, resp_dedup.text
         body = resp_dedup.json()
-        assert body["total_count"] == 2
-        by_field = {r["field_name"]: r["metrics"]["score"] for r in body["results"]}
-        assert by_field == {"answer": 0.5, "comment": 0.9}
+        assert body["total_count"] == 1
+        assert body["results"][0]["field_name"] == "comment"
+        assert body["results"][0]["metrics"]["score"] == 0.9
+        # Each generation is its own cell here, so every row is current.
+        assert {r["is_current"] for r in resp_all.json()["results"]} == {True}
+
+    @pytest.mark.asyncio
+    async def test_history_off_one_row_per_method_on_one_generation(
+        self, async_test_client, async_test_db
+    ):
+        """One generation graded by a judge that reads both reference fields
+        itself, under each reference field and re-run later, plus a failed
+        retry: history off leaves the one current row (the newest that has a
+        score); history on marks the rest as superseded."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        cfg = "llm_judge_custom-abc"
+        p.evaluation_config = {
+            "evaluation_configs": [
+                {
+                    "id": cfg, "metric": "llm_judge_custom",
+                    "prediction_fields": ["answer"],
+                    "reference_fields": ["task.ref1", "task.ref2"],
+                    "metric_parameters": {"custom_prompt_template": "{ref1} {ref2} {prediction}"},
+                    "enabled": True,
+                }
+            ]
+        }
+        task = tasks[0]
+        er = await _make_eval_run(async_test_db, p, model_id="gpt-4")
+        jr2 = await _add_judge_run(async_test_db, er, run_index=1)
+        jr3 = await _add_judge_run(async_test_db, er, run_index=2)
+        gen, _ = await _make_generation(async_test_db, task, model_id="gpt-4")
+        now = datetime.now(timezone.utc)
+        old_ref1 = await _make_task_evaluation(
+            async_test_db, er, task, generation=gen,
+            field_name=f"{cfg}|answer|task.ref1", evaluation_config_id=cfg,
+            metrics={"llm_judge_custom": 0.2}, created_at=now - timedelta(hours=2),
+        )
+        old_ref2 = await _make_task_evaluation(
+            async_test_db, er, task, generation=gen,
+            field_name=f"{cfg}|answer|task.ref2", evaluation_config_id=cfg,
+            metrics={"llm_judge_custom": 0.3}, created_at=now - timedelta(hours=2),
+        )
+        rerun = await _make_task_evaluation(
+            async_test_db, er, task, generation=gen, judge_run=jr2,
+            field_name=f"{cfg}|answer|task.ref1", evaluation_config_id=cfg,
+            metrics={"llm_judge_custom": 0.8}, created_at=now - timedelta(hours=1),
+        )
+        failed = await _make_task_evaluation(
+            async_test_db, er, task, generation=gen, judge_run=jr3,
+            field_name=f"{cfg}|answer|task.ref1", evaluation_config_id=cfg,
+            metrics={"llm_judge_custom": {"value": None, "error": "judge failed"}},
+            created_at=now, passed=False,
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            off = await async_test_client.get(
+                f"{BASE}/sample-result?task_id={task.id}&model_id=gpt-4&include_history=false"
+            )
+            on = await async_test_client.get(
+                f"{BASE}/sample-result?task_id={task.id}&model_id=gpt-4&include_history=true"
+            )
+            grid = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model?evaluation_config_id={cfg}"
+            )
+        assert off.status_code == 200, off.text
+        assert [r["id"] for r in off.json()["results"]] == [rerun.id]
+        flags = {r["id"]: r["is_current"] for r in on.json()["results"]}
+        assert flags == {old_ref1.id: False, old_ref2.id: False, rerun.id: True, failed.id: False}
+        assert {r["evaluation_config_id"] for r in on.json()["results"]} == {cfg}
+        cell = next(t for t in grid.json()["tasks"] if t["task_id"] == task.id)
+        assert cell["scores"] == {"gpt-4": pytest.approx(0.8)}
+        assert grid.json()["deduplication_summary"]["suppressed_run_count"] == 3
 
     @pytest.mark.asyncio
     async def test_annotator_model_resolution(self, async_test_client, async_test_db):

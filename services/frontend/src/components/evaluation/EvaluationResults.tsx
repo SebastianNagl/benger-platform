@@ -18,6 +18,7 @@ import type {
   StatisticsData,
 } from '@/components/evaluation/results/types'
 import {
+  METHOD_GROUP_PREFIX,
   useResultsData,
   useTaskModelData,
 } from '@/components/evaluation/results/useResultsData'
@@ -138,7 +139,48 @@ export function EvaluationResults({
   const { billingOrganizationId } = useBillingOrganization(String(projectId))
   const { user } = useAuth()
   const { t, locale } = useI18n()
-  const [showHistory, setShowHistory] = useState(true)
+  // Off by default: every cell shows the current score of its method (one
+  // per method and submission); history is opt-in.
+  const [showHistory, setShowHistory] = useState(false)
+  // Research data: the configs of a method group that are not official for
+  // a subject, and configs marked research-only. Hidden by default.
+  const [showResearch, setShowResearch] = useState(false)
+  const [methodInfo, setMethodInfo] = useState<{
+    groups: Array<{
+      key: string
+      method_key: string
+      label: string
+      config_ids: string[]
+      default_official_config_id: string | null
+    }>
+    research_config_ids: string[]
+  } | null>(null)
+  const configIdsKey = (evaluationConfigs ?? [])
+    .map((c) => c?.id)
+    .filter(Boolean)
+    .join(',')
+  useEffect(() => {
+    let cancelled = false
+    const load = apiClient.evaluations?.getProjectEvaluationMethods
+    if (!projectId || !load) {
+      setMethodInfo(null)
+      return
+    }
+    load
+      .call(apiClient.evaluations, String(projectId))
+      .then((info) => {
+        if (!cancelled) setMethodInfo(info ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setMethodInfo(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, configIdsKey])
+  const hasResearchData =
+    !!methodInfo &&
+    (methodInfo.groups.length > 0 || methodInfo.research_config_ids.length > 0)
 
   // Project evaluation results fetch unit (initial fetch + polling +
   // refetch) lives in useResultsData. `refetch` re-fetches without
@@ -182,12 +224,16 @@ export function EvaluationResults({
   // metric group together).
   const availableMetricRuns = useMemo(() => {
     type ConfigEntry = {
-      id: string // evaluation_config.id — primary key + fetch scope
+      id: string // evaluation_config.id (or `group:<key>`): primary key + fetch scope
       metric: string // raw metric name, kept for METRIC_ORDER sort + score extraction
       configId: string // same as id (kept for backward-compat reading sites)
       displayName: string
       samplesEvaluated: number
       running: boolean // any run for this method is in-flight (cosmetic)
+      /** Set on an entry that stands for a method group. */
+      methodGroup?: string
+      /** The evaluation configs the entry shows. */
+      configIds: string[]
     }
 
     const byConfig = new Map<string, ConfigEntry>()
@@ -217,6 +263,7 @@ export function EvaluationResults({
         displayName: cfg?.display_name || cfg?.metric || 'Unknown',
         samplesEvaluated: 0,
         running: false,
+        configIds: [cfgId],
       })
     }
 
@@ -263,6 +310,7 @@ export function EvaluationResults({
             displayName: cfg?.display_name || metric || 'Unknown',
             samplesEvaluated: 0,
             running: false,
+            configIds: [rawId],
           })
         }
         const targets = byConfig.has(rawId)
@@ -278,9 +326,50 @@ export function EvaluationResults({
       }
     }
 
+    // Without research data, a method that alternative configs grade is
+    // ONE entry (`group:<key>`, the backend shows each answer under its
+    // official config), and research-only configs are left out.
+    let runs = Array.from(byConfig.values())
+    if (methodInfo && !showResearch) {
+      const groupOf = new Map<string, (typeof methodInfo.groups)[number]>()
+      for (const group of methodInfo.groups) {
+        for (const cid of group.config_ids) groupOf.set(cid, group)
+      }
+      const research = new Set(methodInfo.research_config_ids)
+      const merged: ConfigEntry[] = []
+      const groupEntries = new Map<string, ConfigEntry>()
+      for (const entry of runs) {
+        const group = groupOf.get(entry.id)
+        if (!group) {
+          if (!research.has(entry.id)) merged.push(entry)
+          continue
+        }
+        const existing = groupEntries.get(group.key)
+        if (existing) {
+          existing.configIds.push(entry.id)
+          existing.samplesEvaluated = Math.max(
+            existing.samplesEvaluated,
+            entry.samplesEvaluated,
+          )
+          existing.running = existing.running || entry.running
+          continue
+        }
+        const groupEntry: ConfigEntry = {
+          ...entry,
+          id: `${METHOD_GROUP_PREFIX}${group.key}`,
+          configId: `${METHOD_GROUP_PREFIX}${group.key}`,
+          displayName: group.label || entry.displayName,
+          methodGroup: group.key,
+          configIds: [entry.id],
+        }
+        groupEntries.set(group.key, groupEntry)
+        merged.push(groupEntry)
+      }
+      runs = merged
+    }
+
     // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
     // — this keeps configs of the same metric type adjacent.
-    const runs = Array.from(byConfig.values())
     const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
     runs.sort((a, b) => {
       const orderA = orderMap.get(a.metric) ?? 999
@@ -289,7 +378,7 @@ export function EvaluationResults({
     })
 
     return runs
-  }, [results, selectedConfigIds, evaluationConfigs])
+  }, [results, selectedConfigIds, evaluationConfigs, methodInfo, showResearch])
 
   // Auto-select config — restore from localStorage or default to first.
   // Issue #111: storage now keys on evaluation_config.id (not metric
@@ -775,11 +864,24 @@ export function EvaluationResults({
     // generations). Without the scope the eval tab silently shows
     // evaluations of any historical generation.
     try {
+      // One method per modal, like the grid: the selected entry's config,
+      // or its method group.
+      const entry = availableMetricRuns.find(
+        (r) => r.id === selectedMetricRunId,
+      )
       const result = await apiClient.getTaskEvaluation(
         taskId,
         modelId,
         showHistory,
         isAnnotatorCell ? undefined : lockedGenerationId,
+        {
+          ...(entry?.methodGroup
+            ? { methodGroup: entry.methodGroup }
+            : entry
+              ? { evaluationConfigIds: entry.configIds }
+              : {}),
+          includeResearch: showResearch,
+        },
       )
       setEvaluationData(result)
     } catch (err) {
@@ -789,13 +891,14 @@ export function EvaluationResults({
     }
   }
 
-  // Re-fetch modal data when showHistory toggles while modal is open
+  // Re-fetch modal data when showHistory or showResearch toggles while the
+  // modal is open
   useEffect(() => {
     if (resultModalOpen && resultModalTaskId && resultModalModelId) {
       handleScoreClick(resultModalTaskId, resultModalModelId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showHistory])
+  }, [showHistory, showResearch])
 
   // Handle re-evaluate for a specific task x model cell
   const handleCellReEvaluate = useCallback(
@@ -1173,6 +1276,21 @@ export function EvaluationResults({
             />
             {t('evaluation.multiFieldResults.includeHistory')}
           </label>
+          {/* Research data toggle: only for projects that have some. */}
+          {hasResearchData && (
+            <label
+              className="flex cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+              title={t('evaluation.multiFieldResults.showResearchHint')}
+            >
+              <input
+                type="checkbox"
+                checked={showResearch}
+                onChange={(e) => setShowResearch(e.target.checked)}
+                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+              />
+              {t('evaluation.multiFieldResults.showResearch')}
+            </label>
+          )}
           {/* By-run chart toggle (multi-run feature, migration 042). Only
               meaningful when statisticsData has per_run_means_by_model_metric
               data; hidden otherwise so the toggle isn't a no-op. */}
@@ -1286,6 +1404,32 @@ export function EvaluationResults({
                 setExportDropdownOpen(false)
               }
 
+              // One row per submission, one column per method: the file
+              // for the people who grade, built by the server from the
+              // current score of every method.
+              const doExportBySubmission = async () => {
+                setExportDropdownOpen(false)
+                try {
+                  const blob =
+                    await apiClient.evaluations.downloadResultsBySubmission(
+                      String(projectId),
+                      showResearch,
+                    )
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `results-by-submission-${projectId}.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch (err) {
+                  console.error('Failed to export results by submission:', err)
+                  addToast(
+                    t('evaluation.multiFieldResults.exportBySubmissionFailed'),
+                    'error',
+                  )
+                }
+              }
+
               return (
                 <div className="relative" ref={exportDropdownRef}>
                   <Button
@@ -1296,7 +1440,7 @@ export function EvaluationResults({
                     {t('common.export')}
                   </Button>
                   {exportDropdownOpen && (
-                    <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                    <div className="absolute right-0 z-50 mt-1 w-60 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
                       <button
                         type="button"
                         onClick={() => doExport('json')}
@@ -1312,6 +1456,14 @@ export function EvaluationResults({
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                         CSV
+                      </button>
+                      <button
+                        type="button"
+                        onClick={doExportBySubmission}
+                        className="flex w-full items-center gap-2 border-t border-zinc-100 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                      >
+                        <ArrowDownTrayIcon className="h-4 w-4 shrink-0" />
+                        {t('evaluation.multiFieldResults.exportBySubmission')}
                       </button>
                     </div>
                   )}

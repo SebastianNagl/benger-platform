@@ -119,6 +119,18 @@ export function useResultsData({
   }
 }
 
+/** Prefix of a results entry that stands for a method group. */
+export const METHOD_GROUP_PREFIX = 'group:'
+
+/** The method group a results entry id stands for, else null. */
+export function methodGroupOf(
+  entryId: string | null | undefined,
+): string | null {
+  return entryId && entryId.startsWith(METHOD_GROUP_PREFIX)
+    ? entryId.slice(METHOD_GROUP_PREFIX.length)
+    : null
+}
+
 interface UseTaskModelDataParams {
   projectId: string | number
   /** Include all runs in the per-task/model fetch (display filtering). */
@@ -210,17 +222,22 @@ export function useTaskModelData({
       inFlightRef.current = true
       try {
         // No run-id pinning: the backend scans ALL runs for the selected
-        // config id and unions generation + annotation cells.
+        // config id and unions generation + annotation cells. A
+        // `group:<key>` entry is one method graded by alternative configs:
+        // the backend shows each answer under its official config.
+        const methodGroup = methodGroupOf(selectedConfigId)
         const data = await apiClient.getProjectResultsByTaskModel(
           String(projectId),
           undefined,
           showHistory,
           selectedMetricKey || null,
-          selectedConfigId || null,
+          methodGroup ? null : selectedConfigId || null,
           // Live refreshes skip the API client's 30 s GET cache.
-          opts.live
-            ? { signal: controller.signal, cache: 'no-store' }
-            : { signal: controller.signal },
+          {
+            signal: controller.signal,
+            ...(opts.live ? { cache: 'no-store' as RequestCache } : {}),
+            ...(methodGroup ? { methodGroup } : {}),
+          },
         )
         lastFetchAtRef.current = Date.now()
         taskModelCache.set(cacheKey, { data, at: Date.now() })

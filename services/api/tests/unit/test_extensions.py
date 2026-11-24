@@ -210,7 +210,8 @@ class TestExtensionLoader:
         # 2.75 adds the platform flags variant_experiments and
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).
-        assert CORE_API_VERSION == "2.75"
+        # 2.76 adds the optional hook key evaluation_method_selection.
+        assert CORE_API_VERSION == "2.76"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
@@ -992,3 +993,55 @@ class TestIsLoaded:
             [extension_registry.LoadedExtension("benger_nope", object(), "nope")],
         )
         assert extensions.is_loaded("benger_nope") is True
+
+
+class TestEvaluationMethodSelectionHook:
+    """``evaluation_method_selection``: optional, SINGLE_OWNER, never raises."""
+
+    def test_is_optional_for_overlays(self):
+        import extensions
+
+        assert extensions.HOOK_SPECS["evaluation_method_selection"] == extensions.SINGLE_OWNER
+        assert "evaluation_method_selection" in extensions.OPTIONAL_HOOK_KEYS
+        # An overlay's handshake test must not require it.
+        assert "evaluation_method_selection" in extensions.PENDING_HOOK_KEYS
+        assert extensions.RESERVED_HOOK_KEYS.isdisjoint(extensions.OPTIONAL_HOOK_KEYS)
+
+    def test_community_edition_answers_none(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.evaluation_method_selection(None, object(), [], ["u1"]) is None
+
+    def test_hook_gets_configs_and_sorted_unique_users(self, monkeypatch):
+        import extensions
+
+        seen = {}
+
+        def hook(db, project, configs, user_ids):
+            seen["args"] = (db, project, configs, user_ids)
+            return {"official": {"g": "a"}}
+
+        project = object()
+        monkeypatch.setattr(
+            extensions, "_extended", _FakeExtended({"evaluation_method_selection": hook})
+        )
+        result = extensions.evaluation_method_selection(
+            None, project, [{"id": "a"}], ["u2", "u1", "u2", None]
+        )
+        assert result == {"official": {"g": "a"}}
+        assert seen["args"] == (None, project, [{"id": "a"}], ["u1", "u2"])
+
+    def test_failing_or_odd_answers_are_none(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions, "_extended", _FakeExtended({"evaluation_method_selection": _boom})
+        )
+        assert extensions.evaluation_method_selection(None, object(), [], []) is None
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"evaluation_method_selection": lambda *a: ["not", "a", "dict"]}),
+        )
+        assert extensions.evaluation_method_selection(None, object(), [], []) is None
