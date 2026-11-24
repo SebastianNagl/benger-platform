@@ -281,7 +281,7 @@
         "In the wizard under **Settings**. Later: the time limit and strict timer under *Annotation workflow & behavior*, the access window in the project's **Settings** card right after *Project visibility*.",
         "Tick **Time limit for annotation** and enter the minutes (1 to 360, default 30).",
         "Only then tick **Strict timer** if the submission should happen automatically when time runs out.",
-        "Tick **Access window** and set *Opens* and *Closes*. Before it opens the data stays hidden and exams and flashcard decks do not appear for students yet. After closing everything is read-only. The times are saved when you leave a field or press Enter."
+        "Tick **Timed access window** and set *Opens* and *Closes*. Before it opens the data stays hidden and exams and flashcard decks do not appear for students yet. After closing everything is read-only. The times are saved when you leave a field or press Enter."
       ],
       "pitfalls": [
         "Toggling the time limit resets the strict timer. Order: time limit first, then strict timer.",
