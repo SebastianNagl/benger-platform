@@ -18,11 +18,17 @@ What happens AFTER the commit differs per process and stays with the caller:
 the API runs the ``on_annotation_created`` hook, assignment completion and the
 report refresh; a worker runs its own follow-ups
 (:func:`complete_assignment` is shared too).
+
+:func:`withdraw_submission` is the one writer of a withdrawal (the author
+takes a submission back, or a project editor returns it): the row and its
+data stay, ``was_cancelled`` and the ``withdrawn_*`` record are set and the
+task counters follow.
 """
 
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy import String, cast, text, update
@@ -229,3 +235,72 @@ def complete_assignment(db, project, task_id: str, user_id: str, annotation) -> 
         from utils.assignment_helpers import mark_assignment_completed
 
         mark_assignment_completed(db, task_id=task_id, user_id=user_id)
+
+
+class SubmissionAlreadyWithdrawn(Exception):
+    """The annotation is already withdrawn (or was cancelled from the start)."""
+
+
+def withdraw_submission(db, annotation, *, actor_id: str, reason: str):
+    """Withdraw ``annotation``: keep the row, mark it withdrawn; no commit.
+
+    Sets ``was_cancelled`` (every reader that skips cancelled rows skips it,
+    and the partial unique index lets the author hand in again) and records
+    ``withdrawn_at``, ``withdrawn_by`` (``actor_id``: the author, or the
+    editor who returned it) and ``withdrawal_reason``. The task's
+    ``cancelled_annotations`` grows by one when the row counted toward
+    ``total_annotations`` (a non-empty result, as in the create path), and
+    ``is_labeled`` is cleared when fewer active answers than the project's
+    ``min_annotations_per_task`` remain. The caller checks permission, runs the overlay hooks in the same
+    transaction and commits.
+
+    Locks the row first, so two concurrent withdrawals cannot both pass.
+    Raises :class:`SubmissionAlreadyWithdrawn` for a cancelled row.
+    """
+    from project_models import Annotation, Project, Task
+
+    locked = (
+        db.query(Annotation)
+        .filter(Annotation.id == annotation.id)
+        .with_for_update()
+        .populate_existing()
+        .one()
+    )
+    if locked.was_cancelled:
+        raise SubmissionAlreadyWithdrawn(locked.id)
+
+    now = datetime.now(timezone.utc)
+    locked.was_cancelled = True
+    locked.withdrawn_at = now
+    locked.withdrawn_by = str(actor_id)
+    locked.withdrawal_reason = reason
+    locked.updated_at = now
+
+    if _has_result(locked.result):
+        db.execute(
+            update(Task)
+            .where(Task.id == locked.task_id)
+            .values(cancelled_annotations=Task.cancelled_annotations + 1)
+            .execution_options(synchronize_session="fetch")
+        )
+    db.flush()
+    remaining = (
+        db.query(Annotation)
+        .filter(
+            Annotation.task_id == locked.task_id,
+            Annotation.was_cancelled == False,  # noqa: E712
+            Annotation.result != None,  # noqa: E711
+            cast(Annotation.result, String) != "[]",
+        )
+        .count()
+    )
+    project = db.query(Project).filter(Project.id == locked.project_id).first()
+    minimum = getattr(project, "min_annotations_per_task", None) or 1
+    if remaining < minimum:
+        db.execute(
+            update(Task)
+            .where(Task.id == locked.task_id, Task.is_labeled == True)  # noqa: E712
+            .values(is_labeled=False)
+            .execution_options(synchronize_session="fetch")
+        )
+    return locked

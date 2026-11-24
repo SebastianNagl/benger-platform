@@ -70,6 +70,9 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: ({ className }: any) => (
     <div className={className}>ArrowPathIcon</div>
   ),
+  ArrowUturnLeftIcon: ({ className }: any) => (
+    <div className={className}>ArrowUturnLeftIcon</div>
+  ),
   BellIcon: ({ className }: any) => <div className={className}>BellIcon</div>,
   CheckCircleIcon: ({ className }: any) => (
     <div className={className}>CheckCircleIcon</div>

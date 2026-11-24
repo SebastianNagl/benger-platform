@@ -1,5 +1,5 @@
 {
-  "generated_from": "70bf9de529a587b4fb93463a3bb9fda8df0446eb",
+  "generated_from": "a994df05d27fd6b73d4893897b4c9b89dfe19a8d",
   "api_shared": [
     {
       "module": "account_activation",
@@ -368,6 +368,13 @@
     {
       "module": "current_scores",
       "name": "pick_current",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "sql_cell_partition",
       "importers": [
         "benger_extended/api/routers/feedback_review.py"
       ]
@@ -889,6 +896,13 @@
       ]
     },
     {
+      "module": "mailer.notification_links",
+      "name": "is_submission_notice_type",
+      "importers": [
+        "benger_extended/workers/__init__.py"
+      ]
+    },
+    {
       "module": "metric_filters",
       "name": "is_immediate_eligible",
       "importers": [
@@ -955,6 +969,7 @@
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/billing_tasks.py",
         "benger_extended/workers/falloesung_tasks.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -1032,6 +1047,7 @@
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/relink.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
     },
@@ -1077,6 +1093,7 @@
         "benger_extended/lti/name_visibility.py",
         "benger_extended/lti/project_linking.py",
         "benger_extended/lti/teacher_access.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1260,6 +1277,7 @@
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/falloesung_tasks.py",
         "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -1642,7 +1660,8 @@
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/student_exams.py",
-        "benger_extended/lti/name_visibility.py"
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/withdrawal.py"
       ]
     },
     {
@@ -2384,6 +2403,13 @@
     },
     {
       "module": "routers.projects.helpers",
+      "name": "project_writes_allowed",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
       "name": "require_write_tier",
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
@@ -2404,6 +2430,7 @@
       "name": "tier_allows_writes",
       "importers": [
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py"
       ]
@@ -2787,6 +2814,27 @@
       ]
     },
     {
+      "module": "task_rubric_resolution",
+      "name": "is_rubric_judge",
+      "importers": [
+        "benger_extended/sheet_judges.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "register_sheet_judge_metric",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "resolve_grading_rubric",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
       "module": "task_rubric_service",
       "name": "RubricReviewRequired",
       "importers": [
@@ -2949,6 +2997,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "EvidenceIndex",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },
@@ -2956,6 +3005,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "verify_evidence",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },

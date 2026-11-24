@@ -674,6 +674,16 @@ class Annotation(Base):
     was_cancelled = Column(Boolean, default=False, nullable=False)
     ground_truth = Column(Boolean, default=False, nullable=False)
 
+    # Withdrawal (migration 156): a submission taken back after it was handed
+    # in, by its author or returned by a project editor. The row and its data
+    # stay; ``was_cancelled`` is set with these, so every reader that skips
+    # cancelled rows skips it too. ``withdrawn_by`` differs from
+    # ``completed_by`` when an editor returned it. Written only through
+    # ``annotation_submission.withdraw_submission``.
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    withdrawn_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    withdrawal_reason = Column(Text, nullable=True)
+
     # Metrics
     lead_time = Column(Float, nullable=True)  # Time in seconds
     auto_submitted = Column(
@@ -2175,7 +2185,7 @@ class GradingFeedback(Base):
         )
 
 
-#: What a ``submission_files`` row is (migration 156): ``submission`` is a
+#: What a ``submission_files`` row is (migration 157): ``submission`` is a
 #: file a person handed in as their answer, ``grading`` a file a grader
 #: returned with their grading of it (a corrected copy, ``task_evaluation_id``).
 SUBMISSION_FILE_PURPOSES = ("submission", "grading")
@@ -2235,7 +2245,7 @@ class SubmissionFile(Base):
     purpose = Column(
         String(16), nullable=False, default="submission", server_default="submission"
     )
-    # The grading a ``purpose = "grading"`` file belongs to (migration 156).
+    # The grading a ``purpose = "grading"`` file belongs to (migration 157).
     task_evaluation_id = Column(
         String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True
     )
@@ -2480,7 +2490,7 @@ class UploadBatch(Base):
     - ``status``: ``committed``, or ``undone`` with ``undone_at`` /
       ``undone_by``.
 
-    Platform owns the table (migration 156); what a batch writes and how it
+    Platform owns the table (migration 157); what a batch writes and how it
     is taken back live in the package that defines its ``kind``.
     """
 

@@ -1,4 +1,4 @@
-"""Shape tests for migration 156: submission_files.purpose and
+"""Shape tests for migration 157: submission_files.purpose and
 task_evaluation_id, and the upload_batches table.
 
 The shared test DB already carries both (created from the models by
@@ -27,7 +27,7 @@ MIGRATION_PATH = os.path.normpath(
         "..",
         "alembic",
         "versions",
-        "156_upload_batches_and_grading_files.py",
+        "157_upload_batches_and_grading_files.py",
     )
 )
 
@@ -36,7 +36,7 @@ BATCHES = "upload_batches"
 
 
 def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_156", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("mig_157", MIGRATION_PATH)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -74,14 +74,14 @@ def _people_and_task(db: Session):
 
     owner = User(
         id=str(uuid.uuid4()),
-        username=f"mig156-{uuid.uuid4().hex[:8]}",
-        email=f"mig156-{uuid.uuid4().hex[:8]}@example.com",
+        username=f"mig157-{uuid.uuid4().hex[:8]}",
+        email=f"mig157-{uuid.uuid4().hex[:8]}@example.com",
         hashed_password="x",
-        name="Mig 156",
+        name="Mig 157",
     )
     db.add(owner)
     db.flush()
-    project = Project(id=str(uuid.uuid4()), title="mig156", created_by=owner.id)
+    project = Project(id=str(uuid.uuid4()), title="mig157", created_by=owner.id)
     db.add(project)
     db.flush()
     task = Task(id=str(uuid.uuid4()), project_id=project.id, data={}, inner_id=1)
@@ -107,11 +107,11 @@ def _file(owner, project, task, **extra):
     )
 
 
-class TestMigration156Shape:
-    def test_revision_chains_after_155(self):
+class TestMigration157Shape:
+    def test_revision_chains_after_156(self):
         mig = _load_migration()
-        assert mig.revision == "156_upload_batches_and_grading_files"
-        assert mig.down_revision == "155_add_evaluation_released_notification_type"
+        assert mig.revision == "157_upload_batches_and_grading_files"
+        assert mig.down_revision == "156_annotation_withdrawal"
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()
@@ -174,12 +174,12 @@ class TestMigration156Shape:
                 " original_filename, size_bytes, sha256, source_format, extracted_chars)"
                 " VALUES (:id, :p, :t, :u, 'k', 'a.pdf', 1, :sha, 'pdf', 0)"
             ),
-            {"id": "mig156-old", "p": project.id, "t": task.id, "u": owner.id, "sha": "0" * 64},
+            {"id": "mig157-old", "p": project.id, "t": task.id, "u": owner.id, "sha": "0" * 64},
         )
         with _op_context(conn):
             mig.upgrade()
         purpose = conn.execute(
-            text("SELECT purpose FROM submission_files WHERE id = 'mig156-old'")
+            text("SELECT purpose FROM submission_files WHERE id = 'mig157-old'")
         ).scalar_one()
         assert purpose == "submission"
 

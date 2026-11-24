@@ -834,6 +834,13 @@ class TestRoundtripExtensions:
         ann.review_result = "approved"
         ann.review_comment = "Looks good"
         db_session.commit()
+        # A withdrawn answer keeps its record (who, when, why) across the trip.
+        withdrawn = data["annotations"][1]
+        withdrawn.was_cancelled = True
+        withdrawn.withdrawn_at = datetime(2026, 11, 24, 9, 30, tzinfo=timezone.utc)
+        withdrawn.withdrawn_by = user.id
+        withdrawn.withdrawal_reason = "Wrong file"
+        db_session.commit()
 
         rt = TestDataExportImportRoundtrip()
         export = rt._export(db_session, data["project"].id, [t.id for t in data["tasks"]], user.id)
@@ -856,6 +863,15 @@ class TestRoundtripExtensions:
         assert imported.ai_assisted == True  # noqa: E712
         assert imported.review_result == "approved"
         assert imported.review_comment == "Looks good"
+        returned = (
+            db_session.query(Annotation)
+            .filter(Annotation.project_id == target.id)
+            .filter(Annotation.withdrawal_reason == "Wrong file")
+            .one()
+        )
+        assert returned.was_cancelled == True  # noqa: E712
+        assert returned.withdrawn_by == user.id
+        assert returned.withdrawn_at == datetime(2026, 11, 24, 9, 30, tzinfo=timezone.utc)
 
     def test_korrektur_comments_round_trip(
         self, db_session, user, project_with_full_data

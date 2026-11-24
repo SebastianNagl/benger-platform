@@ -19,8 +19,8 @@ Two additions for bulk uploads by staff:
 Downgrade drops the table, the index, the constraint and both columns.
 Every step is guarded, so a re-run is a no-op.
 
-Revision ID: 156_upload_batches_and_grading_files
-Revises: 155_add_evaluation_released_notification_type
+Revision ID: 157_upload_batches_and_grading_files
+Revises: 156_annotation_withdrawal
 Create Date: 2026-11-24
 """
 
@@ -31,8 +31,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from alembic import op
 
 
-revision = "156_upload_batches_and_grading_files"
-down_revision = "155_add_evaluation_released_notification_type"
+revision = "157_upload_batches_and_grading_files"
+down_revision = "156_annotation_withdrawal"
 branch_labels = None
 depends_on = None
 

@@ -3336,6 +3336,10 @@
         "title": "Korrektur freigegeben: {project_title}",
         "message": "Deine Lehrkraft hat die Korrektur deiner Bearbeitung in '{project_title}' freigegeben."
       },
+      "submission_returned": {
+        "title": "Abgabe zurückgegeben: {project_title}",
+        "message": "Deine Abgabe in '{project_title}' wurde dir zurückgegeben. Grund: {reason}"
+      },
       "data_upload_completed": {
         "title": "Daten-Upload abgeschlossen: {task_name}",
         "message": "Es wurden {upload_count} Einträge aus '{filename}' in die Aufgabe '{task_name}' hochgeladen."
@@ -3903,6 +3907,8 @@
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf deine Bearbeitungen bewertet hat",
         "evaluationReleased": "Freigegebene Korrektur",
         "evaluationReleasedDesc": "Benachrichtigungen erhalten, wenn deine Lehrkraft eine zurückgehaltene Korrektur deiner Bearbeitung freigibt",
+        "submissionReturned": "Abgabe zurückgegeben",
+        "submissionReturnedDesc": "Benachrichtigungen erhalten, wenn dir eine deiner Abgaben mit einem Grund zurückgegeben wurde",
         "dataUploadCompleted": "Datenupload abgeschlossen",
         "dataUploadCompletedDesc": "Benachrichtigungen erhalten, wenn Datenuploads die Verarbeitung abgeschlossen haben",
         "llmGenerationCompleted": "LLM-Generierung abgeschlossen",
@@ -6011,6 +6017,7 @@
       "annotation": "Annotation",
       "annotator": "Annotator",
       "cancelled": "Abgebrochen",
+      "withdrawn": "Zurückgezogen",
       "noAnnotationResults": "Keine Annotationsergebnisse",
       "noAnnotationData": "Keine Annotationsdaten für diese Aufgabe verfügbar",
       "clickToViewData": "Verfügbare Daten anzeigen (noch keine Evaluierung)",
@@ -7267,7 +7274,8 @@
         "submitted": "eingereicht",
         "approved": "genehmigt",
         "rejected": "abgelehnt",
-        "draft": "Entwurf"
+        "draft": "Entwurf",
+        "withdrawn": "zurückgezogen"
       },
       "buttons": {
         "addMyAnnotation": "Meine Annotation hinzufügen",
@@ -7294,6 +7302,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} Annotator{plural}",
         "totalAnnotations": "{count} Annotation{plural} insgesamt"
+      },
+      "withdrawal": {
+        "withdrawn": "Zurückgezogen am {date}",
+        "returned": "Zurückgegeben am {date} von {name}",
+        "reason": "Grund: {reason}",
+        "editor": "einer Person mit Bearbeitungsrechten"
       },
       "result": {
         "notAnswered": "Nicht beantwortet",
