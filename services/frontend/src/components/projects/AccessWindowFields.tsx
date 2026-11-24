@@ -13,7 +13,7 @@ import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
 import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
-import { useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 
 export interface AccessWindowValue {
   window_start_at: string | null
@@ -44,8 +44,9 @@ interface AccessWindowFieldsProps {
    * Called with the value the user finished: on leaving or pressing Enter in
    * a time field while at least one time is set (a single time is an
    * open-ended window), and on switching the window on or off. Unlike
-   * onChange it never fires for a time that is still being typed, and only
-   * the switch commits an empty window.
+   * onChange it never fires for a time that is still being typed (also not
+   * while either field is only partly filled), and only the switch commits
+   * an empty window.
    */
   onCommit?: (value: AccessWindowValue) => void
   disabled?: boolean
@@ -69,7 +70,13 @@ export function AccessWindowFields({
     onChange(next)
     onCommit?.(next)
   }
+  const opensRef = useRef<HTMLInputElement>(null)
+  const closesRef = useRef<HTMLInputElement>(null)
   const commitTimes = () => {
+    const partlyTyped = [opensRef, closesRef].some(
+      (ref) => ref.current?.validity.badInput,
+    )
+    if (partlyTyped) return
     if (value.window_start_at || value.window_end_at) onCommit?.(value)
   }
   const commitOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -112,6 +119,7 @@ export function AccessWindowFields({
             </Label>
             <Input
               id="access-window-opens"
+              ref={opensRef}
               type="datetime-local"
               value={isoToLocalInput(value.window_start_at)}
               onChange={(e) =>
@@ -132,6 +140,7 @@ export function AccessWindowFields({
             </Label>
             <Input
               id="access-window-closes"
+              ref={closesRef}
               type="datetime-local"
               value={isoToLocalInput(value.window_end_at)}
               onChange={(e) =>

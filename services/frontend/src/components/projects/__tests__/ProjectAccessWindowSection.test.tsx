@@ -320,6 +320,36 @@ describe('ProjectAccessWindowSection', () => {
     })
   })
 
+  it('never saves while a time field is only partly filled', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={END}
+        onSave={onSave}
+      />,
+    )
+    expand()
+    // A datetime-local with a cleared segment reports '' and badInput.
+    const partlyFilled = (input: HTMLInputElement) => {
+      Object.defineProperty(input, 'validity', {
+        configurable: true,
+        value: { badInput: true },
+      })
+      fireEvent.change(input, { target: { value: '' } })
+    }
+    partlyFilled(opensInput())
+    await act(async () => {
+      fireEvent.blur(opensInput())
+      fireEvent.keyDown(opensInput(), { key: 'Enter' })
+      // Leaving the complete closing field must not save the half-typed one.
+      fireEvent.blur(closesInput())
+      fireEvent.keyDown(closesInput(), { key: 'Enter' })
+    })
+    expect(onSave).not.toHaveBeenCalled()
+    expect(closesInput().value).toBe(local(END))
+  })
+
   it('saves clearing the closing time as an open-ended window', async () => {
     const onSave = jest.fn().mockResolvedValue(undefined)
     render(
