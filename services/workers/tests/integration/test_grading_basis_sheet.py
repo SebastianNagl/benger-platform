@@ -14,6 +14,7 @@ import pytest
 from grading_basis import grading_basis_by_config, outdated_gradings_summary
 from models import EvaluationJudgeRun, TaskEvaluation
 from project_models import TaskRubric
+import task_rubric_resolution
 from task_rubric_resolution import resolve_grading_rubric, resolve_grading_rubric_ids
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
@@ -154,7 +155,9 @@ def test_a_task_without_a_usable_sheet_now_does_not_count(db_conn, exam):
     assert basis.outdated_rows == []
 
 
-def test_one_query_lookup_matches_the_per_task_lookup(db_conn, exam, make_task):
+@pytest.mark.parametrize("chunk", [1000, 1])
+def test_one_query_lookup_matches_the_per_task_lookup(db_conn, exam, make_task, monkeypatch, chunk):
+    monkeypatch.setattr(task_rubric_resolution, "_TASK_ID_CHUNK", chunk)
     project = exam["project"]
     task_two = make_task(project.id, {"musterloesung": "M2"}, created_by=exam["teacher"].id)
     active = _rubric(db_conn, project, exam["task"], "active")

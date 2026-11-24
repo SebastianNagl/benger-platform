@@ -1997,7 +1997,7 @@ API change).
     ``<metric>_details`` sibling.
   - The worker stamps the fingerprint on every row of a bulk cell and of an
     immediate grading. ``task_rubric_resolution.resolve_grading_rubric_ids``
-    is the one-query twin of ``resolve_grading_rubric``.
+    is the bulk twin of ``resolve_grading_rubric``.
   - Re-grade runs: ``POST /evaluations/run`` takes ``outdated_only`` (422
     with ``force_rerun``) and the run carries ``eval_metadata.outdated_only``
     and ``regrade``; ``evaluation_planning.plan_evaluation(...,

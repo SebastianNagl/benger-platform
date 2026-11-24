@@ -131,12 +131,16 @@ def resolve_grading_rubric(db, task, metric_parameters, *, review_required: Opti
     return row
 
 
+_TASK_ID_CHUNK = 1000
+
+
 def resolve_grading_rubric_ids(
     db, task_ids: Iterable[str], metric_parameters, *, review_required: Optional[bool] = None
 ) -> dict:
     """``{task_id: rubric_id}`` of the sheet :func:`resolve_grading_rubric`
-    picks for each of ``task_ids`` (tasks of one project), in one query
-    instead of one per task. Tasks without a usable sheet are left out."""
+    picks for each of ``task_ids`` (tasks of one project), in one query per
+    chunk of task ids instead of one per task. Tasks without a usable sheet
+    are left out."""
     from project_models import Task, TaskRubric
 
     wanted = [str(t) for t in task_ids or () if t]
@@ -145,7 +149,7 @@ def resolve_grading_rubric_ids(
     selector = (metric_parameters or {}).get("rubric_selector") or {}
     generator = selector.get("generator_model_id") if isinstance(selector, dict) else None
 
-    query = db.query(TaskRubric).filter(TaskRubric.task_id.in_(wanted))
+    query = db.query(TaskRubric)
     if generator:
         query = query.filter(
             TaskRubric.generator_model_id == generator,
@@ -160,8 +164,12 @@ def resolve_grading_rubric_ids(
     else:
         query = query.filter(TaskRubric.status == "active")
 
+    rows = []
+    for i in range(0, len(wanted), _TASK_ID_CHUNK):
+        rows.extend(query.filter(TaskRubric.task_id.in_(wanted[i : i + _TASK_ID_CHUNK])).all())
+
     picked: dict = {}
-    for row in query.all():
+    for row in rows:
         task_id = str(row.task_id)
         if task_id in picked:
             continue  # the selector path keeps the newest row per task
