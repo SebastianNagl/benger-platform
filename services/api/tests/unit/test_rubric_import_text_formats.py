@@ -19,7 +19,7 @@ import json
 
 import pytest
 
-from services.rubric_import import RubricImportError, parse_rubric_file
+from services.rubric_import import MAX_RAW_ROWS, RubricImportError, parse_rubric_file
 
 
 def _steps(result):
@@ -75,6 +75,27 @@ class TestCsv:
     def test_cp1252_is_read(self):
         result = parse_rubric_file("bogen.csv", CSV_SHEET.encode("cp1252"))
         assert "Einigung über" in _steps(result)[0]["title"]
+
+    def test_row_numbers_count_blank_lines(self):
+        # Warnings name the line a person sees in their editor.
+        data = "Schritt;BE\n\nI. Frage;3\n\n1. Teil;-1\n".encode("utf-8")
+        result = parse_rubric_file("bogen.csv", data)
+        invalid = [w for w in result["warnings"] if w["code"] == "points_invalid"]
+        assert [w["row"] for w in invalid] == [5]
+
+    def test_a_csv_has_the_row_cap_of_a_workbook(self):
+        data = "\n".join(f"{i}. Schritt;1" for i in range(MAX_RAW_ROWS + 1)).encode("utf-8")
+        with pytest.raises(RubricImportError) as exc:
+            parse_rubric_file("bogen.csv", data)
+        assert exc.value.code == "too_many_rows"
+
+    def test_an_unreadable_csv_is_refused_rather_than_crashing(self):
+        # One quoted cell past the csv module's field limit.
+        data = b'"' + b"x" * (200 * 1024)
+        with pytest.raises(RubricImportError) as exc:
+            parse_rubric_file("bogen.csv", data)
+        assert exc.value.code == "corrupt_file"
+        assert "CSV" in exc.value.message
 
 
 MD_OUTLINE = (
