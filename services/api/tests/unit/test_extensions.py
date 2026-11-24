@@ -222,7 +222,9 @@ class TestExtensionLoader:
         # keys before_annotation_withdraw and on_annotation_withdrawn).
         # 2.81 adds sheet judges beyond llm_judge_rubric (use_task_rubric,
         # task_rubric for inline judges) and structure.placement.
-        assert CORE_API_VERSION == "2.81"
+        # 2.82 adds table_grid / ooxml, submission_files.purpose and
+        # task_evaluation_id, upload_batches and stored_files (migration 157).
+        assert CORE_API_VERSION == "2.82"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

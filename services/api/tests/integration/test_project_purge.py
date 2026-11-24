@@ -155,7 +155,8 @@ async def test_purge_job_removes_generations_and_generation_jobs(async_test_clie
         assert done["status"] == "completed" and done["progress"] == 100
         assert done["result"] == {
             "tasks": 5, "task_evaluations": 5, "generations": 6,
-            "generation_jobs": 6, "analysis_runs": 0, "analysis_frames_of_other_projects": 0, "projects": 1,
+            "generation_jobs": 6, "analysis_runs": 0, "analysis_frames_of_other_projects": 0,
+            "stored_files": 0, "projects": 1,
         }
 
     await _assert_gone(db, p.id, task_ids)

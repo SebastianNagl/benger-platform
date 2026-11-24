@@ -15,14 +15,15 @@ Every guess that a reviewer should double-check is reported as a warning
 
 Both formats are read with the stdlib only (``zipfile`` + ``xml.etree``):
 mammoth flattens tables and there is no XLSX reader in the image, and a new
-dependency would silently be missing from the long-lived test image.
+dependency would silently be missing from the long-lived test image. XLSX
+and CSV go through the shared table reader (``table_grid``), Word through
+the same size-guarded zip helpers (``ooxml``); what the cells mean stays here.
 
 Public surface: :func:`parse_rubric_file`, :class:`RubricImportError`.
 """
 
 from __future__ import annotations
 
-import csv
 import io
 import json
 import os
@@ -31,8 +32,13 @@ import zipfile
 import xml.etree.ElementTree as ET
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import ooxml
+from ooxml import attr as _attr
+from ooxml import children as _children
+from ooxml import first as _first
+from ooxml import local as _local
 from rubric_structure import (
     GRADE_COUNT,
     MAX_HINT_LEN,
@@ -48,15 +54,15 @@ from rubric_structure import (
     validate_grade_scale,
     validate_structure,
 )
+from table_grid import Row, TableReadError, read_delimited, read_xlsx_sheets
+from table_grid import column_letter as _col_letter
+from table_grid import decode_text as _decode_text
 
 MAX_RUBRIC_FILE_BYTES = 5 * 1024 * 1024
-# Cap on the UNCOMPRESSED size of a single zip member. OOXML files are zips,
-# so a 5 MB upload can declare a multi-gigabyte sheet/document part ("zip
-# bomb") and OOM the api worker inside ``zf.read``. Every member this module
-# reads goes through :func:`_read_member`, which refuses oversized entries
-# before decompressing. 32 MB is far above any real Korrekturbogen (a
-# hand-made 100-BE sheet has a worksheet part of about 28 KB).
-MAX_ZIP_MEMBER_BYTES = 32 * 1024 * 1024
+# Cap on the UNCOMPRESSED size of a single zip member (see ``ooxml``): a 5 MB
+# upload can declare a multi-gigabyte sheet/document part ("zip bomb"). Every
+# member this module reads goes through the size-guarded reader.
+MAX_ZIP_MEMBER_BYTES = ooxml.MAX_MEMBER_BYTES
 MAX_RAW_ROWS = 2000
 #: Container formats a Korrekturbogen may arrive in. The OOXML pair is what
 #: a law chair actually produces; the three text formats exist because they
@@ -65,10 +71,6 @@ MAX_RAW_ROWS = 2000
 #: import instead of a heuristic one.
 SUPPORTED_EXTS = {".xlsx", ".docx", ".csv", ".md", ".json"}
 
-#: Text uploads are decoded through this list in order. `utf-8-sig` first so a
-#: BOM (Excel's "CSV UTF-8" export always writes one) does not end up inside
-#: the first cell; cp1252 last for files saved by older German Office builds.
-_TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252")
 MAX_TITLE_CANDIDATE_LEN = 120
 
 WARNING_CODES = (
@@ -203,34 +205,6 @@ def _parse_number(text: str) -> Optional[float]:
         return None
 
 
-def _local(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
-
-
-def _children(el: ET.Element, name: str) -> Iterable[ET.Element]:
-    for child in el:
-        if _local(child.tag) == name:
-            yield child
-
-
-def _first(el: Optional[ET.Element], name: str) -> Optional[ET.Element]:
-    if el is None:
-        return None
-    for child in el:
-        if _local(child.tag) == name:
-            return child
-    return None
-
-
-def _attr(el: Optional[ET.Element], name: str) -> Optional[str]:
-    if el is None:
-        return None
-    for key, value in el.attrib.items():
-        if _local(key) == name:
-            return value
-    return None
-
-
 # ---------------------------------------------------------------------------
 # Shared row model
 # ---------------------------------------------------------------------------
@@ -342,167 +316,59 @@ def _parse_points_cell(value: Any, row: int, warnings: _Warnings) -> Tuple[Optio
 
 
 # ---------------------------------------------------------------------------
-# XLSX
+# Reading tables (XLSX through table_grid) and zip parts
 # ---------------------------------------------------------------------------
 
 
-def _col_index(ref: str) -> int:
-    letters = "".join(ch for ch in ref if ch.isalpha()).upper()
-    index = 0
-    for ch in letters:
-        index = index * 26 + (ord(ch) - ord("A") + 1)
-    return max(index - 1, 0)
+_TOO_MANY_ROWS_MESSAGE = (
+    f"Die Datei hat mehr als {MAX_RAW_ROWS} Zeilen. "
+    f"Ein Bewertungsbogen darf höchstens {MAX_RAW_ROWS} Zeilen haben."
+)
+_MEMBER_TOO_LARGE_MESSAGE = (
+    "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen."
+)
+_UNREADABLE_MESSAGES = {
+    "xlsx": "Die XLSX-Datei konnte nicht gelesen werden.",
+    "csv": "Die CSV-Datei konnte nicht gelesen werden.",
+}
+
+
+def _table_error(exc: TableReadError, fmt: str) -> RubricImportError:
+    """The importer's error (code and copy) for a table that cannot be read."""
+    if exc.code == "too_many_rows":
+        return RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
+    if exc.code == "no_worksheet":
+        return RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
+    if exc.code == "worksheet_missing":
+        return RubricImportError("corrupt_file", "Das Tabellenblatt fehlt in der Datei.")
+    if exc.code == "member_too_large":
+        return RubricImportError("corrupt_file", _MEMBER_TOO_LARGE_MESSAGE)
+    return RubricImportError("corrupt_file", _UNREADABLE_MESSAGES[fmt])
 
 
 def _read_member(zf: zipfile.ZipFile, name: str) -> bytes:
-    """``zf.read(name)`` with a declared-size guard (see MAX_ZIP_MEMBER_BYTES).
+    """``ooxml.read_member`` with the importer's error for an oversized part."""
+    try:
+        return ooxml.read_member(zf, name)
+    except ooxml.MemberTooLarge as exc:
+        raise RubricImportError("corrupt_file", _MEMBER_TOO_LARGE_MESSAGE) from exc
 
-    ``ZipInfo.file_size`` is the size recorded in the archive; a bomb has to
-    declare its payload there, so refusing before the read keeps the
-    decompression bounded. A lying header still cannot get past the member
-    cap because ``read`` is given ``MAX_ZIP_MEMBER_BYTES + 1`` bytes at most.
+
+def _read_xlsx_sheets(data: bytes) -> List[Tuple[str, List[Row]]]:
+    """``[(sheet name, grid)]`` of every readable worksheet, the first one first.
+
+    Further worksheets are only looked at for the ``sheets_ignored`` warning,
+    so one that cannot be read never refuses the file (``table_grid`` skips
+    it).
     """
     try:
-        info = zf.getinfo(name)
-    except KeyError:
-        raise
-    if info.file_size > MAX_ZIP_MEMBER_BYTES:
-        raise RubricImportError(
-            "corrupt_file",
-            "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen.",
-        )
-    with zf.open(name) as handle:
-        data = handle.read(MAX_ZIP_MEMBER_BYTES + 1)
-    if len(data) > MAX_ZIP_MEMBER_BYTES:
-        raise RubricImportError(
-            "corrupt_file",
-            "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen.",
-        )
-    return data
+        sheets, _skipped = read_xlsx_sheets(data, max_rows=MAX_RAW_ROWS)
+    except TableReadError as exc:
+        raise _table_error(exc, "xlsx") from exc
+    return [(sheet.name, sheet.rows) for sheet in sheets]
 
 
-def _shared_strings(zf: zipfile.ZipFile) -> List[str]:
-    if "xl/sharedStrings.xml" not in zf.namelist():
-        return []
-    root = ET.fromstring(_read_member(zf, "xl/sharedStrings.xml"))
-    out: List[str] = []
-    for si in root.iter():
-        if _local(si.tag) != "si":
-            continue
-        parts: List[str] = []
-        for el in si.iter():
-            if _local(el.tag) == "rPh":
-                continue
-            if _local(el.tag) == "t":
-                parts.append(el.text or "")
-        out.append("".join(parts))
-    return out
-
-
-def _sheet_paths(zf: zipfile.ZipFile) -> List[Tuple[str, str]]:
-    """``[(sheet name, member path)]`` of every worksheet, in workbook order."""
-    names = set(zf.namelist())
-    workbook = ET.fromstring(_read_member(zf, "xl/workbook.xml"))
-    sheets = [el for el in workbook.iter() if _local(el.tag) == "sheet"]
-    if not sheets:
-        raise RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
-    rels: Dict[str, str] = {}
-    if "xl/_rels/workbook.xml.rels" in names:
-        root = ET.fromstring(_read_member(zf, "xl/_rels/workbook.xml.rels"))
-        for rel in root.iter():
-            if _local(rel.tag) == "Relationship" and rel.attrib.get("Id"):
-                rels[rel.attrib["Id"]] = rel.attrib.get("Target") or ""
-    out: List[Tuple[str, str]] = []
-    for index, sheet in enumerate(sheets, start=1):
-        rid = _attr(sheet, "id")
-        target = rels.get(rid or "") or f"worksheets/sheet{index}.xml"
-        path = target.lstrip("/") if target.startswith("/") else os.path.normpath(f"xl/{target}")
-        out.append((sheet.attrib.get("name") or f"#{index}", path.replace("\\", "/")))
-    if out[0][1] not in names:
-        raise RubricImportError("corrupt_file", "Das Tabellenblatt fehlt in der Datei.")
-    return [(name, path) for name, path in out if path in names]
-
-
-def _first_sheet_path(zf: zipfile.ZipFile) -> str:
-    return _sheet_paths(zf)[0][1]
-
-
-def _sheet_grid(sheet: ET.Element, shared: List[str]) -> List[Tuple[int, Dict[int, Any]]]:
-    """``[(row_no, {col_index: str|float})]`` of one parsed worksheet."""
-    grid: List[Tuple[int, Dict[int, Any]]] = []
-    next_row = 1
-    for row_el in sheet.iter():
-        if _local(row_el.tag) != "row":
-            continue
-        try:
-            row_no = int(row_el.attrib.get("r") or next_row)
-        except ValueError:
-            row_no = next_row
-        next_row = row_no + 1
-        cells: Dict[int, Any] = {}
-        next_col = 0
-        for cell in _children(row_el, "c"):
-            ref = cell.attrib.get("r")
-            col = _col_index(ref) if ref else next_col
-            next_col = col + 1
-            kind = cell.attrib.get("t")
-            v_el = _first(cell, "v")
-            value: Any = None
-            if kind == "s":
-                try:
-                    value = shared[int(v_el.text)] if v_el is not None and v_el.text else ""
-                except (ValueError, IndexError):
-                    value = ""
-            elif kind == "inlineStr":
-                is_el = _first(cell, "is")
-                value = "".join(
-                    (t.text or "") for t in (is_el.iter() if is_el is not None else []) if _local(t.tag) == "t"
-                )
-            elif kind == "str":
-                value = v_el.text or "" if v_el is not None else ""
-            elif kind == "b":
-                value = "1" if v_el is not None and v_el.text == "1" else "0"
-            elif kind == "e":
-                value = None
-            else:
-                if v_el is not None and v_el.text not in (None, ""):
-                    try:
-                        value = float(v_el.text)
-                    except ValueError:
-                        value = v_el.text
-            if value is None or (isinstance(value, str) and not value.strip()):
-                continue
-            cells[col] = value
-        grid.append((row_no, cells))
-        if len(grid) > MAX_RAW_ROWS:
-            raise RubricImportError(
-                "too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen."
-            )
-    return grid
-
-
-def _read_xlsx_sheets(data: bytes) -> List[Tuple[str, List[Tuple[int, Dict[int, Any]]]]]:
-    """``[(sheet name, grid)]`` of every worksheet, the first one first."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            shared = _shared_strings(zf)
-            paths = _sheet_paths(zf)
-            sheets = [(paths[0][0], _sheet_grid(ET.fromstring(_read_member(zf, paths[0][1])), shared))]
-            # Further worksheets are only looked at for the warning, so one
-            # that cannot be read never refuses the file.
-            for name, path in paths[1:]:
-                try:
-                    sheets.append((name, _sheet_grid(ET.fromstring(_read_member(zf, path)), shared)))
-                except (RubricImportError, ET.ParseError, ValueError, KeyError):
-                    continue
-            return sheets
-    except RubricImportError:
-        raise
-    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError) as exc:
-        raise RubricImportError("corrupt_file", "Die XLSX-Datei konnte nicht gelesen werden.") from exc
-
-
-def _read_xlsx_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
+def _read_xlsx_grid(data: bytes) -> List[Row]:
     """The grid of the first worksheet (the one a sheet is read from)."""
     return _read_xlsx_sheets(data)[0][1]
 
@@ -562,15 +428,6 @@ def _detect_columns(grid: List[Tuple[int, Dict[int, Any]]]) -> Tuple[int, Option
         if col > text_col and col not in ignored:
             return text_col, col
     return text_col, None
-
-
-def _col_letter(index: int) -> str:
-    """``0`` → ``A``, ``26`` → ``AA``."""
-    letters, n = "", index + 1
-    while n:
-        n, rem = divmod(n - 1, 26)
-        letters = chr(65 + rem) + letters
-    return letters
 
 
 def _is_points_value(value: Any) -> bool:
@@ -898,7 +755,7 @@ def _read_docx(data: bytes) -> _DocxDoc:
             for tr in _children(block, "tr"):
                 rows.append([walk_cell(tc) for tc in _children(tr, "tc")])
                 if len(rows) > MAX_RAW_ROWS:
-                    raise RubricImportError("too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen.")
+                    raise RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
             doc.blocks.append(("tbl", rows))
         elif name == "sdt":
             content = _first(block, "sdtContent")
@@ -1580,19 +1437,8 @@ def _grade_scale_as_percent(
 # ---------------------------------------------------------------------------
 
 
-def _decode_text(data: bytes) -> str:
-    """Best-effort decode of an uploaded text file."""
-    for encoding in _TEXT_ENCODINGS:
-        try:
-            return data.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    # Last resort: never fail the import on a stray byte in a comment.
-    return data.decode("utf-8", errors="replace")
-
-
-def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
-    """Rows of cells → the `(row_no, {col: value})` grid shape.
+def _coerce_cells(cells: Dict[int, Any]) -> Dict[int, Any]:
+    """Text cells as the XLSX reader would hand them downstream.
 
     A cell that is nothing but a number becomes a float, because that is what
     the XLSX reader hands downstream and ``_detect_columns`` recognises a
@@ -1600,34 +1446,39 @@ def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
     would parse to an outline with no points at all — every cell being a
     string, no column ever looks numeric.
     """
+    mapped: Dict[int, Any] = {}
+    for col, raw in cells.items():
+        text = str(raw).strip()
+        if not text:
+            continue
+        number = _parse_number(text) if _POINTS_RE.match(text) else None
+        mapped[col] = text if number is None else number
+    return mapped
+
+
+def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
+    """Rows of cells → the `(row_no, {col: value})` grid shape (see
+    :func:`_coerce_cells`); rows without a non-blank cell are left out."""
     grid: List[Tuple[int, Dict[int, Any]]] = []
     for index, cells in enumerate(rows, start=1):
-        mapped: Dict[int, Any] = {}
-        for col, raw in enumerate(cells):
-            text = str(raw).strip()
-            if not text:
-                continue
-            number = _parse_number(text) if _POINTS_RE.match(text) else None
-            mapped[col] = text if number is None else number
+        mapped = _coerce_cells(dict(enumerate(cells)))
         if mapped:
             grid.append((index, mapped))
     return grid
 
 
 def _read_csv_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
-    """CSV/TSV → grid. The delimiter is sniffed; German exports use ';'."""
-    text = _decode_text(data)
-    sample = text[:4096]
+    """CSV → grid through ``table_grid`` (delimiter sniffed; German exports use ';')."""
     try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
-        delimiter = dialect.delimiter
-    except csv.Error:
-        # Sniffing fails on a single-column file; count instead.
-        delimiter = max(",;\t", key=lambda d: sample.count(d))
-        if sample.count(delimiter) == 0:
-            delimiter = ","
-    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    return _grid_from_rows([[c for c in row] for row in reader])
+        rows = read_delimited(data, max_rows=MAX_RAW_ROWS)
+    except TableReadError as exc:
+        raise _table_error(exc, "csv") from exc
+    grid: List[Tuple[int, Dict[int, Any]]] = []
+    for row in rows:
+        mapped = _coerce_cells(row.cells)
+        if mapped:
+            grid.append((row.number, mapped))
+    return grid
 
 
 _MD_TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")

@@ -325,6 +325,22 @@ UEBUNGSKLAUSUR_THRESHOLDS = [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76,
 _COLS = "BCDEFGHIJKLMNOPQRST"
 
 
+def damage_member(data: bytes, name: str) -> bytes:
+    """``data`` with the compressed stream of member ``name`` broken.
+
+    The first deflate byte becomes ``0xFF``, an invalid block type, so
+    decompressing the member fails with ``zlib.error``.
+    """
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        info = zf.getinfo(name)
+    assert info.compress_type == zipfile.ZIP_DEFLATED
+    header = info.header_offset
+    name_len = int.from_bytes(data[header + 26 : header + 28], "little")
+    extra_len = int.from_bytes(data[header + 28 : header + 30], "little")
+    start = header + 30 + name_len + extra_len
+    return data[:start] + b"\xff" + data[start + 1 :]
+
+
 def sample_sheet_rows(*, grades: Optional[List[int]] = None) -> List[Optional[Dict[str, Any]]]:
     grades = list(range(19)) if grades is None else grades
     scale_row = {"A": "BE", **{_COLS[i]: r for i, r in enumerate(SCALE_RANGES)}}

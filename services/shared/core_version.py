@@ -1888,11 +1888,47 @@ API change).
     lanes (``llm_judge_evaluator.rubric_judge_prompts``,
     ``checklist_scoring.placement_rule``); sheets without it grade exactly
     as before.
+
+2.82 (2026-11-24): table reader, grading files and upload batches
+  (migration 157, additive).
+  - Shared module ``table_grid``: ``read_table(filename, data, *,
+    max_rows)`` reads an XLSX (every worksheet), CSV or TSV upload into a
+    ``TableFile`` (``format``, ``sheets`` of ``Sheet(name, rows)``,
+    ``skipped_sheets`` of ``SkippedSheet(name, code)``); a ``Row`` is
+    ``(number, cells)`` with the 1-based row number a person sees and the
+    non-blank cells by 0-based column. ``TableReadError.code`` is one of
+    ``table_grid.ERROR_CODES``. Also ``table_format``, ``read_delimited``,
+    ``read_xlsx_sheets``, ``decode_text``, ``sniff_delimiter``,
+    ``column_letter``, ``column_index``, ``cell_ref``. Shared module
+    ``ooxml``: the size-guarded zip member reader (``read_member``,
+    ``MemberTooLarge``, ``MAX_MEMBER_BYTES``) and namespace-agnostic element
+    helpers. The grading sheet importer reads through both, with unchanged
+    results (a CSV sheet is now capped at the same 2000 rows as an XLSX
+    one); its ``too_many_rows`` message now states the limit for every
+    format.
+  - ``submission_files.purpose`` (``project_models.SUBMISSION_FILE_PURPOSES``:
+    ``submission``, the default and every existing row, or ``grading``, a
+    file a grader returned with a grading) and
+    ``submission_files.task_evaluation_id`` (the grading's row, SET NULL).
+    A reader of a person's handed-in files filters on ``purpose =
+    "submission"``.
+  - Table and model ``upload_batches`` (``project_models.UploadBatch``,
+    ``UPLOAD_BATCH_STATUSES``): one committed staff bulk upload with its
+    ``kind``, project, optional task, uploader, stored source file,
+    ``options``, per-row ``report``, row counts and ``status`` ``committed``
+    or ``undone``.
+  - Shared module ``stored_files`` (``task_file_keys``,
+    ``task_file_keys_async``, ``project_file_keys``, ``user_file_keys``,
+    ``delete_stored_files``): a project purge, the task bulk delete and an
+    account delete now remove the stored objects of the submission files,
+    transcribed pages, parked uploads and upload batch sources whose rows
+    they delete (the objects used to stay in object storage). The purge
+    result counts them as ``stored_files``.
 """
 
 import os
 
-CORE_API_VERSION = "2.81"
+CORE_API_VERSION = "2.82"
 
 
 def extended_required() -> bool:
