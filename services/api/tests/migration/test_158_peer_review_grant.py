@@ -4,7 +4,8 @@
 migration issues its own ``COMMIT`` before it. The upgrade test runs the
 migration for real on an autocommit connection of the test engine (not the
 rolled-back test session), twice, and reads the column, the index and the
-enum label back from the catalog.
+enum label back from the catalog. The downgrade test runs inside a
+transaction that it rolls back, so the shared test database keeps its schema.
 """
 
 from __future__ import annotations
@@ -12,7 +13,6 @@ from __future__ import annotations
 import importlib.util
 import os
 from contextlib import contextmanager
-from unittest.mock import patch
 
 from sqlalchemy import text
 
@@ -90,11 +90,41 @@ class TestMigration158:
         assert "UNIQUE" in index and "korrektur_peer" in index
         assert NotificationType.PEER_FEEDBACK_RECEIVED.value in labels
 
-    def test_downgrade_drops_the_index_and_the_column_but_keeps_the_enum(self):
+    def test_downgrade_drops_the_index_and_the_column_but_keeps_the_enum(self, test_db):
+        from tests.fixtures.database import _get_engine
+
+        engine, _ = _get_engine()
         mig = _load_migration()
-        with patch.object(mig, "op") as op, patch.object(mig, "_column_exists", return_value=True):
-            mig.downgrade()
-        statements = " ".join(str(c.args[0]) for c in op.execute.call_args_list)
-        assert "DROP INDEX IF EXISTS uq_human_eval_run_per_project_metric_peer" in statements
-        assert "notificationtype" not in statements
-        op.drop_column.assert_called_once_with("projects", "peer_review_enabled")
+        with engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                with _op_context(conn):
+                    mig.downgrade()
+                during = _catalog_state(conn)
+            finally:
+                trans.rollback()
+            after = _catalog_state(conn)
+        assert during == (False, False, True)
+        assert after == (True, True, True)
+
+
+def _catalog_state(conn) -> tuple[bool, bool, bool]:
+    column = conn.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'projects' AND column_name = 'peer_review_enabled'"
+        )
+    ).first()
+    index = conn.execute(
+        text(
+            "SELECT 1 FROM pg_indexes "
+            "WHERE indexname = 'uq_human_eval_run_per_project_metric_peer'"
+        )
+    ).first()
+    label = conn.execute(
+        text(
+            "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid "
+            "WHERE t.typname = 'notificationtype' AND e.enumlabel = 'peer_feedback_received'"
+        )
+    ).first()
+    return column is not None, index is not None, label is not None
