@@ -674,7 +674,7 @@ class Annotation(Base):
     was_cancelled = Column(Boolean, default=False, nullable=False)
     ground_truth = Column(Boolean, default=False, nullable=False)
 
-    # Withdrawal (migration 155): a submission taken back after it was handed
+    # Withdrawal (migration 156): a submission taken back after it was handed
     # in, by its author or returned by a project editor. The row and its data
     # stay; ``was_cancelled`` is set with these, so every reader that skips
     # cancelled rows skips it too. ``withdrawn_by`` differs from

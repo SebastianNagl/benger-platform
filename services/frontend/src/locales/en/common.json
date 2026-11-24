@@ -1707,6 +1707,9 @@
       "saving": "Saving…",
       "unsavedChanges": "Unsaved changes"
     },
+    "releaseReview": {
+      "extendedRequired": "Reviewing and releasing gradings requires the extended edition."
+    },
     "rubricReview": {
       "extendedRequired": "The check of grading sheets requires the extended edition."
     }
@@ -3329,6 +3332,10 @@
         "title": "New evaluation: {project_title}",
         "message": "An evaluation run has graded your submissions in '{project_title}'."
       },
+      "evaluation_released": {
+        "title": "Grading released: {project_title}",
+        "message": "Your teacher released the grading of your submission in '{project_title}'."
+      },
       "submission_returned": {
         "title": "Submission returned: {project_title}",
         "message": "Your submission in '{project_title}' was returned to you. Reason: {reason}"
@@ -3898,6 +3905,8 @@
         "evaluationReceivedImmediateDesc": "Receive notifications when the immediate AI grading of your submission is ready",
         "evaluationReceivedBatch": "New evaluation run",
         "evaluationReceivedBatchDesc": "Receive notifications when an evaluation run has graded your submissions",
+        "evaluationReleased": "Released grading",
+        "evaluationReleasedDesc": "Receive notifications when your teacher releases a grading of your submission that was held back for review",
         "submissionReturned": "Submission returned",
         "submissionReturnedDesc": "Receive notifications when one of your submissions was returned to you with a reason",
         "dataUploadCompleted": "Data Upload Completed",

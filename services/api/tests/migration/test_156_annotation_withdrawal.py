@@ -1,4 +1,4 @@
-"""Migration 155: the withdrawal record on ``annotations`` and ``submission_returned``.
+"""Migration 156: the withdrawal record on ``annotations`` and ``submission_returned``.
 
 The shared test DB is built by ``Base.metadata.create_all``, so it already has
 the three columns, their users FK and (through the fixture's label loop) the
@@ -26,7 +26,7 @@ MIGRATION_PATH = os.path.normpath(
         "..",
         "alembic",
         "versions",
-        "155_annotation_withdrawal.py",
+        "156_annotation_withdrawal.py",
     )
 )
 
@@ -34,7 +34,7 @@ COLUMNS = ("withdrawn_at", "withdrawn_by", "withdrawal_reason")
 
 
 def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_155", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("mig_156", MIGRATION_PATH)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -72,11 +72,11 @@ def _drop_withdrawal_columns(conn) -> None:
         conn.execute(text(f"ALTER TABLE annotations DROP COLUMN IF EXISTS {column}"))
 
 
-class TestMigration155:
-    def test_revision_chains_after_154(self):
+class TestMigration156:
+    def test_revision_chains_after_155(self):
         mig = _load_migration()
-        assert mig.revision == "155_annotation_withdrawal"
-        assert mig.down_revision == "154_korrektur_comment_highlight_field"
+        assert mig.revision == "156_annotation_withdrawal"
+        assert mig.down_revision == "155_add_evaluation_released_notification_type"
 
     def test_upgrade_is_a_noop_on_a_current_schema_and_never_commits(
         self, test_db: Session

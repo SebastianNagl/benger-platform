@@ -1,4 +1,4 @@
-"""Withdrawing a submission (core 2.79, migration 155).
+"""Withdrawing a submission (core 2.80, migration 156).
 
 ``POST /api/projects/annotations/{id}/withdraw`` is the one way to take a
 handed-in submission back: its author withdraws it, or a project editor

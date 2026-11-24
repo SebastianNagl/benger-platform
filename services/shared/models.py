@@ -3165,6 +3165,9 @@ class NotificationType(str, Enum):
     EVALUATION_RECEIVED_HUMAN = "evaluation_received_human"
     EVALUATION_RECEIVED_IMMEDIATE = "evaluation_received_immediate"
     EVALUATION_RECEIVED_BATCH = "evaluation_received_batch"
+    # A grading held back for review (a feedback-only judge result, core
+    # 2.41) was released to the recipient by a teacher.
+    EVALUATION_RELEASED = "evaluation_released"
 
     # A project editor returned the recipient's submission (withdrew it for
     # them, with a reason); the recipient can hand in again.

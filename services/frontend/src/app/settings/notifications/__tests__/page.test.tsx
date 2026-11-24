@@ -122,6 +122,7 @@ const mockTranslations = {
   'settings.notifications.types.evaluationReceivedImmediate':
     'AI grading ready',
   'settings.notifications.types.evaluationReceivedBatch': 'New evaluation run',
+  'settings.notifications.types.evaluationReleased': 'Released grading',
   'settings.notifications.types.dataUploadCompleted': 'Data Upload Completed',
   'settings.notifications.types.dataUploadCompletedDesc':
     'Receive notifications when data uploads complete',
@@ -301,6 +302,7 @@ describe('NotificationSettingsPage', () => {
         in_app: false,
         email: false,
       },
+      evaluation_released: { enabled: true, in_app: true, email: true },
     }
 
     beforeEach(() => {
@@ -310,7 +312,7 @@ describe('NotificationSettingsPage', () => {
       })
     })
 
-    it('lists the three grading types next to the expert types', async () => {
+    it('lists the four grading types next to the expert types', async () => {
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
@@ -318,6 +320,7 @@ describe('NotificationSettingsPage', () => {
       })
       expect(screen.getByText('AI grading ready')).toBeInTheDocument()
       expect(screen.getByText('New evaluation run')).toBeInTheDocument()
+      expect(screen.getByText('Released grading')).toBeInTheDocument()
       expect(screen.getByText('Project Created')).toBeInTheDocument()
     })
 
@@ -338,6 +341,9 @@ describe('NotificationSettingsPage', () => {
           'settings-notification-toggle-evaluation_received_batch',
         ),
       ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('settings-notification-toggle-evaluation_released'),
+      ).toBeInTheDocument()
       // A returned submission concerns the student's own work too.
       expect(
         screen.getByTestId('settings-notification-toggle-submission_returned'),
@@ -346,9 +352,10 @@ describe('NotificationSettingsPage', () => {
       expect(
         screen.queryByTestId('settings-notification-toggle-project_created'),
       ).not.toBeInTheDocument()
-      // Human gradings and returned submissions are on by default.
+      // Human gradings, teacher releases and returned submissions are on by
+      // default.
       expect(
-        screen.getByText('2 of 4 notification types enabled'),
+        screen.getByText('3 of 5 notification types enabled'),
       ).toBeInTheDocument()
     })
 
@@ -385,6 +392,32 @@ describe('NotificationSettingsPage', () => {
       })
     })
 
+    it('a student switches the release notice off on both channels', async () => {
+      const user = userEvent.setup()
+      mockUiMode.mockReturnValue('student')
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(
+            'settings-notification-toggle-evaluation_released',
+          ),
+        ).toBeInTheDocument()
+      })
+      await user.click(
+        screen.getByTestId('settings-notification-toggle-evaluation_released'),
+      )
+      await user.click(screen.getByText('Save Preferences'))
+
+      await waitFor(() => {
+        expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
+          expect.objectContaining({
+            evaluation_released: expect.objectContaining({ enabled: false }),
+          }),
+        )
+      })
+    })
+
     it('Disable All in the student shell keeps the hidden expert preferences', async () => {
       const user = userEvent.setup()
       mockUiMode.mockReturnValue('student')
@@ -409,6 +442,7 @@ describe('NotificationSettingsPage', () => {
             evaluation_received_human: off,
             evaluation_received_immediate: off,
             evaluation_received_batch: off,
+            evaluation_released: off,
           }),
         )
       })

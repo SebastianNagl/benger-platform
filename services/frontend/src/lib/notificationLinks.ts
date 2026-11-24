@@ -11,6 +11,7 @@ export const EVALUATION_RECEIVED_TYPES = [
   'evaluation_received_human',
   'evaluation_received_immediate',
   'evaluation_received_batch',
+  'evaluation_released',
 ] as const
 
 export type EvaluationReceivedType = (typeof EVALUATION_RECEIVED_TYPES)[number]

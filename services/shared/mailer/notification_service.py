@@ -64,6 +64,9 @@ _DEFAULT_CHANNELS_BY_TYPE: Dict[str, Dict[str, bool]] = {
     NotificationType.EVALUATION_RECEIVED_HUMAN.value: {"in_app": True, "email": True},
     NotificationType.EVALUATION_RECEIVED_IMMEDIATE.value: {"in_app": False, "email": False},
     NotificationType.EVALUATION_RECEIVED_BATCH.value: {"in_app": False, "email": False},
+    # A teacher released a held-back grading: as worth an email as a human
+    # grading, and sent once per release, never per AI run.
+    NotificationType.EVALUATION_RELEASED.value: {"in_app": True, "email": True},
     # A returned submission asks the author to act (hand in again).
     NotificationType.SUBMISSION_RETURNED.value: {"in_app": True, "email": True},
 }
@@ -1172,6 +1175,7 @@ _EVALUATION_RECEIVED_TYPE_BY_SOURCE = {
     "human": NotificationType.EVALUATION_RECEIVED_HUMAN,
     "immediate": NotificationType.EVALUATION_RECEIVED_IMMEDIATE,
     "batch": NotificationType.EVALUATION_RECEIVED_BATCH,
+    "release": NotificationType.EVALUATION_RELEASED,
 }
 
 # Stored title and message. The frontend shows its own translation
@@ -1185,6 +1189,10 @@ _EVALUATION_RECEIVED_TEXT = {
     "batch": (
         "New AI evaluation",
         "An AI evaluation run graded your submissions in '{project_title}'.",
+    ),
+    "release": (
+        "Grading released",
+        "Your grading in '{project_title}' was released to you.",
     ),
 }
 
@@ -1219,8 +1227,9 @@ def notify_evaluation_received(
     """Tell annotators that a new grading of their submission arrived.
 
     ``source`` picks the notification type: ``human`` (a Korrektor saved a
-    grade), ``immediate`` (the AI grading after a submission finished) or
-    ``batch`` (an evaluation run graded their annotations). Each type is its
+    grade), ``immediate`` (the AI grading after a submission finished),
+    ``batch`` (an evaluation run graded their annotations) or ``release``
+    (a teacher released a grading that was held back for review). Each type is its
     own row in the notification settings with its own defaults (see
     ``default_channels``).
 

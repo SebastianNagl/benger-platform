@@ -1,5 +1,5 @@
 {
-  "generated_from": "9bed60f03383edf68f9ce8b9a5ddff221a1e171d",
+  "generated_from": "c28c4eb1b92bb13c47bff6b9000c0918f8e67f81",
   "api_shared": [
     {
       "module": "account_activation",
@@ -356,6 +356,20 @@
       "name": "time_limits_for",
       "importers": [
         "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "configs_by_id",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "pick_current",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
       ]
     },
     {
@@ -1367,6 +1381,7 @@
       "module": "notification_service",
       "name": "notify_evaluation_received",
       "importers": [
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/korrektur.py"
       ]
     },
@@ -1564,6 +1579,7 @@
       "importers": [
         "benger_extended/api/grade_headline.py",
         "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
@@ -2502,6 +2518,13 @@
       "name": "order_criteria_keys",
       "importers": [
         "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "register_own_scale_metric",
+      "importers": [
+        "benger_extended/__init__.py"
       ]
     },
     {

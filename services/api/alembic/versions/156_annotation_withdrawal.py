@@ -19,8 +19,8 @@ in again) and records who did it, when and why:
 Idempotent: every step is guarded, so a database built from the models (the
 test DB) runs it as a no-op.
 
-Revision ID: 155_annotation_withdrawal
-Revises: 154_korrektur_comment_highlight_field
+Revision ID: 156_annotation_withdrawal
+Revises: 155_add_evaluation_released_notification_type
 Create Date: 2026-11-24
 """
 
@@ -29,8 +29,8 @@ from sqlalchemy import inspect
 from alembic import op
 import sqlalchemy as sa
 
-revision = "155_annotation_withdrawal"
-down_revision = "154_korrektur_comment_highlight_field"
+revision = "156_annotation_withdrawal"
+down_revision = "155_add_evaluation_released_notification_type"
 branch_labels = None
 depends_on = None
 

@@ -1798,7 +1798,32 @@ API change).
     registered as grading on its own scale. Saving the methods re-renders
     the mirrors when that answer changes.
 
-2.79 (2026-11-24): withdrawing a submission (migration 155, additive).
+2.79 (2026-11-24): gradings held back for a release (migration 155,
+  additive).
+  - Notification type ``evaluation_released`` (migration 155 adds it to
+    the ``notificationtype`` enum): a teacher released a grading that was
+    held back for review. ``notify_evaluation_received(source="release")``
+    sends it; default channels in-app and email on, and like every type
+    each recipient switches it in the notification settings (both channels
+    honour the stored preference). The email reuses
+    ``evaluation_received.html`` and the link the other grading types use.
+  - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
+    row holds a feedback-only result (``details.feedback_only``, core 2.41)
+    that is not released yet (``details.review.status != "released"``).
+    The immediate grading notice (``evaluation_received_immediate``) skips
+    a run whose rows all wait for their release, so a held-back draft no
+    longer announces "AI grading ready"; the batch notice
+    (``evaluation_received_batch``) counts a feedback row only when the
+    judge released it at write time (``details.review.released_by =
+    "judge"``, a field the overlay writes); a draft or a row a teacher
+    released tells nobody there. Announcing a teacher's release stays with
+    the overlay that releases.
+  - Slot ``ProjectReleaseReviewPage`` (props ``{projectId}``) on
+    ``/projects/[id]/release-review``: the page where a project's editors
+    review held-back gradings and release them. Without the slot the route
+    says it needs the extended edition.
+
+2.80 (2026-11-24): withdrawing a submission (migration 156, additive).
   - ``annotations.withdrawn_at`` / ``withdrawn_by`` / ``withdrawal_reason``
     (``Annotation`` model, ``AnnotationResponse``, the data export and both
     imports). A withdrawal keeps the row, sets ``was_cancelled`` and records
@@ -1832,7 +1857,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.79"
+CORE_API_VERSION = "2.80"
 
 
 def extended_required() -> bool:

@@ -1707,6 +1707,9 @@
       "saving": "Enregistrement…",
       "unsavedChanges": "Modifications non enregistrées"
     },
+    "releaseReview": {
+      "extendedRequired": "L'examen et la publication des évaluations nécessitent l'édition Extended."
+    },
     "rubricReview": {
       "extendedRequired": "La vérification des grilles d'évaluation nécessite l'édition Extended."
     }
@@ -3329,6 +3332,10 @@
         "title": "Nouvelle évaluation : {project_title}",
         "message": "Une exécution d'évaluation a noté vos travaux dans « {project_title} »."
       },
+      "evaluation_released": {
+        "title": "Correction transmise : {project_title}",
+        "message": "Votre enseignant a transmis la correction de votre copie dans « {project_title} »."
+      },
       "submission_returned": {
         "title": "Remise renvoyée : {project_title}",
         "message": "Votre remise dans « {project_title} » vous a été renvoyée. Motif : {reason}"
@@ -3898,6 +3905,8 @@
         "evaluationReceivedImmediateDesc": "Recevoir des notifications lorsque la correction IA immédiate de votre copie est disponible",
         "evaluationReceivedBatch": "Nouvelle exécution d'évaluation",
         "evaluationReceivedBatchDesc": "Recevoir des notifications lorsqu'une exécution d'évaluation a noté vos copies",
+        "evaluationReleased": "Correction transmise",
+        "evaluationReleasedDesc": "Recevoir des notifications lorsque votre enseignant transmet une correction de votre copie qu'il avait retenue pour relecture",
         "submissionReturned": "Remise renvoyée",
         "submissionReturnedDesc": "Recevoir des notifications lorsqu'une de vos remises vous a été renvoyée avec un motif",
         "dataUploadCompleted": "Téléversement de données terminé",

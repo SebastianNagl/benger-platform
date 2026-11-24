@@ -216,9 +216,11 @@ class TestExtensionLoader:
         # a server default; the drop follows in a later release).
         # 2.78 adds korrektur_comments.highlight_field (migration 154), the
         # sheet parser's declared_total and the own-scale grade key rule.
-        # 2.79 adds the withdrawal of a submission (migration 155, the hook
+        # 2.79 adds metric_filters.row_awaits_release (no grading notice for
+        # held-back drafts) and the ProjectReleaseReviewPage slot route.
+        # 2.80 adds the withdrawal of a submission (migration 156, the hook
         # keys before_annotation_withdraw and on_annotation_withdrawn).
-        assert CORE_API_VERSION == "2.79"
+        assert CORE_API_VERSION == "2.80"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
