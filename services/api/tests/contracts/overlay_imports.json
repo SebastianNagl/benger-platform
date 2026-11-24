@@ -2815,6 +2815,13 @@
     },
     {
       "module": "task_rubric_resolution",
+      "name": "register_sheet_judge_metric",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
       "name": "resolve_grading_rubric",
       "importers": [
         "benger_extended/api/routers/korrektur.py"

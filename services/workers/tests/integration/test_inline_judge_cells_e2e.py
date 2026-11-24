@@ -15,7 +15,11 @@ import pytest
 import tasks
 from models import TaskEvaluation
 from project_models import TaskRubric
-from task_rubric_resolution import RUBRIC_MISSING
+from task_rubric_resolution import (
+    RUBRIC_MISSING,
+    register_sheet_judge_metric,
+    unregister_sheet_judge_metric,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
 
@@ -61,6 +65,15 @@ def feedback_overlay(monkeypatch):
     )
     _FeedbackJudge.calls = []
     return _FeedbackJudge
+
+
+@pytest.fixture()
+def registered_sheet_judge():
+    register_sheet_judge_metric("llm_judge_feedback")
+    try:
+        yield
+    finally:
+        unregister_sheet_judge_metric("llm_judge_feedback")
 
 
 def _config(pred_field):
@@ -167,7 +180,7 @@ def _graded_annotation(db_conn, make_user, make_llm_model, make_project, make_ta
 
 def test_a_sheet_judge_cell_gets_the_tasks_active_sheet(
     db_conn, make_user, make_llm_model, make_project, make_task,
-    make_annotation, make_evaluation_run, feedback_overlay,
+    make_annotation, make_evaluation_run, feedback_overlay, registered_sheet_judge,
 ):
     """Core 2.81: an inline judge config with use_task_rubric grades along
     the task's active sheet, which the cell hands to ``compute``."""
@@ -195,7 +208,7 @@ def test_a_sheet_judge_cell_gets_the_tasks_active_sheet(
 
 def test_a_sheet_judge_cell_without_a_sheet_is_the_rubric_missing_row(
     db_conn, make_user, make_llm_model, make_project, make_task,
-    make_annotation, make_evaluation_run, feedback_overlay,
+    make_annotation, make_evaluation_run, feedback_overlay, registered_sheet_judge,
 ):
     user, project, task = _graded_annotation(
         db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
@@ -211,6 +224,28 @@ def test_a_sheet_judge_cell_without_a_sheet_is_the_rubric_missing_row(
     [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
     assert row.passed is False
     assert row.metrics["llm_judge_feedback"]["error_code"] == RUBRIC_MISSING
+
+
+def test_an_unregistered_metric_with_the_switch_is_no_sheet_judge(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_evaluation_run, feedback_overlay,
+):
+    """Without a registration the switch makes no sheet judge: the cell runs
+    the judge without a sheet instead of writing the rubric_missing row."""
+    user, project, task = _graded_annotation(
+        db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id, evaluation_configs=[_sheet_config()],
+    )
+    [call] = feedback_overlay.calls
+    assert "task_rubric" not in call
+    db_conn.expire_all()
+    [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert row.passed is True
 
 
 def test_a_judge_without_the_setting_gets_no_sheet(

@@ -26,9 +26,10 @@ where an ``InlineJudge`` provides
   same keyword arguments as the Falllösung single-sample helper; persists
   its own row and returns the run-result dict.
 
-A config that grades along the task's sheet (``metric_parameters.
-use_task_rubric: true``, see ``task_rubric_resolution.is_rubric_judge``) is
-a sheet judge: the platform resolves the task's usable ``task_rubrics`` row
+A config of a metric registered with
+``task_rubric_resolution.register_sheet_judge_metric`` whose
+``metric_parameters`` say ``use_task_rubric: true`` (see
+``task_rubric_resolution.is_rubric_judge``) is a sheet judge: the platform resolves the task's usable ``task_rubrics`` row
 and hands it to ``compute`` and ``evaluate_single`` as ``task_rubric``
 (core 2.81). Without a usable sheet the cell gets the platform's
 ``rubric_missing`` error row and the judge is not called; the immediate

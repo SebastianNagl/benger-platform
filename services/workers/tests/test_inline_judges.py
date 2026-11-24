@@ -12,8 +12,11 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from evaluation.inline_judges import accepts_keyword, inline_judge_row, resolve_inline_judge
 from evaluation_planning import _row_has_score
+from task_rubric_resolution import register_sheet_judge_metric, unregister_sheet_judge_metric
 
 
 class _Judge:
@@ -244,6 +247,14 @@ class TestImmediateLane:
         assert kwargs["task_data"] == {"sachverhalt": "Cas"}
         db.close.assert_called_once()
 
+    @pytest.fixture
+    def registered(self):
+        register_sheet_judge_metric("llm_judge_feedback")
+        try:
+            yield
+        finally:
+            unregister_sheet_judge_metric("llm_judge_feedback")
+
     def _run(self, judge, metric_params, db):
         import tasks as tasks_module
         from tasks import _run_immediate_config_job
@@ -284,7 +295,7 @@ class TestImmediateLane:
 
         return _J, calls
 
-    def test_a_sheet_judge_gets_the_tasks_sheet(self):
+    def test_a_sheet_judge_gets_the_tasks_sheet(self, registered):
         judge, calls = self._sheet_judge()
         db = MagicMock()
         task, sheet = object(), object()
@@ -297,7 +308,7 @@ class TestImmediateLane:
         assert call["task_rubric"] is sheet
         resolve.assert_called_once_with(db, task, params)
 
-    def test_a_sheet_judge_without_a_sheet_writes_the_rubric_missing_row(self):
+    def test_a_sheet_judge_without_a_sheet_writes_the_rubric_missing_row(self, registered):
         judge, calls = self._sheet_judge()
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = object()
@@ -309,11 +320,20 @@ class TestImmediateLane:
         assert blob["error_code"] == "rubric_missing"
         assert blob["value"] is None
 
-    def test_a_judge_without_the_sheet_setting_is_not_looked_up(self):
+    def test_a_judge_without_the_sheet_setting_is_not_looked_up(self, registered):
         judge, calls = self._sheet_judge()
         db = MagicMock()
         with patch("task_rubric_resolution.resolve_grading_rubric") as resolve:
             self._run(judge, {"exam_type": "sample"}, db)
+        resolve.assert_not_called()
+        [call] = calls
+        assert call["task_rubric"] is None
+
+    def test_an_unregistered_metric_with_the_switch_is_not_looked_up(self):
+        judge, calls = self._sheet_judge()
+        db = MagicMock()
+        with patch("task_rubric_resolution.resolve_grading_rubric") as resolve:
+            self._run(judge, {"exam_type": "sample", "use_task_rubric": True}, db)
         resolve.assert_not_called()
         [call] = calls
         assert call["task_rubric"] is None

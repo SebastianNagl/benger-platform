@@ -25,7 +25,7 @@ from services.analysis_plans import (
     without_analysis_plans,
 )
 from services.eval_subject_pools import count_eval_subject_pools
-from services.evaluation.config import is_extended_metric, metric_flag_on
+from services.evaluation.config import metric_flag_on
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from services.label_config.project_expansion import (
     expanded_project_label_config_async,
@@ -39,7 +39,11 @@ from routers.projects.helpers import (
 )
 from label_config_repeater import has_repeater
 from metric_filters import is_reference_free
-from task_rubric_resolution import RUBRIC_JUDGE_METRIC, USE_TASK_RUBRIC_PARAM
+from task_rubric_resolution import (
+    RUBRIC_JUDGE_METRIC,
+    USE_TASK_RUBRIC_PARAM,
+    metric_reads_task_sheet,
+)
 from task_rubric_service import remirror_project_rubrics_sync, rubric_mirrors_changed
 from utils.json_merge import deep_merge_dicts
 
@@ -572,20 +576,20 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         detail="judges[].runs must be an integer between 1 and 25",
                     )
 
-        # use_task_rubric makes an extension's judge a sheet judge
-        # (task_rubric_resolution.is_rubric_judge); the platform's own
-        # judges other than llm_judge_rubric cannot grade along a sheet.
+        # use_task_rubric makes a registered sheet judge metric grade along
+        # the task's sheet (task_rubric_resolution.is_rubric_judge); on any
+        # other metric the config would be held for a sheet it never reads.
         metric = cfg.get("metric")
         if (
             mp.get(USE_TASK_RUBRIC_PARAM) is True
             and metric != RUBRIC_JUDGE_METRIC
-            and not (isinstance(metric, str) and is_extended_metric(metric))
+            and not (isinstance(metric, str) and metric_reads_task_sheet(metric))
         ):
             raise HTTPException(
                 status_code=422,
                 detail=(
                     f"metric_parameters.{USE_TASK_RUBRIC_PARAM} is only valid for "
-                    f"{RUBRIC_JUDGE_METRIC} or a judge an extension registers; "
+                    f"{RUBRIC_JUDGE_METRIC} or a registered sheet judge metric; "
                     f"got {metric!r}"
                 ),
             )

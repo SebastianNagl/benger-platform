@@ -1,8 +1,10 @@
 """Sheet judges beyond ``llm_judge_rubric`` and sheets graded by argument (core 2.81).
 
-* ``task_rubric_resolution.is_rubric_judge`` is true for any config whose
-  ``metric_parameters`` say ``use_task_rubric: true``, so such a config is
-  held like the Bewertungsbogen judge while its task has no usable sheet.
+* ``task_rubric_resolution.is_rubric_judge`` is true for a config of a
+  registered sheet judge metric whose ``metric_parameters`` say
+  ``use_task_rubric: true``, so such a config is held like the
+  Bewertungsbogen judge while its task has no usable sheet. The switch on an
+  unregistered metric makes no sheet judge.
 * ``structure.placement == "anywhere"`` survives validation, normalization
   and the equality check, and switches the Bewertungsbogen judge's
   placement rule to the argument wording in both lanes. A sheet without it
@@ -33,52 +35,88 @@ from rubric_structure import (
 from task_rubric_resolution import (
     USE_TASK_RUBRIC_PARAM,
     is_rubric_judge,
+    metric_reads_task_sheet,
+    register_sheet_judge_metric,
     split_held_rubric_judges,
+    unregister_sheet_judge_metric,
 )
 from task_rubric_service import structure_equal
 
 
 def _structure(placement=None, with_requirements=False):
     nodes = [
-        {"id": "a", "level": 0, "kind": "section", "label": "I.", "title": "Fond"},
+        {"id": "a", "level": 0, "kind": "section", "label": "I.", "title": "Part one"},
         {"id": "s1", "level": 1, "kind": "step", "label": "", "title": "First criterion", "max_score": 1},
         {"id": "s2", "level": 1, "kind": "step", "label": "", "title": "Argumentation", "max_score": 1.5},
     ]
     if with_requirements:
         nodes[1]["requirements"] = [{"text": "first requirement", "points": 0.5}, {"text": "second requirement", "points": 0.5}]
-        nodes[2]["requirements"] = [{"text": "premier argument", "points": 1}, {"text": "second argument", "points": 0.5}]
+        nodes[2]["requirements"] = [{"text": "first argument", "points": 1}, {"text": "second argument", "points": 0.5}]
     structure = {"version": 1, "nodes": nodes}
     if placement is not None:
         structure["placement"] = placement
     return structure
 
 
+SAMPLE_SHEET_JUDGE = "sample_sheet_judge"
+
+
+@pytest.fixture
+def sheet_judge_metric():
+    register_sheet_judge_metric(SAMPLE_SHEET_JUDGE)
+    try:
+        yield SAMPLE_SHEET_JUDGE
+    finally:
+        unregister_sheet_judge_metric(SAMPLE_SHEET_JUDGE)
+
+
 class TestSheetJudges:
     def test_the_bewertungsbogen_judge_always_is_one(self):
         assert is_rubric_judge({"metric": "llm_judge_rubric"}) is True
 
-    def test_any_config_with_use_task_rubric_is_one(self):
-        cfg = {"metric": "llm_judge_feedback", "metric_parameters": {USE_TASK_RUBRIC_PARAM: True}}
+    def test_a_registered_metric_with_use_task_rubric_is_one(self, sheet_judge_metric):
+        cfg = {"metric": sheet_judge_metric, "metric_parameters": {USE_TASK_RUBRIC_PARAM: True}}
         assert USE_TASK_RUBRIC_PARAM == "use_task_rubric"
+        assert metric_reads_task_sheet(sheet_judge_metric) is True
         assert is_rubric_judge(cfg) is True
+
+    def test_registration_is_undone_by_unregister(self):
+        cfg = {"metric": SAMPLE_SHEET_JUDGE, "metric_parameters": {"use_task_rubric": True}}
+        register_sheet_judge_metric(SAMPLE_SHEET_JUDGE)
+        register_sheet_judge_metric(SAMPLE_SHEET_JUDGE)
+        unregister_sheet_judge_metric(SAMPLE_SHEET_JUDGE)
+        assert metric_reads_task_sheet(SAMPLE_SHEET_JUDGE) is False
+        assert is_rubric_judge(cfg) is False
 
     @pytest.mark.parametrize(
         "params", [None, {}, {"use_task_rubric": False}, {"use_task_rubric": "yes"}, "x"]
     )
-    def test_other_configs_are_not(self, params):
-        assert is_rubric_judge({"metric": "llm_judge_feedback", "metric_parameters": params}) is False
+    def test_a_registered_metric_without_the_switch_is_not(self, params, sheet_judge_metric):
+        assert is_rubric_judge({"metric": sheet_judge_metric, "metric_parameters": params}) is False
         assert is_rubric_judge(None) is False
 
-    def test_a_sheet_judge_without_a_sheet_is_held_the_others_kept(self):
-        sheet = {"id": "sheet", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
-        own = {"id": "own", "metric": "llm_judge_feedback", "metric_parameters": {}}
+    @pytest.mark.parametrize("metric", ["llm_judge_custom", "unregistered_judge", None])
+    def test_an_unregistered_metric_with_the_switch_is_not(self, metric):
+        assert metric_reads_task_sheet(metric) is False
+        assert is_rubric_judge({"metric": metric, "metric_parameters": {"use_task_rubric": True}}) is False
+
+    def test_an_unregistered_metric_with_the_switch_is_never_held(self):
+        cfg = {"id": "own", "metric": "unregistered_judge", "metric_parameters": {"use_task_rubric": True}}
+        with patch("task_rubric_resolution.resolve_grading_rubric", return_value=None) as resolve:
+            kept, held = split_held_rubric_judges(MagicMock(), SimpleNamespace(id="t"), [cfg])
+        assert kept == [cfg] and held == []
+        resolve.assert_not_called()
+
+    def test_a_sheet_judge_without_a_sheet_is_held_the_others_kept(self, sheet_judge_metric):
+        sheet = {"id": "sheet", "metric": sheet_judge_metric, "metric_parameters": {"use_task_rubric": True}}
+        own = {"id": "own", "metric": sheet_judge_metric, "metric_parameters": {}}
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=None) as resolve:
             kept, held = split_held_rubric_judges(MagicMock(), SimpleNamespace(id="t"), [sheet, own])
         assert kept == [own] and held == [sheet]
         resolve.assert_called_once()
 
-    def test_a_sheet_judge_with_a_sheet_is_kept(self):
-        sheet = {"id": "sheet", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
+    def test_a_sheet_judge_with_a_sheet_is_kept(self, sheet_judge_metric):
+        sheet = {"id": "sheet", "metric": sheet_judge_metric, "metric_parameters": {"use_task_rubric": True}}
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=object()):
             kept, held = split_held_rubric_judges(MagicMock(), SimpleNamespace(id="t"), [sheet])
         assert kept == [sheet] and held == []
