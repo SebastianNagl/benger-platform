@@ -285,7 +285,6 @@ async def get_results_by_task_model(
         # yet, this leaves the cell empty (rendered as n/a) instead of
         # silently surfacing an evaluation of an older annotation —
         # which is what the user explicitly asked for.
-        from models import User as DBUser
 
         if aggregate_mean:
             annotation_eval_results = (
@@ -940,7 +939,6 @@ async def get_project_results_by_task_model(
         }
 
         # Query 2: Get annotation-based evaluation results (generation_id IS NULL)
-        from models import User as DBUser
 
         ann_query = select(
             MK.task_evaluation_id.label("id"),
