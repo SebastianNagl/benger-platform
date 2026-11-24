@@ -10,6 +10,10 @@ name: Dependabot Batch
 # credentials don't live — the approve step would crash with
 # "Input required and not supplied: app-id". Same-repo Dependabot branches make
 # pull_request_target safe here; the approve job never checks out PR code.
+#
+# Required secrets: PLATFORM_BOT_APP_ID, PLATFORM_BOT_APP_PRIVATE_KEY - a
+# GitHub App installed only on this repository (Contents and Pull requests
+# read and write). Its tokens cannot see any other repository.
 
 on:
   pull_request_target:
@@ -31,8 +35,11 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.PLATFORM_BOT_APP_ID }}
+          private-key: ${{ secrets.PLATFORM_BOT_APP_PRIVATE_KEY }}
+          # Token scoped to this repository only.
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Dependabot metadata
         id: metadata
@@ -65,8 +72,11 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.PLATFORM_BOT_APP_ID }}
+          private-key: ${{ secrets.PLATFORM_BOT_APP_PRIVATE_KEY }}
+          # Token scoped to this repository only.
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout code
         uses: actions/checkout@v7

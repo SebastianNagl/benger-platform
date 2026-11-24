@@ -17,7 +17,8 @@ name: Notify Extended
 # EXTENDED_REPO_NAME secret (just the repo name, used as the App token scope)
 # so the public workflow YAML does not hard-code the private repo path.
 # Required secrets (org or repo level):
-#   APP_ID, APP_PRIVATE_KEY     — GitHub App with read+dispatch on the target
+#   DEPLOY_DISPATCH_APP_ID, DEPLOY_DISPATCH_APP_PRIVATE_KEY - GitHub App
+#     installed only on the downstream repo, Contents read and write
 #   EXTENDED_REPO               — full owner/repo, e.g. "owner/private-edition"
 #   EXTENDED_REPO_NAME          — just the repo name, e.g. "private-edition"
 # If any of those secrets is unset, the job no-ops with a warning rather than
@@ -50,8 +51,10 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.DEPLOY_DISPATCH_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_DISPATCH_APP_PRIVATE_KEY }}
+          # Token scoped to the downstream repo only.
+          owner: ${{ github.repository_owner }}
           repositories: ${{ secrets.EXTENDED_REPO_NAME }}
 
       - name: Dispatch rebuild
