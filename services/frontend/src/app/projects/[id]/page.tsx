@@ -389,6 +389,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // deep-merging eval-config endpoint), so the card's auto-save lifecycle
   // stays untouched. Community builds register nothing → card unchanged.
   const ProjectGradeScale = useSlot('project-evaluation-grade-scale')
+  // Extension rows inside the Evaluation settings sub-section (e.g. grading
+  // policy switches stored on an evaluation config). The slot gets the
+  // config list being edited and hands a changed list back through
+  // `onEvaluationConfigsChange`, which runs the card's own dirty and
+  // debounced-save path; it never saves by itself. Community builds register
+  // nothing → the sub-section is unchanged.
+  const ProjectEvaluationSettingsSection = useSlot(
+    'project-evaluation-settings-section',
+  )
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
@@ -447,17 +456,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [evaluationSettings, setEvaluationSettings] = useState({
     immediate_evaluation_enabled: false,
   })
-
-  // Per-project Korrektur (Falllösung) blind-mode toggles. Source of truth
-  // is `metric_parameters` on the korrektur_falloesung evaluation_config,
-  // surfaced here so users can flip them from project settings instead of
-  // editing the metric config directly. Defaults match POLICY_DEFAULTS in
-  // benger-extended (both true) — least-biased grading by default.
-  const [korrekturBlindToPeers, setKorrekturBlindToPeers] = useState(true)
-  const [korrekturBlindToLlm, setKorrekturBlindToLlm] = useState(true)
-  const [korrekturBlindToNonJudge, setKorrekturBlindToNonJudge] = useState(true)
-  const [korrekturKeepBlindAfterSubmit, setKorrekturKeepBlindAfterSubmit] =
-    useState(false)
 
   // Conditional instructions state
   const [conditionalInstructions, setConditionalInstructions] = useState<
@@ -584,17 +582,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             ? configResponse.analysis_plans.length
             : 0,
         )
-        // Hydrate the project-level blind toggles from the korrektur_falloesung
-        // metric's parameters. Missing keys default to true (matches the
-        // extended POLICY_DEFAULTS for least-biased grading).
-        const fk = existingConfigs.find(
-          (c: any) => c.metric === 'korrektur_falloesung',
-        )
-        const mp = fk?.metric_parameters || {}
-        setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
-        setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
-        setKorrekturBlindToNonJudge(mp.blind_to_non_judge_metrics !== false)
-        setKorrekturKeepBlindAfterSubmit(mp.keep_blind_after_submit === true)
       } catch (error) {
         console.error('Failed to fetch evaluation config:', error)
       }
@@ -1633,29 +1620,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     cardSavingRef.current.evaluation = true
     setCardSaving((p) => ({ ...p, evaluation: true }))
     try {
-      // Patch the korrektur_falloesung config's metric_parameters with the
-      // blind toggles before saving; the policy reader on extended sources
-      // these from metric_parameters, so writing them here makes the
-      // project-level UI the single point of edit for graders.
-      const fkIdx = evaluationConfigs.findIndex(
-        (c: any) => c.metric === 'korrektur_falloesung',
-      )
-      let configsToSave = evaluationConfigs
-      if (fkIdx >= 0) {
-        const next = [...evaluationConfigs]
-        next[fkIdx] = {
-          ...next[fkIdx],
-          metric_parameters: {
-            ...(next[fkIdx].metric_parameters || {}),
-            blind_to_peer_correctors: korrekturBlindToPeers,
-            blind_to_llm_judge: korrekturBlindToLlm,
-            blind_to_non_judge_metrics: korrekturBlindToNonJudge,
-            keep_blind_after_submit: korrekturKeepBlindAfterSubmit,
-          },
-        }
-        configsToSave = next
-        setEvaluationConfigs(next)
-      }
       // Sequential on purpose: the defaults PATCH and the configs PUT both
       // write the evaluation_config JSONB column via unlocked server-side
       // read-merge-writes, so overlapping requests can resurrect each
@@ -1674,7 +1638,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         throw error
       }
       await handleSaveEvalDefaults()
-      await saveEvaluationConfigsToProject(configsToSave)
+      await saveEvaluationConfigsToProject(evaluationConfigs)
       finishCardSave('evaluation')
     } catch {
       // Legs toast their own errors; keep the card dirty so a failed save
@@ -2750,107 +2714,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
                           </div>
-                          {evaluationConfigs.some(
-                            (c: any) => c.metric === 'korrektur_falloesung',
-                          ) && (
-                            <>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                  <Label>
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToPeers',
-                                    )}
-                                  </Label>
-                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToPeersHint',
-                                    )}
-                                  </p>
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  checked={korrekturBlindToPeers}
-                                  onChange={(e) => {
-                                    markEvaluationDirty()
-                                    setKorrekturBlindToPeers(e.target.checked)
-                                  }}
-                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                                />
-                              </div>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                  <Label>
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToLlm',
-                                    )}
-                                  </Label>
-                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToLlmHint',
-                                    )}
-                                  </p>
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  checked={korrekturBlindToLlm}
-                                  onChange={(e) => {
-                                    markEvaluationDirty()
-                                    setKorrekturBlindToLlm(e.target.checked)
-                                  }}
-                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                                />
-                              </div>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                  <Label>
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToNonJudge',
-                                    )}
-                                  </Label>
-                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                    {t(
-                                      'project.evaluationSettings.korrekturBlindToNonJudgeHint',
-                                    )}
-                                  </p>
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  checked={korrekturBlindToNonJudge}
-                                  onChange={(e) => {
-                                    markEvaluationDirty()
-                                    setKorrekturBlindToNonJudge(
-                                      e.target.checked,
-                                    )
-                                  }}
-                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                                />
-                              </div>
-                              <div className="mt-4 flex items-center justify-between">
-                                <div>
-                                  <Label>
-                                    {t(
-                                      'project.evaluationSettings.korrekturKeepBlindAfterSubmit',
-                                    )}
-                                  </Label>
-                                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                    {t(
-                                      'project.evaluationSettings.korrekturKeepBlindAfterSubmitHint',
-                                    )}
-                                  </p>
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  checked={korrekturKeepBlindAfterSubmit}
-                                  onChange={(e) => {
-                                    markEvaluationDirty()
-                                    setKorrekturKeepBlindAfterSubmit(
-                                      e.target.checked,
-                                    )
-                                  }}
-                                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                                />
-                              </div>
-                            </>
+                          {ProjectEvaluationSettingsSection && (
+                            <ProjectEvaluationSettingsSection
+                              projectId={projectId || ''}
+                              evaluationConfigs={evaluationConfigs}
+                              onEvaluationConfigsChange={
+                                handleEvaluationConfigsChange
+                              }
+                            />
                           )}
                         </SubSection>
                       )}

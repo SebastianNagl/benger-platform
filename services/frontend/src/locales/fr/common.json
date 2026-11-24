@@ -1107,15 +1107,7 @@
       "title": "Configuration de la génération"
     },
     "evaluationSettings": {
-      "title": "Paramètres d'évaluation",
-      "korrekturBlindToPeers": "Correction à l'aveugle (autres correcteurs)",
-      "korrekturBlindToPeersHint": "Les notes des autres correcteurs restent masquées jusqu'à ce que vous ayez soumis la vôtre",
-      "korrekturBlindToLlm": "Correction à l'aveugle (pré-évaluation LLM)",
-      "korrekturBlindToLlmHint": "Les pré-évaluations LLM restent masquées jusqu'à ce que vous ayez soumis votre note",
-      "korrekturBlindToNonJudge": "Correction à l'aveugle (métriques classiques)",
-      "korrekturBlindToNonJudgeHint": "Les évaluations automatiques classiques (BLEU, ROUGE, BERTScore …) restent masquées jusqu'à ce que vous ayez soumis votre note",
-      "korrekturKeepBlindAfterSubmit": "À l'aveugle même après votre propre note",
-      "korrekturKeepBlindAfterSubmitHint": "Si activé, les évaluations ci-dessus restent masquées, même après la soumission de votre propre note"
+      "title": "Paramètres d'évaluation"
     },
     "evaluationMethods": {
       "title": "Méthodes d'évaluation"

@@ -1107,15 +1107,7 @@
       "title": "Generation Configuration"
     },
     "evaluationSettings": {
-      "title": "Evaluation Settings",
-      "korrekturBlindToPeers": "Blind correction (other correctors)",
-      "korrekturBlindToPeersHint": "Other correctors' grades stay hidden until you submit your own",
-      "korrekturBlindToLlm": "Blind correction (LLM pre-grade)",
-      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own",
-      "korrekturBlindToNonJudge": "Blind correction (classic metrics)",
-      "korrekturBlindToNonJudgeHint": "Classic automated metrics (BLEU, ROUGE, BERTScore …) stay hidden until you submit your own",
-      "korrekturKeepBlindAfterSubmit": "Keep blind after submission",
-      "korrekturKeepBlindAfterSubmitHint": "When on, the entries above stay hidden even after you submit your own grade"
+      "title": "Evaluation Settings"
     },
     "evaluationMethods": {
       "title": "Evaluation Methods"
