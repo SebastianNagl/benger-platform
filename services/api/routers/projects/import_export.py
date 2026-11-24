@@ -72,6 +72,10 @@ from project_models import (  # noqa: E402
     Project,
     Task,
 )
+from routers.evaluations.results.method_selection import (  # noqa: E402
+    load_method_answer,
+    method_answer_sync,
+)
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
@@ -314,8 +318,18 @@ async def enqueue_export_job(
     await db.commit()
     await db.refresh(job)
 
+    # The comprehensive formats mark the score each method shows
+    # (``is_method_current``); the extension hook that decides it runs here,
+    # not in the worker, so its answer travels with the task. Sent only when
+    # there is one, so a worker that does not know the keyword yet still
+    # runs every other export.
+    send_kwargs: dict = {}
+    if format in ("comprehensive", "ndjson", "ndjson_gz"):
+        method_answer = await load_method_answer(db, project)
+        if method_answer is not None:
+            send_kwargs["kwargs"] = {"method_answer": method_answer}
     try:
-        result = send_task_safe("tasks.export_project", args=[job.id])
+        result = send_task_safe("tasks.export_project", args=[job.id], **send_kwargs)
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:
@@ -1553,7 +1567,10 @@ def bulk_export_full_projects(
                     # TextIOWrapper buffer on top of zip's deflate stream.
                     with zip_file.open(entry_name, 'w') as raw_entry:
                         for chunk in stream_comprehensive_project_data_json(
-                            db, project_id, viewer=current_user
+                            db,
+                            project_id,
+                            viewer=current_user,
+                            method_answer=method_answer_sync(db, project),
                         ):
                             raw_entry.write(chunk.encode("utf-8"))
 

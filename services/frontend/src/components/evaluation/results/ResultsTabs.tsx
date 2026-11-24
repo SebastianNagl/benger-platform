@@ -399,6 +399,22 @@ export function ResultsTabs({
                           {t('evaluation.multiFieldResults.historyBadge')}
                         </span>
                       )}
+                      {/* Another config of the method supplies the score:
+                          the official one has none for this answer. */}
+                      {result.stands_in_for_config_id && (
+                        <span
+                          className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                          title={t('evaluation.multiFieldResults.standInHint')}
+                        >
+                          {result.evaluation_config_label
+                            ? t('evaluation.multiFieldResults.standInBadge', {
+                                config: result.evaluation_config_label,
+                              })
+                            : t(
+                                'evaluation.multiFieldResults.standInBadgeUnnamed',
+                              )}
+                        </span>
+                      )}
                       {/* A config that is not the official one here. */}
                       {result.is_official === false && (
                         <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">

@@ -208,6 +208,65 @@ class TestCreateExportJob:
         assert job.celery_task_id == "celery-task-xyz"
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "fmt,carries", [("comprehensive", True), ("ndjson", True), ("json", False)]
+    )
+    async def test_post_sends_the_method_answer_for_comprehensive_formats(
+        self, async_test_client, async_test_db, fmt, carries
+    ):
+        """The comprehensive formats mark the score each method shows; the
+        hook that decides it runs in the API, so its answer travels with
+        the task (shared/evaluation_methods.py)."""
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        project.evaluation_config = {
+            "evaluation_configs": [
+                {"id": "judge-a", "metric": "llm_judge_custom", "enabled": True},
+                {"id": "judge-b", "metric": "llm_judge_custom", "enabled": True},
+            ]
+        }
+        await async_test_db.commit()
+        answer = {"groups": {"score": {"config_ids": ["judge-a", "judge-b"]}}}
+        fake_result = MagicMock()
+        fake_result.id = "celery-task-xyz"
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
+            "extensions.evaluation_method_selection", return_value=answer
+        ), patch(
+            "routers.projects.import_export.send_task_safe", return_value=fake_result
+        ) as mock_send:
+            resp = await async_test_client.post(
+                f"/api/projects/{project.id}/exports?format={fmt}",
+            )
+
+        assert resp.status_code == 202, resp.text
+        sent = mock_send.call_args.kwargs
+        if carries:
+            assert sent["kwargs"] == {"method_answer": answer}
+        else:
+            assert "kwargs" not in sent
+
+    @pytest.mark.asyncio
+    async def test_post_without_a_method_answer_sends_no_kwargs(
+        self, async_test_client, async_test_db
+    ):
+        """A project without method groups sends the task as before, so a
+        worker that does not know the keyword still runs it."""
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        fake_result = MagicMock()
+        fake_result.id = "celery-task-xyz"
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
+            "routers.projects.import_export.send_task_safe", return_value=fake_result
+        ) as mock_send:
+            resp = await async_test_client.post(
+                f"/api/projects/{project.id}/exports?format=comprehensive",
+            )
+        assert resp.status_code == 202, resp.text
+        assert "kwargs" not in mock_send.call_args.kwargs
+
+    @pytest.mark.asyncio
     async def test_post_unknown_project_404(self, async_test_client, async_test_db):
         admin, _contrib, _annot, org, _project = await _seed_world(async_test_db)
         with _as_user(admin), patch(

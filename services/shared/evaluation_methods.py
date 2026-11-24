@@ -31,12 +31,32 @@ is ignored. Generations always use the default official config.
 
 Without an answer (no package implements the hook, or it failed) every
 config is its own method.
+
+The score a teacher view shows
+------------------------------
+The official choice is per account, but a subject can lack a successful
+grading by its official config while another config of the group graded it,
+for example an account whose answers one config graded on one task and the
+other config on another. :func:`teacher_current_rows` is the one rule every
+teacher view uses (the results grid, the cell modal, the per-submission
+results export and the ``is_method_current`` marker of the comprehensive
+export): per cell of a method group (subject, prediction field, reference
+field), the official config's current rows when one of them carries a
+score, else the current rows of the first other config of the group (in the
+group's config order) that has a scored one, marked with the official config
+it stands in for. A row of a config that grades once per prediction field
+covers every reference field of its subject. When no config of the group has
+a score, the official config's rows stay, so a failure stays visible. Views
+with history use :func:`teacher_rows`: the superseded rows of the config
+that supplies the cell. Research views keep reading ``is_official``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Set
+
+import current_scores
 
 
 @dataclass
@@ -111,6 +131,104 @@ class MethodSelection:
             "groups": groups,
             "research_config_ids": sorted(self.default_research_config_ids()),
         }
+
+
+def _row_has_score(row: Any) -> bool:
+    return current_scores.row_has_score(current_scores._get(row, "metrics"))
+
+
+def _covering(by_config: Mapping[str, Mapping[str, List[Any]]], member: str, ref: str) -> List[Any]:
+    """The rows of ``member`` in the cell of reference field ``ref``: its
+    rows of ``ref`` and the ones graded once per prediction field."""
+    by_ref = by_config.get(member) or {}
+    return list(by_ref.get(ref, [])) + (list(by_ref.get("", [])) if ref else [])
+
+
+def teacher_current_rows(
+    selection: MethodSelection,
+    rows: Iterable[Any],
+    submitter_of: Optional[Mapping[Any, Any]] = None,
+    configs_by_id: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    *,
+    has_score: Optional[Callable[[Any], bool]] = None,
+) -> Dict[str, Optional[str]]:
+    """The rows a teacher view shows as the current score of their method.
+
+    ``rows`` are current rows (``current_scores.pick_current``), ``submitter_of``
+    maps an annotation id to the account that submitted it (generation rows
+    and rows without a submission use the default official config),
+    ``configs_by_id`` are the project's configs (``current_scores.configs_by_id``,
+    which decide a row's cell) and ``has_score`` tells whether a row carries
+    a score (default: the ``metrics`` of the row, ``current_scores.row_has_score``).
+
+    The config that supplies the score is chosen per cell of the method:
+    subject, prediction field and reference field. A row of a config that
+    grades once per prediction field (reference part ``""``) covers every
+    reference field of its subject and prediction field.
+
+    Returns ``{row id: stands in for}`` for every shown row: ``None`` for a
+    row of a config outside any group or of the subject's official config,
+    else the id of the official config whose missing score the row replaces
+    (see the module docstring). Rows of research-only configs, and of a
+    group's other configs while the official one has a score, are left out.
+    """
+    scored = has_score or _row_has_score
+    submitters = {str(k): v for k, v in (submitter_of or {}).items()}
+    group_of = selection.group_of
+    shown: Dict[str, Optional[str]] = {}
+    buckets: Dict[tuple, Dict[str, Dict[str, List[Any]]]] = {}
+    for row in rows:
+        kind, subject_id, config_id, pred, ref = current_scores.cell_key(row, configs_by_id)
+        if config_id in selection.research_only:
+            continue
+        group = group_of.get(config_id)
+        if group is None:
+            shown[current_scores.row_id(row)] = None
+            continue
+        bucket = buckets.setdefault((kind, subject_id, group, pred), {})
+        bucket.setdefault(config_id, {}).setdefault(ref, []).append(row)
+    for (kind, subject_id, group, _pred), by_config in buckets.items():
+        user_id = submitters.get(subject_id) if kind == current_scores.SUBJECT_ANNOTATION else None
+        official = selection.official_config(group, None if user_id is None else str(user_id))
+        refs = sorted({ref for by_ref in by_config.values() for ref in by_ref if ref}) or [""]
+        for ref in refs:
+            supplier = official
+            if not any(scored(r) for r in _covering(by_config, official, ref)):
+                supplier = next(
+                    (
+                        member
+                        for member in selection.groups.get(group) or []
+                        if member != official and any(scored(r) for r in _covering(by_config, member, ref))
+                    ),
+                    official,
+                )
+            for row in _covering(by_config, supplier, ref):
+                shown[current_scores.row_id(row)] = None if supplier == official else official
+    return shown
+
+
+def teacher_rows(
+    selection: MethodSelection,
+    rows: Iterable[Any],
+    submitter_of: Optional[Mapping[Any, Any]] = None,
+    configs_by_id: Optional[Mapping[str, Mapping[str, Any]]] = None,
+) -> Dict[str, Optional[str]]:
+    """:func:`teacher_current_rows` over ``rows`` with their history.
+
+    ``rows`` may hold current and superseded rows. A superseded row is shown
+    when the current row of its cell is, and stands in for the same official
+    config, so a view with history shows the rows of the same config as the
+    view without it.
+    """
+    rows = list(rows)
+    current = current_scores.pick_current(rows, configs_by_id)
+    shown = teacher_current_rows(selection, current.values(), submitter_of, configs_by_id)
+    out: Dict[str, Optional[str]] = {}
+    for row in rows:
+        current_id = current_scores.row_id(current[current_scores.cell_key(row, configs_by_id)])
+        if current_id in shown:
+            out[current_scores.row_id(row)] = shown[current_id]
+    return out
 
 
 def _enabled(configs: Iterable[Any]) -> List[Dict[str, Any]]:

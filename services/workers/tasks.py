@@ -5233,9 +5233,9 @@ def update_report_annotations_async(self, project_id: str):
     acks_late=True,
     max_retries=0,
 )
-def export_project(self, job_id: str) -> Dict[str, Any]:
+def export_project(self, job_id: str, method_answer: Any = None) -> Dict[str, Any]:
     try:
-        return export_project_impl(self, job_id)
+        return export_project_impl(self, job_id, method_answer=method_answer)
     except Exception as exc:
         # The body handles its own failures; this catches what raises before
         # its try (a lazy import, the session), which would leave the job
