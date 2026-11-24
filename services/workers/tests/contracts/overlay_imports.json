@@ -374,6 +374,13 @@
     },
     {
       "module": "current_scores",
+      "name": "sql_cell_partition",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
       "name": "sql_has_score",
       "importers": [
         "benger_extended/billing/method_selection.py"
