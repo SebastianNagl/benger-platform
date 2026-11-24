@@ -289,6 +289,51 @@ describe('EvaluationsClient - uncovered methods', () => {
     })
   })
 
+  describe('one score per method', () => {
+    it('scopes the cell modal to configs or a method group', async () => {
+      await client.getTaskEvaluation('t1', 'm1', false, undefined, {
+        evaluationConfigIds: ['a', 'b'],
+        includeResearch: false,
+      })
+      expect(url()).toContain('evaluation_config_ids=a%2Cb')
+      expect(url()).toContain('include_research=false')
+      requestSpy.mockClear()
+      await client.getTaskEvaluation('t1', 'm1', true, undefined, {
+        methodGroup: 'score',
+        includeResearch: true,
+      })
+      expect(url()).toContain('method_group=score')
+      expect(url()).not.toContain('include_research')
+    })
+
+    it('fetches the grid of a method group', async () => {
+      await client.getProjectResultsByTaskModel(
+        'p1',
+        undefined,
+        false,
+        'm',
+        null,
+        {
+          methodGroup: 'score',
+        },
+      )
+      expect(url()).toBe(
+        '/evaluations/projects/p1/results/by-task-model?metric=m&method_group=score',
+      )
+    })
+
+    it('reads the method groups and downloads the results per submission', async () => {
+      await client.getProjectEvaluationMethods('p1')
+      expect(url()).toBe('/evaluations/projects/p1/results/methods')
+      requestSpy.mockClear()
+      await client.downloadResultsBySubmission('p1', true)
+      expect(url()).toBe(
+        '/evaluations/projects/p1/results/by-submission?format=csv&include_research=true',
+      )
+      expect(opts()).toEqual({ cache: 'no-store' })
+    })
+  })
+
   describe('getProjectResultsByTaskModel', () => {
     it('emits no query string when all optional params are omitted', async () => {
       await client.getProjectResultsByTaskModel('p1')

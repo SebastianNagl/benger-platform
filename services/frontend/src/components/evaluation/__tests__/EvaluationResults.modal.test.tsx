@@ -476,6 +476,68 @@ describe('EvaluationResults - modal and handler coverage', () => {
     }
   })
 
+  it('marks history and research rows and scopes the fetch to the method', async () => {
+    mockGetTaskEvaluation.mockResolvedValue({
+      results: [
+        {
+          id: 'current',
+          field_name: 'exact_match-answer',
+          answer_type: 'text',
+          passed: true,
+          metrics: { exact_match: 1 },
+          is_current: true,
+          is_official: true,
+        },
+        {
+          id: 'older',
+          field_name: 'exact_match-answer',
+          answer_type: 'text',
+          passed: false,
+          metrics: { exact_match: 0 },
+          is_current: false,
+          is_official: true,
+        },
+        {
+          id: 'other-config',
+          field_name: 'exact_match-answer',
+          answer_type: 'text',
+          passed: true,
+          metrics: { exact_match: 1 },
+          is_current: true,
+          is_official: false,
+        },
+      ],
+    })
+    await renderDataView()
+
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
+    expect(scoreCells.length).toBeGreaterThan(0)
+    await act(async () => {
+      fireEvent.click(scoreCells[0])
+    })
+    await waitFor(() => expect(mockGetTaskEvaluation).toHaveBeenCalled())
+    // History off and research data hidden by default. This view has no
+    // method entry selected (the page filter matches none of the runs'
+    // configs), so the fetch is not scoped to one.
+    const call = mockGetTaskEvaluation.mock.calls[0]
+    expect(call[2]).toBe(false)
+    expect(call[4]).toEqual({ includeResearch: false })
+
+    fireEvent.click(
+      screen.getByText('evaluation.multiFieldResults.evaluationResults'),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByText('evaluation.multiFieldResults.historyBadge'),
+      ).toHaveLength(1)
+      expect(
+        screen.getAllByText('evaluation.multiFieldResults.researchBadge'),
+      ).toHaveLength(1)
+    })
+  })
+
   it('calls annotation API for annotator cells', async () => {
     mockGetProjectResultsByTaskModel.mockResolvedValue({
       evaluation_id: 'eval-001',

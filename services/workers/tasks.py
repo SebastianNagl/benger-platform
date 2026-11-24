@@ -3401,7 +3401,7 @@ def run_single_sample_evaluation(
         # one the dispatcher uses to decide whether there is anything to
         # grade, so the two cannot disagree. Model-side selectors never
         # resolve: single-sample immediate eval has no model generations.
-        from immediate_eval_dispatch import resolve_human_prediction
+        from immediate_eval_dispatch import resolve_human_prediction_field
         from task_rubric_resolution import (
             RUBRIC_MISSING,
             is_rubric_judge,
@@ -3446,7 +3446,9 @@ def run_single_sample_evaluation(
                     })
                     continue
 
-            prediction_value = resolve_human_prediction(eval_cfg, annotation_results)
+            prediction_field, prediction_value = resolve_human_prediction_field(
+                eval_cfg, annotation_results
+            )
             reference_value = None
 
             for rf in ref_fields:
@@ -3477,7 +3479,11 @@ def run_single_sample_evaluation(
             jobs.append({
                 "metric_type": metric_type,
                 "metric_params": metric_params,
-                "field_name": pred_fields[0] if pred_fields else "field",
+                # The selector that resolved, not the config's first one:
+                # a config listing ``__all_model__`` first graded the answer
+                # field, and the row says so (shared/current_scores.py keys
+                # older rows by that field too).
+                "field_name": prediction_field or (pred_fields[0] if pred_fields else "field"),
                 "prediction_value": prediction_value,
                 "reference_value": reference_value,
                 "judge_run_id": judge_run_id,

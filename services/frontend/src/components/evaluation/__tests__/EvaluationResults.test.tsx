@@ -122,6 +122,9 @@ const mockGetProjectEvaluationResults = jest.fn()
 const mockGetProjectResultsByTaskModel = jest.fn()
 const mockGetTaskEvaluation = jest.fn()
 const mockApiClientGet = jest.fn()
+const mockGetProjectEvaluationMethods = jest.fn()
+const mockDownloadResultsBySubmission = jest.fn()
+const NO_METHOD_GROUPS = { groups: [], research_config_ids: [] }
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: null }),
@@ -139,7 +142,13 @@ jest.mock('@/lib/api/client', () => ({
       mockGetProjectResultsByTaskModel(...args),
     getTaskEvaluation: (...args: any[]) => mockGetTaskEvaluation(...args),
     get: (...args: any[]) => mockApiClientGet(...args),
-    evaluations: { computeStatistics: jest.fn() },
+    evaluations: {
+      computeStatistics: jest.fn(),
+      getProjectEvaluationMethods: (...args: any[]) =>
+        mockGetProjectEvaluationMethods(...args),
+      downloadResultsBySubmission: (...args: any[]) =>
+        mockDownloadResultsBySubmission(...args),
+    },
   },
 }))
 
@@ -354,6 +363,7 @@ const DATA_VIEW_PROPS = {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockGetProjectEvaluationMethods.mockResolvedValue(NO_METHOD_GROUPS)
 })
 
 describe('EvaluationResults', () => {
@@ -895,7 +905,7 @@ describe('EvaluationResults', () => {
   // ─── Filtering ────────────────────────────────────────────────────────────
 
   describe('Include history toggle', () => {
-    it('is checked by default and requests history, unchecking drops it', async () => {
+    it('is unchecked by default (current scores only), checking requests history', async () => {
       setupCompletedEvaluation()
 
       render(<EvaluationResults projectId="project-123" />)
@@ -903,22 +913,147 @@ describe('EvaluationResults', () => {
       const checkbox = await screen.findByRole('checkbox', {
         name: /includeHistory|include history/i,
       })
-      expect(checkbox).toBeChecked()
-      await waitFor(() => {
-        expect(mockGetProjectResultsByTaskModel).toHaveBeenCalled()
-      })
-      for (const call of mockGetProjectResultsByTaskModel.mock.calls) {
-        expect(call[2]).toBe(true)
-      }
-
-      mockGetProjectResultsByTaskModel.mockClear()
-      await userEvent.click(checkbox)
       expect(checkbox).not.toBeChecked()
       await waitFor(() => {
         expect(mockGetProjectResultsByTaskModel).toHaveBeenCalled()
       })
+      for (const call of mockGetProjectResultsByTaskModel.mock.calls) {
+        expect(call[2]).toBe(false)
+      }
+
+      mockGetProjectResultsByTaskModel.mockClear()
+      await userEvent.click(checkbox)
+      expect(checkbox).toBeChecked()
+      await waitFor(() => {
+        expect(mockGetProjectResultsByTaskModel).toHaveBeenCalled()
+      })
       const calls = mockGetProjectResultsByTaskModel.mock.calls
-      expect(calls[calls.length - 1][2]).toBe(false)
+      expect(calls[calls.length - 1][2]).toBe(true)
+    })
+  })
+
+  describe('Method groups and research data', () => {
+    const groupedConfigs = [
+      {
+        id: 'judge-a',
+        metric: 'llm_judge_custom',
+        display_name: 'Score (A)',
+        prediction_fields: ['human:loesung'],
+        reference_fields: ['task.musterloesung'],
+        enabled: true,
+      },
+      {
+        id: 'judge-b',
+        metric: 'llm_judge_custom',
+        display_name: 'Score (B)',
+        prediction_fields: ['human:loesung'],
+        reference_fields: ['task.musterloesung'],
+        enabled: true,
+      },
+    ]
+    const groups = {
+      groups: [
+        {
+          key: 'score',
+          method_key: 'group:score',
+          label: 'Score',
+          config_ids: ['judge-a', 'judge-b'],
+          default_official_config_id: 'judge-a',
+        },
+      ],
+      research_config_ids: ['judge-b'],
+    }
+
+    it('shows a group as one method and its configs with research data', async () => {
+      setupCompletedEvaluation({ evaluation_configs: groupedConfigs })
+      mockGetProjectEvaluationMethods.mockResolvedValue(groups)
+
+      render(
+        <EvaluationResults
+          projectId="project-123"
+          viewType="data"
+          evaluationConfigs={groupedConfigs}
+        />,
+      )
+
+      // Without research data: one entry, fetched as the method group.
+      await waitFor(() => {
+        const calls = mockGetProjectResultsByTaskModel.mock.calls
+        expect(calls.some((c) => c[5]?.methodGroup === 'score')).toBe(true)
+      })
+      const groupCall = mockGetProjectResultsByTaskModel.mock.calls.find(
+        (c) => c[5]?.methodGroup === 'score',
+      )!
+      expect(groupCall[4]).toBeNull()
+
+      const research = await screen.findByRole('checkbox', {
+        name: /showResearch/,
+      })
+      expect(research).not.toBeChecked()
+      mockGetProjectResultsByTaskModel.mockClear()
+      await userEvent.click(research)
+
+      // With research data every config is its own entry again.
+      await waitFor(() => {
+        const calls = mockGetProjectResultsByTaskModel.mock.calls
+        expect(calls.some((c) => c[4] === 'judge-a')).toBe(true)
+      })
+      for (const call of mockGetProjectResultsByTaskModel.mock.calls) {
+        expect(call[5]?.methodGroup).toBeUndefined()
+      }
+    })
+
+    it('hides the research toggle when the project has no research data', async () => {
+      setupCompletedEvaluation()
+
+      render(
+        <EvaluationResults
+          projectId="project-123"
+          viewType="data"
+          evaluationConfigs={groupedConfigs}
+        />,
+      )
+
+      await waitFor(() => {
+        expect(mockGetProjectEvaluationMethods).toHaveBeenCalledWith(
+          'project-123',
+        )
+      })
+      expect(
+        screen.queryByRole('checkbox', { name: /showResearch/ }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('downloads the results per submission from the export menu', async () => {
+      setupCompletedEvaluation()
+      mockDownloadResultsBySubmission.mockResolvedValue(
+        new Blob(['task_id\n'], { type: 'text/csv' }),
+      )
+      const createObjectURL = jest.fn(() => 'blob:x')
+      const revokeObjectURL = jest.fn()
+      Object.assign(URL, { createObjectURL, revokeObjectURL })
+
+      render(
+        <EvaluationResults
+          projectId="project-123"
+          viewType="data"
+          evaluationConfigs={groupedConfigs}
+        />,
+      )
+
+      await userEvent.click(await screen.findByText('Export'))
+      await userEvent.click(
+        await screen.findByText(
+          'evaluation.multiFieldResults.exportBySubmission',
+        ),
+      )
+      await waitFor(() => {
+        expect(mockDownloadResultsBySubmission).toHaveBeenCalledWith(
+          'project-123',
+          false,
+        )
+      })
+      expect(createObjectURL).toHaveBeenCalled()
     })
   })
 

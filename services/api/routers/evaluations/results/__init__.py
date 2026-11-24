@@ -14,6 +14,7 @@ Submodule layout:
 - ``core``           — list results, export, per-sample listing
 - ``distributions``  — metric distribution, confusion matrix
 - ``by_task_model``  — by-task-model, project aggregation, sample-result
+- ``by_submission``  - the project's method groups, results per submission
 """
 
 # Shared instance + helpers
@@ -30,6 +31,7 @@ from ._common import (  # noqa: F401
 from . import core  # noqa: F401,E402
 from . import distributions  # noqa: F401,E402
 from . import by_task_model  # noqa: F401,E402
+from . import by_submission  # noqa: F401,E402
 
 # Re-export handlers + local helpers by name so
 # `from routers.evaluations.results import X` and
@@ -50,4 +52,8 @@ from .by_task_model import (  # noqa: F401,E402
     _get_task_data_availability,
     _task_preview_rows,
     _build_all_tasks_response,
+)
+from .by_submission import (  # noqa: F401,E402
+    get_project_evaluation_methods,
+    export_project_results_by_submission,
 )

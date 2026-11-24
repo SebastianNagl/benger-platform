@@ -148,7 +148,9 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/evaluations/projects/{project_id}/field-types` | `evaluations:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/grade-scale/drift` | `evaluations:read` | bound |
 | POST | `/api/evaluations/projects/{project_id}/grade-scale/recompute` | `evaluations:run` | bound |
+| GET | `/api/evaluations/projects/{project_id}/results/by-submission` | `results:read` | bound |
 | GET | `/api/evaluations/projects/{project_id}/results/by-task-model` | `results:read` | bound |
+| GET | `/api/evaluations/projects/{project_id}/results/methods` | `results:read` | bound |
 | POST | `/api/evaluations/projects/{project_id}/runs/cancel-all` | `evaluations:run` | bound |
 | POST | `/api/evaluations/projects/{project_id}/statistics` | `results:read` | bound |
 | GET | `/api/evaluations/results/{project_id}` | `results:read` | bound |
