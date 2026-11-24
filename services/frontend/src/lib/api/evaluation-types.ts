@@ -385,7 +385,8 @@ export interface AvailableMetric {
   /**
    * i18n keys of the names that presets of this metric store as a config's
    * `display_name` (besides the metric's own name). A stored name that is
-   * still one of them, in any UI language, renders in the reader's language
+   * still one of them, in any UI language, alone or followed by the config's
+   * own judge-model suffix, renders in the reader's language
    * (`localizedEvalConfigName`); a name someone typed stays as typed.
    */
   presetNameKeys?: string[]

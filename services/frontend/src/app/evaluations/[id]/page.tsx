@@ -701,8 +701,12 @@ export default function EvaluationDashboard({
                             <span className="font-medium">
                               {(rec.display_name &&
                                 localizedEvalConfigName(
-                                  rec.display_name,
-                                  rec.metric,
+                                  {
+                                    ...rec,
+                                    metric_parameters: configs.find(
+                                      (c) => c.id === configId,
+                                    )?.metric_parameters,
+                                  },
                                   t,
                                 )) ||
                                 configDisplayLabel(

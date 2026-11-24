@@ -1761,11 +1761,14 @@ API change).
   unused project publish flag is no longer mapped or served (migration 153).
   - Frontend metric registry: ``AvailableMetric.presetNameKeys``, the i18n
     keys of the names an overlay's presets store as a config's
-    ``display_name``. ``localizedEvalConfigName(name, metric, t)``
-    (``@/lib/evaluation/evalName``) renders a stored name that is still the
-    metric's own name or one of those keys, in any UI language and
-    optionally followed by a ``(...)`` suffix, in the reader's language;
-    a typed name stays as stored. Display only: configs are still matched
+    ``display_name``. ``localizedEvalConfigName(config, t)``
+    (``@/lib/evaluation/evalName``, ``config`` carrying ``display_name``,
+    ``metric`` and ``metric_parameters``) renders a stored name that is
+    still the metric's own name or one of those keys, in any UI language,
+    in the reader's language: alone, or followed by exactly the judge-model
+    suffix ``computeDefaultEvalName`` appends for the config's parameters
+    (kept as is). Any other name, also one with another ``(...)`` suffix,
+    was typed and stays as stored. Display only: configs are still matched
     by their stored name.
   - ``projects.is_published`` is no longer mapped or served (no code read
     it; visibility, archiving and the access window decide who sees a

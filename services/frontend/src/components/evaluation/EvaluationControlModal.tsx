@@ -62,7 +62,7 @@ function configOptionLabel(
 ): string {
   const base = (c: EvaluationConfigInput) =>
     c.display_name
-      ? localizedEvalConfigName(c.display_name, c.metric, t)
+      ? localizedEvalConfigName(c, t)
       : metricDisplayLabel(c.metric, undefined, t)
   const label = base(cfg)
   const judge = cfg.metric_parameters?.judge_model

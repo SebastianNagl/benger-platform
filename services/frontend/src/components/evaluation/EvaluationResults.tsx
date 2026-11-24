@@ -262,7 +262,7 @@ export function EvaluationResults({
         metric: cfg?.metric || 'unknown',
         configId: cfgId,
         displayName: cfg?.display_name
-          ? localizedEvalConfigName(cfg.display_name, cfg.metric, t)
+          ? localizedEvalConfigName(cfg, t)
           : cfg?.metric || 'Unknown',
         samplesEvaluated: 0,
         running: false,
@@ -311,7 +311,7 @@ export function EvaluationResults({
             metric,
             configId: rawId,
             displayName: cfg?.display_name
-              ? localizedEvalConfigName(cfg.display_name, cfg.metric, t)
+              ? localizedEvalConfigName(cfg, t)
               : metric || 'Unknown',
             samplesEvaluated: 0,
             running: false,
@@ -1131,8 +1131,7 @@ export function EvaluationResults({
     const config = configs.find((c) => c.id === configId)
     if (!config) return configId
 
-    if (config.display_name)
-      return localizedEvalConfigName(config.display_name, config.metric, t)
+    if (config.display_name) return localizedEvalConfigName(config, t)
 
     // Format metric name
     let name = config.metric.replace(/_/g, ' ')

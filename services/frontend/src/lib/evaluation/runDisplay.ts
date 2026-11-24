@@ -27,6 +27,7 @@ export interface RunConfigLabel {
   id?: string
   display_name?: string | null
   metric?: string
+  metric_parameters?: Record<string, unknown> | null
 }
 
 /** Bare metric name of an aggregated metrics key (`config|pred|ref|metric`,
@@ -187,9 +188,7 @@ export function configDisplayLabel(
 ): string | null {
   const config = configId ? configs.find((c) => c.id === configId) : undefined
   if (config?.display_name) {
-    return t
-      ? localizedEvalConfigName(config.display_name, config.metric, t)
-      : config.display_name
+    return t ? localizedEvalConfigName(config, t) : config.display_name
   }
   const metric = config?.metric || fallbackMetric
   return metric ? metricDisplayLabel(metric, undefined, t) : null

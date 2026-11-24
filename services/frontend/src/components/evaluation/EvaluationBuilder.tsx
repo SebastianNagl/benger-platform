@@ -1928,11 +1928,7 @@ export function EvaluationBuilder({
                     <div className="mb-2 flex items-center gap-2">
                       <span className="font-medium text-zinc-900 dark:text-zinc-100">
                         {(evaluation.display_name &&
-                          localizedEvalConfigName(
-                            evaluation.display_name,
-                            evaluation.metric,
-                            t,
-                          )) ||
+                          localizedEvalConfigName(evaluation, t)) ||
                           metricDef?.display_name ||
                           evaluation.metric}
                       </span>

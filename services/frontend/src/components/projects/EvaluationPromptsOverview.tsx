@@ -235,12 +235,7 @@ export function EvaluationPromptsOverview({
 
   const methodName = (config: EvaluationConfig) => {
     if (config.display_name)
-      return localizedEvalConfigName(
-        config.display_name,
-        config.metric,
-        t,
-        definitions,
-      )
+      return localizedEvalConfigName(config, t, definitions)
     const def = definitions[config.metric]
     return def ? metricDisplayName(def, t) : config.metric
   }

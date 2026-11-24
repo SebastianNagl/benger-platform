@@ -296,11 +296,7 @@ export function ResultDetailsModal({
                               />
                               <span className="text-zinc-700 dark:text-zinc-300">
                                 {config.display_name
-                                  ? localizedEvalConfigName(
-                                      config.display_name,
-                                      config.metric,
-                                      t,
-                                    )
+                                  ? localizedEvalConfigName(config, t)
                                   : config.metric.replace(/_/g, ' ')}
                               </span>
                             </label>

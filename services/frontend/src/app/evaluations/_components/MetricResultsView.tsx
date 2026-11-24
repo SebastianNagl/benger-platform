@@ -47,7 +47,10 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useOperationToasts } from '@/hooks/useOperationToasts'
 import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
-import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
+import {
+  localizedEvalConfigName,
+  type EvalConfigNameLike,
+} from '@/lib/evaluation/evalName'
 import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
 import { useFeatureFlagStatus } from '@/lib/featureFlags'
 import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
@@ -191,13 +194,8 @@ export function MetricResultsView({
     useOperationToasts()
   const { t } = useI18n()
   /** A config's name in the reader's language, else its metric key. */
-  const configName = (cfg: {
-    display_name?: string | null
-    metric: string
-  }): string =>
-    cfg.display_name
-      ? localizedEvalConfigName(cfg.display_name, cfg.metric, t)
-      : cfg.metric
+  const configName = (cfg: EvalConfigNameLike & { metric: string }): string =>
+    cfg.display_name ? localizedEvalConfigName(cfg, t) : cfg.metric
   // The forest chart and the annotator agreement card belong to the
   // variant_experiments flag.
   const variantExperimentsStatus = useFeatureFlagStatus(VARIANT_EXPERIMENTS)
@@ -559,11 +557,7 @@ export function MetricResultsView({
             )
             const label =
               cfg.display_name && String(cfg.display_name).trim().length > 0
-                ? localizedEvalConfigName(
-                    String(cfg.display_name),
-                    cfg.metric,
-                    t,
-                  )
+                ? localizedEvalConfigName(cfg, t)
                 : String(cfg.metric || '')
                     .replace(/_/g, ' ')
                     .replace(/\b\w/g, (c: string) => c.toUpperCase())
@@ -1085,7 +1079,7 @@ export function MetricResultsView({
         id: c.id,
         displayName:
           c.display_name && String(c.display_name).trim().length > 0
-            ? localizedEvalConfigName(c.display_name, c.metric, t)
+            ? localizedEvalConfigName(c, t)
             : c.metric,
         metric: c.metric,
       }))
@@ -1127,7 +1121,7 @@ export function MetricResultsView({
           (c) => c.metric === metric && selectedConfigIds.includes(c.id),
         )
         return selected.length === 1 && selected[0].display_name
-          ? localizedEvalConfigName(selected[0].display_name, metric, t)
+          ? localizedEvalConfigName(selected[0], t)
           : metric
       },
       modelLabel: (modelId, modelName) =>

@@ -286,7 +286,7 @@ export function StepEvaluationMethods({
           {evaluationConfigs.map((config) => (
             <Badge key={config.id} variant="default" className="text-xs">
               {config.display_name
-                ? localizedEvalConfigName(config.display_name, config.metric, t)
+                ? localizedEvalConfigName(config, t)
                 : config.metric}
             </Badge>
           ))}
@@ -384,11 +384,7 @@ export function StepEvaluationMethods({
                           {metricConfigs.length > 1 && (
                             <p className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                               {config.display_name
-                                ? localizedEvalConfigName(
-                                    config.display_name,
-                                    config.metric,
-                                    t,
-                                  )
+                                ? localizedEvalConfigName(config, t)
                                 : `${def.display_name} ${configIndex + 1}`}
                               {config.variant && (
                                 <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">

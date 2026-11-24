@@ -124,42 +124,47 @@ function knownNames(def: AvailableMetric): Array<[string, string]> {
   return names
 }
 
+/** An evaluation config as far as its displayed name is concerned. */
+export interface EvalConfigNameLike {
+  display_name?: string | null
+  metric?: string | null
+  metric_parameters?: MetricParamsLike
+}
+
 /**
  * The name of an evaluation config in the reader's language.
  *
  * Configs store their name as text (`display_name`), written in whatever
  * language the preset or the wizard used, so a French reader would see a
  * German preset name. A stored name that is still a name the system gave
- * the config (the metric's own name or one of its `presetNameKeys`, in any
- * UI language, optionally followed by a ` (…)` suffix such as the judge
- * model) renders in the reader's language with the suffix kept. Any other
- * name was typed by someone and stays exactly as stored. Display only: the
- * stored name stays what configs are matched by.
+ * the config renders in the reader's language: the metric's own name or one
+ * of its `presetNameKeys`, in any UI language, either alone or followed by
+ * exactly the judge-model suffix `computeDefaultEvalName` appends for the
+ * config's own parameters (` (gpt-5-mini ×3)`), which is kept. Any other
+ * name, also a known name with another ` (…)` suffix, was typed by someone
+ * and stays exactly as stored. Display only: the stored name stays what
+ * configs are matched by.
  */
 export function localizedEvalConfigName(
-  name: string,
-  metric: string | null | undefined,
+  config: EvalConfigNameLike,
   t: Translate,
   definitions: Record<string, AvailableMetric> = getMetricDefinitions(),
 ): string {
-  const def = metric ? definitions[metric] : undefined
+  const name = config.display_name ?? ''
+  const def = config.metric ? definitions[config.metric] : undefined
   const stored = name.trim()
   if (!def || !stored) return name
-  const names = knownNames(def)
   const render = (key: string) => {
     const text = t(key)
     return text === key ? null : text
   }
-  for (const [text, key] of names) {
+  const model = resolveJudgeModel(config.metric_parameters)
+  const suffix = model ? ` (${model})` : null
+  for (const [text, key] of knownNames(def)) {
     if (text === stored) return render(key) ?? name
-  }
-  const suffixed = /^(.*\S) (\([^()]*\))$/.exec(stored)
-  if (suffixed) {
-    for (const [text, key] of names) {
-      if (text === suffixed[1]) {
-        const head = render(key)
-        return head ? `${head} ${suffixed[2]}` : name
-      }
+    if (suffix && stored === `${text}${suffix}`) {
+      const head = render(key)
+      return head ? `${head}${suffix}` : name
     }
   }
   return name
