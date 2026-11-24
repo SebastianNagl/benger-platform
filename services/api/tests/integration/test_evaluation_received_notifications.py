@@ -25,6 +25,7 @@ pytestmark = pytest.mark.integration
 HUMAN = NotificationType.EVALUATION_RECEIVED_HUMAN
 IMMEDIATE = NotificationType.EVALUATION_RECEIVED_IMMEDIATE
 BATCH = NotificationType.EVALUATION_RECEIVED_BATCH
+RELEASED = NotificationType.EVALUATION_RELEASED
 
 
 def _uid():
@@ -127,6 +128,36 @@ class TestChannelsWithStoredPreferences:
         assert _rows(test_db, grader, NotificationType.KORREKTUR_ASSIGNED) == []
         assert [p["user_id"] for p in _queued(celery)] == [grader.id]
 
+    def test_released_grading_without_a_row_is_shown_and_queued(
+        self, test_db, test_users, celery
+    ):
+        """A teacher's release notifies in-app and by email by default."""
+        annotator = test_users[2]
+
+        created = _create(test_db, annotator, RELEASED)
+
+        assert [n.user_id for n in _rows(test_db, annotator, RELEASED)] == [annotator.id]
+        assert [(p["user_id"], p["id"]) for p in _queued(celery)] == [(annotator.id, created[0].id)]
+
+    def test_released_grading_switched_off_sends_nothing(self, test_db, test_users, celery):
+        """The student's own switch decides: no in-app row and no email."""
+        annotator = test_users[2]
+        _prefer(test_db, annotator, RELEASED, in_app=False, email=False)
+
+        assert _create(test_db, annotator, RELEASED) == []
+
+        assert _rows(test_db, annotator, RELEASED) == []
+        celery.send_task.assert_not_called()
+
+    def test_released_grading_email_only(self, test_db, test_users, celery):
+        annotator = test_users[2]
+        _prefer(test_db, annotator, RELEASED, in_app=False, email=True)
+
+        assert _create(test_db, annotator, RELEASED) == []
+
+        assert _rows(test_db, annotator, RELEASED) == []
+        assert [p["user_id"] for p in _queued(celery)] == [annotator.id]
+
     def test_stored_row_overrides_the_human_email_default(self, test_db, test_users, celery):
         annotator = test_users[2]
         _prefer(test_db, annotator, HUMAN, in_app=True, email=False)
@@ -210,6 +241,18 @@ class TestNotifyEvaluationReceived:
             "source": "human",
         }
 
+    def test_a_release_uses_its_own_type(self, test_db, test_users, celery):
+        admin, annotator = test_users[0], test_users[2]
+        project, task = _exam(test_db, admin)
+
+        created = _notify(test_db, project, source="release", recipients=[annotator.id],
+                          task_id=task.id)
+
+        assert [n.user_id for n in created] == [annotator.id]
+        assert created[0].data["source"] == "release"
+        assert _rows(test_db, annotator, RELEASED) == created
+        assert _rows(test_db, annotator, HUMAN) == []
+
     def test_unknown_annotations_have_no_annotators(self, test_db):
         assert ns_module.annotator_ids_for_annotations(test_db, ["missing-annotation"]) == []
 
@@ -258,6 +301,7 @@ class TestGradingPreferencesApi:
         assert prefs[HUMAN.value] == {"enabled": True, "in_app": True, "email": True}
         assert prefs[IMMEDIATE.value] == {"enabled": False, "in_app": False, "email": False}
         assert prefs[BATCH.value] == {"enabled": False, "in_app": False, "email": False}
+        assert prefs[RELEASED.value] == {"enabled": True, "in_app": True, "email": True}
 
     def test_email_only_choice_persists(self, client, test_db, test_users, auth_headers):
         annotator = test_users[2]

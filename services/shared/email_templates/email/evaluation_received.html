@@ -1,9 +1,9 @@
 {% set data = notification.data or {} %}
-{% set source = data.source if data.source in ('human', 'immediate', 'batch') else 'human' %}
+{% set source = data.source if data.source in ('human', 'immediate', 'batch', 'release') else 'human' %}
 {# German like the other notification emails; wording mirrors the in-app text (notifications.content.evaluation_received_*). Both brands address the reader with "du". #}
-{% set title = {'human': 'Neue Korrektur', 'immediate': 'KI-Korrektur fertig', 'batch': 'Neue Evaluierung'}[source] %}
-{% set lead = {'human': 'Deine Bearbeitung wurde korrigiert.', 'immediate': 'Die KI-Korrektur deiner Bearbeitung liegt vor.', 'batch': 'Ein Evaluierungslauf hat deine Bearbeitungen bewertet.'}[source] %}
-{% set source_label = {'human': 'Menschliche Korrektur', 'immediate': 'KI-Korrektur', 'batch': 'Evaluierungslauf'}[source] %}
+{% set title = {'human': 'Neue Korrektur', 'immediate': 'KI-Korrektur fertig', 'batch': 'Neue Evaluierung', 'release': 'Korrektur freigegeben'}[source] %}
+{% set lead = {'human': 'Deine Bearbeitung wurde korrigiert.', 'immediate': 'Die KI-Korrektur deiner Bearbeitung liegt vor.', 'batch': 'Ein Evaluierungslauf hat deine Bearbeitungen bewertet.', 'release': 'Deine Lehrkraft hat die Korrektur deiner Bearbeitung freigegeben.'}[source] %}
+{% set source_label = {'human': 'Menschliche Korrektur', 'immediate': 'KI-Korrektur', 'batch': 'Evaluierungslauf', 'release': 'Freigegebene Korrektur'}[source] %}
 {% set cta = 'Ergebnisse ansehen' if source == 'batch' else 'Korrektur ansehen' %}
 {% set settings_url = brand.frontend_url.rstrip('/') ~ '/settings/notifications' %}
 Subject: {{ title }}{% if data.project_title %}: {{ data.project_title }}{% endif %}

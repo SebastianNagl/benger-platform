@@ -15,12 +15,13 @@ EVALUATION_RECEIVED_TYPES = frozenset(
         NotificationType.EVALUATION_RECEIVED_HUMAN.value,
         NotificationType.EVALUATION_RECEIVED_IMMEDIATE.value,
         NotificationType.EVALUATION_RECEIVED_BATCH.value,
+        NotificationType.EVALUATION_RELEASED.value,
     }
 )
 
 
 def is_evaluation_received_type(notification_type: Any) -> bool:
-    """True for the three "new grading on your submission" types (enum or value)."""
+    """True for the "new grading on your submission" types (enum or value)."""
     value = getattr(notification_type, "value", notification_type)
     return isinstance(value, str) and value in EVALUATION_RECEIVED_TYPES
 

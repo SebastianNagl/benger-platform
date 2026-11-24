@@ -360,6 +360,20 @@
     },
     {
       "module": "current_scores",
+      "name": "configs_by_id",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "pick_current",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
       "name": "sql_has_score",
       "importers": [
         "benger_extended/billing/method_selection.py"
@@ -1356,6 +1370,7 @@
       "module": "notification_service",
       "name": "notify_evaluation_received",
       "importers": [
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/korrektur.py"
       ]
     },
@@ -1553,6 +1568,7 @@
       "importers": [
         "benger_extended/api/grade_headline.py",
         "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",

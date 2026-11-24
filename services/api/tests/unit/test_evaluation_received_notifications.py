@@ -26,6 +26,7 @@ GRADING_TYPES = (
     "evaluation_received_human",
     "evaluation_received_immediate",
     "evaluation_received_batch",
+    "evaluation_released",
 )
 
 
@@ -46,6 +47,12 @@ class TestDefaultChannels:
     )
     def test_ai_gradings_are_opt_in_on_both_channels(self, type_value):
         assert ns_module.default_channels(type_value) == {"in_app": False, "email": False}
+
+    def test_a_teacher_release_defaults_to_in_app_and_email(self):
+        assert ns_module.default_channels(NotificationType.EVALUATION_RELEASED) == {
+            "in_app": True,
+            "email": True,
+        }
 
     def test_other_types_keep_the_general_rule(self):
         assert ns_module.default_channels("project_created") == {
@@ -172,6 +179,7 @@ class TestNotifyEvaluationReceived:
         [
             ("immediate", NotificationType.EVALUATION_RECEIVED_IMMEDIATE),
             ("batch", NotificationType.EVALUATION_RECEIVED_BATCH),
+            ("release", NotificationType.EVALUATION_RELEASED),
         ],
     )
     def test_source_selects_the_type(self, source, expected):
@@ -298,7 +306,7 @@ def email_svc():
 
 def _grading_notification(source="human", project_title="Klausur 1"):
     return SimpleNamespace(
-        type=f"evaluation_received_{source}",
+        type="evaluation_released" if source == "release" else f"evaluation_received_{source}",
         title="New grading",
         message="m",
         data={
@@ -326,6 +334,7 @@ WORDING = {
     "human": ("Neue Korrektur", "Menschliche Korrektur", "Korrektur ansehen"),
     "immediate": ("KI-Korrektur fertig", "KI-Korrektur", "Korrektur ansehen"),
     "batch": ("Neue Evaluierung", "Evaluierungslauf", "Ergebnisse ansehen"),
+    "release": ("Korrektur freigegeben", "Freigegebene Korrektur", "Korrektur ansehen"),
 }
 # Both brands say "du": (expected footer, the formal footer that must not appear).
 VOICE = {
@@ -336,7 +345,7 @@ VOICE = {
 
 class TestGradingEmail:
     @pytest.mark.parametrize("host", ["vertretbar.net", None])
-    @pytest.mark.parametrize("source", ["human", "immediate", "batch"])
+    @pytest.mark.parametrize("source", ["human", "immediate", "batch", "release"])
     def test_renders_german_wording_voice_and_link(self, email_svc, host, source):
         brand = resolve_email_brand(host)
         action_url = f"{brand.frontend_url}/student/exams/p1"
