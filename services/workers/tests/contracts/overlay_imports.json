@@ -1,5 +1,5 @@
 {
-  "generated_from": "427056c4181c41074ad24f051f79919330df0fa5",
+  "generated_from": "81d4f31f8e1ecf101aa8279e61304fe4601a1764",
   "api_shared": [
     {
       "module": "account_activation",
@@ -383,6 +383,7 @@
       "module": "current_scores",
       "name": "sql_has_score",
       "importers": [
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/billing/method_selection.py"
       ]
     },
@@ -2912,6 +2913,13 @@
       "name": "remirror_project_rubrics",
       "importers": [
         "benger_extended/bewertungsbogen_shared.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "rubric_referenced_by_gradings",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
       ]
     },
     {
