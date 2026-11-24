@@ -1756,11 +1756,27 @@ API change).
     ``OPTIONAL_HOOK_KEYS`` (keys the platform calls but an overlay need not
     implement, currently ``evaluation_method_selection``). An overlay's
     handshake test must not require any of them.
+
+2.77 (2026-11-24): gradings held back for a release (no migration,
+  additive).
+  - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
+    row holds a feedback-only result (``details.feedback_only``, core 2.41)
+    that is not released yet (``details.review.status != "released"``).
+    The immediate grading notice (``evaluation_received_immediate``) skips
+    a run whose rows all wait for their release, so a held-back draft no
+    longer announces "AI grading ready"; the batch notice
+    (``evaluation_received_batch``) now leaves out only such rows and
+    counts a released feedback row like any grading. Announcing a release
+    stays with the overlay that releases.
+  - Slot ``ProjectReleaseReviewPage`` (props ``{projectId}``) on
+    ``/projects/[id]/release-review``: the page where a project's editors
+    review held-back gradings and release them. Without the slot the route
+    says it needs the extended edition.
 """
 
 import os
 
-CORE_API_VERSION = "2.76"
+CORE_API_VERSION = "2.77"
 
 
 def extended_required() -> bool:

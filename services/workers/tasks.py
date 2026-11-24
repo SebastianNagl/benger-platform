@@ -2933,25 +2933,27 @@ def _notify_immediate_grading_received(
     """Tell the annotator their immediate AI grading is ready (opt-in type).
 
     Called only for a successful grading, and only when the run wrote at
-    least one TaskEvaluation row: a run that graded nothing has nothing to
-    show. Never raises.
+    least one TaskEvaluation row the annotator can see: a run that graded
+    nothing has nothing to show, and a feedback-only result held back for
+    the teacher (``metric_filters.row_awaits_release``) is announced by its
+    release, not here. Never raises.
     """
     if not annotation_id:
         return
     try:
+        from metric_filters import row_awaits_release
         from models import TaskEvaluation
         from notification_service import (
             annotator_ids_for_annotations,
             notify_evaluation_received,
         )
 
-        has_rows = (
-            db.query(TaskEvaluation.id)
+        rows = (
+            db.query(TaskEvaluation.metrics)
             .filter(TaskEvaluation.evaluation_id == evaluation_run_id)
-            .first()
-            is not None
+            .all()
         )
-        if not has_rows:
+        if not any(not row_awaits_release(metrics) for (metrics,) in rows):
             return
         notify_evaluation_received(
             db,
@@ -3015,10 +3017,11 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
     redelivered or re-finalized run cannot notify twice; a run with nobody to
-    tell (generation-only benchmarks) stays unmarked. Score-less feedback
-    rows (``details.feedback_only``, core 2.41) are a draft for the teacher,
-    who releases them later (the overlay notifies then), so they tell nobody
-    here. Never raises.
+    tell (generation-only benchmarks) stays unmarked. A score-less feedback
+    row (``details.feedback_only``, core 2.41) still waiting for its release
+    is a draft for the teacher, who releases it later (the overlay notifies
+    then), so it tells nobody here; a released one counts like any grading
+    (``metric_filters.row_awaits_release`` is the same rule). Never raises.
     """
     try:
         meta = evaluation.eval_metadata or {}
@@ -3042,6 +3045,9 @@ def _notify_batch_grading_received(db, evaluation) -> None:
                       SELECT 1 FROM jsonb_each(te.metrics) m
                       WHERE jsonb_typeof(m.value) = 'object'
                         AND m.value -> 'details' ->> 'feedback_only' = 'true'
+                        AND COALESCE(
+                          m.value -> 'details' -> 'review' ->> 'status', ''
+                        ) <> 'released'
                     ) END,
                     false
                   )

@@ -208,9 +208,11 @@ class TestNotificationBatchBranding:
 # ---------------------------------------------------------------------------
 
 
-def _db_with_row(has_row):
+def _db_with_row(has_row, metrics=None):
     db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = ("te1",) if has_row else None
+    db.query.return_value.filter.return_value.all.return_value = (
+        [(metrics if metrics is not None else {"exact_match": 1.0},)] if has_row else []
+    )
     return db
 
 
@@ -233,6 +235,13 @@ class TestImmediateGradingNotification:
 
     def test_run_without_rows_notifies_nobody(self):
         db = _db_with_row(False)
+        with patch("notification_service.notify_evaluation_received") as notify:
+            tasks_module._notify_immediate_grading_received(db, "run1", "p1", "t1", "a1")
+        notify.assert_not_called()
+
+    def test_a_feedback_draft_notifies_nobody(self):
+        draft = {"llm_judge_feedback": {"value": None, "details": {"feedback_only": True}}}
+        db = _db_with_row(True, draft)
         with patch("notification_service.notify_evaluation_received") as notify:
             tasks_module._notify_immediate_grading_received(db, "run1", "p1", "t1", "a1")
         notify.assert_not_called()

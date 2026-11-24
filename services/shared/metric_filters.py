@@ -125,6 +125,20 @@ def is_unreleased_feedback(blob: Any) -> bool:
     return not (isinstance(review, dict) and review.get("status") == "released")
 
 
+def row_awaits_release(metrics: Any) -> bool:
+    """Whether a ``task_evaluations`` row holds a feedback-only result still
+    waiting for its release (:func:`is_unreleased_feedback`).
+
+    Its submitter cannot see such a row yet, so no "grading received" notice
+    may announce it; the release itself is the moment to tell them. The
+    batch notice applies the same rule in SQL
+    (``tasks._notify_batch_grading_received``).
+    """
+    return isinstance(metrics, dict) and any(
+        is_unreleased_feedback(blob) for blob in metrics.values()
+    )
+
+
 def is_heavy_metric(metric_name: Optional[str]) -> bool:
     """True for transformer-model-loading metrics excluded from immediate
     (per-submit) evaluation. See :data:`HEAVY_METRICS`."""
