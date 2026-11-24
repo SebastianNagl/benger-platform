@@ -653,3 +653,79 @@ class TestStandInPerReferenceField:
             s["rows"][(CFG_REF_A, REFS[0])].id: None,
             s["rows"][(CFG_REF_B, REFS[1])].id: CFG_REF_A,
         }
+
+
+CFG_ONCE = "llm_judge_custom-once"
+
+
+async def _seed_official_per_reference_stand_in_once(db):
+    """The official CFG_REF_A grades once per reference field: musterloesung
+    0.9, bewertungsbogen failed. CFG_ONCE (one reference field, so once per
+    prediction field) graded the answer later with 0.5."""
+    owner = await _make_owner(db)
+    org = await _make_org(db)
+    project, tasks = await _setup_project(db, owner, org, num_tasks=1)
+    project.evaluation_config = {
+        "evaluation_configs": [
+            {
+                "id": CFG_REF_A, "metric": "llm_judge_custom", "display_name": "Judge A",
+                "prediction_fields": ["human:loesung"], "reference_fields": list(REFS),
+                "metric_parameters": {"custom_prompt_template": "{ground_truth} {prediction}"},
+                "enabled": True,
+            },
+            {
+                "id": CFG_ONCE, "metric": "llm_judge_custom", "display_name": "Judge once",
+                "prediction_fields": ["human:loesung"], "reference_fields": [REFS[0]],
+                "enabled": True,
+            },
+        ]
+    }
+    task = tasks[0]
+    student = await _make_owner(db, name="Student One", is_superadmin=False)
+    ann = await _make_annotation(db, task, project, student.id)
+    batch = await _make_eval_run(db, project, model_id="annotator:Student One")
+    graded_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    for ref, metrics in zip(REFS, ({"llm_judge_custom": 0.9}, {"error": "judge timeout"})):
+        await _make_task_evaluation(
+            db, batch, task, annotation=ann,
+            field_name=f"{CFG_REF_A}|human:loesung|{ref}", evaluation_config_id=CFG_REF_A,
+            metrics=metrics, created_at=graded_at,
+        )
+    later = await _make_eval_run(db, project, model_id="later")
+    await _make_task_evaluation(
+        db, later, task, annotation=ann,
+        field_name=f"{CFG_ONCE}|human:loesung|{REFS[0]}", evaluation_config_id=CFG_ONCE,
+        metrics={"llm_judge_custom": 0.5}, created_at=graded_at + timedelta(minutes=30),
+    )
+    await db.commit()
+    return {"owner": owner, "project": project, "task": task}
+
+
+@pytest.mark.integration
+class TestNewerStandInDoesNotOverrideTheOfficialScore:
+    @pytest.mark.asyncio
+    async def test_csv_and_grid_keep_the_official_score(self, async_test_client, async_test_db):
+        s = await _seed_official_per_reference_stand_in_once(async_test_db)
+        groups = {"judge": {"config_ids": [CFG_REF_A, CFG_ONCE], "label": "Judge"}}
+        with patch(
+            "extensions.evaluation_method_selection", return_value={"groups": groups}
+        ), _as_user(s["owner"]):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{s['project'].id}/results/by-submission"
+            )
+            grid = await async_test_client.get(
+                _grid_url(s["project"].id, metric="llm_judge_custom", method_group="judge")
+            )
+        assert resp.status_code == 200, resp.text
+        rows = list(csv.reader(io.StringIO(resp.text)))
+        assert rows[0][5:] == [
+            "Judge (task.musterloesung)",
+            "Judge (task.bewertungsbogen)",
+            "Judge (task.bewertungsbogen) (graded by)",
+        ]
+        # musterloesung: the official 0.9, though the stand-in is newer;
+        # bewertungsbogen: the stand-in, as the official grading failed.
+        assert rows[1][5:] == ["0.9", "0.5", "Judge once"]
+        assert grid.status_code == 200, grid.text
+        cell = next(t for t in grid.json()["tasks"] if t["task_id"] == s["task"].id)
+        assert cell["scores"] == {"annotator:Student One": pytest.approx(0.9)}

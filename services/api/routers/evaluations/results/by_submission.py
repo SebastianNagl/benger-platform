@@ -213,9 +213,16 @@ async def export_project_results_by_submission(
     current = list(current_scores.pick_current(rows, configs_lookup).values())
     shown = teacher_current_rows(selection, current, submitter_of, configs_lookup)
 
-    # Per (annotation, column): the newest current row with a score. A row of
-    # a config graded once per prediction field (reference part "") fills
+    # Per (annotation, column): the newest current row with a score, a row of
+    # the official config before a stand-in's (a stand-in graded once per
+    # prediction field may stand in for another reference field only). A row
+    # of a config graded once per prediction field (reference part "") fills
     # every reference column of its method.
+    epoch = datetime.min.replace(tzinfo=timezone.utc)
+
+    def _rank(row):
+        return (shown.get(str(row.id)) is None, row.created_at or epoch)
+
     picked: dict = {}
     for row in current:
         config_id = current_scores.cell_config_id(row.evaluation_config_id, row.field_name)
@@ -229,9 +236,7 @@ async def export_project_results_by_submission(
                 continue
             key = (row.annotation_id, index)
             held = picked.get(key)
-            if held is None or (row.created_at or datetime.min.replace(tzinfo=timezone.utc)) > (
-                held.created_at or datetime.min.replace(tzinfo=timezone.utc)
-            ):
+            if held is None or _rank(row) > _rank(held):
                 picked[key] = row
 
     # Grade points live in the parts of the metrics the lite projection drops.

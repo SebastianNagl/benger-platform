@@ -94,7 +94,7 @@ async def _add_annotator_cells(
     if selection is not None:
         shown = teacher_rows(selection, rows, user_of, configs_by_id)
 
-    cells: dict = {}  # {(task_id, synthetic_model_id): [(created_at, score), ...]}
+    cells: dict = {}  # {(task_id, synthetic_model_id): [(official, created_at, score), ...]}
     for r in rows:
         if shown is not None and current_scores.row_id(r) not in shown:
             continue
@@ -112,14 +112,16 @@ async def _add_annotator_cells(
             "id": f"annotator:{export_user_id or 'unknown'}",
             "name": f"Annotator: {export_label}",
         }
-        cells.setdefault((r.task_id, synthetic_model_id), []).append((r.created_at, score))
+        own = shown is None or shown[current_scores.row_id(r)] is None
+        cells.setdefault((r.task_id, synthetic_model_id), []).append((own, r.created_at, score))
 
     epoch = datetime.min.replace(tzinfo=timezone.utc)
     for (task_id, synthetic_model_id), entries in cells.items():
         if include_history:
-            value = sum(s for _, s in entries) / len(entries)
+            value = sum(e[2] for e in entries) / len(entries)
         else:
-            value = max(entries, key=lambda e: e[0] or epoch)[1]
+            # A score of the official config wins over a stand-in's.
+            value = max(entries, key=lambda e: (e[0], e[1] or epoch))[2]
         task_scores.setdefault(task_id, {})[synthetic_model_id] = value
         model_scores[synthetic_model_id].append(value)
 
@@ -919,6 +921,7 @@ async def get_project_results_by_task_model(
                 .where(ranked.c.rn == 1)
             )
         ).all()
+        gen_shown = None
         if selection is not None:
             # Generations have no submitting account: the default official
             # config, else another config of the group that has a score.
@@ -1046,7 +1049,7 @@ async def get_project_results_by_task_model(
         # Single-row cells render the same value either way.
         task_scores: dict = {}
         task_previews: dict = {}
-        cell_score_buckets: dict = {}  # {(task_id, model_id): [(created_at, score), ...]}
+        cell_score_buckets: dict = {}  # {(task_id, model_id): [(official, created_at, score), ...]}
         model_scores: dict = {mid: [] for mid in model_ids}
 
         for result in sample_results:
@@ -1057,16 +1060,21 @@ async def get_project_results_by_task_model(
             score = _extract_primary_score(metrics)
 
             if score is not None and model_id:
+                own = gen_shown is None or gen_shown[str(result.id)] is None
                 cell_score_buckets.setdefault((task_id, model_id), []).append(
-                    (result.created_at, score)
+                    (own, result.created_at, score)
                 )
 
         for (task_id, model_id), entries in cell_score_buckets.items():
             if include_history:
-                cell_score = sum(s for _, s in entries) / len(entries)
+                cell_score = sum(e[2] for e in entries) / len(entries)
             else:
-                # Latest-wins: pick the score whose row has the max created_at.
-                cell_score = max(entries, key=lambda e: e[0] or datetime.min.replace(tzinfo=timezone.utc))[1]
+                # Latest-wins, a score of the official config over a
+                # stand-in's: the max (official, created_at).
+                cell_score = max(
+                    entries,
+                    key=lambda e: (e[0], e[1] or datetime.min.replace(tzinfo=timezone.utc)),
+                )[2]
             task_scores.setdefault(task_id, {})[model_id] = cell_score
             model_scores[model_id].append(cell_score)
 
