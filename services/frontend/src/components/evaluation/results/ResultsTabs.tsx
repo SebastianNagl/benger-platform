@@ -410,7 +410,9 @@ export function ResultsTabs({
                             ? t('evaluation.multiFieldResults.standInBadge', {
                                 config: result.evaluation_config_label,
                               })
-                            : t('evaluation.multiFieldResults.standInBadgeUnnamed')}
+                            : t(
+                                'evaluation.multiFieldResults.standInBadgeUnnamed',
+                              )}
                         </span>
                       )}
                       {/* A config that is not the official one here. */}
