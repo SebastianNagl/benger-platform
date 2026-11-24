@@ -461,6 +461,7 @@
         "step6": {
           "title": "Configurer les prompts",
           "subtitle": "Configurer les prompts système et d'instruction pour la génération",
+          "generationOnly": "Ces prompts ne servent qu'à la génération : ils indiquent à un modèle comment rédiger une réponse à la tâche. Pour l'évaluation, chaque méthode d'évaluation a son propre prompt ; vous le modifiez ensuite dans la configuration de l'évaluation, sur la méthode.",
           "systemPromptLabel": "Prompt système",
           "systemPromptHint": "Définit le rôle et le comportement de l'IA",
           "systemPromptPlaceholder": "Vous êtes un assistant expert en droit...",

@@ -214,7 +214,9 @@ class TestExtensionLoader:
         # 2.77 adds presetNameKeys / localizedEvalConfigName and stops
         # mapping and serving projects.is_published (migration 153 gives it
         # a server default; the drop follows in a later release).
-        assert CORE_API_VERSION == "2.77"
+        # 2.78 adds korrektur_comments.highlight_field (migration 154), the
+        # sheet parser's declared_total and the own-scale grade key rule.
+        assert CORE_API_VERSION == "2.78"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

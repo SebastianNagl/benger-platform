@@ -461,6 +461,7 @@
         "step6": {
           "title": "Configure Prompts",
           "subtitle": "Set up system and instruction prompts for generation",
+          "generationOnly": "These prompts apply to generation only: they tell a model how to write an answer to the task. For grading, each evaluation method has its own prompt; you change it later in the evaluation configuration, on the method.",
           "systemPromptLabel": "System Prompt",
           "systemPromptHint": "Defines the AI's role and behavior",
           "systemPromptPlaceholder": "You are a legal expert assistant...",

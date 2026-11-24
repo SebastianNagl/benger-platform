@@ -40,7 +40,9 @@ from rubric_structure import (
     effective_grade_scale,
     mirror_rubric_into_task_data,
     normalize_structure,
+    register_own_scale_metric,
     render_grade_scale_text,
+    unregister_own_scale_metric,
 )
 from task_rubric_service import remirror_project_rubrics, remirror_project_rubrics_sync
 
@@ -339,6 +341,65 @@ class TestEvalConfigPut:
         assert _mirror(_reload_task(test_db, task.id)) == "SENTINEL"
 
 
+OWN_SCALE_METRIC = "test_own_scale_judge"
+
+
+def _method(metric):
+    return {
+        "id": metric,
+        "metric": metric,
+        "enabled": True,
+        "prediction_fields": ["__all_model__"],
+        "reference_fields": [],
+    }
+
+
+@pytest.fixture
+def own_scale_metric():
+    register_own_scale_metric(OWN_SCALE_METRIC)
+    yield OWN_SCALE_METRIC
+    unregister_own_scale_metric(OWN_SCALE_METRIC)
+
+
+@pytest.mark.integration
+class TestEvalConfigPutMethods:
+    """Whether the key is shown depends on the enabled methods, so a save of
+    the methods re-mirrors the sheets when that answer changes."""
+
+    def test_own_scale_methods_after_the_sheet_drop_the_key(
+        self, client, test_db, test_users, auth_headers, test_org, own_scale_metric
+    ):
+        project = _seed_project(test_db, test_users, test_org, {})
+        task = _seed_sheet(test_db, project)
+        assert _mirror(task).endswith(_key_block(None))
+
+        resp = _put(
+            client, auth_headers, project.id, {"evaluation_configs": [_method(own_scale_metric)]}
+        )
+        assert resp.status_code == 200, resp.text
+        mirror = _mirror(_reload_task(test_db, task.id))
+        assert "NOTENSCHLÜSSEL" not in mirror
+        assert "Rechtsweg" in mirror
+
+    def test_a_notenpunkte_method_added_later_brings_the_key_back(
+        self, client, test_db, test_users, auth_headers, test_org, own_scale_metric
+    ):
+        project = _seed_project(
+            test_db, test_users, test_org, {"evaluation_configs": [_method(own_scale_metric)]}
+        )
+        task = _seed_sheet(test_db, project)
+        assert "NOTENSCHLÜSSEL" not in _mirror(task)
+
+        resp = _put(
+            client,
+            auth_headers,
+            project.id,
+            {"evaluation_configs": [_method(own_scale_metric), _method("llm_judge_rubric")]},
+        )
+        assert resp.status_code == 200, resp.text
+        assert _mirror(_reload_task(test_db, task.id)).endswith(_key_block(None))
+
+
 # ---------------------------------------------------------------------------
 # async lane: the helper and the project PATCH
 # ---------------------------------------------------------------------------
@@ -501,6 +562,55 @@ class TestProjectPatch:
         stored = await _stored_task(async_test_db, task_id)
         assert _mirror(stored).endswith(_key_block(SHEET_KEY))
         assert len((await _stored_config(async_test_db, project_id))["grade_scale_history"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_own_scale_methods_after_the_sheet_drop_the_key(
+        self, async_test_client, async_test_db, own_scale_metric
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {})
+        task = await _make_sheet(async_test_db, project)
+        assert _mirror(task).endswith(_key_block(None))
+        project_id, task_id = project.id, task.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={"evaluation_config": {"evaluation_configs": [_method(own_scale_metric)]}},
+            )
+        assert resp.status_code == 200, resp.text
+        mirror = _mirror(await _stored_task(async_test_db, task_id))
+        assert "NOTENSCHLÜSSEL" not in mirror
+        assert "Rechtsweg" in mirror
+
+    @pytest.mark.asyncio
+    async def test_a_notenpunkte_method_added_later_brings_the_key_back(
+        self, async_test_client, async_test_db, own_scale_metric
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(
+            async_test_db, owner, {"evaluation_configs": [_method(own_scale_metric)]}
+        )
+        task = await _make_sheet(async_test_db, project)
+        assert "NOTENSCHLÜSSEL" not in _mirror(task)
+        project_id, task_id = project.id, task.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={
+                    "evaluation_config": {
+                        "evaluation_configs": [
+                            _method(own_scale_metric),
+                            _method("llm_judge_rubric"),
+                        ]
+                    }
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert _mirror(await _stored_task(async_test_db, task_id)).endswith(_key_block(None))
 
     @pytest.mark.asyncio
     async def test_an_unrelated_patch_leaves_mirrors_and_trail_alone(
