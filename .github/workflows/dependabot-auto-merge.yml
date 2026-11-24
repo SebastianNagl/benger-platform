@@ -37,9 +37,7 @@ jobs:
         with:
           app-id: ${{ secrets.PLATFORM_BOT_APP_ID }}
           private-key: ${{ secrets.PLATFORM_BOT_APP_PRIVATE_KEY }}
-          # Token scoped to this repository only.
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+          # Without owner or repositories, the token is scoped to this repository only.
 
       - name: Dependabot metadata
         id: metadata
@@ -74,9 +72,7 @@ jobs:
         with:
           app-id: ${{ secrets.PLATFORM_BOT_APP_ID }}
           private-key: ${{ secrets.PLATFORM_BOT_APP_PRIVATE_KEY }}
-          # Token scoped to this repository only.
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+          # Without owner or repositories, the token is scoped to this repository only.
 
       - name: Checkout code
         uses: actions/checkout@v7
