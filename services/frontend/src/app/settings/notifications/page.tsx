@@ -104,6 +104,13 @@ const getNotificationTypes = (t: any) => [
     category: t('settings.notifications.categories.evaluations'),
   },
   {
+    key: 'evaluation_released',
+    name: t('settings.notifications.types.evaluationReleased'),
+    description: t('settings.notifications.types.evaluationReleasedDesc'),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
     key: 'data_upload_completed',
     name: t('settings.notifications.types.dataUploadCompleted'),
     description: t('settings.notifications.types.dataUploadCompletedDesc'),

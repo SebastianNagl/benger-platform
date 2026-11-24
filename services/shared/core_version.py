@@ -1798,8 +1798,15 @@ API change).
     registered as grading on its own scale. Saving the methods re-renders
     the mirrors when that answer changes.
 
-2.79 (2026-11-24): gradings held back for a release (no migration,
+2.79 (2026-11-24): gradings held back for a release (migration 155,
   additive).
+  - Notification type ``evaluation_released`` (migration 155 adds it to
+    the ``notificationtype`` enum): a teacher released a grading that was
+    held back for review. ``notify_evaluation_received(source="release")``
+    sends it; default channels in-app and email on, and like every type
+    each recipient switches it in the notification settings (both channels
+    honour the stored preference). The email reuses
+    ``evaluation_received.html`` and the link the other grading types use.
   - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
     row holds a feedback-only result (``details.feedback_only``, core 2.41)
     that is not released yet (``details.review.status != "released"``).

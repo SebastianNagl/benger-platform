@@ -54,6 +54,7 @@ const notificationIcons = {
   evaluation_received_human: CheckCircleIcon,
   evaluation_received_immediate: CheckCircleIcon,
   evaluation_received_batch: CheckCircleIcon,
+  evaluation_released: CheckCircleIcon,
   annotation_completed: CheckCircleIcon,
   annotation_assigned: UserPlusIcon,
   data_upload_completed: CheckCircleIcon,
@@ -88,6 +89,8 @@ const notificationColors = {
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
+  evaluation_released:
+    'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   annotation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   data_upload_completed:

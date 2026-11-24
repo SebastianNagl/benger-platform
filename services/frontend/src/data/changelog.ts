@@ -14,6 +14,11 @@ import {
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-24-released-grading-notification',
+    date: '2026-11-24',
+    audience: 'both',
+  },
+  {
     id: '2026-11-19-agreement-and-validity',
     date: '2026-11-19',
     audience: 'benger',

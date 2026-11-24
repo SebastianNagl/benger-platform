@@ -3332,6 +3332,10 @@
         "title": "Neue Evaluierung: {project_title}",
         "message": "Ein Evaluierungslauf hat deine Bearbeitungen in '{project_title}' bewertet."
       },
+      "evaluation_released": {
+        "title": "Korrektur freigegeben: {project_title}",
+        "message": "Deine Lehrkraft hat die Korrektur deiner Bearbeitung in '{project_title}' freigegeben."
+      },
       "data_upload_completed": {
         "title": "Daten-Upload abgeschlossen: {task_name}",
         "message": "Es wurden {upload_count} Einträge aus '{filename}' in die Aufgabe '{task_name}' hochgeladen."
@@ -3897,6 +3901,8 @@
         "evaluationReceivedImmediateDesc": "Benachrichtigungen erhalten, wenn die sofortige KI-Korrektur deiner Bearbeitung vorliegt",
         "evaluationReceivedBatch": "Neuer Evaluierungslauf",
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf deine Bearbeitungen bewertet hat",
+        "evaluationReleased": "Freigegebene Korrektur",
+        "evaluationReleasedDesc": "Benachrichtigungen erhalten, wenn deine Lehrkraft eine zurückgehaltene Korrektur deiner Bearbeitung freigibt",
         "dataUploadCompleted": "Datenupload abgeschlossen",
         "dataUploadCompletedDesc": "Benachrichtigungen erhalten, wenn Datenuploads die Verarbeitung abgeschlossen haben",
         "llmGenerationCompleted": "LLM-Generierung abgeschlossen",

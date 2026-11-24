@@ -239,6 +239,8 @@ def _create_tables():
                 "evaluation_received_human",
                 "evaluation_received_immediate",
                 "evaluation_received_batch",
+                # Migration 155.
+                "evaluation_released",
             ):
                 conn.execute(
                     text(

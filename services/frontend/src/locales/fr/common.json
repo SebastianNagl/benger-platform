@@ -3332,6 +3332,10 @@
         "title": "Nouvelle évaluation : {project_title}",
         "message": "Une exécution d'évaluation a noté vos travaux dans « {project_title} »."
       },
+      "evaluation_released": {
+        "title": "Correction transmise : {project_title}",
+        "message": "Votre enseignant a transmis la correction de votre copie dans « {project_title} »."
+      },
       "data_upload_completed": {
         "title": "Téléversement de données terminé : {task_name}",
         "message": "{upload_count} entrées de « {filename} » ont été téléversées dans la tâche « {task_name} »."
@@ -3897,6 +3901,8 @@
         "evaluationReceivedImmediateDesc": "Recevoir des notifications lorsque la correction IA immédiate de votre copie est disponible",
         "evaluationReceivedBatch": "Nouvelle exécution d'évaluation",
         "evaluationReceivedBatchDesc": "Recevoir des notifications lorsqu'une exécution d'évaluation a noté vos copies",
+        "evaluationReleased": "Correction transmise",
+        "evaluationReleasedDesc": "Recevoir des notifications lorsque votre enseignant transmet une correction de votre copie qu'il avait retenue pour relecture",
         "dataUploadCompleted": "Téléversement de données terminé",
         "dataUploadCompletedDesc": "Recevoir des notifications lorsque le traitement des téléversements de données est terminé",
         "llmGenerationCompleted": "Génération LLM terminée",
