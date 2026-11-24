@@ -9853,6 +9853,7 @@
       "outputGeneration": "La sortie est estimée à 90 % de max_tokens pour les modèles de raisonnement, 60 % sinon.",
       "encoding": "Tokens comptés avec {encoding} ; pour les modèles d'autres fournisseurs, il s'agit d'une approximation.",
       "countingMissing": "Seules les cellules qui seraient effectivement exécutées sont comptées.",
+      "countingOutdated": "Seules les évaluations fondées sur une version antérieure de la grille d'évaluation ou du barème sont comptées (nouvelle évaluation).",
       "countingAll": "Chaque cellule (tâche × structure) est comptée.",
       "perJudgeCells": "Les évaluations comptent les cellules par juge avec les exécutions de chaque configuration et omettent les cellules déjà notées avec succès. Des champs de prédiction lacunaires peuvent encore faire varier le coût."
     }

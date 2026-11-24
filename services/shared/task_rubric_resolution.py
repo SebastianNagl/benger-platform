@@ -81,9 +81,12 @@ class NoUsableRubricError(RuntimeError):
 
 def _project_requires_review(db, task) -> bool:
     """``projects.rubric_review_required`` of the task's project."""
+    return _project_id_requires_review(db, getattr(task, "project_id", None))
+
+
+def _project_id_requires_review(db, project_id) -> bool:
     from project_models import Project
 
-    project_id = getattr(task, "project_id", None)
     if not project_id:
         return False
     value = db.query(Project.rubric_review_required).filter(Project.id == project_id).scalar()
@@ -126,6 +129,44 @@ def resolve_grading_rubric(db, task, metric_parameters, *, review_required: Opti
     if row is None or not _has_scored_step(row):
         return None
     return row
+
+
+def resolve_grading_rubric_ids(
+    db, task_ids: Iterable[str], metric_parameters, *, review_required: Optional[bool] = None
+) -> dict:
+    """``{task_id: rubric_id}`` of the sheet :func:`resolve_grading_rubric`
+    picks for each of ``task_ids`` (tasks of one project), in one query
+    instead of one per task. Tasks without a usable sheet are left out."""
+    from project_models import Task, TaskRubric
+
+    wanted = [str(t) for t in task_ids or () if t]
+    if not wanted:
+        return {}
+    selector = (metric_parameters or {}).get("rubric_selector") or {}
+    generator = selector.get("generator_model_id") if isinstance(selector, dict) else None
+
+    query = db.query(TaskRubric).filter(TaskRubric.task_id.in_(wanted))
+    if generator:
+        query = query.filter(
+            TaskRubric.generator_model_id == generator,
+            TaskRubric.status != "archived",
+        )
+        if review_required is None:
+            project_id = db.query(Task.project_id).filter(Task.id == wanted[0]).scalar()
+            review_required = _project_id_requires_review(db, project_id)
+        if review_required:
+            query = query.filter(TaskRubric.review_state == REVIEW_STATE_CONFIRMED)
+        query = query.order_by(TaskRubric.task_id, TaskRubric.created_at.desc())
+    else:
+        query = query.filter(TaskRubric.status == "active")
+
+    picked: dict = {}
+    for row in query.all():
+        task_id = str(row.task_id)
+        if task_id in picked:
+            continue  # the selector path keeps the newest row per task
+        picked[task_id] = row
+    return {task_id: row.id for task_id, row in picked.items() if _has_scored_step(row)}
 
 
 #: Metrics whose judge reads the task's sheet when a config sets
@@ -206,6 +247,7 @@ __all__ = [
     "metric_reads_task_sheet",
     "register_sheet_judge_metric",
     "resolve_grading_rubric",
+    "resolve_grading_rubric_ids",
     "split_held_rubric_judges",
     "unregister_sheet_judge_metric",
 ]

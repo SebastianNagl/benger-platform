@@ -17,7 +17,8 @@ RETURNING`` so a concurrent finalizer/cancel wins cleanly):
   operator procedure.
 - **retry**  (``failed`` → ``pending``): same re-dispatch, increments
   ``retry_count``. Missing-only as well: rows that survived the failed
-  attempt are reused.
+  attempt are reused. A re-grade run (``eval_metadata.outdated_only``)
+  re-dispatches as a re-grade, which plans only the cells still outdated.
 
 Dispatch goes straight through ``celery_app.send_task`` — deliberately NOT
 through the ``POST /run`` HTTP handler, whose per-user in-flight idempotency
@@ -115,6 +116,9 @@ def _dispatch_snapshot_kwargs(evaluation: DBEvaluationRun) -> Dict[str, Any]:
         "model_ids": meta.get("model_ids"),
         "annotator_user_ids": meta.get("annotator_user_ids"),
         "structure_keys": meta.get("structure_keys"),
+        # A re-grade stays one: the cells it already re-graded rest on the
+        # current basis now, so only the rest is planned again.
+        **({"outdated_only": True} if meta.get("outdated_only") else {}),
     }
 
 

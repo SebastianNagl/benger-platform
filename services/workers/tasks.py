@@ -1786,6 +1786,7 @@ def run_evaluation(
     model_ids: Optional[List[str]] = None,
     annotator_user_ids: Optional[List[str]] = None,
     structure_keys: Optional[List[str]] = None,
+    outdated_only: bool = False,
 ) -> Dict[str, Any]:
     """
     Run evaluation based on configured field mappings.
@@ -1805,6 +1806,9 @@ def run_evaluation(
             - enabled: Whether this config is active
         batch_size: Number of samples to process per batch
         label_config_version: Optional version filter for generations
+        outdated_only: A re-grade: grade only the cells whose current row
+            rests on an older grading basis (``grading_basis``), and write
+            the rows of submitted answers as drafts a teacher releases.
 
     Returns:
         Dictionary with evaluation results and statistics
@@ -2277,6 +2281,7 @@ def run_evaluation(
                 structure_keys=structure_keys,
                 label_config_version=label_config_version,
                 missing_only=evaluate_missing_only,
+                outdated_only=outdated_only,
             )
             run_task_ids = plan.task_ids
 
@@ -2390,7 +2395,9 @@ def run_evaluation(
                     ann_pool_scoped=ann_pool_scoped,
                     ann_pool_raw=ann_pool_raw,
                     ann_pre_filter=ann_pre_filter,
-                    missing_only=evaluate_missing_only,
+                    # A re-grade with nothing outdated left is "already
+                    # graded" too: every cell rests on the current basis.
+                    missing_only=evaluate_missing_only or outdated_only,
                     generation_filters_active=generation_filters_active,
                     annotator_filter_active=bool(annotator_user_ids),
                     classifier_unavailable=classifier_unavailable,
@@ -2544,6 +2551,9 @@ def run_evaluation(
                 if evaluation.eval_metadata else None
             )
 
+            # A re-grade cell runs only the configs it re-grades and writes
+            # its answer rows as drafts (grading_basis.stamp_rows).
+            regrade_kwargs = {"regrade": True} if outdated_only else {}
             header_sigs = []
             for (cell_task_id, cell_gen_id, cell_already_done) in gen_cells:
                 header_sigs.append(
@@ -2553,13 +2563,14 @@ def run_evaluation(
                             "task_id": cell_task_id,
                             "generation_id": cell_gen_id,
                             "project_id": project_id,
-                            "configs_for_cell": enabled_configs,
+                            "configs_for_cell": plan.configs_for_cell(cell_gen_id, enabled_configs),
                             "judge_run_ids_by_config": judge_run_ids_by_config_serializable,
                             "default_judge_run_id": default_judge_run_id,
                             "organization_id": organization_id,
                             "triggered_by_user_id": triggered_by,
                             "label_config_version": label_config_version,
                             "already_evaluated_field_keys": cell_already_done,
+                            **regrade_kwargs,
                         },
                     )
                 )
@@ -2571,12 +2582,13 @@ def run_evaluation(
                             "task_id": cell_task_id,
                             "annotation_id": cell_ann_id,
                             "project_id": project_id,
-                            "configs_for_cell": enabled_configs,
+                            "configs_for_cell": plan.configs_for_cell(cell_ann_id, enabled_configs),
                             "judge_run_ids_by_config": judge_run_ids_by_config_serializable,
                             "default_judge_run_id": default_judge_run_id,
                             "organization_id": organization_id,
                             "triggered_by_user_id": triggered_by,
                             "already_evaluated_field_keys": cell_already_done,
+                            **regrade_kwargs,
                         },
                     )
                 )
@@ -2927,6 +2939,33 @@ def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
             )
 
 
+def _stamp_immediate_grading_basis(task_evals, configs) -> None:
+    """Record on each row of an immediate grading the grading scheme its
+    config graded it on (``grading_basis.stamp_grading_basis``).
+
+    The config jobs write their rows in their own sessions, some through an
+    extension package's writer, so the stamp is applied here once they are
+    all in; the caller commits. Never raises: a missing stamp only makes the
+    row count as current until the next grading.
+    """
+    try:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from grading_basis import stamp_grading_basis
+
+        by_id = {str(c.get("id")): c for c in configs or [] if c.get("id")}
+        for row in task_evals or []:
+            config = by_id.get(str(row.evaluation_config_id))
+            if config is None:
+                continue
+            stamped = stamp_grading_basis(row.metrics, config)
+            if stamped is not row.metrics:
+                row.metrics = stamped
+                flag_modified(row, "metrics")
+    except Exception as stamp_err:  # defensive: a stamp must not fail the grading
+        logger.error(f"[SingleSampleEval] grading basis stamp failed: {stamp_err}")
+
+
 def _notify_immediate_grading_received(
     db, evaluation_run_id: str, project_id: str, task_id: str, annotation_id: Optional[str]
 ) -> None:
@@ -3017,10 +3056,13 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
     redelivered or re-finalized run cannot notify twice; a run with nobody to
-    tell (generation-only benchmarks) stays unmarked. A score-less feedback
-    row (``details.feedback_only``, core 2.41) counts only when the judge
-    released it at write time (``details.review.status = "released"`` and
-    ``details.review.released_by = "judge"``). Any other feedback row, a draft
+    tell (generation-only benchmarks) stays unmarked. A row that waits for a
+    release (``metric_filters.details_await_release``: a score-less feedback
+    row, ``details.feedback_only``, core 2.41, or any row whose review has a
+    status, such as a re-graded row's draft, core 2.83; in a metric blob or a flat
+    ``<metric>_details`` sibling) counts only when the judge released it at
+    write time (``details.review.status = "released"`` and
+    ``details.review.released_by = "judge"``). Any other such row, a draft
     or a row a teacher released later, tells nobody here: the overlay's
     release path announces a teacher's release, so a run resumed after one
     cannot notify a second time. Never raises.
@@ -3044,12 +3086,23 @@ def _notify_batch_grading_received(db, evaluation) -> None:
                 WHERE te.evaluation_id = :eid AND a.completed_by IS NOT NULL
                   AND NOT COALESCE(
                     CASE WHEN jsonb_typeof(te.metrics) = 'object' THEN EXISTS (
-                      SELECT 1 FROM jsonb_each(te.metrics) m
-                      WHERE jsonb_typeof(m.value) = 'object'
-                        AND m.value -> 'details' ->> 'feedback_only' = 'true'
+                      SELECT 1
+                      FROM jsonb_each(te.metrics) m,
+                      LATERAL (
+                        SELECT CASE
+                          WHEN jsonb_typeof(m.value) <> 'object' THEN NULL
+                          WHEN right(m.key, 8) = '_details' THEN m.value
+                          ELSE m.value -> 'details'
+                        END AS d
+                      ) x
+                      WHERE jsonb_typeof(x.d) = 'object'
+                        AND (
+                          x.d ->> 'feedback_only' = 'true'
+                          OR x.d -> 'review' ->> 'status' IS NOT NULL
+                        )
                         AND NOT COALESCE(
-                          m.value -> 'details' -> 'review' ->> 'status' = 'released'
-                          AND m.value -> 'details' -> 'review' ->> 'released_by' = 'judge',
+                          x.d -> 'review' ->> 'status' = 'released'
+                          AND x.d -> 'review' ->> 'released_by' = 'judge',
                           false
                         )
                     ) END,
@@ -3588,6 +3641,7 @@ def run_single_sample_evaluation(
             task_evals = db.query(TaskEvaluation).filter(
                 TaskEvaluation.evaluation_id == dispatch_eval_id
             ).all()
+            _stamp_immediate_grading_basis(task_evals, eligible_configs)
 
             if task_evals:
                 from collections import defaultdict
@@ -4500,9 +4554,10 @@ def evaluate_generation_cell(
     triggered_by_user_id: str,
     label_config_version: Optional[str] = None,
     already_evaluated_field_keys: Optional[List[str]] = None,
+    regrade: bool = False,
 ) -> Dict[str, Any]:
     from evaluation.cell_evaluator import evaluate_generation_cell_impl
-    return evaluate_generation_cell_impl(self, evaluation_id, task_id, generation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, label_config_version, already_evaluated_field_keys)
+    return evaluate_generation_cell_impl(self, evaluation_id, task_id, generation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, label_config_version, already_evaluated_field_keys, regrade=regrade)
 
 
 @app.task(
@@ -4524,9 +4579,10 @@ def evaluate_annotation_cell(
     organization_id: Optional[str],
     triggered_by_user_id: str,
     already_evaluated_field_keys: Optional[List[str]] = None,
+    regrade: bool = False,
 ) -> Dict[str, Any]:
     from evaluation.cell_evaluator import evaluate_annotation_cell_impl
-    return evaluate_annotation_cell_impl(self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, already_evaluated_field_keys)
+    return evaluate_annotation_cell_impl(self, evaluation_id, task_id, annotation_id, project_id, configs_for_cell, judge_run_ids_by_config, default_judge_run_id, organization_id, triggered_by_user_id, already_evaluated_field_keys, regrade=regrade)
 
 
 def _settle_judge_runs_as_noop(db, evaluation_id: str):

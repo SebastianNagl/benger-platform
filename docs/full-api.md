@@ -274,7 +274,16 @@ The evaluation run (`POST /api/evaluations/run`) takes `project_id` and
 `evaluation_configs`, and optionally `task_ids`, `model_ids`,
 `annotator_user_ids` and `structure_keys` to narrow what is graded,
 `force_rerun` (default false: only cells without a result are graded),
+`outdated_only` (a re-grade, not combinable with `force_rerun`: only the
+cells whose current grading was graded along another grading sheet than
+the task has now, or with another grading scheme than the config holds
+now; the new rows of submitted answers are drafts until a teacher
+releases them, so no grading notice announces them),
 `batch_size`, `label_config_version`, `seed` and `billing_organization_id`.
+`GET /api/evaluations/projects/{id}/outdated-gradings` says per config how
+many current gradings are outdated (`graded`, `outdated`, `reasons` with
+`sheet` and `scheme`), and `POST /api/llm-models/cost-estimate` with
+`outdated_only: true` prices the re-grade.
 In `prediction_fields`, `__all_model__` grades the model generations and
 `human:<field>` a submitted annotation. The answer carries the
 `evaluation_id`. `GET /api/evaluations/evaluation/status/{evaluation_id}`

@@ -91,6 +91,10 @@ class CostEstimateRequest(BaseModel):
     # number matches what the worker will actually queue.
     generation_mode: Optional[Literal["all", "missing", "single"]] = None
     structure_keys: Optional[List[str]] = None
+    # Evaluation only: price a re-grade (the run's ``outdated_only``), which
+    # grades exactly the cells whose current grading rests on an older sheet
+    # or grading scheme (shared/grading_basis.py).
+    outdated_only: bool = False
 
     @model_validator(mode="after")
     def _reject_cross_mode_keys(self) -> "CostEstimateRequest":
@@ -106,6 +110,8 @@ class CostEstimateRequest(BaseModel):
                 offending.append("annotator_user_ids")
             if self.judge_models:
                 offending.append("judge_models")
+            if self.outdated_only:
+                offending.append("outdated_only")
             if offending:
                 raise ValueError(
                     f"{', '.join(offending)} are eval-only and must not be set "
@@ -170,6 +176,7 @@ class CostEstimateResponse(BaseModel):
     # judge_cost_profiles) that package's expected answer length.
     output_basis: Literal["utilization", "judge_steps", "judge_profile"] = "utilization"
     missing_only: bool = False
+    outdated_only: bool = False
     per_judge_cells: bool = False
 
 
@@ -364,6 +371,7 @@ def _eval_judge_calls(
             annotator_user_ids=request.annotator_user_ids,
             structure_keys=request.structure_keys,
             missing_only=request.generation_mode == "missing",
+            outdated_only=request.outdated_only,
         )
         for judge, n in judge_call_counts(plan, [config]).items():
             calls[judge] = calls.get(judge, 0) + n
@@ -720,12 +728,18 @@ def _compute_cost_estimate_impl(
             encoding="unavailable",
         )
 
-    mode_note = (
-        " Counting only the cells that would actually fire under "
-        f"generation_mode='{request.generation_mode}'"
-        if request.generation_mode == "missing"
-        else " Counting every (task × structure) cell"
-    )
+    if request.mode == "evaluation" and request.outdated_only:
+        mode_note = (
+            " Counting only the cells whose current grading rests on an older "
+            "sheet or grading scheme (re-grade)"
+        )
+    elif request.generation_mode == "missing":
+        mode_note = (
+            " Counting only the cells that would actually fire under "
+            f"generation_mode='{request.generation_mode}'"
+        )
+    else:
+        mode_note = " Counting every (task × structure) cell"
     if request.mode == "evaluation" and output_basis == OUTPUT_BASIS_JUDGE_PROFILE:
         utilization_note = (
             " For evaluation, input is the rendered judge prompt plus system "
@@ -803,6 +817,7 @@ def _compute_cost_estimate_impl(
         output_utilization_percent=(
             round(_EVAL_OUTPUT_UTILIZATION * 100) if request.mode == "evaluation" else None
         ),
-        missing_only=request.generation_mode == "missing",
+        missing_only=request.generation_mode == "missing" and not request.outdated_only,
+        outdated_only=request.mode == "evaluation" and request.outdated_only,
         per_judge_cells=request.mode == "evaluation" and bool(request.evaluation_configs),
     )

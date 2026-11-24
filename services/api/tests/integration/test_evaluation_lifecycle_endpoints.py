@@ -237,6 +237,44 @@ class TestResume:
         assert run.paused_at is None
         assert run.eval_metadata["celery_task_id"] == "celery-task-resume-1"
 
+    def test_resume_keeps_a_regrade_a_regrade(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        from sqlalchemy.orm.attributes import flag_modified
+
+        data = _seed_run(test_db, test_users[0], test_org, status="paused")
+        run = data["eval_run"]
+        run.eval_metadata = {**run.eval_metadata, "outdated_only": True, "regrade": True}
+        flag_modified(run, "eval_metadata")
+        test_db.flush()
+        fake_task = MagicMock()
+        fake_task.id = "celery-task-resume-regrade"
+        with patch(
+            "routers.evaluations.multi_field.lifecycle.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = fake_task
+            resp = client.post(f"{BASE}/run/{run.id}/resume", headers=auth_headers["admin"])
+        assert resp.status_code == 200, resp.text
+        kwargs = mock_celery.send_task.call_args.kwargs["kwargs"]
+        # Only the cells still outdated are planned again.
+        assert kwargs["outdated_only"] is True
+
+    def test_resume_of_a_plain_run_sends_no_regrade_flag(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        data = _seed_run(test_db, test_users[0], test_org, status="paused")
+        fake_task = MagicMock()
+        fake_task.id = "celery-task-resume-plain"
+        with patch(
+            "routers.evaluations.multi_field.lifecycle.celery_app"
+        ) as mock_celery:
+            mock_celery.send_task.return_value = fake_task
+            resp = client.post(
+                f"{BASE}/run/{data['eval_run'].id}/resume", headers=auth_headers["admin"]
+            )
+        assert resp.status_code == 200, resp.text
+        assert "outdated_only" not in mock_celery.send_task.call_args.kwargs["kwargs"]
+
     def test_resume_cancelled_run(
         self, client, test_db, test_users, auth_headers, test_org
     ):

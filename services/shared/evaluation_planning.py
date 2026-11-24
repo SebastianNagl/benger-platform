@@ -229,7 +229,11 @@ def judge_runs(config: Dict[str, Any]) -> List[Tuple[str, int]]:
 @dataclass
 class EvaluationPlan:
     """The cells one evaluation run grades, plus the pool counts its
-    diagnostics need. A cell is ``(task_id, subject_id, already_done_keys)``."""
+    diagnostics need. A cell is ``(task_id, subject_id, already_done_keys)``.
+
+    ``cell_config_ids`` is set by an ``outdated_only`` plan: per subject id,
+    the ids of the configs the cell re-grades (the others are not run there
+    at all); ``None`` means every config runs in every cell."""
 
     task_ids: List[str]
     config_sides: List[dict]
@@ -241,6 +245,14 @@ class EvaluationPlan:
     ann_pre_filter: int = 0
     generation_filters_active: bool = False
     all_expected_field_keys: Set[str] = field(default_factory=set)
+    cell_config_ids: Optional[Dict[str, List[str]]] = None
+
+    def configs_for_cell(self, subject_id: str, configs: Sequence[dict]) -> List[dict]:
+        """The configs a subject's cell runs (see ``cell_config_ids``)."""
+        if self.cell_config_ids is None:
+            return list(configs)
+        wanted = set(self.cell_config_ids.get(subject_id, ()))
+        return [c for c in configs if c.get("id", "unknown") in wanted]
 
 
 def _classify_config_sides(enabled_configs: Sequence[dict]) -> Tuple[List[dict], bool]:
@@ -374,6 +386,7 @@ def plan_evaluation(
     structure_keys: Optional[List[str]] = None,
     label_config_version: Optional[str] = None,
     missing_only: bool = True,
+    outdated_only: bool = False,
 ) -> EvaluationPlan:
     """Enumerate the cells a run over ``enabled_configs`` grades.
 
@@ -384,6 +397,14 @@ def plan_evaluation(
     only"), which also covers plain fields that grade both sides. Under
     ``missing_only`` a subject whose expected field keys are all graded is
     left out; the rest carry their graded keys so the cell skips them.
+
+    ``outdated_only`` (a re-grade, which ignores ``missing_only``) plans
+    exactly the cells whose current row rests on an older grading basis
+    (``grading_basis``, measured against ``enabled_configs``): a subject
+    without one is left out, and a kept subject's cell runs only the configs
+    with an outdated row there and skips every other field key of theirs. A
+    config whose prediction field is a wildcard also grades a field of that
+    subject it never graded, since the plan cannot expand the wildcard.
     """
     from models import Generation, ResponseGeneration
     from project_models import Annotation, Task
@@ -447,6 +468,14 @@ def plan_evaluation(
     def _keep(done: set, expected: set) -> bool:
         return not (missing_only and expected and expected.issubset(done))
 
+    outdated = (
+        _outdated_by_subject(db, project_id, enabled_configs, run_task_scope)
+        if outdated_only
+        else None
+    )
+    if outdated is not None:
+        plan.cell_config_ids = {}
+
     if has_llm_config:
         from models import TaskEvaluation
 
@@ -470,16 +499,24 @@ def plan_evaluation(
             ).filter(ResponseGeneration.structure_key.in_(structure_keys))
         gens = gq.order_by(Generation.task_id, Generation.id).all()
         plan.gen_pool_scoped = len(gens)
-        done_by_gen = (
-            _graded_keys(db, TaskEvaluation.generation_id,
-                         gq.with_entities(Generation.id).scalar_subquery(), configs_by_id,
-                         is_annotation=False)
-            if missing_only else {}
-        )
-        for gen_id, task_id in gens:
-            done = done_by_gen.get(gen_id, set())
-            if _keep(done, expected_gen):
-                plan.gen_cells.append((task_id, gen_id, sorted(done) if done else []))
+        if outdated is not None:
+            for gen_id, task_id in gens:
+                cell = _outdated_cell(outdated.get(("generation", str(gen_id))), enabled_configs,
+                                      gen_id, is_annotation=False)
+                if cell is not None:
+                    plan.cell_config_ids[gen_id], done = cell
+                    plan.gen_cells.append((task_id, gen_id, done))
+        else:
+            done_by_gen = (
+                _graded_keys(db, TaskEvaluation.generation_id,
+                             gq.with_entities(Generation.id).scalar_subquery(), configs_by_id,
+                             is_annotation=False)
+                if missing_only else {}
+            )
+            for gen_id, task_id in gens:
+                done = done_by_gen.get(gen_id, set())
+                if _keep(done, expected_gen):
+                    plan.gen_cells.append((task_id, gen_id, sorted(done) if done else []))
 
     if has_human_config:
         from models import TaskEvaluation
@@ -493,18 +530,77 @@ def plan_evaluation(
             aq = aq.filter(Annotation.completed_by.in_(annotator_user_ids))
         anns = aq.order_by(Annotation.task_id, Annotation.id).all()
         plan.ann_pool_scoped = len(anns)
-        done_by_ann = (
-            _graded_keys(db, TaskEvaluation.annotation_id,
-                         aq.with_entities(Annotation.id).scalar_subquery(), configs_by_id,
-                         is_annotation=True)
-            if missing_only else {}
-        )
-        for ann_id, task_id in anns:
-            done = done_by_ann.get(ann_id, set())
-            if _keep(done, expected_ann):
-                plan.ann_cells.append((task_id, ann_id, sorted(done) if done else []))
+        if outdated is not None:
+            for ann_id, task_id in anns:
+                cell = _outdated_cell(outdated.get(("annotation", str(ann_id))), enabled_configs,
+                                      ann_id, is_annotation=True)
+                if cell is not None:
+                    plan.cell_config_ids[ann_id], done = cell
+                    plan.ann_cells.append((task_id, ann_id, done))
+        else:
+            done_by_ann = (
+                _graded_keys(db, TaskEvaluation.annotation_id,
+                             aq.with_entities(Annotation.id).scalar_subquery(), configs_by_id,
+                             is_annotation=True)
+                if missing_only else {}
+            )
+            for ann_id, task_id in anns:
+                done = done_by_ann.get(ann_id, set())
+                if _keep(done, expected_ann):
+                    plan.ann_cells.append((task_id, ann_id, sorted(done) if done else []))
 
     return plan
+
+
+def _outdated_by_subject(db, project_id, enabled_configs, task_scope) -> Dict[tuple, Dict[str, list]]:
+    """``{(subject kind, subject id): {config id: [BasisRow, ...]}}`` of the
+    current rows of the run's model-graded configs (``grading_basis``); a
+    subject with no outdated row is left out."""
+    from grading_basis import grading_basis_by_config
+
+    configs = [
+        c for c in enabled_configs if not (c.get("metric", "") or "").startswith("korrektur_")
+    ]
+    by_subject: Dict[tuple, Dict[str, list]] = {}
+    for basis in grading_basis_by_config(db, project_id, configs, task_scope=task_scope):
+        for row in basis.rows:
+            by_subject.setdefault(row.subject, {}).setdefault(basis.config_id, []).append(row)
+    return {
+        subject: rows_by_config
+        for subject, rows_by_config in by_subject.items()
+        if any(row.outdated for rows in rows_by_config.values() for row in rows)
+    }
+
+
+def _outdated_cell(rows_by_config, enabled_configs, subject_id, *, is_annotation):
+    """``(config ids, already done keys)`` of a re-grade cell, None when the
+    subject has no outdated row. The done keys are every field key of the
+    re-graded configs except those of an outdated cell, plus the keys of
+    their current rows (so a wildcard config skips the fields it already
+    graded on the current basis)."""
+    if not rows_by_config:
+        return None
+    from current_scores import cell_key
+
+    configs_by_id = {c.get("id", "unknown"): c for c in enabled_configs}
+    subject_col = "annotation_id" if is_annotation else "generation_id"
+    config_ids: List[str] = []
+    done: set = set()
+    for config_id, rows in rows_by_config.items():
+        config = configs_by_id.get(config_id)
+        outdated_cells = {row.cell for row in rows if row.outdated}
+        if config is None or not outdated_cells:
+            continue
+        config_ids.append(config_id)
+        gen_keys, ann_keys = _side_field_keys(config)
+        for key in ann_keys if is_annotation else gen_keys:
+            pseudo = {subject_col: subject_id, "field_name": key, "evaluation_config_id": config_id}
+            if cell_key(pseudo, configs_by_id) not in outdated_cells:
+                done.add(_normalize_field_key(key, is_annotation=is_annotation))
+        done.update(row.field_key for row in rows if not row.outdated and row.field_key)
+    if not config_ids:
+        return None
+    return sorted(config_ids), sorted(done)
 
 
 def _side_field_keys(config: dict) -> Tuple[List[str], List[str]]:
@@ -564,12 +660,12 @@ def judge_call_counts(plan: EvaluationPlan, enabled_configs: Sequence[dict]) -> 
         cid = c.get("id", "unknown")
         gen_keys[cid], ann_keys[cid] = _side_field_keys(c)
 
-    for _task_id, _gen_id, done in plan.gen_cells:
+    for _task_id, gen_id, done in plan.gen_cells:
         done_n = {_normalize_field_key(k, is_annotation=False) for k in done}
-        for c in judged:
+        for c in plan.configs_for_cell(gen_id, judged):
             _add(c, gen_keys[c.get("id", "unknown")], done_n, False)
-    for _task_id, _ann_id, done in plan.ann_cells:
+    for _task_id, ann_id, done in plan.ann_cells:
         done_n = {_normalize_field_key(k, is_annotation=True) for k in done}
-        for c in judged:
+        for c in plan.configs_for_cell(ann_id, judged):
             _add(c, ann_keys[c.get("id", "unknown")], done_n, True)
     return counts

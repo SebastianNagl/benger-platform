@@ -609,6 +609,52 @@ class TestRunEvaluation:
         assert "dispatch_hash" in run.eval_metadata
         assert run.eval_metadata["force_rerun"] is True
         assert run.eval_metadata["evaluation_configs"][0]["metric"] == "bleu"
+        assert run.eval_metadata["outdated_only"] is False
+        assert run.eval_metadata["regrade"] is False
+        assert "outdated_only" not in send_task.call_args.kwargs["kwargs"]
+
+    def test_regrade_dispatches_outdated_only(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        p, _ = _setup_project(test_db, test_users[0], test_org)
+        test_db.commit()
+
+        stub_task = type("T", (), {"id": "celery-task-regrade"})()
+        with patch(CELERY_TARGET, return_value=stub_task) as send_task:
+            resp = client.post(
+                f"{BASE}/run",
+                json={
+                    "project_id": p.id,
+                    "evaluation_configs": [_config(metric="llm_judge_custom")],
+                    "outdated_only": True,
+                },
+                headers=_h(auth_headers, test_org),
+            )
+        assert resp.status_code == 200, resp.text
+        kwargs = send_task.call_args.kwargs["kwargs"]
+        assert kwargs["outdated_only"] is True
+        run = test_db.query(EvaluationRun).filter_by(id=resp.json()["evaluation_id"]).one()
+        assert run.eval_metadata["outdated_only"] is True
+        assert run.eval_metadata["regrade"] is True
+
+    def test_regrade_and_force_rerun_exclude_each_other(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        p, _ = _setup_project(test_db, test_users[0], test_org)
+        test_db.commit()
+        with patch(CELERY_TARGET) as send_task:
+            resp = client.post(
+                f"{BASE}/run",
+                json={
+                    "project_id": p.id,
+                    "evaluation_configs": [_config(metric="llm_judge_custom")],
+                    "outdated_only": True,
+                    "force_rerun": True,
+                },
+                headers=_h(auth_headers, test_org),
+            )
+        assert resp.status_code == 422, resp.text
+        send_task.assert_not_called()
 
 
 # ===========================================================================

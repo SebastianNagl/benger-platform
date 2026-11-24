@@ -1924,11 +1924,54 @@ API change).
     transcribed pages, parked uploads and upload batch sources whose rows
     they delete (the objects used to stay in object storage). The purge
     result counts them as ``stored_files``.
+
+2.83 (2026-11-24): outdated gradings and re-grade runs (no migration,
+  additive).
+  - Shared module ``grading_basis``: a grading is outdated when the current
+    row of its cell (``current_scores``; a grader's own row for a human
+    method) records a sheet (``details.rubric_id``) other than the one its
+    task is graded along now, or a ``details.scheme_fingerprint`` other than
+    the config's ``scheme_fingerprint(config)`` (``outdated_reason``,
+    reasons ``sheet`` and ``scheme``). The fingerprint hashes the
+    ``metric_parameters`` keys of a method's grading scheme
+    (``JUDGE_SCHEME_KEYS`` for every ``llm_judge_*`` metric). An extension
+    package declares the scheme of its own metric with
+    ``register_grading_basis(metric, *, scheme_keys, legacy_keys=(),
+    legacy_outdated=None)`` at import time in the api and the workers
+    process (owner-tracked, GATED: while the package is off the metric is
+    not tracked); ``legacy_outdated(stored, config)`` answers for rows
+    written before fingerprints, from the row's details under
+    ``legacy_keys``. ``stamp_grading_basis(metrics, config, *,
+    regrade=False)`` stamps a row (an overlay's own human writer calls it);
+    ``metric_details``, ``grading_basis_by_config``,
+    ``outdated_gradings_summary``. The details of a flat row live in its
+    ``<metric>_details`` sibling.
+  - The worker stamps the fingerprint on every row of a bulk cell and of an
+    immediate grading. ``task_rubric_resolution.resolve_grading_rubric_ids``
+    is the one-query twin of ``resolve_grading_rubric``.
+  - Re-grade runs: ``POST /evaluations/run`` takes ``outdated_only`` (422
+    with ``force_rerun``) and the run carries ``eval_metadata.outdated_only``
+    and ``regrade``; ``evaluation_planning.plan_evaluation(...,
+    outdated_only=True)`` plans exactly the outdated cells and
+    ``EvaluationPlan.configs_for_cell`` the configs each cell runs; resume
+    and retry keep the scope. The cell tasks take ``regrade`` and write each
+    row of a submitted answer as a draft, ``details.review = {"status":
+    "draft", "reason": "regrade"}`` (``grading_basis.regrade_review``),
+    whatever the method. ``POST /cost-estimate`` takes ``outdated_only``
+    (evaluation mode) and prices the same plan.
+  - ``GET /evaluations/projects/{id}/outdated-gradings`` (edit rights): per
+    tracked config the current and the outdated gradings with their reasons.
+  - ``metric_filters.details_await_release`` / ``blob_awaits_release`` /
+    ``metric_awaits_release``: a review that is not released (any method)
+    or a feedback-only result without one. ``row_awaits_release`` reads
+    them (also in a flat ``<metric>_details`` sibling), the batch grading
+    notice counts such a row only when the judge released it, and the
+    attempt scores of the dashboards and shares skip it.
 """
 
 import os
 
-CORE_API_VERSION = "2.82"
+CORE_API_VERSION = "2.83"
 
 
 def extended_required() -> bool:
