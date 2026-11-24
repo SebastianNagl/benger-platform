@@ -1779,7 +1779,26 @@ API change).
     column is dropped in a later release.
     ``project_reports.is_published`` is unchanged.
 
-2.78 (2026-11-24): gradings held back for a release (no migration,
+2.78 (2026-11-24): grading sheet import and Korrektur comment fields
+  (migration 154, additive).
+  - ``korrektur_comments.highlight_field`` (nullable): the label-config name
+    of the field a highlighted passage was marked in.
+    ``project_schemas.KorrekturCommentCreate`` / ``KorrekturCommentResponse``
+    carry it, the project export and both imports round-trip it.
+  - ``rubric_import.parse_rubric_file`` returns ``declared_total`` (the total
+    the file states, or ``None``) and warnings may carry the values they
+    name (``declared``, ``computed``, ``column``, ``read_column``, ``rows``,
+    ``sheets``, ``read_sheet``); new warning codes ``columns_ignored`` and
+    ``sheets_ignored``. A total row no longer ends the outline.
+  - ``rubric_structure.register_own_scale_metric`` (an extension package
+    declares a metric that grades on its own scale),
+    ``unregister_own_scale_metric``, ``metric_has_own_scale``,
+    ``grade_scale_applies`` and ``rubric_mirror_text``: the task-data mirror
+    of a sheet leaves the Notenschlüssel out when every enabled method is
+    registered as grading on its own scale. Saving the methods re-renders
+    the mirrors when that answer changes.
+
+2.79 (2026-11-24): gradings held back for a release (no migration,
   additive).
   - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
     row holds a feedback-only result (``details.feedback_only``, core 2.41)
@@ -1798,7 +1817,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.78"
+CORE_API_VERSION = "2.79"
 
 
 def extended_required() -> bool:

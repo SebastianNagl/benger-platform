@@ -122,6 +122,9 @@ class ParsedRubricResponse(BaseModel):
     # the EXAM's Notenschlüssel. ``None`` when the file carried
     # no readable key.
     grade_scale_percent: Optional[Dict[str, Any]] = None
+    # The total the file itself states (its final total row); ``None`` when
+    # it states none. Clients check the sheet against it.
+    declared_total: Optional[float] = None
     warnings: List[Dict[str, Any]] = []
     source_format: str
     rendered_text: str

@@ -2467,6 +2467,13 @@
     },
     {
       "module": "rubric_structure",
+      "name": "grade_scale_applies",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
       "name": "mirror_rubric_into_task_data",
       "importers": [
         "benger_extended/bewertungsbogen_shared.py"

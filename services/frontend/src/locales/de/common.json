@@ -461,6 +461,7 @@
         "step6": {
           "title": "Prompts konfigurieren",
           "subtitle": "System- und Instruktions-Prompts für die Generierung einrichten",
+          "generationOnly": "Diese Prompts gelten nur für die Generierung: Sie sagen einem Modell, wie es eine Antwort auf die Aufgabe schreiben soll. Für die Bewertung hat jede Evaluierungsmethode ihren eigenen Prompt; den änderst du später in der Evaluierungskonfiguration bei der Methode.",
           "systemPromptLabel": "System-Prompt",
           "systemPromptHint": "Definiert die Rolle und das Verhalten der KI",
           "systemPromptPlaceholder": "Sie sind ein juristischer Expertenassistent...",
