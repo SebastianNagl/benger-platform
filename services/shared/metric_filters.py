@@ -131,8 +131,8 @@ def row_awaits_release(metrics: Any) -> bool:
 
     Its submitter cannot see such a row yet, so no "grading received" notice
     may announce it; the release itself is the moment to tell them. The
-    batch notice applies the same rule in SQL
-    (``tasks._notify_batch_grading_received``).
+    batch notice (``tasks._notify_batch_grading_received``) is stricter in
+    SQL: it counts a feedback row only when the judge released it.
     """
     return isinstance(metrics, dict) and any(
         is_unreleased_feedback(blob) for blob in metrics.values()
