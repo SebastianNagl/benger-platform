@@ -1,5 +1,5 @@
 {
-  "generated_from": "0082bfd8f54052238123209b14bb0abc11a34805",
+  "generated_from": "56d71d9165e27b362ccd02a827f3aa129ebdfb9b",
   "api_shared": [
     {
       "module": "account_activation",
@@ -356,6 +356,13 @@
       "name": "time_limits_for",
       "importers": [
         "benger_extended/rubric_jobs.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "sql_has_score",
+      "importers": [
+        "benger_extended/billing/method_selection.py"
       ]
     },
     {
@@ -864,7 +871,6 @@
       "name": "LabelConfigParser",
       "importers": [
         "benger_extended/api/routers/_discovery.py",
-        "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/submission_uploads.py"
       ]
     },
@@ -931,6 +937,7 @@
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/student_exams.py",
+        "benger_extended/billing/method_selection.py",
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
@@ -1235,6 +1242,7 @@
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/leaderboards_human.py",
         "benger_extended/api/routers/student_exams.py",
+        "benger_extended/billing/method_selection.py",
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/marketplace/service.py",
@@ -1556,6 +1564,7 @@
         "benger_extended/api/routers/seb.py",
         "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/submission_uploads.py",
+        "benger_extended/billing/method_selection.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/name_visibility.py",
@@ -1811,6 +1820,7 @@
         "benger_extended/api/routers/student_sharing.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py",
+        "benger_extended/billing/method_selection.py",
         "benger_extended/exam_readiness.py",
         "benger_extended/exam_tools/access.py",
         "benger_extended/lti/exam_gate.py",
@@ -2225,6 +2235,7 @@
       "module": "routers.projects.helpers",
       "name": "check_user_can_edit_project",
       "importers": [
+        "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/lti.py"
       ]
     },

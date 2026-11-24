@@ -75,8 +75,14 @@ async def _client():
 def _overview_view():
     """These tests drive the overview of the dashboard (teachers and admins);
     the personal view of annotators is covered by
-    tests/integration/test_dashboard_personal_view.py."""
-    with patch("routers.dashboard.sees_overview_async", AsyncMock(return_value=True)):
+    tests/integration/test_dashboard_personal_view.py.
+
+    The session double is no database: the first flag read of a fresh
+    process (these files alone, or under xdist) would sync the flag registry
+    through it and fail, so the sync is skipped here."""
+    with patch("routers.dashboard.sees_overview_async", AsyncMock(return_value=True)), patch(
+        "feature_flags.service._maybe_sync", AsyncMock(return_value=None)
+    ):
         yield
 
 

@@ -112,12 +112,13 @@ def _patched(tmp_path):
     gen_holder = {"chunks": [""], "task_ids": "__unset__", "drive_progress": False}
 
     def _fake_select_generator(
-        db, proj, fmt, task_ids=None, progress_cb=None, viewer=None
+        db, proj, fmt, task_ids=None, progress_cb=None, viewer=None, method_answer=None
     ):
         # Record the subset the worker forwarded so tests can assert that
         # job.task_ids reaches select_export_generator unchanged.
         gen_holder["task_ids"] = task_ids
         gen_holder["viewer"] = viewer
+        gen_holder["method_answer"] = method_answer
         chunks = gen_holder["chunks"]
         if callable(chunks):
             return chunks()
@@ -150,6 +151,8 @@ def _patched(tmp_path):
             set_generator.forwarded_task_ids = lambda: gen_holder["task_ids"]
             # ...and the viewer (the requester) the user block is masked for.
             set_generator.forwarded_viewer = lambda: gen_holder.get("viewer")
+            # ...and the API's method answer for the is_method_current marker.
+            set_generator.forwarded_method_answer = lambda: gen_holder.get("method_answer")
             # Opt a test into having the fake generator drive progress_cb.
             set_generator.drive_progress = lambda on=True: gen_holder.__setitem__(
                 "drive_progress", on
@@ -217,6 +220,28 @@ def test_export_is_masked_for_the_requester(_patched):
 
     assert result["status"] == "completed"
     assert set_generator.forwarded_viewer() is requester
+
+
+def test_export_forwards_the_method_answer(_patched):
+    """The API resolves the extension's method answer (the hook runs only
+    there) and sends it with the task; the worker hands it to the
+    generator, and a task sent without it forwards None."""
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    set_generator(['{"project": {"id": "proj-1"}, "tasks": []}'])
+    answer = {"groups": {"score": {"config_ids": ["a", "b"]}}}
+
+    result = workers_tasks.export_project("job-1", method_answer=answer)
+
+    assert result["status"] == "completed"
+    assert set_generator.forwarded_method_answer() == answer
+
+
+def test_export_without_a_method_answer_forwards_none(_patched):
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    set_generator(['{"project": {"id": "proj-1"}, "tasks": []}'])
+
+    assert workers_tasks.export_project("job-1")["status"] == "completed"
+    assert set_generator.forwarded_method_answer() is None
 
 
 def test_export_multipart_concatenates_parts(_patched):

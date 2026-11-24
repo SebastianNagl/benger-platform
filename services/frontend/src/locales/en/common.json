@@ -1107,15 +1107,7 @@
       "title": "Generation Configuration"
     },
     "evaluationSettings": {
-      "title": "Evaluation Settings",
-      "korrekturBlindToPeers": "Blind correction (other correctors)",
-      "korrekturBlindToPeersHint": "Other correctors' grades stay hidden until you submit your own",
-      "korrekturBlindToLlm": "Blind correction (LLM pre-grade)",
-      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own",
-      "korrekturBlindToNonJudge": "Blind correction (classic metrics)",
-      "korrekturBlindToNonJudgeHint": "Classic automated metrics (BLEU, ROUGE, BERTScore …) stay hidden until you submit your own",
-      "korrekturKeepBlindAfterSubmit": "Keep blind after submission",
-      "korrekturKeepBlindAfterSubmitHint": "When on, the entries above stay hidden even after you submit your own grade"
+      "title": "Evaluation Settings"
     },
     "evaluationMethods": {
       "title": "Evaluation Methods"
@@ -6019,6 +6011,15 @@
       "showHistory": "History",
       "withResults": "with results",
       "includeHistory": "Include history",
+      "showResearch": "Include research data",
+      "showResearchHint": "Also shows the gradings that are not the official score, such as the second config of an evaluation method.",
+      "exportBySubmission": "Results per submission (CSV)",
+      "exportBySubmissionFailed": "The results per submission could not be exported.",
+      "historyBadge": "History",
+      "researchBadge": "Research data",
+      "standInBadge": "Score from {config}",
+      "standInBadgeUnnamed": "Score from another config",
+      "standInHint": "The official config of this method has no score for this answer, so another config of the same method supplies it.",
       "selectMetric": "Select metric",
       "byRunChart": "Split chart by run",
       "runsAggregateTooltip": "Standard deviation across distinct evaluation runs (multi-run feature)",

@@ -68,7 +68,7 @@ def public_job_error(exc: BaseException, job_id: str, action: str) -> str:
     )
 
 
-def export_project_impl(self, job_id: str) -> Dict[str, Any]:
+def export_project_impl(self, job_id: str, method_answer: Any = None) -> Dict[str, Any]:
     """Stream a project export into object storage as a multipart upload.
 
     Reads the ExportJob row, picks the streaming generator for its format, and
@@ -79,6 +79,10 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
     Idempotent: a job already past `running` (completed/failed) is skipped, so
     an acks_late redelivery of a finished job is a no-op. A job left `running`
     by a crashed worker IS re-run — that's the crash-recovery path.
+
+    ``method_answer`` is the API's ``evaluation_method_selection`` answer for
+    the project (the hook runs only there); the comprehensive formats mark
+    the score each method shows with it.
     """
     from datetime import datetime, timedelta, timezone
 
@@ -227,6 +231,7 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
             task_ids=job.task_ids,
             progress_cb=_on_progress,
             viewer=requester,
+            method_answer=method_answer,
         )
 
         # Lossless export (variant_experiments, core 2.75) is decided for the

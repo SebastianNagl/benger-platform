@@ -1107,15 +1107,7 @@
       "title": "Generierungskonfiguration"
     },
     "evaluationSettings": {
-      "title": "Evaluierungseinstellungen",
-      "korrekturBlindToPeers": "Blinde Korrektur (andere Korrektoren)",
-      "korrekturBlindToPeersHint": "Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturBlindToLlm": "Blinde Korrektur (LLM-Vorbewertung)",
-      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturBlindToNonJudge": "Blinde Korrektur (klassische Metriken)",
-      "korrekturBlindToNonJudgeHint": "Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturKeepBlindAfterSubmit": "Blind auch nach eigener Bewertung",
-      "korrekturKeepBlindAfterSubmitHint": "Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast"
+      "title": "Evaluierungseinstellungen"
     },
     "evaluationMethods": {
       "title": "Evaluierungsmethoden"
@@ -6019,6 +6011,15 @@
       "showHistory": "Verlauf",
       "withResults": "mit Ergebnissen",
       "includeHistory": "Verlauf einbeziehen",
+      "showResearch": "Forschungsdaten einbeziehen",
+      "showResearchHint": "Zeigt auch die Bewertungen, die nicht die maßgebliche Note sind, etwa die zweite Konfiguration einer Bewertungsmethode.",
+      "exportBySubmission": "Ergebnisse je Abgabe (CSV)",
+      "exportBySubmissionFailed": "Die Ergebnisse je Abgabe konnten nicht exportiert werden.",
+      "historyBadge": "Verlauf",
+      "researchBadge": "Forschungsdaten",
+      "standInBadge": "Bewertung aus {config}",
+      "standInBadgeUnnamed": "Bewertung aus anderer Konfiguration",
+      "standInHint": "Die offizielle Konfiguration dieser Methode hat für diese Antwort keine Bewertung, daher liefert sie eine andere Konfiguration derselben Methode.",
       "selectMetric": "Metrik auswählen",
       "byRunChart": "Diagramm pro Lauf splitten",
       "runsAggregateTooltip": "Standardabweichung über verschiedene Evaluierungsläufe (Mehrfachlauf-Funktion)",

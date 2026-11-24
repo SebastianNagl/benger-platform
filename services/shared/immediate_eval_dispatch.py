@@ -210,6 +210,18 @@ def resolve_human_prediction(config, annotation_results: dict):
     Single source for the worker (which skips a config without a value) and
     the dispatcher (which does not dispatch when no config has one).
     """
+    return resolve_human_prediction_field(config, annotation_results)[1]
+
+
+def resolve_human_prediction_field(config, annotation_results: dict):
+    """``(selector, value)`` of the answer ``config`` grades, else
+    ``(None, None)``.
+
+    ``selector`` is the ``prediction_fields`` entry that resolved, as the
+    config spells it: the grading row records it as its field, so a config
+    that lists a model-side selector first (``["__all_model__",
+    "human:loesung"]``) labels the row with the answer field it graded.
+    """
     results = annotation_results or {}
     for pf in (config or {}).get("prediction_fields") or []:
         if not isinstance(pf, str):
@@ -223,8 +235,8 @@ def resolve_human_prediction(config, annotation_results: dict):
             key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
             value = results.get(key)
         if _has_answer(value):
-            return value
-    return None
+            return pf, value
+    return None, None
 
 
 def gradable_configs(configs, annotation_results: dict) -> list:

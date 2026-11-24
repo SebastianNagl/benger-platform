@@ -178,3 +178,33 @@ class TestGradableConfigs:
     def test_empty_inputs(self):
         assert gradable_configs([], {"a": "b"}) == []
         assert gradable_configs(None, {"a": "b"}) == []
+
+
+class TestResolveHumanPredictionField:
+    """The on-submit grader labels its row with the selector that resolved."""
+
+    def test_model_side_selector_first_resolves_the_answer_field(self):
+        from immediate_eval_dispatch import resolve_human_prediction_field
+
+        cfg = {"prediction_fields": ["__all_model__", "human:loesung"]}
+        assert resolve_human_prediction_field(cfg, {"loesung": "L"}) == ("human:loesung", "L")
+
+    def test_first_resolving_selector_wins(self):
+        from immediate_eval_dispatch import resolve_human_prediction_field
+
+        cfg = {"prediction_fields": ["human:a", "b"]}
+        assert resolve_human_prediction_field(cfg, {"a": "", "b": "B"}) == ("b", "B")
+
+    def test_nothing_resolves(self):
+        from immediate_eval_dispatch import resolve_human_prediction_field
+
+        assert resolve_human_prediction_field({"prediction_fields": ["x"]}, {}) == (None, None)
+        assert resolve_human_prediction_field(None, {"x": "y"}) == (None, None)
+
+    def test_all_human(self):
+        from immediate_eval_dispatch import resolve_human_prediction_field
+
+        pf, value = resolve_human_prediction_field(
+            {"prediction_fields": ["__all_human__"]}, {"a": "A", "b": "B"}
+        )
+        assert pf == "__all_human__" and value == "a: A\n\nb: B"

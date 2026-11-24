@@ -17,8 +17,25 @@ unchanged.
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
 from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
-from metric_filters import graded_reference_fields, is_reference_free
+from metric_filters import (
+    graded_reference_fields,
+    is_reference_free,
+    judge_reads_references_itself,
+)
 from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING
+
+
+def _first_task_reference(task, reference_fields) -> Any:
+    """The first of ``reference_fields`` the task's data carries."""
+    data = task.data or {}
+    for ref in reference_fields or []:
+        if not ref:
+            continue
+        key = ref[5:] if ref.startswith("task.") else ref
+        value = data.get(key)
+        if value is not None:
+            return value
+    return None
 
 
 def _resolve_task_rubric(db, task, metric_parameters):
@@ -466,6 +483,10 @@ def evaluate_generation_cell_impl(
             prediction_fields = config.get("prediction_fields", [])
             reference_fields = graded_reference_fields(config)
             reference_free = is_reference_free(metric)
+            # One grading per prediction field: the judge reads its reference
+            # fields itself, so the cell grades under the first one and falls
+            # back to the next when the task lacks it.
+            reads_references_itself = judge_reads_references_itself(config)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -500,6 +521,10 @@ def evaluate_generation_cell_impl(
                             ground_truth = task.data.get(ref_field)
                     else:
                         ground_truth = task.data.get(ref_field) if task.data else None
+                    if ground_truth is None and reads_references_itself:
+                        ground_truth = _first_task_reference(
+                            task, config.get("reference_fields")[1:]
+                        )
                     if ground_truth is None and not reference_free:
                         logger.warning(
                             f"Evaluation skip: reference field '{ref_field}' not found "
@@ -1174,6 +1199,10 @@ def evaluate_annotation_cell_impl(
             prediction_fields = config.get("prediction_fields", [])
             reference_fields = graded_reference_fields(config)
             reference_free = is_reference_free(metric)
+            # One grading per prediction field: the judge reads its reference
+            # fields itself, so the cell grades under the first one and falls
+            # back to the next when the task lacks it.
+            reads_references_itself = judge_reads_references_itself(config)
 
             if metric.startswith("korrektur_"):
                 continue
@@ -1225,6 +1254,10 @@ def evaluate_annotation_cell_impl(
                             else:
                                 gt_cache[gt_key] = task.data.get(ref_field) if task.data else None
                         ground_truth = gt_cache[gt_key]
+                        if ground_truth is None and reads_references_itself:
+                            ground_truth = _first_task_reference(
+                                task, config.get("reference_fields")[1:]
+                            )
                         if ground_truth is None and not reference_free:
                             continue
 

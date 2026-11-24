@@ -45,7 +45,9 @@ const formatMetricValue = (value: any, locale: string): string => {
     return 'N/A'
   }
   if (typeof value === 'number') {
-    return formatDecimal(value, locale, 3)
+    // Whole numbers (grade points, counts) without decimals: in German
+    // "14,000" reads as fourteen thousand.
+    return formatDecimal(value, locale, Number.isInteger(value) ? 0 : 3)
   }
   if (typeof value === 'string') {
     return value
@@ -391,6 +393,34 @@ export function ResultsTabs({
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">
                         ({result.answer_type})
                       </span>
+                      {/* An earlier grading of the same method: history. */}
+                      {result.is_current === false && (
+                        <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                          {t('evaluation.multiFieldResults.historyBadge')}
+                        </span>
+                      )}
+                      {/* Another config of the method supplies the score:
+                          the official one has none for this answer. */}
+                      {result.stands_in_for_config_id && (
+                        <span
+                          className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                          title={t('evaluation.multiFieldResults.standInHint')}
+                        >
+                          {result.evaluation_config_label
+                            ? t('evaluation.multiFieldResults.standInBadge', {
+                                config: result.evaluation_config_label,
+                              })
+                            : t(
+                                'evaluation.multiFieldResults.standInBadgeUnnamed',
+                              )}
+                        </span>
+                      )}
+                      {/* A config that is not the official one here. */}
+                      {result.is_official === false && (
+                        <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                          {t('evaluation.multiFieldResults.researchBadge')}
+                        </span>
+                      )}
                     </div>
                     {result.confidence_score != null && (
                       <span className="text-sm text-zinc-600 dark:text-zinc-400">

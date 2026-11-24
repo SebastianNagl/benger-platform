@@ -8,6 +8,7 @@ here lets both the API (which has /shared on sys.path) and the worker
 package surface.
 """
 
+import re
 from typing import Any, Optional, Tuple
 
 # Metric-key noise stripped out of the "scored (subject, metric) pairs" tally.
@@ -179,9 +180,52 @@ def is_reference_free(metric_name: Optional[str]) -> bool:
     return bool(getattr(metric_registry.get(metric_name), "reference_free", False))
 
 
+# Judges that take their reference solution from the task itself rather
+# than from the reference field a cell passes them: every reference field
+# would send the judge the same input.
+JUDGES_WITH_OWN_REFERENCE = frozenset({"llm_judge_falloesung", "llm_judge_rubric"})
+
+_PROMPT_PLACEHOLDER = re.compile(r"\{\{?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}?\}")
+
+
+def _reference_field_name(ref: str) -> str:
+    return ref[5:] if ref.startswith("task.") else ref
+
+
+def judge_reads_references_itself(config: Any) -> bool:
+    """Whether an LLM judge with several reference fields reads them itself.
+
+    True for a judge that takes its reference from the task
+    (:data:`JUDGES_WITH_OWN_REFERENCE`) and for one whose prompt template
+    names a reference field as a placeholder (``{bewertungsbogen}``): the
+    judge sees every reference in one call, so grading the answer once per
+    reference field only repeats the same grading. Such a config grades
+    once per prediction field (:func:`graded_reference_fields`).
+    """
+    metric = config.get("metric") or ""
+    if not isinstance(metric, str) or not metric.startswith("llm_judge_"):
+        return False
+    refs = [r for r in config.get("reference_fields") or [] if isinstance(r, str) and r]
+    if len(refs) < 2:
+        return False
+    if metric in JUDGES_WITH_OWN_REFERENCE:
+        return True
+    template = (config.get("metric_parameters") or {}).get("custom_prompt_template")
+    if not isinstance(template, str):
+        return False
+    names = set(_PROMPT_PLACEHOLDER.findall(template))
+    return any(_reference_field_name(ref) in names for ref in refs)
+
+
 def graded_reference_fields(config: Any) -> list:
     """The reference parts of the field keys a config grades: ``[""]`` for a
-    reference-free metric, else its ``reference_fields``."""
+    reference-free metric, the first reference field for a judge that reads
+    its references itself (:func:`judge_reads_references_itself`; the cell
+    falls back to the next one when the first is missing on a task), else
+    every one of its ``reference_fields``."""
     if is_reference_free(config.get("metric")):
         return [""]
-    return list(config.get("reference_fields") or [])
+    refs = list(config.get("reference_fields") or [])
+    if refs and judge_reads_references_itself(config):
+        return refs[:1]
+    return refs

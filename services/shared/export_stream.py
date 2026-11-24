@@ -37,6 +37,8 @@ from typing import Any, Callable, Iterable, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
+import current_scores
+import evaluation_methods
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
@@ -123,6 +125,83 @@ BATCH_SIZE = 50
 # measured at ~0.5 GB peak; eval-light projects still form full BATCH_SIZE
 # batches, preserving the batched-IN-query round-trip savings.
 MAX_BATCH_TASK_EVALS = 1000
+
+
+class CurrentMarkers:
+    """The currency markers of a project's task evaluations.
+
+    ``current_ids``: the current score of every cell (shared/current_scores.py),
+    one per (subject, evaluation config, prediction field, reference field),
+    the newest row with a score. ``method_current``: ``{row id: stands in
+    for}`` of the rows the teacher views show as the current score of their
+    method (``evaluation_methods.teacher_current_rows``), given the
+    extension's method answer.
+    """
+
+    def __init__(self, current_ids: set, method_current: dict):
+        self.current_ids = current_ids
+        self.method_current = method_current
+
+
+def current_task_evaluation_markers(
+    db: Session, project, eval_run_ids, method_answer: Any = None
+) -> CurrentMarkers:
+    """The :class:`CurrentMarkers` of the task evaluations of ``eval_run_ids``.
+
+    ``method_answer`` is the ``evaluation_method_selection`` hook's answer for
+    the project (shared/evaluation_methods.py), which the API resolves and
+    hands over because the hook runs there; without it every config is its
+    own method. Read from the narrow ``task_evaluation_metric_keys`` mirror,
+    so the metrics blobs are not read twice."""
+    from models import TaskEvaluationMetricKeys as MK
+
+    if not eval_run_ids:
+        return CurrentMarkers(set(), {})
+    rows = (
+        db.query(
+            MK.task_evaluation_id.label("id"),
+            MK.task_id,
+            MK.annotation_id,
+            MK.generation_id,
+            MK.field_name,
+            MK.evaluation_config_id,
+            MK.metrics_lite.label("metrics"),
+            MK.created_at,
+        )
+        .filter(MK.evaluation_id.in_(eval_run_ids))
+        .yield_per(5000)
+    )
+    configs_lookup = current_scores.configs_by_id(getattr(project, "evaluation_config", None))
+    current = list(current_scores.pick_current(rows, configs_lookup).values())
+    selection = evaluation_methods.build_method_selection(
+        evaluation_methods.project_configs(project), method_answer
+    )
+    submitter_of: dict = {}
+    if selection.official_by_user:
+        annotation_ids = list({r.annotation_id for r in current if r.annotation_id})
+        for start in range(0, len(annotation_ids), 5000):
+            chunk = annotation_ids[start:start + 5000]
+            submitter_of.update(
+                db.query(Annotation.id, Annotation.completed_by).filter(Annotation.id.in_(chunk))
+            )
+    return CurrentMarkers(
+        {current_scores.row_id(r) for r in current},
+        evaluation_methods.teacher_current_rows(selection, current, submitter_of, configs_lookup),
+    )
+
+
+def _with_current_marker(row: dict, markers: CurrentMarkers) -> dict:
+    """``row`` with ``is_current``: True for the current score of its cell,
+    False for a superseded (history) row; ``is_method_current``: True for the
+    score the teacher views show for its method and subject; and
+    ``stands_in_for_config_id``: the official config whose missing score this
+    row replaces (else None). Additive: the importer ignores the keys and
+    recomputes currency from the rows themselves."""
+    key = str(row["id"]) if row.get("id") is not None else None
+    row["is_current"] = key in markers.current_ids
+    row["is_method_current"] = key in markers.method_current
+    row["stands_in_for_config_id"] = markers.method_current.get(key)
+    return row
 
 
 def variant_design_docs(db: Session, project_id: str, *, subset: bool = False) -> list:
@@ -810,6 +889,7 @@ def stream_comprehensive_project_data_json(
     db: Session,
     project_id: str,
     viewer=None,
+    method_answer: Any = None,
 ) -> Iterator[str]:
     """Stream the comprehensive (clone-format) project export as JSON chunks.
 
@@ -1049,9 +1129,11 @@ def stream_comprehensive_project_data_json(
             .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
             .order_by(TaskEvaluation.id)
         )
+        markers = current_task_evaluation_markers(db, project, eval_run_ids, method_answer)
         for te in _drain(te_q):
             yield ("" if first else ",") + json.dumps(
-                serialize_task_evaluation(te, mode="full"), ensure_ascii=False
+                _with_current_marker(serialize_task_evaluation(te, mode="full"), markers),
+                ensure_ascii=False,
             )
             first = False
             stats["total_task_evaluations"] += 1
@@ -1198,6 +1280,7 @@ def stream_export_ndjson(
     db: Session,
     project_id: str,
     viewer=None,
+    method_answer: Any = None,
 ) -> Iterator[str]:
     """Yield an NDJSON typed-record comprehensive export, one JSON object per line.
 
@@ -1408,12 +1491,16 @@ def stream_export_ndjson(
 
     # --- task_evaluations (very heavy: thousands of rows) ---
     if eval_run_ids:
+        markers = current_task_evaluation_markers(db, project, eval_run_ids, method_answer)
         for te in _drain(
             db.query(TaskEvaluation)
             .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
             .order_by(TaskEvaluation.id)
         ):
-            yield _emit("task_evaluation", serialize_task_evaluation(te, mode="full"))
+            yield _emit(
+                "task_evaluation",
+                _with_current_marker(serialize_task_evaluation(te, mode="full"), markers),
+            )
             stats["total_task_evaluations"] += 1
 
     # --- human_evaluation_configs (small) ---
@@ -1625,6 +1712,7 @@ def select_export_generator(
     task_ids: Optional[List[str]] = None,
     progress_cb: Optional[Callable[[int, int], None]] = None,
     viewer=None,
+    method_answer: Any = None,
 ) -> Iterator[str]:
     """Return the chunk-yielding generator for ``fmt`` against ``project``.
 
@@ -1643,6 +1731,9 @@ def select_export_generator(
 
     ``viewer`` (the requesting user) decides which LMS users' real names the
     comprehensive formats may carry; the other formats carry no user block.
+    ``method_answer`` (the ``evaluation_method_selection`` hook's answer, see
+    shared/evaluation_methods.py) decides the comprehensive formats'
+    ``is_method_current`` markers.
     """
     project_id = project.id
     if task_ids and fmt != "json":
@@ -1666,10 +1757,12 @@ def select_export_generator(
     if fmt == "txt":
         return stream_export_txt(db, project_id, project.title, project.description)
     if fmt == "comprehensive":
-        return stream_comprehensive_project_data_json(db, project_id, viewer=viewer)
+        return stream_comprehensive_project_data_json(
+            db, project_id, viewer=viewer, method_answer=method_answer
+        )
     if fmt in ("ndjson", "ndjson_gz"):
         # Same text stream for both; the worker compresses when fmt is gzipped.
-        return stream_export_ndjson(db, project_id, viewer=viewer)
+        return stream_export_ndjson(db, project_id, viewer=viewer, method_answer=method_answer)
     if fmt in ("anki_csv", "anki_apkg"):
         return stream_export_anki(db, project_id, project.title, fmt)
     raise ValueError(f"Unsupported export format: {fmt!r}")

@@ -89,6 +89,7 @@ HOOK_SPECS = {
     "projects_real_name_user_ids": SINGLE_OWNER,
     "lti_anonymization_policy": SINGLE_OWNER,
     "public_api_enabled": SINGLE_OWNER,
+    "evaluation_method_selection": SINGLE_OWNER,
     # Reserved for the next phases; the platform does not call them yet.
     "on_submission_finalized": CALL_ALL,
     "assessment_transition": SINGLE_OWNER,
@@ -134,16 +135,23 @@ HOOK_GATING = {
     "projects_real_name_user_ids": activation.ALWAYS,
     "lti_anonymization_policy": activation.ALWAYS,
     "public_api_enabled": activation.ALWAYS,
+    # Which config of a method group the teacher views show; a display rule.
+    "evaluation_method_selection": activation.GATED,
     "on_submission_finalized": activation.GATED,
     "assessment_transition": activation.GATED,
     "external_run_policy": activation.GATED,
 }
 
-#: Keys in :data:`HOOK_SPECS` without a platform caller yet. An overlay's
-#: handshake test should expect every other key to be implemented.
-PENDING_HOOK_KEYS = frozenset(
+#: Keys in :data:`HOOK_SPECS` without a platform caller yet.
+RESERVED_HOOK_KEYS = frozenset(
     {"on_submission_finalized", "assessment_transition", "external_run_policy"}
 )
+#: Keys the platform calls but an overlay need not implement: without an
+#: implementation the platform keeps its own default.
+OPTIONAL_HOOK_KEYS = frozenset({"evaluation_method_selection"})
+#: Keys an overlay's handshake test must not require. It should expect every
+#: other key to be implemented.
+PENDING_HOOK_KEYS = RESERVED_HOOK_KEYS | OPTIONAL_HOOK_KEYS
 
 #: Routers of packages other than benger_extended must mount below this.
 EXTENSION_ROUTE_ROOT = "/api/ext"
@@ -899,6 +907,31 @@ def task_grade_summaries_for_user(db, project_id, user_id, task_ids):
             "task_grade_summaries_for_user hook failed for project %s", project_id
         )
     return {}
+
+
+def evaluation_method_selection(db, project, configs, user_ids):
+    """An extension's answer to which config of each method group is the
+    official one (SINGLE_OWNER); see ``shared/evaluation_methods.py`` for
+    the dict it may return.
+
+    ``configs`` are the project's enabled evaluation configs, ``user_ids``
+    the accounts whose answers the caller shows. Returns ``None`` when no
+    package implements it and when the hook fails: the views then show every
+    config as its own method, never an error.
+    """
+    try:
+        hook = _single_hook("evaluation_method_selection")
+        if hook:
+            result = _run_hook_in_savepoint(
+                db, hook, project, list(configs or []), sorted({str(u) for u in user_ids or [] if u})
+            )
+            return result if isinstance(result, dict) else None
+    except Exception:
+        logger.exception(
+            "evaluation_method_selection hook failed for project %s",
+            getattr(project, "id", None),
+        )
+    return None
 
 
 # --------------------------------------------------------------------------- #
