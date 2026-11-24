@@ -339,15 +339,42 @@ describe('ProjectDetailPage — deleted project (superadmin view)', () => {
         screen.getByTestId('project-visibility-prepare-hint'),
       ).toHaveTextContent('project.settings.visibilityDangerZone.prepareHint')
 
-      // Clearing the window saves the project on its own.
-      fireEvent.click(screen.getByText('project.settings.accessWindow.title'))
-      fireEvent.click(screen.getByTestId('access-window-toggle'))
-      await act(async () => {
-        jest.advanceTimersByTime(1000)
-      })
       const { updateProject } = (useProjectStore as unknown as jest.Mock).mock
         .results[0].value
+      fireEvent.click(screen.getByText('project.settings.accessWindow.title'))
+
+      // A closing time typed digit by digit is never saved; leaving the
+      // field saves the finished one once.
+      const closes = screen.getByLabelText(
+        'project.settings.accessWindow.closes',
+      )
+      for (const partial of [
+        '0002-03-01T12:00',
+        '0020-03-01T12:00',
+        '0203-03-01T12:00',
+        '2030-03-01T12:00',
+      ]) {
+        fireEvent.change(closes, { target: { value: partial } })
+        await act(async () => {
+          jest.advanceTimersByTime(10_000)
+        })
+      }
+      expect(updateProject).not.toHaveBeenCalled()
+      await act(async () => {
+        fireEvent.blur(closes)
+      })
+      expect(updateProject).toHaveBeenCalledTimes(1)
       expect(updateProject).toHaveBeenCalledWith('test-project-123', {
+        window_start_at: '2030-03-01T08:00:00.000Z',
+        window_end_at: new Date('2030-03-01T12:00').toISOString(),
+      })
+
+      // Switching the window off saves the cleared window.
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('access-window-toggle'))
+      })
+      expect(updateProject).toHaveBeenCalledTimes(2)
+      expect(updateProject).toHaveBeenLastCalledWith('test-project-123', {
         window_start_at: null,
         window_end_at: null,
       })

@@ -1758,7 +1758,7 @@ API change).
     handshake test must not require any of them.
 
 2.77 (2026-11-24): preset method names in the reader's language; the
-  unused project publish flag is gone (migration 153).
+  unused project publish flag is no longer mapped or served (migration 153).
   - Frontend metric registry: ``AvailableMetric.presetNameKeys``, the i18n
     keys of the names an overlay's presets store as a config's
     ``display_name``. ``localizedEvalConfigName(name, metric, t)``
@@ -1767,10 +1767,13 @@ API change).
     optionally followed by a ``(...)`` suffix, in the reader's language;
     a typed name stays as stored. Display only: configs are still matched
     by their stored name.
-  - ``projects.is_published`` is dropped (no code read it; visibility,
-    archiving and the access window decide who sees a project).
-    ``Project``, ``ProjectUpdate`` and ``ProjectResponse`` no longer carry
-    it, and project exports no longer write it (imports ignore it).
+  - ``projects.is_published`` is no longer mapped or served (no code read
+    it; visibility, archiving and the access window decide who sees a
+    project). ``Project``, ``ProjectUpdate`` and ``ProjectResponse`` no
+    longer carry it, and project exports no longer write it (imports ignore
+    it). Migration 153 only gives the column a server default FALSE, so pods
+    still on the old model keep working during a rollout or rollback; the
+    column is dropped in a later release.
     ``project_reports.is_published`` is unchanged.
 """
 

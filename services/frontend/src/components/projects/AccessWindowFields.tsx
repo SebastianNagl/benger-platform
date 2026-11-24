@@ -12,6 +12,7 @@ import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
 import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
+import type { KeyboardEvent } from 'react'
 
 export interface AccessWindowValue {
   window_start_at: string | null
@@ -38,6 +39,12 @@ function proposedWindow(): AccessWindowValue {
 interface AccessWindowFieldsProps {
   value: AccessWindowValue
   onChange: (value: AccessWindowValue) => void
+  /**
+   * Called with the value the user finished: on leaving or pressing Enter in
+   * a time field, and on switching the window on or off. Unlike onChange it
+   * never fires for a time that is still being typed.
+   */
+  onCommit?: (value: AccessWindowValue) => void
   disabled?: boolean
   /** Show the title above the hint; off where a section header names it. */
   showTitle?: boolean
@@ -46,11 +53,19 @@ interface AccessWindowFieldsProps {
 export function AccessWindowFields({
   value,
   onChange,
+  onCommit,
   disabled = false,
   showTitle = true,
 }: AccessWindowFieldsProps) {
   const { t } = useI18n()
   const enabled = !!(value.window_start_at || value.window_end_at)
+  const toggle = (next: AccessWindowValue) => {
+    onChange(next)
+    onCommit?.(next)
+  }
+  const commitOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') onCommit?.(value)
+  }
 
   return (
     <div className="space-y-3" data-testid="access-window-fields">
@@ -70,9 +85,9 @@ export function AccessWindowFields({
           checked={enabled}
           onChange={(e) => {
             if (!e.target.checked) {
-              onChange({ window_start_at: null, window_end_at: null })
+              toggle({ window_start_at: null, window_end_at: null })
             } else if (!enabled) {
-              onChange(proposedWindow())
+              toggle(proposedWindow())
             }
           }}
           disabled={disabled}
@@ -96,6 +111,8 @@ export function AccessWindowFields({
                   window_start_at: localInputToIso(e.target.value),
                 })
               }
+              onBlur={() => onCommit?.(value)}
+              onKeyDown={commitOnEnter}
               disabled={disabled}
               className="text-sm"
             />
@@ -114,6 +131,8 @@ export function AccessWindowFields({
                   window_end_at: localInputToIso(e.target.value),
                 })
               }
+              onBlur={() => onCommit?.(value)}
+              onKeyDown={commitOnEnter}
               disabled={disabled}
               className="text-sm"
             />

@@ -2955,7 +2955,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 {/* Access window: when the access group may see and work on
               the project. Right after the visibility because both decide who
               sees the project when ("Privat" plus a window is how a project
-              is prepared unseen). Saves on its own. */}
+              is prepared unseen). Saves a finished edit on its own. */}
                 {currentProject && !isDeletedView && canEditProject() && (
                   <ProjectAccessWindowSection
                     windowStartAt={currentProject.window_start_at}
