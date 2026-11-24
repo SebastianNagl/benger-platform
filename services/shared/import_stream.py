@@ -1509,6 +1509,7 @@ def run_nested_import(
             highlight_end=c.get("highlight_end"),
             highlight_text=c.get("highlight_text"),
             highlight_label=c.get("highlight_label"),
+            highlight_field=c.get("highlight_field"),
             is_resolved=c.get("is_resolved", False),
             resolved_at=_parse_iso(c.get("resolved_at")),
             resolved_by=c.get("resolved_by"),
@@ -2898,6 +2899,7 @@ def _insert_korrektur_comment(ctx: _FullImportContext, c: dict) -> None:
         highlight_end=c.get("highlight_end"),
         highlight_text=c.get("highlight_text"),
         highlight_label=c.get("highlight_label"),
+        highlight_field=c.get("highlight_field"),
         is_resolved=c.get("is_resolved", False),
         resolved_at=_parse_iso(c.get("resolved_at")),
         resolved_by=ctx.id_mappings["users"].get(

@@ -214,6 +214,10 @@ def full_project(test_db, test_users, test_org):
         target_id=ann0.id,
         parent_id=None,
         text="Parent comment",
+        highlight_start=0,
+        highlight_end=4,
+        highlight_text="Ante",
+        highlight_field="loesung",
         created_by=admin.id,
     )
     test_db.add(parent)
@@ -350,6 +354,9 @@ class TestNDJSONRoundtrip:
         replies = [c for c in imported_kc if c.parent_id is not None]
         assert len(parents) == 1 and len(replies) == 1
         assert replies[0].parent_id == parents[0].id
+        # The field a highlight was marked in travels with it.
+        assert parents[0].highlight_field == "loesung"
+        assert replies[0].highlight_field is None
 
         # Generation content survives byte-for-byte.
         new_task_ids = [

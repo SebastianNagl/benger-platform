@@ -214,9 +214,11 @@ class TestExtensionLoader:
         # 2.77 adds presetNameKeys / localizedEvalConfigName and stops
         # mapping and serving projects.is_published (migration 153 gives it
         # a server default; the drop follows in a later release).
-        # 2.78 adds the withdrawal of a submission (migration 154, the hook
+        # 2.78 adds korrektur_comments.highlight_field (migration 154), the
+        # sheet parser's declared_total and the own-scale grade key rule.
+        # 2.79 adds the withdrawal of a submission (migration 155, the hook
         # keys before_annotation_withdraw and on_annotation_withdrawn).
-        assert CORE_API_VERSION == "2.78"
+        assert CORE_API_VERSION == "2.79"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

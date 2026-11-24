@@ -114,6 +114,7 @@ def _store_configs_if_unconfigured(db, user, project_id: str, evaluation_configs
         merge_evaluation_config,
         validate_evaluation_config_write,
     )
+    from task_rubric_service import remirror_project_rubrics_sync, rubric_mirrors_changed
 
     def _configured(project) -> bool:
         stored = project.evaluation_config or {}
@@ -149,6 +150,8 @@ def _store_configs_if_unconfigured(db, user, project_id: str, evaluation_configs
         # As PUT .../evaluation-config does after a save.
         extensions.run_after_eval_config_save(db, project, merged)
         flag_modified(project, "evaluation_config")
+        if rubric_mirrors_changed(stored, project.evaluation_config):
+            remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
         db.commit()
     except Exception as e:  # noqa: BLE001 - the run is already started
         db.rollback()

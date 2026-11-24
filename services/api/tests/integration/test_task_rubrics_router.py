@@ -18,7 +18,7 @@ from sqlalchemy import select
 from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation, User
 from project_models import Project, Task, TaskRubric
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES
-from tests.fixtures.rubric_files import sample_sheet_xlsx
+from tests.fixtures.rubric_files import make_xlsx, sample_sheet_xlsx
 
 
 @contextmanager
@@ -181,6 +181,27 @@ class TestParse:
         assert body["rendered_text"].startswith("BEWERTUNGSBOGEN: Korrekturbogen (insgesamt 100 BE")
         assert "NOTENSCHLÜSSEL" in body["rendered_text"]
         assert {w["code"] for w in body["warnings"]} >= {"subtotal_mismatch", "empty_section"}
+        # The total the sheet states (its "Gesamt-BE" row).
+        assert body["declared_total"] == 100
+
+    @pytest.mark.asyncio
+    async def test_parse_reports_a_second_worksheet_and_reads_past_a_total_row(
+        self, async_test_client, async_test_db
+    ):
+        user = await _make_user(async_test_db)
+        rows = [{"A": "I. a", "B": 1}, {"A": "Summe", "B": 1}, {"A": "II. b", "B": 2}, {"A": "III. c", "B": 3}]
+        data = make_xlsx(rows, extra_sheets=[("Teil 2", [{"A": "IV. d", "B": 4}])])
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/task-rubrics/parse",
+                files={"file": ("bogen.xlsx", data, "application/octet-stream")},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["total_points"] == 6
+        assert body["declared_total"] is None
+        sheets = next(w for w in body["warnings"] if w["code"] == "sheets_ignored")
+        assert sheets["sheets"] == ["Teil 2"]
 
     @pytest.mark.asyncio
     async def test_parse_unsupported_type_422(self, async_test_client, async_test_db):
@@ -455,6 +476,29 @@ class TestUpdate:
             )
         assert resp.status_code == 422
         assert "the requirements add up to 3 BE, the step carries 5 BE" in resp.text
+
+    @pytest.mark.asyncio
+    async def test_an_edit_clone_keeps_where_the_sheet_came_from(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, owner)
+        task = await _make_task(async_test_db, project)
+        origin = {"kind": "upload", "file_name": "bogen.xlsx", "parser": "table", "declared_total": 23}
+        rubric = await _seed_rubric(async_test_db, project, task, status="active", source="human",
+                                    metadata={"origin": origin})
+        await _seed_grading(async_test_db, project, task, rubric, owner)
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.put(
+                f"/api/projects/{project.id}/task-rubrics/{rubric.id}",
+                json={"structure": _structure()},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["id"] != rubric.id
+        assert body["generation_metadata"] == {"cloned_from": rubric.id, "origin": origin}
 
     @pytest.mark.asyncio
     async def test_edit_referenced_rubric_clones(self, async_test_client, async_test_db):

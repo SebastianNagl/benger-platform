@@ -674,7 +674,7 @@ class Annotation(Base):
     was_cancelled = Column(Boolean, default=False, nullable=False)
     ground_truth = Column(Boolean, default=False, nullable=False)
 
-    # Withdrawal (migration 154): a submission taken back after it was handed
+    # Withdrawal (migration 155): a submission taken back after it was handed
     # in, by its author or returned by a project editor. The row and its data
     # stay; ``was_cancelled`` is set with these, so every reader that skips
     # cancelled rows skips it too. ``withdrawn_by`` differs from
@@ -1292,6 +1292,10 @@ class KorrekturComment(Base):
     highlight_end = Column(Integer, nullable=True)
     highlight_text = Column(Text, nullable=True)
     highlight_label = Column(String, nullable=True)
+    # The label-config name of the field the passage was marked in
+    # (``loesung``); NULL on general comments and on comments written before
+    # the column existed (readers use the graded answer field then).
+    highlight_field = Column(String, nullable=True)
 
     # Resolution tracking
     is_resolved = Column(Boolean, default=False, nullable=False)

@@ -938,6 +938,11 @@ class KorrekturCommentCreate(BaseModel):
     highlight_end: Optional[int] = Field(None, description="Highlight end offset")
     highlight_text: Optional[str] = Field(None, description="Selected text content")
     highlight_label: Optional[str] = Field(None, description="Highlight label")
+    highlight_field: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Label-config name of the field the highlighted passage is in",
+    )
 
     @field_validator("target_type")
     @classmethod
@@ -967,6 +972,7 @@ class KorrekturCommentResponse(BaseModel):
     highlight_end: Optional[int] = None
     highlight_text: Optional[str] = None
     highlight_label: Optional[str] = None
+    highlight_field: Optional[str] = None
     is_resolved: bool = False
     resolved_at: Optional[datetime] = None
     resolved_by: Optional[str] = None

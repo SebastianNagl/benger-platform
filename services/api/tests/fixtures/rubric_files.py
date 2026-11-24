@@ -3,7 +3,7 @@
 Used by the rubric importer unit tests and the task-rubrics router tests so
 no binary fixture files live in the repo. The packages carry exactly the
 parts the importer reads (plus the content-types boilerplate real files
-have): ``xl/workbook.xml`` + rels + one worksheet + shared strings for XLSX;
+have): ``xl/workbook.xml`` + rels + worksheets + shared strings for XLSX;
 ``word/document.xml`` (+ optional ``numbering.xml`` / ``styles.xml``) for
 DOCX.
 """
@@ -54,26 +54,8 @@ def _content_types(parts: Iterable[Tuple[str, str]]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def make_xlsx(
-    rows: Sequence[Optional[Dict[str, Any]]],
-    *,
-    shared_strings: bool = True,
-    sheet_file: str = "sheet1.xml",
-    absolute_target: bool = False,
-) -> bytes:
-    """Build a one-sheet workbook.
-
-    ``rows[i]`` is row ``i + 1``: a mapping ``{"A": "text", "B": 1.5, ...}``
-    (``None`` for an empty row). Strings become shared strings (or inline
-    strings when ``shared_strings=False``), ``RichText`` becomes a rich
-    shared string, ``Formula`` a formula cell with a cached value.
-    """
-    sst: List[Any] = []
-
-    def sst_index(value: Any) -> int:
-        sst.append(value)
-        return len(sst) - 1
-
+def _sheet_xml(rows, sst_index, shared_strings: bool) -> str:
+    """One worksheet part; strings go through ``sst_index`` (shared)."""
     row_xml: List[str] = []
     for index, row in enumerate(rows, start=1):
         if not row:
@@ -98,12 +80,39 @@ def make_xlsx(
                     f'<c r="{ref}" t="inlineStr"><is><t xml:space="preserve">{escape(str(value))}</t></is></c>'
                 )
         row_xml.append(f'<row r="{index}">{"".join(cells)}</row>')
-
-    sheet_xml = (
+    return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<worksheet xmlns="{XLSX_NS}" xmlns:r="{REL_NS}"><sheetData>'
         f'{"".join(row_xml)}</sheetData></worksheet>'
     )
+
+
+def make_xlsx(
+    rows: Sequence[Optional[Dict[str, Any]]],
+    *,
+    shared_strings: bool = True,
+    sheet_file: str = "sheet1.xml",
+    absolute_target: bool = False,
+    extra_sheets: Sequence[Tuple[str, Sequence[Optional[Dict[str, Any]]]]] = (),
+) -> bytes:
+    """Build a workbook: one sheet, plus ``extra_sheets`` ``(name, rows)``.
+
+    ``rows[i]`` is row ``i + 1``: a mapping ``{"A": "text", "B": 1.5, ...}``
+    (``None`` for an empty row). Strings become shared strings (or inline
+    strings when ``shared_strings=False``), ``RichText`` becomes a rich
+    shared string, ``Formula`` a formula cell with a cached value.
+    """
+    sst: List[Any] = []
+
+    def sst_index(value: Any) -> int:
+        sst.append(value)
+        return len(sst) - 1
+
+    def build_sheet(sheet_rows: Sequence[Optional[Dict[str, Any]]]) -> str:
+        return _sheet_xml(sheet_rows, sst_index, shared_strings)
+
+    sheet_xml = build_sheet(rows)
+    extra_xml = [(name, f"sheet{i}.xml", build_sheet(r)) for i, (name, r) in enumerate(extra_sheets, start=2)]
     si_xml: List[str] = []
     for value in sst:
         if isinstance(value, RichText):
@@ -122,7 +131,12 @@ def make_xlsx(
     workbook_xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<workbook xmlns="{XLSX_NS}" xmlns:r="{REL_NS}"><sheets>'
-        '<sheet name="Tabelle1" sheetId="1" r:id="rId7"/></sheets></workbook>'
+        '<sheet name="Tabelle1" sheetId="1" r:id="rId7"/>'
+        + "".join(
+            f'<sheet name="{escape(name)}" sheetId="{i}" r:id="rIdX{i}"/>'
+            for i, (name, _file, _xml) in enumerate(extra_xml, start=2)
+        )
+        + "</sheets></workbook>"
     )
     rels_xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -130,7 +144,11 @@ def make_xlsx(
         '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
         f'<Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="{target}"/>'
         '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
-        "</Relationships>"
+        + "".join(
+            f'<Relationship Id="rIdX{i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/{file}"/>'
+            for i, (_name, file, _xml) in enumerate(extra_xml, start=2)
+        )
+        + "</Relationships>"
     )
     root_rels = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -154,6 +172,8 @@ def make_xlsx(
         zf.writestr("xl/workbook.xml", workbook_xml)
         zf.writestr("xl/_rels/workbook.xml.rels", rels_xml)
         zf.writestr(f"xl/worksheets/{sheet_file}", sheet_xml)
+        for _name, file, xml in extra_xml:
+            zf.writestr(f"xl/worksheets/{file}", xml)
         zf.writestr("xl/sharedStrings.xml", sst_xml)
     return buffer.getvalue()
 

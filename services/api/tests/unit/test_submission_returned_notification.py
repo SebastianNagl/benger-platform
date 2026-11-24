@@ -1,4 +1,4 @@
-"""The author's notice when a project editor returns a submission (core 2.78).
+"""The author's notice when a project editor returns a submission (core 2.79).
 
 Covers the channel defaults, the template mapping, the link helpers (the
 notice opens the submission's page like a grading notice), the input

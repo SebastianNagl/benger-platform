@@ -458,6 +458,7 @@ def serialize_korrektur_comment(comment) -> dict:
         "highlight_end": comment.highlight_end,
         "highlight_text": comment.highlight_text,
         "highlight_label": comment.highlight_label,
+        "highlight_field": comment.highlight_field,
         "is_resolved": comment.is_resolved,
         "resolved_at": _isoformat(comment.resolved_at),
         "resolved_by": comment.resolved_by,
