@@ -26,6 +26,7 @@ from tests.integration.test_eval_results_branches import (
     _as_user,
     _make_annotation,
     _make_eval_run,
+    _make_generation,
     _make_org,
     _make_owner,
     _make_task_evaluation,
@@ -178,7 +179,11 @@ class TestGridOneScorePerConfig:
         assert default.status_code == 200, default.text
         cell = next(t for t in default.json()["tasks"] if t["task_id"] == s["task"].id)
         # Without an official answer the group's first config (CFG_A) is.
-        assert cell["scores"] == {"annotator:Student One": pytest.approx(0.95)}
+        # CFG_A never graded Student Two, so CFG_B's score stands in.
+        assert cell["scores"] == {
+            "annotator:Student One": pytest.approx(0.95),
+            "annotator:Student Two": pytest.approx(0.5),
+        }
 
         # The extension makes CFG_B official.
         with _grouped(official={"notenpunkte": CFG_B}):
@@ -200,8 +205,11 @@ class TestGridOneScorePerConfig:
                 )
         cell = next(t for t in mixed.json()["tasks"] if t["task_id"] == s["task"].id)
         # Student One: CFG_A by the hook; Student Two: the default (CFG_A),
-        # which has not graded them, so no score yet.
-        assert cell["scores"] == {"annotator:Student One": pytest.approx(0.95)}
+        # which has not graded them, so CFG_B's score stands in.
+        assert cell["scores"] == {
+            "annotator:Student One": pytest.approx(0.95),
+            "annotator:Student Two": pytest.approx(0.5),
+        }
 
     @pytest.mark.asyncio
     async def test_unknown_method_group_is_404(self, async_test_client, async_test_db):
@@ -300,6 +308,112 @@ class TestCellModal:
 
 
 @pytest.mark.integration
+class TestOfficialConfigWithoutAScore:
+    """The official choice is per account, so the official config can lack a
+    score for an answer another config of the group graded: that score
+    stands in (evaluation_methods.teacher_current_rows)."""
+
+    @pytest.mark.asyncio
+    async def test_modal_shows_and_labels_the_stand_in(self, async_test_client, async_test_db):
+        s = await _seed(async_test_db)
+        url = (
+            f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student Two"
+            "&include_history=false"
+        )
+        with _grouped(), _as_user(s["owner"]):
+            default = await async_test_client.get(url + "&include_research=false")
+            scoped = await async_test_client.get(
+                url + "&method_group=notenpunkte&include_research=false"
+            )
+            research = await async_test_client.get(url)
+        assert default.status_code == 200, default.text
+        for resp in (default, scoped, research):
+            (row,) = resp.json()["results"]
+            assert row["id"] == s["on_submit_other"].id
+            assert row["is_official"] is True
+            assert row["stands_in_for_config_id"] == CFG_A
+            assert row["evaluation_config_label"] == "Notenpunkte (B)"
+
+    @pytest.mark.asyncio
+    async def test_modal_rows_of_the_official_config_carry_no_stand_in(
+        self, async_test_client, async_test_db
+    ):
+        s = await _seed(async_test_db)
+        url = (
+            f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
+            "&include_history=false&method_group=notenpunkte&include_research=false"
+        )
+        with _grouped(), _as_user(s["owner"]):
+            resp = await async_test_client.get(url)
+        (row,) = resp.json()["results"]
+        assert row["id"] == s["a_ref2"].id
+        assert row["stands_in_for_config_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_modal_scoped_to_one_config_keeps_the_official_choice(
+        self, async_test_client, async_test_db
+    ):
+        """Scoping the modal to the research config does not turn it into a
+        stand-in: the official config has a score for this answer."""
+        s = await _seed(async_test_db)
+        url = (
+            f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
+            f"&include_history=false&evaluation_config_ids={CFG_B}"
+        )
+        with _grouped(), _as_user(s["owner"]):
+            research = await async_test_client.get(url)
+            default = await async_test_client.get(url + "&include_research=false")
+        (row,) = research.json()["results"]
+        assert row["id"] == s["b_row"].id
+        assert row["is_official"] is False
+        assert row["stands_in_for_config_id"] is None
+        assert default.json()["results"] == []
+
+    @pytest.mark.asyncio
+    async def test_no_config_of_the_group_has_a_score(self, async_test_client, async_test_db):
+        s = await _seed(async_test_db)
+        # Student Two's only grading failed: the cell stays empty.
+        s["on_submit_other"].metrics = {"error": "judge timeout"}
+        await async_test_db.commit()
+        with _grouped(), _as_user(s["owner"]):
+            grid = await async_test_client.get(
+                _grid_url(s["project"].id, metric="llm_judge_custom", method_group="notenpunkte")
+            )
+            csv_resp = await async_test_client.get(
+                f"{BASE}/projects/{s['project'].id}/results/by-submission"
+            )
+        cell = next(t for t in grid.json()["tasks"] if t["task_id"] == s["task"].id)
+        assert "annotator:Student Two" not in cell["scores"]
+        rows = list(csv.reader(io.StringIO(csv_resp.text)))
+        assert "Notenpunkte (graded by)" not in rows[0]
+        other = next(r for r in rows[1:] if r[2] == s["other"].id)
+        assert other[5] == ""
+
+    @pytest.mark.asyncio
+    async def test_grid_generation_falls_back_to_another_config(
+        self, async_test_client, async_test_db
+    ):
+        s = await _seed(async_test_db)
+        gen, _ = await _make_generation(async_test_db, s["task"], model_id="gpt-4")
+        run = await _make_eval_run(async_test_db, s["project"], model_id="gpt-4")
+        await _make_task_evaluation(
+            async_test_db, run, s["task"], generation=gen,
+            field_name=f"{CFG_B}|model:loesung|task.musterloesung", evaluation_config_id=CFG_B,
+            metrics={"llm_judge_custom": 0.6},
+        )
+        await async_test_db.commit()
+        with _grouped(), _as_user(s["owner"]):
+            resp = await async_test_client.get(
+                _grid_url(s["project"].id, metric="llm_judge_custom", method_group="notenpunkte")
+            )
+        assert resp.status_code == 200, resp.text
+        cell = next(t for t in resp.json()["tasks"] if t["task_id"] == s["task"].id)
+        # Generations use the default official config (CFG_A), which did not
+        # grade this one.
+        assert cell["scores"]["gpt-4"] == pytest.approx(0.6)
+
+
+@pytest.mark.integration
 class TestResultsBySubmission:
     @pytest.mark.asyncio
     async def test_csv_one_row_per_submission_one_column_per_method(
@@ -316,16 +430,17 @@ class TestResultsBySubmission:
         header, body = rows[0], rows[1:]
         # The group is one column; the research config has none; the human
         # Korrektur has a column that stays empty until it happened.
+        # Student Two was graded only by CFG_B, which stands in for the
+        # official CFG_A: the column names the config behind each score.
         assert header == [
             "task_id", "task", "submitter_id", "submitter", "submitted_at",
-            "Notenpunkte", "Korrektur",
+            "Notenpunkte", "Notenpunkte (grade points)", "Notenpunkte (graded by)",
+            "Korrektur",
         ]
         by_submitter = {r[2]: r for r in body}
         assert set(by_submitter) == {s["student"].id, s["other"].id}
-        assert by_submitter[s["student"].id][5] == "0.95"
-        assert by_submitter[s["student"].id][6] == ""
-        # Student Two was graded only by the research config.
-        assert by_submitter[s["other"].id][5] == ""
+        assert by_submitter[s["student"].id][5:] == ["0.95", "", "Notenpunkte (A)", ""]
+        assert by_submitter[s["other"].id][5:] == ["0.5", "9", "Notenpunkte (B)", ""]
         # A file never names anyone.
         assert "Student" not in resp.text
 

@@ -9,7 +9,11 @@ list a method once and keep its research configs out of the default view.
 file for the people who grade: one row per submission (the latest answer of
 each account to each task), one column per evaluation method with its current
 score (shared/current_scores.py) and, where the method gives them, its grade
-points. A method that has not graded a submission yet (a human Korrektur that
+points. A method graded by alternative configs takes the official config's
+score for the submitting account, else the score of another config of the
+group (shared/evaluation_methods.py, ``teacher_current_rows``); when that
+happens anywhere in a column, a ``(graded by)`` column names the config
+that supplied each score. A method that has not graded a submission yet (a human Korrektur that
 has not happened, a judge still running) leaves the cell empty. A config that
 grades once per reference field (shared/current_scores.py) has one current
 score per reference field, so it gets one column per reference field. Research
@@ -25,7 +29,7 @@ from datetime import datetime, timezone
 from fastapi.responses import Response
 
 import current_scores
-from evaluation_methods import project_configs
+from evaluation_methods import project_configs, teacher_current_rows
 from metric_filters import graded_reference_fields
 from user_display import masked_name
 
@@ -207,6 +211,7 @@ async def export_project_results_by_submission(
             )
         ).all()
     current = list(current_scores.pick_current(rows, configs_lookup).values())
+    shown = teacher_current_rows(selection, current, submitter_of)
 
     # Per (annotation, column): the newest current row with a score. A row of
     # a config graded once per prediction field (reference part "") fills
@@ -218,7 +223,7 @@ async def export_project_results_by_submission(
         for index, (_label, ids, grouped, ref) in enumerate(columns):
             if config_id not in ids or row_ref not in ("", ref):
                 continue
-            if grouped and not selection.is_official(config_id, submitter_of.get(row.annotation_id)):
+            if grouped and str(row.id) not in shown:
                 continue
             if _extract_primary_score(row.metrics) is None:
                 continue
@@ -247,6 +252,8 @@ async def export_project_results_by_submission(
     previews = dict(await _task_preview_rows(db, project_id))
     task_order = {tid: i for i, tid in enumerate(previews)}
     has_points = [False] * len(columns)
+    has_stand_in = [False] * len(columns)
+    label_of = {str(c["id"]): _config_label(c) for c in configs}
     records = []
     for sub in sorted(
         submissions,
@@ -256,13 +263,20 @@ async def export_project_results_by_submission(
         for index in range(len(columns)):
             row = picked.get((sub.id, index))
             if row is None:
-                methods.append({"score": None, "grade_points": None})
+                methods.append({"score": None, "grade_points": None, "graded_by": None})
                 continue
             points = current_scores.extract_grade_points(full_metrics.get(row.id))
             if points is not None:
                 has_points[index] = True
+            if shown.get(str(row.id)) is not None and columns[index][2]:
+                has_stand_in[index] = True
+            config_id = current_scores.cell_config_id(row.evaluation_config_id, row.field_name)
             methods.append(
-                {"score": _extract_primary_score(row.metrics), "grade_points": points}
+                {
+                    "score": _extract_primary_score(row.metrics),
+                    "grade_points": points,
+                    "graded_by": label_of.get(config_id, config_id),
+                }
             )
         records.append(
             {
@@ -284,6 +298,8 @@ async def export_project_results_by_submission(
         header.append(_cell_text(label))
         if has_points[index]:
             header.append(_cell_text(f"{label} (grade points)"))
+        if has_stand_in[index]:
+            header.append(_cell_text(f"{label} (graded by)"))
     writer.writerow(header)
     for record in records:
         line = [
@@ -302,6 +318,8 @@ async def export_project_results_by_submission(
                     line.append("")
                 else:
                     line.append(int(points) if float(points).is_integer() else points)
+            if has_stand_in[index]:
+                line.append(_cell_text(method["graded_by"] or ""))
         writer.writerow(line)
     return Response(
         content=output.getvalue(),

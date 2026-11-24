@@ -544,6 +544,71 @@ describe('EvaluationResults - modal and handler coverage', () => {
     })
   })
 
+  it('labels a score another config of the method supplies', async () => {
+    mockGetTaskEvaluation.mockResolvedValue({
+      results: [
+        {
+          id: 'stand-in',
+          field_name: 'judge-b|human:loesung|task.musterloesung',
+          answer_type: 'text',
+          passed: true,
+          metrics: { llm_judge_custom: 0.5 },
+          is_current: true,
+          is_official: true,
+          stands_in_for_config_id: 'judge-a',
+          evaluation_config_label: 'Score (model B)',
+        },
+        {
+          id: 'unnamed-stand-in',
+          field_name: 'judge-c|human:loesung|task.musterloesung',
+          answer_type: 'text',
+          passed: true,
+          metrics: { llm_judge_custom: 0.4 },
+          is_current: true,
+          is_official: true,
+          stands_in_for_config_id: 'judge-a',
+          evaluation_config_label: null,
+        },
+        {
+          id: 'official',
+          field_name: 'judge-a|human:loesung|task.musterloesung',
+          answer_type: 'text',
+          passed: true,
+          metrics: { llm_judge_custom: 0.9 },
+          is_current: true,
+          is_official: true,
+          stands_in_for_config_id: null,
+        },
+      ],
+    })
+    await renderDataView()
+
+    const scoreCells = screen.queryAllByTitle(
+      'evaluation.multiFieldResults.clickToViewResponse',
+    )
+    await act(async () => {
+      fireEvent.click(scoreCells[0])
+    })
+    await waitFor(() => expect(mockGetTaskEvaluation).toHaveBeenCalled())
+    fireEvent.click(
+      screen.getByText('evaluation.multiFieldResults.evaluationResults'),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByText('evaluation.multiFieldResults.standInBadge'),
+      ).toHaveLength(1)
+      expect(
+        screen.getAllByText('evaluation.multiFieldResults.standInBadgeUnnamed'),
+      ).toHaveLength(1)
+    })
+    expect(
+      screen.getByText('evaluation.multiFieldResults.standInBadge'),
+    ).toHaveAttribute('title', 'evaluation.multiFieldResults.standInHint')
+    expect(
+      screen.queryByText('evaluation.multiFieldResults.researchBadge'),
+    ).not.toBeInTheDocument()
+  })
+
   it('scopes the modal fetch to the selected method group or config', async () => {
     const groupedConfigs = ['judge-a', 'judge-b'].map((id) => ({
       id,

@@ -31,12 +31,29 @@ is ignored. Generations always use the default official config.
 
 Without an answer (no package implements the hook, or it failed) every
 config is its own method.
+
+The score a teacher view shows
+------------------------------
+The official choice is per account, but a subject can lack a successful
+grading by its official config while another config of the group graded it,
+for example an account whose answers one config graded on one task and the
+other config on another. :func:`teacher_current_rows` is the one rule every
+teacher view uses (the results grid, the cell modal, the per-submission
+results export and the ``is_method_current`` marker of the comprehensive
+export): per subject and method group, the official config's current rows
+when one of them carries a score, else the current rows of the first other
+config of the group (in the group's config order) that has a scored one,
+marked with the official config it stands in for. When no config of the
+group has a score, the official config's rows stay, so a failure stays
+visible. Research views and history rows keep reading ``is_official``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Set
+
+import current_scores
 
 
 @dataclass
@@ -111,6 +128,67 @@ class MethodSelection:
             "groups": groups,
             "research_config_ids": sorted(self.default_research_config_ids()),
         }
+
+
+def _row_has_score(row: Any) -> bool:
+    return current_scores.row_has_score(current_scores._get(row, "metrics"))
+
+
+def teacher_current_rows(
+    selection: MethodSelection,
+    rows: Iterable[Any],
+    submitter_of: Optional[Mapping[Any, Any]] = None,
+    *,
+    has_score: Optional[Callable[[Any], bool]] = None,
+) -> Dict[str, Optional[str]]:
+    """The rows a teacher view shows as the current score of their method.
+
+    ``rows`` are current rows (``current_scores.pick_current``), ``submitter_of``
+    maps an annotation id to the account that submitted it (generation rows
+    and rows without a submission use the default official config), and
+    ``has_score`` tells whether a row carries a score (default: the
+    ``metrics`` of the row, ``current_scores.row_has_score``).
+
+    Returns ``{row id: stands in for}`` for every shown row: ``None`` for a
+    row of a config outside any group or of the subject's official config,
+    else the id of the official config whose missing score the row replaces
+    (see the module docstring). Rows of research-only configs, and of a
+    group's other configs while the official one has a score, are left out.
+    """
+    scored = has_score or _row_has_score
+    submitters = {str(k): v for k, v in (submitter_of or {}).items()}
+    group_of = selection.group_of
+    shown: Dict[str, Optional[str]] = {}
+    buckets: Dict[tuple, Dict[str, List[Any]]] = {}
+    for row in rows:
+        config_id = current_scores.cell_config_id(
+            current_scores._get(row, "evaluation_config_id"),
+            current_scores._get(row, "field_name"),
+        )
+        if config_id in selection.research_only:
+            continue
+        group = group_of.get(config_id)
+        if group is None:
+            shown[current_scores.row_id(row)] = None
+            continue
+        subject = current_scores.cell_subject(row)
+        buckets.setdefault((subject, group), {}).setdefault(config_id, []).append(row)
+    for ((kind, subject_id), group), by_config in buckets.items():
+        user_id = submitters.get(subject_id) if kind == current_scores.SUBJECT_ANNOTATION else None
+        official = selection.official_config(group, None if user_id is None else str(user_id))
+        supplier = official
+        if not any(scored(r) for r in by_config.get(official, [])):
+            supplier = next(
+                (
+                    member
+                    for member in selection.groups.get(group) or []
+                    if member != official and any(scored(r) for r in by_config.get(member, []))
+                ),
+                official,
+            )
+        for row in by_config.get(supplier, []):
+            shown[current_scores.row_id(row)] = None if supplier == official else official
+    return shown
 
 
 def _enabled(configs: Iterable[Any]) -> List[Dict[str, Any]]:

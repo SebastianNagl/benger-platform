@@ -12,6 +12,8 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 import current_scores
 from user_display import masked_name
 
+from evaluation_methods import teacher_current_rows
+
 from .method_selection import load_method_selection
 
 from routers.projects.helpers import can_read_all_task_content_async
@@ -46,8 +48,10 @@ async def _add_annotator_cells(
     shows the newest of them that carries a score; with it every row, and
     the column shows their mean. Each column contributes ONE score per task
     to its average, however many rows the cell had. ``selection`` (a
-    ``MethodSelection``) drops the rows that are research data for the
-    account that submitted the answer.
+    ``MethodSelection``) keeps the rows a teacher view shows for the account
+    that submitted the answer (``evaluation_methods.teacher_current_rows``:
+    the official config's, else another config of the group that has a
+    score); with ``include_history`` the official config's rows.
     """
     from models import User as DBUser
 
@@ -84,10 +88,16 @@ async def _add_annotator_cells(
         for a in annotations_with_users
     }
     user_of = {a.id: a.user_id for a in annotations_with_users}
+    shown = None
+    if selection is not None and not include_history:
+        shown = teacher_current_rows(selection, rows, user_of)
 
     cells: dict = {}  # {(task_id, synthetic_model_id): [(created_at, score), ...]}
     for r in rows:
-        if selection is not None and not selection.is_official(
+        if shown is not None:
+            if current_scores.row_id(r) not in shown:
+                continue
+        elif selection is not None and not selection.is_official(
             current_scores.cell_config_id(getattr(r, "evaluation_config_id", None), r.field_name),
             user_of.get(r.annotation_id),
         ):
@@ -817,9 +827,9 @@ async def get_project_results_by_task_model(
         # Predicates shared by both branches.
         scope_filters = [MK.evaluation_id.in_(run_ids_select)]
         # One method graded by alternative configs: their rows, and below only
-        # the official config's per subject.
+        # the ones a teacher view shows per subject (the official config's,
+        # else another config of the group that has a score).
         selection = None
-        gen_official_config_id = None
         if method_group:
             selection = await load_method_selection(db, project)
             group_config_ids = selection.groups.get(method_group) or []
@@ -828,7 +838,6 @@ async def get_project_results_by_task_model(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Method group '{method_group}' not found",
                 )
-            gen_official_config_id = selection.official_config(method_group)
             # The per-account answers are resolved for the accounts whose
             # answers the scope holds (below, once they are known).
             scope_filters.append(MK.evaluation_config_id.in_(group_config_ids))
@@ -849,8 +858,6 @@ async def get_project_results_by_task_model(
         # replaces the old inner-join-drops-NULLs behavior now that ranking
         # happens before the Generation join.
         gen_filters = [*scope_filters, MK.generation_id.isnot(None)]
-        if gen_official_config_id:
-            gen_filters.append(MK.evaluation_config_id == gen_official_config_id)
 
         # The latest-gen scope is applied as a JOIN below, not as a
         # `generation_id IN (subquery)` filter: as an IN-subquery the planner
@@ -881,8 +888,11 @@ async def get_project_results_by_task_model(
         )
         ranked = _scope_to_latest_gens(
             select(
+                MK.task_evaluation_id.label("id"),
                 MK.task_id,
                 MK.generation_id,
+                MK.evaluation_config_id,
+                MK.field_name,
                 MK.metrics_lite.label("metrics"),
                 MK.created_at,
                 func.row_number()
@@ -900,8 +910,11 @@ async def get_project_results_by_task_model(
         sample_results = (
             await db.execute(
                 select(
+                    ranked.c.id,
                     ranked.c.task_id,
                     ranked.c.generation_id,
+                    ranked.c.evaluation_config_id,
+                    ranked.c.field_name,
                     ranked.c.metrics,
                     GenerationModel.model_id,
                     ranked.c.created_at,
@@ -910,6 +923,11 @@ async def get_project_results_by_task_model(
                 .where(ranked.c.rn == 1)
             )
         ).all()
+        if selection is not None:
+            # Generations have no submitting account: the default official
+            # config, else another config of the group that has a score.
+            gen_shown = teacher_current_rows(selection, sample_results)
+            sample_results = [r for r in sample_results if str(r.id) in gen_shown]
 
         # Phase 6.3: count suppressed runs so consumers see the
         # deduplication footprint. Per cell a single current row is
@@ -1354,10 +1372,23 @@ async def get_sample_result_by_task_model(
         def _config_of(sr) -> str:
             return current_scores.cell_config_id(sr.evaluation_config_id, sr.field_name)
 
+        # Also in the research view: it labels research rows and stand-ins.
         selection = None
-        if project is not None and (method_group or not include_research):
+        if project is not None:
             selection = await load_method_selection(
                 db, project, set(submitter_of.values())
+            )
+
+        # The current rows a teacher view shows (evaluation_methods.
+        # teacher_current_rows): the official config's, else another config
+        # of the group that has a score, which then stands in for it. Over
+        # every config's rows, before any scope narrows them.
+        shown: dict = {}
+        if selection is not None:
+            shown = teacher_current_rows(
+                selection,
+                [sr for sr in sample_results if sr.id in current_ids],
+                submitter_of,
             )
 
         wanted_configs = {
@@ -1368,13 +1399,31 @@ async def get_sample_result_by_task_model(
         if wanted_configs or (method_group and selection is not None):
             sample_results = [sr for sr in sample_results if _config_of(sr) in wanted_configs]
 
+        def _config_label(config_id):
+            config = project_configs_by_id.get(config_id or "") or {}
+            label = config.get("display_name")
+            return label.strip() if isinstance(label, str) and label.strip() else None
+
+        def _stands_in_for(sr):
+            return shown.get(str(sr.id))
+
         def _official(sr) -> bool:
             if selection is None:
                 return True
+            if _stands_in_for(sr) is not None:
+                return True
+            return selection.is_official(_config_of(sr), submitter_of.get(sr.annotation_id))
+
+        def _teacher_visible(sr) -> bool:
+            if selection is None:
+                return True
+            if sr.id in current_ids:
+                return str(sr.id) in shown
+            # History keeps the official config's rows.
             return selection.is_official(_config_of(sr), submitter_of.get(sr.annotation_id))
 
         if not include_research:
-            sample_results = [sr for sr in sample_results if _official(sr)]
+            sample_results = [sr for sr in sample_results if _teacher_visible(sr)]
 
         if not include_history:
             sample_results = [sr for sr in sample_results if sr.id in current_ids]
@@ -1443,6 +1492,10 @@ async def get_sample_result_by_task_model(
                 "is_current": sr.id in current_ids,
                 # False when the row is research data for its subject.
                 "is_official": _official(sr),
+                # The official config this row's score stands in for, when
+                # that config has no score for the subject; else None.
+                "stands_in_for_config_id": _stands_in_for(sr),
+                "evaluation_config_label": _config_label(_config_of(sr)),
                 "field_name": sr.field_name,
                 "answer_type": sr.answer_type,
                 "ground_truth": sr.ground_truth,
