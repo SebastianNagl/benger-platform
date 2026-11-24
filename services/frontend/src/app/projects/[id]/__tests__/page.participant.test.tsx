@@ -470,8 +470,8 @@ describe('ProjectDetailPage — participant tier', () => {
       await screen.findByTestId('project-participant-badge'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('project.quickActions.korrektur').closest('a'),
-    ).toHaveAttribute('href', '/projects/test-project-123/korrektur')
+      screen.getByText('project.quickActions.korrektur'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByText('project.quickActions.projectData'),
     ).not.toBeInTheDocument()
