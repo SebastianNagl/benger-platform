@@ -1,5 +1,5 @@
 {
-  "generated_from": "232ba09d43ed637a32a4157501b69af137371f38",
+  "generated_from": "70bf9de529a587b4fb93463a3bb9fda8df0446eb",
   "api_shared": [
     {
       "module": "account_activation",
@@ -2498,6 +2498,13 @@
       "name": "order_criteria_keys",
       "importers": [
         "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "register_own_scale_metric",
+      "importers": [
+        "benger_extended/__init__.py"
       ]
     },
     {
