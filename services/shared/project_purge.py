@@ -19,6 +19,12 @@ Each batch deletes the big children explicitly before the tasks: task
 evaluations first, so deleting the generations afterwards has no
 ``generation_id`` to set NULL, then the generations and generation jobs, whose
 task and project keys also cascade since migration 140.
+
+Files in object storage (handed-in solutions, transcribed pages, parked
+uploads, upload batch sources; see ``stored_files``) are collected before
+their rows go and deleted once the batch that removed the rows has
+committed, so a run that dies half way leaves no file of a deleted row
+behind that a later run could no longer find.
 """
 
 from __future__ import annotations
@@ -41,6 +47,7 @@ from models import (
     TaskEvaluation,
 )
 from project_models import Project, ProjectOrganization, Task
+from stored_files import delete_stored_files, project_file_keys, task_file_keys
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +112,7 @@ def purge_project_data(
         "generation_jobs": 0,
         "analysis_runs": 0,
         "analysis_frames_of_other_projects": 0,
+        "stored_files": 0,
         "projects": 0,
     }
     exists, deleted_at = _locked_deleted_at(db, project_id)
@@ -139,6 +147,7 @@ def purge_project_data(
         )
         if not ids:
             break
+        file_keys = task_file_keys(db, ids)
         counts["task_evaluations"] += db.execute(
             delete(TaskEvaluation).where(TaskEvaluation.task_id.in_(ids))
         ).rowcount
@@ -152,6 +161,7 @@ def purge_project_data(
         if on_batch is not None:
             on_batch(counts["tasks"], max(total, counts["tasks"]))
         db.commit()
+        counts["stored_files"] += delete_stored_files(file_keys, what="purge: stored file")
 
     # What is left hangs off the project row itself: project-level generation
     # jobs (no task) with their generations, evaluation runs (their task
@@ -216,10 +226,12 @@ def purge_project_data(
     counts["analysis_runs"] = db.execute(
         delete(AnalysisRun).where(AnalysisRun.project_id == project_id)
     ).rowcount
+    file_keys = project_file_keys(db, project_id)
     db.execute(delete(ProjectOrganization).where(ProjectOrganization.project_id == project_id))
     counts["projects"] = db.execute(delete(Project).where(Project.id == project_id)).rowcount
     db.commit()
     delete_analysis_frames(frame_keys)
+    counts["stored_files"] += delete_stored_files(file_keys, what="purge: stored file")
     return counts
 
 
@@ -227,23 +239,7 @@ def delete_analysis_frames(keys) -> int:
     """Delete stored analysis frame snapshots, best effort: a storage error
     is logged and leaves the object behind (the rows are already gone).
     Returns how many were deleted."""
-    if not keys:
-        return 0
-    try:
-        from storage.object_storage import object_storage
-    except Exception:  # pragma: no cover - storage misconfigured in this process
-        logger.exception("purge: storage unavailable, %d analysis frame(s) left behind", len(keys))
-        return 0
-    deleted = 0
-    for key in keys:
-        try:
-            if object_storage.delete_file(key):
-                deleted += 1
-            else:
-                logger.warning("purge: analysis frame %s could not be deleted", key)
-        except Exception:
-            logger.exception("purge: analysis frame %s could not be deleted", key)
-    return deleted
+    return delete_stored_files(keys, what="purge: analysis frame")
 
 
 # --- Queueing a purge (API routes and the stale-draft sweep) ----------------
