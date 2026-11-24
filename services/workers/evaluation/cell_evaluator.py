@@ -22,7 +22,7 @@ from metric_filters import (
     is_reference_free,
     judge_reads_references_itself,
 )
-from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING
+from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING, is_rubric_judge
 
 
 def _first_task_reference(task, reference_fields) -> Any:
@@ -59,6 +59,18 @@ def _resolve_task_rubric(db, task, metric_parameters):
 
 
 _NO_RUBRIC_ERROR = NO_RUBRIC_ERROR
+
+
+def _config_judge_run_id(judge_runs_by_config, config_id, default_judge_run_id):
+    """The judge run a row of one LLM judge config belongs to: the config's
+    first judge run. ``default_judge_run_id`` (the run of the non-judge
+    metrics) exists only when the evaluation has such a metric, so a judge
+    config's own error row (a sheet judge without a sheet) must not rely on
+    it: ``judge_run_id`` is NOT NULL."""
+    for entry in judge_runs_by_config.get(config_id) or []:
+        if entry.get("judge_run_id"):
+            return entry["judge_run_id"]
+    return default_judge_run_id
 
 
 def _rubric_score_unit_kwargs(metric_parameters) -> Dict[str, Any]:
@@ -628,12 +640,13 @@ def evaluate_generation_cell_impl(
                             if criterion in ("custom", "overall"):
                                 criterion = "correctness"
 
-                            # llm_judge_rubric grades against the task's own
-                            # Bewertungsbogen; without a usable rubric the cell
-                            # is a terminal config error (mirrors the
+                            # A sheet judge (llm_judge_rubric, or a config
+                            # with use_task_rubric) grades against the task's
+                            # own Bewertungsbogen; without a usable rubric the
+                            # cell is a terminal config error (mirrors the
                             # evaluator-not-initialized row above).
                             task_rubric = None
-                            if metric == "llm_judge_rubric":
+                            if is_rubric_judge(config):
                                 task_rubric = _resolve_task_rubric(
                                     db, task, config.get("metric_parameters")
                                 )
@@ -643,7 +656,9 @@ def evaluate_generation_cell_impl(
                                     sample_results.append({
                                         "id": str(_gen_uuid.uuid4()),
                                         "evaluation_id": evaluation_id,
-                                        "judge_run_id": default_judge_run_id,
+                                        "judge_run_id": _config_judge_run_id(
+                                            judge_runs_by_config, config_id, default_judge_run_id
+                                        ),
                                         "task_id": task.id,
                                         "generation_id": gen.id,
                                         "field_name": field_key,
@@ -698,14 +713,14 @@ def evaluate_generation_cell_impl(
                                     })
                                     continue
 
-                                if task_rubric is not None:
+                                inline_judge = resolve_inline_judge(metric)
+                                if task_rubric is not None and inline_judge is None:
                                     jr_evaluator.bind_task_rubric(
                                         task_rubric,
                                         margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
                                         **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                     )
 
-                                inline_judge = resolve_inline_judge(metric)
                                 if inline_judge is not None:
                                     per_judge_results.append(inline_judge_row(
                                         inline_judge,
@@ -713,6 +728,7 @@ def evaluate_generation_cell_impl(
                                         task_data=task.data,
                                         prediction=prediction,
                                         metric_params=config.get("metric_parameters"),
+                                        task_rubric=task_rubric,
                                         row={
                                             "id": str(_gen_uuid.uuid4()),
                                             "evaluation_id": evaluation_id,
@@ -1315,12 +1331,13 @@ def evaluate_annotation_cell_impl(
                                 if criterion in ("custom", "overall"):
                                     criterion = "correctness"
 
-                                # llm_judge_rubric grades against the task's
-                                # own Bewertungsbogen; without a usable rubric
-                                # the cell is a terminal config error (mirrors
-                                # the evaluator-not-initialized row above).
+                                # A sheet judge (llm_judge_rubric, or a config
+                                # with use_task_rubric) grades against the
+                                # task's own Bewertungsbogen; without a usable
+                                # rubric the cell is a terminal config error
+                                # (mirrors the evaluator-not-initialized row).
                                 task_rubric = None
-                                if metric == "llm_judge_rubric":
+                                if is_rubric_judge(config):
                                     task_rubric = _resolve_task_rubric(
                                         db, task, config.get("metric_parameters")
                                     )
@@ -1330,7 +1347,9 @@ def evaluate_annotation_cell_impl(
                                         sample_results.append({
                                             "id": str(_ann_uuid.uuid4()),
                                             "evaluation_id": evaluation_id,
-                                            "judge_run_id": default_judge_run_id,
+                                            "judge_run_id": _config_judge_run_id(
+                                                judge_runs_by_config, config_id, default_judge_run_id
+                                            ),
                                             "task_id": task.id,
                                             "generation_id": None,
                                             "annotation_id": annotation.id,
@@ -1388,14 +1407,14 @@ def evaluate_annotation_cell_impl(
                                         })
                                         continue
 
-                                    if task_rubric is not None:
+                                    inline_judge = resolve_inline_judge(metric)
+                                    if task_rubric is not None and inline_judge is None:
                                         jr_evaluator.bind_task_rubric(
                                             task_rubric,
                                             margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
                                             **_rubric_score_unit_kwargs(config.get("metric_parameters")),
                                         )
 
-                                    inline_judge = resolve_inline_judge(metric)
                                     if inline_judge is not None:
                                         per_judge_results.append(inline_judge_row(
                                             inline_judge,
@@ -1403,6 +1422,7 @@ def evaluate_annotation_cell_impl(
                                             task_data=task.data,
                                             prediction=prediction,
                                             metric_params=config.get("metric_parameters"),
+                                            task_rubric=task_rubric,
                                             row={
                                                 "id": str(_ann_uuid.uuid4()),
                                                 "evaluation_id": evaluation_id,

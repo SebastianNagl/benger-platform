@@ -1,5 +1,5 @@
 {
-  "generated_from": "56d71d9165e27b362ccd02a827f3aa129ebdfb9b",
+  "generated_from": "818f232a60910474adafd3dbb654b502695566ef",
   "api_shared": [
     {
       "module": "account_activation",
@@ -2757,6 +2757,20 @@
       ]
     },
     {
+      "module": "task_rubric_resolution",
+      "name": "is_rubric_judge",
+      "importers": [
+        "benger_extended/sheet_judges.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "resolve_grading_rubric",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
       "module": "task_rubric_service",
       "name": "RubricReviewRequired",
       "importers": [
@@ -2919,6 +2933,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "EvidenceIndex",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },
@@ -2926,6 +2941,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "verify_evidence",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },

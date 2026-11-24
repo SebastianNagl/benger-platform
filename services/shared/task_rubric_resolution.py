@@ -23,6 +23,13 @@ Selection:
 
 A sheet whose ``criteria`` carry no ``max_score`` cannot drive the
 multi-dimension grading and counts as missing.
+
+Sheet judges: the Bewertungsbogen judge (``llm_judge_rubric``) always grades
+along the task's sheet; any other evaluation config does when its
+``metric_parameters`` say ``use_task_rubric: true`` (an overlay judge that
+can grade either along a per-task sheet or along a scheme of its own). Both
+kinds share every rule here: they are held while the task has no usable
+sheet, and the waiting gradings start once one becomes usable.
 """
 
 from __future__ import annotations
@@ -31,6 +38,9 @@ from typing import Any, Iterable, List, Optional, Tuple
 
 #: The metric that grades against the task's Bewertungsbogen.
 RUBRIC_JUDGE_METRIC = "llm_judge_rubric"
+
+#: ``metric_parameters`` key that makes any other config a sheet judge.
+USE_TASK_RUBRIC_PARAM = "use_task_rubric"
 
 #: Machine-readable reason of a grading that has no usable sheet: the code of
 #: the worker's error row (``metrics[<metric>].error_code``), the reason of a
@@ -44,9 +54,9 @@ RUBRIC_MISSING = "rubric_missing"
 REVIEW_STATE_CONFIRMED = "confirmed"
 
 NO_RUBRIC_ERROR = (
-    "No usable Bewertungsbogen for task {task_id}: the llm_judge_rubric "
-    "metric grades against a per-task rubric (status='active' in "
-    "task_rubrics), and none was found. Generate and activate one, or set "
+    "No usable Bewertungsbogen for task {task_id}: this evaluation grades "
+    "against a per-task rubric (status='active' in task_rubrics), and none "
+    "was found. Generate and activate one, or set "
     "metric_parameters.rubric_selector."
 )
 
@@ -117,7 +127,14 @@ def resolve_grading_rubric(db, task, metric_parameters, *, review_required: Opti
 
 
 def is_rubric_judge(config) -> bool:
-    return isinstance(config, dict) and config.get("metric") == RUBRIC_JUDGE_METRIC
+    """Whether ``config`` grades along the task's sheet (a sheet judge, see
+    the module doc)."""
+    if not isinstance(config, dict):
+        return False
+    if config.get("metric") == RUBRIC_JUDGE_METRIC:
+        return True
+    params = config.get("metric_parameters")
+    return isinstance(params, dict) and params.get(USE_TASK_RUBRIC_PARAM) is True
 
 
 def split_held_rubric_judges(
@@ -154,6 +171,7 @@ __all__ = [
     "REVIEW_STATE_CONFIRMED",
     "RUBRIC_JUDGE_METRIC",
     "RUBRIC_MISSING",
+    "USE_TASK_RUBRIC_PARAM",
     "is_rubric_judge",
     "resolve_grading_rubric",
     "split_held_rubric_judges",

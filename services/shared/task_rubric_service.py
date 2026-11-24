@@ -203,8 +203,11 @@ def structure_equal(a: Any, b: Any) -> bool:
         return a is None and b is None
     if not isinstance(a, dict) or not isinstance(b, dict):
         return False
-    na = normalize_structure(a)["nodes"]
-    nb = normalize_structure(b)["nodes"]
+    norm_a, norm_b = normalize_structure(a), normalize_structure(b)
+    if norm_a.get("placement") != norm_b.get("placement"):
+        return False
+    na = norm_a["nodes"]
+    nb = norm_b["nodes"]
     if len(na) != len(nb):
         return False
     return all(_node_signature(x) == _node_signature(y) for x, y in zip(na, nb))

@@ -1756,11 +1756,39 @@ API change).
     ``OPTIONAL_HOOK_KEYS`` (keys the platform calls but an overlay need not
     implement, currently ``evaluation_method_selection``). An overlay's
     handshake test must not require any of them.
+
+2.77 (2026-11-24): sheet judges beyond the Bewertungsbogen judge, and
+  sheets graded by argument (no migration, additive).
+  - ``task_rubric_resolution.is_rubric_judge(config)`` is also true for any
+    config whose ``metric_parameters`` say ``use_task_rubric: true``
+    (``USE_TASK_RUBRIC_PARAM``). Such a config is held like
+    ``llm_judge_rubric`` while its task has no usable sheet
+    (``split_held_rubric_judges``, the shared immediate dispatch, the
+    single-sample skip) and ``dispatch_waiting_gradings`` grades its waiting
+    answers once the sheet is usable. ``NO_RUBRIC_ERROR`` no longer names
+    the metric.
+  - Inline judges (``evaluation/inline_judges.py``): for a sheet judge the
+    bulk cell resolves the task's sheet (the ``rubric_missing`` error row
+    without one) and passes it as ``task_rubric`` to ``compute``; the
+    immediate lane passes it to ``evaluate_single`` (raising
+    ``NoUsableRubricError`` without one). Each only when the function takes
+    a ``task_rubric`` keyword (``inline_judges.accepts_keyword``). The
+    evaluator of an inline judge is no longer bound to the sheet.
+  - ``rubric_structure``: optional ``structure.placement`` with the one
+    value ``"anywhere"`` (``PLACEMENT_ANYWHERE``, ``PLACEMENT_VALUES``,
+    ``sheet_placement``): the sheet grades by argument, so a step's point
+    counts wherever the answer makes it. ``validate_structure`` refuses
+    other values, ``normalize_structure`` keeps it and
+    ``task_rubric_service.structure_equal`` compares it. The Bewertungsbogen
+    judge then uses the argument wording of its placement rule in both
+    lanes (``llm_judge_evaluator.rubric_judge_prompts``,
+    ``checklist_scoring.placement_rule``); sheets without it grade exactly
+    as before.
 """
 
 import os
 
-CORE_API_VERSION = "2.76"
+CORE_API_VERSION = "2.77"
 
 
 def extended_required() -> bool:

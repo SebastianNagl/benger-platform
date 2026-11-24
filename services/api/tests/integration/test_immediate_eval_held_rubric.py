@@ -306,6 +306,32 @@ class TestHeldDispatch:
             }
         ]
 
+    def test_any_config_with_use_task_rubric_is_held_like_the_sheet_judge(self, test_db, people):
+        """Core 2.77: a judge config of its own that grades along the task's
+        sheet waits for the sheet like llm_judge_rubric, and runs once the
+        sheet is usable."""
+        owner, student = people
+        own_sheet_judge = {
+            **JUDGE,
+            "id": "cfg-own",
+            "metric_parameters": {"use_task_rubric": True},
+        }
+        project = _project(test_db, owner, [own_sheet_judge], review_required=True)
+        task = _task(test_db, project)
+        annotation = _answer(test_db, project, task, student)
+        sent = []
+
+        outcome = _ensure(test_db, project, task, annotation, sent)
+        assert outcome.status == ied.OUTCOME_BLOCKED and sent == []
+        (run,) = _runs(test_db, project.id)
+        assert [c["id"] for c in run.eval_metadata["billing_block"]["held_configs"]] == ["cfg-own"]
+
+        _sheet(test_db, task)
+        again = _ensure(test_db, project, task, annotation, sent, trigger=ied.SWEEP_TRIGGER)
+        assert again.status == ied.OUTCOME_DISPATCHED
+        ((_name, kwargs),) = sent
+        assert [c["id"] for c in kwargs["evaluation_configs"]] == ["cfg-own"]
+
     def test_a_usable_sheet_dispatches_as_before(self, test_db, people):
         owner, student = people
         project = _project(test_db, owner, [SHEET, JUDGE])

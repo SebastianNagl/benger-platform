@@ -8,10 +8,14 @@ prompt and the row context, and the run must complete, without the generic
 score parser turning them into "LLM judge evaluation failed" rows.
 """
 
+import uuid
+
 import pytest
 
 import tasks
 from models import TaskEvaluation
+from project_models import TaskRubric
+from task_rubric_resolution import RUBRIC_MISSING
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
 
@@ -141,3 +145,113 @@ def test_generation_cell_writes_score_less_feedback_rows(
     assert row.generation_id == gen.id
     assert row.passed is True
     assert row.metrics["llm_judge_feedback"]["value"] is None
+
+
+def _sheet_config():
+    config = _config("human:loesung")
+    config["metric_parameters"] = {**config["metric_parameters"], "use_task_rubric": True}
+    return config
+
+
+def _graded_annotation(db_conn, make_user, make_llm_model, make_project, make_task, make_annotation):
+    user = make_user()
+    make_llm_model(model_id="gpt-4o", provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"sachverhalt": "Sujet", "musterloesung": "Corrigé"}, created_by=user.id)
+    make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "Ma copie"}}],
+    )
+    return user, project, task
+
+
+def test_a_sheet_judge_cell_gets_the_tasks_active_sheet(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_evaluation_run, feedback_overlay,
+):
+    """Core 2.77: an inline judge config with use_task_rubric grades along
+    the task's active sheet, which the cell hands to ``compute``."""
+    user, project, task = _graded_annotation(
+        db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
+    )
+    sheet = TaskRubric(
+        id=str(uuid.uuid4()), task_id=task.id, project_id=project.id,
+        criteria={"s01_faits": {"name": "Faits", "rubric": "r", "max_score": 2}},
+        total_points=2, status="active",
+    )
+    db_conn.add(sheet)
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id, evaluation_configs=[_sheet_config()],
+    )
+    [call] = feedback_overlay.calls
+    assert call["task_rubric"].id == sheet.id
+    db_conn.expire_all()
+    [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert row.passed is True
+
+
+def test_a_sheet_judge_cell_without_a_sheet_is_the_rubric_missing_row(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_evaluation_run, feedback_overlay,
+):
+    user, project, task = _graded_annotation(
+        db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id, evaluation_configs=[_sheet_config()],
+    )
+    assert feedback_overlay.calls == []
+    db_conn.expire_all()
+    [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert row.passed is False
+    assert row.metrics["llm_judge_feedback"]["error_code"] == RUBRIC_MISSING
+
+
+def test_a_judge_without_the_setting_gets_no_sheet(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_evaluation_run, feedback_overlay,
+):
+    user, project, task = _graded_annotation(
+        db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    tasks.run_evaluation(
+        evaluation_id=run.id, project_id=project.id, evaluation_configs=[_config("human:loesung")],
+    )
+    [call] = feedback_overlay.calls
+    assert "task_rubric" not in call
+
+
+def test_a_bewertungsbogen_judge_cell_without_a_sheet_is_the_rubric_missing_row(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_annotation, make_evaluation_run, feedback_overlay,
+):
+    """Regression: with only LLM judge configs in the run there is no
+    default judge run, and the sheet-missing row of an llm_judge_rubric cell
+    was written without a judge_run_id (NOT NULL), failing the whole cell."""
+    user, project, task = _graded_annotation(
+        db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+    config = {
+        "id": "sheet",
+        "metric": "llm_judge_rubric",
+        "prediction_fields": ["human:loesung"],
+        "reference_fields": ["task.musterloesung"],
+        "metric_parameters": {"judges": [{"judge_model_id": "gpt-4o", "runs": 1}]},
+        "enabled": True,
+    }
+    tasks.run_evaluation(evaluation_id=run.id, project_id=project.id, evaluation_configs=[config])
+    db_conn.expire_all()
+    [row] = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert row.judge_run_id is not None
+    assert row.metrics["llm_judge_rubric"]["error_code"] == RUBRIC_MISSING
