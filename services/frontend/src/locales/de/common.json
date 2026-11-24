@@ -461,6 +461,7 @@
         "step6": {
           "title": "Prompts konfigurieren",
           "subtitle": "System- und Instruktions-Prompts für die Generierung einrichten",
+          "generationOnly": "Diese Prompts gelten nur für die Generierung: Sie sagen einem Modell, wie es eine Antwort auf die Aufgabe schreiben soll. Für die Bewertung hat jede Evaluierungsmethode ihren eigenen Prompt; den änderst du später in der Evaluierungskonfiguration bei der Methode.",
           "systemPromptLabel": "System-Prompt",
           "systemPromptHint": "Definiert die Rolle und das Verhalten der KI",
           "systemPromptPlaceholder": "Sie sind ein juristischer Expertenassistent...",
@@ -1402,7 +1403,8 @@
       },
       "visibilityDangerZone": {
         "title": "Projekt-Sichtbarkeit",
-        "help": "Änderungen hier wirken sich plattformweit aus — wer dieses Projekt sehen und damit arbeiten darf. „Öffentlich“ macht es für alle authentifizierten Nutzer sichtbar."
+        "help": "Änderungen hier wirken sich plattformweit aus — wer dieses Projekt sehen und damit arbeiten darf. „Öffentlich“ macht es für alle authentifizierten Nutzer sichtbar.",
+        "prepareHint": "So bereitest du ein Projekt vor, ohne dass es jemand sieht: Lass es auf „Privat“, bis es fertig ist, und ordne es erst dann der Organisation oder Gruppe zu. Soll es erst zu einem bestimmten Zeitpunkt erscheinen, setze darunter ein Zeitfenster für den Zugriff: Bis zum Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht."
       },
       "annotationBehavior": {
         "title": "Annotationsverhalten",
@@ -1505,7 +1507,7 @@
       },
       "accessWindow": {
         "title": "Zeitfenster für den Zugriff",
-        "hint": "Öffnet das Projekt nur während eines festgelegten Zeitraums für die Zugriffsgruppe. Vor dem Öffnen ist das Projekt gelistet, aber die Daten bleiben verborgen; nach dem Schließen sind die Daten schreibgeschützt. Eigentümer und Admins sind nie eingeschränkt.",
+        "hint": "Öffnet das Projekt nur während eines festgelegten Zeitraums für die Zugriffsgruppe. Vor dem Öffnen bleiben die Daten verborgen, und Klausuren und Kartenstapel erscheinen bei den Studierenden noch nicht; nach dem Schließen sind die Daten schreibgeschützt. Wer das Projekt bearbeiten darf, ist nie eingeschränkt.",
         "opens": "Öffnet",
         "closes": "Schließt",
         "invalid": "Das Schließdatum muss nach dem Öffnungsdatum liegen."
@@ -1704,6 +1706,9 @@
     "configCard": {
       "saving": "Speichert…",
       "unsavedChanges": "Ungespeicherte Änderungen"
+    },
+    "releaseReview": {
+      "extendedRequired": "Die Prüfung und Freigabe der Bewertungen erfordert die Extended Edition."
     },
     "rubricReview": {
       "extendedRequired": "Die Prüfung der Bewertungsbögen erfordert die Extended Edition."
@@ -3327,6 +3332,14 @@
         "title": "Neue Evaluierung: {project_title}",
         "message": "Ein Evaluierungslauf hat deine Bearbeitungen in '{project_title}' bewertet."
       },
+      "evaluation_released": {
+        "title": "Korrektur freigegeben: {project_title}",
+        "message": "Deine Lehrkraft hat die Korrektur deiner Bearbeitung in '{project_title}' freigegeben."
+      },
+      "submission_returned": {
+        "title": "Abgabe zurückgegeben: {project_title}",
+        "message": "Deine Abgabe in '{project_title}' wurde dir zurückgegeben. Grund: {reason}"
+      },
       "data_upload_completed": {
         "title": "Daten-Upload abgeschlossen: {task_name}",
         "message": "Es wurden {upload_count} Einträge aus '{filename}' in die Aufgabe '{task_name}' hochgeladen."
@@ -3892,6 +3905,10 @@
         "evaluationReceivedImmediateDesc": "Benachrichtigungen erhalten, wenn die sofortige KI-Korrektur deiner Bearbeitung vorliegt",
         "evaluationReceivedBatch": "Neuer Evaluierungslauf",
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf deine Bearbeitungen bewertet hat",
+        "evaluationReleased": "Freigegebene Korrektur",
+        "evaluationReleasedDesc": "Benachrichtigungen erhalten, wenn deine Lehrkraft eine zurückgehaltene Korrektur deiner Bearbeitung freigibt",
+        "submissionReturned": "Abgabe zurückgegeben",
+        "submissionReturnedDesc": "Benachrichtigungen erhalten, wenn dir eine deiner Abgaben mit einem Grund zurückgegeben wurde",
         "dataUploadCompleted": "Datenupload abgeschlossen",
         "dataUploadCompletedDesc": "Benachrichtigungen erhalten, wenn Datenuploads die Verarbeitung abgeschlossen haben",
         "llmGenerationCompleted": "LLM-Generierung abgeschlossen",
@@ -6000,6 +6017,7 @@
       "annotation": "Annotation",
       "annotator": "Annotator",
       "cancelled": "Abgebrochen",
+      "withdrawn": "Zurückgezogen",
       "noAnnotationResults": "Keine Annotationsergebnisse",
       "noAnnotationData": "Keine Annotationsdaten für diese Aufgabe verfügbar",
       "clickToViewData": "Verfügbare Daten anzeigen (noch keine Evaluierung)",
@@ -7256,7 +7274,8 @@
         "submitted": "eingereicht",
         "approved": "genehmigt",
         "rejected": "abgelehnt",
-        "draft": "Entwurf"
+        "draft": "Entwurf",
+        "withdrawn": "zurückgezogen"
       },
       "buttons": {
         "addMyAnnotation": "Meine Annotation hinzufügen",
@@ -7283,6 +7302,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} Annotator{plural}",
         "totalAnnotations": "{count} Annotation{plural} insgesamt"
+      },
+      "withdrawal": {
+        "withdrawn": "Zurückgezogen am {date}",
+        "returned": "Zurückgegeben am {date} von {name}",
+        "reason": "Grund: {reason}",
+        "editor": "einer Person mit Bearbeitungsrechten"
       },
       "result": {
         "notAnswered": "Nicht beantwortet",

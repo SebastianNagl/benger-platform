@@ -11,6 +11,7 @@ export const EVALUATION_RECEIVED_TYPES = [
   'evaluation_received_human',
   'evaluation_received_immediate',
   'evaluation_received_batch',
+  'evaluation_released',
 ] as const
 
 export type EvaluationReceivedType = (typeof EVALUATION_RECEIVED_TYPES)[number]
@@ -22,9 +23,26 @@ export function isEvaluationReceivedType(
 }
 
 /**
- * A student opens an exam in the student shell. Everyone else lands on the
- * project's own task list, where the grading opens per task. Returns null
- * when the notification carries no project.
+ * Notices about the recipient's own submission: a new grading, or the
+ * submission returned by a project editor. They all open the page that shows
+ * the submission (SUBMISSION_NOTICE_TYPES in notification_links.py).
+ */
+export const SUBMISSION_NOTICE_TYPES = [
+  ...EVALUATION_RECEIVED_TYPES,
+  'submission_returned',
+] as const
+
+export function isSubmissionNoticeType(
+  type: string | null | undefined,
+): boolean {
+  return (SUBMISSION_NOTICE_TYPES as readonly string[]).includes(type ?? '')
+}
+
+/**
+ * Where a submission notice opens. A student opens an exam in the student
+ * shell. Everyone else lands on the project's own task list, where the
+ * submission and its grading open per task. Returns null when the
+ * notification carries no project.
  */
 export function getEvaluationReceivedHref(
   data: Record<string, any> | null | undefined,

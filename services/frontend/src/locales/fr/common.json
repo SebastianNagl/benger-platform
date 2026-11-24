@@ -461,6 +461,7 @@
         "step6": {
           "title": "Configurer les prompts",
           "subtitle": "Configurer les prompts système et d'instruction pour la génération",
+          "generationOnly": "Ces prompts ne servent qu'à la génération : ils indiquent à un modèle comment rédiger une réponse à la tâche. Pour l'évaluation, chaque méthode d'évaluation a son propre prompt ; vous le modifiez ensuite dans la configuration de l'évaluation, sur la méthode.",
           "systemPromptLabel": "Prompt système",
           "systemPromptHint": "Définit le rôle et le comportement de l'IA",
           "systemPromptPlaceholder": "Vous êtes un assistant expert en droit...",
@@ -1402,7 +1403,8 @@
       },
       "visibilityDangerZone": {
         "title": "Visibilité du projet",
-        "help": "Les modifications ici s'appliquent à toute la plateforme : elles déterminent qui peut voir ce projet et y travailler. « Public » le rend visible pour tous les utilisateurs authentifiés."
+        "help": "Les modifications ici s'appliquent à toute la plateforme : elles déterminent qui peut voir ce projet et y travailler. « Public » le rend visible pour tous les utilisateurs authentifiés.",
+        "prepareHint": "Pour préparer un projet sans que personne ne le voie, laissez-le en « Privé » jusqu'à ce qu'il soit prêt, puis rattachez-le seulement alors à l'organisation ou au groupe. S'il ne doit apparaître qu'à un moment précis, définissez en dessous une fenêtre d'accès : jusqu'à l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants."
       },
       "annotationBehavior": {
         "title": "Comportement de l'annotation",
@@ -1505,7 +1507,7 @@
       },
       "accessWindow": {
         "title": "Fenêtre d'accès",
-        "hint": "N'ouvre le projet au groupe d'accès que pendant une période définie. Avant l'ouverture, le projet est répertorié mais les données restent masquées ; après la fermeture, les données sont en lecture seule. Les propriétaires et administrateurs ne sont jamais restreints.",
+        "hint": "N'ouvre le projet au groupe d'accès que pendant une période définie. Avant l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants ; après la fermeture, les données sont en lecture seule. Les personnes qui peuvent modifier le projet ne sont jamais restreintes.",
         "opens": "Ouverture",
         "closes": "Fermeture",
         "invalid": "La date de fermeture doit être postérieure à la date d'ouverture."
@@ -1704,6 +1706,9 @@
     "configCard": {
       "saving": "Enregistrement…",
       "unsavedChanges": "Modifications non enregistrées"
+    },
+    "releaseReview": {
+      "extendedRequired": "L'examen et la publication des évaluations nécessitent l'édition Extended."
     },
     "rubricReview": {
       "extendedRequired": "La vérification des grilles d'évaluation nécessite l'édition Extended."
@@ -3327,6 +3332,14 @@
         "title": "Nouvelle évaluation : {project_title}",
         "message": "Une exécution d'évaluation a noté vos travaux dans « {project_title} »."
       },
+      "evaluation_released": {
+        "title": "Correction transmise : {project_title}",
+        "message": "Votre enseignant a transmis la correction de votre copie dans « {project_title} »."
+      },
+      "submission_returned": {
+        "title": "Remise renvoyée : {project_title}",
+        "message": "Votre remise dans « {project_title} » vous a été renvoyée. Motif : {reason}"
+      },
       "data_upload_completed": {
         "title": "Téléversement de données terminé : {task_name}",
         "message": "{upload_count} entrées de « {filename} » ont été téléversées dans la tâche « {task_name} »."
@@ -3892,6 +3905,10 @@
         "evaluationReceivedImmediateDesc": "Recevoir des notifications lorsque la correction IA immédiate de votre copie est disponible",
         "evaluationReceivedBatch": "Nouvelle exécution d'évaluation",
         "evaluationReceivedBatchDesc": "Recevoir des notifications lorsqu'une exécution d'évaluation a noté vos copies",
+        "evaluationReleased": "Correction transmise",
+        "evaluationReleasedDesc": "Recevoir des notifications lorsque votre enseignant transmet une correction de votre copie qu'il avait retenue pour relecture",
+        "submissionReturned": "Remise renvoyée",
+        "submissionReturnedDesc": "Recevoir des notifications lorsqu'une de vos remises vous a été renvoyée avec un motif",
         "dataUploadCompleted": "Téléversement de données terminé",
         "dataUploadCompletedDesc": "Recevoir des notifications lorsque le traitement des téléversements de données est terminé",
         "llmGenerationCompleted": "Génération LLM terminée",
@@ -6000,6 +6017,7 @@
       "annotation": "Annotation",
       "annotator": "Annotateur",
       "cancelled": "Annulé",
+      "withdrawn": "Retirée",
       "noAnnotationResults": "Aucun résultat d'annotation",
       "noAnnotationData": "Aucune donnée d'annotation disponible pour cette tâche",
       "clickToViewData": "Afficher les données disponibles (pas encore d'évaluation)",
@@ -7256,7 +7274,8 @@
         "submitted": "soumise",
         "approved": "approuvée",
         "rejected": "refusée",
-        "draft": "Brouillon"
+        "draft": "Brouillon",
+        "withdrawn": "retirée"
       },
       "buttons": {
         "addMyAnnotation": "Ajouter mon annotation",
@@ -7283,6 +7302,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} annotateur{plural}",
         "totalAnnotations": "{count} annotation{plural} au total"
+      },
+      "withdrawal": {
+        "withdrawn": "Retirée le {date}",
+        "returned": "Renvoyée le {date} par {name}",
+        "reason": "Motif : {reason}",
+        "editor": "une personne autorisée à modifier le projet"
       },
       "result": {
         "notAnswered": "Sans réponse",

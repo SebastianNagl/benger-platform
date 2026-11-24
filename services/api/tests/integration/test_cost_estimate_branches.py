@@ -150,7 +150,6 @@ async def _seed_project(
         label_config="<View></View>",
         label_config_version="v1",
         created_by=owner.id,
-        is_published=True,
         is_private=is_private,
         # Every generation runs on a prompt structure: seed one ("s0")
         # unless the test brings its own config.

@@ -875,6 +875,8 @@ def run_nested_import(
                     import_user_ids.add(ann["completed_by"])
                 if ann.get("reviewed_by"):
                     import_user_ids.add(ann["reviewed_by"])
+                if ann.get("withdrawn_by"):
+                    import_user_ids.add(ann["withdrawn_by"])
             # Grader identity on human-graded evaluation rows (korrektur):
             # created_by is FK'd to users and is part of the per-cell unique
             # key — dropping it collapses multi-rater grades of the same
@@ -1120,6 +1122,10 @@ def run_nested_import(
                 review_result=ann_data.get("review_result"),
                 review_annotation=ann_data.get("review_annotation"),
                 review_comment=ann_data.get("review_comment"),
+                # Withdrawal record (who took the submission back, when, why).
+                withdrawn_at=_parse_iso(ann_data.get("withdrawn_at")),
+                withdrawn_by=ann_data.get("withdrawn_by"),
+                withdrawal_reason=ann_data.get("withdrawal_reason"),
                 # Enhanced timing (Issue #1208).
                 active_duration_ms=ann_data.get("active_duration_ms"),
                 focused_duration_ms=ann_data.get("focused_duration_ms"),
@@ -1503,6 +1509,7 @@ def run_nested_import(
             highlight_end=c.get("highlight_end"),
             highlight_text=c.get("highlight_text"),
             highlight_label=c.get("highlight_label"),
+            highlight_field=c.get("highlight_field"),
             is_resolved=c.get("is_resolved", False),
             resolved_at=_parse_iso(c.get("resolved_at")),
             resolved_by=c.get("resolved_by"),
@@ -2467,6 +2474,13 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
             review_result=annotation_data.get("review_result"),
             review_annotation=annotation_data.get("review_annotation"),
             review_comment=annotation_data.get("review_comment"),
+            # Withdrawal record (who took the submission back, when, why).
+            withdrawn_at=_parse_iso(annotation_data.get("withdrawn_at")),
+            withdrawn_by=ctx.id_mappings["users"].get(
+                annotation_data.get("withdrawn_by"),
+                annotation_data.get("withdrawn_by"),
+            ),
+            withdrawal_reason=annotation_data.get("withdrawal_reason"),
             **_timestamps(annotation_data, "created_at", "updated_at"),
         )
 
@@ -2885,6 +2899,7 @@ def _insert_korrektur_comment(ctx: _FullImportContext, c: dict) -> None:
         highlight_end=c.get("highlight_end"),
         highlight_text=c.get("highlight_text"),
         highlight_label=c.get("highlight_label"),
+        highlight_field=c.get("highlight_field"),
         is_resolved=c.get("is_resolved", False),
         resolved_at=_parse_iso(c.get("resolved_at")),
         resolved_by=ctx.id_mappings["users"].get(
@@ -3376,7 +3391,6 @@ def _create_imported_project(
         created_by=ctx.user_id,  # Current user is creator of imported project
         # organization_id removed - now handled via ProjectOrganization table
         min_annotations_per_task=project_data.get("min_annotations_per_task", 1),
-        is_published=project_data.get("is_published", False),
         # Issue #817: Add missing fields for full roundtrip capability.
         # BYOM: reconcile the selected model list against this instance's
         # catalog + the importer's custom-model access before persisting.

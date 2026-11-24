@@ -148,6 +148,9 @@ def serialize_annotation(
         "review_result": ann.review_result,
         "review_annotation": ann.review_annotation,
         "review_comment": ann.review_comment,
+        "withdrawn_at": _isoformat(ann.withdrawn_at),
+        "withdrawn_by": ann.withdrawn_by,
+        "withdrawal_reason": ann.withdrawal_reason,
     }
     if mode == "data":
         qr = questionnaire_response
@@ -455,6 +458,7 @@ def serialize_korrektur_comment(comment) -> dict:
         "highlight_end": comment.highlight_end,
         "highlight_text": comment.highlight_text,
         "highlight_label": comment.highlight_label,
+        "highlight_field": comment.highlight_field,
         "is_resolved": comment.is_resolved,
         "resolved_at": _isoformat(comment.resolved_at),
         "resolved_by": comment.resolved_by,

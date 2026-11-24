@@ -42,6 +42,7 @@ import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import { formatDecimal } from '@/lib/i18n/locales'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { canStartGeneration } from '@/utils/permissions'
@@ -260,7 +261,9 @@ export function EvaluationResults({
         id: cfgId,
         metric: cfg?.metric || 'unknown',
         configId: cfgId,
-        displayName: cfg?.display_name || cfg?.metric || 'Unknown',
+        displayName: cfg?.display_name
+          ? localizedEvalConfigName(cfg, t)
+          : cfg?.metric || 'Unknown',
         samplesEvaluated: 0,
         running: false,
         configIds: [cfgId],
@@ -307,7 +310,9 @@ export function EvaluationResults({
             id: rawId,
             metric,
             configId: rawId,
-            displayName: cfg?.display_name || metric || 'Unknown',
+            displayName: cfg?.display_name
+              ? localizedEvalConfigName(cfg, t)
+              : metric || 'Unknown',
             samplesEvaluated: 0,
             running: false,
             configIds: [rawId],
@@ -378,7 +383,14 @@ export function EvaluationResults({
     })
 
     return runs
-  }, [results, selectedConfigIds, evaluationConfigs, methodInfo, showResearch])
+  }, [
+    results,
+    selectedConfigIds,
+    evaluationConfigs,
+    methodInfo,
+    showResearch,
+    t,
+  ])
 
   // Auto-select config — restore from localStorage or default to first.
   // Issue #111: storage now keys on evaluation_config.id (not metric
@@ -482,6 +494,8 @@ export function EvaluationResults({
       [key: string]: any
     }>
     was_cancelled: boolean
+    withdrawn_at?: string | null
+    withdrawal_reason?: string | null
     ground_truth: boolean
     lead_time?: number
     created_at: string
@@ -1119,7 +1133,7 @@ export function EvaluationResults({
     const config = configs.find((c) => c.id === configId)
     if (!config) return configId
 
-    if (config.display_name) return config.display_name
+    if (config.display_name) return localizedEvalConfigName(config, t)
 
     // Format metric name
     let name = config.metric.replace(/_/g, ' ')

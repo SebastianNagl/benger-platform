@@ -117,7 +117,6 @@ async def _make_assignment_project_async(
         description="Project for testing task assignments",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=admin.id,
-        is_published=True,
         assignment_mode=assignment_mode,
     )
     db.add(project)
@@ -211,7 +210,6 @@ def assignment_project(test_db: Session, test_users: List[User], test_org):
         description="Project for testing task assignments",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=test_users[0].id,
-        is_published=True,
         assignment_mode="manual",
     )
     test_db.add(project)
@@ -1334,7 +1332,6 @@ class TestCrossOrgBoundary:
             id=_uid(),
             title="Org B Project",
             created_by=p["users"]["admin"].id,
-            is_published=True,
         )
         async_test_db.add(project_b)
         await async_test_db.flush()
@@ -1377,7 +1374,6 @@ class TestCrossOrgBoundary:
             id=_uid(),
             title="Org B Isolated Project",
             created_by=p["users"]["admin"].id,
-            is_published=True,
         )
         async_test_db.add(project_b)
         await async_test_db.flush()
@@ -1419,7 +1415,6 @@ class TestCrossOrgBoundary:
             id=_uid(),
             title="Org B Contrib Project",
             created_by=p["users"]["admin"].id,
-            is_published=True,
         )
         async_test_db.add(project_b)
         await async_test_db.flush()
@@ -1455,7 +1450,6 @@ def auto_assignment_project(test_db: Session, test_users: List[User], test_org):
         description="Project for testing auto assignment mode",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=test_users[0].id,
-        is_published=True,
         assignment_mode="auto",
         maximum_annotations=1,
     )
@@ -1873,7 +1867,6 @@ class TestAutoModeAssignment:
                          '<Choices name="answer" toName="text">'
                          '<Choice value="Positive"/></Choices></View>',
             created_by=owner.id,
-            is_published=True,
             is_public=True,  # readable by any authenticated user
             public_role="ANNOTATOR",  # required by ck_projects_public_role_required_when_public
             assignment_mode="auto",

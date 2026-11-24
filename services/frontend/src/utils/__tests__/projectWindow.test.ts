@@ -3,6 +3,7 @@ import {
   isoToLocalInput,
   localInputToIso,
   windowBoundLabel,
+  windowStateLabel,
 } from '../projectWindow'
 
 const NOW = new Date('2026-07-01T12:00:00Z')
@@ -72,5 +73,28 @@ describe('iso <-> datetime-local round-trip', () => {
 
   it('ignores an unparseable iso', () => {
     expect(isoToLocalInput('not-a-date')).toBe('')
+  })
+})
+
+describe('windowStateLabel', () => {
+  const t = (key: string, vars?: Record<string, unknown>) =>
+    vars ? `${key}:${JSON.stringify(vars)}` : key
+
+  it('labels each state, with the opening date when upcoming', () => {
+    expect(windowStateLabel('none', null, t, 'de')).toBeNull()
+    expect(windowStateLabel('open', null, t, 'de')).toBe(
+      'projects.list.windowOpen',
+    )
+    expect(windowStateLabel('closed', null, t, 'de')).toBe(
+      'projects.list.windowClosed',
+    )
+    expect(windowStateLabel('upcoming', '2026-07-01T13:00:00Z', t, 'fr')).toBe(
+      `projects.list.windowUpcoming:${JSON.stringify({
+        date: new Date('2026-07-01T13:00:00Z').toLocaleDateString('fr-FR'),
+      })}`,
+    )
+    expect(windowStateLabel('upcoming', null, t, 'de')).toBe(
+      'projects.list.windowUpcoming:{"date":""}',
+    )
   })
 })

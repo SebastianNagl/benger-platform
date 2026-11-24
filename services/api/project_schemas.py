@@ -393,7 +393,6 @@ class ProjectUpdate(BaseModel):
     evaluation_config: Optional[Dict[str, Any]] = Field(
         None, description="Evaluation configuration with selected methods and parameters"
     )
-    is_published: Optional[bool] = None
     is_archived: Optional[bool] = None
     # Extended feature flags
     annotation_time_limit_enabled: Optional[bool] = None
@@ -533,7 +532,6 @@ class ProjectResponse(ProjectBase):
     kind: Optional[str] = None
     origin: Optional[str] = None
     icon: Optional[str] = None
-    is_published: bool = False
     is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -833,11 +831,44 @@ class AnnotationResponse(AnnotationBase):
     review_result: Optional[str] = None
     review_annotation: Optional[List[Dict[str, Any]]] = None
     review_comment: Optional[str] = None
+    # Withdrawal record: set when the author withdrew the submission or a
+    # project editor returned it (``was_cancelled`` is then true as well).
+    withdrawn_at: Optional[datetime] = None
+    withdrawn_by: Optional[str] = None
+    withdrawal_reason: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+#: Longest withdrawal reason accepted (characters, after trimming).
+WITHDRAWAL_REASON_MAX_LENGTH = 2000
+
+
+class AnnotationWithdraw(BaseModel):
+    """Body of ``POST /annotations/{id}/withdraw``."""
+
+    reason: str = Field(
+        ...,
+        description=(
+            "Why the submission is withdrawn or returned; shown to the author "
+            "and to the project's editors."
+        ),
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_not_blank(cls, value: str) -> str:
+        value = (value or "").strip()
+        if not value:
+            raise ValueError("A reason is required")
+        if len(value) > WITHDRAWAL_REASON_MAX_LENGTH:
+            raise ValueError(
+                f"The reason may be at most {WITHDRAWAL_REASON_MAX_LENGTH} characters"
+            )
+        return value
 
 
 # Post-annotation questionnaire schemas (Issue #1208)
@@ -907,6 +938,11 @@ class KorrekturCommentCreate(BaseModel):
     highlight_end: Optional[int] = Field(None, description="Highlight end offset")
     highlight_text: Optional[str] = Field(None, description="Selected text content")
     highlight_label: Optional[str] = Field(None, description="Highlight label")
+    highlight_field: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Label-config name of the field the highlighted passage is in",
+    )
 
     @field_validator("target_type")
     @classmethod
@@ -936,6 +972,7 @@ class KorrekturCommentResponse(BaseModel):
     highlight_end: Optional[int] = None
     highlight_text: Optional[str] = None
     highlight_label: Optional[str] = None
+    highlight_field: Optional[str] = None
     is_resolved: bool = False
     resolved_at: Optional[datetime] = None
     resolved_by: Optional[str] = None

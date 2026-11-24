@@ -47,6 +47,10 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useOperationToasts } from '@/hooks/useOperationToasts'
 import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
+import {
+  localizedEvalConfigName,
+  type EvalConfigNameLike,
+} from '@/lib/evaluation/evalName'
 import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
 import { useFeatureFlagStatus } from '@/lib/featureFlags'
 import { VARIANT_EXPERIMENTS } from '@/lib/featureFlags/platformFlags'
@@ -189,6 +193,9 @@ export function MetricResultsView({
   const { startEvaluation, updateEvaluation, renderToasts } =
     useOperationToasts()
   const { t } = useI18n()
+  /** A config's name in the reader's language, else its metric key. */
+  const configName = (cfg: EvalConfigNameLike & { metric: string }): string =>
+    cfg.display_name ? localizedEvalConfigName(cfg, t) : cfg.metric
   // The forest chart and the annotator agreement card belong to the
   // variant_experiments flag.
   const variantExperimentsStatus = useFeatureFlagStatus(VARIANT_EXPERIMENTS)
@@ -550,7 +557,7 @@ export function MetricResultsView({
             )
             const label =
               cfg.display_name && String(cfg.display_name).trim().length > 0
-                ? cfg.display_name
+                ? localizedEvalConfigName(cfg, t)
                 : String(cfg.metric || '')
                     .replace(/_/g, ' ')
                     .replace(/\b\w/g, (c: string) => c.toUpperCase())
@@ -1072,11 +1079,11 @@ export function MetricResultsView({
         id: c.id,
         displayName:
           c.display_name && String(c.display_name).trim().length > 0
-            ? c.display_name
+            ? localizedEvalConfigName(c, t)
             : c.metric,
         metric: c.metric,
       }))
-  }, [projectEvalConfig, selectedConfigIds])
+  }, [projectEvalConfig, selectedConfigIds, t])
 
   const multiConfigChart = useMultiConfigChartData({
     projectId: selectedProject?.id ?? '',
@@ -1114,7 +1121,7 @@ export function MetricResultsView({
           (c) => c.metric === metric && selectedConfigIds.includes(c.id),
         )
         return selected.length === 1 && selected[0].display_name
-          ? selected[0].display_name
+          ? localizedEvalConfigName(selected[0], t)
           : metric
       },
       modelLabel: (modelId, modelName) =>
@@ -1126,6 +1133,7 @@ export function MetricResultsView({
     evaluatedModels,
     selectedMetricNames,
     selectedConfigIds,
+    t,
   ])
 
   // Chart data source by type: bar/radar/heatmap/table read the per-config
@@ -1447,9 +1455,9 @@ export function MetricResultsView({
                   value === null ? null : (
                     <ScoreCard
                       key={`${cfg.id}|${cfg.metric}`}
-                      metric={cfg.display_name || cfg.metric}
+                      metric={configName(cfg)}
                       value={value}
-                      description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
+                      description={`${configName(cfg)} — ${result.model_id}`}
                       higherIsBetter={true}
                       formatAs="decimal"
                       sampleSize={result.samples_evaluated}
@@ -1539,12 +1547,12 @@ export function MetricResultsView({
                       key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
                     >
                       <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {s.display_name}
+                        {configName(s)}
                       </h4>
                       <HistoricalTrendChart
                         data={s.data || []}
                         modelIds={selectedModels}
-                        metric={s.display_name || s.metric}
+                        metric={configName(s)}
                         height={400}
                         showConfidenceIntervals={true}
                       />

@@ -16,6 +16,7 @@ import {
   metricDisplayName,
   type AvailableMetric,
 } from '@/lib/api/evaluation-types'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import { formatDecimal } from '@/lib/i18n/locales'
 import { humanizeMetricId } from '@/lib/reports/format'
 
@@ -26,6 +27,7 @@ export interface RunConfigLabel {
   id?: string
   display_name?: string | null
   metric?: string
+  metric_parameters?: Record<string, unknown> | null
 }
 
 /** Bare metric name of an aggregated metrics key (`config|pred|ref|metric`,
@@ -185,7 +187,9 @@ export function configDisplayLabel(
   t?: Translate,
 ): string | null {
   const config = configId ? configs.find((c) => c.id === configId) : undefined
-  if (config?.display_name) return config.display_name
+  if (config?.display_name) {
+    return t ? localizedEvalConfigName(config, t) : config.display_name
+  }
   const metric = config?.metric || fallbackMetric
   return metric ? metricDisplayLabel(metric, undefined, t) : null
 }

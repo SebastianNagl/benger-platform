@@ -130,7 +130,6 @@ async def _seed_project(
         title="gen-coverage",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=owner.id,
-        is_published=True,
         is_private=is_private,
         is_public=False,
     )

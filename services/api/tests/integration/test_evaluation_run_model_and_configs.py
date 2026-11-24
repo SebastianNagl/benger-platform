@@ -185,6 +185,64 @@ class TestInlineConfigsAreStored:
         assert not stored.get("evaluation_configs")
 
 
+@pytest.mark.integration
+class TestRunConfigSaveReMirrorsSheets:
+    """A run that saves its configs on the project is a writer of the
+    methods: when they all grade on their own scale, the sheets' task-data
+    mirrors lose the Notenschlüssel the sheet was activated with."""
+
+    @pytest.fixture
+    def bleu_has_own_scale(self):
+        from rubric_structure import register_own_scale_metric, unregister_own_scale_metric
+
+        register_own_scale_metric(CONFIG["metric"])
+        yield
+        unregister_own_scale_metric(CONFIG["metric"])
+
+    def test_own_scale_run_configs_drop_the_key(
+        self, client, test_db, seeded, bleu_has_own_scale
+    ):
+        from project_models import TaskRubric
+        from rubric_structure import (
+            criteria_from_structure,
+            mirror_rubric_into_task_data,
+            normalize_structure,
+        )
+
+        user, project = seeded
+        task = test_db.query(Task).filter(Task.project_id == project.id).one()
+        structure = normalize_structure(
+            {
+                "version": 1,
+                "nodes": [
+                    {"id": "b", "level": 0, "kind": "step", "label": "I.", "title": "Rechtsweg", "max_score": 10},
+                ],
+            }
+        )
+        rubric = TaskRubric(
+            id=_uid(), task_id=task.id, project_id=project.id, title="Bogen",
+            criteria=criteria_from_structure(structure), total_points=10.0,
+            structure=structure, source="human", status="active",
+        )
+        test_db.add(rubric)
+        test_db.flush()
+        mirror_rubric_into_task_data(task, rubric, {})
+        test_db.commit()
+        assert "NOTENSCHLÜSSEL" in task.data["bewertungsbogen"]
+        task_id = task.id
+
+        resp = _run(client, user, {
+            "project_id": project.id,
+            "evaluation_configs": [CONFIG],
+            "model_ids": ["model-other"],
+        })
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        mirror = test_db.get(Task, task_id).data["bewertungsbogen"]
+        assert "NOTENSCHLÜSSEL" not in mirror
+        assert "Rechtsweg" in mirror
+
+
 def test_run_model_label():
     assert _run_model_label(["m"]) == "m"
     assert _run_model_label(["a", "b"]) == "unknown"

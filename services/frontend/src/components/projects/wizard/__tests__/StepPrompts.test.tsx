@@ -55,6 +55,13 @@ describe('StepPrompts', () => {
     jest.clearAllMocks()
   })
 
+  it('says the prompts apply to generation only, not to grading', () => {
+    renderStep()
+    expect(
+      screen.getByTestId('wizard-prompts-generation-only'),
+    ).toHaveTextContent('projects.creation.wizard.step6.generationOnly')
+  })
+
   describe('template selection', () => {
     it('seeds system + instruction prompts when a preset template is chosen', () => {
       const {

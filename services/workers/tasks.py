@@ -1602,7 +1602,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
         from mailer.branding import is_student_locked_host, resolve_email_brand
         from mailer.notification_links import (
             evaluation_received_path,
-            is_evaluation_received_type,
+            is_submission_notice_type,
         )
         from models import Notification, User
         try:
@@ -1629,11 +1629,11 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     skipped += 1
                     continue
 
-                # A grading email links to a page behind login. An account
-                # without a password (LTI-provisioned, or never activated)
-                # cannot sign in there directly, so it only gets the in-app
-                # notification.
-                if is_evaluation_received_type(notif_dict["type"]) and not getattr(
+                # A grading or returned-submission email links to a page
+                # behind login. An account without a password (LTI-provisioned,
+                # or never activated) cannot sign in there directly, so it only
+                # gets the in-app notification.
+                if is_submission_notice_type(notif_dict["type"]) and not getattr(
                     user, "hashed_password", None
                 ):
                     skipped += 1
@@ -1661,7 +1661,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                 )
                 brand = resolve_email_brand(brand_host)
                 email_context = {"user_name": getattr(user, "name", None)}
-                if is_evaluation_received_type(notif_dict["type"]):
+                if is_submission_notice_type(notif_dict["type"]):
                     student_surface = is_student_locked_host(brand_host) or (
                         getattr(user, "preferred_ui_mode", None) == "student"
                     )
@@ -2933,25 +2933,27 @@ def _notify_immediate_grading_received(
     """Tell the annotator their immediate AI grading is ready (opt-in type).
 
     Called only for a successful grading, and only when the run wrote at
-    least one TaskEvaluation row: a run that graded nothing has nothing to
-    show. Never raises.
+    least one TaskEvaluation row the annotator can see: a run that graded
+    nothing has nothing to show, and a feedback-only result held back for
+    the teacher (``metric_filters.row_awaits_release``) is announced by its
+    release, not here. Never raises.
     """
     if not annotation_id:
         return
     try:
+        from metric_filters import row_awaits_release
         from models import TaskEvaluation
         from notification_service import (
             annotator_ids_for_annotations,
             notify_evaluation_received,
         )
 
-        has_rows = (
-            db.query(TaskEvaluation.id)
+        rows = (
+            db.query(TaskEvaluation.metrics)
             .filter(TaskEvaluation.evaluation_id == evaluation_run_id)
-            .first()
-            is not None
+            .all()
         )
-        if not has_rows:
+        if not any(not row_awaits_release(metrics) for (metrics,) in rows):
             return
         notify_evaluation_received(
             db,
@@ -3015,10 +3017,13 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
     redelivered or re-finalized run cannot notify twice; a run with nobody to
-    tell (generation-only benchmarks) stays unmarked. Score-less feedback
-    rows (``details.feedback_only``, core 2.41) are a draft for the teacher,
-    who releases them later (the overlay notifies then), so they tell nobody
-    here. Never raises.
+    tell (generation-only benchmarks) stays unmarked. A score-less feedback
+    row (``details.feedback_only``, core 2.41) counts only when the judge
+    released it at write time (``details.review.status = "released"`` and
+    ``details.review.released_by = "judge"``). Any other feedback row, a draft
+    or a row a teacher released later, tells nobody here: the overlay's
+    release path announces a teacher's release, so a run resumed after one
+    cannot notify a second time. Never raises.
     """
     try:
         meta = evaluation.eval_metadata or {}
@@ -3042,6 +3047,11 @@ def _notify_batch_grading_received(db, evaluation) -> None:
                       SELECT 1 FROM jsonb_each(te.metrics) m
                       WHERE jsonb_typeof(m.value) = 'object'
                         AND m.value -> 'details' ->> 'feedback_only' = 'true'
+                        AND NOT COALESCE(
+                          m.value -> 'details' -> 'review' ->> 'status' = 'released'
+                          AND m.value -> 'details' -> 'review' ->> 'released_by' = 'judge',
+                          false
+                        )
                     ) END,
                     false
                   )

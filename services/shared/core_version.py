@@ -1757,7 +1757,104 @@ API change).
     implement, currently ``evaluation_method_selection``). An overlay's
     handshake test must not require any of them.
 
-2.77 (2026-11-24): sheet judges beyond the Bewertungsbogen judge, and
+2.77 (2026-11-24): preset method names in the reader's language; the
+  unused project publish flag is no longer mapped or served (migration 153).
+  - Frontend metric registry: ``AvailableMetric.presetNameKeys``, the i18n
+    keys of the names an overlay's presets store as a config's
+    ``display_name``. ``localizedEvalConfigName(config, t)``
+    (``@/lib/evaluation/evalName``, ``config`` carrying ``display_name``,
+    ``metric`` and ``metric_parameters``) renders a stored name that is
+    still the metric's own name or one of those keys, in any UI language,
+    in the reader's language: alone, or followed by exactly the judge-model
+    suffix ``computeDefaultEvalName`` appends for the config's parameters
+    (kept as is). Any other name, also one with another ``(...)`` suffix,
+    was typed and stays as stored. Display only: configs are still matched
+    by their stored name.
+  - ``projects.is_published`` is no longer mapped or served (no code read
+    it; visibility, archiving and the access window decide who sees a
+    project). ``Project``, ``ProjectUpdate`` and ``ProjectResponse`` no
+    longer carry it, and project exports no longer write it (imports ignore
+    it). Migration 153 only gives the column a server default FALSE, so pods
+    still on the old model keep working during a rollout or rollback; the
+    column is dropped in a later release.
+    ``project_reports.is_published`` is unchanged.
+
+2.78 (2026-11-24): grading sheet import and Korrektur comment fields
+  (migration 154, additive).
+  - ``korrektur_comments.highlight_field`` (nullable): the label-config name
+    of the field a highlighted passage was marked in.
+    ``project_schemas.KorrekturCommentCreate`` / ``KorrekturCommentResponse``
+    carry it, the project export and both imports round-trip it.
+  - ``rubric_import.parse_rubric_file`` returns ``declared_total`` (the total
+    the file states, or ``None``) and warnings may carry the values they
+    name (``declared``, ``computed``, ``column``, ``read_column``, ``rows``,
+    ``sheets``, ``read_sheet``); new warning codes ``columns_ignored`` and
+    ``sheets_ignored``. A total row no longer ends the outline.
+  - ``rubric_structure.register_own_scale_metric`` (an extension package
+    declares a metric that grades on its own scale),
+    ``unregister_own_scale_metric``, ``metric_has_own_scale``,
+    ``grade_scale_applies`` and ``rubric_mirror_text``: the task-data mirror
+    of a sheet leaves the Notenschlüssel out when every enabled method is
+    registered as grading on its own scale. Saving the methods re-renders
+    the mirrors when that answer changes.
+
+2.79 (2026-11-24): gradings held back for a release (migration 155,
+  additive).
+  - Notification type ``evaluation_released`` (migration 155 adds it to
+    the ``notificationtype`` enum): a teacher released a grading that was
+    held back for review. ``notify_evaluation_received(source="release")``
+    sends it; default channels in-app and email on, and like every type
+    each recipient switches it in the notification settings (both channels
+    honour the stored preference). The email reuses
+    ``evaluation_received.html`` and the link the other grading types use.
+  - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
+    row holds a feedback-only result (``details.feedback_only``, core 2.41)
+    that is not released yet (``details.review.status != "released"``).
+    The immediate grading notice (``evaluation_received_immediate``) skips
+    a run whose rows all wait for their release, so a held-back draft no
+    longer announces "AI grading ready"; the batch notice
+    (``evaluation_received_batch``) counts a feedback row only when the
+    judge released it at write time (``details.review.released_by =
+    "judge"``, a field the overlay writes); a draft or a row a teacher
+    released tells nobody there. Announcing a teacher's release stays with
+    the overlay that releases.
+  - Slot ``ProjectReleaseReviewPage`` (props ``{projectId}``) on
+    ``/projects/[id]/release-review``: the page where a project's editors
+    review held-back gradings and release them. Without the slot the route
+    says it needs the extended edition.
+
+2.80 (2026-11-24): withdrawing a submission (migration 156, additive).
+  - ``annotations.withdrawn_at`` / ``withdrawn_by`` / ``withdrawal_reason``
+    (``Annotation`` model, ``AnnotationResponse``, the data export and both
+    imports). A withdrawal keeps the row, sets ``was_cancelled`` and records
+    who, when and why; ``withdrawn_by != completed_by`` marks a return by a
+    project editor. ``annotation_submission.withdraw_submission(db,
+    annotation, actor_id=, reason=)`` is the one writer (row lock, task
+    counters, ``is_labeled``; no commit) and raises
+    ``SubmissionAlreadyWithdrawn``.
+  - ``POST /projects/annotations/{id}/withdraw`` (``{"reason": str}``,
+    required, at most ``project_schemas.WITHDRAWAL_REASON_MAX_LENGTH``
+    characters): the author through the write gates of an edit, anyone else
+    with ``check_user_can_edit_project`` rights; 409 ``annotation_withdrawn``
+    for a cancelled row. ``PATCH /projects/annotations/{id}`` no longer
+    changes ``was_cancelled``: 409 ``annotation_withdrawn`` on a cancelled
+    row, 422 ``withdrawal_reason_required`` for ``was_cancelled: true``.
+  - New hook keys (CALL_ALL, ALWAYS), both called with a sync session inside
+    the withdrawing transaction: ``before_annotation_withdraw(db,
+    annotation, actor_id, *, by_author)`` refuses with
+    ``AnnotationWriteRejected``; ``on_annotation_withdrawn(db, annotation,
+    actor_id, *, by_author, reason)`` runs after the row is marked and
+    before the commit (must not commit; an exception rolls the withdrawal
+    back).
+  - ``NotificationType.SUBMISSION_RETURNED`` (``submission_returned``, in-app
+    and e-mail by default) sent by the platform after a return
+    (``notification_service.notify_submission_returned``);
+    ``notification_links.SUBMISSION_NOTICE_TYPES`` /
+    ``is_submission_notice_type`` (the grading notices plus this one) open
+    the submission's page. Frontend: ``projectsAPI.withdrawAnnotation(id,
+    reason)``, ``Annotation.withdrawn_*``, ``isSubmissionNoticeType``.
+
+2.81 (2026-11-24): sheet judges beyond the Bewertungsbogen judge, and
   sheets graded by argument (no migration, additive).
   - ``task_rubric_resolution.is_rubric_judge(config)`` is also true for any
     config whose ``metric_parameters`` say ``use_task_rubric: true``
@@ -1788,7 +1885,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.77"
+CORE_API_VERSION = "2.81"
 
 
 def extended_required() -> bool:

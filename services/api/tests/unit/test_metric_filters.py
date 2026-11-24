@@ -12,6 +12,7 @@ from metric_filters import (
     GRADE_POINT_LIFT_BASES,
     metric_key_counts_as_evaluation,
     metric_key_is_real,
+    row_awaits_release,
 )
 
 
@@ -117,3 +118,24 @@ class TestGradePointLiftBases:
         for base in GRADE_POINT_LIFT_BASES:
             assert metric_key_is_real(f"{base}_grade_points") is True
 
+
+class TestRowAwaitsRelease:
+    @staticmethod
+    def _feedback(review=None):
+        details = {"feedback_only": True}
+        if review is not None:
+            details["review"] = review
+        return {"llm_judge_feedback": {"value": None, "details": details}}
+
+    def test_a_held_back_feedback_row_waits(self):
+        assert row_awaits_release(self._feedback()) is True
+        assert row_awaits_release(self._feedback({"status": "draft"})) is True
+
+    def test_a_released_feedback_row_does_not_wait(self):
+        assert row_awaits_release(self._feedback({"status": "released"})) is False
+
+    def test_scored_and_odd_rows_do_not_wait(self):
+        assert row_awaits_release({"exact_match": 1.0}) is False
+        assert row_awaits_release({"llm_judge_falloesung": {"value": 0.7, "details": {}}}) is False
+        assert row_awaits_release({}) is False
+        assert row_awaits_release(None) is False

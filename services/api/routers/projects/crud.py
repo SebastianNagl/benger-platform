@@ -21,11 +21,7 @@ from celery_client import send_task_safe
 from database import SessionLocal, get_async_db
 from feature_flags.deps import flag_on
 from feature_flags.registry import VARIANT_EXPERIMENTS
-from grade_scale_history import (
-    GRADE_SCALE_KEY,
-    apply_grade_scale_write,
-    grade_scale_changed,
-)
+from grade_scale_history import apply_grade_scale_write
 from services.analysis_plans import (
     ANALYSIS_PLANS_KEY,
     apply_analysis_plans_write,
@@ -90,7 +86,7 @@ from routers.projects.helpers import (
     TIER_PARTICIPANT,
     resolve_project_roles_batch_async,
 )
-from task_rubric_service import remirror_project_rubrics
+from task_rubric_service import remirror_project_rubrics, rubric_mirrors_changed
 # Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
 # working for existing importers (tests) after the local copy was removed.
 from utils.json_merge import deep_merge_dicts
@@ -1027,9 +1023,7 @@ async def update_project(
 
     grade_scale_moved = False
     if eval_config_after is not None:
-        grade_scale_moved = grade_scale_changed(
-            eval_config_before.get(GRADE_SCALE_KEY), eval_config_after.get(GRADE_SCALE_KEY)
-        )
+        grade_scale_moved = rubric_mirrors_changed(eval_config_before, eval_config_after)
         project.evaluation_config = eval_config_after
         flag_modified(project, "evaluation_config")
         logger.info(f"Project {project_id}: Deep merged evaluation_config update")
@@ -1061,7 +1055,8 @@ async def update_project(
                 setattr(project, field, value)
 
     # The grading sheets' task-data mirrors end in the key that grades the
-    # exam; a key change re-renders them in the same transaction.
+    # exam (or carry none when no method grades on it); a change of either
+    # re-renders them in the same transaction.
     if grade_scale_moved:
         await remirror_project_rubrics(db, project.id, project.evaluation_config)
 

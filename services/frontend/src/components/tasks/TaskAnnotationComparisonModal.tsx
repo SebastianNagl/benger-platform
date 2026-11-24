@@ -16,6 +16,7 @@ import type {
 } from '@/types/labelStudio'
 import { Dialog, DialogPanel, DialogTitle, Tab } from '@headlessui/react'
 import {
+  ArrowUturnLeftIcon,
   CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
@@ -38,12 +39,15 @@ interface TaskAnnotationComparisonModalProps {
   readOnly?: boolean
 }
 
+type AnnotatorStatus =
+  'draft' | 'submitted' | 'approved' | 'rejected' | 'withdrawn'
+
 interface AnnotatorTab {
   userId: string
   username: string
   email: string
   annotations: Annotation[]
-  status: 'draft' | 'submitted' | 'approved' | 'rejected'
+  status: AnnotatorStatus
   lastUpdated: string
   displayedAnnotations?: number // For lazy loading
 }
@@ -155,9 +159,14 @@ export function TaskAnnotationComparisonModal({
           `Annotator ${userId ? userId.substring(0, 8) : 'Unknown'}`
         const email = userInfo?.email || ''
 
-        // Determine status based on annotation properties
-        const status = latestAnnotation.was_cancelled
-          ? 'draft'
+        // Determine status based on annotation properties. A withdrawn
+        // submission (taken back by its author or returned by an editor) is
+        // its own state; a row cancelled without a withdrawal record stays a
+        // draft as before.
+        const status: AnnotatorStatus = latestAnnotation.was_cancelled
+          ? latestAnnotation.withdrawn_at
+            ? 'withdrawn'
+            : 'draft'
           : latestAnnotation.ground_truth
             ? 'approved'
             : 'submitted'
@@ -171,7 +180,7 @@ export function TaskAnnotationComparisonModal({
             const dateB = new Date(b.updated_at || b.created_at).getTime()
             return dateB - dateA
           }),
-          status: status as 'draft' | 'submitted' | 'approved' | 'rejected',
+          status,
           lastUpdated:
             latestAnnotation.updated_at || latestAnnotation.created_at,
         })
@@ -240,6 +249,8 @@ export function TaskAnnotationComparisonModal({
         return <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
       case 'rejected':
         return <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
+      case 'withdrawn':
+        return <ArrowUturnLeftIcon className="h-4 w-4 text-red-600" />
       case 'draft':
       default:
         return <ClockIcon className="h-4 w-4 text-zinc-500" />
@@ -253,6 +264,7 @@ export function TaskAnnotationComparisonModal({
       case 'approved':
         return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
       case 'rejected':
+      case 'withdrawn':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
       case 'draft':
       default:
@@ -362,8 +374,49 @@ export function TaskAnnotationComparisonModal({
     return <p className="wrap-break-word whitespace-pre-wrap">{stringValue}</p>
   }
 
+  const renderWithdrawal = (annotation: Annotation) => {
+    if (!annotation.was_cancelled || !annotation.withdrawn_at) return null
+    const date = new Date(annotation.withdrawn_at).toLocaleString(
+      intlTag(locale),
+    )
+    const returned =
+      !!annotation.withdrawn_by &&
+      annotation.withdrawn_by !== annotation.completed_by
+    const editor = returned ? users.get(annotation.withdrawn_by!) : undefined
+    return (
+      <div
+        className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300"
+        data-testid="annotation-withdrawal"
+      >
+        <p className="font-medium">
+          {returned
+            ? t('annotation.comparison.withdrawal.returned', {
+                date,
+                name:
+                  editor?.username ||
+                  editor?.full_name ||
+                  t('annotation.comparison.withdrawal.editor'),
+              })
+            : t('annotation.comparison.withdrawal.withdrawn', { date })}
+        </p>
+        {annotation.withdrawal_reason && (
+          <p className="mt-1 whitespace-pre-line">
+            {t('annotation.comparison.withdrawal.reason', {
+              reason: annotation.withdrawal_reason,
+            })}
+          </p>
+        )}
+      </div>
+    )
+  }
+
   const renderAnnotationFields = (annotation: Annotation) => {
-    return renderAnnotationResult(annotation.result || [])
+    return (
+      <>
+        {renderWithdrawal(annotation)}
+        {renderAnnotationResult(annotation.result || [])}
+      </>
+    )
   }
 
   if (!task) return null
