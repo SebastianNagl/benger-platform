@@ -1107,15 +1107,7 @@
       "title": "Generierungskonfiguration"
     },
     "evaluationSettings": {
-      "title": "Evaluierungseinstellungen",
-      "korrekturBlindToPeers": "Blinde Korrektur (andere Korrektoren)",
-      "korrekturBlindToPeersHint": "Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturBlindToLlm": "Blinde Korrektur (LLM-Vorbewertung)",
-      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturBlindToNonJudge": "Blinde Korrektur (klassische Metriken)",
-      "korrekturBlindToNonJudgeHint": "Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast",
-      "korrekturKeepBlindAfterSubmit": "Blind auch nach eigener Bewertung",
-      "korrekturKeepBlindAfterSubmitHint": "Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast"
+      "title": "Evaluierungseinstellungen"
     },
     "evaluationMethods": {
       "title": "Evaluierungsmethoden"

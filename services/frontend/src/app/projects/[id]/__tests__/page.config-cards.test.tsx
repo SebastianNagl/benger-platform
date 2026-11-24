@@ -11,9 +11,10 @@
  *  - saveGenerationCard → handleSaveModels + handleSaveGenDefaults payloads,
  *    triggered by the debounce timer
  *  - generation/evaluation "start" footer CTAs opening the page-level modals
- *  - the korrektur blind toggles + immediate-evaluation buffer →
- *    saveEvaluationCard payloads (config-shaped, NOT extended logic; the
- *    persistence lives in platform, see workspace split rule)
+ *  - the immediate-evaluation buffer and the evaluation-settings extension
+ *    slot → saveEvaluationCard payloads (the slot hands back a changed
+ *    config list; the platform owns the save sequencing, the extension owns
+ *    what the rows mean)
  *  - the annotation card auto-save wiring through LabelConfigEditor's
  *    onConfigChange + imperative ref save
  *  - instructions + conditional-instructions editing
@@ -171,8 +172,49 @@ jest.mock('@/components/projects/LabelConfigEditor', () => {
 // "extended build mounts it" and the "community build renders nothing extra"
 // halves of the contract are pinned. `mock` prefix = hoist-safe.
 let mockGradeScaleSlotRegistered = false
+// Evaluation-settings section slot: the stub shows the config list it
+// received and, on click, hands back a list with one parameter changed on the
+// first config, the way an extension row edits a config.
+let mockEvalSettingsSlotRegistered = false
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => {
+    if (name === 'project-evaluation-settings-section') {
+      if (!mockEvalSettingsSlotRegistered) return null
+      const EvalSettingsStub = ({
+        projectId,
+        evaluationConfigs,
+        onEvaluationConfigsChange,
+      }: any) => (
+        <div
+          data-testid="eval-settings-slot"
+          data-project-id={projectId}
+          data-configs={JSON.stringify(evaluationConfigs)}
+        >
+          <button
+            data-testid="eval-settings-slot-change"
+            onClick={() =>
+              onEvaluationConfigsChange(
+                evaluationConfigs.map((c: any, i: number) =>
+                  i === 0
+                    ? {
+                        ...c,
+                        metric_parameters: {
+                          ...(c.metric_parameters || {}),
+                          some_policy_flag: false,
+                        },
+                      }
+                    : c,
+                ),
+              )
+            }
+          >
+            change
+          </button>
+        </div>
+      )
+      EvalSettingsStub.displayName = 'EvalSettingsStub'
+      return EvalSettingsStub
+    }
     if (name !== 'project-evaluation-grade-scale') return null
     if (!mockGradeScaleSlotRegistered) return null
     const GradeScaleStub = ({ projectId, evaluationConfig }: any) => (
@@ -354,6 +396,7 @@ const flushAutosave = async () => {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockEvalSettingsSlotRegistered = false
   mockLabelSave.mockClear().mockResolvedValue(undefined)
   mockLabelIsDirty = () => true
   mockLabelHasErrors = () => false
@@ -703,18 +746,17 @@ describe('Generation card — defaults and start CTA', () => {
 
 // ── Evaluation card ───────────────────────────────────────────────────────
 describe('Evaluation card', () => {
-  it('hydrates the korrektur blind toggles from the saved metric_parameters', async () => {
-    // evaluation-config GET returns a korrektur_falloesung config with one
-    // explicit false → that toggle should render unchecked, others default true.
+  it('mounts the evaluation-settings slot with the configs being edited and saves what it hands back', async () => {
+    mockEvalSettingsSlotRegistered = true
     ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/evaluation-config')) {
         return Promise.resolve({
           evaluation_configs: [
             {
               id: 'e1',
-              metric: 'korrektur_falloesung',
+              metric: 'some_metric',
               enabled: true,
-              metric_parameters: { blind_to_llm_judge: false },
+              metric_parameters: { keep: 1 },
             },
           ],
         })
@@ -725,33 +767,68 @@ describe('Evaluation card', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
 
-    // The blind sub-toggles only render when a korrektur_falloesung config
-    // exists — wait for hydration.
-    const blindLlm = await screen.findByText(
-      'project.evaluationSettings.korrekturBlindToLlm',
-    )
+    // Rendered inside the Evaluation settings sub-section, with the loaded
+    // list and the project id.
     const evalSettings = screen.getByTestId(
       'subsection-project.evaluationSettings.title',
     )
-    const checkboxes = within(evalSettings).getAllByRole('checkbox')
-    // Order: immediate-eval, blindToPeers(true), blindToLlm(false), blindToNonJudge(true), keepBlind(false)
-    expect(blindLlm).toBeInTheDocument()
-    expect(checkboxes[2]).not.toBeChecked() // blind_to_llm_judge: false
-    expect(checkboxes[1]).toBeChecked() // blind_to_peer_correctors defaults true
-    // Always-editable: none of the toggles is disabled (no edit mode).
-    for (const cb of checkboxes) {
-      expect(cb).not.toBeDisabled()
-    }
+    await waitFor(() => {
+      expect(
+        JSON.parse(
+          within(evalSettings)
+            .getByTestId('eval-settings-slot')
+            .getAttribute('data-configs')!,
+        ),
+      ).toHaveLength(1)
+    })
+    expect(screen.getByTestId('eval-settings-slot')).toHaveAttribute(
+      'data-project-id',
+      'proj-1',
+    )
+
+    // An unsaved change in the methods builder reaches the slot at once.
+    fireEvent.click(screen.getByTestId('eval-builder-add'))
+    expect(
+      JSON.parse(
+        screen.getByTestId('eval-settings-slot').getAttribute('data-configs')!,
+      ),
+    ).toHaveLength(2)
+
+    // The slot's change goes through the card's dirty + debounced save.
+    jest.useFakeTimers()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('eval-settings-slot-change'))
+    })
+    expect(
+      screen.getByTestId('card-dirty-project.evaluation.title'),
+    ).toBeInTheDocument()
+    expect(apiClient.put).not.toHaveBeenCalled()
+    await flushAutosave()
+    expect(apiClient.put).toHaveBeenCalledTimes(1)
+    expect(apiClient.put).toHaveBeenCalledWith(
+      '/evaluations/projects/proj-1/evaluation-config',
+      {
+        evaluation_configs: [
+          {
+            id: 'e1',
+            metric: 'some_metric',
+            enabled: true,
+            metric_parameters: { keep: 1, some_policy_flag: false },
+          },
+          { id: 'new-2', metric: 'bleu', enabled: true },
+        ],
+      },
+    )
   })
 
-  it('flipping immediate-eval auto-saves immediate-eval + eval defaults + blind params', async () => {
+  it('flipping immediate-eval auto-saves immediate-eval + eval defaults + the configs as loaded', async () => {
     ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/evaluation-config')) {
         return Promise.resolve({
           evaluation_configs: [
             {
               id: 'e1',
-              metric: 'korrektur_falloesung',
+              metric: 'some_metric',
               enabled: true,
               metric_parameters: {},
             },
@@ -763,7 +840,12 @@ describe('Evaluation card', () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
-    await screen.findByText('project.evaluationSettings.korrekturBlindToLlm')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
+    })
 
     // Flip immediate-eval on — no edit mode, the checkbox is live.
     jest.useFakeTimers()
@@ -771,6 +853,9 @@ describe('Evaluation card', () => {
       'subsection-project.evaluationSettings.title',
     )
     const checkboxes = within(evalSettings).getAllByRole('checkbox')
+    // Only the platform's own switch: no extension rows without a slot.
+    expect(checkboxes).toHaveLength(1)
+    expect(checkboxes[0]).not.toBeDisabled()
     await act(async () => {
       fireEvent.click(checkboxes[0]) // immediate_evaluation_enabled
     })
@@ -794,20 +879,20 @@ describe('Evaluation card', () => {
         }),
       }),
     )
-    // blind params written back to the korrektur config via PUT
+    // The configs PUT carries the list exactly as loaded: the platform adds
+    // no parameters of its own to any config.
     expect(apiClient.put).toHaveBeenCalledWith(
-      expect.stringContaining('/evaluation-config'),
-      expect.objectContaining({
-        evaluation_configs: expect.arrayContaining([
-          expect.objectContaining({
-            metric: 'korrektur_falloesung',
-            metric_parameters: expect.objectContaining({
-              blind_to_peer_correctors: true,
-              blind_to_llm_judge: true,
-            }),
-          }),
-        ]),
-      }),
+      '/evaluations/projects/proj-1/evaluation-config',
+      {
+        evaluation_configs: [
+          {
+            id: 'e1',
+            metric: 'some_metric',
+            enabled: true,
+            metric_parameters: {},
+          },
+        ],
+      },
     )
   })
 
@@ -818,7 +903,7 @@ describe('Evaluation card', () => {
           evaluation_configs: [
             {
               id: 'e1',
-              metric: 'korrektur_falloesung',
+              metric: 'some_metric',
               enabled: true,
               metric_parameters: {},
             },
@@ -841,7 +926,12 @@ describe('Evaluation card', () => {
     setStore()
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
-    await screen.findByText('project.evaluationSettings.korrekturBlindToLlm')
+    await waitFor(() => {
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
+    })
 
     const configPuts = () =>
       (apiClient.put as jest.Mock).mock.calls.filter(([url]) =>
@@ -877,7 +967,7 @@ describe('Evaluation card', () => {
     expect(warningToasts()).toHaveLength(1)
   })
 
-  it('hides blind toggles when no korrektur_falloesung config is present', async () => {
+  it('community build: the evaluation-settings slot renders nothing', async () => {
     ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/evaluation-config')) {
         return Promise.resolve({
@@ -890,11 +980,16 @@ describe('Evaluation card', () => {
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId('config-card-project.evaluation.title')
     await waitFor(() => {
-      expect(screen.getByTestId('evaluation-builder')).toBeInTheDocument()
+      expect(screen.getByTestId('evaluation-builder')).toHaveAttribute(
+        'data-count',
+        '1',
+      )
     })
-    expect(
-      screen.queryByText('project.evaluationSettings.korrekturBlindToLlm'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('eval-settings-slot')).not.toBeInTheDocument()
+    const evalSettings = screen.getByTestId(
+      'subsection-project.evaluationSettings.title',
+    )
+    expect(within(evalSettings).getAllByRole('checkbox')).toHaveLength(1)
   })
 
   it('the "Evaluierung starten" CTA opens the eval modal with only enabled configs', async () => {
@@ -1126,7 +1221,7 @@ describe('Evaluation card — save orchestration (issue #289)', () => {
     await act(async () => {})
 
     // Exactly one PUT, minimal body (no read-modify-write spread of the
-    // stored doc), fired without any korrektur_falloesung config present.
+    // stored doc).
     expect(apiClient.put).toHaveBeenCalledTimes(1)
     expect(apiClient.put).toHaveBeenCalledWith(
       '/evaluations/projects/proj-1/evaluation-config',
