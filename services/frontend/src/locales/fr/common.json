@@ -3336,6 +3336,10 @@
         "title": "Correction transmise : {project_title}",
         "message": "Votre enseignant a transmis la correction de votre copie dans « {project_title} »."
       },
+      "submission_returned": {
+        "title": "Remise renvoyée : {project_title}",
+        "message": "Votre remise dans « {project_title} » vous a été renvoyée. Motif : {reason}"
+      },
       "data_upload_completed": {
         "title": "Téléversement de données terminé : {task_name}",
         "message": "{upload_count} entrées de « {filename} » ont été téléversées dans la tâche « {task_name} »."
@@ -3903,6 +3907,8 @@
         "evaluationReceivedBatchDesc": "Recevoir des notifications lorsqu'une exécution d'évaluation a noté vos copies",
         "evaluationReleased": "Correction transmise",
         "evaluationReleasedDesc": "Recevoir des notifications lorsque votre enseignant transmet une correction de votre copie qu'il avait retenue pour relecture",
+        "submissionReturned": "Remise renvoyée",
+        "submissionReturnedDesc": "Recevoir des notifications lorsqu'une de vos remises vous a été renvoyée avec un motif",
         "dataUploadCompleted": "Téléversement de données terminé",
         "dataUploadCompletedDesc": "Recevoir des notifications lorsque le traitement des téléversements de données est terminé",
         "llmGenerationCompleted": "Génération LLM terminée",
@@ -6011,6 +6017,7 @@
       "annotation": "Annotation",
       "annotator": "Annotateur",
       "cancelled": "Annulé",
+      "withdrawn": "Retirée",
       "noAnnotationResults": "Aucun résultat d'annotation",
       "noAnnotationData": "Aucune donnée d'annotation disponible pour cette tâche",
       "clickToViewData": "Afficher les données disponibles (pas encore d'évaluation)",
@@ -7267,7 +7274,8 @@
         "submitted": "soumise",
         "approved": "approuvée",
         "rejected": "refusée",
-        "draft": "Brouillon"
+        "draft": "Brouillon",
+        "withdrawn": "retirée"
       },
       "buttons": {
         "addMyAnnotation": "Ajouter mon annotation",
@@ -7294,6 +7302,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} annotateur{plural}",
         "totalAnnotations": "{count} annotation{plural} au total"
+      },
+      "withdrawal": {
+        "withdrawn": "Retirée le {date}",
+        "returned": "Renvoyée le {date} par {name}",
+        "reason": "Motif : {reason}",
+        "editor": "une personne autorisée à modifier le projet"
       },
       "result": {
         "notAnswered": "Sans réponse",

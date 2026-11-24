@@ -674,6 +674,16 @@ class Annotation(Base):
     was_cancelled = Column(Boolean, default=False, nullable=False)
     ground_truth = Column(Boolean, default=False, nullable=False)
 
+    # Withdrawal (migration 156): a submission taken back after it was handed
+    # in, by its author or returned by a project editor. The row and its data
+    # stay; ``was_cancelled`` is set with these, so every reader that skips
+    # cancelled rows skips it too. ``withdrawn_by`` differs from
+    # ``completed_by`` when an editor returned it. Written only through
+    # ``annotation_submission.withdraw_submission``.
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    withdrawn_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    withdrawal_reason = Column(Text, nullable=True)
+
     # Metrics
     lead_time = Column(Float, nullable=True)  # Time in seconds
     auto_submitted = Column(

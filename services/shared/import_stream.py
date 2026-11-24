@@ -875,6 +875,8 @@ def run_nested_import(
                     import_user_ids.add(ann["completed_by"])
                 if ann.get("reviewed_by"):
                     import_user_ids.add(ann["reviewed_by"])
+                if ann.get("withdrawn_by"):
+                    import_user_ids.add(ann["withdrawn_by"])
             # Grader identity on human-graded evaluation rows (korrektur):
             # created_by is FK'd to users and is part of the per-cell unique
             # key — dropping it collapses multi-rater grades of the same
@@ -1120,6 +1122,10 @@ def run_nested_import(
                 review_result=ann_data.get("review_result"),
                 review_annotation=ann_data.get("review_annotation"),
                 review_comment=ann_data.get("review_comment"),
+                # Withdrawal record (who took the submission back, when, why).
+                withdrawn_at=_parse_iso(ann_data.get("withdrawn_at")),
+                withdrawn_by=ann_data.get("withdrawn_by"),
+                withdrawal_reason=ann_data.get("withdrawal_reason"),
                 # Enhanced timing (Issue #1208).
                 active_duration_ms=ann_data.get("active_duration_ms"),
                 focused_duration_ms=ann_data.get("focused_duration_ms"),
@@ -2468,6 +2474,13 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
             review_result=annotation_data.get("review_result"),
             review_annotation=annotation_data.get("review_annotation"),
             review_comment=annotation_data.get("review_comment"),
+            # Withdrawal record (who took the submission back, when, why).
+            withdrawn_at=_parse_iso(annotation_data.get("withdrawn_at")),
+            withdrawn_by=ctx.id_mappings["users"].get(
+                annotation_data.get("withdrawn_by"),
+                annotation_data.get("withdrawn_by"),
+            ),
+            withdrawal_reason=annotation_data.get("withdrawal_reason"),
             **_timestamps(annotation_data, "created_at", "updated_at"),
         )
 

@@ -64,6 +64,9 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: ({ className }: any) => (
     <div className={className}>ArrowPathIcon</div>
   ),
+  ArrowUturnLeftIcon: ({ className }: any) => (
+    <div className={className}>ArrowUturnLeftIcon</div>
+  ),
   BellIcon: ({ className }: any) => <div className={className}>BellIcon</div>,
   CheckCircleIcon: ({ className }: any) => (
     <div className={className}>CheckCircleIcon</div>
@@ -321,7 +324,7 @@ describe('NotificationSettingsPage', () => {
       expect(screen.getByText('Project Created')).toBeInTheDocument()
     })
 
-    it('shows only the grading types in the student shell', async () => {
+    it('shows only the own-submission types in the student shell', async () => {
       mockUiMode.mockReturnValue('student')
       render(<NotificationSettingsPage />)
 
@@ -341,13 +344,18 @@ describe('NotificationSettingsPage', () => {
       expect(
         screen.getByTestId('settings-notification-toggle-evaluation_released'),
       ).toBeInTheDocument()
+      // A returned submission concerns the student's own work too.
+      expect(
+        screen.getByTestId('settings-notification-toggle-submission_returned'),
+      ).toBeInTheDocument()
       expect(screen.queryByText('Project Created')).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('settings-notification-toggle-project_created'),
       ).not.toBeInTheDocument()
-      // Human gradings and teacher releases are on by default.
+      // Human gradings, teacher releases and returned submissions are on by
+      // default.
       expect(
-        screen.getByText('2 of 4 notification types enabled'),
+        screen.getByText('3 of 5 notification types enabled'),
       ).toBeInTheDocument()
     })
 

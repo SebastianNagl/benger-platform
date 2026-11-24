@@ -44,8 +44,10 @@ export function AnnotationCreator({
     try {
       let finalAnnotation: Annotation
 
-      if (initialAnnotation) {
-        // Update existing annotation to be a final submission
+      if (initialAnnotation && !initialAnnotation.was_cancelled) {
+        // Update existing annotation to be a final submission. A withdrawn
+        // (cancelled) one is a closed record the API refuses to edit, so
+        // handing in again creates a new submission below.
         finalAnnotation = await projectsAPI.updateAnnotation(
           initialAnnotation.id,
           {

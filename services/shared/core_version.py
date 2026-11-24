@@ -1822,11 +1822,42 @@ API change).
     ``/projects/[id]/release-review``: the page where a project's editors
     review held-back gradings and release them. Without the slot the route
     says it needs the extended edition.
+
+2.80 (2026-11-24): withdrawing a submission (migration 156, additive).
+  - ``annotations.withdrawn_at`` / ``withdrawn_by`` / ``withdrawal_reason``
+    (``Annotation`` model, ``AnnotationResponse``, the data export and both
+    imports). A withdrawal keeps the row, sets ``was_cancelled`` and records
+    who, when and why; ``withdrawn_by != completed_by`` marks a return by a
+    project editor. ``annotation_submission.withdraw_submission(db,
+    annotation, actor_id=, reason=)`` is the one writer (row lock, task
+    counters, ``is_labeled``; no commit) and raises
+    ``SubmissionAlreadyWithdrawn``.
+  - ``POST /projects/annotations/{id}/withdraw`` (``{"reason": str}``,
+    required, at most ``project_schemas.WITHDRAWAL_REASON_MAX_LENGTH``
+    characters): the author through the write gates of an edit, anyone else
+    with ``check_user_can_edit_project`` rights; 409 ``annotation_withdrawn``
+    for a cancelled row. ``PATCH /projects/annotations/{id}`` no longer
+    changes ``was_cancelled``: 409 ``annotation_withdrawn`` on a cancelled
+    row, 422 ``withdrawal_reason_required`` for ``was_cancelled: true``.
+  - New hook keys (CALL_ALL, ALWAYS), both called with a sync session inside
+    the withdrawing transaction: ``before_annotation_withdraw(db,
+    annotation, actor_id, *, by_author)`` refuses with
+    ``AnnotationWriteRejected``; ``on_annotation_withdrawn(db, annotation,
+    actor_id, *, by_author, reason)`` runs after the row is marked and
+    before the commit (must not commit; an exception rolls the withdrawal
+    back).
+  - ``NotificationType.SUBMISSION_RETURNED`` (``submission_returned``, in-app
+    and e-mail by default) sent by the platform after a return
+    (``notification_service.notify_submission_returned``);
+    ``notification_links.SUBMISSION_NOTICE_TYPES`` /
+    ``is_submission_notice_type`` (the grading notices plus this one) open
+    the submission's page. Frontend: ``projectsAPI.withdrawAnnotation(id,
+    reason)``, ``Annotation.withdrawn_*``, ``isSubmissionNoticeType``.
 """
 
 import os
 
-CORE_API_VERSION = "2.79"
+CORE_API_VERSION = "2.80"
 
 
 def extended_required() -> bool:

@@ -62,7 +62,14 @@ def _uid(prefix="x") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
 
 
+def _drop_column(conn) -> None:
+    """A test DB bootstrapped before this release still has the column (the
+    fixture keeps long-lived DBs); start every test from the model's schema."""
+    conn.execute(text("ALTER TABLE projects DROP COLUMN IF EXISTS is_published"))
+
+
 def _add_deployed_column(conn) -> None:
+    _drop_column(conn)
     conn.execute(text("ALTER TABLE projects ADD COLUMN is_published BOOLEAN NOT NULL"))
 
 
@@ -119,6 +126,7 @@ class TestMigration153:
 
     def test_both_directions_are_noops_without_the_column(self, test_db: Session):
         conn = test_db.get_bind()
+        _drop_column(conn)
         assert "is_published" not in _columns(conn, "projects")
         mig = _load_migration()
         with _op_context(conn):

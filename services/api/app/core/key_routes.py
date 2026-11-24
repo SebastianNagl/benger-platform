@@ -374,6 +374,7 @@ PLATFORM_RULES: List[KeyRule] = _flatten(
         area("/api/projects/tasks/{task_id}/annotations", ["annotations:read"], ["annotations:write"]),
         allow("/api/projects/tasks/{task_id}/metadata", "tasks:write", methods="PATCH"),
         allow("/api/projects/annotations/{annotation_id}", "annotations:write", methods="PATCH"),
+        allow("/api/projects/annotations/{annotation_id}/withdraw", "annotations:write", methods="POST"),
         # -- projects: one project ------------------------------------------ #
         never("/api/projects/{project_id}/wizard-draft*", note="creation-wizard drafts"),
         area(

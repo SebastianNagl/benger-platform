@@ -910,6 +910,9 @@ class TestSerializers:
             review_result = None
             review_annotation = None
             review_comment = None
+            withdrawn_at = None
+            withdrawn_by = None
+            withdrawal_reason = None
 
         result = serialize_annotation(FakeAnn(), mode="data")
         assert "questionnaire_response" in result
@@ -943,6 +946,9 @@ class TestSerializers:
             review_result = None
             review_annotation = None
             review_comment = None
+            withdrawn_at = None
+            withdrawn_by = None
+            withdrawal_reason = None
 
         result = serialize_annotation(FakeAnn(), mode="full")
         assert result["task_id"] == "t1"
