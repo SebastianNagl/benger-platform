@@ -161,6 +161,21 @@ async def test_account_delete_deletes_the_persons_files_not_the_ones_they_upload
     own = await _files_for(db, p, task_id, person)
     # A file the person uploaded for a classmate is the classmate's.
     for_classmate = await _files_for(db, p, task_id, classmate, uploader=person)
+    # A parked upload attached to the person shares the key of the
+    # submission file it became; the parked row outlives the account.
+    attached = _store()
+    db.add(SubmissionFile(
+        id=str(uuid.uuid4()), project_id=p.id, task_id=task_id, user_id=person.id,
+        storage_key=attached, original_filename="abgabe.pdf", size_bytes=10, sha256="2" * 64,
+        source_format="pdf",
+    ))
+    db.add(PendingSubmissionUpload(
+        id=str(uuid.uuid4()), project_id=p.id, task_id=task_id,
+        email=f"{uuid.uuid4().hex[:8]}@example.com", storage_key=attached,
+        original_filename="abgabe.pdf", source_format="pdf", extracted_text="Antwort",
+        status="attached", attached_user_id=person.id,
+    ))
+    await db.commit()
     person_id = person.id
 
     assert await db.run_sync(lambda s: delete_user(s, person_id)) is True
@@ -169,6 +184,11 @@ async def test_account_delete_deletes_the_persons_files_not_the_ones_they_upload
     assert _exists(for_classmate["file"]) and _exists(for_classmate["page"])
     # A parked upload belongs to the task, not to an account.
     assert _exists(own["parked"])
+    assert _exists(attached)
+    remaining = await db.execute(
+        select(PendingSubmissionUpload.attached_user_id).where(PendingSubmissionUpload.storage_key == attached)
+    )
+    assert remaining.scalars().all() == [None]
 
 
 async def test_task_file_keys_reads_every_table(async_test_db):

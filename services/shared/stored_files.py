@@ -18,9 +18,11 @@ tasks, purges a project or deletes an account collects the keys first with
 :func:`task_file_keys`, :func:`project_file_keys` or :func:`user_file_keys`
 and removes the objects with :func:`delete_stored_files` once the delete has
 committed. Every key is
-unique to its upload (``object_storage`` adds a random part), so a key of a
-removed row is not shared with a row that stays; a parked upload and the
-submission it became share a key, which the set of keys removes once.
+unique to its upload (``object_storage`` adds a random part), but a parked
+upload and the submission it became share a key, as do a transcribed page
+and its submission file. A task delete or project purge removes all of
+those rows together; an account delete keeps the parked upload, so
+:func:`user_file_keys` leaves out every key a remaining row still uses.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from __future__ import annotations
 import logging
 from typing import Iterable, List, Sequence, Set
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -98,14 +100,35 @@ def project_file_keys(db: Session, project_id: str) -> Set[str]:
 def user_file_keys(db: Session, user_id: str) -> Set[str]:
     """Keys of the stored files that cascade away with the account
     ``user_id``: the files and transcribed pages for that person (files they
-    uploaded for someone else stay with that person)."""
-    values: List = list(
-        db.execute(select(SubmissionFile.storage_key).where(SubmissionFile.user_id == user_id)).scalars()
-    )
-    values.extend(
-        db.execute(select(SubmissionOcrJob.page_keys).where(SubmissionOcrJob.user_id == user_id)).scalars()
-    )
-    return _keys(values)
+    uploaded for someone else stay with that person). A key that a row
+    outliving the account still references (a parked upload attached to the
+    person, another person's file or transcription) is left out."""
+    files = db.execute(
+        select(SubmissionFile.task_id, SubmissionFile.storage_key).where(SubmissionFile.user_id == user_id)
+    ).all()
+    jobs = db.execute(
+        select(SubmissionOcrJob.task_id, SubmissionOcrJob.page_keys).where(SubmissionOcrJob.user_id == user_id)
+    ).all()
+    keys = _keys([value for _, value in files] + [value for _, value in jobs])
+    if not keys:
+        return keys
+    task_ids = list({task_id for task_id, _ in files} | {task_id for task_id, _ in jobs})
+    kept: List = []
+    for stmt in (
+        select(SubmissionFile.storage_key).where(
+            SubmissionFile.task_id.in_(task_ids), SubmissionFile.user_id != user_id
+        ),
+        select(PendingSubmissionUpload.storage_key).where(
+            PendingSubmissionUpload.task_id.in_(task_ids),
+            PendingSubmissionUpload.storage_key.isnot(None),
+        ),
+        select(SubmissionOcrJob.page_keys).where(
+            SubmissionOcrJob.task_id.in_(task_ids),
+            or_(SubmissionOcrJob.user_id.is_(None), SubmissionOcrJob.user_id != user_id),
+        ),
+    ):
+        kept.extend(db.execute(stmt).scalars())
+    return keys - _keys(kept)
 
 
 def delete_stored_files(keys: Iterable[str], *, what: str = "stored file") -> int:

@@ -1903,8 +1903,9 @@ API change).
     ``ooxml``: the size-guarded zip member reader (``read_member``,
     ``MemberTooLarge``, ``MAX_MEMBER_BYTES``) and namespace-agnostic element
     helpers. The grading sheet importer reads through both, with unchanged
-    results and messages (a CSV sheet is now capped at the same 2000 rows
-    as an XLSX one).
+    results (a CSV sheet is now capped at the same 2000 rows as an XLSX
+    one); its ``too_many_rows`` message now states the limit for every
+    format.
   - ``submission_files.purpose`` (``project_models.SUBMISSION_FILE_PURPOSES``:
     ``submission``, the default and every existing row, or ``grading``, a
     file a grader returned with a grading) and
