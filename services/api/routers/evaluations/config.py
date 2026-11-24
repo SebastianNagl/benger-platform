@@ -15,11 +15,7 @@ import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db, get_db
-from grade_scale_history import (
-    GRADE_SCALE_KEY,
-    apply_grade_scale_write,
-    grade_scale_changed,
-)
+from grade_scale_history import GRADE_SCALE_KEY, apply_grade_scale_write
 from feature_flags.deps import flag_on_sync
 from feature_flags.registry import VARIANT_EXPERIMENTS
 from services.analysis_plans import (
@@ -43,8 +39,7 @@ from routers.projects.helpers import (
 )
 from label_config_repeater import has_repeater
 from metric_filters import is_reference_free
-from rubric_structure import grade_scale_applies
-from task_rubric_service import remirror_project_rubrics_sync
+from task_rubric_service import remirror_project_rubrics_sync, rubric_mirrors_changed
 from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
@@ -921,12 +916,7 @@ def update_project_evaluation_config(
         # grades the exam (or carries none when no method grades on it), and
         # is otherwise refreshed only when a sheet is activated or edited. A
         # change of either re-renders them in the same transaction.
-        if grade_scale_changed(
-            stored_config.get(GRADE_SCALE_KEY),
-            (project.evaluation_config or {}).get(GRADE_SCALE_KEY),
-        ) or grade_scale_applies(stored_config) != grade_scale_applies(
-            project.evaluation_config
-        ):
+        if rubric_mirrors_changed(stored_config, project.evaluation_config):
             remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
 
         db.commit()

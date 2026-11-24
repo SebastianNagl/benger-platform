@@ -42,9 +42,11 @@ from sqlalchemy import and_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
+from grade_scale_history import GRADE_SCALE_KEY, grade_scale_changed
 from project_models import Project, Task, TaskRubric
 from rubric_structure import (
     criteria_from_structure,
+    grade_scale_applies,
     mirror_rubric_into_task_data,
     normalize_grade_scale,
     normalize_structure,
@@ -575,6 +577,18 @@ async def remirror_project_rubrics(
             project_id,
         )
     return changed
+
+
+def rubric_mirrors_changed(old_config: Any, new_config: Any) -> bool:
+    """Whether saving ``new_config`` over ``old_config`` (a project's
+    ``evaluation_config``) changes what the sheets' task-data mirrors show:
+    the key that grades the exam, or whether a key is shown at all
+    (``grade_scale_applies``). Every writer of the config re-mirrors on it."""
+    old = old_config if isinstance(old_config, dict) else {}
+    new = new_config if isinstance(new_config, dict) else {}
+    return grade_scale_changed(
+        old.get(GRADE_SCALE_KEY), new.get(GRADE_SCALE_KEY)
+    ) or grade_scale_applies(old) != grade_scale_applies(new)
 
 
 def remirror_project_rubrics_sync(db: Session, project_id: str, project_config: Any) -> int:

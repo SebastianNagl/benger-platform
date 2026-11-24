@@ -1206,8 +1206,8 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
     back until a scored or labelled row shows the outline goes on (then they
     are read in order), so a trailer below the final total never becomes a
     hint. ``declared_total`` is the stated value of the last total row when
-    no step follows it. Only the Notenschlüssel heading, or a grade key right
-    after a total row, ends the outline.
+    no step follows it. Only the Notenschlüssel heading, or a grade key or a
+    trailer ("Note", "Korrektor") right after a total row, ends the outline.
     """
     nodes: List[_Node] = []
     stack: List[_Node] = []
@@ -1256,9 +1256,13 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             held = []
             continue
         if held is not None:
-            if raw.points is None and raw.auto_rank is None and not _has_outline_label(text):
-                held.append(raw)
-                continue
+            if raw.auto_rank is None and not _has_outline_label(text):
+                if _TRAILER_RE.match(text):
+                    stopped = True
+                    continue
+                if raw.points is None:
+                    held.append(raw)
+                    continue
             # The outline goes on: the total row was a subtotal.
             declared_total = None
             queue.extendleft(reversed(held + [raw]))

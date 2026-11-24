@@ -244,6 +244,34 @@ class TestTotalRowsAreNeverSteps:
         assert [s["title"] for s in _steps(result)] == ["a"]
         assert "points_invalid" not in _codes(result)
 
+    @pytest.mark.parametrize("trailer", ["Note", "Gesamtnote", "Ergibt"])
+    def test_a_trailer_with_a_value_after_the_final_total_ends_the_outline(self, trailer):
+        result = _parse(
+            [
+                {"A": "1. a", "B": 10},
+                {"A": "2. b", "B": 13},
+                {"A": "Gesamt", "B": 23},
+                {"A": trailer, "B": 12},
+            ]
+        )
+        assert [s["title"] for s in _steps(result)] == ["a", "b"]
+        assert result["total_points"] == 23
+        assert result["declared_total"] == 23
+
+    def test_a_trailer_after_a_mismatching_total_keeps_the_warning(self):
+        result = _parse(
+            [
+                {"A": "1. a", "B": 10},
+                {"A": "2. b", "B": 13},
+                {"A": "Gesamt", "B": 25},
+                {"A": "Note", "B": 12},
+            ]
+        )
+        assert result["declared_total"] == 25
+        warning = _warning(result, "total_mismatch")
+        assert warning["declared"] == 25
+        assert warning["computed"] == 23
+
     def test_a_range_in_the_text_column_after_the_total_ends_the_outline(self):
         result = _parse(
             [
