@@ -110,6 +110,7 @@ const mockGetProjectEvaluationResults = jest.fn()
 const mockGetProjectResultsByTaskModel = jest.fn()
 const mockGetTaskEvaluation = jest.fn()
 const mockApiClientGet = jest.fn()
+const mockGetProjectEvaluationMethods = jest.fn()
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: null }),
@@ -127,7 +128,11 @@ jest.mock('@/lib/api/client', () => ({
       mockGetProjectResultsByTaskModel(...args),
     getTaskEvaluation: (...args: any[]) => mockGetTaskEvaluation(...args),
     get: (...args: any[]) => mockApiClientGet(...args),
-    evaluations: { computeStatistics: jest.fn() },
+    evaluations: {
+      computeStatistics: jest.fn(),
+      getProjectEvaluationMethods: (...args: any[]) =>
+        mockGetProjectEvaluationMethods(...args),
+    },
   },
 }))
 
@@ -218,6 +223,7 @@ const DATA_VIEW_PROPS = {
 }
 
 function setupMocks() {
+  mockGetProjectEvaluationMethods.mockResolvedValue(null)
   mockGetProjectEvaluationResults.mockResolvedValue(makeProjectResults())
   mockGetProjectResultsByTaskModel.mockResolvedValue(makeTaskModelData())
   mockGetTask.mockResolvedValue({
@@ -476,7 +482,7 @@ describe('EvaluationResults - modal and handler coverage', () => {
     }
   })
 
-  it('marks history and research rows and scopes the fetch to the method', async () => {
+  it('marks history and research rows, unscoped without a selected method', async () => {
     mockGetTaskEvaluation.mockResolvedValue({
       results: [
         {
@@ -535,6 +541,84 @@ describe('EvaluationResults - modal and handler coverage', () => {
       expect(
         screen.getAllByText('evaluation.multiFieldResults.researchBadge'),
       ).toHaveLength(1)
+    })
+  })
+
+  it('scopes the modal fetch to the selected method group or config', async () => {
+    const groupedConfigs = ['judge-a', 'judge-b'].map((id) => ({
+      id,
+      metric: 'llm_judge_custom',
+      display_name: id,
+      metric_type: 'llm',
+      metric_parameters: {},
+      prediction_fields: ['human:loesung'],
+      reference_fields: ['task.musterloesung'],
+      enabled: true,
+    }))
+    const results = makeProjectResults()
+    results.evaluations[0].evaluation_configs = groupedConfigs
+    results.evaluations[0].results_by_config = {}
+    mockGetProjectEvaluationResults.mockResolvedValue(results)
+    mockGetProjectEvaluationMethods.mockResolvedValue({
+      groups: [
+        {
+          key: 'score',
+          method_key: 'group:score',
+          label: 'Score',
+          config_ids: ['judge-a', 'judge-b'],
+          default_official_config_id: 'judge-a',
+        },
+      ],
+      research_config_ids: ['judge-b'],
+    })
+
+    render(
+      <EvaluationResults
+        projectId="p1"
+        viewType="data"
+        evaluationConfigs={groupedConfigs}
+        selectedConfigIds={['judge-a', 'judge-b']}
+      />,
+    )
+    const openCell = async () => {
+      const cells = await screen.findAllByTitle(
+        'evaluation.multiFieldResults.clickToViewResponse',
+      )
+      await act(async () => {
+        fireEvent.click(cells[0])
+      })
+      await waitFor(() => expect(mockGetTaskEvaluation).toHaveBeenCalled())
+      return mockGetTaskEvaluation.mock.calls.at(-1)!
+    }
+
+    // Research data hidden: the group is the one entry, fetched as a group.
+    await waitFor(() => {
+      expect(
+        mockGetProjectResultsByTaskModel.mock.calls.some(
+          (c) => c[5]?.methodGroup === 'score',
+        ),
+      ).toBe(true)
+    })
+    expect((await openCell())[4]).toEqual({
+      methodGroup: 'score',
+      includeResearch: false,
+    })
+
+    // Research data shown: every config is its own entry again.
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: /showResearch/ }),
+    )
+    await waitFor(() => {
+      expect(
+        mockGetProjectResultsByTaskModel.mock.calls.some(
+          (c) => c[4] === 'judge-a',
+        ),
+      ).toBe(true)
+    })
+    mockGetTaskEvaluation.mockClear()
+    expect((await openCell())[4]).toEqual({
+      evaluationConfigIds: ['judge-a'],
+      includeResearch: true,
     })
   })
 
