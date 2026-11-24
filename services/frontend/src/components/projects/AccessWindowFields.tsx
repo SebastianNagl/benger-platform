@@ -42,9 +42,10 @@ interface AccessWindowFieldsProps {
   onChange: (value: AccessWindowValue) => void
   /**
    * Called with the value the user finished: on leaving or pressing Enter in
-   * a time field once both times are set, and on switching the window on or
-   * off. Unlike onChange it never fires for a time that is still being typed,
-   * and only the switch commits an empty window.
+   * a time field while at least one time is set (a single time is an
+   * open-ended window), and on switching the window on or off. Unlike
+   * onChange it never fires for a time that is still being typed, and only
+   * the switch commits an empty window.
    */
   onCommit?: (value: AccessWindowValue) => void
   disabled?: boolean
@@ -69,7 +70,7 @@ export function AccessWindowFields({
     onCommit?.(next)
   }
   const commitTimes = () => {
-    if (value.window_start_at && value.window_end_at) onCommit?.(value)
+    if (value.window_start_at || value.window_end_at) onCommit?.(value)
   }
   const commitOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') commitTimes()

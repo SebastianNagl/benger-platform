@@ -34,13 +34,6 @@ const sameWindow = (a: AccessWindowValue, b: AccessWindowValue) =>
   instant(a.window_start_at) === instant(b.window_start_at) &&
   instant(a.window_end_at) === instant(b.window_end_at)
 
-/** No window, or both bounds set and the window closes after it opens. */
-const isComplete = (value: AccessWindowValue) =>
-  (!value.window_start_at && !value.window_end_at) ||
-  (!!value.window_start_at &&
-    !!value.window_end_at &&
-    isAccessWindowValid(value))
-
 export function ProjectAccessWindowSection({
   windowStartAt,
   windowEndAt,
@@ -64,7 +57,7 @@ export function ProjectAccessWindowSection({
     setEdit((current) => (current === value ? null : current))
 
   const commit = (value: AccessWindowValue) => {
-    if (!isComplete(value)) return
+    if (!isAccessWindowValid(value)) return
     if (saving.current && sameWindow(value, saving.current)) return
     if (sameWindow(value, stored)) {
       clearEdit(value)

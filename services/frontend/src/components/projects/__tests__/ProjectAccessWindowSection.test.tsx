@@ -279,7 +279,7 @@ describe('ProjectAccessWindowSection', () => {
     })
   })
 
-  it('does not save a blur without a change or with one bound cleared', async () => {
+  it('does not save a blur without a change', async () => {
     const onSave = jest.fn().mockResolvedValue(undefined)
     render(
       <ProjectAccessWindowSection
@@ -289,12 +289,56 @@ describe('ProjectAccessWindowSection', () => {
       />,
     )
     expand()
-    fireEvent.blur(opensInput())
-    fireEvent.change(closesInput(), { target: { value: '' } })
+    await act(async () => {
+      fireEvent.blur(opensInput())
+      fireEvent.blur(closesInput())
+    })
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('saves an open-ended window with only an opening time', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={null}
+        onSave={onSave}
+      />,
+    )
+    expand()
+    expect(closesInput().value).toBe('')
+    fireEvent.change(opensInput(), {
+      target: { value: local('2030-03-02T08:00:00.000Z') },
+    })
     await act(async () => {
       fireEvent.blur(opensInput())
     })
-    expect(onSave).not.toHaveBeenCalled()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith({
+      window_start_at: '2030-03-02T08:00:00.000Z',
+      window_end_at: null,
+    })
+  })
+
+  it('saves clearing the closing time as an open-ended window', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined)
+    render(
+      <ProjectAccessWindowSection
+        windowStartAt={START}
+        windowEndAt={END}
+        onSave={onSave}
+      />,
+    )
+    expand()
+    fireEvent.change(closesInput(), { target: { value: '' } })
+    await act(async () => {
+      fireEvent.blur(closesInput())
+    })
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith({
+      window_start_at: START,
+      window_end_at: null,
+    })
   })
 
   it('saves clearing the window when switched off', async () => {
@@ -352,9 +396,9 @@ describe('ProjectAccessWindowSection', () => {
     expand()
     await act(async () => {
       fireEvent.change(opensInput(), { target: { value: '' } })
-      fireEvent.blur(opensInput())
       fireEvent.change(closesInput(), { target: { value: '' } })
       fireEvent.blur(closesInput())
+      fireEvent.blur(opensInput())
       fireEvent.keyDown(closesInput(), { key: 'Enter' })
     })
     expect(onSave).not.toHaveBeenCalled()
