@@ -26,6 +26,7 @@ import {
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import {
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   ChartBarIcon,
   CheckCircleIcon,
   CheckIcon,
@@ -53,6 +54,7 @@ const notificationIcons = {
   evaluation_received_immediate: CheckCircleIcon,
   evaluation_received_batch: CheckCircleIcon,
   evaluation_released: CheckCircleIcon,
+  submission_returned: ArrowUturnLeftIcon,
   system_alert: ExclamationTriangleIcon,
   error_occurred: ExclamationTriangleIcon,
 }
@@ -81,6 +83,8 @@ const notificationColors = {
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_released:
     'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
+  submission_returned:
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
