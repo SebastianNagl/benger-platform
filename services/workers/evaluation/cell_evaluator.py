@@ -22,7 +22,12 @@ from metric_filters import (
     is_reference_free,
     judge_reads_references_itself,
 )
-from task_rubric_resolution import NO_RUBRIC_ERROR, RUBRIC_MISSING, is_rubric_judge
+from task_rubric_resolution import (
+    NO_RUBRIC_ERROR,
+    RUBRIC_JUDGE_METRIC,
+    RUBRIC_MISSING,
+    is_rubric_judge,
+)
 
 
 def _first_task_reference(task, reference_fields) -> Any:
@@ -714,7 +719,7 @@ def evaluate_generation_cell_impl(
                                     continue
 
                                 inline_judge = resolve_inline_judge(metric)
-                                if task_rubric is not None and inline_judge is None:
+                                if task_rubric is not None and metric == RUBRIC_JUDGE_METRIC:
                                     jr_evaluator.bind_task_rubric(
                                         task_rubric,
                                         margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
@@ -1408,7 +1413,7 @@ def evaluate_annotation_cell_impl(
                                         continue
 
                                     inline_judge = resolve_inline_judge(metric)
-                                    if task_rubric is not None and inline_judge is None:
+                                    if task_rubric is not None and metric == RUBRIC_JUDGE_METRIC:
                                         jr_evaluator.bind_task_rubric(
                                             task_rubric,
                                             margin_notes=_margin_notes_enabled(config.get("metric_parameters")),

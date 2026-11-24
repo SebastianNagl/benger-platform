@@ -1,4 +1,4 @@
-"""Sheet judges beyond ``llm_judge_rubric`` and sheets graded by argument (core 2.77).
+"""Sheet judges beyond ``llm_judge_rubric`` and sheets graded by argument (core 2.81).
 
 * ``task_rubric_resolution.is_rubric_judge`` is true for any config whose
   ``metric_parameters`` say ``use_task_rubric: true``, so such a config is
@@ -41,11 +41,11 @@ from task_rubric_service import structure_equal
 def _structure(placement=None, with_requirements=False):
     nodes = [
         {"id": "a", "level": 0, "kind": "section", "label": "I.", "title": "Fond"},
-        {"id": "s1", "level": 1, "kind": "step", "label": "", "title": "Problématique", "max_score": 1},
+        {"id": "s1", "level": 1, "kind": "step", "label": "", "title": "First criterion", "max_score": 1},
         {"id": "s2", "level": 1, "kind": "step", "label": "", "title": "Argumentation", "max_score": 1.5},
     ]
     if with_requirements:
-        nodes[1]["requirements"] = [{"text": "question posée", "points": 0.5}, {"text": "enjeu", "points": 0.5}]
+        nodes[1]["requirements"] = [{"text": "first requirement", "points": 0.5}, {"text": "second requirement", "points": 0.5}]
         nodes[2]["requirements"] = [{"text": "premier argument", "points": 1}, {"text": "second argument", "points": 0.5}]
     structure = {"version": 1, "nodes": nodes}
     if placement is not None:
@@ -70,7 +70,7 @@ class TestSheetJudges:
         assert is_rubric_judge(None) is False
 
     def test_a_sheet_judge_without_a_sheet_is_held_the_others_kept(self):
-        sheet = {"id": "fr", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
+        sheet = {"id": "sheet", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
         own = {"id": "own", "metric": "llm_judge_feedback", "metric_parameters": {}}
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=None) as resolve:
             kept, held = split_held_rubric_judges(MagicMock(), SimpleNamespace(id="t"), [sheet, own])
@@ -78,7 +78,7 @@ class TestSheetJudges:
         resolve.assert_called_once()
 
     def test_a_sheet_judge_with_a_sheet_is_kept(self):
-        sheet = {"id": "fr", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
+        sheet = {"id": "sheet", "metric": "llm_judge_feedback", "metric_parameters": {"use_task_rubric": True}}
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=object()):
             kept, held = split_held_rubric_judges(MagicMock(), SimpleNamespace(id="t"), [sheet])
         assert kept == [sheet] and held == []
@@ -177,7 +177,7 @@ class TestJudgeWording:
         ev.ai_service.generate_structured.return_value = {
             "success": True, "content": '{"scores": {}}', "usage": {}, "metadata": {},
         }
-        ev._evaluate_multidim_single_call(context="", ground_truth="", prediction="Ma copie")
+        ev._evaluate_multidim_single_call(context="", ground_truth="", prediction="answer text")
         kwargs = ev.ai_service.generate_structured.call_args.kwargs
         system, closing = rubric_judge_prompts("anywhere")
         assert kwargs["system_prompt"] == system

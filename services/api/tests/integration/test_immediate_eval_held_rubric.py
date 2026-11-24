@@ -307,7 +307,7 @@ class TestHeldDispatch:
         ]
 
     def test_any_config_with_use_task_rubric_is_held_like_the_sheet_judge(self, test_db, people):
-        """Core 2.77: a judge config of its own that grades along the task's
+        """Core 2.81: a judge config of its own that grades along the task's
         sheet waits for the sheet like llm_judge_rubric, and runs once the
         sheet is usable."""
         owner, student = people

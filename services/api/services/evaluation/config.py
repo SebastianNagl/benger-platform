@@ -235,6 +235,12 @@ def register_extended_metrics(answer_type: str, metrics: list[str], owner: Optio
             _extended_metric_owners[(answer_type, metric)] = owner
 
 
+def is_extended_metric(metric: str) -> bool:
+    """Whether an extension package registered ``metric`` for any answer
+    type (whether or not the package is active for the caller)."""
+    return any(metric in metrics for metrics in _extended_metrics.values())
+
+
 def extended_metric_owner(answer_type: str, metric: str) -> Optional[str]:
     return _extended_metric_owners.get((answer_type, metric))
 

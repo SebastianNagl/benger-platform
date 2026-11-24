@@ -1863,14 +1863,19 @@ API change).
     (``split_held_rubric_judges``, the shared immediate dispatch, the
     single-sample skip) and ``dispatch_waiting_gradings`` grades its waiting
     answers once the sheet is usable. ``NO_RUBRIC_ERROR`` no longer names
-    the metric.
+    the metric. The switch is for extension judges: saving an evaluation
+    config refuses ``use_task_rubric: true`` on a metric that is neither
+    ``llm_judge_rubric`` nor registered by an extension
+    (``services.evaluation.config.is_extended_metric``), and only
+    ``llm_judge_rubric`` binds the sheet to its evaluator
+    (``bind_task_rubric``).
   - Inline judges (``evaluation/inline_judges.py``): for a sheet judge the
     bulk cell resolves the task's sheet (the ``rubric_missing`` error row
     without one) and passes it as ``task_rubric`` to ``compute``; the
     immediate lane passes it to ``evaluate_single`` (raising
     ``NoUsableRubricError`` without one). Each only when the function takes
     a ``task_rubric`` keyword (``inline_judges.accepts_keyword``). The
-    evaluator of an inline judge is no longer bound to the sheet.
+    evaluator of an inline judge is not bound to the sheet.
   - ``rubric_structure``: optional ``structure.placement`` with the one
     value ``"anywhere"`` (``PLACEMENT_ANYWHERE``, ``PLACEMENT_VALUES``,
     ``sheet_placement``): the sheet grades by argument, so a step's point

@@ -91,8 +91,8 @@ class TestInlineJudgeRow:
             judge,
             evaluator=_evaluator(),
             task_data=None,
-            prediction="copie",
-            metric_params={"exam_type": "fr-dissertation"},
+            prediction="answer text",
+            metric_params={"exam_type": "sample"},
             row={"id": "r1", "task_id": "t1"},
         )
         assert row["id"] == "r1" and row["task_id"] == "t1"
@@ -107,8 +107,8 @@ class TestInlineJudgeRow:
             "thinking_budget": None,
             "reasoning_effort": "low",
             "task_data": {},
-            "prediction": "copie",
-            "metric_params": {"exam_type": "fr-dissertation"},
+            "prediction": "answer text",
+            "metric_params": {"exam_type": "sample"},
         }
 
     def test_error_wrapper_becomes_an_error_row(self):
@@ -132,7 +132,7 @@ class TestInlineJudgeRow:
 
 
 class _SheetJudge(_Judge):
-    """A judge whose ``compute`` takes the sheet by name (core 2.77)."""
+    """A judge whose ``compute`` takes the sheet by name (core 2.81)."""
 
     def compute(self, *, task_rubric=None, **kwargs):
         self.compute_kwargs = {**kwargs, "task_rubric": task_rubric}
@@ -148,9 +148,9 @@ class TestSheetForInlineJudges:
 
     def test_the_sheet_reaches_a_judge_that_takes_it(self):
         sheet = object()
-        judge = _SheetJudge({"feedback_markdown": "## Faits"})
+        judge = _SheetJudge({"feedback_markdown": "## First criterion"})
         inline_judge_row(
-            judge, evaluator=_evaluator(), task_data={}, prediction="copie",
+            judge, evaluator=_evaluator(), task_data={}, prediction="answer text",
             metric_params={"use_task_rubric": True}, row={}, task_rubric=sheet,
         )
         assert judge.compute_kwargs["task_rubric"] is sheet
@@ -170,10 +170,10 @@ class TestSheetForInlineJudges:
 
         judge = _Strict()
         row = inline_judge_row(
-            judge, evaluator=_evaluator(), task_data={}, prediction="copie",
+            judge, evaluator=_evaluator(), task_data={}, prediction="answer text",
             metric_params={}, row={}, task_rubric=object(),
         )
-        assert judge.kwargs == {"task_data": {}, "prediction": "copie"}
+        assert judge.kwargs == {"task_data": {}, "prediction": "answer text"}
         assert row["error_message"] is None
 
     def test_no_sheet_no_keyword(self):
@@ -214,7 +214,7 @@ class TestImmediateLane:
             "metric_type": "llm_judge_feedback",
             "metric_params": {"exam_type": "fr-cas-pratique"},
             "field_name": "loesung",
-            "prediction_value": "copie",
+            "prediction_value": "answer text",
             "reference_value": "",
             "judge_run_id": "jr-1",
             "evaluation_config_id": "cfg-1",
@@ -240,7 +240,7 @@ class TestImmediateLane:
         assert kwargs["immediate_eval_id"] == "eval-1"
         assert kwargs["judge_run_id"] == "jr-1"
         assert kwargs["evaluation_config_id"] == "cfg-1"
-        assert kwargs["prediction"] == "copie"
+        assert kwargs["prediction"] == "answer text"
         assert kwargs["task_data"] == {"sachverhalt": "Cas"}
         db.close.assert_called_once()
 
@@ -252,7 +252,7 @@ class TestImmediateLane:
             "metric_type": "llm_judge_feedback",
             "metric_params": metric_params,
             "field_name": "loesung",
-            "prediction_value": "copie",
+            "prediction_value": "answer text",
             "reference_value": "",
             "judge_run_id": "jr-1",
             "evaluation_config_id": "cfg-1",
@@ -289,7 +289,7 @@ class TestImmediateLane:
         db = MagicMock()
         task, sheet = object(), object()
         db.query.return_value.filter.return_value.first.return_value = task
-        params = {"exam_type": "fr-dissertation", "use_task_rubric": True}
+        params = {"exam_type": "sample", "use_task_rubric": True}
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=sheet) as resolve:
             result = self._run(judge, params, db)
         assert result["status"] == "completed"
@@ -302,7 +302,7 @@ class TestImmediateLane:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = object()
         with patch("task_rubric_resolution.resolve_grading_rubric", return_value=None):
-            self._run(judge, {"exam_type": "fr-dissertation", "use_task_rubric": True}, db)
+            self._run(judge, {"exam_type": "sample", "use_task_rubric": True}, db)
         assert calls == []
         [row] = [c.args[0] for c in db.add.call_args_list]
         blob = row.metrics["llm_judge_feedback"]
@@ -313,7 +313,7 @@ class TestImmediateLane:
         judge, calls = self._sheet_judge()
         db = MagicMock()
         with patch("task_rubric_resolution.resolve_grading_rubric") as resolve:
-            self._run(judge, {"exam_type": "fr-dissertation"}, db)
+            self._run(judge, {"exam_type": "sample"}, db)
         resolve.assert_not_called()
         [call] = calls
         assert call["task_rubric"] is None

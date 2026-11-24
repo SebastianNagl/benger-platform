@@ -27,7 +27,7 @@ class _FeedbackJudge:
     def compute(**kwargs):
         _FeedbackJudge.calls.append(kwargs)
         return {
-            "feedback_markdown": f"## Introduction\n\nSur: {kwargs['prediction']}",
+            "feedback_markdown": f"## Overview\n\nOn: {kwargs['prediction']}",
             "_judge_prompts_used": {"system": "s", "user": "u"},
         }
 
@@ -71,7 +71,7 @@ def _config(pred_field):
         "reference_fields": ["task.musterloesung"],
         "metric_parameters": {
             "judges": [{"judge_model_id": "gpt-4o", "runs": 1}],
-            "exam_type": "fr-dissertation",
+            "exam_type": "sample",
         },
         "enabled": True,
     }
@@ -84,10 +84,10 @@ def test_annotation_cell_writes_score_less_feedback_rows(
     user = make_user()
     make_llm_model(model_id="gpt-4o", provider="OpenAI")
     project = make_project(created_by=user.id)
-    task = make_task(project.id, {"sachverhalt": "Sujet", "musterloesung": "Corrigé"}, created_by=user.id)
+    task = make_task(project.id, {"sachverhalt": "case text", "musterloesung": "reference text"}, created_by=user.id)
     annotation = make_annotation(
         project.id, task.id, completed_by=user.id,
-        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "Ma copie"}}],
+        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "answer text"}}],
     )
     run = make_evaluation_run(project.id, user.id, status="pending")
     db_conn.commit()
@@ -107,10 +107,10 @@ def test_annotation_cell_writes_score_less_feedback_rows(
     assert row.judge_prompts_used == {"system": "s", "user": "u"}
     blob = row.metrics["llm_judge_feedback"]
     assert blob["value"] is None
-    assert blob["details"]["feedback_markdown"].endswith("Ma copie")
+    assert blob["details"]["feedback_markdown"].endswith("answer text")
     [call] = feedback_overlay.calls
-    assert call["metric_params"]["exam_type"] == "fr-dissertation"
-    assert call["task_data"]["sachverhalt"] == "Sujet"
+    assert call["metric_params"]["exam_type"] == "sample"
+    assert call["task_data"]["sachverhalt"] == "case text"
 
     # A "missing only" re-run does not pay for the same feedback again.
     run2 = make_evaluation_run(project.id, user.id, status="pending")
@@ -130,8 +130,8 @@ def test_generation_cell_writes_score_less_feedback_rows(
     make_llm_model(model_id="gpt-4o", provider="OpenAI")
     model = make_llm_model(provider="OpenAI")
     project = make_project(created_by=user.id)
-    task = make_task(project.id, {"musterloesung": "Corrigé"}, created_by=user.id)
-    _, gen = make_generation(project.id, task.id, model.id, user.id, response_content="Copie du modèle")
+    task = make_task(project.id, {"musterloesung": "reference text"}, created_by=user.id)
+    _, gen = make_generation(project.id, task.id, model.id, user.id, response_content="model answer")
     run = make_evaluation_run(project.id, user.id, status="pending")
     db_conn.commit()
 
@@ -157,10 +157,10 @@ def _graded_annotation(db_conn, make_user, make_llm_model, make_project, make_ta
     user = make_user()
     make_llm_model(model_id="gpt-4o", provider="OpenAI")
     project = make_project(created_by=user.id)
-    task = make_task(project.id, {"sachverhalt": "Sujet", "musterloesung": "Corrigé"}, created_by=user.id)
+    task = make_task(project.id, {"sachverhalt": "case text", "musterloesung": "reference text"}, created_by=user.id)
     make_annotation(
         project.id, task.id, completed_by=user.id,
-        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "Ma copie"}}],
+        result=[{"from_name": "loesung", "type": "textarea", "value": {"text": "answer text"}}],
     )
     return user, project, task
 
@@ -169,14 +169,14 @@ def test_a_sheet_judge_cell_gets_the_tasks_active_sheet(
     db_conn, make_user, make_llm_model, make_project, make_task,
     make_annotation, make_evaluation_run, feedback_overlay,
 ):
-    """Core 2.77: an inline judge config with use_task_rubric grades along
+    """Core 2.81: an inline judge config with use_task_rubric grades along
     the task's active sheet, which the cell hands to ``compute``."""
     user, project, task = _graded_annotation(
         db_conn, make_user, make_llm_model, make_project, make_task, make_annotation
     )
     sheet = TaskRubric(
         id=str(uuid.uuid4()), task_id=task.id, project_id=project.id,
-        criteria={"s01_faits": {"name": "Faits", "rubric": "r", "max_score": 2}},
+        criteria={"s01_first": {"name": "First criterion", "rubric": "r", "max_score": 2}},
         total_points=2, status="active",
     )
     db_conn.add(sheet)
