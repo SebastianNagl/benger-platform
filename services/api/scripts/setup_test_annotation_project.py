@@ -126,7 +126,6 @@ Focus on accuracy and provide concise but thorough legal reasoning.""",
             show_submit_button=True,
             require_comment_on_skip=False,
             # sampling="SEQUENTIAL",  # Removed
-            is_published=True,
             created_at=datetime.utcnow(),
         )
 

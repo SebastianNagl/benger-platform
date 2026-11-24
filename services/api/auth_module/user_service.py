@@ -622,9 +622,16 @@ def delete_user(db: Session, user_id: str) -> bool:
                     {"uid": user_id},
                 )
 
+        # The person's handed-in files and transcribed pages cascade away with
+        # the user; their objects in storage go once the delete committed.
+        from stored_files import delete_stored_files, user_file_keys
+
+        file_keys = user_file_keys(db, user_id)
+
         db.flush()
         db.delete(user)
         db.commit()
+        delete_stored_files(file_keys, what="user delete: stored file")
         return True
     except Exception as e:
         db.rollback()

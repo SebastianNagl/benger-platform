@@ -501,5 +501,6 @@ class TestUpdateAnnotation:
                     "was_cancelled": True,
                 },
             )
-        assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] == True  # noqa: E712
+        # Cancelling goes through POST .../withdraw (with a reason) only.
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "withdrawal_reason_required"

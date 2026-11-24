@@ -211,7 +211,23 @@ class TestExtensionLoader:
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).
         # 2.76 adds the optional hook key evaluation_method_selection.
-        assert CORE_API_VERSION == "2.76"
+        # 2.77 adds presetNameKeys / localizedEvalConfigName and stops
+        # mapping and serving projects.is_published (migration 153 gives it
+        # a server default; the drop follows in a later release).
+        # 2.78 adds korrektur_comments.highlight_field (migration 154), the
+        # sheet parser's declared_total and the own-scale grade key rule.
+        # 2.79 adds metric_filters.row_awaits_release (no grading notice for
+        # held-back drafts) and the ProjectReleaseReviewPage slot route.
+        # 2.80 adds the withdrawal of a submission (migration 156, the hook
+        # keys before_annotation_withdraw and on_annotation_withdrawn).
+        # 2.81 adds sheet judges beyond llm_judge_rubric (use_task_rubric,
+        # task_rubric for inline judges) and structure.placement.
+        # 2.82 adds table_grid / ooxml, submission_files.purpose and
+        # task_evaluation_id, upload_batches and stored_files (migration 157).
+        # 2.83 adds the peer review grant (projects.peer_review_enabled,
+        # services.peer_review, the korrektur_peer feedback-only run and the
+        # peer_feedback_received notice, migration 158).
+        assert CORE_API_VERSION == "2.83"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

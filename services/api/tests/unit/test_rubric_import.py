@@ -35,6 +35,7 @@ from tests.fixtures.rubric_files import (  # noqa: E402
     SCALE_RANGES,
     UEBUNGSKLAUSUR_THRESHOLDS,
     Formula,
+    damage_member,
     make_docx,
     make_xlsx,
     parity_sheet_docx,
@@ -373,6 +374,7 @@ class TestXlsxHeuristics:
         with pytest.raises(RubricImportError) as exc:
             _xlsx([{"A": f"I. r{i}", "B": 1} for i in range(MAX_RAW_ROWS + 1)])
         assert exc.value.code == "too_many_rows"
+        assert f"mehr als {MAX_RAW_ROWS} Zeilen" in exc.value.message
 
     def test_unsupported_and_corrupt(self):
         with pytest.raises(RubricImportError) as exc:
@@ -586,6 +588,19 @@ class TestDocx:
         with pytest.raises(RubricImportError) as exc:
             parse_rubric_file("b.docx", make_docx([rows]))
         assert exc.value.code == "too_many_rows"
+        assert f"mehr als {MAX_RAW_ROWS} Zeilen" in exc.value.message
+
+    @pytest.mark.parametrize(
+        "name,data,member",
+        [
+            ("b.xlsx", make_xlsx([{"A": "I. Frage", "B": 1}]), "xl/worksheets/sheet1.xml"),
+            ("b.docx", make_docx([[[["Text"], ["BE"]]]]), "word/document.xml"),
+        ],
+    )
+    def test_a_damaged_compressed_part_is_refused(self, name, data, member):
+        with pytest.raises(RubricImportError) as exc:
+            parse_rubric_file(name, damage_member(data, member))
+        assert exc.value.code == "corrupt_file"
 
 
 class TestDocxXlsxParity:

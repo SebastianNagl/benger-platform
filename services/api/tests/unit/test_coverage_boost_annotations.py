@@ -398,10 +398,11 @@ class TestUpdateAnnotation:
                     "was_cancelled": True,
                 },
             )
-        assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] == True  # noqa: E712
+        # Cancelling goes through POST .../withdraw (with a reason) only.
+        assert resp.status_code == 422
+        assert resp.json()["detail"]["code"] == "withdrawal_reason_required"
 
-    async def test_update_annotation_uncancel(self, async_test_client, async_test_db):
+    async def test_update_annotation_uncancel_is_refused(self, async_test_client, async_test_db):
         user = await _make_user(async_test_db)
         p, t, org = await _setup_project_with_task_async(async_test_db, user.id)
         ann = Annotation(
@@ -424,8 +425,10 @@ class TestUpdateAnnotation:
                     "was_cancelled": False,
                 },
             )
-        assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] == False  # noqa: E712
+        # A cancelled (withdrawn) submission is a closed record: the author
+        # hands in a new one instead of editing it back to life.
+        assert resp.status_code == 409
+        assert resp.json()["detail"]["code"] == "annotation_withdrawn"
 
     async def test_update_annotation_not_found(self, async_test_client, async_test_db):
         user = await _make_user(async_test_db)

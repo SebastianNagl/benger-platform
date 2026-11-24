@@ -2,8 +2,10 @@
 
 Some evaluation methods (today: `korrektur_falloesung`, the human-graded
 Standard Falllösung correction, `korrektur_custom`, its
-custom-annotation-type sibling, and `korrektur_feedback`, the human
-correction of the French exam types on a barème /20) are not run by a worker against an LLM —
+custom-annotation-type sibling, `korrektur_feedback`, the human
+correction of the French exam types on a barème /20, and `korrektur_peer`,
+a participant's feedback-only grading of a fellow participant's submission)
+are not run by a worker against an LLM —
 humans submit grades through the Korrektur queue and each submission
 becomes a `TaskEvaluation` row. There is **one persistent EvaluationRun
 per (project, metric)** for all of those rows; correctors append to it
@@ -16,38 +18,42 @@ the extended `submit_falloesung_grade` / `submit_custom_grade` /
 `submit_feedback_grade` endpoints use to resolve the destination run. The
 per-metric partial unique indexes (migration 037 for
 `korrektur_falloesung`, 061 for `korrektur_custom`, 122 for
-`korrektur_feedback`) make the upsert safe under concurrent submits.
+`korrektur_feedback`, 158 for `korrektur_peer`) make the upsert safe under
+concurrent submits.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Final
 
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
+from human_graded_metrics import (
+    FEEDBACK_ONLY_HUMAN_METRICS,
+    HUMAN_GRADED_METRICS,
+    PEER_REVIEW_METRIC,
+    is_human_graded_metric,
+)
 from models import EvaluationRun
 
-
-# The set of metrics whose EvaluationRun is human-driven (one persistent
-# row per project, no worker involvement). Hardcoded string list per the
-# open-core split rule: this is a hook, not the implementation.
-#
-# NOTE: every metric listed here needs a matching partial unique index on
-# evaluation_runs (see migrations 037, 061 and 122) — the upsert below infers
-# the index from a per-metric predicate, and without the index the
-# ON CONFLICT clause raises "no unique or exclusion constraint matching
-# the ON CONFLICT specification".
-HUMAN_GRADED_METRICS: Final[frozenset[str]] = frozenset(
-    {"korrektur_falloesung", "korrektur_custom", "korrektur_feedback"}
-)
-
-
-def is_human_graded_metric(metric: str) -> bool:
-    return metric in HUMAN_GRADED_METRICS
+# The metrics whose EvaluationRun is human-driven (one persistent row per
+# project, no worker involvement) live in /shared/human_graded_metrics.py,
+# re-exported here for the existing importers. Every metric listed there
+# needs a matching partial unique index on evaluation_runs (migrations 037,
+# 061, 122 and 158): the upsert below infers the index from a per-metric
+# predicate, and without the index the ON CONFLICT clause raises "no unique
+# or exclusion constraint matching the ON CONFLICT specification".
+__all__ = [
+    "FEEDBACK_ONLY_HUMAN_METRICS",
+    "HUMAN_GRADED_METRICS",
+    "PEER_REVIEW_METRIC",
+    "get_or_create_human_eval_run",
+    "get_or_create_human_eval_run_async",
+    "is_human_graded_metric",
+]
 
 
 def _build_upsert_human_eval_run(project_id: str, metric: str, created_by: str):
@@ -124,7 +130,8 @@ def get_or_create_human_eval_run(
     metric's partial unique index (`uq_human_eval_run_per_project_metric`
     for korrektur_falloesung, `uq_human_eval_run_per_project_metric_custom`
     for korrektur_custom, `uq_human_eval_run_per_project_metric_feedback`
-    for korrektur_feedback).
+    for korrektur_feedback, `uq_human_eval_run_per_project_metric_peer` for
+    korrektur_peer).
 
     `created_by` is the user who triggered this call and is recorded
     only on first creation; it has no semantic meaning for the ongoing

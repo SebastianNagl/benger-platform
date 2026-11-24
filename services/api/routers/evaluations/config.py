@@ -15,11 +15,7 @@ import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_async_db, get_db
-from grade_scale_history import (
-    GRADE_SCALE_KEY,
-    apply_grade_scale_write,
-    grade_scale_changed,
-)
+from grade_scale_history import GRADE_SCALE_KEY, apply_grade_scale_write
 from feature_flags.deps import flag_on_sync
 from feature_flags.registry import VARIANT_EXPERIMENTS
 from services.analysis_plans import (
@@ -43,7 +39,12 @@ from routers.projects.helpers import (
 )
 from label_config_repeater import has_repeater
 from metric_filters import is_reference_free
-from task_rubric_service import remirror_project_rubrics_sync
+from task_rubric_resolution import (
+    RUBRIC_JUDGE_METRIC,
+    USE_TASK_RUBRIC_PARAM,
+    metric_reads_task_sheet,
+)
+from task_rubric_service import remirror_project_rubrics_sync, rubric_mirrors_changed
 from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
@@ -575,6 +576,24 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                         detail="judges[].runs must be an integer between 1 and 25",
                     )
 
+        # use_task_rubric makes a registered sheet judge metric grade along
+        # the task's sheet (task_rubric_resolution.is_rubric_judge); on any
+        # other metric the config would be held for a sheet it never reads.
+        metric = cfg.get("metric")
+        if (
+            mp.get(USE_TASK_RUBRIC_PARAM) is True
+            and metric != RUBRIC_JUDGE_METRIC
+            and not (isinstance(metric, str) and metric_reads_task_sheet(metric))
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"metric_parameters.{USE_TASK_RUBRIC_PARAM} is only valid for "
+                    f"{RUBRIC_JUDGE_METRIC} or a registered sheet judge metric; "
+                    f"got {metric!r}"
+                ),
+            )
+
         # A text pattern code needs a valid pattern set and one of its codes
         # (services/shared/analysis/text_patterns.py); without them every
         # cell would record an error instead of a code.
@@ -917,13 +936,10 @@ def update_project_evaluation_config(
         flag_modified(project, "evaluation_config")
 
         # The task-data mirror of every grading sheet ends in the key that
-        # grades the exam, and is otherwise refreshed only when a sheet is
-        # activated or edited. A key change re-renders them in the same
-        # transaction.
-        if grade_scale_changed(
-            stored_config.get(GRADE_SCALE_KEY),
-            (project.evaluation_config or {}).get(GRADE_SCALE_KEY),
-        ):
+        # grades the exam (or carries none when no method grades on it), and
+        # is otherwise refreshed only when a sheet is activated or edited. A
+        # change of either re-renders them in the same transaction.
+        if rubric_mirrors_changed(stored_config, project.evaluation_config):
             remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
 
         db.commit()

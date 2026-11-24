@@ -30,6 +30,7 @@ import {
   metricDisplayName,
   resolveJudgePrompt,
 } from '@/lib/api/evaluation-types'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import { hasMetricEditor } from '@/lib/extensions/metricEditors'
 import { getPromptPreview } from '@/lib/extensions/promptPreviews'
 import { type ReactNode, useState } from 'react'
@@ -233,7 +234,8 @@ export function EvaluationPromptsOverview({
   }))
 
   const methodName = (config: EvaluationConfig) => {
-    if (config.display_name) return config.display_name
+    if (config.display_name)
+      return localizedEvalConfigName(config, t, definitions)
     const def = definitions[config.metric]
     return def ? metricDisplayName(def, t) : config.metric
   }

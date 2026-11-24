@@ -100,6 +100,8 @@ class TestHookGating:
         GATED needs this test to change on purpose."""
         always = {
             "before_annotation_write",
+            "before_annotation_withdraw",
+            "on_annotation_withdrawn",
             "on_annotation_created",
             "on_draft_saved",
             "after_eval_config_save",

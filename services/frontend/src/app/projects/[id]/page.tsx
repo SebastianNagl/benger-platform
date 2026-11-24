@@ -33,6 +33,7 @@ import {
   type ReasoningConfig,
 } from '@/components/projects/ModelSelectionSection'
 import { ParticipantCard } from '@/components/projects/ParticipantCard'
+import { ProjectAccessWindowSection } from '@/components/projects/ProjectAccessWindowSection'
 import { ProjectBillingCard } from '@/components/projects/ProjectBillingCard'
 import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
@@ -446,8 +447,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     annotation_time_limit_seconds: null as number | null,
     strict_timer_enabled: false,
     restorable_checkpoints_enabled: false,
-    window_start_at: null as string | null,
-    window_end_at: null as string | null,
   })
 
   // Per-card buffer for evaluation-scoped settings. Decouples the Eval card's
@@ -804,8 +803,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           (currentProject as any).strict_timer_enabled || false,
         restorable_checkpoints_enabled:
           (currentProject as any).restorable_checkpoints_enabled || false,
-        window_start_at: (currentProject as any).window_start_at ?? null,
-        window_end_at: (currentProject as any).window_end_at ?? null,
       })
       setEvaluationSettings({
         immediate_evaluation_enabled:
@@ -887,16 +884,25 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // Deleted: only the read-only way into the tasks and their answers.
     if (isDeletedView) return action === 'projectData'
     if (user?.is_superadmin) return true
+    // Peer review: a participant who may grade fellow participants opens
+    // the Korrektur page next to the staff graders.
+    const isPeerReviewer = currentProject?.viewer_review_role === 'peer'
     if (isAttempted) return action === 'myTasks'
-    if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
+    if (isParticipant)
+      return (
+        action === 'startLabeling' ||
+        action === 'myTasks' ||
+        (action === 'feedback' && isPeerReviewer)
+      )
     const role = currentProject?.effective_role
     switch (action) {
       case 'startLabeling':
       case 'myTasks':
         return true
+      case 'feedback':
+        return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR' || isPeerReviewer
       case 'projectData':
       case 'review':
-      case 'feedback':
       case 'generation':
       case 'evaluations':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
@@ -2914,6 +2920,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         <p className="mb-3 text-xs text-red-700 dark:text-red-300">
                           {t('project.settings.visibilityDangerZone.help')}
                         </p>
+                        <p
+                          className="mb-3 text-xs text-zinc-600 dark:text-zinc-400"
+                          data-testid="project-visibility-prepare-hint"
+                        >
+                          {t(
+                            'project.settings.visibilityDangerZone.prepareHint',
+                          )}
+                        </p>
                         <div className="rounded-md border border-red-500/40 bg-red-50/40 p-4 dark:border-red-500/40 dark:bg-red-900/10">
                           <ProjectPermissionsPanel
                             projectId={projectId}
@@ -2946,6 +2960,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       </SubSection>
                     </div>
                   )}
+
+                {/* Access window: when the access group may see and work on
+              the project. Right after the visibility because both decide who
+              sees the project when ("Privat" plus a window is how a project
+              is prepared unseen). Saves a finished edit on its own. */}
+                {currentProject && !isDeletedView && canEditProject() && (
+                  <ProjectAccessWindowSection
+                    windowStartAt={currentProject.window_start_at}
+                    windowEndAt={currentProject.window_end_at}
+                    onSave={(value) => updateProject(projectId, value)}
+                  />
+                )}
 
                 {/* Sharing (extended): share links, participants and whether
               students can find the project. A sub-section of Settings — it

@@ -1000,7 +1000,8 @@ class TestAnnotations:
                     "was_cancelled": True,
                 },
             )
-        assert resp.status_code == 200
+        # Cancelling goes through POST .../withdraw (with a reason) only.
+        assert resp.status_code == 422
 
 
 # ==============================================================

@@ -111,6 +111,10 @@ export interface Project {
   // Immediate evaluation (extended feature)
   immediate_evaluation_enabled?: boolean
 
+  // Peer review: participants may grade each other's submissions (feedback
+  // only, never a grade). Only an effective role of ORG_ADMIN changes it.
+  peer_review_enabled?: boolean
+
   // Per-project feature visibility flags (D4 from korrektur rework). Pure UI
   // gate — when false, the corresponding ConfigCard on the project detail
   // page is hidden; data and APIs stay untouched. Default true server-side.
@@ -153,7 +157,6 @@ export interface Project {
   generation_completed?: boolean // Whether generation is complete for all tasks/models
 
   // Status
-  is_published: boolean
   is_archived: boolean
 
   // Visibility and access control
@@ -161,6 +164,10 @@ export interface Project {
   is_public?: boolean
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
+  // Timed access window (ISO 8601 UTC, null when unset; see
+  // utils/projectWindow.ts).
+  window_start_at?: string | null
+  window_end_at?: string | null
 
   // Student-surface markers (extended): e.g. kind 'exam' |
   // 'flashcard_collection', origin 'student'. NULL for ordinary projects.
@@ -178,6 +185,9 @@ export interface Project {
   // the selected organization context.
   can_edit?: boolean
   can_manage_shares?: boolean
+  // Who the caller reviews submissions as: staff, a peer (peer review on
+  // and the caller a participant), or not at all.
+  viewer_review_role?: 'staff' | 'peer' | null
   origin?: string | null
 
   // Timestamps
@@ -212,7 +222,6 @@ export interface ProjectCreate {
 }
 
 export interface ProjectUpdate extends Partial<ProjectCreate> {
-  is_published?: boolean
   is_archived?: boolean
   generation_structure?: string
   instructions?: string
@@ -326,6 +335,12 @@ export interface Annotation {
   ground_truth: boolean
   lead_time?: number // seconds
   prediction_scores?: Record<string, number>
+  /** Set when the author withdrew the submission or an editor returned it
+   * (then `was_cancelled` is true as well). `withdrawn_by` differs from
+   * `completed_by` for a return. */
+  withdrawn_at?: string | null
+  withdrawn_by?: string | null
+  withdrawal_reason?: string | null
   created_at: string
   metadata?: Record<string, any>
   updated_at?: string

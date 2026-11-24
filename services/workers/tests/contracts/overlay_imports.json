@@ -1,5 +1,5 @@
 {
-  "generated_from": "56d71d9165e27b362ccd02a827f3aa129ebdfb9b",
+  "generated_from": "81d4f31f8e1ecf101aa8279e61304fe4601a1764",
   "api_shared": [
     {
       "module": "account_activation",
@@ -360,8 +360,30 @@
     },
     {
       "module": "current_scores",
+      "name": "configs_by_id",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "pick_current",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
+      "name": "sql_cell_partition",
+      "importers": [
+        "benger_extended/api/routers/feedback_review.py"
+      ]
+    },
+    {
+      "module": "current_scores",
       "name": "sql_has_score",
       "importers": [
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/billing/method_selection.py"
       ]
     },
@@ -875,6 +897,13 @@
       ]
     },
     {
+      "module": "mailer.notification_links",
+      "name": "is_submission_notice_type",
+      "importers": [
+        "benger_extended/workers/__init__.py"
+      ]
+    },
+    {
       "module": "metric_filters",
       "name": "is_immediate_eligible",
       "importers": [
@@ -941,6 +970,7 @@
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/billing_tasks.py",
         "benger_extended/workers/falloesung_tasks.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -1018,6 +1048,7 @@
         "benger_extended/lti/grade_sync.py",
         "benger_extended/lti/gradebook.py",
         "benger_extended/lti/relink.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
     },
@@ -1063,6 +1094,7 @@
         "benger_extended/lti/name_visibility.py",
         "benger_extended/lti/project_linking.py",
         "benger_extended/lti/teacher_access.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/__init__.py",
         "benger_extended/workers/lti_grade_push.py"
       ]
@@ -1246,6 +1278,7 @@
         "benger_extended/lti/grade_enqueue.py",
         "benger_extended/lti/grade_sync.py",
         "benger_extended/marketplace/service.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/falloesung_tasks.py",
         "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/lti_grade_push.py"
@@ -1356,6 +1389,7 @@
       "module": "notification_service",
       "name": "notify_evaluation_received",
       "importers": [
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/korrektur.py"
       ]
     },
@@ -1553,6 +1587,7 @@
       "importers": [
         "benger_extended/api/grade_headline.py",
         "benger_extended/api/hooks.py",
+        "benger_extended/api/routers/feedback_review.py",
         "benger_extended/api/routers/grading_feedback.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
@@ -1581,6 +1616,7 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/timer.py",
         "benger_extended/ocr_submission.py",
+        "benger_extended/withdrawal.py",
         "benger_extended/workers/auto_submit_timer.py"
       ]
     },
@@ -1626,7 +1662,8 @@
         "benger_extended/api/routers/korrektur.py",
         "benger_extended/api/routers/korrektur_items.py",
         "benger_extended/api/routers/student_exams.py",
-        "benger_extended/lti/name_visibility.py"
+        "benger_extended/lti/name_visibility.py",
+        "benger_extended/withdrawal.py"
       ]
     },
     {
@@ -2368,6 +2405,13 @@
     },
     {
       "module": "routers.projects.helpers",
+      "name": "project_writes_allowed",
+      "importers": [
+        "benger_extended/api/routers/student_exams.py"
+      ]
+    },
+    {
+      "module": "routers.projects.helpers",
       "name": "require_write_tier",
       "importers": [
         "benger_extended/api/routers/handwriting_ocr.py",
@@ -2388,6 +2432,7 @@
       "name": "tier_allows_writes",
       "importers": [
         "benger_extended/api/routers/flashcards.py",
+        "benger_extended/api/routers/student_exams.py",
         "benger_extended/api/routers/submission_uploads.py",
         "benger_extended/api/routers/timer.py"
       ]
@@ -2451,6 +2496,13 @@
     },
     {
       "module": "rubric_structure",
+      "name": "grade_scale_applies",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
       "name": "mirror_rubric_into_task_data",
       "importers": [
         "benger_extended/bewertungsbogen_shared.py"
@@ -2475,6 +2527,13 @@
       "name": "order_criteria_keys",
       "importers": [
         "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
+      "module": "rubric_structure",
+      "name": "register_own_scale_metric",
+      "importers": [
+        "benger_extended/__init__.py"
       ]
     },
     {
@@ -2737,7 +2796,8 @@
         "benger_extended/api/hooks.py",
         "benger_extended/api/routers/immediate_evaluation.py",
         "benger_extended/api/routers/korrektur.py",
-        "benger_extended/api/routers/student_exams.py"
+        "benger_extended/api/routers/student_exams.py",
+        "benger_extended/withdrawal.py"
       ]
     },
     {
@@ -2754,6 +2814,27 @@
       "name": "object_storage",
       "importers": [
         "benger_extended/workers/ocr_tasks.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "is_rubric_judge",
+      "importers": [
+        "benger_extended/sheet_judges.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "register_sheet_judge_metric",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "task_rubric_resolution",
+      "name": "resolve_grading_rubric",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
       ]
     },
     {
@@ -2818,6 +2899,13 @@
       "name": "remirror_project_rubrics",
       "importers": [
         "benger_extended/bewertungsbogen_shared.py"
+      ]
+    },
+    {
+      "module": "task_rubric_service",
+      "name": "rubric_referenced_by_gradings",
+      "importers": [
+        "benger_extended/api/routers/rubric_review.py"
       ]
     },
     {
@@ -2919,6 +3007,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "EvidenceIndex",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },
@@ -2926,6 +3015,7 @@
       "module": "ml_evaluation.evidence_check",
       "name": "verify_evidence",
       "importers": [
+        "benger_extended/workers/feedback_judge.py",
         "benger_extended/workers/margin_notes.py"
       ]
     },

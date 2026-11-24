@@ -10,6 +10,7 @@ reaches both the handler's direct call and the helper's internal call.
 """
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 import current_scores
+from human_graded_metrics import sql_scored_run
 from user_display import masked_name
 
 from evaluation_methods import teacher_current_rows, teacher_rows
@@ -724,6 +725,9 @@ async def get_project_results_by_task_model(
         # score extraction and supersession is handled by latest-wins.
         eval_query = select(DBEvaluationRun.id).where(
             DBEvaluationRun.project_id == project_id,
+            # Peer feedback rows are no scores: never a cell of the grid,
+            # never the newest row that hides a staff grade.
+            sql_scored_run(DBEvaluationRun),
         )
         if evaluation_ids:
             filter_ids = [eid.strip() for eid in evaluation_ids.split(",") if eid.strip()]

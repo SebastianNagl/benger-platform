@@ -234,6 +234,10 @@ def _schema(_eager_celery):
             "evaluation_received_human",
             "evaluation_received_immediate",
             "evaluation_received_batch",
+            # Migration 155.
+            "evaluation_released",
+            # Migration 158.
+            "peer_feedback_received",
         ):
             conn.execute(
                 text(f"ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS '{_label}'")

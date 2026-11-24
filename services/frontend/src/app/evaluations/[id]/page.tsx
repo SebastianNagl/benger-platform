@@ -40,6 +40,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
+import { localizedEvalConfigName } from '@/lib/evaluation/evalName'
 import {
   bareMetricName,
   BENIGN_MATCH_REASONS,
@@ -698,7 +699,16 @@ export default function EvaluationDashboard({
                         return (
                           <li key={configId}>
                             <span className="font-medium">
-                              {rec.display_name ||
+                              {(rec.display_name &&
+                                localizedEvalConfigName(
+                                  {
+                                    ...rec,
+                                    metric_parameters: configs.find(
+                                      (c) => c.id === configId,
+                                    )?.metric_parameters,
+                                  },
+                                  t,
+                                )) ||
                                 configDisplayLabel(
                                   configId,
                                   configs,

@@ -246,9 +246,9 @@
       "summary": "The project page is made of collapsible cards. Configuration on the left (project details, annotation, generation, evaluation, settings, sharing), quick actions, billing, statistics and the project report on the right. Data, My tasks, Korrektur and Review are separate pages.",
       "steps": [
         "**Project details**: status, creator, project ID, organizations. Change title and description right in the page header (pencil on hover).",
-        "**Annotation configuration**: instructions for annotators, A/B variants, the label configuration (XML) and *Annotation workflow & behavior* (assignment mode, time limit, access window, review and grading phase).",
+        "**Annotation configuration**: instructions for annotators, A/B variants, the label configuration (XML) and *Annotation workflow & behavior* (assignment mode, time limit, review and grading phase).",
         "**Generation configuration** and **Evaluation configuration**: models, prompts, evaluation methods, each with a start button.",
-        "**Settings**: project type, visibility of sections (which cards exist) and project visibility (Private, Organization, Public).",
+        "**Settings**: project type, visibility of sections (which cards exist), project visibility (Private, Organization, Public) and the timed access window.",
         "**Sharing**: discoverability under *Entdecken*, share links and participants.",
         "**Quick actions** on the right: *Start annotation*, *Project data* (tasks, import, export), *My tasks*, *Generation*, *Evaluations*, *Review workflow*, *Korrektur*, *Delete project*."
       ],
@@ -278,10 +278,10 @@
       "title": "How do I set a time limit or an access window?",
       "summary": "**Time limit for annotation** caps the working time per task, the **strict timer** submits automatically when it runs out. The **access window** opens the project only between two points in time.",
       "steps": [
-        "In the wizard under **Settings** or later under *Annotation workflow & behavior*.",
+        "In the wizard under **Settings**. Later: the time limit and strict timer under *Annotation workflow & behavior*, the access window in the project's **Settings** card right after *Project visibility*.",
         "Tick **Time limit for annotation** and enter the minutes (1 to 360, default 30).",
         "Only then tick **Strict timer** if the submission should happen automatically when time runs out.",
-        "Tick **Access window** and set *Opens* and *Closes*. Before opening the project is listed but its data hidden. After closing everything is read-only."
+        "Tick **Timed access window** and set *Opens* and *Closes*. Before it opens the data stays hidden and exams and flashcard decks do not appear for students yet. After closing everything is read-only. The times are saved when you leave a field or press Enter."
       ],
       "pitfalls": [
         "Toggling the time limit resets the strict timer. Order: time limit first, then strict timer.",

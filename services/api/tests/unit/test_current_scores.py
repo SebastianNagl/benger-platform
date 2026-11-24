@@ -142,6 +142,27 @@ class TestPickCurrent:
         failed = _row("r2", field_name="human:loesung", minutes=5, score=None)
         assert cs.current_row_ids([good, failed]) == {"r1"}
 
+    def test_a_newer_peer_feedback_row_never_replaces_a_grade(self):
+        """A fellow participant's grading (feedback-only human method) lands
+        in the cell of the staff grade it sits next to and stays history."""
+        staff = {
+            "id": "staff", "task_id": "t1", "annotation_id": "a1", "generation_id": None,
+            "evaluation_config_id": None, "field_name": "loesung",
+            "metrics": {"korrektur_feedback": {"value": 0.75}},
+            "created_at": T0,
+        }
+        peer = {
+            **staff, "id": "peer", "created_at": T0 + timedelta(hours=1),
+            "metrics": {"korrektur_peer": {"value": None, "details": {"feedback_only": True}}},
+        }
+        assert cs.current_row_ids([staff, peer]) == {"staff"}
+        assert cs.current_row_ids([peer, staff]) == {"staff"}
+        # Alone in its cell it is the current row, still without a score.
+        assert cs.current_row_ids([peer]) == {"peer"}
+        assert cs.row_is_feedback_only(peer["metrics"])
+        assert not cs.row_is_feedback_only(staff["metrics"])
+        assert not cs.row_is_feedback_only(None)
+
     def test_only_failures_keep_the_newest_failure(self):
         a = _row("r1", field_name="human:loesung", minutes=0, score=None)
         b = _row("r2", field_name="human:loesung", minutes=5, score=None)

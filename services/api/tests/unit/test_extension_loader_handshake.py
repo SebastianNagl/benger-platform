@@ -450,6 +450,8 @@ class TestHookOwnership:
         implemented = set(extensions.HOOK_SPECS) - extensions.PENDING_HOOK_KEYS
         assert implemented == {
             "before_annotation_write",
+            "before_annotation_withdraw",
+            "on_annotation_withdrawn",
             "on_annotation_created",
             "on_draft_saved",
             "after_eval_config_save",

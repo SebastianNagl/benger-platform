@@ -20,6 +20,12 @@ implementation:
   whose steps all carry requirements can be graded per requirement
   (:func:`checklist_spec_from_structure`); the key is optional, and a step
   without it is graded as one number, as before.
+- ``structure.placement`` (optional): ``"anywhere"`` says a step's points
+  are earned wherever the answer makes its point, not only in the part of
+  the answer that treats the step's question (keyword or argument sheets:
+  every listed argument counts once, wherever it stands). Absent means the
+  default: a point counts where the answer treats the step's question, in
+  whatever order (:func:`sheet_placement`).
 - ``criteria`` is DERIVED from ``structure`` on every write
   (``criteria_from_structure``); legacy rows without a structure keep their
   hand-written criteria and can be lifted with ``structure_from_flat_criteria``.
@@ -56,6 +62,9 @@ MAX_REQUIREMENTS_PER_STEP = 12
 REQUIREMENT_STANDARDS = ("folgerichtig",)
 # The one marked kind of requirement: the definition a step subsumes under.
 REQUIREMENT_ELEMENTS = ("definition",)
+# ``structure.placement``: where a step's point may stand in the answer.
+PLACEMENT_ANYWHERE = "anywhere"
+PLACEMENT_VALUES = (PLACEMENT_ANYWHERE,)
 MAX_STEP_POINTS = 1000
 MAX_LABEL_LEN = 20
 MAX_TITLE_LEN = 500
@@ -313,6 +322,9 @@ def validate_structure(structure: Any) -> List[str]:
         return ["structure must be an object"]
     if structure.get("version") != STRUCTURE_VERSION:
         errors.append(f"structure.version must be {STRUCTURE_VERSION}")
+    placement = structure.get("placement")
+    if placement is not None and placement not in PLACEMENT_VALUES:
+        errors.append(f"structure.placement must be one of {', '.join(PLACEMENT_VALUES)} or absent")
     nodes = structure.get("nodes")
     if not isinstance(nodes, list) or not nodes:
         errors.append("structure.nodes must be a non-empty list")
@@ -571,7 +583,8 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
     """Canonical copy of a (validated) structure.
 
     Trims strings, coerces ``max_score`` (int when integral), drops empty
-    hints, assigns ids ``n1..nN`` and ALWAYS regenerates the step keys from
+    hints, keeps a valid ``placement``, assigns ids ``n1..nN`` and ALWAYS
+    regenerates the step keys from
     (title, step ordinal). Client-supplied keys are ignored: keys are a
     server-side derivation and editors must not assume key stability across
     edits (old gradings keep their own ``details.scores`` snapshot). A step
@@ -611,7 +624,18 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
             if requirements:
                 out["requirements"] = requirements
         nodes_out.append(out)
-    return {"version": STRUCTURE_VERSION, "nodes": nodes_out}
+    normalized: Dict[str, Any] = {"version": STRUCTURE_VERSION, "nodes": nodes_out}
+    if structure.get("placement") in PLACEMENT_VALUES:
+        normalized["placement"] = structure["placement"]
+    return normalized
+
+
+def sheet_placement(structure: Any) -> Optional[str]:
+    """The sheet's ``placement`` (:data:`PLACEMENT_ANYWHERE`), else None for
+    the default rule (also for a missing or unreadable structure)."""
+    if isinstance(structure, dict) and structure.get("placement") in PLACEMENT_VALUES:
+        return structure["placement"]
+    return None
 
 
 def _ancestor_chain(nodes: List[Dict[str, Any]], index: int) -> List[Dict[str, Any]]:
@@ -1125,6 +1149,65 @@ def _loaded_project_config(task: Any) -> Any:
     return getattr(project, "evaluation_config", None)
 
 
+#: Evaluation methods that grade on a scale of their own (e.g. a note sur 20
+#: from a barème), never on the Notenschlüssel. The package that ships such a
+#: method registers it at import time (``register_own_scale_metric``); the
+#: platform names none and only skips the key for an exam graded by nothing
+#: else (see ``grade_scale_applies``).
+_OWN_SCALE_METRICS: set[str] = set()
+
+
+def register_own_scale_metric(metric: str) -> None:
+    """Declare that ``metric`` grades on its own scale, not on the
+    Notenschlüssel. Registering twice is a no-op (reload-safe in dev)."""
+    _OWN_SCALE_METRICS.add(metric)
+
+
+def unregister_own_scale_metric(metric: str) -> None:
+    _OWN_SCALE_METRICS.discard(metric)
+
+
+def metric_has_own_scale(metric: Optional[str]) -> bool:
+    """Whether ``metric`` is registered as grading on its own scale."""
+    return bool(metric) and metric in _OWN_SCALE_METRICS
+
+
+def grade_scale_applies(project_config: Any) -> bool:
+    """Whether the Notenschlüssel (Notenpunkte 0-18) grades this project.
+
+    False only when the project has enabled evaluation methods and every one
+    of them grades on its own scale (``metric_has_own_scale``): then no grade is
+    ever read off the key, and showing it next to a sheet would state a
+    German grade scale the exam does not use. A project without methods, or
+    with any other method, keeps the key. ``project_config`` is the raw
+    ``Project.evaluation_config`` document (or ``None``).
+    """
+    if not isinstance(project_config, dict):
+        return True
+    configs = project_config.get("evaluation_configs")
+    if not isinstance(configs, list):
+        return True
+    enabled = [
+        c
+        for c in configs
+        if isinstance(c, dict) and c.get("enabled") is not False and c.get("metric")
+    ]
+    if not enabled:
+        return True
+    return not all(metric_has_own_scale(c.get("metric")) for c in enabled)
+
+
+def rubric_mirror_text(rubric: Any, project_config: Any) -> str:
+    """The ``task.data["bewertungsbogen"]`` text of a sheet: its rendering,
+    ending in the key that grades the exam where one does
+    (``grade_scale_applies``)."""
+    return rubric_prompt_text(
+        rubric,
+        include_grade_scale=grade_scale_applies(project_config),
+        project_config=project_config,
+    )
+
+
 def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = None) -> None:
     """Mirror the ACTIVE rubric into ``task.data["bewertungsbogen"]``.
 
@@ -1135,9 +1218,10 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = N
     of the active rubric's rendering with the Notenschlüssel that grades it:
     the exam's key (``project_config``, the project's ``evaluation_config``;
     when omitted, taken from ``task.project`` if that is loaded), else the
-    rubric's own, else the standard key. Pass ``rubric=None`` when no active
-    rubric remains to remove the key. Callers must be in a session that will
-    be committed.
+    rubric's own, else the standard key. A project whose methods all grade
+    on their own scale gets the sheet without a key (``grade_scale_applies``).
+    Pass ``rubric=None`` when no active rubric remains to remove the key.
+    Callers must be in a session that will be committed.
     """
     from sqlalchemy.orm.attributes import flag_modified
 
@@ -1149,9 +1233,7 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = N
     else:
         if project_config is None:
             project_config = _loaded_project_config(task)
-        data["bewertungsbogen"] = rubric_prompt_text(
-            rubric, include_grade_scale=True, project_config=project_config
-        )
+        data["bewertungsbogen"] = rubric_mirror_text(rubric, project_config)
     task.data = data
     flag_modified(task, "data")
 

@@ -159,8 +159,17 @@ export function ResultsTabs({
                   {annotation.was_cancelled && (
                     <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
                       <span className="text-red-700 dark:text-red-300">
-                        {t('evaluation.multiFieldResults.cancelled')}
+                        {annotation.withdrawn_at
+                          ? t('evaluation.multiFieldResults.withdrawn')
+                          : t('evaluation.multiFieldResults.cancelled')}
                       </span>
+                      {annotation.withdrawal_reason && (
+                        <p className="mt-1 whitespace-pre-line text-red-700 dark:text-red-300">
+                          {t('annotation.comparison.withdrawal.reason', {
+                            reason: annotation.withdrawal_reason,
+                          })}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

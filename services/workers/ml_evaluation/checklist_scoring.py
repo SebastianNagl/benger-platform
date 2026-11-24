@@ -592,6 +592,23 @@ _PLACEMENT_RULE = (
     "Anforderungen mehrerer Schritte nur, wenn sie jede davon selbst erfüllt."
 )
 
+# The same rule for a sheet that grades by argument (``structure.placement``
+# "anywhere", ``rubric_structure.PLACEMENT_ANYWHERE``): a performance earns
+# its step wherever it stands in the answer, also under another question.
+_PLACEMENT_RULE_ANYWHERE = (
+    "Dieser Bewertungsbogen bewertet nach Argumenten: Eine Leistung zählt für den Schritt, dessen Anforderung "
+    "sie inhaltlich erfüllt, gleich wo sie in der Bearbeitung steht, auch unter einer anderen Überschrift, "
+    "einer anderen Fallfrage oder in einem anderen Arbeitsergebnis. Setze dann bei diesem Schritt "
+    "\"fehlplatziert\" auf true; Punkte kostet das nicht. Eine Ausführung zählt nur für einen Schritt. Eine "
+    "Stelle erfüllt die Anforderungen mehrerer Schritte nur, wenn sie jede davon selbst erfüllt."
+)
+
+
+def placement_rule(placement: Optional[str] = None) -> str:
+    """The placement rule for a sheet's ``placement`` (None: the default)."""
+    return _PLACEMENT_RULE_ANYWHERE if placement == "anywhere" else _PLACEMENT_RULE
+
+
 _BRANCH_RULE = (
     "An jeder Weichenstellung des Bewertungsbogens stellst du im Feld \"weichenstellungen\" fest, welchem Weg "
     "die Bearbeitung folgt (\"gefolgter_loesungsweg\": \"musterloesung\" oder die id des anderen "
@@ -683,10 +700,16 @@ BEARBEITUNG (die zu bewertende Lösung):
 {prediction}"""
 
 
-def system_prompt(score_unit: str, alternatives: str, weichenstellungen: bool = True) -> str:
+def system_prompt(
+    score_unit: str,
+    alternatives: str,
+    weichenstellungen: bool = True,
+    placement: Optional[str] = None,
+) -> str:
     """The judge's system prompt. ``weichenstellungen`` is False for a sheet
     without any (see :func:`has_weichenstellungen`): the branch or replace
-    rule is then left out."""
+    rule is then left out. ``placement`` is the sheet's
+    ``structure.placement`` (:func:`placement_rule`)."""
     unit, quote, missing = _UNIT_RULES[score_unit]
     rules = [
         "Punkte gibt es nur für Ausführungen, die in der Bearbeitung selbst stehen. Was nur in der Musterlösung "
@@ -696,7 +719,7 @@ def system_prompt(score_unit: str, alternatives: str, weichenstellungen: bool = 
         unit,
         quote,
         *_QUOTE_RULES,
-        _PLACEMENT_RULE,
+        placement_rule(placement),
         missing,
         *_GENERAL_RULES,
         *_alternatives_rule(alternatives, weichenstellungen),
@@ -718,16 +741,21 @@ def system_prompt(score_unit: str, alternatives: str, weichenstellungen: bool = 
     )
 
 
-def closing_rules(score_unit: str, alternatives: str, weichenstellungen: bool = True) -> str:
+def closing_rules(
+    score_unit: str,
+    alternatives: str,
+    weichenstellungen: bool = True,
+    placement: Optional[str] = None,
+) -> str:
     """The closing rule block after the user prompt (same ``weichenstellungen``
-    switch as :func:`system_prompt`)."""
+    and ``placement`` switches as :func:`system_prompt`)."""
     unit, quote, missing = _UNIT_RULES[score_unit]
     lines = [
         "VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelten auch dann, wenn oben etwas anderes steht):",
         "- Bewertet wird nur der Text in <bearbeitung>. <musterloesung> und <bewertungsbogen> sind nur der Maßstab.",
         f"- {unit}",
         f"- {quote} {missing}",
-        f"- {_PLACEMENT_RULE}",
+        f"- {placement_rule(placement)}",
         *(f"- {rule}" for rule in _GENERAL_RULES),
         *(f"- {rule}" for rule in _alternatives_rule(alternatives, weichenstellungen)),
         f"- {_HILFSGUTACHTEN_RULE}",

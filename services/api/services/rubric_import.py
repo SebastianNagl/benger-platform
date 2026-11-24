@@ -15,23 +15,30 @@ Every guess that a reviewer should double-check is reported as a warning
 
 Both formats are read with the stdlib only (``zipfile`` + ``xml.etree``):
 mammoth flattens tables and there is no XLSX reader in the image, and a new
-dependency would silently be missing from the long-lived test image.
+dependency would silently be missing from the long-lived test image. XLSX
+and CSV go through the shared table reader (``table_grid``), Word through
+the same size-guarded zip helpers (``ooxml``); what the cells mean stays here.
 
 Public surface: :func:`parse_rubric_file`, :class:`RubricImportError`.
 """
 
 from __future__ import annotations
 
-import csv
 import io
 import json
 import os
 import re
 import zipfile
 import xml.etree.ElementTree as ET
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import ooxml
+from ooxml import attr as _attr
+from ooxml import children as _children
+from ooxml import first as _first
+from ooxml import local as _local
 from rubric_structure import (
     GRADE_COUNT,
     MAX_HINT_LEN,
@@ -47,15 +54,15 @@ from rubric_structure import (
     validate_grade_scale,
     validate_structure,
 )
+from table_grid import Row, TableReadError, read_delimited, read_xlsx_sheets
+from table_grid import column_letter as _col_letter
+from table_grid import decode_text as _decode_text
 
 MAX_RUBRIC_FILE_BYTES = 5 * 1024 * 1024
-# Cap on the UNCOMPRESSED size of a single zip member. OOXML files are zips,
-# so a 5 MB upload can declare a multi-gigabyte sheet/document part ("zip
-# bomb") and OOM the api worker inside ``zf.read``. Every member this module
-# reads goes through :func:`_read_member`, which refuses oversized entries
-# before decompressing. 32 MB is far above any real Korrekturbogen (a
-# hand-made 100-BE sheet has a worksheet part of about 28 KB).
-MAX_ZIP_MEMBER_BYTES = 32 * 1024 * 1024
+# Cap on the UNCOMPRESSED size of a single zip member (see ``ooxml``): a 5 MB
+# upload can declare a multi-gigabyte sheet/document part ("zip bomb"). Every
+# member this module reads goes through the size-guarded reader.
+MAX_ZIP_MEMBER_BYTES = ooxml.MAX_MEMBER_BYTES
 MAX_RAW_ROWS = 2000
 #: Container formats a Korrekturbogen may arrive in. The OOXML pair is what
 #: a law chair actually produces; the three text formats exist because they
@@ -64,10 +71,6 @@ MAX_RAW_ROWS = 2000
 #: import instead of a heuristic one.
 SUPPORTED_EXTS = {".xlsx", ".docx", ".csv", ".md", ".json"}
 
-#: Text uploads are decoded through this list in order. `utf-8-sig` first so a
-#: BOM (Excel's "CSV UTF-8" export always writes one) does not end up inside
-#: the first cell; cp1252 last for files saved by older German Office builds.
-_TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252")
 MAX_TITLE_CANDIDATE_LEN = 120
 
 WARNING_CODES = (
@@ -85,6 +88,8 @@ WARNING_CODES = (
     "grade_scale_total_mismatch",
     "rounding_assumed",
     "title_from_filename",
+    "columns_ignored",
+    "sheets_ignored",
 )
 
 ERROR_CODES = (
@@ -125,8 +130,15 @@ _BULLET_RE = re.compile(r"^[·•\-–—*]\s*(.*)$")
 
 _HEADER_CELL_RE = re.compile(r"^(max\.?\s*)?(BE|Punkte|Pkt\.?|P\.?)\s*:?$", re.I)
 _IGNORED_COLUMN_RE = re.compile(r"(Ihre\s+BE|Bewertung|erreicht|Korrektor)", re.I)
+#: A total or subtotal row: never a step and never the end of the outline.
+#: "Gesamt" only in its exact forms (``Gesamtwürdigung`` is content), "Summe"
+#: alone or with up to three trailing words ("Summe fiche", "Summe Teil A:"),
+#: a bare "Σ", and "Total" only bare ("Total des préjudices" is a step).
 _TOTAL_ROW_RE = re.compile(
-    r"^(Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?|Summe|Gesamtpunkte|Σ)\s*[:.]?\s*$",
+    r"^(?:(?:Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?"
+    r"|Summe(?:\s+\S+){0,3}"
+    r"|Σ)\s*[:.]?"
+    r"|Total\s*:?)\s*$",
     re.I,
 )
 _TRAILER_RE = re.compile(r"^(Korrektor(?:in)?|Prüfer(?:in)?|Ergibt|Gesamtnote|Note)\b", re.I)
@@ -142,6 +154,11 @@ _RANGE_RE = re.compile(
     r"^\s*(\d+(?:[.,]\d+)?)\s*(?:[-–—~]|bis)\s*(\d+(?:[.,]\d+)?)\s*(?:BE)?\s*$", re.I
 )
 _GRADE_RE = re.compile(r"^\s*(\d{1,2})\s*(?:NP|Punkte|Notenpunkte)?\s*$", re.I)
+#: A row of a grade key written as words ("sehr gut", "ausreichend").
+_GRADE_WORD_RE = re.compile(
+    r"^(sehr\s+gut|gut|vollbefriedigend|befriedigend|ausreichend|mangelhaft|ungenügend)\b",
+    re.I,
+)
 
 _ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
 
@@ -186,34 +203,6 @@ def _parse_number(text: str) -> Optional[float]:
         return float(text.replace(",", "."))
     except (TypeError, ValueError):
         return None
-
-
-def _local(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
-
-
-def _children(el: ET.Element, name: str) -> Iterable[ET.Element]:
-    for child in el:
-        if _local(child.tag) == name:
-            yield child
-
-
-def _first(el: Optional[ET.Element], name: str) -> Optional[ET.Element]:
-    if el is None:
-        return None
-    for child in el:
-        if _local(child.tag) == name:
-            return child
-    return None
-
-
-def _attr(el: Optional[ET.Element], name: str) -> Optional[str]:
-    if el is None:
-        return None
-    for key, value in el.attrib.items():
-        if _local(key) == name:
-            return value
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -263,12 +252,24 @@ class _Node:
 
 
 class _Warnings(list):
-    def add(self, code: str, message: str, *, row: Optional[int] = None, node_id: Optional[str] = None):
+    def add(
+        self,
+        code: str,
+        message: str,
+        *,
+        row: Optional[int] = None,
+        node_id: Optional[str] = None,
+        **details: Any,
+    ):
+        """One warning. ``details`` are the values the message names
+        (``declared``, ``computed``, ``column``, ``sheets`` …), so a client
+        can phrase the warning in its own language."""
         entry: Dict[str, Any] = {"code": code, "message": message}
         if row is not None:
             entry["row"] = row
         if node_id is not None:
             entry["node_id"] = node_id
+        entry.update({k: v for k, v in details.items() if v is not None})
         self.append(entry)
 
 
@@ -315,147 +316,90 @@ def _parse_points_cell(value: Any, row: int, warnings: _Warnings) -> Tuple[Optio
 
 
 # ---------------------------------------------------------------------------
-# XLSX
+# Reading tables (XLSX through table_grid) and zip parts
 # ---------------------------------------------------------------------------
 
 
-def _col_index(ref: str) -> int:
-    letters = "".join(ch for ch in ref if ch.isalpha()).upper()
-    index = 0
-    for ch in letters:
-        index = index * 26 + (ord(ch) - ord("A") + 1)
-    return max(index - 1, 0)
+_TOO_MANY_ROWS_MESSAGE = (
+    f"Die Datei hat mehr als {MAX_RAW_ROWS} Zeilen. "
+    f"Ein Bewertungsbogen darf höchstens {MAX_RAW_ROWS} Zeilen haben."
+)
+_MEMBER_TOO_LARGE_MESSAGE = (
+    "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen."
+)
+_UNREADABLE_MESSAGES = {
+    "xlsx": "Die XLSX-Datei konnte nicht gelesen werden.",
+    "csv": "Die CSV-Datei konnte nicht gelesen werden.",
+}
+
+
+def _table_error(exc: TableReadError, fmt: str) -> RubricImportError:
+    """The importer's error (code and copy) for a table that cannot be read."""
+    if exc.code == "too_many_rows":
+        return RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
+    if exc.code == "no_worksheet":
+        return RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
+    if exc.code == "worksheet_missing":
+        return RubricImportError("corrupt_file", "Das Tabellenblatt fehlt in der Datei.")
+    if exc.code == "member_too_large":
+        return RubricImportError("corrupt_file", _MEMBER_TOO_LARGE_MESSAGE)
+    return RubricImportError("corrupt_file", _UNREADABLE_MESSAGES[fmt])
 
 
 def _read_member(zf: zipfile.ZipFile, name: str) -> bytes:
-    """``zf.read(name)`` with a declared-size guard (see MAX_ZIP_MEMBER_BYTES).
+    """``ooxml.read_member`` with the importer's error for an oversized part."""
+    try:
+        return ooxml.read_member(zf, name)
+    except ooxml.MemberTooLarge as exc:
+        raise RubricImportError("corrupt_file", _MEMBER_TOO_LARGE_MESSAGE) from exc
 
-    ``ZipInfo.file_size`` is the size recorded in the archive; a bomb has to
-    declare its payload there, so refusing before the read keeps the
-    decompression bounded. A lying header still cannot get past the member
-    cap because ``read`` is given ``MAX_ZIP_MEMBER_BYTES + 1`` bytes at most.
+
+def _read_xlsx_sheets(data: bytes) -> List[Tuple[str, List[Row]]]:
+    """``[(sheet name, grid)]`` of every readable worksheet, the first one first.
+
+    Further worksheets are only looked at for the ``sheets_ignored`` warning,
+    so one that cannot be read never refuses the file (``table_grid`` skips
+    it).
     """
     try:
-        info = zf.getinfo(name)
-    except KeyError:
-        raise
-    if info.file_size > MAX_ZIP_MEMBER_BYTES:
-        raise RubricImportError(
-            "corrupt_file",
-            "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen.",
-        )
-    with zf.open(name) as handle:
-        data = handle.read(MAX_ZIP_MEMBER_BYTES + 1)
-    if len(data) > MAX_ZIP_MEMBER_BYTES:
-        raise RubricImportError(
-            "corrupt_file",
-            "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen.",
-        )
-    return data
+        sheets, _skipped = read_xlsx_sheets(data, max_rows=MAX_RAW_ROWS)
+    except TableReadError as exc:
+        raise _table_error(exc, "xlsx") from exc
+    return [(sheet.name, sheet.rows) for sheet in sheets]
 
 
-def _shared_strings(zf: zipfile.ZipFile) -> List[str]:
-    if "xl/sharedStrings.xml" not in zf.namelist():
-        return []
-    root = ET.fromstring(_read_member(zf, "xl/sharedStrings.xml"))
-    out: List[str] = []
-    for si in root.iter():
-        if _local(si.tag) != "si":
-            continue
-        parts: List[str] = []
-        for el in si.iter():
-            if _local(el.tag) == "rPh":
-                continue
-            if _local(el.tag) == "t":
-                parts.append(el.text or "")
-        out.append("".join(parts))
-    return out
+def _read_xlsx_grid(data: bytes) -> List[Row]:
+    """The grid of the first worksheet (the one a sheet is read from)."""
+    return _read_xlsx_sheets(data)[0][1]
 
 
-def _first_sheet_path(zf: zipfile.ZipFile) -> str:
-    names = set(zf.namelist())
-    workbook = ET.fromstring(_read_member(zf, "xl/workbook.xml"))
-    sheet = next((el for el in workbook.iter() if _local(el.tag) == "sheet"), None)
-    if sheet is None:
-        raise RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
-    rid = _attr(sheet, "id")
-    target = None
-    if rid and "xl/_rels/workbook.xml.rels" in names:
-        rels = ET.fromstring(_read_member(zf, "xl/_rels/workbook.xml.rels"))
-        for rel in rels.iter():
-            if _local(rel.tag) == "Relationship" and rel.attrib.get("Id") == rid:
-                target = rel.attrib.get("Target")
-                break
-    if not target:
-        target = "worksheets/sheet1.xml"
-    path = target.lstrip("/") if target.startswith("/") else os.path.normpath(f"xl/{target}")
-    path = path.replace("\\", "/")
-    if path not in names:
-        raise RubricImportError("corrupt_file", "Das Tabellenblatt fehlt in der Datei.")
-    return path
+def _has_scored_text(grid: List[Tuple[int, Dict[int, Any]]]) -> bool:
+    """Whether a grid holds a row with outline text and a points value."""
+    return any(
+        any(_is_outline_text(v) for v in cells.values())
+        and any(_is_points_value(v) for v in cells.values())
+        for _row_no, cells in grid
+    )
 
 
-def _read_xlsx_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
-    """``[(row_no, {col_index: str|float})]`` of the first worksheet."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            shared = _shared_strings(zf)
-            sheet = ET.fromstring(_read_member(zf, _first_sheet_path(zf)))
-    except RubricImportError:
-        raise
-    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError) as exc:
-        raise RubricImportError("corrupt_file", "Die XLSX-Datei konnte nicht gelesen werden.") from exc
-
-    grid: List[Tuple[int, Dict[int, Any]]] = []
-    next_row = 1
-    for row_el in sheet.iter():
-        if _local(row_el.tag) != "row":
-            continue
-        try:
-            row_no = int(row_el.attrib.get("r") or next_row)
-        except ValueError:
-            row_no = next_row
-        next_row = row_no + 1
-        cells: Dict[int, Any] = {}
-        next_col = 0
-        for cell in _children(row_el, "c"):
-            ref = cell.attrib.get("r")
-            col = _col_index(ref) if ref else next_col
-            next_col = col + 1
-            kind = cell.attrib.get("t")
-            v_el = _first(cell, "v")
-            value: Any = None
-            if kind == "s":
-                try:
-                    value = shared[int(v_el.text)] if v_el is not None and v_el.text else ""
-                except (ValueError, IndexError):
-                    value = ""
-            elif kind == "inlineStr":
-                is_el = _first(cell, "is")
-                value = "".join(
-                    (t.text or "") for t in (is_el.iter() if is_el is not None else []) if _local(t.tag) == "t"
-                )
-            elif kind == "str":
-                value = v_el.text or "" if v_el is not None else ""
-            elif kind == "b":
-                value = "1" if v_el is not None and v_el.text == "1" else "0"
-            elif kind == "e":
-                value = None
-            else:
-                if v_el is not None and v_el.text not in (None, ""):
-                    try:
-                        value = float(v_el.text)
-                    except ValueError:
-                        value = v_el.text
-            if value is None or (isinstance(value, str) and not value.strip()):
-                continue
-            cells[col] = value
-        grid.append((row_no, cells))
-        if len(grid) > MAX_RAW_ROWS:
-            raise RubricImportError(
-                "too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen."
-            )
-    return grid
+def _warn_ignored_sheets(
+    sheets: List[Tuple[str, List[Tuple[int, Dict[int, Any]]]]], warnings: _Warnings
+) -> None:
+    """Warn about further worksheets with text and points: only the first
+    worksheet is read, and a sheet continued on a second one would
+    otherwise lose that part without a word."""
+    ignored = [name for name, grid in sheets[1:] if _has_scored_text(grid)]
+    if not ignored:
+        return
+    warnings.add(
+        "sheets_ignored",
+        "Die Arbeitsmappe hat weitere Tabellenblätter mit Text und Punkten ("
+        + ", ".join(f"„{name}“" for name in ignored)
+        + f"), die nicht gelesen wurden; gelesen wird nur das erste Blatt „{sheets[0][0]}“. "
+        "Bitte den ganzen Bogen auf das erste Blatt setzen.",
+        sheets=ignored,
+        read_sheet=sheets[0][0],
+    )
 
 
 def _detect_columns(grid: List[Tuple[int, Dict[int, Any]]]) -> Tuple[int, Optional[int]]:
@@ -486,8 +430,75 @@ def _detect_columns(grid: List[Tuple[int, Dict[int, Any]]]) -> Tuple[int, Option
     return text_col, None
 
 
+def _is_points_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return value > 0
+    return isinstance(value, str) and bool(_POINTS_RE.match(value))
+
+
+def _is_outline_text(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    text = value.strip()
+    return (
+        len(text) >= 2
+        and not _POINTS_RE.match(text)
+        and not _RANGE_RE.match(text)
+        and not _HEADER_CELL_RE.match(text)
+        and not _IGNORED_COLUMN_RE.search(text)
+    )
+
+
+#: Rows a second column block needs before it is reported (one stray note
+#: next to a number is not a block).
+MIN_IGNORED_BLOCK_ROWS = 2
+
+
+def _warn_ignored_columns(
+    grid: List[Tuple[int, Dict[int, Any]]],
+    text_col: int,
+    points_col: Optional[int],
+    warnings: _Warnings,
+    column_name=_col_letter,
+) -> None:
+    """Warn about column blocks next to the one that is read.
+
+    Only the text column and its points column are read. Another column with
+    text that has a points value to its right (a sheet laid out in two halves
+    side by side) is a second block of the outline that would otherwise be
+    dropped without a word. The grade key below the outline is not scanned.
+    """
+    counts: Dict[int, int] = {}
+    for _row_no, cells in grid:
+        if any(isinstance(v, str) and _SCALE_TRIGGER_RE.match(v.strip()) for v in cells.values()):
+            break
+        for col, value in cells.items():
+            if col in (text_col, points_col) or not _is_outline_text(value):
+                continue
+            if any(
+                other > col and other != points_col and _is_points_value(v)
+                for other, v in cells.items()
+            ):
+                counts[col] = counts.get(col, 0) + 1
+    for col in sorted(counts):
+        if counts[col] < MIN_IGNORED_BLOCK_ROWS:
+            continue
+        warnings.add(
+            "columns_ignored",
+            f"Spalte {column_name(col)} enthält {counts[col]} weitere Zeilen mit Text und Punkten, "
+            f"die nicht gelesen wurden; gelesen wird nur Spalte {column_name(text_col)}. "
+            "Bitte den ganzen Bogen untereinander in eine Spalte setzen.",
+            column=column_name(col),
+            read_column=column_name(text_col),
+            rows=counts[col],
+        )
+
+
 def _rows_from_xlsx(grid, warnings: _Warnings) -> Tuple[List[_RawRow], List[Tuple[int, Dict[int, Any]]]]:
     text_col, points_col = _detect_columns(grid)
+    _warn_ignored_columns(grid, text_col, points_col, warnings)
     rows: List[_RawRow] = []
     for row_no, cells in grid:
         text_value = cells.get(text_col)
@@ -744,7 +755,7 @@ def _read_docx(data: bytes) -> _DocxDoc:
             for tr in _children(block, "tr"):
                 rows.append([walk_cell(tc) for tc in _children(tr, "tc")])
                 if len(rows) > MAX_RAW_ROWS:
-                    raise RubricImportError("too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen.")
+                    raise RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
             doc.blocks.append(("tbl", rows))
         elif name == "sdt":
             content = _first(block, "sdtContent")
@@ -867,9 +878,13 @@ def _rows_from_docx(doc: _DocxDoc, warnings: _Warnings) -> Tuple[List[_RawRow], 
             "Im Dokument wurde keine Tabelle mit Gliederungspunkten und Punktwerten gefunden.",
         )
     table_rows: List[List[List[_Paragraph]]] = doc.blocks[main_index][1]
-    text_col, points_col = _detect_columns(_table_grid(table_rows))
+    table_grid = _table_grid(table_rows)
+    text_col, points_col = _detect_columns(table_grid)
     if points_col is None:
         points_col = text_col + 1
+    _warn_ignored_columns(
+        table_grid, text_col, points_col, warnings, column_name=lambda col: str(col + 1)
+    )
 
     rows: List[_RawRow] = []
     # Paragraphs before the table feed the title candidate.
@@ -1012,8 +1027,45 @@ def _subtree_points(nodes: List[_Node], index: int) -> float:
     return doubled / 2
 
 
+def _has_outline_label(text: str) -> bool:
+    """Whether ``text`` starts with an outline label (no side effects)."""
+    return any(
+        pattern.match(text)
+        for pattern in (
+            _FRAGE_RE,
+            _ROMAN_RE,
+            _CAPITAL_RE,
+            _DECIMAL_RE,
+            _DOUBLE_LOWER_RE,
+            _LOWER_RE,
+            _PAREN_DECIMAL_RE,
+            _PAREN_LOWER_RE,
+        )
+    )
+
+
+def _starts_grade_key(raw: _RawRow, text: str) -> bool:
+    """A row after a total row that opens a grade key without its heading:
+    a range ("0-12") in the points or the text column, or a grade word in
+    the text."""
+    points = raw.points_text if raw.points_parsed else raw.points_raw
+    if isinstance(points, str) and _RANGE_RE.match(points):
+        return True
+    return bool(_RANGE_RE.match(text) or _GRADE_WORD_RE.match(text))
+
+
 def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node], Optional[float], Optional[str], Optional[str]]:
-    """``(nodes, declared_total, title_candidate, rounding)``."""
+    """``(nodes, declared_total, title_candidate, rounding)``.
+
+    A total row ("Gesamt", "Summe …", "Total", "Σ") is never a step and never
+    ends the outline: when scored rows follow it, it was a subtotal and they
+    are read on. Text rows without points right after a total row are held
+    back until a scored or labelled row shows the outline goes on (then they
+    are read in order), so a trailer below the final total never becomes a
+    hint. ``declared_total`` is the stated value of the last total row when
+    no step follows it. Only the Notenschlüssel heading, or a grade key or a
+    trailer ("Note", "Korrektor") right after a total row, ends the outline.
+    """
     nodes: List[_Node] = []
     stack: List[_Node] = []
     last_node: Optional[_Node] = None
@@ -1022,8 +1074,12 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
     title_candidate: Optional[str] = None
     rounding: Optional[str] = None
     stopped = False
+    #: After a total row: rows waiting for the outline to go on.
+    held: Optional[List[_RawRow]] = None
+    queue = deque(rows)
 
-    for raw in rows:
+    while queue:
+        raw = queue.popleft()
         text = raw.text.strip()
         rounding_match = _ROUNDING_RE.search(text)
         if rounding_match:
@@ -1034,6 +1090,9 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             stopped = True
             continue
         if stopped:
+            continue
+        if held is not None and _starts_grade_key(raw, text):
+            stopped = True
             continue
         if not raw.points_parsed:
             raw.points, raw.points_text = _parse_points_cell(raw.points_raw, raw.row, warnings)
@@ -1051,7 +1110,20 @@ def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node
             continue
         if _TOTAL_ROW_RE.match(text):
             declared_total = raw.points
-            stopped = True
+            held = []
+            continue
+        if held is not None:
+            if raw.auto_rank is None and not _has_outline_label(text):
+                if _TRAILER_RE.match(text):
+                    stopped = True
+                    continue
+                if raw.points is None:
+                    held.append(raw)
+                    continue
+            # The outline goes on: the total row was a subtotal.
+            declared_total = None
+            queue.extendleft(reversed(held + [raw]))
+            held = None
             continue
 
         rank: Optional[int] = None
@@ -1365,19 +1437,8 @@ def _grade_scale_as_percent(
 # ---------------------------------------------------------------------------
 
 
-def _decode_text(data: bytes) -> str:
-    """Best-effort decode of an uploaded text file."""
-    for encoding in _TEXT_ENCODINGS:
-        try:
-            return data.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    # Last resort: never fail the import on a stray byte in a comment.
-    return data.decode("utf-8", errors="replace")
-
-
-def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
-    """Rows of cells → the `(row_no, {col: value})` grid shape.
+def _coerce_cells(cells: Dict[int, Any]) -> Dict[int, Any]:
+    """Text cells as the XLSX reader would hand them downstream.
 
     A cell that is nothing but a number becomes a float, because that is what
     the XLSX reader hands downstream and ``_detect_columns`` recognises a
@@ -1385,34 +1446,39 @@ def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
     would parse to an outline with no points at all — every cell being a
     string, no column ever looks numeric.
     """
+    mapped: Dict[int, Any] = {}
+    for col, raw in cells.items():
+        text = str(raw).strip()
+        if not text:
+            continue
+        number = _parse_number(text) if _POINTS_RE.match(text) else None
+        mapped[col] = text if number is None else number
+    return mapped
+
+
+def _grid_from_rows(rows: List[List[str]]) -> List[Tuple[int, Dict[int, Any]]]:
+    """Rows of cells → the `(row_no, {col: value})` grid shape (see
+    :func:`_coerce_cells`); rows without a non-blank cell are left out."""
     grid: List[Tuple[int, Dict[int, Any]]] = []
     for index, cells in enumerate(rows, start=1):
-        mapped: Dict[int, Any] = {}
-        for col, raw in enumerate(cells):
-            text = str(raw).strip()
-            if not text:
-                continue
-            number = _parse_number(text) if _POINTS_RE.match(text) else None
-            mapped[col] = text if number is None else number
+        mapped = _coerce_cells(dict(enumerate(cells)))
         if mapped:
             grid.append((index, mapped))
     return grid
 
 
 def _read_csv_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
-    """CSV/TSV → grid. The delimiter is sniffed; German exports use ';'."""
-    text = _decode_text(data)
-    sample = text[:4096]
+    """CSV → grid through ``table_grid`` (delimiter sniffed; German exports use ';')."""
     try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
-        delimiter = dialect.delimiter
-    except csv.Error:
-        # Sniffing fails on a single-column file; count instead.
-        delimiter = max(",;\t", key=lambda d: sample.count(d))
-        if sample.count(delimiter) == 0:
-            delimiter = ","
-    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    return _grid_from_rows([[c for c in row] for row in reader])
+        rows = read_delimited(data, max_rows=MAX_RAW_ROWS)
+    except TableReadError as exc:
+        raise _table_error(exc, "csv") from exc
+    grid: List[Tuple[int, Dict[int, Any]]] = []
+    for row in rows:
+        mapped = _coerce_cells(row.cells)
+        if mapped:
+            grid.append((row.number, mapped))
+    return grid
 
 
 _MD_TABLE_ROW_RE = re.compile(r"^\s*\|(.+)\|\s*$")
@@ -1576,6 +1642,7 @@ def _result_from_structure(payload: Dict[str, Any], warnings: _Warnings) -> Dict
         "total_points": total,
         "grade_scale": grade_scale,
         "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
+        "declared_total": None,
         "warnings": list(warnings),
         "source_format": "json",
     }
@@ -1609,7 +1676,9 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
             return _result_from_structure(payload, warnings)
 
     if ext == ".xlsx":
-        rows, scale_grid = _rows_from_xlsx(_read_xlsx_grid(data), warnings)
+        sheets = _read_xlsx_sheets(data)
+        rows, scale_grid = _rows_from_xlsx(sheets[0][1], warnings)
+        _warn_ignored_sheets(sheets, warnings)
         source_format = "xlsx"
     elif ext == ".docx":
         rows, scale_grid = _rows_from_docx(_read_docx(data), warnings)
@@ -1652,6 +1721,8 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         warnings.add(
             "total_mismatch",
             f"Gesamtsumme laut Bogen {format_points(declared_total)} BE, Summe der Schritte {format_points(total)} BE.",
+            declared=declared_total,
+            computed=total,
         )
 
     grade_scale = _detect_grade_scale(scale_grid, rounding, float(total), warnings)
@@ -1683,6 +1754,9 @@ def parse_rubric_file(filename: str, data: bytes) -> Dict[str, Any]:
         # percent key survives a later change of the sheet's point total).
         # ``None`` when the file carried no readable key.
         "grade_scale_percent": _grade_scale_as_percent(grade_scale, total),
+        # The total the file itself states (its final total row), or None.
+        # A client checks the sheet against this, not against a fixed target.
+        "declared_total": declared_total,
         "warnings": list(warnings),
         "source_format": source_format,
     }

@@ -461,6 +461,7 @@
         "step6": {
           "title": "Configure Prompts",
           "subtitle": "Set up system and instruction prompts for generation",
+          "generationOnly": "These prompts apply to generation only: they tell a model how to write an answer to the task. For grading, each evaluation method has its own prompt; you change it later in the evaluation configuration, on the method.",
           "systemPromptLabel": "System Prompt",
           "systemPromptHint": "Defines the AI's role and behavior",
           "systemPromptPlaceholder": "You are a legal expert assistant...",
@@ -1402,7 +1403,8 @@
       },
       "visibilityDangerZone": {
         "title": "Project visibility",
-        "help": "Changes here affect who across the whole platform can see and interact with this project. Public exposes it to every authenticated user."
+        "help": "Changes here affect who across the whole platform can see and interact with this project. Public exposes it to every authenticated user.",
+        "prepareHint": "To prepare a project without anyone seeing it, keep it \"Private\" until it is ready and only then attach it to the organization or group. If it should appear only at a set time, add a timed access window below: until it opens, the data stays hidden and exams and flashcard decks do not appear for students yet."
       },
       "annotationBehavior": {
         "title": "Annotation Behavior",
@@ -1505,7 +1507,7 @@
       },
       "accessWindow": {
         "title": "Timed access window",
-        "hint": "Open the project to its access group only during a set time. Before it opens, the project is listed but its data stays hidden; after it closes, the data is read-only. Owners and admins are never restricted.",
+        "hint": "Open the project to its access group only during a set time. Before it opens, its data stays hidden and exams and flashcard decks do not appear for students yet; after it closes, the data is read-only. Anyone who may edit the project is never restricted.",
         "opens": "Opens",
         "closes": "Closes",
         "invalid": "The close time must be after the open time."
@@ -1704,6 +1706,9 @@
     "configCard": {
       "saving": "Saving…",
       "unsavedChanges": "Unsaved changes"
+    },
+    "releaseReview": {
+      "extendedRequired": "Reviewing and releasing gradings requires the extended edition."
     },
     "rubricReview": {
       "extendedRequired": "The check of grading sheets requires the extended edition."
@@ -3327,6 +3332,18 @@
         "title": "New evaluation: {project_title}",
         "message": "An evaluation run has graded your submissions in '{project_title}'."
       },
+      "evaluation_released": {
+        "title": "Grading released: {project_title}",
+        "message": "Your teacher released the grading of your submission in '{project_title}'."
+      },
+      "peer_feedback_received": {
+        "title": "Peer feedback: {project_title}",
+        "message": "A fellow participant graded your submission in '{project_title}'. This grading does not count towards your grade."
+      },
+      "submission_returned": {
+        "title": "Submission returned: {project_title}",
+        "message": "Your submission in '{project_title}' was returned to you. Reason: {reason}"
+      },
       "data_upload_completed": {
         "title": "Data upload completed: {task_name}",
         "message": "Successfully uploaded {upload_count} items from '{filename}' to task '{task_name}'."
@@ -3892,6 +3909,12 @@
         "evaluationReceivedImmediateDesc": "Receive notifications when the immediate AI grading of your submission is ready",
         "evaluationReceivedBatch": "New evaluation run",
         "evaluationReceivedBatchDesc": "Receive notifications when an evaluation run has graded your submissions",
+        "evaluationReleased": "Released grading",
+        "evaluationReleasedDesc": "Receive notifications when your teacher releases a grading of your submission that was held back for review",
+        "peerFeedbackReceived": "Peer feedback",
+        "peerFeedbackReceivedDesc": "Receive notifications when a fellow participant grades your submission (does not count towards your grade)",
+        "submissionReturned": "Submission returned",
+        "submissionReturnedDesc": "Receive notifications when one of your submissions was returned to you with a reason",
         "dataUploadCompleted": "Data Upload Completed",
         "dataUploadCompletedDesc": "Receive notifications when data uploads finish processing",
         "llmGenerationCompleted": "LLM Generation Completed",
@@ -6000,6 +6023,7 @@
       "annotation": "Annotation",
       "annotator": "Annotator",
       "cancelled": "Cancelled",
+      "withdrawn": "Withdrawn",
       "noAnnotationResults": "No annotation results",
       "noAnnotationData": "No annotation data available for this task",
       "clickToViewData": "View available data (no evaluation yet)",
@@ -7256,7 +7280,8 @@
         "submitted": "submitted",
         "approved": "approved",
         "rejected": "rejected",
-        "draft": "draft"
+        "draft": "draft",
+        "withdrawn": "withdrawn"
       },
       "buttons": {
         "addMyAnnotation": "Add My Annotation",
@@ -7283,6 +7308,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} annotator{plural}",
         "totalAnnotations": "{count} total annotation{plural}"
+      },
+      "withdrawal": {
+        "withdrawn": "Withdrawn on {date}",
+        "returned": "Returned on {date} by {name}",
+        "reason": "Reason: {reason}",
+        "editor": "a project editor"
       },
       "result": {
         "notAnswered": "Not answered",
