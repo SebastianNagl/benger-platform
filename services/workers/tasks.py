@@ -3059,7 +3059,7 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     tell (generation-only benchmarks) stays unmarked. A row that waits for a
     release (``metric_filters.details_await_release``: a score-less feedback
     row, ``details.feedback_only``, core 2.41, or any row whose review has a
-    status, such as a re-graded row's draft, core 2.83; in a metric blob or a flat
+    status, such as a re-graded row's draft, core 2.84; in a metric blob or a flat
     ``<metric>_details`` sibling) counts only when the judge released it at
     write time (``details.review.status = "released"`` and
     ``details.review.released_by = "judge"``). Any other such row, a draft

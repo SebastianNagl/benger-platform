@@ -94,6 +94,16 @@ def _create_tables():
                     "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_feedback'"
                 )
             )
+            # Migration 158: the korrektur_peer sibling (peer review).
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_human_eval_run_per_project_metric_peer "
+                    "ON evaluation_runs (project_id, model_id) "
+                    "WHERE model_id = 'human' "
+                    "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_peer'"
+                )
+            )
             # Migration 064: one active annotation per (task, user). Declared on
             # the Annotation model, but force it in idempotently too so a
             # long-lived test DB bootstrapped before it landed still gets the
@@ -229,9 +239,9 @@ def _create_tables():
                     "REFERENCES org_storage_connections(id) ON DELETE SET NULL"
                 )
             )
-            # Migrations 104, 155 and 156: the evaluation_received_*,
-            # evaluation_released and submission_returned notification
-            # types. create_all never alters an existing enum, so a
+            # Migrations 104, 155, 156 and 158: the evaluation_received_*,
+            # evaluation_released, submission_returned and
+            # peer_feedback_received notification types. create_all never alters an existing enum, so a
             # long-lived test DB bootstrapped before they landed rejects
             # every such notice (InvalidTextRepresentation). ADD VALUE IF
             # NOT EXISTS is idempotent; PostgreSQL only forbids USING the new
@@ -244,6 +254,8 @@ def _create_tables():
                 "evaluation_released",
                 # Migration 156.
                 "submission_returned",
+                # Migration 158.
+                "peer_feedback_received",
             ):
                 conn.execute(
                     text(

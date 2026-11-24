@@ -111,7 +111,7 @@ def details_await_release(details: Any) -> bool:
 
     Two shapes wait for a release: a review whose status is not released
     (``details.review.status`` other than ``"released"``: a re-graded row
-    starts as a draft, core 2.83, and the overlay's teacher review writes the
+    starts as a draft, core 2.84, and the overlay's teacher review writes the
     same key) and a feedback-only judge result (``details.feedback_only``,
     core 2.41) without a released review. A judge that releases on writing,
     or a teacher who released later, stores ``review.status = "released"``.

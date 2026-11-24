@@ -451,6 +451,74 @@ describe('ProjectDetailPage — participant tier', () => {
     expect(screen.queryByText('project.deleteProject')).not.toBeInTheDocument()
     expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
   })
+
+  it('peer review: a participant the API names a peer gets the Korrektur action and nothing else', async () => {
+    setup({
+      access_tier: 'participant',
+      participant_via: 'org_exam',
+      effective_role: 'ANNOTATOR',
+      can_edit: false,
+      korrektur_enabled: true,
+      peer_review_enabled: true,
+      viewer_review_role: 'peer',
+      organizations: [{ id: 'org-1', name: 'LMU' }],
+      created_by: 'someone-else',
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    expect(
+      await screen.findByTestId('project-participant-badge'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('project.quickActions.korrektur'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.projectData'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.evaluations'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
+  })
+
+  it('peer review: a full-tier annotator peer gets the Korrektur action, not the staff ones', async () => {
+    setup({
+      access_tier: 'full',
+      effective_role: 'ANNOTATOR',
+      can_edit: false,
+      korrektur_enabled: true,
+      peer_review_enabled: true,
+      viewer_review_role: 'peer',
+      created_by: 'someone-else',
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    await screen.findAllByText('Test Project')
+    expect(
+      screen.getByText('project.quickActions.korrektur'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.projectData'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('peer review off: the same annotator gets no Korrektur action', async () => {
+    setup({
+      access_tier: 'full',
+      effective_role: 'ANNOTATOR',
+      can_edit: false,
+      korrektur_enabled: true,
+      peer_review_enabled: false,
+      viewer_review_role: null,
+      created_by: 'someone-else',
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    await screen.findAllByText('Test Project')
+    expect(
+      screen.queryByText('project.quickActions.korrektur'),
+    ).not.toBeInTheDocument()
+  })
 })
 
 describe('ProjectDetailPage — header icon editing', () => {

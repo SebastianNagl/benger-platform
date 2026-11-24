@@ -16,7 +16,7 @@ shape, else the flat sibling ``metrics["<metric>_details"]``:
 * ``rubric_id``: the sheet the row was graded along (written by every sheet
   grading since the sheets exist).
 * ``scheme_fingerprint``: :func:`scheme_fingerprint` of the config that
-  graded it (written by the worker on every judge row since core 2.83, and
+  graded it (written by the worker on every judge row since core 2.84, and
   by an overlay's own writers through :func:`stamp_grading_basis`).
 
 The rule (:func:`outdated_reason`), for the current row of a cell
@@ -369,10 +369,14 @@ def is_human_method(metric: Optional[str]) -> bool:
 def config_is_tracked(config: Mapping[str, Any]) -> bool:
     """Whether rows of ``config`` can be outdated: its method has a scheme,
     it grades along the task's sheet, or a person grades it (human rows
-    record the sheet they were graded along)."""
+    record the sheet they were graded along). A feedback-only human method
+    (peer review) is feedback, never a grade, and is not tracked."""
+    from human_graded_metrics import is_feedback_only_human_metric
     from task_rubric_resolution import is_rubric_judge
 
     metric = config.get("metric")
+    if is_feedback_only_human_metric(metric):
+        return False
     return (
         scheme_keys_for(metric) is not None
         or is_rubric_judge(dict(config))

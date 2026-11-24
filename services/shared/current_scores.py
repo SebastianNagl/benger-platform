@@ -42,7 +42,10 @@ the batch rows of the same cell without rewriting stored data.
 
 The current row of a cell is the newest row that carries a score; when no
 row of the cell has a score (every attempt failed) the newest row is
-current, so the failure stays visible. Older rows are history.
+current, so the failure stays visible. Older rows are history. A row of a
+feedback-only human method (peer review, ``human_graded_metrics``) never
+stands in for a score: it ranks below every other row of its cell, also
+when it is newer, and is current only in a cell that holds nothing else.
 
 Pure functions over plain rows (ORM objects, SQLAlchemy rows or dicts); the
 SQL twins at the end let a query rank rows by the same key.
@@ -55,6 +58,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from eval_field_classification import BULK_SELECTORS, bare_field_name
 from evaluation_planning import _row_has_score
+from human_graded_metrics import FEEDBACK_ONLY_HUMAN_METRICS
 from metric_filters import graded_reference_fields
 from metric_values import coerce_metric_value
 
@@ -189,12 +193,22 @@ def row_has_score(metrics: Any) -> bool:
     )
 
 
+def row_is_feedback_only(metrics: Any) -> bool:
+    """Whether a row holds a feedback-only human method (peer review), which
+    is feedback and never a score of its subject."""
+    return isinstance(metrics, Mapping) and any(
+        key in FEEDBACK_ONLY_HUMAN_METRICS for key in metrics
+    )
+
+
 def _rank(row: Any, metrics_attr: str) -> tuple:
     created_at = _get(row, "created_at") or _EPOCH
     if isinstance(created_at, datetime) and created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
+    metrics = _get(row, metrics_attr)
     return (
-        row_has_score(_get(row, metrics_attr)),
+        not row_is_feedback_only(metrics),
+        row_has_score(metrics),
         created_at,
         str(_get(row, "id") or _get(row, "task_evaluation_id") or ""),
     )
@@ -208,9 +222,9 @@ def pick_current(
 ) -> Dict[CellKey, Any]:
     """The current row of every cell among ``rows``.
 
-    Ranking per cell: rows with a score first, then the newest
-    ``created_at``, then the larger id (so equal timestamps stay
-    deterministic).
+    Ranking per cell: rows of a scored method before feedback-only human
+    rows, then rows with a score, then the newest ``created_at``, then the
+    larger id (so equal timestamps stay deterministic).
     """
     best: Dict[CellKey, Tuple[tuple, Any]] = {}
     for row in rows:
@@ -343,10 +357,23 @@ def sql_has_score(metrics_col):
     )
 
 
+def sql_is_feedback_only(metrics_col):
+    """SQL twin of :func:`row_is_feedback_only` over a JSONB metrics column."""
+    from sqlalchemy import literal_column
+
+    keys = ", ".join(f"'{key}'" for key in sorted(FEEDBACK_ONLY_HUMAN_METRICS))
+    return metrics_col.op("?|")(literal_column(f"ARRAY[{keys}]::text[]"))
+
+
 def sql_current_rank_order(metrics_col, created_col, id_col) -> List[Any]:
     """``ORDER BY`` of a ``row_number()`` window whose first row per cell is
     the current one (see :func:`pick_current`)."""
-    return [sql_has_score(metrics_col).desc(), created_col.desc(), id_col.desc()]
+    return [
+        sql_is_feedback_only(metrics_col).asc(),
+        sql_has_score(metrics_col).desc(),
+        created_col.desc(),
+        id_col.desc(),
+    ]
 
 
 def sql_cell_partition(

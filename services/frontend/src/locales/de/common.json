@@ -3336,6 +3336,10 @@
         "title": "Korrektur freigegeben: {project_title}",
         "message": "Deine Lehrkraft hat die Korrektur deiner Bearbeitung in '{project_title}' freigegeben."
       },
+      "peer_feedback_received": {
+        "title": "Peer-Feedback: {project_title}",
+        "message": "Eine andere teilnehmende Person hat deine Bearbeitung in '{project_title}' bewertet. Diese Bewertung zählt nicht zur Note."
+      },
       "submission_returned": {
         "title": "Abgabe zurückgegeben: {project_title}",
         "message": "Deine Abgabe in '{project_title}' wurde dir zurückgegeben. Grund: {reason}"
@@ -3907,6 +3911,8 @@
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf deine Bearbeitungen bewertet hat",
         "evaluationReleased": "Freigegebene Korrektur",
         "evaluationReleasedDesc": "Benachrichtigungen erhalten, wenn deine Lehrkraft eine zurückgehaltene Korrektur deiner Bearbeitung freigibt",
+        "peerFeedbackReceived": "Peer-Feedback",
+        "peerFeedbackReceivedDesc": "Benachrichtigungen erhalten, wenn eine andere teilnehmende Person deine Bearbeitung bewertet (zählt nicht zur Note)",
         "submissionReturned": "Abgabe zurückgegeben",
         "submissionReturnedDesc": "Benachrichtigungen erhalten, wenn dir eine deiner Abgaben mit einem Grund zurückgegeben wurde",
         "dataUploadCompleted": "Datenupload abgeschlossen",

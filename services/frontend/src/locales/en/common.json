@@ -3336,6 +3336,10 @@
         "title": "Grading released: {project_title}",
         "message": "Your teacher released the grading of your submission in '{project_title}'."
       },
+      "peer_feedback_received": {
+        "title": "Peer feedback: {project_title}",
+        "message": "A fellow participant graded your submission in '{project_title}'. This grading does not count towards your grade."
+      },
       "submission_returned": {
         "title": "Submission returned: {project_title}",
         "message": "Your submission in '{project_title}' was returned to you. Reason: {reason}"
@@ -3907,6 +3911,8 @@
         "evaluationReceivedBatchDesc": "Receive notifications when an evaluation run has graded your submissions",
         "evaluationReleased": "Released grading",
         "evaluationReleasedDesc": "Receive notifications when your teacher releases a grading of your submission that was held back for review",
+        "peerFeedbackReceived": "Peer feedback",
+        "peerFeedbackReceivedDesc": "Receive notifications when a fellow participant grades your submission (does not count towards your grade)",
         "submissionReturned": "Submission returned",
         "submissionReturnedDesc": "Receive notifications when one of your submissions was returned to you with a reason",
         "dataUploadCompleted": "Data Upload Completed",

@@ -137,6 +137,7 @@ def build_project_export_data(project, organization_id) -> dict:
         "handwriting_ocr_enabled": project.handwriting_ocr_enabled,
         "handwriting_ocr_model": project.handwriting_ocr_model,
         "rubric_review_required": project.rubric_review_required,
+        "peer_review_enabled": project.peer_review_enabled,
         "restorable_checkpoints_enabled": project.restorable_checkpoints_enabled,
         "checkpoint_interval_seconds": project.checkpoint_interval_seconds,
         "skip_queue": project.skip_queue,

@@ -181,3 +181,12 @@ class TestOutdatedReason:
         registered("llm_judge_feedback", scheme_keys=(), legacy_outdated=broken)
         config = {"id": "f", "metric": "llm_judge_feedback"}
         assert outdated_reason({}, config, current_rubric_id=None, current_fingerprint="x") is None
+
+
+def test_peer_feedback_is_never_tracked():
+    from human_graded_metrics import PEER_REVIEW_METRIC
+
+    assert gb.config_is_tracked({"id": "p", "metric": PEER_REVIEW_METRIC}) is False
+    assert gb.config_is_tracked({"id": "h", "metric": "korrektur_custom"}) is True
+    assert gb.config_is_tracked({"id": "j", "metric": "llm_judge_custom"}) is True
+    assert gb.config_is_tracked({"id": "b", "metric": "bleu"}) is False
