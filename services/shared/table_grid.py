@@ -235,7 +235,7 @@ def read_xlsx_sheets(
                     skipped.append(SkippedSheet(name, exc.code))
                 except MemberTooLarge:
                     skipped.append(SkippedSheet(name, "member_too_large"))
-                except (ET.ParseError, ValueError, KeyError):
+                except (zipfile.BadZipFile, ET.ParseError, ValueError, KeyError):
                     skipped.append(SkippedSheet(name, "unreadable"))
             return sheets, skipped
     except TableReadError:

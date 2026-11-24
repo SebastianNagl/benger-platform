@@ -88,6 +88,7 @@ class TestCsv:
         with pytest.raises(RubricImportError) as exc:
             parse_rubric_file("bogen.csv", data)
         assert exc.value.code == "too_many_rows"
+        assert f"mehr als {MAX_RAW_ROWS} Zeilen" in exc.value.message
 
     def test_an_unreadable_csv_is_refused_rather_than_crashing(self):
         # One quoted cell past the csv module's field limit.

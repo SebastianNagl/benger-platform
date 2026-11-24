@@ -320,6 +320,10 @@ def _parse_points_cell(value: Any, row: int, warnings: _Warnings) -> Tuple[Optio
 # ---------------------------------------------------------------------------
 
 
+_TOO_MANY_ROWS_MESSAGE = (
+    f"Die Datei hat mehr als {MAX_RAW_ROWS} Zeilen. "
+    f"Ein Bewertungsbogen darf höchstens {MAX_RAW_ROWS} Zeilen haben."
+)
 _MEMBER_TOO_LARGE_MESSAGE = (
     "Die Datei enthält einen unerwartet großen Bestandteil und wurde nicht gelesen."
 )
@@ -332,7 +336,7 @@ _UNREADABLE_MESSAGES = {
 def _table_error(exc: TableReadError, fmt: str) -> RubricImportError:
     """The importer's error (code and copy) for a table that cannot be read."""
     if exc.code == "too_many_rows":
-        return RubricImportError("too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen.")
+        return RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
     if exc.code == "no_worksheet":
         return RubricImportError("no_table_found", "Die Arbeitsmappe enthält kein Tabellenblatt.")
     if exc.code == "worksheet_missing":
@@ -751,7 +755,7 @@ def _read_docx(data: bytes) -> _DocxDoc:
             for tr in _children(block, "tr"):
                 rows.append([walk_cell(tc) for tc in _children(tr, "tc")])
                 if len(rows) > MAX_RAW_ROWS:
-                    raise RubricImportError("too_many_rows", f"Die Tabelle hat mehr als {MAX_RAW_ROWS} Zeilen.")
+                    raise RubricImportError("too_many_rows", _TOO_MANY_ROWS_MESSAGE)
             doc.blocks.append(("tbl", rows))
         elif name == "sdt":
             content = _first(block, "sdtContent")

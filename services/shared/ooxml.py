@@ -10,6 +10,7 @@ live here once.
 from __future__ import annotations
 
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 from typing import Iterable, Optional
 
@@ -37,13 +38,17 @@ def read_member(zf: zipfile.ZipFile, name: str) -> bytes:
     decompression bounded. A lying header still cannot get past the cap
     because ``read`` is given ``MAX_MEMBER_BYTES + 1`` bytes at most.
 
-    Raises ``KeyError`` for a missing member and :class:`MemberTooLarge`.
+    Raises ``KeyError`` for a missing member, :class:`MemberTooLarge`, and
+    ``zipfile.BadZipFile`` for a member whose compressed data is damaged.
     """
     info = zf.getinfo(name)
     if info.file_size > MAX_MEMBER_BYTES:
         raise MemberTooLarge(name)
-    with zf.open(name) as handle:
-        data = handle.read(MAX_MEMBER_BYTES + 1)
+    try:
+        with zf.open(name) as handle:
+            data = handle.read(MAX_MEMBER_BYTES + 1)
+    except (zlib.error, EOFError) as exc:
+        raise zipfile.BadZipFile(f"zip member {name!r} is damaged: {exc}") from exc
     if len(data) > MAX_MEMBER_BYTES:
         raise MemberTooLarge(name)
     return data

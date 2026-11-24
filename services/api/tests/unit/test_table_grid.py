@@ -26,7 +26,7 @@ from table_grid import (
     sniff_delimiter,
     table_format,
 )
-from tests.fixtures.rubric_files import Formula, make_xlsx
+from tests.fixtures.rubric_files import Formula, damage_member, make_xlsx
 
 
 def _cells(sheet):
@@ -94,6 +94,18 @@ class TestXlsx:
         table = read_table("a.xlsx", buffer.getvalue())
         assert [s.name for s in table.sheets] == ["Tabelle1"]
         assert table.skipped_sheets == [SkippedSheet("Riesig", "member_too_large")]
+
+    def test_a_damaged_further_sheet_is_skipped(self):
+        data = make_xlsx([{"A": "ok"}], extra_sheets=[("Defekt", [{"A": "x"}])])
+        table = read_table("a.xlsx", damage_member(data, "xl/worksheets/sheet2.xml"))
+        assert _cells(table.sheets[0]) == [(1, {0: "ok"})]
+        assert table.skipped_sheets == [SkippedSheet("Defekt", "unreadable")]
+
+    def test_a_damaged_first_sheet_refuses_the_file(self):
+        data = make_xlsx([{"A": "ok"}], extra_sheets=[("Zwei", [{"A": "x"}])])
+        with pytest.raises(TableReadError) as exc:
+            read_table("a.xlsx", damage_member(data, "xl/worksheets/sheet1.xml"))
+        assert exc.value.code == "unreadable"
 
     def test_a_further_sheet_over_the_row_cap_is_skipped(self):
         data = make_xlsx(
@@ -210,7 +222,29 @@ class TestDispatchAndHelpers:
         assert exc.value.code == "empty_file"
 
     def test_every_raised_code_is_declared(self):
-        assert set(ERROR_CODES) == {
+        def raised(name, data, **kwargs):
+            with pytest.raises(TableReadError) as exc:
+                read_table(name, data, **kwargs)
+            return exc.value.code
+
+        def workbook(sheet_xml=None, **members):
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("xl/workbook.xml", sheet_xml or '<workbook><sheets><sheet name="A"/></sheets></workbook>')
+                for member, body in members.items():
+                    zf.writestr(member, body)
+            return buffer.getvalue()
+
+        codes = {
+            raised("a.docx", b"x"),
+            raised("a.csv", b""),
+            raised("a.xlsx", b"not a zip"),
+            raised("a.xlsx", workbook(**{"xl/worksheets/sheet1.xml": b"\0" * (ooxml.MAX_MEMBER_BYTES + 1)})),
+            raised("a.xlsx", workbook("<workbook><sheets/></workbook>")),
+            raised("a.xlsx", workbook()),
+            raised("a.csv", b"x\nx\n", max_rows=1),
+        }
+        assert codes == {
             "unsupported_type",
             "empty_file",
             "unreadable",
@@ -219,6 +253,7 @@ class TestDispatchAndHelpers:
             "worksheet_missing",
             "too_many_rows",
         }
+        assert codes <= set(ERROR_CODES)
 
     def test_cell_references(self):
         assert [column_letter(i) for i in (0, 25, 26, 701, 702)] == ["A", "Z", "AA", "ZZ", "AAA"]
