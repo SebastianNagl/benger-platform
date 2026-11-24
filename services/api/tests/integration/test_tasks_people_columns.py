@@ -100,7 +100,6 @@ async def people_columns_project(async_test_db):
         description="Project for testing the data-table people columns",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=owner.id,
-        is_published=True,
         assignment_mode="manual",
     )
     db.add(project)

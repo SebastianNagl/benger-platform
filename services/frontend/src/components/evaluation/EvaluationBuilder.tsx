@@ -50,7 +50,10 @@ import {
 } from '@/lib/api/evaluation-types'
 import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
-import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
+import {
+  computeDefaultEvalName,
+  localizedEvalConfigName,
+} from '@/lib/evaluation/evalName'
 import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
@@ -1924,7 +1927,8 @@ export function EvaluationBuilder({
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {evaluation.display_name ||
+                        {(evaluation.display_name &&
+                          localizedEvalConfigName(evaluation, t)) ||
                           metricDef?.display_name ||
                           evaluation.metric}
                       </span>

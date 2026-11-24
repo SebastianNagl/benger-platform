@@ -81,7 +81,6 @@ def build_project_export_data(project, organization_id) -> dict:
         "created_by": project.created_by,
         "organization_id": organization_id,
         "min_annotations_per_task": project.min_annotations_per_task,
-        "is_published": project.is_published,
         "created_at": _iso(project.created_at),
         "updated_at": _iso(project.updated_at),
         "generation_config": project.generation_config,

@@ -1757,7 +1757,29 @@ API change).
     implement, currently ``evaluation_method_selection``). An overlay's
     handshake test must not require any of them.
 
-2.77 (2026-11-24): gradings held back for a release (no migration,
+2.77 (2026-11-24): preset method names in the reader's language; the
+  unused project publish flag is no longer mapped or served (migration 153).
+  - Frontend metric registry: ``AvailableMetric.presetNameKeys``, the i18n
+    keys of the names an overlay's presets store as a config's
+    ``display_name``. ``localizedEvalConfigName(config, t)``
+    (``@/lib/evaluation/evalName``, ``config`` carrying ``display_name``,
+    ``metric`` and ``metric_parameters``) renders a stored name that is
+    still the metric's own name or one of those keys, in any UI language,
+    in the reader's language: alone, or followed by exactly the judge-model
+    suffix ``computeDefaultEvalName`` appends for the config's parameters
+    (kept as is). Any other name, also one with another ``(...)`` suffix,
+    was typed and stays as stored. Display only: configs are still matched
+    by their stored name.
+  - ``projects.is_published`` is no longer mapped or served (no code read
+    it; visibility, archiving and the access window decide who sees a
+    project). ``Project``, ``ProjectUpdate`` and ``ProjectResponse`` no
+    longer carry it, and project exports no longer write it (imports ignore
+    it). Migration 153 only gives the column a server default FALSE, so pods
+    still on the old model keep working during a rollout or rollback; the
+    column is dropped in a later release.
+    ``project_reports.is_published`` is unchanged.
+
+2.78 (2026-11-24): gradings held back for a release (no migration,
   additive).
   - ``metric_filters.row_awaits_release(metrics)``: a ``task_evaluations``
     row holds a feedback-only result (``details.feedback_only``, core 2.41)
@@ -1776,7 +1798,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.77"
+CORE_API_VERSION = "2.78"
 
 
 def extended_required() -> bool:

@@ -189,7 +189,6 @@ async def _make_project(
         description="project-tasks branch coverage",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=creator.id,
-        is_published=True,
         is_private=is_private,
         assignment_mode=assignment_mode,
         randomize_task_order=randomize_task_order,

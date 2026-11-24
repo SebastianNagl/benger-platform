@@ -50,3 +50,25 @@ export function windowBoundLabel(
     return new Date(endAt).toLocaleString(intlTag(readStoredLocale()))
   return null
 }
+
+/**
+ * Short label of a window state ("Öffnet 24.11.2026" / "Offen" /
+ * "Beendet"), or null without a window. The project list badges and the
+ * settings card's access window section share it.
+ */
+export function windowStateLabel(
+  state: WindowState,
+  startAt: string | null | undefined,
+  t: (key: string, vars?: Record<string, unknown>) => string,
+  locale: string,
+): string | null {
+  if (state === 'none') return null
+  if (state === 'upcoming')
+    return t('projects.list.windowUpcoming', {
+      date: startAt
+        ? new Date(startAt).toLocaleDateString(intlTag(locale))
+        : '',
+    })
+  if (state === 'closed') return t('projects.list.windowClosed')
+  return t('projects.list.windowOpen')
+}

@@ -25,7 +25,6 @@ const mockProject1 = {
   updated_at: '2025-01-01T00:00:00Z',
   task_count: 10,
   annotation_count: 5,
-  is_published: false,
   is_archived: false,
   label_config: '<View></View>',
 }
@@ -38,7 +37,6 @@ const mockProject2 = {
   updated_at: '2025-01-02T00:00:00Z',
   task_count: 20,
   annotation_count: 15,
-  is_published: true,
   is_archived: false,
   label_config: '<View></View>',
 }
@@ -51,7 +49,6 @@ const mockArchivedProject = {
   updated_at: '2025-01-03T00:00:00Z',
   task_count: 5,
   annotation_count: 5,
-  is_published: false,
   is_archived: true,
   label_config: '<View></View>',
 }
@@ -184,9 +181,6 @@ describe('useProjects Hook', () => {
       expect(
         result.current.projects.filter((p) => !p.is_archived),
       ).toHaveLength(2)
-      expect(
-        result.current.projects.filter((p) => p.is_published),
-      ).toHaveLength(1)
     })
 
     it('should preserve project metadata', () => {
@@ -573,7 +567,6 @@ describe('useProjects Hook', () => {
         title: 'Minimal Project',
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
-        is_published: false,
         is_archived: false,
       }
 

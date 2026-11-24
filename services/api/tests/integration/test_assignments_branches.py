@@ -94,7 +94,6 @@ def assignment_project(test_db: Session, test_users: List[User], test_org):
         description="Project for assignment branch coverage",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=test_users[0].id,
-        is_published=True,
         assignment_mode="manual",
     )
     test_db.add(project)
@@ -159,7 +158,6 @@ class TestAssignPermissionAndNotification:
             id=str(uuid.uuid4()),
             title="Orphan Project",
             created_by=test_users[0].id,
-            is_published=True,
         )
         task = Task(
             id=str(uuid.uuid4()),
@@ -358,7 +356,6 @@ class TestListAssignments:
             description="Project for assignment branch coverage",
             label_config='<View><Text name="text" value="$text"/></View>',
             created_by=owner_id,
-            is_published=True,
             assignment_mode="manual",
         )
         db.add(project)
@@ -415,7 +412,6 @@ class TestListAssignments:
             id=_uid(),
             title="Outsider Project",
             created_by=owner.id,
-            is_published=True,
         )
         async_test_db.add(project)
         await async_test_db.flush()

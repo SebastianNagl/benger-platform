@@ -67,7 +67,6 @@ async def _seed_exam(db, owner, *, with_answer: bool = True, template: bool = Tr
         label_config="<View></View>",
         label_config_version="v1",
         created_by=owner.id,
-        is_published=True,
         is_private=False,
     )
     params = {"judges": [{"judge_model_id": JUDGE, "runs": 1}]}
