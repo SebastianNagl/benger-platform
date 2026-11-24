@@ -54,6 +54,30 @@ export interface EvaluationLifecycleResult {
   message: string
 }
 
+/** How many current gradings of one config rest on an older basis. */
+export interface OutdatedGradingsConfig {
+  config_id: string
+  metric: string
+  display_name?: string | null
+  /** A method a person grades (counted per grader). */
+  human: boolean
+  /** Current gradings the verdict ran on. */
+  graded: number
+  outdated: number
+  /** Graded along another sheet than the task has now, or with another
+   *  grading scheme than the config holds now. */
+  reasons: { sheet: number; scheme: number }
+}
+
+/** `GET /evaluations/projects/{id}/outdated-gradings` (edit rights). */
+export interface OutdatedGradings {
+  project_id: string
+  total: number
+  ai: number
+  human: number
+  configs: OutdatedGradingsConfig[]
+}
+
 export class EvaluationsClient extends BaseApiClient {
   // Dashboard statistics
   async getDashboardStats(): Promise<{
@@ -1102,6 +1126,7 @@ export class EvaluationsClient extends BaseApiClient {
     batch_size?: number
     label_config_version?: string
     force_rerun?: boolean // If true, re-evaluate all; if false, only evaluate missing
+    outdated_only?: boolean // Re-grade: only gradings on an older sheet or scheme, as drafts to release
     task_ids?: string[] // Filter to specific tasks (for single-cell re-evaluation)
     model_ids?: string[] // Filter to specific models (for single-cell re-evaluation)
     annotator_user_ids?: string[] // Filter annotation-side judge fan-out to specific annotators
@@ -1664,6 +1689,14 @@ export class EvaluationsClient extends BaseApiClient {
     label_config_version?: string
   }> {
     return this.request(`/evaluations/projects/${projectId}/evaluation-config`)
+  }
+
+  /**
+   * How many current gradings rest on an older grading sheet or scheme, per
+   * config. A run with `outdated_only` re-grades the model-graded ones.
+   */
+  async getOutdatedGradings(projectId: string): Promise<OutdatedGradings> {
+    return this.request(`/evaluations/projects/${projectId}/outdated-gradings`)
   }
 
   /**

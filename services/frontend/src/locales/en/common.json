@@ -9859,6 +9859,7 @@
       "outputGeneration": "Output is assumed at 90 % of max_tokens for reasoning models and 60 % otherwise.",
       "encoding": "Tokens counted with {encoding}; for other providers' models this is an approximation.",
       "countingMissing": "Only cells that would actually run are counted.",
+      "countingOutdated": "Only gradings that rest on an older version of the grading sheet or scheme are counted (re-grade).",
       "countingAll": "Every cell (task × structure) is counted.",
       "perJudgeCells": "Evaluations count cells per judge with each configuration's own runs and skip cells already scored successfully. Sparse prediction fields can shift the cost further."
     }

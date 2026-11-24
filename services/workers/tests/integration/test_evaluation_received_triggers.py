@@ -241,6 +241,36 @@ class TestBatchFeedbackDrafts:
 
         assert [call["user_ids"] for call in recorded] == [[owners["judge"][0].id]]
 
+    def test_regraded_score_drafts_notify_nobody(
+        self, db_conn, recorded, make_user, make_project, make_task,
+        make_annotation, make_evaluation_run,
+    ):
+        """A re-grade writes every answer's new row as a draft (core 2.83),
+        for score judges too: in a metric blob or the flat ``<metric>_details``
+        sibling. A row with only a fingerprint, or an empty review, is a
+        plain grading and still notifies."""
+        draft = {"status": "draft", "reason": "regrade"}
+        starter = make_user("Teacher")
+        owners = {
+            "unified": (make_user("Unified"), {"llm_judge_rubric": {
+                "value": 0.6, "details": {"review": draft}, "error": None}}),
+            "flat": (make_user("Flat"), {"llm_judge_custom": 0.6,
+                                         "llm_judge_custom_details": {"review": draft}}),
+            "stamped": (make_user("Stamped"), {"llm_judge_custom": 0.6,
+                                               "llm_judge_custom_details": {
+                                                   "scheme_fingerprint": "x", "review": {}}}),
+        }
+        project = make_project(created_by=starter.id)
+        task = make_task(project.id, {"text": "Cas"})
+        run = make_evaluation_run(project.id, starter.id, status="completed")
+        for owner, metrics in owners.values():
+            annotation = make_annotation(project.id, task.id, owner.id, result=[])
+            _grade(db_conn, run, task.id, annotation_id=annotation.id, metrics=metrics)
+
+        tasks._notify_batch_grading_received(db_conn, run)
+
+        assert [call["user_ids"] for call in recorded] == [[owners["stamped"][0].id]]
+
     def test_a_run_resumed_after_a_teacher_release_notifies_nobody_again(
         self, db_conn, recorded, make_user, make_project, make_task,
         make_annotation, make_evaluation_run,
@@ -350,3 +380,28 @@ class TestImmediateTrigger:
 
         assert [call["user_ids"] for call in recorded] == [[student.id]]
         assert recorded[0]["type"] == "evaluation_received_immediate"
+
+
+class TestImmediateStamp:
+    def test_immediate_rows_record_the_scheme_of_their_config(self):
+        """The immediate lane stamps its rows once every config job wrote
+        them (``tasks._stamp_immediate_grading_basis``)."""
+        from types import SimpleNamespace
+
+        from grading_basis import metric_details, scheme_fingerprint
+
+        config = {"id": "c1", "metric": "llm_judge_custom",
+                  "metric_parameters": {"custom_prompt_template": "t"}}
+        judged = SimpleNamespace(evaluation_config_id="c1", metrics={"llm_judge_custom": 0.5})
+        other = SimpleNamespace(evaluation_config_id="gone", metrics={"bleu": {"value": 0.2}})
+        untouched = other.metrics
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("sqlalchemy.orm.attributes.flag_modified", lambda *a, **k: None)
+            tasks._stamp_immediate_grading_basis([judged, other], [config])
+
+        assert metric_details(judged.metrics, "llm_judge_custom") == {
+            "scheme_fingerprint": scheme_fingerprint(config)
+        }
+        assert "review" not in judged.metrics["llm_judge_custom_details"]
+        assert other.metrics is untouched

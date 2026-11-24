@@ -38,6 +38,10 @@ export interface CostEstimatePanelProps {
   /** Active prompt structures the user picked. The backend uses these to
    *  count cells per (task × structure) instead of just per task. */
   structureKeys?: string[]
+  /** Eval-only: price a re-grade (the run's `outdated_only`), which grades
+   *  only the cells whose current grading rests on an older grading sheet or
+   *  scheme. */
+  outdatedOnly?: boolean
 }
 
 interface PerModelCost {
@@ -99,6 +103,7 @@ interface CostEstimateResponse {
   output_utilization_percent?: number | null
   output_basis?: 'utilization' | 'judge_steps' | 'judge_profile'
   missing_only?: boolean
+  outdated_only?: boolean
   per_judge_cells?: boolean
 }
 
@@ -138,7 +143,9 @@ function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
           : String(t('costEstimate.note.outputGeneration')),
     fill(t('costEstimate.note.encoding'), { encoding }),
   ]
-  if (estimate.missing_only) {
+  if (estimate.outdated_only) {
+    parts.push(String(t('costEstimate.note.countingOutdated')))
+  } else if (estimate.missing_only) {
     parts.push(String(t('costEstimate.note.countingMissing')))
   } else if (estimate.mode === 'generation') {
     parts.push(String(t('costEstimate.note.countingAll')))
@@ -168,6 +175,7 @@ export function CostEstimatePanel({
   evaluationConfigs,
   generationMode,
   structureKeys,
+  outdatedOnly = false,
 }: CostEstimatePanelProps) {
   const { t, locale } = useI18n()
   const { addToast } = useToast()
@@ -205,6 +213,9 @@ export function CostEstimatePanel({
           evaluation_configs: evaluationConfigs,
           generation_mode: generationMode,
           structure_keys: structureKeys,
+          ...(mode === 'evaluation' && outdatedOnly
+            ? { outdated_only: true }
+            : {}),
         })
         if (!cancelled) setEstimate(data)
       } catch (err: any) {
@@ -238,6 +249,7 @@ export function CostEstimatePanel({
     hashConfigs(evaluationConfigs),
     generationMode,
     (structureKeys || []).join(','),
+    outdatedOnly,
   ])
 
   if (!enabled) return null

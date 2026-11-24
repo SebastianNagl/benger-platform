@@ -760,6 +760,20 @@
       ]
     },
     {
+      "module": "grading_basis",
+      "name": "register_grading_basis",
+      "importers": [
+        "benger_extended/__init__.py"
+      ]
+    },
+    {
+      "module": "grading_basis",
+      "name": "stamp_grading_basis",
+      "importers": [
+        "benger_extended/api/routers/korrektur.py"
+      ]
+    },
+    {
       "module": "immediate_eval_dispatch",
       "name": "BILLING_BLOCK_KEY",
       "importers": [

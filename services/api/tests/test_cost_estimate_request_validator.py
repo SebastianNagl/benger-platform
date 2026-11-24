@@ -106,3 +106,16 @@ def test_validator_lists_all_offending_keys():
     assert "evaluation_configs" in msg
     assert "annotator_user_ids" in msg
     assert "judge_models" in msg
+
+
+def test_generation_mode_with_outdated_only_rejects():
+    with pytest.raises(ValidationError) as exc_info:
+        CostEstimateRequest(
+            project_id="p1", mode="generation", model_ids=["gpt-5"], outdated_only=True
+        )
+    assert "outdated_only" in str(exc_info.value)
+
+
+def test_evaluation_mode_accepts_outdated_only():
+    req = CostEstimateRequest(project_id="p1", mode="evaluation", outdated_only=True)
+    assert req.outdated_only is True

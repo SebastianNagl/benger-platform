@@ -9859,6 +9859,7 @@
       "outputGeneration": "Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.",
       "encoding": "Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.",
       "countingMissing": "Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.",
+      "countingOutdated": "Gezählt werden nur Bewertungen, die auf einer älteren Fassung des Bewertungsbogens oder des Bewertungsschemas beruhen (Neubewertung).",
       "countingAll": "Gezählt wird jede Zelle (Task × Struktur).",
       "perJudgeCells": "Evaluierungen zählen Zellen pro Judge mit den Läufen der jeweiligen Konfiguration und lassen bereits erfolgreich bewertete Zellen weg. Lückenhafte Vorhersagefelder können die Kosten zusätzlich verschieben."
     }

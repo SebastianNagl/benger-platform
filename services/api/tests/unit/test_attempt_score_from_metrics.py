@@ -98,3 +98,23 @@ def test_unreleased_feedback_has_no_grade_points():
     draft = _feedback()
     draft["details"]["grade_points"] = 12
     assert attempt_grade_points_from_metrics({"llm_judge_feedback": draft}) is None
+
+
+def test_a_regraded_draft_is_no_attempt_score_until_released():
+    draft = {"status": "draft", "reason": "regrade"}
+    unified = {
+        "llm_judge_rubric": {"value": 0.6, "details": {"grade_points": 9, "review": draft}},
+        "llm_judge_rubric_grade_points": 9,
+    }
+    assert attempt_score_from_metrics(unified) is None
+    assert attempt_grade_points_from_metrics(unified) is None
+    flat = {
+        "llm_judge_custom": 0.6,
+        "llm_judge_custom_grade_points": 9,
+        "llm_judge_custom_details": {"review": draft},
+    }
+    assert attempt_grade_points_from_metrics(flat) is None
+    released = {"llm_judge_rubric": {"value": 0.6, "details": {
+        "grade_points": 9, "review": {"status": "released"}}}}
+    assert attempt_score_from_metrics(released) == 0.6
+    assert attempt_grade_points_from_metrics(released) == 9.0
