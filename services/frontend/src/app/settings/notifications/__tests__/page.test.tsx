@@ -64,6 +64,9 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: ({ className }: any) => (
     <div className={className}>ArrowPathIcon</div>
   ),
+  ArrowUturnLeftIcon: ({ className }: any) => (
+    <div className={className}>ArrowUturnLeftIcon</div>
+  ),
   BellIcon: ({ className }: any) => <div className={className}>BellIcon</div>,
   CheckCircleIcon: ({ className }: any) => (
     <div className={className}>CheckCircleIcon</div>
@@ -311,7 +314,7 @@ describe('NotificationSettingsPage', () => {
       })
     })
 
-    it('lists the five grading types next to the expert types', async () => {
+    it('lists the grading types next to the expert types', async () => {
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
@@ -324,7 +327,7 @@ describe('NotificationSettingsPage', () => {
       expect(screen.getByText('Project Created')).toBeInTheDocument()
     })
 
-    it('shows only the grading types in the student shell', async () => {
+    it('shows only the own-submission types in the student shell', async () => {
       mockUiMode.mockReturnValue('student')
       render(<NotificationSettingsPage />)
 
@@ -349,13 +352,18 @@ describe('NotificationSettingsPage', () => {
           'settings-notification-toggle-peer_feedback_received',
         ),
       ).toBeInTheDocument()
+      // A returned submission concerns the student's own work too.
+      expect(
+        screen.getByTestId('settings-notification-toggle-submission_returned'),
+      ).toBeInTheDocument()
       expect(screen.queryByText('Project Created')).not.toBeInTheDocument()
       expect(
         screen.queryByTestId('settings-notification-toggle-project_created'),
       ).not.toBeInTheDocument()
-      // Human gradings, teacher releases and peer feedback are on by default.
+      // Human gradings, teacher releases, peer feedback and returned
+      // submissions are on by default.
       expect(
-        screen.getByText('3 of 5 notification types enabled'),
+        screen.getByText('4 of 6 notification types enabled'),
       ).toBeInTheDocument()
     })
 
@@ -405,7 +413,9 @@ describe('NotificationSettingsPage', () => {
         ).toBeInTheDocument()
       })
       await user.click(
-        screen.getByTestId('settings-notification-email-peer_feedback_received'),
+        screen.getByTestId(
+          'settings-notification-email-peer_feedback_received',
+        ),
       )
       await user.click(screen.getByText('Save Preferences'))
 

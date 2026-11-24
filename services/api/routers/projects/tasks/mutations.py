@@ -229,15 +229,27 @@ async def bulk_delete_tasks(
                 + "); nothing was deleted.",
             )
 
+    from stored_files import delete_stored_files, task_file_keys_async
+
+    # The stored files of the submissions that cascade away with the tasks
+    # (object storage keeps them otherwise); removed once the delete committed.
+    own_ids = (
+        (
+            await db.execute(
+                select(Task.id).where(Task.project_id == project_id, Task.id.in_(list(task_ids)))
+            )
+        )
+        .scalars()
+        .all()
+        if task_ids
+        else []
+    )
+    file_keys = await task_file_keys_async(db, own_ids)
+
     deleted_count = 0
 
     for task_id in task_ids:
-        # Delete annotations first
-        # NOTE: Annotation table doesn't exist yet - skipping deletion
-        # db.query(Annotation).filter(Annotation.task_id == task_id).delete()
-        pass
-
-        # Delete task
+        # Annotations, task evaluations and the submission rows cascade.
         result = await db.execute(
             sa_delete(Task).where(Task.id == task_id, Task.project_id == project_id)
         )
@@ -250,6 +262,9 @@ async def bulk_delete_tasks(
     # here was a dead store on the SQLAlchemy instance — removed.
 
     await db.commit()
+
+    if file_keys:
+        await run_in_threadpool(delete_stored_files, file_keys, what="task delete: stored file")
 
     # Update report data section (silent failure to not block deletion). The
     # report service is sync-only; run it on a fresh short-lived sync session

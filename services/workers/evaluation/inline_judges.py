@@ -26,11 +26,23 @@ where an ``InlineJudge`` provides
   same keyword arguments as the Falllösung single-sample helper; persists
   its own row and returns the run-result dict.
 
+A config of a metric registered with
+``task_rubric_resolution.register_sheet_judge_metric`` whose
+``metric_parameters`` say ``use_task_rubric: true`` (see
+``task_rubric_resolution.is_rubric_judge``) is a sheet judge: the platform
+resolves the task's usable ``task_rubrics`` row and hands it to ``compute``
+and ``evaluate_single`` as ``task_rubric`` (core 2.81). Without a usable
+sheet the cell gets the platform's ``rubric_missing`` error row and the judge
+is not called; the immediate dispatch holds such a grading until the sheet is
+ready. A judge whose functions take no ``task_rubric`` keyword never
+receives it.
+
 The platform owns everything around it: judge construction and key
 resolution, the row context (ids, fields, prediction), bulk upsert and the
 run counters. ``llm_judge_falloesung`` keeps its older dedicated hooks.
 """
 
+import inspect
 from typing import Any, Dict, Optional
 
 
@@ -57,6 +69,17 @@ def resolve_inline_judge(metric: str) -> Optional[Any]:
         return None
 
 
+def accepts_keyword(fn: Any, name: str) -> bool:
+    """Whether ``fn`` takes the keyword ``name`` (or ``**kwargs``)."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
+    )
+
+
 def inline_judge_row(
     judge: Any,
     *,
@@ -65,9 +88,15 @@ def inline_judge_row(
     prediction: Any,
     metric_params: Optional[Dict[str, Any]],
     row: Dict[str, Any],
+    task_rubric: Any = None,
 ) -> Dict[str, Any]:
     """Run ``judge`` with the bulk-cell evaluator's model settings and return
-    the full ``TaskEvaluation`` row dict (``row`` carries the context)."""
+    the full ``TaskEvaluation`` row dict (``row`` carries the context).
+    ``task_rubric`` is the sheet a sheet judge grades along (see the module
+    doc); it reaches ``compute`` only when ``compute`` takes it."""
+    extra: Dict[str, Any] = {}
+    if task_rubric is not None and accepts_keyword(judge.compute, "task_rubric"):
+        extra["task_rubric"] = task_rubric
     result = judge.compute(
         ai_service=evaluator.ai_service,
         judge_model=evaluator.judge_model,
@@ -78,6 +107,7 @@ def inline_judge_row(
         task_data=task_data or {},
         prediction=str(prediction) if prediction else "",
         metric_params=metric_params or {},
+        **extra,
     )
     judge_prompts = result.pop("_judge_prompts_used", None) if result else None
     import tasks

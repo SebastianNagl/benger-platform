@@ -20,6 +20,12 @@ implementation:
   whose steps all carry requirements can be graded per requirement
   (:func:`checklist_spec_from_structure`); the key is optional, and a step
   without it is graded as one number, as before.
+- ``structure.placement`` (optional): ``"anywhere"`` says a step's points
+  are earned wherever the answer makes its point, not only in the part of
+  the answer that treats the step's question (keyword or argument sheets:
+  every listed argument counts once, wherever it stands). Absent means the
+  default: a point counts where the answer treats the step's question, in
+  whatever order (:func:`sheet_placement`).
 - ``criteria`` is DERIVED from ``structure`` on every write
   (``criteria_from_structure``); legacy rows without a structure keep their
   hand-written criteria and can be lifted with ``structure_from_flat_criteria``.
@@ -56,6 +62,9 @@ MAX_REQUIREMENTS_PER_STEP = 12
 REQUIREMENT_STANDARDS = ("folgerichtig",)
 # The one marked kind of requirement: the definition a step subsumes under.
 REQUIREMENT_ELEMENTS = ("definition",)
+# ``structure.placement``: where a step's point may stand in the answer.
+PLACEMENT_ANYWHERE = "anywhere"
+PLACEMENT_VALUES = (PLACEMENT_ANYWHERE,)
 MAX_STEP_POINTS = 1000
 MAX_LABEL_LEN = 20
 MAX_TITLE_LEN = 500
@@ -313,6 +322,9 @@ def validate_structure(structure: Any) -> List[str]:
         return ["structure must be an object"]
     if structure.get("version") != STRUCTURE_VERSION:
         errors.append(f"structure.version must be {STRUCTURE_VERSION}")
+    placement = structure.get("placement")
+    if placement is not None and placement not in PLACEMENT_VALUES:
+        errors.append(f"structure.placement must be one of {', '.join(PLACEMENT_VALUES)} or absent")
     nodes = structure.get("nodes")
     if not isinstance(nodes, list) or not nodes:
         errors.append("structure.nodes must be a non-empty list")
@@ -571,7 +583,8 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
     """Canonical copy of a (validated) structure.
 
     Trims strings, coerces ``max_score`` (int when integral), drops empty
-    hints, assigns ids ``n1..nN`` and ALWAYS regenerates the step keys from
+    hints, keeps a valid ``placement``, assigns ids ``n1..nN`` and ALWAYS
+    regenerates the step keys from
     (title, step ordinal). Client-supplied keys are ignored: keys are a
     server-side derivation and editors must not assume key stability across
     edits (old gradings keep their own ``details.scores`` snapshot). A step
@@ -611,7 +624,18 @@ def normalize_structure(structure: Dict[str, Any]) -> Dict[str, Any]:
             if requirements:
                 out["requirements"] = requirements
         nodes_out.append(out)
-    return {"version": STRUCTURE_VERSION, "nodes": nodes_out}
+    normalized: Dict[str, Any] = {"version": STRUCTURE_VERSION, "nodes": nodes_out}
+    if structure.get("placement") in PLACEMENT_VALUES:
+        normalized["placement"] = structure["placement"]
+    return normalized
+
+
+def sheet_placement(structure: Any) -> Optional[str]:
+    """The sheet's ``placement`` (:data:`PLACEMENT_ANYWHERE`), else None for
+    the default rule (also for a missing or unreadable structure)."""
+    if isinstance(structure, dict) and structure.get("placement") in PLACEMENT_VALUES:
+        return structure["placement"]
+    return None
 
 
 def _ancestor_chain(nodes: List[Dict[str, Any]], index: int) -> List[Dict[str, Any]]:

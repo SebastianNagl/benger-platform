@@ -373,7 +373,7 @@ class TestKorrekturFeedbackHumanEvalRun:
 class TestPeerReviewHumanEvalRun:
     """korrektur_peer (a participant's feedback-only grading of a fellow
     participant's submission) is the fourth human-graded metric; migration
-    156 gives it its own partial index."""
+    158 gives it its own partial index."""
 
     def test_peer_metric_is_human_graded_and_feedback_only(self):
         assert PEER_REVIEW_METRIC == "korrektur_peer"

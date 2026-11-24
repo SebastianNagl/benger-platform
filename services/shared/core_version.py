@@ -1823,7 +1823,109 @@ API change).
     review held-back gradings and release them. Without the slot the route
     says it needs the extended edition.
 
-2.80 (2026-11-24): peer review grant (migration 156, additive).
+2.80 (2026-11-24): withdrawing a submission (migration 156, additive).
+  - ``annotations.withdrawn_at`` / ``withdrawn_by`` / ``withdrawal_reason``
+    (``Annotation`` model, ``AnnotationResponse``, the data export and both
+    imports). A withdrawal keeps the row, sets ``was_cancelled`` and records
+    who, when and why; ``withdrawn_by != completed_by`` marks a return by a
+    project editor. ``annotation_submission.withdraw_submission(db,
+    annotation, actor_id=, reason=)`` is the one writer (row lock, task
+    counters, ``is_labeled``; no commit) and raises
+    ``SubmissionAlreadyWithdrawn``.
+  - ``POST /projects/annotations/{id}/withdraw`` (``{"reason": str}``,
+    required, at most ``project_schemas.WITHDRAWAL_REASON_MAX_LENGTH``
+    characters): the author through the write gates of an edit, anyone else
+    with ``check_user_can_edit_project`` rights; 409 ``annotation_withdrawn``
+    for a cancelled row. ``PATCH /projects/annotations/{id}`` no longer
+    changes ``was_cancelled``: 409 ``annotation_withdrawn`` on a cancelled
+    row, 422 ``withdrawal_reason_required`` for ``was_cancelled: true``.
+  - New hook keys (CALL_ALL, ALWAYS), both called with a sync session inside
+    the withdrawing transaction: ``before_annotation_withdraw(db,
+    annotation, actor_id, *, by_author)`` refuses with
+    ``AnnotationWriteRejected``; ``on_annotation_withdrawn(db, annotation,
+    actor_id, *, by_author, reason)`` runs after the row is marked and
+    before the commit (must not commit; an exception rolls the withdrawal
+    back).
+  - ``NotificationType.SUBMISSION_RETURNED`` (``submission_returned``, in-app
+    and e-mail by default) sent by the platform after a return
+    (``notification_service.notify_submission_returned``);
+    ``notification_links.SUBMISSION_NOTICE_TYPES`` /
+    ``is_submission_notice_type`` (the grading notices plus this one) open
+    the submission's page. Frontend: ``projectsAPI.withdrawAnnotation(id,
+    reason)``, ``Annotation.withdrawn_*``, ``isSubmissionNoticeType``.
+
+2.81 (2026-11-24): sheet judges beyond the Bewertungsbogen judge, and
+  sheets graded by argument (no migration, additive).
+  - ``task_rubric_resolution.register_sheet_judge_metric(metric)`` (an
+    extension package calls it at import time in the api and the workers
+    process; ``unregister_sheet_judge_metric``, ``metric_reads_task_sheet``)
+    declares a metric whose judge can grade along the task's sheet.
+    ``is_rubric_judge(config)`` is true for ``llm_judge_rubric`` and for a
+    config of a registered metric whose ``metric_parameters`` say
+    ``use_task_rubric: true`` (``USE_TASK_RUBRIC_PARAM``), nothing else.
+    Such a config is held like ``llm_judge_rubric`` while its task has no
+    usable sheet (``split_held_rubric_judges``, the shared immediate
+    dispatch, the single-sample skip) and ``dispatch_waiting_gradings``
+    grades its waiting answers once the sheet is usable.
+    ``NO_RUBRIC_ERROR`` no longer names the metric. Saving an evaluation
+    config refuses ``use_task_rubric: true`` on a metric that is neither
+    ``llm_judge_rubric`` nor registered, and only ``llm_judge_rubric``
+    binds the sheet to its evaluator (``bind_task_rubric``).
+  - Inline judges (``evaluation/inline_judges.py``): for a sheet judge the
+    bulk cell resolves the task's sheet (the ``rubric_missing`` error row
+    without one) and passes it as ``task_rubric`` to ``compute``; the
+    immediate lane passes it to ``evaluate_single`` (raising
+    ``NoUsableRubricError`` without one). Each only when the function takes
+    a ``task_rubric`` keyword (``inline_judges.accepts_keyword``). The
+    evaluator of an inline judge is not bound to the sheet.
+  - ``rubric_structure``: optional ``structure.placement`` with the one
+    value ``"anywhere"`` (``PLACEMENT_ANYWHERE``, ``PLACEMENT_VALUES``,
+    ``sheet_placement``): the sheet grades by argument, so a step's point
+    counts wherever the answer makes it. ``validate_structure`` refuses
+    other values, ``normalize_structure`` keeps it and
+    ``task_rubric_service.structure_equal`` compares it. The Bewertungsbogen
+    judge then uses the argument wording of its placement rule in both
+    lanes (``llm_judge_evaluator.rubric_judge_prompts``,
+    ``checklist_scoring.placement_rule``); sheets without it grade exactly
+    as before.
+
+2.82 (2026-11-24): table reader, grading files and upload batches
+  (migration 157, additive).
+  - Shared module ``table_grid``: ``read_table(filename, data, *,
+    max_rows)`` reads an XLSX (every worksheet), CSV or TSV upload into a
+    ``TableFile`` (``format``, ``sheets`` of ``Sheet(name, rows)``,
+    ``skipped_sheets`` of ``SkippedSheet(name, code)``); a ``Row`` is
+    ``(number, cells)`` with the 1-based row number a person sees and the
+    non-blank cells by 0-based column. ``TableReadError.code`` is one of
+    ``table_grid.ERROR_CODES``. Also ``table_format``, ``read_delimited``,
+    ``read_xlsx_sheets``, ``decode_text``, ``sniff_delimiter``,
+    ``column_letter``, ``column_index``, ``cell_ref``. Shared module
+    ``ooxml``: the size-guarded zip member reader (``read_member``,
+    ``MemberTooLarge``, ``MAX_MEMBER_BYTES``) and namespace-agnostic element
+    helpers. The grading sheet importer reads through both, with unchanged
+    results (a CSV sheet is now capped at the same 2000 rows as an XLSX
+    one); its ``too_many_rows`` message now states the limit for every
+    format.
+  - ``submission_files.purpose`` (``project_models.SUBMISSION_FILE_PURPOSES``:
+    ``submission``, the default and every existing row, or ``grading``, a
+    file a grader returned with a grading) and
+    ``submission_files.task_evaluation_id`` (the grading's row, SET NULL).
+    A reader of a person's handed-in files filters on ``purpose =
+    "submission"``.
+  - Table and model ``upload_batches`` (``project_models.UploadBatch``,
+    ``UPLOAD_BATCH_STATUSES``): one committed staff bulk upload with its
+    ``kind``, project, optional task, uploader, stored source file,
+    ``options``, per-row ``report``, row counts and ``status`` ``committed``
+    or ``undone``.
+  - Shared module ``stored_files`` (``task_file_keys``,
+    ``task_file_keys_async``, ``project_file_keys``, ``user_file_keys``,
+    ``delete_stored_files``): a project purge, the task bulk delete and an
+    account delete now remove the stored objects of the submission files,
+    transcribed pages, parked uploads and upload batch sources whose rows
+    they delete (the objects used to stay in object storage). The purge
+    result counts them as ``stored_files``.
+
+2.83 (2026-11-24): peer review grant (migration 158, additive).
   - ``projects.peer_review_enabled`` (Boolean, default false): the
     project's participants may grade each other's submissions next to the
     staff graders. ``ProjectResponse.peer_review_enabled``; ``PATCH
@@ -1850,7 +1952,7 @@ API change).
   - ``human_graded_metrics`` (/shared, re-exported by
     ``services.evaluation.human_eval_runs``): ``HUMAN_GRADED_METRICS``
     gains ``PEER_REVIEW_METRIC = "korrektur_peer"`` (partial unique index
-    ``uq_human_eval_run_per_project_metric_peer``, migration 156), listed
+    ``uq_human_eval_run_per_project_metric_peer``, migration 158), listed
     in ``FEEDBACK_ONLY_HUMAN_METRICS``: its rows are feedback, never a
     score (``value: null``, ``details.feedback_only``). Helpers
     ``is_feedback_only_human_metric``, ``is_feedback_only_run``,
@@ -1861,7 +1963,7 @@ API change).
     feedback-only human row below every other row of its cell
     (``row_is_feedback_only``, ``sql_is_feedback_only``), so a newer peer
     grading never hides a staff grade.
-  - Notification type ``peer_feedback_received`` (migration 156):
+  - Notification type ``peer_feedback_received`` (migration 158):
     ``notify_evaluation_received(source="peer")``, a fellow participant
     graded the recipient's submission; default channels in-app and email
     on, its own row in the notification settings (also in the student
@@ -1875,7 +1977,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.80"
+CORE_API_VERSION = "2.83"
 
 
 def extended_required() -> bool:

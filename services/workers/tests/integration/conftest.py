@@ -236,7 +236,7 @@ def _schema(_eager_celery):
             "evaluation_received_batch",
             # Migration 155.
             "evaluation_released",
-            # Migration 156.
+            # Migration 158.
             "peer_feedback_received",
         ):
             conn.execute(

@@ -7,6 +7,7 @@ off, and each refusal counts in ``benger_rate_limited_total``.
 - MAX_ACTIVE_RUNS_PER_USER: generation and evaluation starts.
 """
 
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -50,7 +51,19 @@ def limiter_on(client, monkeypatch):
     monkeypatch.setenv("TESTING", "false")
     monkeypatch.setattr(rl.rate_limiter, "redis_client", None)
     monkeypatch.setattr(rl.rate_limiter, "_memory_store", {})
+    _pin_clock(monkeypatch)
     return rl.rate_limiter
+
+
+def _pin_clock(monkeypatch):
+    """Freeze the limiter's clock in the middle of a minute. Its windows are
+    fixed (one counter per calendar minute), so requests that straddled a
+    minute boundary landed in two windows and the "Nth request is refused"
+    tests failed now and then."""
+    import types
+
+    now = (int(time.time()) // 3600) * 3600 + 30.0
+    monkeypatch.setattr(rl, "time", types.SimpleNamespace(time=lambda: now))
 
 
 @contextmanager
@@ -173,6 +186,7 @@ def async_limiter_on(async_test_client, monkeypatch):
     monkeypatch.setenv("TESTING", "false")
     monkeypatch.setattr(rl.rate_limiter, "redis_client", None)
     monkeypatch.setattr(rl.rate_limiter, "_memory_store", {})
+    _pin_clock(monkeypatch)
     return rl.rate_limiter
 
 

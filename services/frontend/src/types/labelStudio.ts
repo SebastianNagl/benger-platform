@@ -335,6 +335,12 @@ export interface Annotation {
   ground_truth: boolean
   lead_time?: number // seconds
   prediction_scores?: Record<string, number>
+  /** Set when the author withdrew the submission or an editor returned it
+   * (then `was_cancelled` is true as well). `withdrawn_by` differs from
+   * `completed_by` for a return. */
+  withdrawn_at?: string | null
+  withdrawn_by?: string | null
+  withdrawal_reason?: string | null
   created_at: string
   metadata?: Record<string, any>
   updated_at?: string

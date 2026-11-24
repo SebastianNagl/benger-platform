@@ -8,7 +8,7 @@ creates. Hardcoded strings per the open-core split rule: the names are hooks
 the extended edition writes, not the grading logic.
 
 Every method listed in ``HUMAN_GRADED_METRICS`` needs its own partial unique
-index on ``evaluation_runs`` (migrations 037, 061, 122 and 156), or the
+index on ``evaluation_runs`` (migrations 037, 061, 122 and 158), or the
 singleton upsert has no constraint to match.
 
 One of them, ``PEER_REVIEW_METRIC``, is feedback only: a participant's

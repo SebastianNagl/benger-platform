@@ -3340,6 +3340,10 @@
         "title": "Peer feedback: {project_title}",
         "message": "A fellow participant graded your submission in '{project_title}'. This grading does not count towards your grade."
       },
+      "submission_returned": {
+        "title": "Submission returned: {project_title}",
+        "message": "Your submission in '{project_title}' was returned to you. Reason: {reason}"
+      },
       "data_upload_completed": {
         "title": "Data upload completed: {task_name}",
         "message": "Successfully uploaded {upload_count} items from '{filename}' to task '{task_name}'."
@@ -3909,6 +3913,8 @@
         "evaluationReleasedDesc": "Receive notifications when your teacher releases a grading of your submission that was held back for review",
         "peerFeedbackReceived": "Peer feedback",
         "peerFeedbackReceivedDesc": "Receive notifications when a fellow participant grades your submission (does not count towards your grade)",
+        "submissionReturned": "Submission returned",
+        "submissionReturnedDesc": "Receive notifications when one of your submissions was returned to you with a reason",
         "dataUploadCompleted": "Data Upload Completed",
         "dataUploadCompletedDesc": "Receive notifications when data uploads finish processing",
         "llmGenerationCompleted": "LLM Generation Completed",
@@ -6017,6 +6023,7 @@
       "annotation": "Annotation",
       "annotator": "Annotator",
       "cancelled": "Cancelled",
+      "withdrawn": "Withdrawn",
       "noAnnotationResults": "No annotation results",
       "noAnnotationData": "No annotation data available for this task",
       "clickToViewData": "View available data (no evaluation yet)",
@@ -7273,7 +7280,8 @@
         "submitted": "submitted",
         "approved": "approved",
         "rejected": "rejected",
-        "draft": "draft"
+        "draft": "draft",
+        "withdrawn": "withdrawn"
       },
       "buttons": {
         "addMyAnnotation": "Add My Annotation",
@@ -7300,6 +7308,12 @@
         "versionLabel": "Version {version} - {date}",
         "annotatorCount": "{count} annotator{plural}",
         "totalAnnotations": "{count} total annotation{plural}"
+      },
+      "withdrawal": {
+        "withdrawn": "Withdrawn on {date}",
+        "returned": "Returned on {date} by {name}",
+        "reason": "Reason: {reason}",
+        "editor": "a project editor"
       },
       "result": {
         "notAnswered": "Not answered",

@@ -16,8 +16,8 @@ is invoked via the ``tasks._run_immediate_config_job`` wrapper.
 from typing import Any, Dict, Optional
 
 import tasks
-from evaluation.inline_judges import resolve_inline_judge
-from task_rubric_resolution import NoUsableRubricError
+from evaluation.inline_judges import accepts_keyword, resolve_inline_judge
+from task_rubric_resolution import NoUsableRubricError, is_rubric_judge
 
 
 def _run_immediate_config_job_impl(
@@ -111,6 +111,24 @@ def _run_immediate_config_job_impl(
             extra = {}
             if "org_billing_authorized" in fn_params:
                 extra["org_billing_authorized"] = org_billing_authorized
+            if is_rubric_judge(
+                {"metric": metric_type, "metric_parameters": metric_params}
+            ) and accepts_keyword(inline_judge.evaluate_single, "task_rubric"):
+                # A sheet judge grades along the task's usable sheet; the
+                # dispatch holds a grading without one, so a missing sheet
+                # here (removed since) is the usual rubric_missing error row.
+                from project_models import Task as _SheetTask
+                from task_rubric_resolution import resolve_grading_rubric
+
+                sheet_task = db.query(_SheetTask).filter(_SheetTask.id == task_id).first()
+                task_rubric = (
+                    resolve_grading_rubric(db, sheet_task, metric_params)
+                    if sheet_task is not None
+                    else None
+                )
+                if task_rubric is None:
+                    raise NoUsableRubricError(task_id)
+                extra["task_rubric"] = task_rubric
             return inline_judge.evaluate_single(
                 db=db,
                 record_id=record_id,

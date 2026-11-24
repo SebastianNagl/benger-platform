@@ -15,8 +15,8 @@ each other's submissions, as feedback that never counts as a grade):
 last, after its own ``COMMIT`` (the pattern of 104 and 155). Every step is
 idempotent.
 
-Revision ID: 156_peer_review_grant
-Revises: 155_add_evaluation_released_notification_type
+Revision ID: 158_peer_review_grant
+Revises: 157_upload_batches_and_grading_files
 Create Date: 2026-11-24
 """
 
@@ -26,8 +26,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "156_peer_review_grant"
-down_revision = "155_add_evaluation_released_notification_type"
+revision = "158_peer_review_grant"
+down_revision = "157_upload_batches_and_grading_files"
 branch_labels = None
 depends_on = None
 

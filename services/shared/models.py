@@ -3172,6 +3172,10 @@ class NotificationType(str, Enum):
     # with peer review on (feedback only, never a grade).
     PEER_FEEDBACK_RECEIVED = "peer_feedback_received"
 
+    # A project editor returned the recipient's submission (withdrew it for
+    # them, with a reason); the recipient can hand in again.
+    SUBMISSION_RETURNED = "submission_returned"
+
     # Organization notifications
     ORGANIZATION_INVITATION_SENT = "organization_invitation_sent"
     ORGANIZATION_INVITATION_ACCEPTED = "organization_invitation_accepted"

@@ -70,6 +70,8 @@ _DEFAULT_CHANNELS_BY_TYPE: Dict[str, Dict[str, bool]] = {
     # A fellow participant graded the submission (peer review): personal
     # feedback like a human grading, so both channels start on.
     NotificationType.PEER_FEEDBACK_RECEIVED.value: {"in_app": True, "email": True},
+    # A returned submission asks the author to act (hand in again).
+    NotificationType.SUBMISSION_RETURNED.value: {"in_app": True, "email": True},
 }
 
 
@@ -1308,6 +1310,66 @@ def notify_evaluation_received(
     except Exception as e:
         logger.error(
             f"notify_evaluation_received failed ({source}, project {project_id}): {e}",
+            exc_info=True,
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return []
+
+
+_SUBMISSION_RETURNED_TEXT = (
+    "Submission returned",
+    "Your submission in '{project_title}' was returned to you. Reason: {reason}",
+)
+
+
+def notify_submission_returned(
+    db: Session,
+    *,
+    project_id: str,
+    task_id: Optional[str],
+    annotation_id: str,
+    author_id: str,
+    actor_id: Optional[str],
+    reason: str,
+) -> List[Notification]:
+    """Tell an author that a project editor returned their submission.
+
+    One notice per return (no dedupe: each return is its own event and
+    carries its own reason). Nothing is sent when the editor returned their
+    own submission. Never raises: the return is already committed, a failed
+    notice must not turn it into an error.
+    """
+    try:
+        if not author_id or str(author_id) == str(actor_id or ""):
+            return []
+
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        project_title = getattr(project, "title", None) or ""
+        title, message = _SUBMISSION_RETURNED_TEXT
+        return NotificationService.create_notification(
+            db=db,
+            user_ids=[str(author_id)],
+            notification_type=NotificationType.SUBMISSION_RETURNED,
+            title=title,
+            message=message.format(project_title=project_title, reason=reason),
+            data={
+                "project_id": project_id,
+                "project_title": project_title,
+                "project_kind": getattr(project, "kind", None),
+                "task_id": task_id,
+                "annotation_id": annotation_id,
+                "reason": reason,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"notify_submission_returned failed (project {project_id}, "
+            f"annotation {annotation_id}): {e}",
             exc_info=True,
         )
         try:

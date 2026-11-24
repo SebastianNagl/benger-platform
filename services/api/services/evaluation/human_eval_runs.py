@@ -18,7 +18,7 @@ the extended `submit_falloesung_grade` / `submit_custom_grade` /
 `submit_feedback_grade` endpoints use to resolve the destination run. The
 per-metric partial unique indexes (migration 037 for
 `korrektur_falloesung`, 061 for `korrektur_custom`, 122 for
-`korrektur_feedback`, 156 for `korrektur_peer`) make the upsert safe under
+`korrektur_feedback`, 158 for `korrektur_peer`) make the upsert safe under
 concurrent submits.
 """
 
@@ -43,7 +43,7 @@ from models import EvaluationRun
 # project, no worker involvement) live in /shared/human_graded_metrics.py,
 # re-exported here for the existing importers. Every metric listed there
 # needs a matching partial unique index on evaluation_runs (migrations 037,
-# 061, 122 and 156): the upsert below infers the index from a per-metric
+# 061, 122 and 158): the upsert below infers the index from a per-metric
 # predicate, and without the index the ON CONFLICT clause raises "no unique
 # or exclusion constraint matching the ON CONFLICT specification".
 __all__ = [

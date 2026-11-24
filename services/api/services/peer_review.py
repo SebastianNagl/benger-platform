@@ -1,6 +1,6 @@
 """Who reviews a project's submissions: staff, and peers when the project allows it.
 
-A project with ``projects.peer_review_enabled`` (migration 156) lets its
+A project with ``projects.peer_review_enabled`` (migration 158) lets its
 participants grade each other's submissions next to the staff graders. This
 module is the generic grant behind that, with no workflow in it:
 

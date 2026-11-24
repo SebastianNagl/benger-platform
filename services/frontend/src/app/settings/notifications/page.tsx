@@ -7,10 +7,11 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
-import { isEvaluationReceivedType } from '@/lib/notificationLinks'
+import { isSubmissionNoticeType } from '@/lib/notificationLinks'
 import { translate } from '@/lib/utils/translate'
 import {
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   BellIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -115,6 +116,13 @@ const getNotificationTypes = (t: any) => [
     name: t('settings.notifications.types.peerFeedbackReceived'),
     description: t('settings.notifications.types.peerFeedbackReceivedDesc'),
     icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'submission_returned',
+    name: t('settings.notifications.types.submissionReturned'),
+    description: t('settings.notifications.types.submissionReturnedDesc'),
+    icon: ArrowUturnLeftIcon,
     category: t('settings.notifications.categories.evaluations'),
   },
   {
@@ -337,12 +345,12 @@ function NotificationSettingsContent() {
     }
     try {
       const allNotificationTypes = getNotificationTypes(t)
-      // A student only gets notified about gradings of their own
-      // submissions, so the expert types would just be noise here.
+      // A student only gets notified about their own submissions (gradings,
+      // a returned submission), so the expert types would just be noise here.
       const visibleTypes =
         uiMode === 'student'
           ? allNotificationTypes.filter((type) =>
-              isEvaluationReceivedType(type.key),
+              isSubmissionNoticeType(type.key),
             )
           : allNotificationTypes
       return {

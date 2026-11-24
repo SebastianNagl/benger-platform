@@ -21,11 +21,12 @@ import { api } from '@/lib/api'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getEvaluationReceivedHref,
-  isEvaluationReceivedType,
+  isSubmissionNoticeType,
 } from '@/lib/notificationLinks'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import {
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   ChartBarIcon,
   CheckCircleIcon,
   CheckIcon,
@@ -54,6 +55,7 @@ const notificationIcons = {
   evaluation_received_batch: CheckCircleIcon,
   evaluation_released: CheckCircleIcon,
   peer_feedback_received: CheckCircleIcon,
+  submission_returned: ArrowUturnLeftIcon,
   system_alert: ExclamationTriangleIcon,
   error_occurred: ExclamationTriangleIcon,
 }
@@ -84,6 +86,8 @@ const notificationColors = {
     'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
   peer_feedback_received:
     'text-zinc-700 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800',
+  submission_returned:
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
@@ -305,9 +309,10 @@ function NotificationsPageContent() {
       await handleMarkAsRead(notification.id)
     }
 
-    // A new grading on the user's own submission opens where they can read
-    // it: the exam in the student shell, otherwise the project's task list.
-    if (isEvaluationReceivedType(notification.type)) {
+    // A notice about the user's own submission (a new grading, a returned
+    // submission) opens where they can read it: the exam in the student
+    // shell, otherwise the project's task list.
+    if (isSubmissionNoticeType(notification.type)) {
       const href = getEvaluationReceivedHref(notification.data, uiMode)
       if (href) router.push(href)
       return

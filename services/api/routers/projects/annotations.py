@@ -12,13 +12,14 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db, get_db
 from project_models import Annotation, Project, Task
-from project_schemas import AnnotationCreate, AnnotationResponse
+from project_schemas import AnnotationCreate, AnnotationResponse, AnnotationWithdraw
 from utils.assignment_helpers import (
     mark_assignment_completed as _mark_assignment_completed,
 )
 from routers.projects.helpers import (
     check_task_assigned_to_user,
     check_task_assigned_to_user_async,
+    check_user_can_edit_project_async,
     enforce_project_read_window_async,
     enforce_project_write_window,
     enforce_project_write_window_async,
@@ -413,32 +414,20 @@ async def update_annotation(
         )
     )
 
-    # Track if was_cancelled status changed for counter updates
-    was_cancelled_changed = False
-    old_was_cancelled = db_annotation.was_cancelled
+    # A withdrawn (or cancelled) submission is a closed record: the author
+    # hands in a new one instead of editing it back to life. Withdrawing goes
+    # through POST /annotations/{id}/withdraw, which records the reason; the
+    # edit never changes ``was_cancelled``.
+    if db_annotation.was_cancelled:
+        raise HTTPException(status_code=409, detail=_WITHDRAWN_DETAIL)
+    if annotation_update.was_cancelled:
+        raise HTTPException(status_code=422, detail=_WITHDRAW_ENDPOINT_DETAIL)
 
     # Update the annotation
     if annotation_update.result != None:  # noqa: E711
         db_annotation.result = annotation_update.result
-    if annotation_update.was_cancelled != None:  # noqa: E711
-        if db_annotation.was_cancelled != annotation_update.was_cancelled:
-            was_cancelled_changed = True
-        db_annotation.was_cancelled = annotation_update.was_cancelled
     if annotation_update.lead_time != None:  # noqa: E711
         db_annotation.lead_time = annotation_update.lead_time
-
-    # Update task counters if cancelled status changed
-    if was_cancelled_changed:
-        task = (
-            await db.execute(select(Task).where(Task.id == db_annotation.task_id))
-        ).scalar_one_or_none()
-        if task:
-            if annotation_update.was_cancelled and not old_was_cancelled:
-                # Changed from not cancelled to cancelled
-                task.cancelled_annotations += 1
-            elif not annotation_update.was_cancelled and old_was_cancelled:
-                # Changed from cancelled to not cancelled
-                task.cancelled_annotations -= 1
 
     # Update timestamp
     db_annotation.updated_at = datetime.now(timezone.utc)
@@ -449,20 +438,164 @@ async def update_annotation(
     # Report annotation section refresh — same Celery dispatch as the create
     # path. Update routes through the same hot edit loop, so we keep the
     # aggregation off the request thread here too.
-    try:
-        import logging
-
-        from celery_client import get_celery_app
-
-        logger = logging.getLogger(__name__)
-        get_celery_app().send_task(
-            "tasks.update_report_annotations_async",
-            args=[db_annotation.project_id],
-        )
-    except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Failed to update report annotations section: {e}")
+    _queue_report_refresh(db_annotation.project_id)
 
     return db_annotation
+
+
+_WITHDRAWN_DETAIL = {
+    "code": "annotation_withdrawn",
+    "message": "This submission was withdrawn and can no longer be changed.",
+}
+_WITHDRAW_ENDPOINT_DETAIL = {
+    "code": "withdrawal_reason_required",
+    "message": (
+        "Withdraw a submission with POST /annotations/{id}/withdraw, "
+        "which takes the reason."
+    ),
+}
+
+
+def _queue_report_refresh(project_id: str) -> None:
+    """Refresh the report's annotation section off the request thread."""
+    import logging
+
+    try:
+        from celery_client import get_celery_app
+
+        get_celery_app().send_task(
+            "tasks.update_report_annotations_async", args=[project_id]
+        )
+    except Exception as e:
+        logging.getLogger(__name__).error(
+            f"Failed to update report annotations section: {e}"
+        )
+
+
+@router.post(
+    "/annotations/{annotation_id}/withdraw", response_model=AnnotationResponse
+)
+async def withdraw_annotation(
+    annotation_id: str,
+    body: AnnotationWithdraw,
+    request: Request,
+    current_user: AuthUser = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Withdraw a submission (its author) or return it to its author (an editor).
+
+    Nothing is deleted: the row keeps its data, is marked cancelled and
+    records who withdrew it, when and why (``withdrawn_*``), so the author
+    can hand in again and the project's editors see the withdrawal.
+
+    - The author withdraws through the same gates as editing it: write
+      access, task assignment, the project's access window, Safe Exam
+      Browser and the overlay's write checks (``before_annotation_write``).
+    - Anyone else needs edit rights on the project (creator, ORG_ADMIN or
+      CONTRIBUTOR through an attachment, superadmin); the author then gets a
+      ``submission_returned`` notification with the reason.
+
+    The overlay may refuse either case (``before_annotation_withdraw``) and
+    withdraws its own results of the submission in the same transaction
+    (``on_annotation_withdrawn``). An already withdrawn or cancelled
+    submission answers 409 ``annotation_withdrawn``.
+    """
+    db_annotation = (
+        await db.execute(select(Annotation).where(Annotation.id == annotation_id))
+    ).scalar_one_or_none()
+    if not db_annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    project = (
+        await db.execute(select(Project).where(Project.id == db_annotation.project_id))
+    ).scalar_one_or_none()
+    by_author = str(db_annotation.completed_by) == str(current_user.id)
+
+    if by_author:
+        tier = await get_project_access_tier_async(
+            db, current_user, db_annotation.project_id
+        )
+        require_write_tier(tier)
+        if project and not await check_task_assigned_to_user_async(
+            db, current_user, db_annotation.task_id, project
+        ):
+            raise HTTPException(status_code=404, detail="Annotation not found")
+        if project is not None:
+            await enforce_project_write_window_async(db, current_user, project)
+            await enforce_seb_async(db, current_user, project, request, tier=tier)
+    elif not await check_user_can_edit_project_async(
+        db, current_user, db_annotation.project_id
+    ):
+        # Someone else's submission on a project the caller cannot edit:
+        # indistinguishable from a missing one.
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    if db_annotation.was_cancelled:
+        raise HTTPException(status_code=409, detail=_WITHDRAWN_DETAIL)
+
+    actor_id = str(current_user.id)
+    reason = body.reason
+
+    def _withdraw(session):
+        from annotation_submission import (
+            SubmissionAlreadyWithdrawn,
+            withdraw_submission,
+        )
+        from extension_activation import use_context
+        from extensions import (
+            AnnotationWriteRejected,
+            before_annotation_withdraw,
+            before_annotation_write,
+            on_annotation_withdrawn,
+        )
+
+        row = session.get(Annotation, annotation_id)
+        try:
+            with use_context(project_id=row.project_id):
+                if by_author:
+                    before_annotation_write(
+                        session,
+                        row.task_id,
+                        actor_id,
+                        row.project_id,
+                        annotation_id=row.id,
+                        is_update=True,
+                    )
+                before_annotation_withdraw(session, row, actor_id, by_author=by_author)
+                row = withdraw_submission(session, row, actor_id=actor_id, reason=reason)
+                on_annotation_withdrawn(
+                    session, row, actor_id, by_author=by_author, reason=reason
+                )
+        except AnnotationWriteRejected as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+        except SubmissionAlreadyWithdrawn:
+            raise HTTPException(status_code=409, detail=_WITHDRAWN_DETAIL)
+
+    try:
+        await db.run_sync(_withdraw)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+    await db.refresh(db_annotation)
+    response = AnnotationResponse.model_validate(db_annotation)
+    project_id = db_annotation.project_id
+
+    if not by_author:
+        from notification_service import notify_submission_returned
+
+        author_id = str(db_annotation.completed_by)
+        task_id = db_annotation.task_id
+        await db.run_sync(
+            lambda session: notify_submission_returned(
+                session,
+                project_id=project_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                author_id=author_id,
+                actor_id=actor_id,
+                reason=reason,
+            )
+        )
+    _queue_report_refresh(project_id)
+    return response

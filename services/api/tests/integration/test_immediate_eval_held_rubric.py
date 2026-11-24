@@ -33,8 +33,10 @@ from models import EvaluationRun
 from project_models import Annotation, Project, Task, TaskRubric
 from task_rubric_resolution import (
     RUBRIC_MISSING,
+    register_sheet_judge_metric,
     resolve_grading_rubric,
     split_held_rubric_judges,
+    unregister_sheet_judge_metric,
 )
 
 SHEET = {
@@ -305,6 +307,60 @@ class TestHeldDispatch:
                 "reason": RUBRIC_MISSING,
             }
         ]
+
+    @pytest.fixture
+    def sample_sheet_judge(self):
+        register_sheet_judge_metric("sample_sheet_judge")
+        try:
+            yield "sample_sheet_judge"
+        finally:
+            unregister_sheet_judge_metric("sample_sheet_judge")
+
+    def test_a_registered_sheet_judge_is_held_like_the_rubric_judge(
+        self, test_db, people, sample_sheet_judge
+    ):
+        """Core 2.81: a config of a registered sheet judge metric with
+        use_task_rubric waits for the sheet like llm_judge_rubric, and runs
+        once the sheet is usable."""
+        owner, student = people
+        own_sheet_judge = {
+            **JUDGE,
+            "id": "cfg-own",
+            "metric": sample_sheet_judge,
+            "metric_parameters": {"use_task_rubric": True},
+        }
+        project = _project(test_db, owner, [own_sheet_judge], review_required=True)
+        task = _task(test_db, project)
+        annotation = _answer(test_db, project, task, student)
+        sent = []
+
+        outcome = _ensure(test_db, project, task, annotation, sent)
+        assert outcome.status == ied.OUTCOME_BLOCKED and sent == []
+        (run,) = _runs(test_db, project.id)
+        assert [c["id"] for c in run.eval_metadata["billing_block"]["held_configs"]] == ["cfg-own"]
+
+        _sheet(test_db, task)
+        again = _ensure(test_db, project, task, annotation, sent, trigger=ied.SWEEP_TRIGGER)
+        assert again.status == ied.OUTCOME_DISPATCHED
+        ((_name, kwargs),) = sent
+        assert [c["id"] for c in kwargs["evaluation_configs"]] == ["cfg-own"]
+
+    def test_an_unregistered_metric_with_the_switch_is_not_held(self, test_db, people):
+        owner, student = people
+        unregistered = {
+            **JUDGE,
+            "id": "cfg-own",
+            "metric_parameters": {"use_task_rubric": True},
+        }
+        project = _project(test_db, owner, [unregistered])
+        task = _task(test_db, project)
+        annotation = _answer(test_db, project, task, student)
+        sent = []
+
+        outcome = _ensure(test_db, project, task, annotation, sent)
+        assert outcome.status == ied.OUTCOME_DISPATCHED
+        ((_name, kwargs),) = sent
+        assert [c["id"] for c in kwargs["evaluation_configs"]] == ["cfg-own"]
 
     def test_a_usable_sheet_dispatches_as_before(self, test_db, people):
         owner, student = people

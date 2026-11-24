@@ -1,4 +1,4 @@
-"""Migration 156: the peer review switch, the peer run index, the notice type.
+"""Migration 158: the peer review switch, the peer run index, the notice type.
 
 ``ALTER TYPE ... ADD VALUE`` cannot run inside a transaction block, so the
 migration issues its own ``COMMIT`` before it. The upgrade test runs the
@@ -25,13 +25,13 @@ MIGRATION_PATH = os.path.normpath(
         "..",
         "alembic",
         "versions",
-        "156_peer_review_grant.py",
+        "158_peer_review_grant.py",
     )
 )
 
 
 def _load_migration():
-    spec = importlib.util.spec_from_file_location("mig_156", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("mig_158", MIGRATION_PATH)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -48,11 +48,11 @@ def _op_context(connection):
         yield
 
 
-class TestMigration156:
-    def test_revision_chains_after_155(self):
+class TestMigration158:
+    def test_revision_chains_after_157(self):
         mig = _load_migration()
-        assert mig.revision == "156_peer_review_grant"
-        assert mig.down_revision == "155_add_evaluation_released_notification_type"
+        assert mig.revision == "158_peer_review_grant"
+        assert mig.down_revision == "157_upload_batches_and_grading_files"
 
     def test_upgrade_adds_everything_and_is_idempotent(self, test_db):
         from tests.fixtures.database import _get_engine

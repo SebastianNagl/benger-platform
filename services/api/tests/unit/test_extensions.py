@@ -218,10 +218,16 @@ class TestExtensionLoader:
         # sheet parser's declared_total and the own-scale grade key rule.
         # 2.79 adds metric_filters.row_awaits_release (no grading notice for
         # held-back drafts) and the ProjectReleaseReviewPage slot route.
-        # 2.80 adds the peer review grant (projects.peer_review_enabled,
+        # 2.80 adds the withdrawal of a submission (migration 156, the hook
+        # keys before_annotation_withdraw and on_annotation_withdrawn).
+        # 2.81 adds sheet judges beyond llm_judge_rubric (use_task_rubric,
+        # task_rubric for inline judges) and structure.placement.
+        # 2.82 adds table_grid / ooxml, submission_files.purpose and
+        # task_evaluation_id, upload_batches and stored_files (migration 157).
+        # 2.83 adds the peer review grant (projects.peer_review_enabled,
         # services.peer_review, the korrektur_peer feedback-only run and the
-        # peer_feedback_received notice, migration 156).
-        assert CORE_API_VERSION == "2.80"
+        # peer_feedback_received notice, migration 158).
+        assert CORE_API_VERSION == "2.83"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
