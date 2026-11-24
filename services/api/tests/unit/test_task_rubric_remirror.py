@@ -25,8 +25,10 @@ from rubric_structure import (
     GRADE_SCALE_PRESETS,
     effective_grade_scale,
     normalize_structure,
+    register_own_scale_metric,
     render_grade_scale_text,
     rubric_prompt_text,
+    unregister_own_scale_metric,
 )
 from task_rubric_service import (
     _remirror_rows,
@@ -236,10 +238,18 @@ class TestMethodsWithTheirOwnScale:
 
     OWN_SCALE = {
         "evaluation_configs": [
-            {"id": "j", "metric": "llm_judge_feedback", "enabled": True},
-            {"id": "k", "metric": "korrektur_feedback"},
+            {"id": "j", "metric": "test_own_scale_judge", "enabled": True},
+            {"id": "k", "metric": "test_own_scale_human"},
         ]
     }
+
+    @pytest.fixture(autouse=True)
+    def _registered(self):
+        for cfg in self.OWN_SCALE["evaluation_configs"]:
+            register_own_scale_metric(cfg["metric"])
+        yield
+        for cfg in self.OWN_SCALE["evaluation_configs"]:
+            unregister_own_scale_metric(cfg["metric"])
 
     def test_the_mirror_carries_no_grade_key(self):
         task = _task()

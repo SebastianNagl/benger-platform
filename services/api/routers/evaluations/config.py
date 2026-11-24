@@ -43,6 +43,7 @@ from routers.projects.helpers import (
 )
 from label_config_repeater import has_repeater
 from metric_filters import is_reference_free
+from rubric_structure import grade_scale_applies
 from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
@@ -917,12 +918,14 @@ def update_project_evaluation_config(
         flag_modified(project, "evaluation_config")
 
         # The task-data mirror of every grading sheet ends in the key that
-        # grades the exam, and is otherwise refreshed only when a sheet is
-        # activated or edited. A key change re-renders them in the same
-        # transaction.
+        # grades the exam (or carries none when no method grades on it), and
+        # is otherwise refreshed only when a sheet is activated or edited. A
+        # change of either re-renders them in the same transaction.
         if grade_scale_changed(
             stored_config.get(GRADE_SCALE_KEY),
             (project.evaluation_config or {}).get(GRADE_SCALE_KEY),
+        ) or grade_scale_applies(stored_config) != grade_scale_applies(
+            project.evaluation_config
         ):
             remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
 

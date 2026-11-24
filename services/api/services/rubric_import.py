@@ -129,14 +129,14 @@ _BULLET_RE = re.compile(r"^[·•\-–—*]\s*(.*)$")
 _HEADER_CELL_RE = re.compile(r"^(max\.?\s*)?(BE|Punkte|Pkt\.?|P\.?)\s*:?$", re.I)
 _IGNORED_COLUMN_RE = re.compile(r"(Ihre\s+BE|Bewertung|erreicht|Korrektor)", re.I)
 #: A total or subtotal row: never a step and never the end of the outline.
-#: "Gesamt" only in its exact forms (``Gesamtwürdigung`` is content), the
-#: sum words with up to three trailing words ("Summe fiche", "Zwischensumme
-#: Teil A", "Total général", "Sous-total").
+#: "Gesamt" only in its exact forms (``Gesamtwürdigung`` is content), "Summe"
+#: alone or with up to three trailing words ("Summe fiche", "Summe Teil A:"),
+#: a bare "Σ", and "Total" only bare ("Total des préjudices" is a step).
 _TOTAL_ROW_RE = re.compile(
-    r"^(?:Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?"
-    r"|(?:Zwischen|Teil)?summe(?:\s+\S+){0,3}"
-    r"|Σ(?:\s+\S+){0,3}"
-    r"|(?:Sous[-\s]?)?total(?:\s+\S+){0,3})\s*[:.]?\s*$",
+    r"^(?:(?:Gesamt(?:\s*-?\s*(?:BE|punkte|punktzahl|summe))?"
+    r"|Summe(?:\s+\S+){0,3}"
+    r"|Σ)\s*[:.]?"
+    r"|Total\s*:?)\s*$",
     re.I,
 )
 _TRAILER_RE = re.compile(r"^(Korrektor(?:in)?|Prüfer(?:in)?|Ergibt|Gesamtnote|Note)\b", re.I)
@@ -1189,11 +1189,12 @@ def _has_outline_label(text: str) -> bool:
 
 def _starts_grade_key(raw: _RawRow, text: str) -> bool:
     """A row after a total row that opens a grade key without its heading:
-    a range in the points column ("0-12") or a grade word in the text."""
+    a range ("0-12") in the points or the text column, or a grade word in
+    the text."""
     points = raw.points_text if raw.points_parsed else raw.points_raw
     if isinstance(points, str) and _RANGE_RE.match(points):
         return True
-    return bool(_GRADE_WORD_RE.match(text))
+    return bool(_RANGE_RE.match(text) or _GRADE_WORD_RE.match(text))
 
 
 def _build_outline(rows: List[_RawRow], warnings: _Warnings) -> Tuple[List[_Node], Optional[float], Optional[str], Optional[str]]:
@@ -1944,19 +1945,12 @@ def rubric_document_text(filename: str, data: bytes) -> str:
         raise RubricImportError("corrupt_file", "Die Datei ist leer.")
 
     if ext == ".xlsx":
-        # Every worksheet, each under its name when there are several: a
-        # sheet continued on a second worksheet reaches the model whole.
-        sheets = _read_xlsx_sheets(data)
-        lines = []
-        for name, grid in sheets:
-            if len(sheets) > 1:
-                lines.append(f"[{name}]")
-            lines.extend(
-                " | ".join(
-                    text for text in (_cell_text(cells[c]) for c in sorted(cells)) if text
-                )
-                for _row, cells in grid
+        lines = [
+            " | ".join(
+                text for text in (_cell_text(cells[c]) for c in sorted(cells)) if text
             )
+            for _row, cells in _read_xlsx_grid(data)
+        ]
     elif ext == ".docx":
         lines = []
         for kind, block in _read_docx(data).blocks:

@@ -769,6 +769,21 @@ class TestWithoutGuidance:
         assert criteria_without_guidance(value) == value
 
 
+OWN_A = "test_own_scale_judge"
+OWN_B = "test_own_scale_human"
+
+
+@pytest.fixture
+def own_scale_metrics():
+    from rubric_structure import register_own_scale_metric, unregister_own_scale_metric
+
+    register_own_scale_metric(OWN_A)
+    register_own_scale_metric(OWN_B)
+    yield
+    unregister_own_scale_metric(OWN_A)
+    unregister_own_scale_metric(OWN_B)
+
+
 class TestGradeScaleApplies:
     @pytest.mark.parametrize(
         "config",
@@ -778,19 +793,33 @@ class TestGradeScaleApplies:
             {"evaluation_configs": []},
             {"evaluation_configs": "not a list"},
             {"evaluation_configs": [{"metric": "llm_judge_rubric"}]},
-            {"evaluation_configs": [{"metric": "llm_judge_feedback"}, {"metric": "bleu"}]},
-            {"evaluation_configs": [{"metric": "llm_judge_feedback", "enabled": False}]},
+            {"evaluation_configs": [{"metric": OWN_A}, {"metric": "bleu"}]},
+            {"evaluation_configs": [{"metric": OWN_A, "enabled": False}]},
         ],
     )
-    def test_the_key_applies(self, config):
+    def test_the_key_applies(self, own_scale_metrics, config):
         assert grade_scale_applies(config) is True
 
-    def test_only_methods_with_their_own_scale(self):
+    def test_only_methods_with_their_own_scale(self, own_scale_metrics):
         config = {
             "evaluation_configs": [
-                {"metric": "llm_judge_feedback", "enabled": True},
-                {"metric": "korrektur_feedback"},
+                {"metric": OWN_A, "enabled": True},
+                {"metric": OWN_B},
                 {"metric": "llm_judge_rubric", "enabled": False},
             ]
         }
         assert grade_scale_applies(config) is False
+
+    def test_an_unregistered_metric_keeps_the_key(self):
+        from rubric_structure import metric_has_own_scale
+
+        assert not metric_has_own_scale(OWN_A)
+        assert grade_scale_applies({"evaluation_configs": [{"metric": OWN_A}]}) is True
+
+    def test_unregistering_restores_the_key(self, own_scale_metrics):
+        from rubric_structure import unregister_own_scale_metric
+
+        config = {"evaluation_configs": [{"metric": OWN_A}]}
+        assert grade_scale_applies(config) is False
+        unregister_own_scale_metric(OWN_A)
+        assert grade_scale_applies(config) is True

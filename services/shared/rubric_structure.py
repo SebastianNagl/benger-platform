@@ -1125,18 +1125,34 @@ def _loaded_project_config(task: Any) -> Any:
     return getattr(project, "evaluation_config", None)
 
 
-#: Evaluation methods that grade on a scale of their own (a note sur 20 from a
-#: barème), never on the Notenschlüssel. String keys only: which methods
-#: those are is the method's business, the platform only skips the key for
-#: an exam graded by nothing else (see ``grade_scale_applies``).
-OWN_SCALE_METRICS = frozenset({"llm_judge_feedback", "korrektur_feedback"})
+#: Evaluation methods that grade on a scale of their own (e.g. a note sur 20
+#: from a barème), never on the Notenschlüssel. The package that ships such a
+#: method registers it at import time (``register_own_scale_metric``); the
+#: platform names none and only skips the key for an exam graded by nothing
+#: else (see ``grade_scale_applies``).
+_OWN_SCALE_METRICS: set[str] = set()
+
+
+def register_own_scale_metric(metric: str) -> None:
+    """Declare that ``metric`` grades on its own scale, not on the
+    Notenschlüssel. Registering twice is a no-op (reload-safe in dev)."""
+    _OWN_SCALE_METRICS.add(metric)
+
+
+def unregister_own_scale_metric(metric: str) -> None:
+    _OWN_SCALE_METRICS.discard(metric)
+
+
+def metric_has_own_scale(metric: Optional[str]) -> bool:
+    """Whether ``metric`` is registered as grading on its own scale."""
+    return bool(metric) and metric in _OWN_SCALE_METRICS
 
 
 def grade_scale_applies(project_config: Any) -> bool:
     """Whether the Notenschlüssel (Notenpunkte 0-18) grades this project.
 
     False only when the project has enabled evaluation methods and every one
-    of them grades on its own scale (``OWN_SCALE_METRICS``): then no grade is
+    of them grades on its own scale (``metric_has_own_scale``): then no grade is
     ever read off the key, and showing it next to a sheet would state a
     German grade scale the exam does not use. A project without methods, or
     with any other method, keeps the key. ``project_config`` is the raw
@@ -1154,7 +1170,7 @@ def grade_scale_applies(project_config: Any) -> bool:
     ]
     if not enabled:
         return True
-    return not all(c.get("metric") in OWN_SCALE_METRICS for c in enabled)
+    return not all(metric_has_own_scale(c.get("metric")) for c in enabled)
 
 
 def rubric_mirror_text(rubric: Any, project_config: Any) -> str:

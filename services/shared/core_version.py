@@ -1790,9 +1790,13 @@ API change).
     name (``declared``, ``computed``, ``column``, ``read_column``, ``rows``,
     ``sheets``, ``read_sheet``); new warning codes ``columns_ignored`` and
     ``sheets_ignored``. A total row no longer ends the outline.
-  - ``rubric_structure.OWN_SCALE_METRICS``, ``grade_scale_applies`` and
-    ``rubric_mirror_text``: the task-data mirror of a sheet leaves the
-    Notenschlüssel out when every enabled method grades on its own scale.
+  - ``rubric_structure.register_own_scale_metric`` (an extension package
+    declares a metric that grades on its own scale),
+    ``unregister_own_scale_metric``, ``metric_has_own_scale``,
+    ``grade_scale_applies`` and ``rubric_mirror_text``: the task-data mirror
+    of a sheet leaves the Notenschlüssel out when every enabled method is
+    registered as grading on its own scale. Saving the methods re-renders
+    the mirrors when that answer changes.
 """
 
 import os

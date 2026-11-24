@@ -1,7 +1,7 @@
 """Total rows, column blocks and worksheets in the Korrekturbogen importer.
 
-A total row ("Summe", "Gesamt", "Total", "Σ", also with a few words after
-it) used to end the outline for good: every row below it was dropped
+A total row ("Summe", also with a few words after it, "Gesamt", "Total",
+"Σ") used to end the outline for good: every row below it was dropped
 without a word, and "Summe <x>" or "Total" rows were read as steps. The
 importer also reads one text column and the first worksheet only, so a
 second column block or a second worksheet vanished silently.
@@ -23,7 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from services.rubric_import import parse_rubric_file, rubric_document_text  # noqa: E402
+from services.rubric_import import parse_rubric_file  # noqa: E402
 from tests.fixtures.rubric_files import make_docx, make_xlsx  # noqa: E402
 
 HEADER = [("Kriterium", "Punkte")]
@@ -115,7 +115,7 @@ def _warning(result, code):
 class TestTotalRowDoesNotEndTheSheet:
     @pytest.mark.parametrize(
         "total_row",
-        [("Summe", 17.5), ("Gesamt", 23), ("Total", 17.5), ("Sous-total", 17.5), ("Σ", 17.5)],
+        [("Summe", 17.5), ("Summe fiche", 17.5), ("Gesamt", 23), ("Total", 17.5), ("Σ", 17.5)],
     )
     def test_rows_after_a_total_row_are_read(self, total_row):
         result = _parse(_rows(HEADER + FIRST + [total_row] + REST))
@@ -145,16 +145,13 @@ class TestTotalRowsAreNeverSteps:
             "Summe",
             "Summe fiche",
             "Summe Teil A:",
-            "Zwischensumme",
-            "Teilsumme Frage 1",
             "Gesamt",
             "Gesamt-BE",
             "Gesamtpunkte",
+            "Gesamtpunktzahl",
             "Gesamtsumme",
             "Total",
-            "TOTAL général",
-            "Total des points",
-            "Sous-total Faits",
+            "Total:",
             "Σ",
         ],
     )
@@ -172,6 +169,24 @@ class TestTotalRowsAreNeverSteps:
             [{"A": "I. Erster Punkt", "B": 2}, {"A": "II. Zweiter Punkt", "B": 1}, {"A": text, "B": 3}]
         )
         assert text in [s["title"] for s in _steps(result)]
+
+    @pytest.mark.parametrize(
+        "text, points",
+        [
+            ("Total des préjudices", 2),
+            ("Total ou partiel", 1),
+            ("Zwischensumme", 1),
+            ("Sous-total", 1),
+            ("Σ Teil A", 1),
+        ],
+    )
+    def test_only_the_listed_total_forms_are_totals(self, text, points):
+        result = _parse(
+            [{"A": "I. Erster Punkt", "B": 2}, {"A": text, "B": points}, {"A": "III. Dritter", "B": 1}]
+        )
+        steps = {s["title"]: s["max_score"] for s in _steps(result)}
+        assert steps[text] == points
+        assert result["total_points"] == 3 + points
 
     def test_a_final_total_that_differs_is_reported_with_its_values(self):
         result = _parse([{"A": "I. a", "B": 1}, {"A": "II. b", "B": 2}, {"A": "Summe fiche", "B": 4}])
@@ -228,6 +243,20 @@ class TestTotalRowsAreNeverSteps:
         )
         assert [s["title"] for s in _steps(result)] == ["a"]
         assert "points_invalid" not in _codes(result)
+
+    def test_a_range_in_the_text_column_after_the_total_ends_the_outline(self):
+        result = _parse(
+            [
+                {"A": "I. a", "B": 15},
+                {"A": "II. b", "B": 8},
+                {"A": "Gesamt", "B": 23},
+                {"A": "95-100", "B": 18},
+                {"A": "89-94", "B": 17},
+            ]
+        )
+        assert [s["title"] for s in _steps(result)] == ["a", "b"]
+        assert result["total_points"] == 23
+        assert result["declared_total"] == 23
 
 
 class TestIgnoredColumnBlocks:
@@ -300,14 +329,3 @@ class TestIgnoredWorksheets:
             extra_sheets=[("Notizen", [{"A": "nur eine Notiz"}, {"A": "noch eine"}])],
         )
         assert "sheets_ignored" not in _codes(result)
-
-    def test_document_text_carries_every_worksheet(self):
-        data = make_xlsx(_rows(HEADER + FIRST), extra_sheets=[("Teil 2", _rows(REST))])
-        text = rubric_document_text("bareme.xlsx", data)
-        assert "[Tabelle1]" in text
-        assert "[Teil 2]" in text
-        assert "Règle de compétence | 1" in text
-
-    def test_one_worksheet_document_text_has_no_sheet_heading(self):
-        text = rubric_document_text("bareme.xlsx", make_xlsx(_rows(HEADER + FIRST)))
-        assert "[Tabelle1]" not in text
