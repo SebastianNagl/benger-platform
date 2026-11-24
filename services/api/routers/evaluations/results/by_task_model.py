@@ -12,7 +12,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 import current_scores
 from user_display import masked_name
 
-from evaluation_methods import teacher_current_rows
+from evaluation_methods import teacher_current_rows, teacher_rows
 
 from .method_selection import load_method_selection
 
@@ -40,6 +40,7 @@ async def _add_annotator_cells(
     model_name_map: dict,
     model_export_labels: dict,
     selection=None,
+    configs_by_id=None,
 ) -> None:
     """Add the annotator columns (``annotator:<display>``) to a grid.
 
@@ -49,9 +50,10 @@ async def _add_annotator_cells(
     the column shows their mean. Each column contributes ONE score per task
     to its average, however many rows the cell had. ``selection`` (a
     ``MethodSelection``) keeps the rows a teacher view shows for the account
-    that submitted the answer (``evaluation_methods.teacher_current_rows``:
-    the official config's, else another config of the group that has a
-    score); with ``include_history`` the official config's rows.
+    that submitted the answer (``evaluation_methods.teacher_rows``: the
+    official config's, else another config of the group that has a score
+    for the cell, with their history when ``include_history`` is set);
+    ``configs_by_id`` are the project's configs, which decide a row's cell.
     """
     from models import User as DBUser
 
@@ -89,18 +91,12 @@ async def _add_annotator_cells(
     }
     user_of = {a.id: a.user_id for a in annotations_with_users}
     shown = None
-    if selection is not None and not include_history:
-        shown = teacher_current_rows(selection, rows, user_of)
+    if selection is not None:
+        shown = teacher_rows(selection, rows, user_of, configs_by_id)
 
     cells: dict = {}  # {(task_id, synthetic_model_id): [(created_at, score), ...]}
     for r in rows:
-        if shown is not None:
-            if current_scores.row_id(r) not in shown:
-                continue
-        elif selection is not None and not selection.is_official(
-            current_scores.cell_config_id(getattr(r, "evaluation_config_id", None), r.field_name),
-            user_of.get(r.annotation_id),
-        ):
+        if shown is not None and current_scores.row_id(r) not in shown:
             continue
         score = _extract_primary_score(r.metrics)
         if score is None:
@@ -926,7 +922,9 @@ async def get_project_results_by_task_model(
         if selection is not None:
             # Generations have no submitting account: the default official
             # config, else another config of the group that has a score.
-            gen_shown = teacher_current_rows(selection, sample_results)
+            gen_shown = teacher_current_rows(
+                selection, sample_results, configs_by_id=project_configs_by_id
+            )
             sample_results = [r for r in sample_results if str(r.id) in gen_shown]
 
         # Phase 6.3: count suppressed runs so consumers see the
@@ -1084,6 +1082,7 @@ async def get_project_results_by_task_model(
                 model_name_map=model_name_map,
                 model_export_labels=model_export_labels,
                 selection=selection,
+                configs_by_id=project_configs_by_id,
             )
 
         # Get ALL project tasks (not just evaluated ones) so unevaluated tasks
@@ -1379,17 +1378,14 @@ async def get_sample_result_by_task_model(
                 db, project, set(submitter_of.values())
             )
 
-        # The current rows a teacher view shows (evaluation_methods.
-        # teacher_current_rows): the official config's, else another config
-        # of the group that has a score, which then stands in for it. Over
-        # every config's rows, before any scope narrows them.
+        # The rows a teacher view shows (evaluation_methods.teacher_rows):
+        # per cell the official config's, else another config of the group
+        # that has a score, which then stands in for it, with the history of
+        # the same config. Over every config's rows, before any scope narrows
+        # them.
         shown: dict = {}
         if selection is not None:
-            shown = teacher_current_rows(
-                selection,
-                [sr for sr in sample_results if sr.id in current_ids],
-                submitter_of,
-            )
+            shown = teacher_rows(selection, sample_results, submitter_of, project_configs_by_id)
 
         wanted_configs = {
             c.strip() for c in (evaluation_config_ids or "").split(",") if c.strip()
@@ -1414,16 +1410,8 @@ async def get_sample_result_by_task_model(
                 return True
             return selection.is_official(_config_of(sr), submitter_of.get(sr.annotation_id))
 
-        def _teacher_visible(sr) -> bool:
-            if selection is None:
-                return True
-            if sr.id in current_ids:
-                return str(sr.id) in shown
-            # History keeps the official config's rows.
-            return selection.is_official(_config_of(sr), submitter_of.get(sr.annotation_id))
-
-        if not include_research:
-            sample_results = [sr for sr in sample_results if _teacher_visible(sr)]
+        if not include_research and selection is not None:
+            sample_results = [sr for sr in sample_results if str(sr.id) in shown]
 
         if not include_history:
             sample_results = [sr for sr in sample_results if sr.id in current_ids]

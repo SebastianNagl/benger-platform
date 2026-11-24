@@ -171,10 +171,8 @@ def current_task_evaluation_markers(
         .filter(MK.evaluation_id.in_(eval_run_ids))
         .yield_per(5000)
     )
-    evaluation_config = getattr(project, "evaluation_config", None)
-    current = list(
-        current_scores.pick_current(rows, current_scores.configs_by_id(evaluation_config)).values()
-    )
+    configs_lookup = current_scores.configs_by_id(getattr(project, "evaluation_config", None))
+    current = list(current_scores.pick_current(rows, configs_lookup).values())
     selection = evaluation_methods.build_method_selection(
         evaluation_methods.project_configs(project), method_answer
     )
@@ -188,7 +186,7 @@ def current_task_evaluation_markers(
             )
     return CurrentMarkers(
         {current_scores.row_id(r) for r in current},
-        evaluation_methods.teacher_current_rows(selection, current, submitter_of),
+        evaluation_methods.teacher_current_rows(selection, current, submitter_of, configs_lookup),
     )
 
 

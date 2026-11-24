@@ -211,7 +211,7 @@ async def export_project_results_by_submission(
             )
         ).all()
     current = list(current_scores.pick_current(rows, configs_lookup).values())
-    shown = teacher_current_rows(selection, current, submitter_of)
+    shown = teacher_current_rows(selection, current, submitter_of, configs_lookup)
 
     # Per (annotation, column): the newest current row with a score. A row of
     # a config graded once per prediction field (reference part "") fills

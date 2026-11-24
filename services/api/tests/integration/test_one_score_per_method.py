@@ -125,7 +125,7 @@ async def _seed(db):
     await db.commit()
     return {
         "owner": owner, "project": project, "task": task, "student": student,
-        "other": other, "ann": ann, "on_submit": on_submit, "b_row": b_row,
+        "other": other, "ann": ann, "ann_other": ann_other, "on_submit": on_submit, "b_row": b_row,
         "a_ref1": a_ref1, "a_ref2": a_ref2, "on_submit_other": on_submit_other,
     }
 
@@ -527,3 +527,129 @@ class TestConfigGradedPerReference:
         rows = list(csv.reader(io.StringIO(resp.text)))
         assert rows[0][5:] == ["Judge (task.musterloesung)", "Judge (task.bewertungsbogen)"]
         assert rows[1][5:] == ["0.9", "0.4"]
+
+
+@pytest.mark.integration
+class TestStandInWithHistory:
+    """The grid and the cell modal with history show the rows of the config
+    that supplies the cell: for Student Two that is CFG_B, standing in for
+    the official CFG_A, which never graded them."""
+
+    @pytest.mark.asyncio
+    async def test_grid_and_modal_agree_on_the_stand_in_cell(
+        self, async_test_client, async_test_db
+    ):
+        s = await _seed(async_test_db)
+        earlier = await _make_eval_run(async_test_db, s["project"], model_id="earlier")
+        older = await _make_task_evaluation(
+            async_test_db, earlier, s["task"], annotation=s["ann_other"],
+            field_name=f"{CFG_B}|human:loesung|task.musterloesung", evaluation_config_id=CFG_B,
+            metrics={"llm_judge_custom": 0.3},
+            created_at=s["on_submit_other"].created_at - timedelta(hours=1),
+        )
+        await async_test_db.commit()
+        modal_url = (
+            f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student Two"
+            "&include_history=true&method_group=notenpunkte&include_research=false"
+        )
+        with _grouped(), _as_user(s["owner"]):
+            grid = await async_test_client.get(
+                _grid_url(
+                    s["project"].id, metric="llm_judge_custom", method_group="notenpunkte",
+                    include_history="true",
+                )
+            )
+            modal = await async_test_client.get(modal_url)
+        assert grid.status_code == 200, grid.text
+        assert modal.status_code == 200, modal.text
+        cell = next(t for t in grid.json()["tasks"] if t["task_id"] == s["task"].id)
+        # Student Two: the mean of CFG_B's two gradings (0.5 and 0.3).
+        # Student One: CFG_A's two gradings (0.96 and 0.95), as before.
+        assert cell["scores"] == {
+            "annotator:Student One": pytest.approx(0.955),
+            "annotator:Student Two": pytest.approx(0.4),
+        }
+        rows = {r["id"]: r for r in modal.json()["results"]}
+        assert set(rows) == {s["on_submit_other"].id, older.id}
+        assert {r["stands_in_for_config_id"] for r in rows.values()} == {CFG_A}
+        assert all(r["is_official"] for r in rows.values())
+        scores = [r["metrics"]["llm_judge_custom"] for r in rows.values()]
+        assert sum(scores) / len(scores) == pytest.approx(
+            cell["scores"]["annotator:Student Two"]
+        )
+
+
+CFG_REF_A = "llm_judge_custom-ref-a"
+CFG_REF_B = "llm_judge_custom-ref-b"
+REFS = ("task.musterloesung", "task.bewertungsbogen")
+
+
+async def _seed_grouped_per_reference(db):
+    """Two configs of one method that both grade once per reference field.
+    The official CFG_REF_A scored the answer against musterloesung (0.9) and
+    failed against bewertungsbogen; CFG_REF_B scored both (0.3 and 0.7)."""
+    owner = await _make_owner(db)
+    org = await _make_org(db)
+    project, tasks = await _setup_project(db, owner, org, num_tasks=1)
+    project.evaluation_config = {
+        "evaluation_configs": [
+            {
+                "id": cid, "metric": "llm_judge_custom", "display_name": name,
+                "prediction_fields": ["human:loesung"], "reference_fields": list(REFS),
+                "metric_parameters": {"custom_prompt_template": "{ground_truth} {prediction}"},
+                "enabled": True,
+            }
+            for cid, name in ((CFG_REF_A, "Judge A"), (CFG_REF_B, "Judge B"))
+        ]
+    }
+    task = tasks[0]
+    student = await _make_owner(db, name="Student One", is_superadmin=False)
+    ann = await _make_annotation(db, task, project, student.id)
+    batch = await _make_eval_run(db, project, model_id="annotator:Student One")
+    graded_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    rows = {}
+    for cid, metrics in (
+        (CFG_REF_A, ({"llm_judge_custom": 0.9}, {"error": "judge timeout"})),
+        (CFG_REF_B, ({"llm_judge_custom": 0.3}, {"llm_judge_custom": 0.7})),
+    ):
+        for ref, m in zip(REFS, metrics):
+            rows[(cid, ref)] = await _make_task_evaluation(
+                db, batch, task, annotation=ann,
+                field_name=f"{cid}|human:loesung|{ref}", evaluation_config_id=cid,
+                metrics=m, created_at=graded_at,
+            )
+    await db.commit()
+    return {"owner": owner, "project": project, "task": task, "rows": rows}
+
+
+@pytest.mark.integration
+class TestStandInPerReferenceField:
+    @pytest.mark.asyncio
+    async def test_csv_takes_the_stand_in_only_for_the_failed_reference_field(
+        self, async_test_client, async_test_db
+    ):
+        s = await _seed_grouped_per_reference(async_test_db)
+        groups = {"judge": {"config_ids": [CFG_REF_A, CFG_REF_B], "label": "Judge"}}
+        with patch(
+            "extensions.evaluation_method_selection", return_value={"groups": groups}
+        ), _as_user(s["owner"]):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{s['project'].id}/results/by-submission"
+            )
+            modal = await async_test_client.get(
+                f"{BASE}/sample-result?task_id={s['task'].id}&model_id=annotator:Student One"
+                "&include_history=false&method_group=judge&include_research=false"
+            )
+        assert resp.status_code == 200, resp.text
+        rows = list(csv.reader(io.StringIO(resp.text)))
+        assert rows[0][5:] == [
+            "Judge (task.musterloesung)",
+            "Judge (task.bewertungsbogen)",
+            "Judge (task.bewertungsbogen) (graded by)",
+        ]
+        assert rows[1][5:] == ["0.9", "0.7", "Judge B"]
+        shown = {r["id"]: r["stands_in_for_config_id"] for r in modal.json()["results"]}
+        assert shown == {
+            s["rows"][(CFG_REF_A, REFS[0])].id: None,
+            s["rows"][(CFG_REF_B, REFS[1])].id: CFG_REF_A,
+        }

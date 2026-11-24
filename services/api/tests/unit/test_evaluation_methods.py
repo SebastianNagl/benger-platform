@@ -2,7 +2,12 @@
 
 import pytest
 
-from evaluation_methods import build_method_selection, project_configs, teacher_current_rows
+from evaluation_methods import (
+    build_method_selection,
+    project_configs,
+    teacher_current_rows,
+    teacher_rows,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -133,15 +138,25 @@ D = {"id": "judge-d", "metric": "llm_judge_custom", "display_name": "Score (mode
 GROUPED = {"groups": {"score": {"config_ids": ["judge-a", "judge-b", "judge-d"]}}}
 
 
-def _row(row_id, config_id, *, annotation="ann-1", generation=None, score=0.5):
+def _row(
+    row_id,
+    config_id,
+    *,
+    annotation="ann-1",
+    generation=None,
+    score=0.5,
+    ref="task.musterloesung",
+    created_at=None,
+):
     return {
         "id": row_id,
         "task_id": "task-1",
         "annotation_id": None if generation else annotation,
         "generation_id": generation,
         "evaluation_config_id": config_id,
-        "field_name": f"{config_id}|human:loesung|task.musterloesung",
+        "field_name": f"{config_id}|human:loesung|{ref}",
         "metrics": {"llm_judge_custom": score} if score is not None else {"error": "boom"},
+        "created_at": created_at,
     }
 
 
@@ -225,3 +240,81 @@ def test_teacher_rows_accept_a_custom_score_test():
         sel, rows, {}, has_score=lambda r: (r["metrics"].get("llm_judge_custom") or 0) > 0
     )
     assert shown == {"r-b": "judge-a"}
+
+
+PER_REF = ["task.musterloesung", "task.bewertungsbogen"]
+
+
+def _per_ref_configs(*config_ids):
+    # A metric that grades once per reference field (two reference fields).
+    return {
+        cid: {"id": cid, "metric": "bleu", "prediction_fields": ["human:loesung"],
+              "reference_fields": PER_REF}
+        for cid in config_ids
+    }
+
+
+def test_teacher_rows_choose_the_config_per_reference_field():
+    # judge-a (official) scored ref musterloesung and failed on
+    # bewertungsbogen; judge-b scored both. Each reference field is its own
+    # cell: musterloesung shows judge-a, bewertungsbogen judge-b standing in.
+    sel = build_method_selection([A, B, D], GROUPED)
+    configs = _per_ref_configs("judge-a", "judge-b", "judge-d")
+    rows = [
+        _row("a-m", "judge-a", ref="task.musterloesung"),
+        _row("a-b", "judge-a", ref="task.bewertungsbogen", score=None),
+        _row("b-m", "judge-b", ref="task.musterloesung"),
+        _row("b-b", "judge-b", ref="task.bewertungsbogen"),
+    ]
+    assert teacher_current_rows(sel, rows, {}, configs) == {"a-m": None, "b-b": "judge-a"}
+
+
+def test_teacher_rows_let_a_once_per_prediction_row_cover_every_reference_field():
+    # judge-a grades once per prediction field (one reference field, so its
+    # cell has reference part ""), judge-b per reference field.
+    sel = build_method_selection([A, B, D], GROUPED)
+    configs = _per_ref_configs("judge-b", "judge-d")
+    configs["judge-a"] = {"id": "judge-a", "metric": "bleu",
+                          "prediction_fields": ["human:loesung"],
+                          "reference_fields": ["task.musterloesung"]}
+    rows = [
+        _row("a", "judge-a"),
+        _row("b-m", "judge-b", ref="task.musterloesung"),
+        _row("b-b", "judge-b", ref="task.bewertungsbogen"),
+    ]
+    # The official row with a score covers both reference fields.
+    assert teacher_current_rows(sel, rows, {}, configs) == {"a": None}
+    # When it failed, judge-b stands in on each reference field.
+    rows[0] = _row("a", "judge-a", score=None)
+    assert teacher_current_rows(sel, rows, {}, configs) == {
+        "b-m": "judge-a", "b-b": "judge-a",
+    }
+
+
+def test_teacher_rows_with_history_follow_the_config_that_supplies_the_cell():
+    from datetime import datetime, timezone
+
+    def at(day):
+        return datetime(2026, 11, day, tzinfo=timezone.utc)
+
+    sel = build_method_selection([A, B, D], GROUPED)
+    rows = [
+        # ann-1: judge-a (official) only failed, judge-b graded twice.
+        _row("a1-old", "judge-a", score=None, created_at=at(1)),
+        _row("a1-new", "judge-a", score=None, created_at=at(2)),
+        _row("b1-old", "judge-b", score=0.4, created_at=at(1)),
+        _row("b1-new", "judge-b", score=0.6, created_at=at(2)),
+        # ann-2: judge-a scored, so judge-b's rows stay research data.
+        _row("a2-old", "judge-a", annotation="ann-2", score=0.3, created_at=at(1)),
+        _row("a2-new", "judge-a", annotation="ann-2", score=0.9, created_at=at(2)),
+        _row("b2", "judge-b", annotation="ann-2", created_at=at(2)),
+    ]
+    assert teacher_rows(sel, rows, {}) == {
+        "b1-old": "judge-a",
+        "b1-new": "judge-a",
+        "a2-old": None,
+        "a2-new": None,
+    }
+    # On current rows only it is teacher_current_rows.
+    current = [r for r in rows if r["id"] in {"a1-new", "b1-new", "a2-new", "b2"}]
+    assert teacher_rows(sel, current, {}) == teacher_current_rows(sel, current, {})
