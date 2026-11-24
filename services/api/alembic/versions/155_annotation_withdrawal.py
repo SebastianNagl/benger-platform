@@ -46,17 +46,34 @@ def _foreign_keys() -> set:
     return {fk["name"] for fk in inspect(op.get_bind()).get_foreign_keys(_TABLE)}
 
 
+def _has_notification_type(label: str) -> bool:
+    return bool(
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid "
+                "WHERE t.typname = 'notificationtype' AND e.enumlabel = :label"
+            ),
+            {"label": label},
+        )
+        .scalar()
+    )
+
+
 def upgrade() -> None:
     op.execute("SET LOCAL lock_timeout = '5s'")
     columns = _columns()
     if "withdrawn_at" not in columns:
-        op.add_column(_TABLE, sa.Column("withdrawn_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            _TABLE, sa.Column("withdrawn_at", sa.DateTime(timezone=True), nullable=True)
+        )
     if "withdrawn_by" not in columns:
         op.add_column(_TABLE, sa.Column("withdrawn_by", sa.String(), nullable=True))
     if "withdrawal_reason" not in columns:
         op.add_column(_TABLE, sa.Column("withdrawal_reason", sa.Text(), nullable=True))
     has_users_fk = any(
-        fk["referred_table"] == "users" and fk["constrained_columns"] == ["withdrawn_by"]
+        fk["referred_table"] == "users"
+        and fk["constrained_columns"] == ["withdrawn_by"]
         for fk in inspect(op.get_bind()).get_foreign_keys(_TABLE)
     )
     if not has_users_fk:
@@ -64,9 +81,14 @@ def upgrade() -> None:
             _FK, _TABLE, "users", ["withdrawn_by"], ["id"], ondelete="SET NULL"
         )
 
-    # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL.
-    op.execute("COMMIT")
-    op.execute("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'submission_returned'")
+    # ALTER TYPE ... ADD VALUE cannot run inside a transaction in PostgreSQL,
+    # hence the COMMIT; skipped when the value exists, so a replay (the test
+    # DB fixture) stays inside its transaction.
+    if not _has_notification_type("submission_returned"):
+        op.execute("COMMIT")
+        op.execute(
+            "ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'submission_returned'"
+        )
 
 
 def downgrade() -> None:

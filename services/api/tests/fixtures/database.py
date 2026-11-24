@@ -229,9 +229,10 @@ def _create_tables():
                     "REFERENCES org_storage_connections(id) ON DELETE SET NULL"
                 )
             )
-            # Migration 104: the evaluation_received_* notification types.
-            # create_all never alters an existing enum, so a long-lived test
-            # DB bootstrapped before they landed rejects every grading notice
+            # Migrations 104 and 155: the evaluation_received_* and
+            # submission_returned notification types. create_all never alters
+            # an existing enum, so a long-lived test DB bootstrapped before
+            # they landed rejects every such notice
             # (InvalidTextRepresentation). ADD VALUE IF NOT EXISTS is
             # idempotent; PostgreSQL only forbids USING the new label in the
             # same transaction, and nothing here does.
@@ -239,6 +240,7 @@ def _create_tables():
                 "evaluation_received_human",
                 "evaluation_received_immediate",
                 "evaluation_received_batch",
+                "submission_returned",
             ):
                 conn.execute(
                     text(
@@ -491,6 +493,19 @@ def _create_tables():
             # Migration 148: analysis lookup tables and
             # analysis_runs.resolved_inputs; guarded, so a no-op otherwise.
             _run_migration(conn, "148_analysis_lookup_tables")
+            # Migration 149: analysis_runs.codes (the coding tables come from
+            # create_all); guarded, so a no-op otherwise.
+            _run_migration(conn, "149_coding_projects_and_code_validations")
+            # Migration 153: the server default of projects.is_published, a
+            # column the model no longer maps, so without it every project
+            # insert on a long-lived test DB violates NOT NULL; guarded.
+            _run_migration(conn, "153_project_is_published_server_default")
+            # Migration 154: korrektur_comments.highlight_field; guarded.
+            _run_migration(conn, "154_korrektur_comment_highlight_field")
+            # Migration 155: the annotations.withdrawn_* columns and their
+            # users FK; guarded, and its enum step is skipped because the
+            # label loop above already added submission_returned.
+            _run_migration(conn, "155_annotation_withdrawal")
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "
