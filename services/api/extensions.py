@@ -69,6 +69,8 @@ SINGLE_OWNER = "single_owner"
 
 HOOK_SPECS = {
     "before_annotation_write": CALL_ALL,
+    "before_annotation_withdraw": CALL_ALL,
+    "on_annotation_withdrawn": CALL_ALL,
     "on_annotation_created": CALL_ALL,
     "on_draft_saved": CALL_ALL,
     "after_eval_config_save": CALL_ALL,
@@ -113,6 +115,13 @@ HOOK_GATING = {
     # real submission. before_annotation_write refuses a client write once
     # the strict timer has run out, so it must hold while the package is off.
     "before_annotation_write": activation.ALWAYS,
+    # A withdrawal must respect the overlay's grading state (no withdrawal
+    # once graded, no return after an LMS grade went out) and take the
+    # overlay's released results with it, also while the package is off for
+    # the caller: otherwise a student would keep seeing a grade of a
+    # submission that no longer counts.
+    "before_annotation_withdraw": activation.ALWAYS,
+    "on_annotation_withdrawn": activation.ALWAYS,
     "on_annotation_created": activation.ALWAYS,
     "on_draft_saved": activation.ALWAYS,
     "after_eval_config_save": activation.ALWAYS,
@@ -699,6 +708,40 @@ def before_annotation_write(
             annotation_id=annotation_id,
             is_update=is_update,
         )
+
+
+def before_annotation_withdraw(db, annotation, actor_id, *, by_author):
+    """Hook called BEFORE a submission is withdrawn (CALL_ALL).
+
+    ``POST /annotations/{id}/withdraw`` calls it after its own checks (the
+    author's write gates, or the editor permission for a return) and before
+    anything is written, inside ``use_context(project_id=...)``, with a sync
+    session. ``annotation`` is the row (still active), ``actor_id`` the
+    caller and ``by_author`` whether the caller is its author (False: a
+    project editor returns it). An implementation refuses by raising
+    :class:`AnnotationWriteRejected` (for example: the author may no longer
+    withdraw because a human grade exists; an editor may not return it
+    because its grade already went to an LMS). Every exception propagates.
+    No-op if no package implements it.
+    """
+    for _name, hook in _hook_impls("before_annotation_withdraw"):
+        hook(db, annotation, actor_id, by_author=by_author)
+
+
+def on_annotation_withdrawn(db, annotation, actor_id, *, by_author, reason):
+    """Hook called right AFTER a submission was marked withdrawn (CALL_ALL).
+
+    Runs in the withdrawing transaction, before its commit, with a sync
+    session: what an implementation changes (withdrawing released results of
+    the submission, an audit record) commits together with the withdrawal,
+    and an exception rolls all of it back and fails the request. The
+    implementation must not commit. ``annotation`` already carries
+    ``was_cancelled`` and the ``withdrawn_*`` record. The platform itself
+    notifies the author of a return after the commit. No-op if no package
+    implements it.
+    """
+    for _name, hook in _hook_impls("on_annotation_withdrawn"):
+        hook(db, annotation, actor_id, by_author=by_author, reason=reason)
 
 
 def on_annotation_created(db, task_id, user_id, annotation_id, project_id):

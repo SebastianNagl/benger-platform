@@ -708,6 +708,22 @@ export const projectsAPI = {
   },
 
   /**
+   * Withdraw a submission (its author) or return it to its author (a project
+   * editor). Nothing is deleted: the row is marked withdrawn with the reason,
+   * and the author can hand in again.
+   */
+  withdrawAnnotation: async (
+    annotationId: string,
+    reason: string,
+  ): Promise<Annotation> => {
+    const response = await apiClient.post(
+      `/projects/annotations/${annotationId}/withdraw`,
+      { reason },
+    )
+    return response
+  },
+
+  /**
    * Bulk delete tasks
    */
   bulkDeleteTasks: async (

@@ -19,16 +19,35 @@ EVALUATION_RECEIVED_TYPES = frozenset(
 )
 
 
+#: Notices about the recipient's own submission: a new grading, or the
+#: submission returned by an editor. They open the page that shows it.
+SUBMISSION_NOTICE_TYPES = EVALUATION_RECEIVED_TYPES | frozenset(
+    {NotificationType.SUBMISSION_RETURNED.value}
+)
+
+
+def _value(notification_type: Any) -> Any:
+    return getattr(notification_type, "value", notification_type)
+
+
 def is_evaluation_received_type(notification_type: Any) -> bool:
     """True for the three "new grading on your submission" types (enum or value)."""
-    value = getattr(notification_type, "value", notification_type)
+    value = _value(notification_type)
     return isinstance(value, str) and value in EVALUATION_RECEIVED_TYPES
+
+
+def is_submission_notice_type(notification_type: Any) -> bool:
+    """True for every notice about the recipient's own submission (enum or value)."""
+    value = _value(notification_type)
+    return isinstance(value, str) and value in SUBMISSION_NOTICE_TYPES
 
 
 def evaluation_received_path(
     data: Mapping[str, Any] | None, student_surface: bool
 ) -> str | None:
-    """Path of the page that shows a new grading to its annotator.
+    """Path of the page that shows a submission (and its gradings) to its author.
+
+    Used by every :data:`SUBMISSION_NOTICE_TYPES` notice.
 
     A student reads an exam's gradings on the exam page of the student
     surface. Everyone else, and every non-exam project, uses the project's

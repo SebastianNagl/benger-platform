@@ -296,6 +296,7 @@ project (`any`) or only for its own projects (`bound`).
 | GET | `/api/projects/` | `projects:read` | bound |
 | POST | `/api/projects/` | `projects:write` | bound |
 | PATCH | `/api/projects/annotations/{annotation_id}` | `annotations:write` | bound |
+| POST | `/api/projects/annotations/{annotation_id}/withdraw` | `annotations:write` | bound |
 | POST | `/api/projects/bulk-archive` | `projects:write` | bound |
 | POST | `/api/projects/bulk-delete` | `projects:write` | bound |
 | POST | `/api/projects/bulk-export` | `exports:read`, `tasks:read_reference` | bound |

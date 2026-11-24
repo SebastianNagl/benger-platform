@@ -1602,7 +1602,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
         from mailer.branding import is_student_locked_host, resolve_email_brand
         from mailer.notification_links import (
             evaluation_received_path,
-            is_evaluation_received_type,
+            is_submission_notice_type,
         )
         from models import Notification, User
         try:
@@ -1629,11 +1629,11 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     skipped += 1
                     continue
 
-                # A grading email links to a page behind login. An account
-                # without a password (LTI-provisioned, or never activated)
-                # cannot sign in there directly, so it only gets the in-app
-                # notification.
-                if is_evaluation_received_type(notif_dict["type"]) and not getattr(
+                # A grading or returned-submission email links to a page
+                # behind login. An account without a password (LTI-provisioned,
+                # or never activated) cannot sign in there directly, so it only
+                # gets the in-app notification.
+                if is_submission_notice_type(notif_dict["type"]) and not getattr(
                     user, "hashed_password", None
                 ):
                     skipped += 1
@@ -1661,7 +1661,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                 )
                 brand = resolve_email_brand(brand_host)
                 email_context = {"user_name": getattr(user, "name", None)}
-                if is_evaluation_received_type(notif_dict["type"]):
+                if is_submission_notice_type(notif_dict["type"]):
                     student_surface = is_student_locked_host(brand_host) or (
                         getattr(user, "preferred_ui_mode", None) == "student"
                     )

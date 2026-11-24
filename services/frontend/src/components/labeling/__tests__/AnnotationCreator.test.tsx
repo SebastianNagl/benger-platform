@@ -142,16 +142,16 @@ describe('AnnotationCreator', () => {
 
     it('should update existing annotation on submit when initial annotation exists', async () => {
       const onSubmit = jest.fn()
+      const activeAnnotation = { ...mockAnnotation, was_cancelled: false }
       ;(projectsAPI.updateAnnotation as jest.Mock).mockResolvedValue({
-        ...mockAnnotation,
-        was_cancelled: false,
+        ...activeAnnotation,
         result: [{ from_name: 'test', value: 'test value' }],
       })
 
       render(
         <AnnotationCreator
           {...defaultProps}
-          initialAnnotation={mockAnnotation}
+          initialAnnotation={activeAnnotation}
           onSubmit={onSubmit}
         />,
       )
@@ -168,6 +168,38 @@ describe('AnnotationCreator', () => {
           }),
         )
         expect(onSubmit).toHaveBeenCalled()
+      })
+    })
+
+    it('hands in a new submission when the initial annotation was withdrawn', async () => {
+      // A withdrawn (cancelled) row is a closed record the API refuses to
+      // edit (409 annotation_withdrawn), so submitting creates a new one.
+      const onSubmit = jest.fn()
+      ;(projectsAPI.createAnnotation as jest.Mock).mockResolvedValue({
+        id: 'new-ann',
+        was_cancelled: false,
+        result: [{ from_name: 'test', value: 'test value' }],
+      })
+
+      render(
+        <AnnotationCreator
+          {...defaultProps}
+          initialAnnotation={mockAnnotation}
+          onSubmit={onSubmit}
+        />,
+      )
+
+      fireEvent.click(screen.getByText('Submit'))
+
+      await waitFor(() => {
+        expect(projectsAPI.createAnnotation).toHaveBeenCalledWith(
+          'task-1',
+          expect.objectContaining({ was_cancelled: false }),
+        )
+        expect(projectsAPI.updateAnnotation).not.toHaveBeenCalled()
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'new-ann' }),
+        )
       })
     })
 

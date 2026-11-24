@@ -482,6 +482,8 @@ export function EvaluationResults({
       [key: string]: any
     }>
     was_cancelled: boolean
+    withdrawn_at?: string | null
+    withdrawal_reason?: string | null
     ground_truth: boolean
     lead_time?: number
     created_at: string

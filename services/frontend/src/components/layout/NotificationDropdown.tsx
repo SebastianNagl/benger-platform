@@ -5,12 +5,13 @@ import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getEvaluationReceivedHref,
-  isEvaluationReceivedType,
+  isSubmissionNoticeType,
 } from '@/lib/notificationLinks'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import { cn } from '@/lib/utils'
 import {
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   CheckCircleIcon,
   CheckIcon,
   ExclamationTriangleIcon,
@@ -54,6 +55,7 @@ const notificationIcons = {
   evaluation_received_human: CheckCircleIcon,
   evaluation_received_immediate: CheckCircleIcon,
   evaluation_received_batch: CheckCircleIcon,
+  submission_returned: ArrowUturnLeftIcon,
   annotation_completed: CheckCircleIcon,
   annotation_assigned: UserPlusIcon,
   data_upload_completed: CheckCircleIcon,
@@ -88,6 +90,8 @@ const notificationColors = {
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
+  submission_returned:
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   annotation_completed:
     'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   data_upload_completed:
@@ -156,9 +160,10 @@ export function NotificationDropdown({
       onClose()
       return
     }
-    // A new grading on the user's own submission opens where they can read
-    // it: the exam in the student shell, otherwise the project's task list.
-    if (isEvaluationReceivedType(notification.type)) {
+    // A notice about the user's own submission (a new grading, a returned
+    // submission) opens where they can read it: the exam in the student
+    // shell, otherwise the project's task list.
+    if (isSubmissionNoticeType(notification.type)) {
       const href = getEvaluationReceivedHref(data, uiMode)
       if (href) {
         router.push(href)

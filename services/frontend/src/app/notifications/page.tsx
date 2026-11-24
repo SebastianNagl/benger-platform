@@ -21,7 +21,7 @@ import { api } from '@/lib/api'
 import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getEvaluationReceivedHref,
-  isEvaluationReceivedType,
+  isSubmissionNoticeType,
 } from '@/lib/notificationLinks'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import {
@@ -299,9 +299,10 @@ function NotificationsPageContent() {
       await handleMarkAsRead(notification.id)
     }
 
-    // A new grading on the user's own submission opens where they can read
-    // it: the exam in the student shell, otherwise the project's task list.
-    if (isEvaluationReceivedType(notification.type)) {
+    // A notice about the user's own submission (a new grading, a returned
+    // submission) opens where they can read it: the exam in the student
+    // shell, otherwise the project's task list.
+    if (isSubmissionNoticeType(notification.type)) {
       const href = getEvaluationReceivedHref(notification.data, uiMode)
       if (href) router.push(href)
       return

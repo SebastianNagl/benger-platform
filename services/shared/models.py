@@ -3166,6 +3166,10 @@ class NotificationType(str, Enum):
     EVALUATION_RECEIVED_IMMEDIATE = "evaluation_received_immediate"
     EVALUATION_RECEIVED_BATCH = "evaluation_received_batch"
 
+    # A project editor returned the recipient's submission (withdrew it for
+    # them, with a reason); the recipient can hand in again.
+    SUBMISSION_RETURNED = "submission_returned"
+
     # Organization notifications
     ORGANIZATION_INVITATION_SENT = "organization_invitation_sent"
     ORGANIZATION_INVITATION_ACCEPTED = "organization_invitation_accepted"

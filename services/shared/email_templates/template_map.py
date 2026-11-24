@@ -21,6 +21,7 @@ _TEMPLATE_BY_TYPE: dict[str, str] = {
     NotificationType.EVALUATION_RECEIVED_HUMAN.value: "evaluation_received.html",
     NotificationType.EVALUATION_RECEIVED_IMMEDIATE.value: "evaluation_received.html",
     NotificationType.EVALUATION_RECEIVED_BATCH.value: "evaluation_received.html",
+    NotificationType.SUBMISSION_RETURNED.value: "submission_returned.html",
     NotificationType.LLM_GENERATION_COMPLETED.value: "llm_generation_completed.html",
     NotificationType.DATA_IMPORT_SUCCESS.value: "data_import_success.html",
     NotificationType.DATA_UPLOAD_COMPLETED.value: "data_import_success.html",
