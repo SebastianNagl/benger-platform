@@ -507,7 +507,8 @@ whenever one is added, renamed or removed):
   CALL_ALL_ISOLATED, UNION, DICT_FIRST_WINS, SINGLE_OWNER); the keys
   ``on_submission_finalized`` (CALL_ALL), ``assessment_transition`` and
   ``external_run_policy`` (SINGLE_OWNER) are reserved without a caller
-  (``extensions.PENDING_HOOK_KEYS``). ``extensions.load_extended()`` loads
+  (``extensions.RESERVED_HOOK_KEYS``, part of ``PENDING_HOOK_KEYS`` since
+  2.76). ``extensions.load_extended()`` loads
   all packages (``_extended`` stays the alias of ``benger_extended``),
   ``extensions.include_extension_routers(app)`` mounts their routers:
   packages other than ``benger_extended`` must mount under
@@ -1739,11 +1740,27 @@ API change).
     ``meta.variant``. Design files, imports and specs name the new key, and
     a refused assignment's problem paths start at
     ``variant_designs.META_PATH`` (``/meta/benger_variant``).
+
+2.76 (2026-11-24): one current score per evaluation method (no migration,
+  additive).
+  - New optional hook key ``evaluation_method_selection`` (SINGLE_OWNER,
+    GATED), called as ``hook(db, project, configs, user_ids)`` through
+    ``extensions.evaluation_method_selection``. It names which evaluation
+    configs grade one method and which config of each group is official,
+    per project or per submitting account; the others are research data.
+    The answer shape is documented in ``shared/evaluation_methods.py``.
+    Without an implementation (or when it fails) every config is its own
+    method.
+  - ``extensions.PENDING_HOOK_KEYS`` is now the union of
+    ``RESERVED_HOOK_KEYS`` (keys without a platform caller yet) and
+    ``OPTIONAL_HOOK_KEYS`` (keys the platform calls but an overlay need not
+    implement, currently ``evaluation_method_selection``). An overlay's
+    handshake test must not require any of them.
 """
 
 import os
 
-CORE_API_VERSION = "2.75"
+CORE_API_VERSION = "2.76"
 
 
 def extended_required() -> bool:

@@ -210,7 +210,8 @@ class TestExtensionLoader:
         # 2.75 adds the platform flags variant_experiments and
         # compliance_records and moves the reserved key to meta.benger_variant
         # (migration 151).
-        assert CORE_API_VERSION == "2.75"
+        # 2.76 adds the optional hook key evaluation_method_selection.
+        assert CORE_API_VERSION == "2.76"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
