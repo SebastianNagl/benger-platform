@@ -29,8 +29,9 @@ along the task's sheet; a config of a metric an extension registered as able
 to read the sheet (``register_sheet_judge_metric``) does when its
 ``metric_parameters`` say ``use_task_rubric: true`` (an overlay judge that
 can grade either along a per-task sheet or along a scheme of its own). No
-other config is a sheet judge. Both kinds share every rule here: they are held while the task has no usable
-sheet, and the waiting gradings start once one becomes usable.
+other config is a sheet judge. Both kinds share every rule here: they are
+held while the task has no usable sheet, and the waiting gradings start once
+one becomes usable.
 """
 
 from __future__ import annotations

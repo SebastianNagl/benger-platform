@@ -29,12 +29,13 @@ where an ``InlineJudge`` provides
 A config of a metric registered with
 ``task_rubric_resolution.register_sheet_judge_metric`` whose
 ``metric_parameters`` say ``use_task_rubric: true`` (see
-``task_rubric_resolution.is_rubric_judge``) is a sheet judge: the platform resolves the task's usable ``task_rubrics`` row
-and hands it to ``compute`` and ``evaluate_single`` as ``task_rubric``
-(core 2.81). Without a usable sheet the cell gets the platform's
-``rubric_missing`` error row and the judge is not called; the immediate
-dispatch holds such a grading until the sheet is ready. A judge whose
-functions take no ``task_rubric`` keyword never receives it.
+``task_rubric_resolution.is_rubric_judge``) is a sheet judge: the platform
+resolves the task's usable ``task_rubrics`` row and hands it to ``compute``
+and ``evaluate_single`` as ``task_rubric`` (core 2.81). Without a usable
+sheet the cell gets the platform's ``rubric_missing`` error row and the judge
+is not called; the immediate dispatch holds such a grading until the sheet is
+ready. A judge whose functions take no ``task_rubric`` keyword never
+receives it.
 
 The platform owns everything around it: judge construction and key
 resolution, the row context (ids, fields, prediction), bulk upsert and the
