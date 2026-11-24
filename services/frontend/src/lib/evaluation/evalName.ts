@@ -13,10 +13,13 @@
  * wizards (defaults) and the backfill produce identical names.
  */
 
-import type {
-  AvailableMetric,
-  MetricParameters,
+import {
+  getMetricDefinitions,
+  type AvailableMetric,
+  type MetricParameters,
 } from '@/lib/api/evaluation-types'
+import { hasTranslation, translateKey } from '@/lib/i18n/catalog'
+import { LOCALES } from '@/lib/i18n/locales'
 
 type MetricDefLike = Pick<AvailableMetric, 'display_name'> | undefined | null
 type MetricParamsLike =
@@ -97,4 +100,72 @@ export function computeDefaultEvalName(
     return `${base} (${model})`
   }
   return base
+}
+
+type Translate = (key: string) => string
+
+/** `[text, key]` for every UI language's text of each name key of a metric:
+ * its `displayNameKey` (plus the registry literal `display_name`) and its
+ * `presetNameKeys`. */
+function knownNames(def: AvailableMetric): Array<[string, string]> {
+  const names: Array<[string, string]> = []
+  const keys = [def.displayNameKey, ...(def.presetNameKeys ?? [])]
+  for (const key of keys) {
+    if (!key) continue
+    for (const locale of LOCALES) {
+      if (hasTranslation(locale, key)) {
+        names.push([String(translateKey(locale, key)), key])
+      }
+    }
+  }
+  if (def.displayNameKey && def.display_name) {
+    names.push([def.display_name, def.displayNameKey])
+  }
+  return names
+}
+
+/** An evaluation config as far as its displayed name is concerned. */
+export interface EvalConfigNameLike {
+  display_name?: string | null
+  metric?: string | null
+  metric_parameters?: MetricParamsLike
+}
+
+/**
+ * The name of an evaluation config in the reader's language.
+ *
+ * Configs store their name as text (`display_name`), written in whatever
+ * language the preset or the wizard used, so a French reader would see a
+ * German preset name. A stored name that is still a name the system gave
+ * the config renders in the reader's language: the metric's own name or one
+ * of its `presetNameKeys`, in any UI language, either alone or followed by
+ * exactly the judge-model suffix `computeDefaultEvalName` appends for the
+ * config's own parameters (` (gpt-5-mini ×3)`), which is kept. Any other
+ * name, also a known name with another ` (…)` suffix, was typed by someone
+ * and stays exactly as stored. Display only: the stored name stays what
+ * configs are matched by.
+ */
+export function localizedEvalConfigName(
+  config: EvalConfigNameLike,
+  t: Translate,
+  definitions: Record<string, AvailableMetric> = getMetricDefinitions(),
+): string {
+  const name = config.display_name ?? ''
+  const def = config.metric ? definitions[config.metric] : undefined
+  const stored = name.trim()
+  if (!def || !stored) return name
+  const render = (key: string) => {
+    const text = t(key)
+    return text === key ? null : text
+  }
+  const model = resolveJudgeModel(config.metric_parameters)
+  const suffix = model ? ` (${model})` : null
+  for (const [text, key] of knownNames(def)) {
+    if (text === stored) return render(key) ?? name
+    if (suffix && stored === `${text}${suffix}`) {
+      const head = render(key)
+      return head ? `${head}${suffix}` : name
+    }
+  }
+  return name
 }

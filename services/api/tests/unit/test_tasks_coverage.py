@@ -83,7 +83,6 @@ async def _make_project(db, owner, *, assignment_mode="open", require_comment_on
         description="tasks unit coverage",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=owner.id,
-        is_published=True,
         is_private=is_private,
         assignment_mode=assignment_mode,
         require_comment_on_skip=require_comment_on_skip,
@@ -752,7 +751,6 @@ class TestBulkExportTasks:
             description="export unit coverage",
             label_config='<View><Text name="text" value="$text"/></View>',
             created_by=owner.id,
-            is_published=True,
             is_private=True,
             assignment_mode="open",
         )

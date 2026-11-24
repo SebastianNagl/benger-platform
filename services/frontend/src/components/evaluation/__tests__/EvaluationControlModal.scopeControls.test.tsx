@@ -82,6 +82,7 @@ const metricConfigs = [
   {
     id: 'cfg-1',
     metric: 'exact_match',
+    // The metric's default name: it renders in the reader's language.
     display_name: 'Exact Match',
     prediction_fields: ['answer'],
     reference_fields: ['gold'],
@@ -136,7 +137,7 @@ describe('EvaluationControlModal scope controls', () => {
     it('clears then re-selects all metrics, updating the count footer', async () => {
       render(<EvaluationControlModal {...baseProps} />)
       // Both metric checkboxes start selected → "2" in the footer.
-      const m1 = await screen.findByLabelText('Exact Match')
+      const m1 = await screen.findByLabelText('Exakte Übereinstimmung')
       const m2 = await screen.findByLabelText('ROUGE')
       expect(m1).toBeChecked()
       expect(m2).toBeChecked()
@@ -290,7 +291,7 @@ describe('EvaluationControlModal scope controls', () => {
 
     it('does NOT mount the cost panel for deterministic-only metrics', async () => {
       render(<EvaluationControlModal {...baseProps} />)
-      await screen.findByLabelText('Exact Match')
+      await screen.findByLabelText('Exakte Übereinstimmung')
       // exact_match / rouge are not llm_judge_* → no judge ids → no panel.
       expect(screen.queryByTestId('cost-panel')).not.toBeInTheDocument()
     })
@@ -320,7 +321,9 @@ describe('EvaluationControlModal scope controls', () => {
       )
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
       // Metrics still render (derived from props, not the fetch) → run allowed.
-      expect(screen.getByLabelText('Exact Match')).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('Exakte Übereinstimmung'),
+      ).toBeInTheDocument()
       expect(consoleSpy).toHaveBeenCalled()
       consoleSpy.mockRestore()
     })

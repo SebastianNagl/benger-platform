@@ -124,7 +124,6 @@ async def blinding_world(async_test_db):
         title=f"Blinding Project {_uid()[:6]}",
         label_config=BOUND_CONFIG,
         created_by=admin.id,
-        is_published=True,
         assignment_mode="open",
     )
     db.add(project)

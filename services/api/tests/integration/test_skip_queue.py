@@ -112,7 +112,6 @@ async def _create_skip_queue_project(
         description="Project for testing skip_queue filtering",
         label_config='<View><Text name="text" value="$text"/></View>',
         created_by=users[0].id,
-        is_published=True,
         assignment_mode="open",
         skip_queue=skip_queue,
     )

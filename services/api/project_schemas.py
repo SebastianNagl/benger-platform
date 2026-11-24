@@ -393,7 +393,6 @@ class ProjectUpdate(BaseModel):
     evaluation_config: Optional[Dict[str, Any]] = Field(
         None, description="Evaluation configuration with selected methods and parameters"
     )
-    is_published: Optional[bool] = None
     is_archived: Optional[bool] = None
     # Extended feature flags
     annotation_time_limit_enabled: Optional[bool] = None
@@ -533,7 +532,6 @@ class ProjectResponse(ProjectBase):
     kind: Optional[str] = None
     origin: Optional[str] = None
     icon: Optional[str] = None
-    is_published: bool = False
     is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
