@@ -35,6 +35,7 @@ import {
 import { ParticipantCard } from '@/components/projects/ParticipantCard'
 import { ProjectAccessWindowSection } from '@/components/projects/ProjectAccessWindowSection'
 import { ProjectBillingCard } from '@/components/projects/ProjectBillingCard'
+import { ProjectBreadcrumb } from '@/components/projects/ProjectBreadcrumb'
 import { ProjectKindSection } from '@/components/projects/ProjectKindSection'
 import { ProjectMetadataCard } from '@/components/projects/ProjectMetadataCard'
 import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
@@ -42,7 +43,6 @@ import { PromptStructuresManager } from '@/components/projects/PromptStructuresM
 import { SubSection } from '@/components/projects/SubSection'
 import { IconPickerModal } from '@/components/projects/wizard/ProjectTypeAndIcon'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Input } from '@/components/shared/Input'
@@ -523,7 +523,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (projectId) {
       // Always fetch the project data to ensure we have the latest information
       // This handles both initial load and navigation back from other pages
-      fetchProject(projectId)
+      fetchProject(projectId, { shared: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProject is stable, only re-run when projectId changes
   }, [projectId])
@@ -684,7 +684,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         projectId &&
         window.location.pathname.includes(`/projects/${projectId}`)
       ) {
-        setTimeout(() => fetchProject(projectId), 100) // Small delay to ensure page is ready
+        setTimeout(() => fetchProject(projectId, { shared: true }), 100) // Small delay to ensure page is ready
       }
     }
 
@@ -1736,16 +1736,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <div className="flex-1">
             {/* Breadcrumb Navigation */}
             <div className="mb-4">
-              <Breadcrumb
-                items={[
-                  { label: t('navigation.dashboard'), href: '/dashboard' },
-                  { label: t('navigation.projects'), href: '/projects' },
-                  {
-                    label: currentProject?.title || t('projects.table.project'),
-                    href: projectId ? `/projects/${projectId}` : '/projects',
-                  },
-                ]}
-              />
+              <ProjectBreadcrumb projectId={projectId} />
             </div>
 
             {/* Title */}

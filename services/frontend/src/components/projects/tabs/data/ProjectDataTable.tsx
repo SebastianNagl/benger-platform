@@ -22,6 +22,7 @@ import { AnnotatorBadges } from '@/components/projects/AnnotatorBadges'
 import { TableCheckbox } from '@/components/projects/TableCheckbox'
 import { UserAvatar } from '@/components/projects/UserAvatar'
 import { useI18n } from '@/contexts/I18nContext'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { formatCellValue } from '@/utils/dataColumnHelpers'
 import {
@@ -116,7 +117,7 @@ export function ProjectDataTable({
   onViewTaskMetadata,
   getTaskDisplayValue,
 }: ProjectDataTableProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -566,6 +567,7 @@ export function ProjectDataTable({
                                   new Date(task.created_at),
                                   {
                                     addSuffix: true,
+                                    locale: dateFnsLocale(locale),
                                   },
                                 ).replace(/\s+/g, ' ')}
                               </span>

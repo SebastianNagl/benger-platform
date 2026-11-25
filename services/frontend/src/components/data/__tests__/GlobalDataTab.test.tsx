@@ -304,6 +304,21 @@ describe('GlobalDataTab', () => {
       expect(within(table).getByText('3')).toBeInTheDocument()
       expect(within(table).getByText('8')).toBeInTheDocument()
     })
+
+    it('writes the relative creation date in the reader language', async () => {
+      const { formatDistanceToNow } = jest.requireMock('date-fns')
+      const { de } = jest.requireActual('date-fns/locale')
+      mockUseI18n.mockReturnValue(mockUseI18nValue('de') as any)
+      render(<GlobalDataTab />)
+
+      await screen.findByRole('table')
+      await waitFor(() => {
+        expect(formatDistanceToNow).toHaveBeenCalledWith(expect.any(Date), {
+          addSuffix: true,
+          locale: de,
+        })
+      })
+    })
   })
 
   describe('Search Functionality', () => {

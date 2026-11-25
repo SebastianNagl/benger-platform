@@ -7,8 +7,8 @@
 
 'use client'
 
+import { ProjectPageHeader } from '@/components/projects/ProjectPageHeader'
 import { Badge } from '@/components/shared/Badge'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
@@ -104,7 +104,7 @@ export default function MyTasksPage() {
   // Load project if not already loaded
   useEffect(() => {
     if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId)
+      fetchProject(projectId, { shared: true })
     }
   }, [projectId, currentProject, fetchProject])
 
@@ -213,31 +213,17 @@ export default function MyTasksPage() {
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            label: t('navigation.dashboard'),
-            href: '/dashboard',
-          },
-          { label: t('navigation.projects'), href: '/projects' },
-          { label: currentProject.title, href: `/projects/${projectId}` },
+      <ProjectPageHeader
+        projectId={projectId}
+        breadcrumbs={[
           {
             label: t('navigation.myTasks'),
             href: `/projects/${projectId}/my-tasks`,
           },
         ]}
+        title={t('tasks.myTasks.title')}
+        description={`${t('tasks.myTasks.description')} ${currentProject.title}`}
       />
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          {t('tasks.myTasks.title')}
-        </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          {t('tasks.myTasks.description')} {currentProject.title}
-        </p>
-      </div>
 
       {/* Filters and Stats */}
       <div className="mb-6">

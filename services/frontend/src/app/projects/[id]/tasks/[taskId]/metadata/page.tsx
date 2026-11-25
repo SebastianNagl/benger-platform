@@ -7,7 +7,7 @@
 'use client'
 
 import { ExamNotReadyNotice } from '@/components/projects/ExamNotReadyNotice'
-import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { ProjectBreadcrumb } from '@/components/projects/ProjectBreadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { isExamNotReadyError } from '@/lib/api/errors'
-import { useProjectStore } from '@/stores/projectStore'
 import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { use, useEffect, useState } from 'react'
@@ -36,7 +35,6 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
   const { user } = useAuth()
-  const { currentProject, fetchProject } = useProjectStore()
 
   const [task, setTask] = useState<any>(null)
   const [metadata, setMetadata] = useState<Record<string, any>>({})
@@ -46,13 +44,6 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
   const [loading, setLoading] = useState(true)
   // The read was refused with 403 exam_not_ready (exam not released yet).
   const [examNotReady, setExamNotReady] = useState(false)
-
-  // Load project if not already loaded
-  useEffect(() => {
-    if (!currentProject || currentProject.id !== projectId) {
-      fetchProject(projectId)
-    }
-  }, [projectId, currentProject, fetchProject])
 
   // Fetch task data
   useEffect(() => {
@@ -166,22 +157,12 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
       <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="px-6 py-4">
           {/* Breadcrumb */}
-          <Breadcrumb
+          {/* The trail reads the project when the store holds another one. */}
+          <ProjectBreadcrumb
+            projectId={projectId}
             items={[
               {
-                label: t('navigation.dashboard') || 'Dashboard',
-                href: '/dashboard',
-              },
-              {
-                label: t('navigation.projects') || 'Projects',
-                href: '/projects',
-              },
-              {
-                label: currentProject?.title || 'Project',
-                href: `/projects/${projectId}`,
-              },
-              {
-                label: t('navigation.projectData') || 'Data',
+                label: t('navigation.projectData'),
                 href: `/projects/${projectId}/data`,
               },
               {
@@ -189,7 +170,7 @@ export default function TaskMetadataPage({ params }: TaskMetadataPageProps) {
                 href: `/projects/${projectId}/tasks/${task.id}`,
               },
               {
-                label: t('navigation.metadata') || 'Metadata',
+                label: t('navigation.metadata'),
                 href: `/projects/${projectId}/tasks/${task.id}/metadata`,
               },
             ]}

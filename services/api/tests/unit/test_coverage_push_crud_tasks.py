@@ -913,6 +913,7 @@ class TestSerializers:
             withdrawn_at = None
             withdrawn_by = None
             withdrawal_reason = None
+            original_result = None
 
         result = serialize_annotation(FakeAnn(), mode="data")
         assert "questionnaire_response" in result
@@ -949,6 +950,7 @@ class TestSerializers:
             withdrawn_at = None
             withdrawn_by = None
             withdrawal_reason = None
+            original_result = None
 
         result = serialize_annotation(FakeAnn(), mode="full")
         assert result["task_id"] == "t1"

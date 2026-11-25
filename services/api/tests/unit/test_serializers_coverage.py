@@ -74,6 +74,7 @@ class TestSerializeAnnotation:
             "review_result": None, "review_annotation": None,
             "review_comment": None,
             "withdrawn_at": None, "withdrawn_by": None, "withdrawal_reason": None,
+            "original_result": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)

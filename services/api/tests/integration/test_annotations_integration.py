@@ -439,6 +439,40 @@ class TestListAnnotations:
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
+    async def test_list_annotations_carries_the_original_result(
+        self, async_test_client, async_test_db
+    ):
+        """A review fixed the answer in place: the list returns both versions."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project, tasks = await _setup_async(async_test_db, admin)
+        original = [{"from_name": "text", "to_name": "text", "type": "textarea",
+                     "value": {"text": ["author"]}}]
+        fixed = [{"from_name": "text", "to_name": "text", "type": "textarea",
+                  "value": {"text": ["reviewer"]}}]
+        reviewed = await _seed_annotation(
+            async_test_db, tasks[0], project, admin.id, result=fixed,
+        )
+        reviewed.original_result = original
+        reviewed.review_result = "fixed"
+        untouched = await _seed_annotation(async_test_db, tasks[1], project, admin.id)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{tasks[0].id}/annotations",
+            )
+            plain = await async_test_client.get(
+                f"/api/projects/tasks/{tasks[1].id}/annotations",
+            )
+        assert resp.status_code == 200
+        (row,) = resp.json()
+        assert row["result"] == fixed
+        assert row["original_result"] == original
+        assert plain.status_code == 200
+        (plain_row,) = plain.json()
+        assert plain_row["id"] == untouched.id
+        assert plain_row["original_result"] is None
+
+    @pytest.mark.asyncio
     async def test_list_annotations_task_not_found(self, async_test_client, async_test_db):
         admin = await _make_user(async_test_db, is_superadmin=True)
         await async_test_db.commit()

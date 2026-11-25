@@ -24,6 +24,7 @@ import { useProgress } from '@/contexts/ProgressContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { apiClient } from '@/lib/api/client'
 import { Task } from '@/lib/api/types'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import { canEditTaskData } from '@/utils/permissions'
 import {
   ArrowDownTrayIcon,
@@ -63,7 +64,7 @@ interface PaginatedResponse<T> {
 }
 
 export function GlobalDataTab() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { user } = useAuth()
   const { showToast } = useToast()
   const { startProgress, completeProgress } = useProgress()
@@ -744,6 +745,7 @@ export function GlobalDataTab() {
                     {task.created_at
                       ? formatDistanceToNow(new Date(task.created_at), {
                           addSuffix: true,
+                          locale: dateFnsLocale(locale),
                         })
                       : '-'}
                   </td>

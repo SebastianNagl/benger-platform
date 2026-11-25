@@ -713,6 +713,11 @@ class Annotation(Base):
     review_result = Column(String, nullable=True)  # approved, rejected, fixed
     review_annotation = Column(JSONB, nullable=True)  # Reviewer's independent annotation
     review_comment = Column(Text, nullable=True)  # Reviewer's feedback text
+    # The author's ``result`` as it stood before a review replaced it in
+    # place (migration 159). Null while ``result`` is still the author's own
+    # answer; set once, by the first in-place change, so it always holds the
+    # original and never an intermediate revision.
+    original_result = Column(JSONB, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

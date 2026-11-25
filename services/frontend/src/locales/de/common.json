@@ -9210,6 +9210,11 @@
     "breadcrumb": {
       "ariaLabel": "Brotkrümelnavigation"
     },
+    "itemStepper": {
+      "previous": "Vorheriger Eintrag",
+      "next": "Nächster Eintrag",
+      "position": "{current} von {total}"
+    },
     "pagination": {
       "goToPage": "Gehe zu Seite {page}"
     }
