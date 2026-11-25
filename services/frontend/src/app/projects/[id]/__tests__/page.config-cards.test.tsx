@@ -797,6 +797,55 @@ describe('Generation card — defaults and start CTA', () => {
     )
   })
 
+  // Regression: an undo back to the earlier unset runs-per-task showed 1
+  // but kept the stored value, because the PATCH left the key out. The API
+  // deep merge deletes a key sent as null (utils/json_merge.py), so the
+  // undo must send null for it.
+  it.each([
+    ['generation', 'generation-runs-group', 'generation_config'],
+    ['evaluation', 'evaluation-runs-group', 'evaluation_config'],
+  ])(
+    '%s: undoing runs-per-task back to unset clears the stored value',
+    async (_card, groupId, configKey) => {
+      const store = setStore()
+      render(<ProjectDetailPage params={params()} />)
+      await screen.findByTestId(
+        'config-card-project.generationConfiguration.title',
+      )
+
+      jest.useFakeTimers()
+      const runsInput = within(screen.getByTestId(groupId)).getByDisplayValue(
+        '1',
+      )
+      await act(async () => {
+        fireEvent.change(runsInput, { target: { value: '4' } })
+      })
+      await flushAutosave()
+      expect(store.updateProject).toHaveBeenLastCalledWith(
+        'proj-1',
+        expect.objectContaining({
+          [configKey]: expect.objectContaining({ runs_per_task: 4 }),
+        }),
+      )
+
+      const undo = savedToasts()[0][3].action.onClick
+      store.updateProject.mockClear()
+      await act(async () => {
+        undo()
+      })
+      await flushAutosave()
+      expect(store.updateProject).toHaveBeenCalledWith(
+        'proj-1',
+        expect.objectContaining({
+          [configKey]: expect.objectContaining({ runs_per_task: null }),
+        }),
+      )
+      expect(
+        within(screen.getByTestId(groupId)).getByDisplayValue('1'),
+      ).toBeInTheDocument()
+    },
+  )
+
   it('the "Generierung starten" footer CTA opens the generation control modal', async () => {
     setStore({
       currentProject: {

@@ -852,7 +852,9 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         currentProject.evaluation_config?.default_max_tokens
       setEvalDefaultTemperature(projectEvalTemp)
       setEvalDefaultMaxTokens(projectEvalMaxTokens)
-      setEvalDefaultRunsPerTask(currentProject.evaluation_config?.runs_per_task)
+      setEvalDefaultRunsPerTask(
+        currentProject.evaluation_config?.runs_per_task ?? undefined,
+      )
       setEvalDefaultsMode(
         (currentProject.evaluation_config?.defaults_mode as DefaultsMode) ||
           'recommended',
@@ -864,7 +866,9 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         {}
       setGenDefaultTemperature(genParams.temperature)
       setGenDefaultMaxTokens(genParams.max_tokens)
-      setGenDefaultRunsPerTask(currentProject.generation_config?.runs_per_task)
+      setGenDefaultRunsPerTask(
+        currentProject.generation_config?.runs_per_task ?? undefined,
+      )
       setGenDefaultsMode(
         (currentProject.generation_config?.defaults_mode as DefaultsMode) ||
           'recommended',
@@ -1507,9 +1511,9 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
           // 3-mode picker for per-judge pre-fill; see DefaultsMode type.
           defaults_mode: evalDefaultsMode,
           // Multi-run default (migration 042); see comment on the state hook.
-          ...(evalDefaultRunsPerTask !== undefined
-            ? { runs_per_task: evalDefaultRunsPerTask }
-            : {}),
+          // Unset is sent as an explicit null, which the deep merge turns
+          // into a deleted key, so an undo back to unset is persisted too.
+          runs_per_task: evalDefaultRunsPerTask ?? null,
         },
       })
 
@@ -1547,12 +1551,12 @@ function ProjectDetailPageContent({ params }: ProjectDetailPageProps) {
         generation_config: {
           // 3-mode picker for per-model pre-fill; see DefaultsMode type.
           defaults_mode: genDefaultsMode,
-          // Multi-run default (migration 041): omitted when undefined so the
-          // server-side default of 1 stays implicit; clamped to 1..25 by the
-          // input field below and re-validated by the API router.
-          ...(genDefaultRunsPerTask !== undefined
-            ? { runs_per_task: genDefaultRunsPerTask }
-            : {}),
+          // Multi-run default (migration 041): unset is sent as an explicit
+          // null, which the deep merge turns into a deleted key, so the
+          // server-side default of 1 stays implicit and an undo back to
+          // unset is persisted too. Clamped to 1..25 by the input field
+          // below and re-validated by the API router.
+          runs_per_task: genDefaultRunsPerTask ?? null,
           selected_configuration: {
             parameters: {
               temperature: genDefaultTemperature,

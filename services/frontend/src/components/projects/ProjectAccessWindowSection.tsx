@@ -54,6 +54,10 @@ export function ProjectAccessWindowSection({
   // until its save went through, so a refetch of the project in between
   // never overwrites it, and kept after a failed save.
   const [confirmed, setConfirmed] = useState<AccessWindowValue | null>(null)
+  // AccessWindowFields keeps its switch in local state (emptied times keep
+  // the window on), so putting the fields back to a window means mounting
+  // them afresh: bumped on a cancelled confirmation and on undo.
+  const [fieldsKey, setFieldsKey] = useState(0)
   const stored: AccessWindowValue = {
     window_start_at: windowStartAt ?? null,
     window_end_at: windowEndAt ?? null,
@@ -82,6 +86,7 @@ export function ProjectAccessWindowSection({
     onUndo: (previous) => {
       setEdit(null)
       setConfirmed(previous)
+      setFieldsKey((k) => k + 1)
     },
     riskChanges: (from, to) => [{ key: 'access_window', from, to }],
   })
@@ -115,8 +120,11 @@ export function ProjectAccessWindowSection({
         setConfirmed(value)
         setCommitRequest((n) => n + 1)
       },
-      // Cancelled: back to the window before this edit.
-      () => setEdit(null),
+      // Cancelled: switch and times back to the window before this edit.
+      () => {
+        setEdit(null)
+        setFieldsKey((k) => k + 1)
+      },
     )
   }
 
@@ -129,6 +137,7 @@ export function ProjectAccessWindowSection({
         badge={windowStateLabel(state, stored.window_start_at, t, locale)}
       >
         <AccessWindowFields
+          key={fieldsKey}
           value={draft}
           showTitle={false}
           onChange={setEdit}
