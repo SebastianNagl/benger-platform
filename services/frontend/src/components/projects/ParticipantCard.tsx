@@ -23,10 +23,10 @@ interface Props {
  * The slot reports whether it has anything to show through `onEmpty`: call
  * it with `true` once the cohort turned out to have no rows, with `false`
  * once rows are there. The callback identity is stable, so it is safe in an
- * effect dependency list. Until the slot reports, the card treats the
- * cohort as possibly non-empty and keeps the box mounted so the slot can
- * fetch. A slot that never calls `onEmpty` keeps the pre-contract behaviour
- * (always shown).
+ * effect dependency list. Until the slot reports, the card keeps the box
+ * mounted so the slot can fetch; a card that cannot be left is hidden
+ * meanwhile, since an empty cohort will remove it. Report every outcome
+ * (an error counts as a report too).
  */
 export interface ProjectCohortLeaderboardSlotProps {
   projectId: string
@@ -48,9 +48,12 @@ export interface ProjectCohortLeaderboardSlotProps {
  * `onEmpty(true)`. A leavable participation always shows the card (the leave
  * button is the GDPR withdrawal); its cohort box collapses while the slot
  * reports empty instead of framing an empty table. While the participation
- * is loading, or when that fetch fails, the card shows the `via` text as
- * before, so a page whose participation endpoint is unavailable still says
- * how the user got in.
+ * is loading the card renders nothing (it may turn out to have nothing to
+ * show, and a card that appears and vanishes again shifts the cards below).
+ * Likewise, a card that cannot be left stays hidden (mounted, so the slot
+ * can fetch) until the slot reported whether the cohort has rows; a slot
+ * that never reports keeps such a card hidden. When that fetch fails, the card shows the `via` text, so a page whose
+ * participation endpoint is unavailable still says how the user got in.
  */
 export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const { t } = useI18n()
@@ -58,6 +61,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const { addToast } = useToast()
   const CohortLeaderboard = useSlot('ProjectCohortLeaderboard')
   const [participation, setParticipation] = useState<Participation | null>(null)
+  // The project whose getParticipation answered (or failed); the card waits
+  // for the answer of the current one.
+  const [settledFor, setSettledFor] = useState<string | null>(null)
+  const settled = settledFor === projectId
   const [leaving, setLeaving] = useState(false)
   // null until the slot reports; see ProjectCohortLeaderboardSlotProps.
   const [cohortEmpty, setCohortEmpty] = useState<boolean | null>(null)
@@ -70,10 +77,14 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     sharesAPI
       .getParticipation(projectId)
       .then((p) => {
-        if (!cancelled) setParticipation(p)
+        if (cancelled) return
+        setParticipation(p)
+        setSettledFor(projectId)
       })
       .catch(() => {
-        if (!cancelled) setParticipation(null)
+        if (cancelled) return
+        setParticipation(null)
+        setSettledFor(projectId)
       })
     return () => {
       cancelled = true
@@ -84,6 +95,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const canLeave = participation?.can_leave ?? false
   const blockedReason = participation?.cannot_leave_reason ?? null
   const cohortIsEmpty = !CohortLeaderboard || cohortEmpty === true
+  // Not leavable, so the cohort alone decides whether the card shows: keep
+  // it hidden until the slot reported.
+  const awaitingCohort =
+    !canLeave && !!CohortLeaderboard && cohortEmpty === null
 
   const handleLeave = async () => {
     const ok = await confirm({
@@ -105,13 +120,20 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     }
   }
 
+  // Unknown yet: show nothing rather than a card that may vanish again.
+  if (!settled) return null
   // Nothing actionable: the user cannot leave and there is no cohort to show.
   if (participation && !canLeave && cohortIsEmpty) return null
 
   return (
     <div
-      className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      className={
+        awaitingCohort
+          ? 'hidden'
+          : 'rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900'
+      }
       data-testid="participant-card"
+      data-pending={awaitingCohort ? 'true' : undefined}
     >
       <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
         <UserGroupIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />

@@ -1,3 +1,7 @@
+'use client'
+
+import { useShellSidebar } from '@/components/layout/ShellVariant'
+
 import { LoadingSpinner } from './LoadingSpinner'
 
 interface AppLoadingScreenProps {
@@ -12,12 +16,18 @@ interface AppLoadingScreenProps {
  * redirect to the login (ProtectedRoute). One component, so the spinner
  * stays in the same place when one of these waits hands over to the next;
  * the label line is always there, empty or not, for the same reason.
+ *
+ * Where the shell will show the pinned desktop sidebar, the spinner centers
+ * on the content area next to it (the same offset as Layout's main column),
+ * so it does not jump sideways when a page's own spinner takes over.
  */
 export function AppLoadingScreen({ label, testId }: AppLoadingScreenProps) {
+  const { showSidebar } = useShellSidebar()
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-900"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-900 ${showSidebar ? 'lg:pl-64 xl:pl-72 2xl:pl-80' : ''}`}
       data-testid={testId}
+      data-sidebar-offset={showSidebar ? 'true' : undefined}
       role="status"
       aria-busy="true"
     >

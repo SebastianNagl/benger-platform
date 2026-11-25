@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { registerSlot } from '@/lib/extensions/slots'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { ParticipantCard } from '../ParticipantCard'
 
@@ -41,7 +41,7 @@ describe('ParticipantCard', () => {
     mockLeave.mockResolvedValue(undefined)
     const onLeft = jest.fn()
     render(<ParticipantCard projectId="p1" via="share" onLeft={onLeft} />)
-    expect(screen.getByTestId('participant-via')).toHaveTextContent(
+    expect(await screen.findByTestId('participant-via')).toHaveTextContent(
       'Über Freigabe-Link beigetreten',
     )
     fireEvent.click(await screen.findByTestId('participant-leave'))
@@ -103,6 +103,48 @@ describe('ParticipantCard', () => {
     expect(
       await screen.findByTestId('participant-cannot-leave'),
     ).toHaveTextContent('Organisation')
+  })
+
+  it('renders nothing until the participation answered', async () => {
+    let resolve!: (v: unknown) => void
+    mockGet.mockReturnValue(new Promise((r) => (resolve = r)))
+    const { container } = render(
+      <ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />,
+    )
+    expect(container).toBeEmptyDOMElement()
+    resolve({
+      tier: 'participant',
+      via: 'org_exam',
+      can_leave: false,
+      cannot_leave_reason: 'org_exam',
+    })
+    await waitFor(() => expect(mockGet).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 0))
+    // Not leavable and no cohort: it never appears at all.
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('org_exam stays hidden until the cohort slot reported rows', async () => {
+    mockGet.mockResolvedValue({
+      tier: 'participant',
+      via: 'org_exam',
+      can_leave: false,
+      cannot_leave_reason: 'org_exam',
+    })
+    const mounted = jest.fn()
+    const LateCohort = ({ onEmpty }: any) => {
+      useEffect(() => mounted(onEmpty), [onEmpty])
+      return <div data-testid="cohort-stub" />
+    }
+    registerSlot('ProjectCohortLeaderboard', LateCohort)
+    render(<ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />)
+    const card = await screen.findByTestId('participant-card')
+    // Mounted so the slot can fetch, but not shown while it may vanish.
+    expect(card).toHaveClass('hidden')
+    expect(card).toHaveAttribute('data-pending', 'true')
+    act(() => mounted.mock.calls[0][0](false))
+    expect(card).not.toHaveClass('hidden')
+    expect(card).not.toHaveAttribute('data-pending')
   })
 
   it('org_exam with an empty cohort renders nothing', async () => {
