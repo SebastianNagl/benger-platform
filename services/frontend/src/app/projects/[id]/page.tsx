@@ -1851,11 +1851,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         : t('projects.list.participantBadge')}
                     </span>
                   )}
+                  {/* The edit buttons show on hover; on a touch screen (no
+                      hover) and for keyboard focus they always show, so
+                      they are never invisible yet in the way. */}
                   {canEditProject() && (
                     <Button
                       onClick={handleStartEditTitle}
                       variant="outline"
-                      className="opacity-0 transition-opacity group-hover:opacity-100"
+                      className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </Button>
@@ -1866,7 +1869,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <Button
                         onClick={handleStartEditDescription}
                         variant="outline"
-                        className="text-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        className="text-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                         data-testid="project-add-description"
                       >
                         {t('project.editing.addDescription')}
@@ -1922,7 +1925,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       <Button
                         onClick={handleStartEditDescription}
                         variant="outline"
-                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </Button>
