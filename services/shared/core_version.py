@@ -2055,11 +2055,18 @@ API change).
     project's request in flight; any other call reads anew, so a refresh
     after a write never gets data read before it. The response of a
     request that a newer one has replaced does not touch the store.
+2.87 (2026-11-25): ``DynamicAnnotationInterface`` prop ``hostOwnsSubmit``
+  (no migration, additive; frontend only). A host that submits through its
+  own controls, such as a review page, passes it: the fields show no submit
+  button of their own, Ctrl/Cmd+Enter does not submit, the shortcut tip is
+  not shown and the action bar is left out when nothing would be in it.
+  Hosts without it keep the earlier behaviour, including Ctrl/Cmd+Enter
+  with ``showSubmitButton={false}``.
 """
 
 import os
 
-CORE_API_VERSION = "2.86"
+CORE_API_VERSION = "2.87"
 
 
 def extended_required() -> bool:

@@ -42,6 +42,9 @@ interface DynamicAnnotationInterfaceProps {
   onChange?: (annotations: AnnotationResult[]) => void // Notify parent of changes
   taskId?: string | number // Add taskId to properly track task changes
   showSubmitButton?: boolean // Control submit button visibility (defaults to true)
+  // A host that submits through its own controls: no field submit buttons,
+  // no Ctrl/Cmd+Enter submit, no shortcut tip and no empty action bar.
+  hostOwnsSubmit?: boolean
   requireConfirmBeforeSubmit?: boolean // Require confirmation checkbox before submit
   startTime?: number // Start time for lead_time tracking (defaults to now)
   enableAutoSave?: boolean // Enable auto-save functionality (defaults to true)
@@ -66,6 +69,7 @@ export function DynamicAnnotationInterface({
   onChange,
   taskId,
   showSubmitButton = true, // Default to true for backwards compatibility
+  hostOwnsSubmit = false,
   requireConfirmBeforeSubmit = false,
   startTime,
   enableAutoSave = true,
@@ -403,8 +407,9 @@ export function DynamicAnnotationInterface({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not checked)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      // Submit on Ctrl/Cmd + Enter (blocked if confirmation required but not
+      // checked), unless the host submits through its own controls.
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !hostOwnsSubmit) {
         if (requireConfirmBeforeSubmit && !confirmedDone) return
         e.preventDefault()
         handleSubmit()
@@ -419,7 +424,13 @@ export function DynamicAnnotationInterface({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSubmit, onSkip, requireConfirmBeforeSubmit, confirmedDone])
+  }, [
+    handleSubmit,
+    onSkip,
+    requireConfirmBeforeSubmit,
+    confirmedDone,
+    hostOwnsSubmit,
+  ])
 
   // Render component tree recursively
   const renderComponent = (
@@ -463,7 +474,7 @@ export function DynamicAnnotationInterface({
               : (val) => handleComponentChange(componentName, val)
           }
           onAnnotation={readOnly ? () => {} : handleAnnotation}
-          hideSubmitButton={showSubmitButton} // Hide individual submit buttons when main button is shown (Issue #251, #1030)
+          hideSubmitButton={showSubmitButton || hostOwnsSubmit} // Hide individual submit buttons when main button is shown (Issue #251, #1030) or the host submits
           onSaveToDb={enableAutoSave && !readOnly ? handleSaveToDb : undefined} // Pass immediate save handler for Ctrl+S
           readOnly={readOnly}
         />
@@ -558,72 +569,83 @@ export function DynamicAnnotationInterface({
       )}
 
       {/* Action buttons. A state-specific interface carries its own submit
-          (chrome.onSubmit) in its bar, so the bar here is omitted. */}
-      {!useStateRender && (
-        <div className="border-t pt-6">
-          {requireConfirmBeforeSubmit && (
-            <div className="mb-4 border-b border-zinc-200 pb-4 dark:border-zinc-700">
-              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={confirmedDone}
-                  onChange={(e) => setConfirmedDone(e.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                />
-                {t('annotation.interface.confirmDone')}
-              </label>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {onSkip && (
-                <button
-                  type="button"
-                  onClick={onSkip}
-                  disabled={requireConfirmBeforeSubmit && !confirmedDone}
-                  className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                >
-                  {t('annotation.interface.skip')}{' '}
-                  <span className="ml-2 text-xs opacity-60">
-                    {t('annotation.interface.skipShortcut')}
-                  </span>
-                </button>
-              )}
+          (chrome.onSubmit) in its bar, so the bar here is omitted. A host
+          that submits, skips and saves on its own leaves the bar empty, so
+          it is omitted too. */}
+      {!useStateRender &&
+        (!hostOwnsSubmit ||
+          showSubmitButton ||
+          onSkip ||
+          enableAutoSave ||
+          requireConfirmBeforeSubmit) && (
+          <div className="border-t pt-6" data-testid="annotation-action-bar">
+            {requireConfirmBeforeSubmit && (
+              <div className="mb-4 border-b border-zinc-200 pb-4 dark:border-zinc-700">
+                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={confirmedDone}
+                    onChange={(e) => setConfirmedDone(e.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                  {t('annotation.interface.confirmDone')}
+                </label>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {onSkip && (
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    disabled={requireConfirmBeforeSubmit && !confirmedDone}
+                    className="h-8 rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    {t('annotation.interface.skip')}{' '}
+                    <span className="ml-2 text-xs opacity-60">
+                      {t('annotation.interface.skipShortcut')}
+                    </span>
+                  </button>
+                )}
 
-              {/* Auto-save indicator */}
-              {enableAutoSave && (
-                <AutoSaveIndicator
-                  isSaving={autoSave.isSaving}
-                  lastSaved={autoSave.lastSaved}
-                  error={autoSave.error}
-                />
+                {/* Auto-save indicator */}
+                {enableAutoSave && (
+                  <AutoSaveIndicator
+                    isSaving={autoSave.isSaving}
+                    lastSaved={autoSave.lastSaved}
+                    error={autoSave.error}
+                  />
+                )}
+              </div>
+
+              {showSubmitButton && (
+                <div className="ml-auto flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={
+                      (annotations.size === 0 && componentValues.size === 0) ||
+                      (requireConfirmBeforeSubmit && !confirmedDone)
+                    }
+                    className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                  >
+                    {t('annotation.interface.submit')}{' '}
+                    <span className="ml-2 text-xs opacity-90">
+                      {t('annotation.interface.submitShortcut')}
+                    </span>
+                  </button>
+                </div>
               )}
             </div>
-
-            {showSubmitButton && (
-              <div className="ml-auto flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={
-                    (annotations.size === 0 && componentValues.size === 0) ||
-                    (requireConfirmBeforeSubmit && !confirmedDone)
-                  }
-                  className="h-8 rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                >
-                  {t('annotation.interface.submit')}{' '}
-                  <span className="ml-2 text-xs opacity-90">
-                    {t('annotation.interface.submitShortcut')}
-                  </span>
-                </button>
+            {/* The tip advertises the submit and skip shortcuts, so only show
+              it while one of them does something. */}
+            {(!hostOwnsSubmit || onSkip) && (
+              <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                {t('annotation.interface.tip')}
               </div>
             )}
           </div>
-          <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
-            {t('annotation.interface.tip')}
-          </div>
-        </div>
-      )}
+        )}
     </div>
   )
 
