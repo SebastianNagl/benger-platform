@@ -9,6 +9,7 @@
 
 import { GenerationStructureEditor } from '@/components/projects/GenerationStructureEditor'
 import { PromptText } from '@/components/projects/PromptText'
+import { SubSection } from '@/components/projects/SubSection'
 import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -388,49 +389,31 @@ export function PromptStructuresManager({
 
   return (
     <>
-      {/* Header - matches other collapsible sections */}
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center space-x-3 text-left"
-        >
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            {t('project.promptStructures.title')}
-          </h2>
-          {!expanded && (
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-              {totalCount === 0
-                ? t('project.promptStructures.notConfigured')
-                : t('project.promptStructures.activeStatus', {
-                    active: activeCount,
-                    total: totalCount,
-                  })}
-            </span>
-          )}
-          <svg
-            className={`h-5 w-5 shrink-0 text-zinc-400 transition-transform ${expanded ? 'rotate-90 transform' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
-        {expanded && !readOnly && (
-          <Button onClick={openAddModal} variant="outline" className="text-sm">
-            <PlusIcon className="mr-2 h-4 w-4" />
-            {t('project.promptStructures.addStructure')}
-          </Button>
-        )}
-      </div>
-
-      {/* Expanded content */}
-      {expanded && (
+      <SubSection
+        title={t('project.promptStructures.title')}
+        badge={
+          totalCount === 0
+            ? t('project.promptStructures.notConfigured')
+            : t('project.promptStructures.activeStatus', {
+                active: activeCount,
+                total: totalCount,
+              })
+        }
+        expanded={expanded}
+        onExpandedChange={setExpanded}
+        actions={
+          readOnly ? undefined : (
+            <Button
+              onClick={openAddModal}
+              variant="outline"
+              className="text-sm"
+            >
+              <PlusIcon className="mr-2 h-4 w-4" />
+              {t('project.promptStructures.addStructure')}
+            </Button>
+          )
+        }
+      >
         <>
           {error && (
             <Alert variant="error">
@@ -631,7 +614,7 @@ export function PromptStructuresManager({
             </div>
           )}
         </>
-      )}
+      </SubSection>
 
       {/* Add/Edit Modal */}
       {showModal && (

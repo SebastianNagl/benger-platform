@@ -389,9 +389,7 @@ jest.mock('@/contexts/I18nContext', () => {
     'toasts.projects.unarchiveFailed': 'Failed to unarchive project',
     'toasts.project.instructionsUpdateFailed':
       'Failed to update instructions: {{error}}',
-    'toasts.project.modelsSaved': 'Models saved',
     'toasts.project.modelsSaveFailed': 'Failed to save models: {{error}}',
-    'toasts.project.settingsSaved': 'Settings saved',
     'toasts.project.settingsSaveFailed': 'Failed to save settings: {{error}}',
 
     // Toast translations - Admin

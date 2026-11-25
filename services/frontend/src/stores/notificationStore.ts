@@ -39,6 +39,16 @@ export interface ToastProgress {
   onCancel?: () => void
 }
 
+/** A button in a toast, e.g. "Rückgängig". Lives only in memory. */
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
+export interface ToastOptions {
+  action?: ToastAction
+}
+
 export interface ToastItem {
   id: string
   type: ToastType
@@ -52,6 +62,9 @@ export interface ToastItem {
   // the producer flips status off `'running'`. Lets the progress UI share the
   // same renderer + screen position as the regular toast system.
   progress?: ToastProgress
+  // Optional action button; dropped when toasts persist (functions do not
+  // survive a reload).
+  action?: ToastAction
 }
 
 interface NotificationState {
@@ -60,7 +73,12 @@ interface NotificationState {
 }
 
 interface NotificationActions {
-  addToast: (message: string, type?: ToastType, duration?: number) => string
+  addToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number,
+    options?: ToastOptions,
+  ) => string
   removeToast: (id: string) => void
   clearToasts: () => void
   // Create or replace a progress toast keyed by `id` (so the progress system
@@ -100,6 +118,7 @@ export const useNotificationStore = create<NotificationStore>()(
           message: string,
           type: ToastType = 'info',
           duration: number = DEFAULT_TOAST_DURATION_MS,
+          options?: ToastOptions,
         ) => {
           const id = makeId()
           const newToast: ToastItem = {
@@ -108,6 +127,7 @@ export const useNotificationStore = create<NotificationStore>()(
             message,
             duration,
             createdAt: Date.now(),
+            ...(options?.action ? { action: options.action } : {}),
           }
           set(
             (state) => {
@@ -241,7 +261,9 @@ export const useNotificationStore = create<NotificationStore>()(
         // completeProgress, and (b) drop the `onCancel` callback (functions
         // don't survive JSON). Strip them at the serialization boundary.
         partialize: (state) => ({
-          toasts: state.toasts.filter((t) => t.progress === undefined),
+          toasts: state.toasts
+            .filter((t) => t.progress === undefined)
+            .map(({ action: _action, ...rest }) => rest),
           pendingFlashes: state.pendingFlashes,
         }),
       },

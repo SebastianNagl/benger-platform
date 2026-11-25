@@ -328,7 +328,9 @@ export const useProjectStore = create<ProjectStore>()(
                 ? state.labelConfigVersion + 1
                 : state.labelConfigVersion,
           }))
-          toast(t('store.project.updated'), 'success')
+          // No success toast: callers confirm a save themselves, once
+          // (the project page's auto-save shows one "Gespeichert" per
+          // batch). Toasting here too doubled every confirmation.
         } catch (error) {
           const message =
             error instanceof Error

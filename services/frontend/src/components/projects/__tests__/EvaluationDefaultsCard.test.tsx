@@ -82,7 +82,7 @@ function renderCard(
 // SubSection is collapsed by default; click the title to reveal the body.
 async function expand(user: ReturnType<typeof userEvent.setup>) {
   await user.click(
-    screen.getByRole('button', { name: /project\.evaluationDefaults\.title/i }),
+    screen.getByRole('button', { name: /project\.evaluationSettings\.title/i }),
   )
 }
 
@@ -104,7 +104,7 @@ describe('EvaluationDefaultsCard', () => {
     it('renders the SubSection title and is collapsed (body hidden) by default', () => {
       renderCard()
       expect(
-        screen.getByText('project.evaluationDefaults.title'),
+        screen.getByText('project.evaluationSettings.title'),
       ).toBeInTheDocument()
       expect(
         screen.queryByText('project.evaluationDefaults.description'),
@@ -275,7 +275,7 @@ describe('EvaluationDefaultsCard', () => {
       })
       await userEvent.setup().click(
         screen.getByRole('button', {
-          name: /project\.evaluationDefaults\.title/i,
+          name: /project\.evaluationSettings\.title/i,
         }),
       )
       fireEvent.change(getTemperatureInput(), { target: { value: '1.3' } })
@@ -290,7 +290,7 @@ describe('EvaluationDefaultsCard', () => {
       })
       await userEvent.setup().click(
         screen.getByRole('button', {
-          name: /project\.evaluationDefaults\.title/i,
+          name: /project\.evaluationSettings\.title/i,
         }),
       )
       fireEvent.change(getMaxTokensInput(), { target: { value: '2500' } })

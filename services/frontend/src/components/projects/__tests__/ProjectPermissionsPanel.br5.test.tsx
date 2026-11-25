@@ -43,7 +43,6 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'project.permissions.noPermission': 'No permission to edit',
-        'project.permissions.saveSuccess': 'Permissions saved successfully',
         'project.permissions.viewOnly': 'You can only view these permissions',
         'project.permissions.visibility': 'Visibility',
         'project.permissions.public': 'Public',
@@ -58,8 +57,6 @@ jest.mock('@/contexts/I18nContext', () => ({
           'Select at least one organization',
         'project.permissions.publicRole.annotator': 'Annotator',
         'project.permissions.publicRole.contributor': 'Contributor',
-        'project.permissions.cancel': 'Cancel',
-        'project.permissions.save': 'Save',
         'project.permissions.saving': 'Saving...',
       }
       return translations[key] || key
@@ -159,22 +156,25 @@ describe('ProjectPermissionsPanel — organization branches', () => {
 
     const checkbox = await screen.findByTestId('organization-checkbox-org-a')
     await user.click(checkbox)
-    await user.click(screen.getByTestId('save-button'))
 
-    await waitFor(() => {
-      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
-        is_private: false,
-        organization_attachments: [
-          { organization_id: 'org-a', group_id: null },
-        ],
-      })
-    })
+    // Saved on its own once the group scope is resolved.
+    await waitFor(
+      () => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'org-a', group_id: null },
+          ],
+        })
+      },
+      { timeout: 4000 },
+    )
     expect(onSave).toHaveBeenCalledWith({
       visibility: 'organization',
       public_role: undefined,
       organization_ids: ['org-a'],
     })
-    expect(toast.success).toHaveBeenCalledWith('Permissions saved successfully')
+    expect(toast.success).toHaveBeenCalledWith('shared.autoSave.saved')
   })
 
   it('sends the selected group scope in organization_attachments', async () => {
@@ -211,16 +211,20 @@ describe('ProjectPermissionsPanel — organization branches', () => {
       'organization-group-select-org-a',
     )
     await user.selectOptions(groupSelect, 'grp-1')
-    await user.click(screen.getByTestId('save-button'))
 
-    await waitFor(() => {
-      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
-        is_private: false,
-        organization_attachments: [
-          { organization_id: 'org-a', group_id: 'grp-1' },
-        ],
-      })
-    })
+    // The choice within the auto-save delay lands in the one save.
+    await waitFor(
+      () => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'org-a', group_id: 'grp-1' },
+          ],
+        })
+      },
+      { timeout: 4000 },
+    )
+    expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
   })
 
   it('offers an org annotator only the groups they may create in, without org-wide', async () => {
@@ -266,38 +270,34 @@ describe('ProjectPermissionsPanel — organization branches', () => {
     ])
     await waitFor(() => expect(groupSelect.value).toBe('grp-b'))
 
-    await user.click(screen.getByTestId('save-button'))
-    await waitFor(() => {
-      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
-        is_private: false,
-        organization_attachments: [
-          { organization_id: 'org-a', group_id: 'grp-b' },
-        ],
-      })
-    })
+    await waitFor(
+      () => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'org-a', group_id: 'grp-b' },
+          ],
+        })
+      },
+      { timeout: 4000 },
+    )
   })
 
-  it('blocks save with a validation error when org-scoped but no org selected', async () => {
+  it('never saves an organization choice without an organization and says so', async () => {
     ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([
       { id: 'org-a', name: 'Org A', slug: 'org-a' },
     ])
     const user = userEvent.setup()
 
     render(
-      <ProjectPermissionsPanel
-        projectId="p1"
-        initialVisibility="organization"
-      />,
+      <ProjectPermissionsPanel projectId="p1" initialVisibility="private" />,
     )
 
-    await screen.findByTestId('organization-checkbox-org-a')
-    await user.click(screen.getByTestId('save-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-permissions-error')).toHaveTextContent(
-        'Select at least one organization',
-      )
-    })
+    await user.click(screen.getByTestId('organization-option'))
+    expect(
+      await screen.findByTestId('project-permissions-org-required'),
+    ).toHaveTextContent('Select at least one organization')
+    await new Promise((r) => setTimeout(r, 2500))
     expect(projectsAPI.updateVisibility).not.toHaveBeenCalled()
   })
 

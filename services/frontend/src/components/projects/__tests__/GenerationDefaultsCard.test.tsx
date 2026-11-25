@@ -424,6 +424,36 @@ describe('GenerationDefaultsCard', () => {
       expect(setGenDefaultTemperature).toHaveBeenCalledWith(0.3)
     })
 
+    it('a reset is a change like any other: it marks the card for saving', async () => {
+      const user = userEvent.setup()
+      const { beginEditGeneration } = renderCard({
+        selectedModelIds: ['m1'],
+        genDefaultTemperature: 1.0,
+        cardEditingGeneration: false,
+        genRecConsensus: {
+          temperature: {
+            value: 0.3,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+          max_tokens: {
+            value: 4000,
+            uniform: true,
+            anyRec: true,
+            perModel: [],
+          },
+        },
+      })
+      await expand(user)
+      await user.click(
+        screen.getByRole('button', {
+          name: 'generation.controlModal.resetToRecommended',
+        }),
+      )
+      expect(beginEditGeneration).toHaveBeenCalled()
+    })
+
     it('reset button on max-tokens uses the 4000 fallback when value is undefined', async () => {
       const user = userEvent.setup()
       const { setGenDefaultMaxTokens } = renderCard({

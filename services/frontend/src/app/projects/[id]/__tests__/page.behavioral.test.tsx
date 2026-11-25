@@ -812,15 +812,36 @@ describe('ProjectDetailPage — feature visibility toggles', () => {
       'subsection-project.settings.featureVisibility.title',
     )
     const checkboxes = within(featureSub).getAllByRole('checkbox')
-    // All three start checked (enable_* !== false). Uncheck the first.
+    // All start checked (enable_* !== false). Unchecking the annotation card
+    // takes the annotation pages away from annotators: confirm first.
     await act(async () => {
       fireEvent.click(checkboxes[0])
     })
+    expect(store.updateProject).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByTestId('confirm-dialog-confirm-button'))
+    // Only the changed switch is sent.
     await waitFor(() => {
       expect(store.updateProject).toHaveBeenCalledWith('proj-1', {
         enable_annotation: false,
       })
     })
+  })
+
+  it('keeps the annotation card when the confirmation is cancelled', async () => {
+    const store = setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByText('proj-1')
+    const featureSub = screen.getByTestId(
+      'subsection-project.settings.featureVisibility.title',
+    )
+    const annotation = within(featureSub).getAllByRole('checkbox')[0]
+    await act(async () => {
+      fireEvent.click(annotation)
+    })
+    fireEvent.click(await screen.findByTestId('confirm-dialog-cancel-button'))
+    await waitFor(() => expect(annotation).toBeChecked())
+    await new Promise((r) => setTimeout(r, 600))
+    expect(store.updateProject).not.toHaveBeenCalled()
   })
 
   it('toasts an error when a feature flip fails', async () => {

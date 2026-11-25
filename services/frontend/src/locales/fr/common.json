@@ -1124,19 +1124,16 @@
     "conditionalInstructions": {
       "title": "Instructions conditionnelles",
       "description": "Afficher des instructions différentes aux annotateurs selon une attribution aléatoire par tâche",
-      "edit": "Modifier les variantes",
-      "add": "Ajouter des variantes",
       "addVariant": "+ Ajouter une variante",
       "variantId": "ID de variante",
       "weight": "Poids (%)",
       "content": "Contenu des instructions",
-      "save": "Enregistrer les variantes",
-      "saved": "Instructions conditionnelles enregistrées",
       "saveFailed": "Échec de l'enregistrement",
-      "weightError": "La somme des poids doit être de 100 %",
       "weightWarning": "La somme des poids est de {total} %, elle doit être de 100 %",
       "aiAllowed": "IA autorisée",
-      "variantIdPlaceholder": "p. ex. ai, no_ai"
+      "variantIdPlaceholder": "p. ex. ai, no_ai",
+      "removeVariant": "Supprimer la variante",
+      "incomplete": "Chaque variante a besoin d'un identifiant et d'un texte, sinon les variantes ne sont pas enregistrées."
     },
     "modelSelection": {
       "title": "Sélection des modèles",
@@ -1241,7 +1238,6 @@
       "orgAdminOnly": "Seuls les administrateurs et les contributeurs de l'organisation peuvent gérer {section}.",
       "creatorOnly": "Seul le créateur du projet peut gérer {section}.",
       "noPermission": "Vous n'avez pas l'autorisation de modifier la visibilité.",
-      "saveSuccess": "Visibilité enregistrée.",
       "viewOnly": "La visibilité est en lecture seule. Elle peut être modifiée par la personne qui a créé le projet, les administrateurs de l'organisation et les superadministrateurs.",
       "visibility": "Visibilité",
       "visibilityDescription": "Détermine qui peut accéder à ce projet.",
@@ -1271,8 +1267,6 @@
       "lmsBadge": "Plateforme d'apprentissage",
       "lmsNote": "Cet examen est lié à {organizations} via une connexion à une plateforme d'apprentissage. Le personnel de ces organisations conserve l'accès, même si vous rendez l'examen privé. Ce partage ne peut pas être modifié ici.",
       "lmsConflict": "Le partage avec une organisation liée via la plateforme d'apprentissage suit la connexion de celle-ci. Le groupe de ce partage ne peut pas être modifié ici.",
-      "cancel": "Annuler",
-      "save": "Enregistrer",
       "saving": "Enregistrement…",
       "validation": {
         "privateNeedsOrganization": "Les projets au niveau de l'organisation nécessitent au moins une organisation."
@@ -1299,7 +1293,6 @@
       "runCta": "Lancer l'évaluation"
     },
     "evaluationDefaults": {
-      "title": "Paramètres d'évaluation par défaut",
       "description": "Paramètres par défaut pour toutes les évaluations par juge LLM de ce projet",
       "save": "Enregistrer",
       "defaultTemperature": "Température par défaut",
@@ -1315,7 +1308,6 @@
       "modeMinimumDesc": "Utiliser la température la plus basse autorisée par le fournisseur pour chaque modèle juge nouvellement ajouté.",
       "modeCustom": "Personnalisé",
       "modeCustomDesc": "Utiliser les valeurs saisies ci-dessous de manière uniforme pour toutes les configurations de juge nouvellement ajoutées (les contraintes min./max. restent appliquées).",
-      "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque tâche doit être évaluée par le juge. S'applique lorsqu'aucun ensemble de juges n'est configuré.",
       "defaultRunsPerTask": "Nombre d'exécutions du juge par défaut",
       "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs évaluations pour l'analyse de la variance et de la cohérence. Plafond 25."
@@ -1337,7 +1329,6 @@
       "modeMinimumDesc": "Utiliser la température la plus basse autorisée par le fournisseur pour chaque modèle nouvellement ajouté.",
       "modeCustom": "Personnalisé",
       "modeCustomDesc": "Utiliser les valeurs saisies ci-dessous de manière uniforme pour tous les modèles nouvellement ajoutés (les contraintes min./max. restent appliquées).",
-      "runsTitle": "Exécutions multiples",
       "runsDescription": "Combien de fois chaque combinaison tâche-modèle doit être générée. Les coûts sont multipliés en conséquence.",
       "defaultRunsPerTask": "Nombre d'exécutions par tâche par défaut",
       "runsPerTaskHelp": "Valeur par défaut 1. Des valeurs > 1 produisent plusieurs essais pour l'analyse de la variance. Plafond {max}."
@@ -1345,7 +1336,6 @@
     "settings": {
       "title": "Paramètres",
       "annotationSettingsTitle": "Déroulement et comportement de l'annotation",
-      "mode": "Mode {mode}",
       "minAnnotations": "{count} annotations min.",
       "editSettings": "Modifier les paramètres",
       "saveSettings": "Enregistrer les paramètres",
@@ -1405,7 +1395,6 @@
         "prepareHint": "Pour préparer un projet sans que personne ne le voie, laissez-le en « Privé » jusqu'à ce qu'il soit prêt, puis rattachez-le seulement alors à l'organisation ou au groupe. S'il ne doit apparaître qu'à un moment précis, définissez en dessous une fenêtre d'accès : jusqu'à l'ouverture, les données restent masquées et les examens et paquets de fiches n'apparaissent pas encore pour les étudiants."
       },
       "annotationBehavior": {
-        "title": "Comportement de l'annotation",
         "maxAnnotations": "Nombre maximal d'annotations par tâche",
         "maxAnnotationsHelp": "Nombre d'annotations nécessaires par tâche",
         "minAnnotationsForCompletion": "Annotations minimales pour terminer une tâche",
@@ -1443,10 +1432,14 @@
           "count4": "4 annotations",
           "count5": "5 annotations",
           "unlimited": "Illimité"
+        },
+        "modesShort": {
+          "open": "Ouvert",
+          "manual": "Manuel",
+          "auto": "Automatique"
         }
       },
       "interface": {
-        "title": "Paramètres de l'interface",
         "showInstructions": "Afficher les instructions",
         "showInstructionsHelp": "Afficher les instructions du projet aux annotateurs",
         "instructionsAlwaysVisible": "Toujours afficher les instructions",
@@ -1471,7 +1464,6 @@
       "annotationTimeLimitDescription": "Définir la durée maximale pour chaque tâche d'annotation",
       "timeLimitMinutes": "Limite de temps",
       "minutes": "minutes",
-      "questionnaireTitle": "Questionnaire post-annotation",
       "questionnaireEnabled": "Activer le questionnaire",
       "questionnaireEnabledDescription": "Afficher un formulaire de retour après chaque remise d'annotation",
       "questionnaireTemplate": "Modèle",
@@ -1509,6 +1501,19 @@
         "opens": "Ouverture",
         "closes": "Fermeture",
         "invalid": "La date de fermeture doit être postérieure à la date d'ouverture."
+      },
+      "groups": {
+        "assignment": "Attribution",
+        "work": "Pendant le travail",
+        "skipping": "Passer une tâche",
+        "submission": "Remise",
+        "afterSubmit": "Après la remise",
+        "display": "Affichage",
+        "instructionText": "Texte des consignes",
+        "parameters": "Paramètres",
+        "runs": "Exécutions",
+        "timing": "Moment",
+        "korrektur": "Correction"
       }
     },
     "quickActions": {
@@ -1710,6 +1715,36 @@
     },
     "rubricReview": {
       "extendedRequired": "La vérification des grilles d'évaluation nécessite l'édition Extended."
+    },
+    "settingRisk": {
+      "visibility": {
+        "public": "Tous les utilisateurs connectés de la plateforme voient immédiatement le projet et ses données.",
+        "private": "Vous seul (et les superadministrateurs) gardez l'accès ; tous les autres le perdent immédiatement, même en plein travail.",
+        "organization": "Les membres des organisations ou groupes choisis voient immédiatement le projet ; les autres perdent l'accès."
+      },
+      "accessWindow": {
+        "none": "Le projet est alors accessible sans limite de temps.",
+        "upcoming": "Le projet n'ouvre qu'au moment choisi ; jusque-là, il n'est pas accessible.",
+        "open": "Le projet est accessible dès maintenant.",
+        "closed": "L'accès prend fin immédiatement pour tous, y compris pour les personnes en train de travailler ; les données passent en lecture seule."
+      },
+      "kind": "Les étudiants trouvent et traitent alors le projet en tant que « {kind} », avec l'interface de ce type.",
+      "enableAnnotationOff": "Les annotateurs ne peuvent plus ouvrir de tâches ; « Commencer l'annotation » disparaît.",
+      "fullVisibility": "Toutes les personnes ayant déjà remis leur travail voient immédiatement tous les champs de leurs tâches, y compris la solution modèle. Annotations déjà remises : {count}.",
+      "stepDetail": "Toutes les personnes ayant déjà remis leur travail voient immédiatement les points et justifications de chaque étape d'évaluation. Annotations déjà remises : {count}.",
+      "timeLimitOn": "Le temps de travail devient limité, y compris pour les personnes en train de travailler.",
+      "timeLimitOff": "La limite de temps est supprimée immédiatement, y compris pour les personnes en train de travailler.",
+      "timeLimitMinutes": "Le temps de travail passe à {minutes} minutes, y compris pour les personnes en train de travailler.",
+      "strictTimer": "Le travail est remis automatiquement à la fin du temps imparti, y compris pour les personnes en train de travailler.",
+      "assignmentMode": {
+        "open": "Tous les membres voient alors toutes les tâches.",
+        "manual": "Les annotateurs ne voient alors que les tâches qui leur sont attribuées.",
+        "auto": "Les annotateurs reçoivent alors des tâches attribuées automatiquement et ne voient que celles-ci."
+      },
+      "maxAnnotations": "Les tâches comptant {count} annotations ne sont plus disponibles pour d'autres annotateurs.",
+      "pasteOn": "Dès maintenant, du texte d'autres programmes peut être collé pendant le travail.",
+      "pasteOff": "Dès maintenant, seul du texte copié dans la plateforme peut être collé pendant le travail.",
+      "immediateEvaluation": "Les nouvelles remises sont évaluées immédiatement ; là où les résultats sont affichés, leurs auteurs les voient juste après la remise."
     }
   },
   "tasks": {
@@ -8386,12 +8421,6 @@
       "deleted": "Projet supprimé avec succès",
       "titleUpdated": "Titre mis à jour avec succès",
       "descriptionUpdated": "Description mise à jour avec succès",
-      "instructionsUpdated": "Instructions mises à jour avec succès",
-      "labelConfigSaved": "Configuration des étiquettes enregistrée avec succès",
-      "modelsSaved": "Sélection des modèles enregistrée avec succès",
-      "settingsSaved": "Paramètres enregistrés avec succès",
-      "evaluationDefaultsSaved": "Paramètres d'évaluation par défaut enregistrés avec succès",
-      "generationDefaultsSaved": "Paramètres de génération par défaut enregistrés avec succès",
       "evaluationStarted": "Évaluation multi-champs démarrée avec succès",
       "titleEmpty": "Le titre ne peut pas être vide",
       "deleteFailed": "Impossible de supprimer le projet : {error}",
@@ -9218,6 +9247,16 @@
     },
     "selectionActions": {
       "actions": "Actions"
+    },
+    "autoSave": {
+      "saved": "Enregistré",
+      "undo": "Annuler"
+    },
+    "settingRisk": {
+      "title": "Confirmer la modification",
+      "confirm": "Appliquer",
+      "cancel": "Annuler",
+      "runningExam": "La fenêtre d'accès est ouverte en ce moment : la modification s'applique immédiatement à un examen en cours."
     }
   },
   "templates": {
@@ -9564,7 +9603,6 @@
       "fetchOneFailed": "Impossible de charger le projet",
       "created": "Projet créé avec succès",
       "createFailed": "Impossible de créer le projet",
-      "updated": "Projet mis à jour avec succès",
       "updateFailed": "Impossible de mettre à jour le projet",
       "deleted": "Projet supprimé avec succès",
       "deleteFailed": "Impossible de supprimer le projet",
