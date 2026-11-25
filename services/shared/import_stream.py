@@ -1123,6 +1123,7 @@ def run_nested_import(
                 review_result=ann_data.get("review_result"),
                 review_annotation=ann_data.get("review_annotation"),
                 review_comment=ann_data.get("review_comment"),
+                original_result=ann_data.get("original_result"),
                 # Withdrawal record (who took the submission back, when, why).
                 withdrawn_at=_parse_iso(ann_data.get("withdrawn_at")),
                 withdrawn_by=ann_data.get("withdrawn_by"),
@@ -2475,6 +2476,7 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
             review_result=annotation_data.get("review_result"),
             review_annotation=annotation_data.get("review_annotation"),
             review_comment=annotation_data.get("review_comment"),
+            original_result=annotation_data.get("original_result"),
             # Withdrawal record (who took the submission back, when, why).
             withdrawn_at=_parse_iso(annotation_data.get("withdrawn_at")),
             withdrawn_by=ctx.id_mappings["users"].get(

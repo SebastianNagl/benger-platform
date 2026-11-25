@@ -230,7 +230,9 @@ class TestExtensionLoader:
         # 2.84 adds grading_basis (outdated gradings, register_grading_basis),
         # re-grade runs (outdated_only, regrade drafts) and the generalised
         # release predicates in metric_filters.
-        assert CORE_API_VERSION == "2.84"
+        # 2.85 adds annotations.original_result (migration 159), the author's
+        # result before a review replaced it in place.
+        assert CORE_API_VERSION == "2.85"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
