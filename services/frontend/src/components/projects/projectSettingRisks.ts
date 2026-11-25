@@ -35,6 +35,14 @@ export function registerProjectSettingRisks() {
     },
   })
 
+  // The public role while the project is public (null otherwise).
+  registerSettingRisk('public_role', {
+    isRisky: (_from, to) => to === 'CONTRIBUTOR',
+    label: (t) => t('project.permissions.publicRoleLabel'),
+    consequence: (t) =>
+      t('project.permissions.publicContributorConfirm.message'),
+  })
+
   registerSettingRisk('access_window', {
     label: (t) => t('project.settings.accessWindow.title'),
     consequence: (t, _ctx, { to }) => {

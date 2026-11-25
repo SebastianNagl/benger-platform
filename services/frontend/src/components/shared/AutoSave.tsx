@@ -39,6 +39,7 @@ import {
 } from '@/components/shared/settingRisk'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
+import { useNotificationStore } from '@/stores/notificationStore'
 import {
   createContext,
   useCallback,
@@ -311,7 +312,6 @@ export function useAutoSaveBuffer<V extends Legs>({
   enabled = true,
 }: UseAutoSaveBufferOptions<V>): AutoSaveBuffer {
   const showSaved = useSavedToast()
-  const { removeToast } = useToast()
   const gateChange = useGatedSettingChange()
   const gateRef = useRef(gateChange)
   gateRef.current = gateChange
@@ -409,13 +409,14 @@ export function useAutoSaveBuffer<V extends Legs>({
   // saved toast, and the one of an earlier batch, have no undo then.
   const flushRef = useRef(debounced.flush)
   flushRef.current = debounced.flush
-  const removeToastRef = useRef(removeToast)
-  removeToastRef.current = removeToast
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      if (savedToastRef.current) removeToastRef.current(savedToastRef.current)
+      if (savedToastRef.current)
+        useNotificationStore
+          .getState()
+          .clearToastAction(savedToastRef.current)
       if (!enabledRef.current || !userChangedRef.current) return
       const pending = valuesRef.current
       if (

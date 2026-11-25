@@ -363,6 +363,8 @@ export function ProjectPermissionsPanel({
             .map((orgId) => [orgId, v.groups[orgId] ?? null]),
         }
       : { visibility: v.visibility }
+  const publicRoleOf = (v: typeof value) =>
+    v.visibility === 'public' ? v.publicRole : null
 
   const autoSave = useAutoSave({
     value,
@@ -382,6 +384,7 @@ export function ProjectPermissionsPanel({
     },
     riskChanges: (from, to) => [
       { key: 'visibility', from: audience(from), to: audience(to) },
+      { key: 'public_role', from: publicRoleOf(from), to: publicRoleOf(to) },
     ],
     enabled: !readOnly,
   })
@@ -399,6 +402,11 @@ export function ProjectPermissionsPanel({
   const changeAudience = (next: Partial<typeof value>, apply: () => void) => {
     const from = audience(savedValue)
     const to = audience({ ...value, ...next })
+    const roleChange = {
+      key: 'public_role',
+      from: publicRoleOf(savedValue),
+      to: publicRoleOf({ ...value, ...next }),
+    }
     if (
       (autoSave.dirty && confirmedRef.current === to.visibility) ||
       JSON.stringify(from) === JSON.stringify(to)
@@ -406,7 +414,7 @@ export function ProjectPermissionsPanel({
       apply()
       return
     }
-    gateChange([{ key: 'visibility', from, to }], () => {
+    gateChange([{ key: 'visibility', from, to }, roleChange], () => {
       confirmedRef.current = to.visibility
       apply()
     })

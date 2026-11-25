@@ -17,14 +17,14 @@ import {
   settingChanges,
   SettingRiskProvider,
 } from '@/components/shared/settingRisk'
+import { useNotificationStore } from '@/stores/notificationStore'
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 
 const mockAddToast = jest.fn()
-const mockRemoveToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
-  useToast: () => ({ addToast: mockAddToast, removeToast: mockRemoveToast }),
+  useToast: () => ({ addToast: mockAddToast }),
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -42,10 +42,12 @@ const advance = async (ms: number) => {
 beforeEach(() => {
   jest.useFakeTimers()
   mockAddToast.mockReset()
-  mockAddToast.mockImplementation(
-    () => `toast-${mockAddToast.mock.calls.length}`,
+  useNotificationStore.getState().clearToasts()
+  mockAddToast.mockImplementation((message, type, duration, options) =>
+    useNotificationStore
+      .getState()
+      .addToast(message, type, duration, options),
   )
-  mockRemoveToast.mockReset()
 })
 afterEach(() => {
   jest.useRealTimers()
@@ -290,15 +292,18 @@ describe('useAutoSave', () => {
     expect(savedToasts()[0][3]).toBeUndefined()
   })
 
-  it('takes the undo away once its section unmounts', async () => {
+  it('keeps the saved toast but takes its undo away once its section unmounts', async () => {
     const save = jest.fn().mockResolvedValue(undefined)
     render(<Host save={save} />)
     fireEvent.change(screen.getByTestId('value'), { target: { value: 'd' } })
     await advance(2100)
-    expect(savedToasts()[0][3].action).toBeDefined()
-    const id = mockAddToast.mock.results[0].value
+    const live = () => useNotificationStore.getState().toasts
+    expect(live()).toHaveLength(1)
+    expect(live()[0].action).toBeDefined()
     fireEvent.click(screen.getByTestId('close'))
-    expect(mockRemoveToast).toHaveBeenCalledWith(id)
+    expect(live()).toHaveLength(1)
+    expect(live()[0].message).toBe('shared.autoSave.saved')
+    expect(live()[0].action).toBeUndefined()
   })
 })
 

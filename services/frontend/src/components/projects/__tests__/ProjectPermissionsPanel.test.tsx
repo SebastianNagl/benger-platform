@@ -563,6 +563,91 @@ describe('ProjectPermissionsPanel', () => {
       ).toBe(true)
     })
 
+    it('asks before an undo gives the public back the contributor role', async () => {
+      const user = userEvent.setup()
+      render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="public"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await user.click(screen.getByTestId('public-role-annotator-radio'))
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_public: true,
+          public_role: 'ANNOTATOR',
+        })
+      }, SAVED)
+      const savedToast = (mockToast.addToast as jest.Mock).mock.calls.find(
+        ([, type, , options]) => type === 'success' && options?.action,
+      )
+      act(() => savedToast![3].action.onClick())
+      expect(
+        await screen.findByText(
+          /project\.permissions\.publicContributorConfirm\.message/,
+        ),
+      ).toBeInTheDocument()
+      await user.click(screen.getByTestId('confirm-dialog-cancel-button'))
+      expect(
+        (screen.getByTestId('public-role-annotator-radio') as HTMLInputElement)
+          .checked,
+      ).toBe(true)
+      await new Promise((r) => setTimeout(r, 2500))
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks for the contributor role when switching back to public with it', async () => {
+      const user = userEvent.setup()
+      const { rerender } = render(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="public"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await user.click(screen.getByTestId('private-option'))
+      await user.click(
+        await screen.findByTestId('confirm-dialog-confirm-button'),
+      )
+      await waitFor(() => {
+        expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('project-1', {
+          is_private: true,
+        })
+      }, SAVED)
+      // The refetched project is private now.
+      rerender(
+        <SettingRiskProvider
+          context={{ project: null, runningExam: false, submittedCount: 0 }}
+        >
+          <ProjectPermissionsPanel
+            projectId="project-1"
+            initialVisibility="private"
+            initialPublicRole="CONTRIBUTOR"
+          />
+        </SettingRiskProvider>,
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId('confirm-dialog-confirm-button'),
+        ).not.toBeInTheDocument(),
+      )
+      await user.click(screen.getByTestId('public-option'))
+      expect(
+        await screen.findByText(
+          /project\.permissions\.publicContributorConfirm\.message/,
+        ),
+      ).toBeInTheDocument()
+    })
+
     it('asks before an undo widens who sees the project and keeps the saved audience on cancel', async () => {
       const user = userEvent.setup()
       render(

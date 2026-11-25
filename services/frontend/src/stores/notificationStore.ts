@@ -80,6 +80,8 @@ interface NotificationActions {
     options?: ToastOptions,
   ) => string
   removeToast: (id: string) => void
+  // Take the action button off a live toast; the toast itself stays.
+  clearToastAction: (id: string) => void
   clearToasts: () => void
   // Create or replace a progress toast keyed by `id` (so the progress system
   // can drive updates by stable id rather than message). Persistent
@@ -149,6 +151,20 @@ export const useNotificationStore = create<NotificationStore>()(
             }),
             false,
             'removeToast',
+          )
+        },
+
+        clearToastAction: (id: string) => {
+          set(
+            (state) => ({
+              toasts: state.toasts.map((t) => {
+                if (t.id !== id || !t.action) return t
+                const { action: _action, ...rest } = t
+                return rest
+              }),
+            }),
+            false,
+            'clearToastAction',
           )
         },
 
