@@ -1973,7 +1973,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           {/* Flashcard deck workspace (extended): study / cards / export for
               deck-shaped projects; renders nothing otherwise. */}
           {ProjectDeckWorkspace && (
-            <div data-testid="project-deck-workspace">
+            <div data-testid="project-deck-workspace" className="empty:hidden">
               <ProjectDeckWorkspace
                 project={currentProject}
                 canEdit={canEditProject()}
@@ -2675,7 +2675,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       methods produce. Saves itself — see the slot comment
                       at the useSlot call above. */}
                       {canEditProject() && ProjectGradeScale && (
-                        <div>
+                        // The slot renders nothing when the exam needs no
+                        // grade scale: no empty divided row in the card.
+                        <div className="empty:hidden">
                           <ProjectGradeScale
                             projectId={projectId || ''}
                             evaluationConfig={
@@ -2953,7 +2955,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         </div>
                         {ProjectLmsLinking &&
                           currentProject.kind === 'exam' && (
-                            <div className="mt-4">
+                            <div className="mt-4 empty:hidden">
                               <ProjectLmsLinking projectId={projectId} />
                             </div>
                           )}
@@ -2979,7 +2981,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               reach this project. Not gated on enable_annotation, so flashcard
               decks get it too. */}
                 {ProjectSharing && currentProject && canEditProject() && (
-                  <div data-testid="project-sharing">
+                  // The slot may render nothing: no empty divided row.
+                  <div data-testid="project-sharing" className="empty:hidden">
                     <ProjectSharing
                       project={currentProject}
                       onRefresh={() => fetchProject(projectId)}
@@ -3052,7 +3055,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       {t('project.quickActions.startLabeling')}
                     </Button>
                     {ProjectSolverActions && (
-                      <div data-testid="project-solver-actions">
+                      <div
+                        data-testid="project-solver-actions"
+                        className="empty:hidden"
+                      >
                         <ProjectSolverActions project={currentProject} />
                       </div>
                     )}
