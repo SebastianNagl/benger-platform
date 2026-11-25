@@ -1,5 +1,6 @@
 'use client'
 
+import { AppLoadingScreen } from '@/components/shared/AppLoadingScreen'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { authRedirect } from '@/utils/authRedirect'
@@ -63,16 +64,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // would push the spinner below the viewport centre. Overlay the viewport
   // like ConditionalLayout's auth-loading screen so both screens match.
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-zinc-900"
-      data-testid="protected-route-redirecting"
-    >
-      <div className="text-center">
-        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400"></div>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          {t('common.redirecting')}
-        </p>
-      </div>
-    </div>
+    <AppLoadingScreen
+      label={t('common.redirecting')}
+      testId="protected-route-redirecting"
+    />
   )
 }

@@ -9,11 +9,11 @@ import { ProjectDataTab } from '@/components/projects/tabs/ProjectDataTab'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useRouteProject } from '@/hooks/useRouteProject'
 import { parseSubdomain } from '@/lib/utils/subdomain'
-import { useProjectStore } from '@/stores/projectStore'
 import { canAccessProjectData } from '@/utils/permissions'
 import { useRouter } from 'next/navigation'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect } from 'react'
 
 interface ProjectDataPageProps {
   params: Promise<{
@@ -30,13 +30,15 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   const { isPrivateMode } =
     typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
-  const { currentProject, fetchProject } = useProjectStore()
+  // Only this URL's project; a different one still in the store counts as
+  // not loaded yet.
+  const { project: currentProject, notFound } = useRouteProject(projectId)
 
   // Check permissions - redirect if user cannot access project data. Waits
   // for THIS project to be loaded: the decision is the API's per-project
   // effective_role, which is unknown until then.
   useEffect(() => {
-    if (isLoading || !currentProject || currentProject.id !== projectId) return
+    if (isLoading || !currentProject) return
     if (
       !canAccessProjectData(user, {
         isPrivateMode,
@@ -57,27 +59,9 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
     organizations,
   ])
 
-  // The project id whose fetch failed (404 for a project the caller cannot
-  // see, e.g. a deleted one): show "not found" instead of loading forever.
-  const [failedId, setFailedId] = useState<string | null>(null)
-
-  // Load project if not already loaded
-  useEffect(() => {
-    if (!currentProject || currentProject.id !== projectId) {
-      let cancelled = false
-      // fetchProject resolves to null when the API refused the project.
-      Promise.resolve(fetchProject(projectId, { shared: true })).then(
-        (project) => {
-          if (!cancelled && project === null) setFailedId(projectId)
-        },
-      )
-      return () => {
-        cancelled = true
-      }
-    }
-  }, [projectId, currentProject, fetchProject])
-
-  if (failedId === projectId && currentProject?.id !== projectId) {
+  // A refused read (404 for a project the caller cannot see, e.g. a deleted
+  // one) shows "not found" instead of loading forever.
+  if (notFound) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4">
         <div className="text-center" data-testid="project-data-not-found">
@@ -99,9 +83,8 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
     )
   }
 
-  // Show loading state while checking permissions or loading project (a
-  // different project still in the store counts as not loaded yet).
-  if (isLoading || !currentProject || currentProject.id !== projectId) {
+  // Show loading state while checking permissions or loading project.
+  if (isLoading || !currentProject) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">

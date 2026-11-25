@@ -26,6 +26,7 @@ import {
   useExtensionActive,
   useFeatureFlag,
   useFeatureFlagMap,
+  useFeatureFlagsReady,
   useFeatureFlagStatus,
 } from '..'
 import { reportFeatureDisabled } from '../disabled'
@@ -347,4 +348,40 @@ it("lists the viewer's flags by name, empty while loading and after errors", asy
     await refreshFeatureFlags()
   })
   expect(text('map')).toBe('{}')
+})
+
+describe('useFeatureFlagsReady', () => {
+  function ReadyProbe() {
+    return (
+      <span data-testid="flags-ready">{String(useFeatureFlagsReady())}</span>
+    )
+  }
+
+  it('is false while auth or the answer is pending, true once it answered', async () => {
+    mockAuth = { user: { id: 'u1' }, isLoading: false }
+    const answer = deferred<unknown>()
+    mockGet.mockReturnValueOnce(answer.promise)
+    render(<ReadyProbe />)
+    await flush()
+    expect(text('flags-ready')).toBe('false')
+    await act(async () => {
+      answer.resolve({ flags: {}, extensions: {} })
+    })
+    expect(text('flags-ready')).toBe('true')
+  })
+
+  it('counts a failed answer as ready (every flag reads off)', async () => {
+    mockAuth = { user: { id: 'u1' }, isLoading: false }
+    mockGet.mockRejectedValueOnce(new Error('down'))
+    render(<ReadyProbe />)
+    await flush()
+    expect(text('flags-ready')).toBe('true')
+  })
+
+  it('is false before auth has settled', async () => {
+    mockAuth = { user: null, isLoading: true }
+    render(<ReadyProbe />)
+    await flush()
+    expect(text('flags-ready')).toBe('false')
+  })
 })

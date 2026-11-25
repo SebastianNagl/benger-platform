@@ -184,17 +184,41 @@ describe('LabelingInterface - branch2 coverage', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument()
   })
 
-  it('renders all-tasks-completed screen when no task and not loading', () => {
-    setupMocks({ loading: false })
+  // The first load handed out a task, which is gone again (submitted): the
+  // store holds no task and is not loading.
+  const completedAfterLoad = () =>
+    setupMocks({
+      loading: false,
+      getNextTask: jest.fn().mockResolvedValue({ id: 'task-1', data: {} }),
+    })
+
+  it('renders all-tasks-completed screen when no task and not loading', async () => {
+    completedAfterLoad()
     render(<LabelingInterface projectId="proj-1" />)
-    expect(screen.getByText('All tasks completed!')).toBeInTheDocument()
+    expect(await screen.findByText('All tasks completed!')).toBeInTheDocument()
     expect(screen.getByText('Back to Project')).toBeInTheDocument()
   })
 
-  it('navigates back when clicking Back to Project on completed screen', () => {
-    setupMocks({ loading: false })
+  it('keeps the spinner, not the completion screen, until the first load answered', () => {
+    completedAfterLoad()
     render(<LabelingInterface projectId="proj-1" />)
-    fireEvent.click(screen.getByText('Back to Project'))
+    expect(screen.queryByText('All tasks completed!')).not.toBeInTheDocument()
+  })
+
+  it('never renders a task held from another project', () => {
+    setupMocks({
+      currentTask: { id: 'task-x', project_id: 'other-project', data: {} },
+      currentTaskPosition: 1,
+      currentTaskTotal: 1,
+    })
+    render(<LabelingInterface projectId="proj-1" />)
+    expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+  })
+
+  it('navigates back when clicking Back to Project on completed screen', async () => {
+    completedAfterLoad()
+    render(<LabelingInterface projectId="proj-1" />)
+    fireEvent.click(await screen.findByText('Back to Project'))
     expect(mockPush).toHaveBeenCalledWith('/projects/proj-1')
   })
 

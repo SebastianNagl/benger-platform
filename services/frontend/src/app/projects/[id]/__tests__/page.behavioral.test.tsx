@@ -289,8 +289,13 @@ describe('ProjectDetailPage — render-state branches', () => {
     expect(screen.queryByText('Legal Benchmark')).not.toBeInTheDocument()
   })
 
-  it('shows the not-found card when loading finished but project is null', async () => {
-    setStore({ currentProject: null, loading: false })
+  it('shows the not-found card once the project read was refused', async () => {
+    setStore({
+      currentProject: null,
+      loading: false,
+      // The API refused the project.
+      fetchProject: jest.fn().mockResolvedValue(null),
+    })
     render(<ProjectDetailPage params={params()} />)
     await waitFor(() => {
       expect(screen.getByText('project.notFound')).toBeInTheDocument()
@@ -298,8 +303,24 @@ describe('ProjectDetailPage — render-state branches', () => {
     expect(screen.getByText('project.notFoundDescription')).toBeInTheDocument()
   })
 
+  it('never renders the previously opened project while this one loads', async () => {
+    setStore({
+      currentProject: { ...baseProject, id: 'proj-other', title: 'Vorheriges' },
+      fetchProject: jest.fn(() => new Promise(() => {})),
+    })
+    render(<ProjectDetailPage params={params()} />)
+    expect(await screen.findByText('project.loading')).toBeInTheDocument()
+    expect(screen.queryByText('Vorheriges')).not.toBeInTheDocument()
+    expect(screen.queryByText('project.notFound')).not.toBeInTheDocument()
+  })
+
   it('navigates back to /projects from the not-found card button', async () => {
-    setStore({ currentProject: null, loading: false })
+    setStore({
+      currentProject: null,
+      loading: false,
+      // The API refused the project.
+      fetchProject: jest.fn().mockResolvedValue(null),
+    })
     render(<ProjectDetailPage params={params()} />)
     const back = await screen.findByText('project.backToProjects')
     fireEvent.click(back)
@@ -598,6 +619,39 @@ describe('ProjectDetailPage — sidebar quick actions', () => {
         screen.getByText('project.quickActions.allTasksAnnotated'),
       ).toBeInTheDocument()
     })
+  })
+
+  it('shows the quick actions once the per-user task check answered, banner and all', async () => {
+    let answerNext!: (value: unknown) => void
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) =>
+      url.endsWith('/next')
+        ? new Promise((resolve) => {
+            answerNext = resolve
+          })
+        : Promise.resolve({}),
+    )
+    render(<ProjectDetailPage params={params()} />)
+    // The check starts without waiting for the project read.
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/next'),
+    )
+    expect(screen.getByText('project.loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('project-start-labeling')).toBeNull()
+    await act(async () => {
+      answerNext({ task: null, remaining: 0 })
+    })
+    // First frame of the panel: the start action and its notice together.
+    expect(
+      await screen.findByTestId('project-start-labeling'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('project.quickActions.allTasksAnnotated'),
+    ).toBeInTheDocument()
+    expect(
+      (apiClient.get as jest.Mock).mock.calls.filter(([url]) =>
+        String(url).endsWith('/next'),
+      ),
+    ).toHaveLength(1)
   })
 
   it('hides the "all tasks annotated" banner when tasks remain', async () => {

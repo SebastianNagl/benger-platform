@@ -272,6 +272,41 @@ export function DynamicAnnotationInterface({
     return { parsedConfig: parsed, configErrors: [] }
   }, [labelConfig, taskData, t])
 
+  // The form shows in one step: the code of every field type in the config
+  // is loaded first (one placeholder meanwhile) instead of each field
+  // swapping its own placeholder for itself as its code arrives, which
+  // moved the form around several times on a first visit. Types without
+  // `preload` (an overlay's own lazy components) still load on render.
+  const fieldTypes = useMemo(() => {
+    const types = new Set<string>()
+    const walk = (node: ParsedComponent) => {
+      types.add(node.type)
+      node.children.forEach(walk)
+    }
+    if (parsedConfig) walk(parsedConfig)
+    return [...types].sort()
+  }, [parsedConfig])
+  const fieldTypesKey = fieldTypes.join(',')
+  const fieldsLoaded = fieldTypes.every(
+    (type) => getComponent(type)?.isLoaded?.() ?? true,
+  )
+  const [preloadedTypes, setPreloadedTypes] = useState<string | null>(null)
+  useEffect(() => {
+    if (fieldsLoaded) return
+    let cancelled = false
+    Promise.allSettled(
+      fieldTypes.map((type) => getComponent(type)?.preload?.()),
+    ).then(() => {
+      if (!cancelled) setPreloadedTypes(fieldTypesKey)
+    })
+    return () => {
+      cancelled = true
+    }
+    // fieldTypesKey stands for fieldTypes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldTypesKey, fieldsLoaded])
+  const fieldsReady = fieldsLoaded || preloadedTypes === fieldTypesKey
+
   // Handle component value change. Memoized (stable identity): annotation
   // components keep callbacks in effect dependency arrays, and a per-render
   // identity re-fires those effects after every state landing — with a
@@ -529,7 +564,13 @@ export function DynamicAnnotationInterface({
           renderComponent for every field node exactly once — including
           fields the user placed 'none' (they stay mounted and render null so
           drafts, context registration, and heading sync keep working). */}
+      {parsedConfig && !fieldsReady && (
+        <div data-testid="annotation-fields-loading">
+          <Skeleton className="h-20 w-full" />
+        </div>
+      )}
       {parsedConfig &&
+        fieldsReady &&
         (useModernRender && ModernLayout ? (
           <Suspense fallback={<Skeleton className="h-96 w-full" />}>
             <ModernLayout

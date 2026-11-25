@@ -383,7 +383,23 @@ describe('LabelingInterface', () => {
   })
 
   describe('Completion State', () => {
-    it('should show completion message when no tasks available', () => {
+    it('shows the spinner, not the completion screen, before the first load answered', () => {
+      const completedStore = {
+        ...mockStoreState,
+        currentTask: null,
+        loading: false,
+        // The first load never answers here.
+        fetchProject: jest.fn(() => new Promise(() => {})),
+      }
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(completedStore)
+
+      render(<LabelingInterface projectId="project-1" />)
+
+      expect(screen.queryByText('All tasks completed!')).not.toBeInTheDocument()
+      expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+    })
+
+    it('should show completion message when no tasks available', async () => {
       const completedStore = {
         ...mockStoreState,
         currentTask: null,
@@ -393,7 +409,9 @@ describe('LabelingInterface', () => {
 
       render(<LabelingInterface projectId="project-1" />)
 
-      expect(screen.getByText('All tasks completed!')).toBeInTheDocument()
+      expect(
+        await screen.findByText('All tasks completed!'),
+      ).toBeInTheDocument()
       expect(
         screen.getByText(
           "You've annotated all available tasks in this project.",
@@ -401,7 +419,7 @@ describe('LabelingInterface', () => {
       ).toBeInTheDocument()
     })
 
-    it('should allow navigation back to project from completion screen', () => {
+    it('should allow navigation back to project from completion screen', async () => {
       const completedStore = {
         ...mockStoreState,
         currentTask: null,
@@ -411,7 +429,7 @@ describe('LabelingInterface', () => {
 
       render(<LabelingInterface projectId="project-1" />)
 
-      const backButton = screen.getByText('Back to Project')
+      const backButton = await screen.findByText('Back to Project')
       fireEvent.click(backButton)
 
       expect(mockRouter.push).toHaveBeenCalledWith('/projects/project-1')

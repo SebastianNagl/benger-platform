@@ -345,7 +345,9 @@ describe('TaskDetailPage', () => {
       render(<TaskDetailPage params={params} />)
 
       await waitFor(() => {
-        expect(mockFetchProject).toHaveBeenCalledWith('project-123')
+        expect(mockFetchProject).toHaveBeenCalledWith('project-123', {
+          shared: true,
+        })
       })
     })
 
@@ -998,10 +1000,24 @@ describe('TaskDetailPage', () => {
       )
     })
 
-    it('uses fallback text in breadcrumb when project not loaded', async () => {
+    it('waits for the project before showing the task, never another project', async () => {
+      ;(useProjectStore as jest.Mock).mockReturnValue({
+        currentProject: { ...mockProject, id: 'other', title: 'Other Project' },
+        fetchProject: jest.fn(() => new Promise(() => {})),
+      })
+
+      const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })
+      render(<TaskDetailPage params={params} />)
+
+      expect(await screen.findByText('Loading...')).toBeInTheDocument()
+      expect(screen.queryByText('Other Project')).not.toBeInTheDocument()
+    })
+
+    it('uses fallback text in breadcrumb when the project read fails', async () => {
       ;(useProjectStore as jest.Mock).mockReturnValue({
         currentProject: null,
-        fetchProject: jest.fn(),
+        // The API refused the project: the page shows the task anyway.
+        fetchProject: jest.fn().mockResolvedValue(null),
       })
 
       const params = Promise.resolve({ id: 'project-123', taskId: 'task-456' })

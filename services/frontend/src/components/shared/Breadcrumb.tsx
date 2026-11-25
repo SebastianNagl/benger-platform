@@ -1,9 +1,11 @@
 import { useI18n } from '@/contexts/I18nContext'
 import { HomeIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 
 interface BreadcrumbItem {
-  label: string
+  /** Text, or a placeholder while the text is still loading. */
+  label: ReactNode
   href?: string
 }
 

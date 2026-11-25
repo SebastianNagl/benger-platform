@@ -78,6 +78,8 @@ export {
 } from './writingPresence'
 export type { WritingPresenceReporter } from './writingPresence'
 
+import { useSyncExternalStore } from 'react'
+
 import {
   _resetEnabledExtensionsForTests,
   enabledExtensions,
@@ -97,6 +99,9 @@ const OVERLAYS: Record<ExtensionName, () => Promise<Overlay>> = {
 
 const loaded = new Set<string>()
 const inFlight = new Map<string, Promise<boolean>>()
+/** Overlays whose first load attempt has finished, loaded or failed. */
+const settled = new Set<string>()
+const settledListeners = new Set<() => void>()
 
 async function loadOne(name: ExtensionName): Promise<boolean> {
   if (loaded.has(name)) return true
@@ -119,6 +124,10 @@ async function loadOne(name: ExtensionName): Promise<boolean> {
       return false
     } finally {
       inFlight.delete(name)
+      if (!settled.has(name)) {
+        settled.add(name)
+        settledListeners.forEach((fn) => fn())
+      }
     }
   })()
   inFlight.set(name, attempt)
@@ -155,10 +164,41 @@ export function isExtendedLoaded(): boolean {
   return isExtensionLoaded('extended')
 }
 
+/**
+ * Whether every enabled overlay has had its first load attempt in this page
+ * load (registered, or failed and given up for now). Until then their slots
+ * are still empty, so a page that renders a slot would show the platform
+ * part first and the overlay part a moment later. True at once when the
+ * build enables no overlay.
+ */
+export function extensionsSettled(): boolean {
+  return enabledExtensions().every((name) => settled.has(name))
+}
+
+function subscribeSettled(listener: () => void): () => void {
+  settledListeners.add(listener)
+  return () => {
+    settledListeners.delete(listener)
+  }
+}
+
+/**
+ * React hook for `extensionsSettled()`. The app shell waits for it, so the
+ * pages inside it render with every overlay slot already registered.
+ */
+export function useExtensionsSettled(): boolean {
+  return useSyncExternalStore(
+    subscribeSettled,
+    extensionsSettled,
+    extensionsSettled,
+  )
+}
+
 /** Test helper: forget loaded overlays, pending loads and the owner. */
 export function _resetExtensionsForTests(): void {
   loaded.clear()
   inFlight.clear()
+  settled.clear()
   setRegistrationOwner(null)
   _resetEnabledExtensionsForTests()
 }

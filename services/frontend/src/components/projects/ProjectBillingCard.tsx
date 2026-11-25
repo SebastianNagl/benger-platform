@@ -88,17 +88,23 @@ export function ProjectBillingCard({ project }: Props) {
       <h3 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
         {t('project.billing.title')}
       </h3>
-      {/* The extended slot knows who really pays (its authoritative line
-          replaces the generic one, which it shows as long as it has no
-          answer); two lines could contradict each other. */}
-      {Extra ? (
-        // eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot
-        <Extra project={project} fallback={line} />
-      ) : (
-        line && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{line}</p>
-        )
-      )}
+      {/* The line arrives after the card (org settings, the extended
+          payer): two lines of room are kept from the start, so the cards
+          below do not move when it shows or when the extended line takes
+          over from the generic one. */}
+      <div className="min-h-10" data-testid="project-billing-line">
+        {/* The extended slot knows who really pays (its authoritative line
+            replaces the generic one, which it shows as long as it has no
+            answer); two lines could contradict each other. */}
+        {Extra ? (
+          // eslint-disable-next-line react-hooks/static-components -- slot component resolved by useSlot
+          <Extra project={project} fallback={line} />
+        ) : (
+          line && (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">{line}</p>
+          )
+        )}
+      </div>
     </div>
   )
 }
