@@ -2017,7 +2017,15 @@ API change).
     notice counts such a row only when the judge released it, and the
     attempt scores of the dashboards and shares skip it.
 
-2.85 (2026-11-25): shared frontend pieces for the pages under a project and
+2.85 (2026-11-25): the original of an annotation reviewed in place
+  (migration 159, additive).
+  - ``annotations.original_result`` (JSONB, nullable): the author's
+    ``result`` as it stood before a review replaced it in place. Null while
+    ``result`` is still the author's own answer; the writer sets it once, on
+    the first in-place change, so it keeps the original across later fixes.
+    ``AnnotationResponse.original_result``; exported and imported with the
+    review trail (``serialize_annotation`` and both import paths).
+2.86 (2026-11-25): shared frontend pieces for the pages under a project and
   for review surfaces (no migration, additive; frontend only).
   - ``@/components/projects/ProjectBreadcrumb`` (``ProjectBreadcrumb``,
     ``ProjectBreadcrumbItem``): dashboard, projects, the project by its
@@ -2047,7 +2055,7 @@ API change).
 
 import os
 
-CORE_API_VERSION = "2.85"
+CORE_API_VERSION = "2.86"
 
 
 def extended_required() -> bool:

@@ -148,6 +148,7 @@ def serialize_annotation(
         "review_result": ann.review_result,
         "review_annotation": ann.review_annotation,
         "review_comment": ann.review_comment,
+        "original_result": ann.original_result,
         "withdrawn_at": _isoformat(ann.withdrawn_at),
         "withdrawn_by": ann.withdrawn_by,
         "withdrawal_reason": ann.withdrawal_reason,
