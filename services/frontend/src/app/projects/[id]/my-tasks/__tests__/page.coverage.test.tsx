@@ -502,6 +502,6 @@ describe('MyTasksPage - branch coverage', () => {
 
     render(<MyTasksPage />)
 
-    expect(mockFetchProject).toHaveBeenCalledWith('proj-1')
+    expect(mockFetchProject).toHaveBeenCalledWith('proj-1', { shared: true })
   })
 })

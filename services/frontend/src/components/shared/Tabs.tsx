@@ -5,15 +5,38 @@ import clsx from 'clsx'
 import {
   ButtonHTMLAttributes,
   HTMLAttributes,
+  KeyboardEvent,
   ReactNode,
   createContext,
   useContext,
+  useId,
   useState,
 } from 'react'
+
+/**
+ * Tabs following the WAI-ARIA tabs pattern: the list is a `tablist`, each
+ * trigger a `tab` with `aria-selected`, each content a `tabpanel` labelled
+ * by its tab. The arrow keys, Home and End move between the tabs of a list
+ * and select the one they land on.
+ */
 
 interface TabsContextType {
   activeTab: string
   setActiveTab: (tab: string) => void
+  baseId: string
+}
+
+/** A DOM id fragment for a tab value (values may hold any character). */
+function idPart(value: string): string {
+  return value.replace(/[^A-Za-z0-9_-]/g, '_')
+}
+
+function tabId(baseId: string, value: string): string {
+  return `${baseId}-tab-${idPart(value)}`
+}
+
+function panelId(baseId: string, value: string): string {
+  return `${baseId}-panel-${idPart(value)}`
 }
 
 const TabsContext = createContext<TabsContextType | null>(null)
@@ -31,7 +54,10 @@ interface TabsProps extends Omit<
   className?: string
 }
 
-interface TabsListProps {
+interface TabsListProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'children' | 'className' | 'role'
+> {
   children: ReactNode
   className?: string
 }
@@ -68,6 +94,7 @@ export function Tabs({
   // yank them away from it (uncontrolled mode only).
   const [userSelected, setUserSelected] = useState(false)
   const mounted = useHydration()
+  const baseId = useId()
   const isControlled = value !== undefined
 
   // Uncontrolled mode: re-sync with a changed defaultValue only while the
@@ -93,6 +120,7 @@ export function Tabs({
       value={{
         activeTab: mounted || isControlled ? activeTab : defaultValue,
         setActiveTab,
+        baseId,
       }}
     >
       <div className={className} {...rest}>
@@ -102,9 +130,49 @@ export function Tabs({
   )
 }
 
-export function TabsList({ children, className }: TabsListProps) {
+export function TabsList({
+  children,
+  className,
+  onKeyDown,
+  ...rest
+}: TabsListProps) {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    onKeyDown?.(event)
+    if (event.defaultPrevented) return
+    const tabs = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="tab"]:not([disabled])',
+      ),
+    )
+    const current = tabs.indexOf(event.target as HTMLButtonElement)
+    if (current < 0) return
+    let next: number
+    switch (event.key) {
+      case 'ArrowRight':
+        next = (current + 1) % tabs.length
+        break
+      case 'ArrowLeft':
+        next = (current - 1 + tabs.length) % tabs.length
+        break
+      case 'Home':
+        next = 0
+        break
+      case 'End':
+        next = tabs.length - 1
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+    tabs[next].focus()
+    tabs[next].click()
+  }
+
   return (
     <div
+      role="tablist"
+      onKeyDown={handleKeyDown}
+      {...rest}
       className={clsx(
         'inline-flex items-center justify-center gap-0.5 rounded-full bg-zinc-100 p-0.5 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
         className,
@@ -129,6 +197,8 @@ export function TabsTrigger({
     return (
       <button
         type="button"
+        role="tab"
+        aria-selected={false}
         disabled
         className={clsx(
           'inline-flex h-7 items-center justify-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
@@ -142,12 +212,15 @@ export function TabsTrigger({
     )
   }
 
-  const { activeTab, setActiveTab } = context
+  const { activeTab, setActiveTab, baseId } = context
   const isActive = activeTab === value
 
   return (
     <button
       type="button"
+      role="tab"
+      id={tabId(baseId, value)}
+      aria-selected={isActive}
       onClick={() => setActiveTab(value)}
       className={clsx(
         'inline-flex h-7 items-center justify-center rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
@@ -178,8 +251,13 @@ export function TabsContent({
     return null
   }
 
-  const { activeTab } = context
+  const { activeTab, baseId } = context
   const isActive = activeTab === value
+  const panelProps = {
+    role: 'tabpanel' as const,
+    id: panelId(baseId, value),
+    'aria-labelledby': tabId(baseId, value),
+  }
 
   // If not force mounting and not active, don't render
   if (!forceMount && !isActive) return null
@@ -193,6 +271,7 @@ export function TabsContent({
           className,
         )}
         style={{ display: isActive ? 'block' : 'none' }}
+        {...panelProps}
         {...rest}
       >
         {children}
@@ -207,6 +286,7 @@ export function TabsContent({
         'mt-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none',
         className,
       )}
+      {...panelProps}
       {...rest}
     >
       {children}

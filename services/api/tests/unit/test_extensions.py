@@ -232,7 +232,10 @@ class TestExtensionLoader:
         # release predicates in metric_filters.
         # 2.85 adds annotations.original_result (migration 159), the author's
         # result before a review replaced it in place.
-        assert CORE_API_VERSION == "2.85"
+        # 2.86 adds the shared frontend pieces ProjectBreadcrumb,
+        # ProjectPageHeader, ItemStepper, the ARIA Tabs, the info Badge and
+        # getContrastColor.
+        assert CORE_API_VERSION == "2.86"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

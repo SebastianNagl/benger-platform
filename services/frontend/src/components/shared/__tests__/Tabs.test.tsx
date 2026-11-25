@@ -359,3 +359,121 @@ describe('Tabs — controlled mode', () => {
     expect(screen.getByTestId('my-tabs')).toBeInTheDocument()
   })
 })
+
+describe('Tabs — ARIA tabs pattern', () => {
+  const AriaTabs = ({
+    onValueChange,
+  }: {
+    onValueChange?: (v: string) => void
+  }) => (
+    <Tabs defaultValue="one" onValueChange={onValueChange}>
+      <TabsList aria-label="Methods">
+        <TabsTrigger value="one">One</TabsTrigger>
+        <TabsTrigger value="two words">Two</TabsTrigger>
+        <TabsTrigger value="off" disabled>
+          Off
+        </TabsTrigger>
+        <TabsTrigger value="four">Four</TabsTrigger>
+      </TabsList>
+      <TabsContent value="one">Panel one</TabsContent>
+      <TabsContent value="two words">Panel two</TabsContent>
+      <TabsContent value="four">Panel four</TabsContent>
+    </Tabs>
+  )
+
+  it('exposes a named tablist with selectable tabs', async () => {
+    render(<AriaTabs />)
+    const list = screen.getByRole('tablist', { name: 'Methods' })
+    expect(list).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'One' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
+    })
+    expect(screen.getByRole('tab', { name: 'Two' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Two' }))
+    expect(screen.getByRole('tab', { name: 'Two' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('tab', { name: 'One' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    )
+  })
+
+  it('labels each panel by its tab, also for values with spaces', async () => {
+    render(<AriaTabs />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Two' }))
+    const panel = await screen.findByRole('tabpanel', { name: 'Two' })
+    expect(panel).toHaveTextContent('Panel two')
+    const tab = screen.getByRole('tab', { name: 'Two' })
+    expect(tab.id).toMatch(/^[^\s]+$/)
+    expect(panel).toHaveAttribute('aria-labelledby', tab.id)
+  })
+
+  it('moves and selects with the arrow keys, Home and End, skipping disabled tabs', async () => {
+    const onValueChange = jest.fn()
+    render(<AriaTabs onValueChange={onValueChange} />)
+    const one = screen.getByRole('tab', { name: 'One' })
+    one.focus()
+
+    fireEvent.keyDown(one, { key: 'ArrowRight' })
+    const two = screen.getByRole('tab', { name: 'Two' })
+    expect(two).toHaveFocus()
+    expect(onValueChange).toHaveBeenLastCalledWith('two words')
+
+    fireEvent.keyDown(two, { key: 'ArrowRight' })
+    const four = screen.getByRole('tab', { name: 'Four' })
+    expect(four).toHaveFocus()
+    expect(onValueChange).toHaveBeenLastCalledWith('four')
+
+    // Wraps around at the end.
+    fireEvent.keyDown(four, { key: 'ArrowRight' })
+    expect(one).toHaveFocus()
+
+    fireEvent.keyDown(one, { key: 'ArrowLeft' })
+    expect(four).toHaveFocus()
+
+    fireEvent.keyDown(four, { key: 'Home' })
+    expect(one).toHaveFocus()
+
+    fireEvent.keyDown(one, { key: 'End' })
+    expect(four).toHaveFocus()
+    expect(await screen.findByText('Panel four')).toBeInTheDocument()
+  })
+
+  it('leaves other keys and handled events alone', () => {
+    const onValueChange = jest.fn()
+    const onKeyDown = jest.fn((e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') e.preventDefault()
+    })
+    render(
+      <Tabs defaultValue="a" onValueChange={onValueChange}>
+        <TabsList onKeyDown={onKeyDown}>
+          <TabsTrigger value="a">A</TabsTrigger>
+          <TabsTrigger value="b">B</TabsTrigger>
+        </TabsList>
+      </Tabs>,
+    )
+    const a = screen.getByRole('tab', { name: 'A' })
+    a.focus()
+    fireEvent.keyDown(a, { key: 'Enter' })
+    fireEvent.keyDown(a, { key: 'ArrowLeft' })
+    expect(onKeyDown).toHaveBeenCalledTimes(2)
+    expect(onValueChange).not.toHaveBeenCalled()
+    expect(a).toHaveFocus()
+  })
+
+  it('renders the fallback trigger outside Tabs as an unselected tab', () => {
+    render(<TabsTrigger value="x">Loose</TabsTrigger>)
+    const tab = screen.getByRole('tab', { name: 'Loose' })
+    expect(tab).toHaveAttribute('aria-selected', 'false')
+    expect(tab).toBeDisabled()
+  })
+})

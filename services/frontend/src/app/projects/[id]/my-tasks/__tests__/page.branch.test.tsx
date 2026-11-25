@@ -95,7 +95,7 @@ describe('MyTasksPage Branch Coverage', () => {
         loading: false,
       })
       render(<MyTasksPage />)
-      expect(mockFetch).toHaveBeenCalledWith('proj-1')
+      expect(mockFetch).toHaveBeenCalledWith('proj-1', { shared: true })
     })
 
     it('does NOT trigger fetchProject when currentProject ID matches', () => {

@@ -2025,11 +2025,41 @@ API change).
     the first in-place change, so it keeps the original across later fixes.
     ``AnnotationResponse.original_result``; exported and imported with the
     review trail (``serialize_annotation`` and both import paths).
+2.86 (2026-11-25): shared frontend pieces for the pages under a project and
+  for review surfaces (no migration, additive; frontend only).
+  - ``@/components/projects/ProjectBreadcrumb`` (``ProjectBreadcrumb``,
+    ``ProjectBreadcrumbItem``): dashboard, projects, the project by its
+    title (only when the store holds this very project, else its id while
+    the project is read; ``projectTitle`` when the page knows it), then the
+    page's crumbs. The platform's project, data, my-tasks, task metadata
+    and report editor pages use it.
+  - ``@/components/projects/ProjectPageHeader``: that breadcrumb, the ``h1``
+    in the app's standard style, ``description``, ``badge``, ``actions`` and
+    ``children`` under the description.
+  - ``@/components/shared/ItemStepper``: previous / next icon buttons with
+    accessible names (``labels`` override them), an "x of y" counter
+    (``shared.itemStepper.*``), disabled at the ends or while ``disabled``,
+    ``variant="compact"`` with bare chevrons, ``children`` in place of the
+    counter, ``testId`` prefix for ``-previous`` / ``-position`` / ``-next``.
+  - ``@/components/shared/Tabs``: the WAI-ARIA tabs pattern (``tablist``,
+    ``tab`` with ``aria-selected``, ``tabpanel`` labelled by its tab; arrow
+    keys, Home and End move between the tabs and select). ``TabsList``
+    passes other div props such as ``aria-label`` through.
+  - ``@/components/shared/Badge``: variant ``info``.
+  - ``@/lib/utils/color``: ``getContrastColor(color)``, black or white text
+    for a background in any CSS colour (hex read directly; names,
+    ``rgb()``, ``hsl()`` through the browser; alpha ignored), white for
+    anything that is not a colour.
+  - ``projectStore.fetchProject(projectId, options?: { shared?: boolean })``:
+    with ``shared: true`` (plain page and breadcrumb reads) it joins the
+    project's request in flight; any other call reads anew, so a refresh
+    after a write never gets data read before it. The response of a
+    request that a newer one has replaced does not touch the store.
 """
 
 import os
 
-CORE_API_VERSION = "2.85"
+CORE_API_VERSION = "2.86"
 
 
 def extended_required() -> bool:

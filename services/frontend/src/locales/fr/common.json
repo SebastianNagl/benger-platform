@@ -9210,6 +9210,11 @@
     "breadcrumb": {
       "ariaLabel": "Fil d'Ariane"
     },
+    "itemStepper": {
+      "previous": "Élément précédent",
+      "next": "Élément suivant",
+      "position": "{current} sur {total}"
+    },
     "pagination": {
       "goToPage": "Aller à la page {page}"
     }
